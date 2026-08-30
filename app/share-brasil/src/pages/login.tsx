@@ -1,11 +1,10 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { CheckCircle2, Eye, EyeOff, Lock, Plane, User } from "lucide-react";
-import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { getCurrentSession, login as loginWithWorker } from "@/lib/api";
 
 const flightRoutes = [
   { y: "-18vh", duration: "19s", delay: "-4s", size: 22, opacity: 0.34 },
@@ -57,7 +56,6 @@ function InstallPrompt() {
 }
 
 export default function Login() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -74,21 +72,11 @@ export default function Login() {
       setRememberUser(true);
     }
 
-    if (!supabase) {
-      setIsCheckingSession(false);
-      return;
-    }
-
-    let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate("/", { replace: true });
-      if (active) setIsCheckingSession(false);
+    void getCurrentSession().then((session) => {
+      if (session) window.location.replace("/");
+      else setIsCheckingSession(false);
     });
-
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
+  }, []);
 
   const handleUsernameChange = (value: string) => {
     setUsername(value.replace(/[@\s]/g, "").toLowerCase());
@@ -117,33 +105,22 @@ export default function Login() {
       return;
     }
 
-    if (!supabase || !isSupabaseConfigured) {
-      toast({
-        title: "Autenticação indisponível",
-        description: "Configure o Supabase para liberar o acesso ao portal.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       if (rememberUser) window.localStorage.setItem("login_username", trimmedUsername);
       else window.localStorage.removeItem("login_username");
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: `${trimmedUsername}@share-brasil.com`,
-        password,
+      await loginWithWorker(trimmedUsername, password);
+      toast({
+        title: "Acesso autorizado",
+        description: "Bem-vindo(a) ao portal Share Brasil.",
       });
-
-      if (error) throw error;
-      toast({ title: "Acesso autorizado", description: "Bem-vindo(a) ao portal Share Brasil." });
-      navigate("/", { replace: true });
+      window.location.replace("/");
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       toast({
         title: "Acesso negado",
-        description: message.includes("invalid") || message.includes("credentials")
+        description: message.includes("credenciais_invalidas")
           ? "Usuário ou senha incorretos. Tente novamente."
           : "Não foi possível realizar o login. Tente novamente.",
         variant: "destructive",

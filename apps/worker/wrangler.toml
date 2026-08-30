@@ -4,10 +4,11 @@ compatibility_date = "2026-08-30"
 workers_dev = true
 
 [vars]
-# Defina SUPABASE_URL e SUPABASE_ANON_KEY via `wrangler secret put`.
+# ALLOWED_ORIGIN pode ser definido aqui ou como secret.
+# CLIENT_SESSION_TTL_SECONDS é opcional e, por padrão, dura 8 horas.
 
 [[d1_databases]]
 binding = "DB"
-database_name = "share-brasil"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_name = "bd_sharebrasil"
+database_id = "4267a49f-e38f-442f-8b6f-47fe02dea308"
 migrations_dir = "migrations"

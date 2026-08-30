@@ -10,6 +10,10 @@
     "db:remote": "wrangler d1 migrations apply bd_sharebrasil --remote",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "fast-xml-parser": "^5.3.0",
+    "hono": "^4.9.7"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260830.1",
     "typescript": "^5.9.3",

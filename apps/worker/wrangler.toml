@@ -4,11 +4,27 @@ compatibility_date = "2026-08-30"
 workers_dev = true
 
 [vars]
-# ALLOWED_ORIGIN pode ser definido aqui ou como secret.
+EMAIL_FROM = "Financeiro Share Brasil <financeiro@share-brasil.com>"
+# ALLOWED_ORIGINS pode ser definido como secret para restringir o CORS.
 # CLIENT_SESSION_TTL_SECONDS é opcional e, por padrão, dura 8 horas.
 
+# Banco legado usado pelas rotas existentes do Worker.
 [[d1_databases]]
 binding = "DB"
+database_name = "share-brasil"
+database_id = "b7048c06-cc46-4832-bac5-641a24ce245c"
+
+# Banco novo com as tabelas migradas do Supabase para o Portal Cliente.
+[[d1_databases]]
+binding = "SHARE_DB"
 database_name = "bd_sharebrasil"
 database_id = "4267a49f-e38f-442f-8b6f-47fe02dea308"
 migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "83a861dc2e27486e86eb23909fbb9861"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "nf-boletos-clients"

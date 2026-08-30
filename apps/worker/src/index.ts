@@ -827,6 +827,70 @@ function extractSupabaseUserId(c: Context<{ Bindings: Bindings }>): string | nul
   }
 }
 
+type ColaboradorClaims = { id: string; email: string; nome: string }
+
+type Colaborador = {
+  id: string
+  usuario_id: string
+  email: string
+  nome_completo: string
+  cpf: string | null
+  cargo: string | null
+  departamento: string | null
+  telefone: string | null
+  data_admissao: string | null
+  foto_url: string | null
+  dias_ferias_direito: number
+  criado_em: string
+  atualizado_em: string
+}
+
+function extractSupabaseClaims(c: Context<{ Bindings: Bindings }>): ColaboradorClaims | null {
+  const authHeader = c.req.header('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+  try {
+    const token = authHeader.slice(7)
+    const payloadB64 = token.split('.')[1]
+    const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')))
+    const id = typeof payload?.sub === 'string' ? payload.sub : ''
+    const email = typeof payload?.email === 'string' ? payload.email.toLowerCase() : ''
+    const metadata = payload?.user_metadata ?? {}
+    const nome = String(metadata.full_name ?? metadata.name ?? email.split('@')[0] ?? 'Colaborador').trim()
+    return id && email ? { id, email, nome: nome || email } : null
+  } catch {
+    return null
+  }
+}
+
+async function authenticatedColaborador(c: Context<{ Bindings: Bindings }>): Promise<Colaborador | null> {
+  if (!(await requireAuthenticatedUser(c))) return null
+  const claims = extractSupabaseClaims(c)
+  if (!claims) return null
+  const db = portalDb(c)
+  await db.prepare(`
+    INSERT INTO colaboradores (id, usuario_id, email, nome_completo)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(usuario_id) DO NOTHING
+  `).bind(uuid(), claims.id, claims.email, claims.nome).run()
+  return db.prepare('SELECT * FROM colaboradores WHERE usuario_id = ?1 LIMIT 1').bind(claims.id).first<Colaborador>()
+}
+
+function collaboratorFileExtension(file: File): string {
+  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return extension || 'bin'
+}
+
+async function saveCollaboratorFile(c: Context<{ Bindings: Bindings }>, colaboradorId: string, file: File, folder: string): Promise<string> {
+  const maxSize = 10 * 1024 * 1024
+  if (!file.size) throw new Error('arquivo_vazio')
+  if (file.size > maxSize) throw new Error('arquivo_excede_10mb')
+  const key = `colaboradores/${colaboradorId}/${folder}/${Date.now()}-${uuid().slice(0, 8)}.${collaboratorFileExtension(file)}`
+  await c.env.FILES.put(key, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type || 'application/octet-stream' },
+  })
+  return key
+}
+
 /**
  * Converte um ArrayBuffer (conteúdo lido do R2) para base64, em chunks para
  * não estourar o limite de argumentos do String.fromCharCode em arquivos grandes.
@@ -2181,76 +2245,14 @@ type PortalUser = {
   id: string
   login: string
   nome_exibicao: string | null
-  url_avatar: string | null
   cliente_id: string | null
   socio_id: string | null
-}
-
-type PortalCliente = {
-  id: string
-  razao_social: string | null
-  cnpj: string | null
-  inscricao_estadual: string | null
-  proprietario: string | null
-  endereco: string | null
-  cidade: string | null
-  uf: string | null
-  contato_financeiro: string | null
-  telefone_financeiro: string | null
-  telefone_cliente: string | null
-  telefone_outro: string | null
-  email_principal: string | null
-  emails: string
-  url_logo: string | null
-  status: string | null
-  holding: number
-  codigo_cliente: string | null
-  observacoes: string | null
-}
-
-type PortalSocio = {
-  id: string
-  cliente_id: string
-  nome: string
-  cpf: string
-  email_principal: string | null
-  emails: string
-  endereco: string | null
-  cidade: string | null
-  uf: string | null
-  contato_financeiro: string | null
-  telefone_financeiro: string | null
-  telefone: string | null
-  observacoes: string | null
-}
-
-type PortalParticipacao = {
-  id: string
-  cliente_id: string | null
-  socio_id: string | null
-  aeronave_id: string
-  percentual_sociedade: number
-  modelo_aeronave: string | null
-  matricula_registro: string | null
-  fabricante: string | null
-  modelo: string | null
-  numero_serie: string | null
-  nome_proprietario: string | null
-  status: string | null
-  ano: string | null
-  base: string | null
-  preco_hora: string | null
-  url_imagem: string | null
-  velocidade_cruzeiro: string | null
-  tipo_aeronave: string | null
 }
 
 type PortalSession = PortalUser & { exp: number }
 const portalEncoder = new TextEncoder()
 const portalDecoder = new TextDecoder()
 const PORTAL_SESSION_TTL = 8 * 60 * 60
-// O workerd em produção limita PBKDF2 a 100.000 iterações.
-const PORTAL_PBKDF2_ITERATIONS = 100_000
 
 function portalDb(c: Context<{ Bindings: Bindings }>): D1Database {
   return c.env.SHARE_DB ?? c.env.DB
@@ -2272,7 +2274,7 @@ async function portalHmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', portalEncoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
 }
 
-async function portalHashPassword(password: string, salt: Uint8Array, iterations = PORTAL_PBKDF2_ITERATIONS): Promise<Uint8Array> {
+async function portalHashPassword(password: string, salt: Uint8Array, iterations = 210_000): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey('raw', portalEncoder.encode(password), 'PBKDF2', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, 256)
   return new Uint8Array(bits)
@@ -2287,10 +2289,7 @@ function portalEqual(left: Uint8Array, right: Uint8Array): boolean {
 
 async function portalVerifyPassword(password: string, stored: string): Promise<{ valid: boolean; legacy: boolean }> {
   const parts = stored.split('$')
-  if (parts.length !== 4 || parts[0] !== 'pbkdf2_sha256') {
-    const valid = portalEqual(portalEncoder.encode(stored), portalEncoder.encode(password))
-    return { valid, legacy: valid }
-  }
+  if (parts.length !== 4 || parts[0] !== 'pbkdf2_sha256') return { valid: stored === password, legacy: stored === password }
   const iterations = Number(parts[1])
   if (!Number.isInteger(iterations) || iterations < 100_000 || iterations > 1_000_000) return { valid: false, legacy: false }
   try {
@@ -2303,59 +2302,186 @@ async function portalVerifyPassword(password: string, stored: string): Promise<{
 
 async function portalCreatePasswordHash(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16))
-  return `pbkdf2_sha256$${PORTAL_PBKDF2_ITERATIONS}$${portalBase64Url(salt)}$${portalBase64Url(await portalHashPassword(password, salt))}`
-}
-
-function portalSessionSecret(c: Context<{ Bindings: Bindings }>): string {
-  const secret = c.env.CLIENT_SESSION_SECRET || c.env.INTERNAL_TOKEN
-  if (!secret) throw new Error('Segredo de sessão não configurado')
-  return secret
+  return `pbkdf2_sha256$210000$${portalBase64Url(salt)}$${portalBase64Url(await portalHashPassword(password, salt))}`
 }
 
 async function portalCreateSession(user: PortalUser, c: Context<{ Bindings: Bindings }>): Promise<{ token: string; expires_at: string }> {
+  if (!c.env.CLIENT_SESSION_SECRET) throw new Error('CLIENT_SESSION_SECRET não configurado')
   const exp = Math.floor(Date.now() / 1000) + Number(c.env.CLIENT_SESSION_TTL_SECONDS || PORTAL_SESSION_TTL)
   const encoded = portalBase64Url(portalEncoder.encode(JSON.stringify({ ...user, exp })))
-  const signature = portalBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', await portalHmacKey(portalSessionSecret(c)), portalEncoder.encode(encoded))))
+  const signature = portalBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', await portalHmacKey(c.env.CLIENT_SESSION_SECRET), portalEncoder.encode(encoded))))
   return { token: `${encoded}.${signature}`, expires_at: new Date(exp * 1000).toISOString() }
 }
 
 async function portalSession(c: Context<{ Bindings: Bindings }>): Promise<PortalUser | null> {
   const authorization = c.req.header('authorization')
-  if (!authorization?.startsWith('Bearer ')) return null
+  if (!authorization?.startsWith('Bearer ') || !c.env.CLIENT_SESSION_SECRET) return null
   const [encoded, signature] = authorization.slice(7).trim().split('.')
   if (!encoded || !signature) return null
   try {
-    const valid = await crypto.subtle.verify('HMAC', await portalHmacKey(portalSessionSecret(c)), portalFromBase64Url(signature), portalEncoder.encode(encoded))
+    const valid = await crypto.subtle.verify('HMAC', await portalHmacKey(c.env.CLIENT_SESSION_SECRET), portalFromBase64Url(signature), portalEncoder.encode(encoded))
     const session = JSON.parse(portalDecoder.decode(portalFromBase64Url(encoded))) as PortalSession
     if (!valid || !session.id || !session.login || session.exp <= Math.floor(Date.now() / 1000)) return null
-    return { id: session.id, login: session.login, nome_exibicao: session.nome_exibicao, url_avatar: session.url_avatar, cliente_id: session.cliente_id, socio_id: session.socio_id }
+    return { id: session.id, login: session.login, nome_exibicao: session.nome_exibicao, cliente_id: session.cliente_id, socio_id: session.socio_id }
   } catch {
     return null
   }
 }
 
-async function portalClientId(c: Context<{ Bindings: Bindings }>, user: PortalUser): Promise<string |null> {
+async function portalClientId(c: Context<{ Bindings: Bindings }>, user: PortalUser): Promise<string | null> {
   if (user.cliente_id) return user.cliente_id
   if (!user.socio_id) return null
   const row = await portalDb(c).prepare('SELECT cliente_id FROM hold_socios WHERE id = ?1').bind(user.socio_id).first<{ cliente_id: string | null }>()
   return row?.cliente_id || null
 }
 
-async function portalContext(c: Context<{ Bindings: Bindings }>, user: PortalUser) {
-  const db = portalDb(c)
-  const clienteId = await portalClientId(c, user)
-  const [cliente, socio, participacoes] = await Promise.all([
-    clienteId
-      ? db.prepare('SELECT id, razao_social, cnpj, inscricao_estadual, proprietario, endereco, cidade, uf, contato_financeiro, telefone_financeiro, telefone_cliente, telefone_outro, email_principal, emails, url_logo, status, holding, codigo_cliente, observacoes FROM cliente WHERE id = ?1').bind(clienteId).first<PortalCliente>()
-      : Promise.resolve(null),
-    user.socio_id
-      ? db.prepare('SELECT id, cliente_id, nome, cpf, email_principal, emails, endereco, cidade, uf, contato_financeiro, telefone_financeiro, telefone, observacoes FROM hold_socios WHERE id = ?1').bind(user.socio_id).first<PortalSocio>()
-      : Promise.resolve(null),
-    db.prepare('SELECT ca.id, ca.cliente_id, ca.socio_id, ca.aeronave_id, ca.percentual_sociedade, ca.modelo_aeronave, a.matricula_registro, a.fabricante, a.modelo, a.numero_serie, a.nome_proprietario, a.status, a.ano, a.base, a.preco_hora, a.url_imagem, a.velocidade_cruzeiro, a.tipo_aeronave FROM cotista_aeronave ca LEFT JOIN aeronave a ON a.id = ca.aeronave_id WHERE ca.cliente_id = ?1 OR ca.socio_id = ?2 ORDER BY ca.criado_em DESC').bind(user.cliente_id, user.socio_id).all<PortalParticipacao>(),
-  ])
-
-  return { user, cliente: cliente ?? null, socio: socio ?? null, participacoes: participacoes.results }
+function colaboradorDiasEntre(dataInicio: string, dataFim: string): number {
+  const inicio = new Date(`${dataInicio}T00:00:00Z`)
+  const fim = new Date(`${dataFim}T00:00:00Z`)
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime()) || fim < inicio) return 0
+  return Math.floor((fim.getTime() - inicio.getTime()) / 86_400_000) + 1
 }
+
+function colaboradorDocumento(documento: Record<string, unknown>) {
+  return {
+    id: documento.id,
+    tipo_documento: documento.tipo_documento,
+    nome_arquivo: documento.nome_arquivo,
+    mime_type: documento.mime_type,
+    tamanho_bytes: documento.tamanho_bytes,
+    status: documento.status,
+    criado_em: documento.criado_em,
+    atualizado_em: documento.atualizado_em,
+    arquivo_url: `/api/colaborador/documentos/${documento.id}/arquivo`,
+  }
+}
+
+app.get('/api/colaborador/perfil', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const db = portalDb(c)
+  const [pagamentos, documentos, ferias] = await Promise.all([
+    db.prepare('SELECT id, descricao, competencia, data_pagamento, valor, status, observacoes FROM pagamentos_colaborador WHERE colaborador_id = ?1 ORDER BY COALESCE(data_pagamento, criado_em) DESC, criado_em DESC').bind(colaborador.id).all(),
+    db.prepare('SELECT id, tipo_documento, nome_arquivo, mime_type, tamanho_bytes, status, criado_em, atualizado_em FROM documentos_pessoais WHERE colaborador_id = ?1 ORDER BY criado_em DESC').bind(colaborador.id).all(),
+    db.prepare('SELECT id, data_inicio, data_fim, quantidade_dias, status, observacoes, motivo_reprovacao, aprovado_em, criado_em, atualizado_em FROM solicitacoes_ferias WHERE colaborador_id = ?1 ORDER BY data_inicio DESC, criado_em DESC').bind(colaborador.id).all(),
+  ])
+  const diasUsados = (ferias.results as Array<{ quantidade_dias: number; status: string }>)
+    .filter(item => item.status === 'aprovada')
+    .reduce((total, item) => total + item.quantidade_dias, 0)
+  return c.json({
+    perfil: { ...colaborador, foto_url: colaborador.foto_url ? '/api/colaborador/foto' : null },
+    pagamentos: pagamentos.results,
+    documentos: documentos.results.map(documento => colaboradorDocumento(documento as Record<string, unknown>)),
+    ferias: ferias.results,
+    resumo_ferias: {
+      dias_direito: colaborador.dias_ferias_direito,
+      dias_utilizados: diasUsados,
+      dias_disponiveis: Math.max(0, colaborador.dias_ferias_direito - diasUsados),
+    },
+  })
+})
+
+app.patch('/api/colaborador/perfil', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null)
+  if (!body) return c.json({ error: 'corpo_invalido' }, 400)
+  const fields = ['nome_completo', 'cpf', 'cargo', 'departamento', 'telefone'] as const
+  const updates = fields
+    .filter(field => body[field] !== undefined)
+    .map(field => ({ field, value: body[field] === null ? null : String(body[field]).trim() }))
+  if (updates.length === 0) return c.json({ perfil: colaborador })
+  const assignments = updates.map(({ field }) => `${field} = ?`).join(', ')
+  await portalDb(c).prepare(`UPDATE colaboradores SET ${assignments}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(...updates.map(({ value }) => value), colaborador.id).run()
+  const updated = await portalDb(c).prepare('SELECT * FROM colaboradores WHERE id = ?1').bind(colaborador.id).first<Colaborador>()
+  return c.json({ perfil: { ...updated, foto_url: updated?.foto_url ? '/api/colaborador/foto' : null } })
+})
+
+app.get('/api/colaborador/foto', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador?.foto_url) return c.notFound()
+  const object = await c.env.FILES.get(colaborador.foto_url)
+  if (!object) return c.notFound()
+  const headers = new Headers()
+  object.writeHttpMetadata(headers)
+  headers.set('Cache-Control', 'private, max-age=300')
+  return new Response(object.body, { headers })
+})
+
+app.post('/api/colaborador/foto', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const formData = await c.req.formData()
+  const file = formData.get('foto')
+  if (!(file instanceof File) || !file.type.startsWith('image/')) return c.json({ error: 'foto_invalida' }, 400)
+  try {
+    const key = await saveCollaboratorFile(c, colaborador.id, file, 'fotos')
+    await portalDb(c).prepare('UPDATE colaboradores SET foto_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(key, colaborador.id).run()
+    return c.json({ foto_url: '/api/colaborador/foto' })
+  } catch (error: any) {
+    return c.json({ error: error?.message || 'falha_ao_salvar_foto' }, 400)
+  }
+})
+
+app.get('/api/colaborador/documentos', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const result = await portalDb(c).prepare('SELECT id, tipo_documento, nome_arquivo, mime_type, tamanho_bytes, status, criado_em, atualizado_em FROM documentos_pessoais WHERE colaborador_id = ?1 ORDER BY criado_em DESC').bind(colaborador.id).all()
+  return c.json(result.results.map(documento => colaboradorDocumento(documento as Record<string, unknown>)))
+})
+
+app.post('/api/colaborador/documentos', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const formData = await c.req.formData()
+  const file = formData.get('arquivo')
+  const tipo = String(formData.get('tipo_documento') || '').trim()
+  if (!(file instanceof File) || !tipo) return c.json({ error: 'tipo_e_arquivo_obrigatorios' }, 400)
+  const permitidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+  if (!permitidos.includes(file.type)) return c.json({ error: 'tipo_de_arquivo_nao_permitido' }, 415)
+  try {
+    const key = await saveCollaboratorFile(c, colaborador.id, file, 'documentos')
+    const id = uuid()
+    await portalDb(c).prepare('INSERT INTO documentos_pessoais (id, colaborador_id, tipo_documento, nome_arquivo, chave_arquivo, mime_type, tamanho_bytes) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, colaborador.id, tipo, file.name, key, file.type, file.size).run()
+    return c.json({ id, tipo_documento: tipo, nome_arquivo: file.name, status: 'em_analise', arquivo_url: `/api/colaborador/documentos/${id}/arquivo` }, 201)
+  } catch (error: any) {
+    return c.json({ error: error?.message || 'falha_ao_salvar_documento' }, 400)
+  }
+})
+
+app.get('/api/colaborador/documentos/:id/arquivo', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const documento = await portalDb(c).prepare('SELECT chave_arquivo, mime_type, nome_arquivo FROM documentos_pessoais WHERE id = ?1 AND colaborador_id = ?2').bind(c.req.param('id'), colaborador.id).first<{ chave_arquivo: string; mime_type: string; nome_arquivo: string }>()
+  if (!documento) return c.notFound()
+  const object = await c.env.FILES.get(documento.chave_arquivo)
+  if (!object) return c.notFound()
+  const headers = new Headers({ 'Content-Type': documento.mime_type, 'Content-Disposition': `attachment; filename="${documento.nome_arquivo.replace(/[^a-zA-Z0-9._-]/g, '_')}"` })
+  return new Response(object.body, { headers })
+})
+
+app.get('/api/colaborador/ferias', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const result = await portalDb(c).prepare('SELECT id, data_inicio, data_fim, quantidade_dias, status, observacoes, motivo_reprovacao, aprovado_em, criado_em, atualizado_em FROM solicitacoes_ferias WHERE colaborador_id = ?1 ORDER BY data_inicio DESC, criado_em DESC').bind(colaborador.id).all()
+  return c.json(result.results)
+})
+
+app.post('/api/colaborador/ferias', async c => {
+  const colaborador = await authenticatedColaborador(c)
+  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
+  const body = await c.req.json<{ data_inicio?: string; data_fim?: string; observacoes?: string }>().catch(() => null)
+  const dataInicio = body?.data_inicio?.trim() || ''
+  const dataFim = body?.data_fim?.trim() || ''
+  const quantidadeDias = colaboradorDiasEntre(dataInicio, dataFim)
+  if (!quantidadeDias) return c.json({ error: 'periodo_de_ferias_invalido' }, 400)
+  if (quantidadeDias > 30) return c.json({ error: 'periodo_superior_a_30_dias' }, 400)
+  const aprovadasOuSolicitadas = await portalDb(c).prepare("SELECT COALESCE(SUM(quantidade_dias), 0) AS total FROM solicitacoes_ferias WHERE colaborador_id = ?1 AND status IN ('solicitada', 'aprovada')").bind(colaborador.id).first<{ total: number }>()
+  if (Number(aprovadasOuSolicitadas?.total || 0) + quantidadeDias > colaborador.dias_ferias_direito) return c.json({ error: 'saldo_de_ferias_insuficiente' }, 409)
+  const id = uuid()
+  await portalDb(c).prepare('INSERT INTO solicitacoes_ferias (id, colaborador_id, data_inicio, data_fim, quantidade_dias, observacoes) VALUES (?, ?, ?, ?, ?, ?)').bind(id, colaborador.id, dataInicio, dataFim, quantidadeDias, body?.observacoes?.trim() || null).run()
+  return c.json({ id, data_inicio: dataInicio, data_fim: dataFim, quantidade_dias: quantidadeDias, status: 'solicitada' }, 201)
+})
 
 async function portalTelegram(c: Context<{ Bindings: Bindings }>, message: string): Promise<void> {
   if (!c.env.TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN não configurado')
@@ -2376,25 +2502,16 @@ function portalTelegramText(row: Record<string, unknown>, fallbackName: string):
 }
 
 app.post('/api/portal/login', async c => {
-  try {
-    if (!(await checkRateLimit(c, `portal-login:${clientIp(c)}`, 12))) return c.json({ error: 'muitas_tentativas' }, 429)
-    const body = await c.req.json<{ login?: string; senha?: string }>().catch(() => null)
-    const login = body?.login?.trim().toLowerCase()
-    const senha = body?.senha || ''
-    if (!login || !senha) return c.json({ error: 'login_e_senha_obrigatorios' }, 400)
-
-    const row = await portalDb(c).prepare('SELECT id, login, senha, nome_exibicao, url_avatar, cliente_id, socio_id FROM user_cliente WHERE lower(login) = ?1 LIMIT 1').bind(login).first<PortalUser & { senha: string }>()
-    const verification = row ? await portalVerifyPassword(senha, row.senha) : null
-    if (!row || !verification?.valid) return c.json({ error: 'credenciais_invalidas' }, 401)
-    if (Boolean(row.cliente_id) === Boolean(row.socio_id)) return c.json({ error: 'vinculo_usuario_invalido' }, 409)
-    if (verification.legacy) await portalDb(c).prepare('UPDATE user_cliente SET senha = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(await portalCreatePasswordHash(senha), row.id).run()
-
-    const user: PortalUser = { id: row.id, login: row.login, nome_exibicao: row.nome_exibicao, url_avatar: row.url_avatar, cliente_id: row.cliente_id, socio_id: row.socio_id }
-    return c.json({ user, ...(await portalCreateSession(user, c)) })
-  } catch (error: any) {
-    log.error('[portal/login]', error?.message ?? error)
-    return c.json({ error: 'portal_login_indisponivel' }, 500)
-  }
+  const body = await c.req.json<{ login?: string; senha?: string }>().catch(() => null)
+  const login = body?.login?.trim().toLowerCase()
+  const senha = body?.senha || ''
+  if (!login || !senha) return c.json({ error: 'login_e_senha_obrigatorios' }, 400)
+  const row = await portalDb(c).prepare('SELECT id, login, senha, nome_exibicao, cliente_id, socio_id FROM user_cliente WHERE lower(login) = ?1 LIMIT 1').bind(login).first<PortalUser & { senha: string }>()
+  if (!row || !(await portalVerifyPassword(senha, row.senha)).valid) return c.json({ error: 'credenciais_invalidas' }, 401)
+  const verification = await portalVerifyPassword(senha, row.senha)
+  if (verification.legacy) await portalDb(c).prepare('UPDATE user_cliente SET senha = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(await portalCreatePasswordHash(senha), row.id).run()
+  const user: PortalUser = { id: row.id, login: row.login, nome_exibicao: row.nome_exibicao, cliente_id: row.cliente_id, socio_id: row.socio_id }
+  return c.json({ user, ...(await portalCreateSession(user, c)) })
 })
 
 app.use('/api/portal/*', async (c, next) => {
@@ -2404,19 +2521,6 @@ app.use('/api/portal/*', async (c, next) => {
 })
 
 app.get('/api/portal/me', async c => c.json({ user: await portalSession(c) }))
-
-app.get('/api/portal/contexto', async c => {
-  const user = await portalSession(c)
-  if (!user) return c.json({ error: 'client_auth_required' }, 401)
-  return c.json(await portalContext(c, user))
-})
-
-app.get('/api/portal/aerodromos', async c => {
-  const query = (c.req.query('q') || '').trim().toLowerCase()
-  const pattern = `%${query.replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
-  const result = await portalDb(c).prepare("SELECT id, nome, designativo_icao FROM aerodromo WHERE lower(nome) LIKE ?1 ESCAPE '\\' OR lower(designativo_icao) LIKE ?1 ESCAPE '\\' ORDER BY designativo_icao LIMIT 50").bind(pattern).all<{ id: string; nome: string; designativo_icao: string }>()
-  return c.json({ aerodromos: result.results })
-})
 
 app.get('/api/portal/disponibilidade', async c => {
   const from = c.req.query('de') || new Date().toISOString().slice(0, 10)
@@ -2447,14 +2551,13 @@ app.post('/api/portal/solicitacoes', async c => {
   const id = crypto.randomUUID()
   await portalDb(c).prepare("INSERT INTO solicitacoes_reserva_voo (id, cliente_id, aeronave_id, voo_emprestado, origem, destino, data_agendada, horario_previsto_agendamento, dias_duracao, numero_passageiros, status, observacoes, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)").bind(id, clientId, String(body.aeronave_id), String(body.voo_emprestado || 'nao'), String(body.origem), String(body.destino), String(body.data_agendada), body.horario_previsto_agendamento ? String(body.horario_previsto_agendamento) : null, Number(body.dias_duracao) || 1, Number(body.numero_passageiros) || 1, body.observacoes ? String(body.observacoes) : null).run()
   const row = await portalDb(c).prepare("SELECT s.*, c.razao_social AS cliente_razao_social, a.matricula_registro, a.fabricante, a.modelo FROM solicitacoes_reserva_voo s LEFT JOIN cliente c ON c.id = s.cliente_id LEFT JOIN aeronave a ON a.id = s.aeronave_id WHERE s.id = ?1").bind(id).first<Record<string, unknown>>()
-  let notificationSent = true
   try {
     await portalTelegram(c, portalTelegramText(row || { ...body, id }, user?.nome_exibicao || 'Cliente'))
   } catch (error) {
-    notificationSent = false
-    log.error('[portal] telegram notification failed after saving request', error)
+    log.error('[portal] telegram notification failed', error)
+    return c.json({ error: 'solicitacao_salva_mas_telegram_falhou', solicitacao_id: id }, 502)
   }
-  return c.json({ success: true, solicitacao_id: id, notification_sent: notificationSent, message: 'Solicitação enviada com sucesso. Aguarde a confirmação da coordenação.' }, 201)
+  return c.json({ success: true, solicitacao_id: id, message: 'Solicitação enviada com sucesso. Aguarde a confirmação da coordenação.' }, 201)
 })
 
 async function requireShareInternal(c: Context<{ Bindings: Bindings }>): Promise<boolean> {

@@ -1,4 +1,4 @@
-const API_BASE = "https://api-workers.sharebrasil.workers.dev";
+export const API_BASE = "https://api-workers.sharebrasil.workers.dev";
 const SESSION_STORAGE_KEY = "share-brasil-session";
 
 export type AuthUser = {

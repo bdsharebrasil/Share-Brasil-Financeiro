@@ -49,12 +49,14 @@ import {
   SlidersHorizontal,
   Sun,
   Users,
+  UserRound,
   WalletCards,
   Wrench,
   X,
 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/login";
+import Perfil from "@/pages/perfil";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -171,12 +173,14 @@ function TopBar({
   onWorkspaceChange,
   onToggleTheme,
   onOpenMenu,
+  onOpenProfile,
 }: {
   workspace: Workspace;
   theme: Theme;
   onWorkspaceChange: (workspace: Workspace) => void;
   onToggleTheme: () => void;
   onOpenMenu: () => void;
+  onOpenProfile: () => void;
 }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -228,7 +232,7 @@ function TopBar({
           <Bell size={17} />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#f1c348]" />
         </button>
-        <button type="button" data-testid="button-user-menu" className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b4a78] text-[11px] font-bold text-white ring-2 ring-primary/10">CM</button>
+        <button type="button" onClick={onOpenProfile} data-testid="button-user-menu" aria-label="Abrir meu perfil" className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b4a78] text-[11px] font-bold text-white ring-2 ring-primary/10">CM</button>
       </div>
     </header>
   );
@@ -243,6 +247,7 @@ const sidebarMenuGroups = [
       { id: "senhas", label: "Senhas", icon: Key },
       { id: "mensagens", label: "Mensagens", icon: Mail, badgeKey: "unreadMessages" },
       { id: "minhas-tarefas", label: "Minhas Tarefas", icon: CheckSquare },
+      { id: "perfil", label: "Meu perfil", icon: UserRound },
     ],
   },
   { title: "Agenda & Contatos", items: [{ id: "agenda", label: "Agenda", icon: Calendar }] },
@@ -462,13 +467,14 @@ function Shell() {
   useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark"); localStorage.setItem("share-brasil-theme", theme); }, [theme]);
   const changeWorkspace = (next: Workspace) => { setWorkspace(next); setActiveMenu("overview"); setMenuOpen(false); };
   const renderDashboard = () => {
+    if (activeMenu === "perfil") return <Perfil tema={theme} onAlternarTema={() => setTheme(theme === "dark" ? "light" : "dark")} />;
     if (activeMenu !== "overview") return <PlaceholderView workspace={workspace} menu={activeItem} onBack={() => setActiveMenu("overview")} />;
     if (workspace === "operacoes") return <OperationsDashboard onNavigate={setActiveMenu} />;
     if (workspace === "financeiro") return <FinanceDashboard onNavigate={setActiveMenu} />;
     if (workspace === "portal") return <PortalDashboard />;
     return <GestorToolsDashboard onNavigate={setActiveMenu} />;
   };
-  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
+  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} onOpenProfile={() => setActiveMenu("perfil")} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
 }
 
 function ProtectedApp() {

@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:local": "wrangler d1 migrations apply share-brasil --local",
-    "db:remote": "wrangler d1 migrations apply share-brasil --remote",
+    "db:local": "wrangler d1 migrations apply bd_sharebrasil --local",
+    "db:remote": "wrangler d1 migrations apply bd_sharebrasil --remote",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

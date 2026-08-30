@@ -1,4 +1,4 @@
-name = "share-brasil-api"
+name = "api-workers"
 main = "src/index.ts"
 compatibility_date = "2026-08-30"
 workers_dev = true

@@ -1,0 +1,13 @@
+name = "share-brasil-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-30"
+workers_dev = true
+
+[vars]
+# Defina SUPABASE_URL e SUPABASE_ANON_KEY via `wrangler secret put`.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "share-brasil"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"

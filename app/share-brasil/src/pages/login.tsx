@@ -1,5 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { CheckCircle2, Eye, EyeOff, Lock, Plane, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +58,7 @@ function InstallPrompt() {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -73,10 +76,10 @@ export default function Login() {
     }
 
     void getCurrentSession().then((session) => {
-      if (session) window.location.replace("/");
+      if (session) navigate("/", { replace: true });
       else setIsCheckingSession(false);
     });
-  }, []);
+  }, [navigate]);
 
   const handleUsernameChange = (value: string) => {
     setUsername(value.replace(/[@\s]/g, "").toLowerCase());
@@ -115,7 +118,7 @@ export default function Login() {
         title: "Acesso autorizado",
         description: "Bem-vindo(a) ao portal Share Brasil.",
       });
-      window.location.replace("/");
+      navigate("/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       toast({
@@ -240,13 +243,13 @@ export default function Login() {
             <Label htmlFor="remember-user" className="cursor-pointer text-sm font-medium text-[#94a3b8] transition-colors hover:text-white">Lembrar meu acesso</Label>
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={isSubmitting || !isValid || !password}
             className="h-14 w-full rounded-2xl bg-[#38d7ff] text-base font-semibold text-[#02111f] shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
           >
             {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
-          </button>
+          </Button>
         </form>
       </section>
     </main>

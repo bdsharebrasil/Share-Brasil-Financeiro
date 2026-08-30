@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
@@ -54,6 +55,7 @@ import {
 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/login";
+import { getCurrentSession } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -469,12 +471,34 @@ function Shell() {
   return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
 }
 
-function App() {
-  const isLoginRoute = window.location.pathname === "/login";
+function ProtectedApp() {
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    void getCurrentSession().then((session) => {
+      if (!active) return;
+      setHasSession(Boolean(session));
+      setIsCheckingSession(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  if (isCheckingSession) {
+    return <div className="min-h-screen bg-[#030814]" aria-label="Verificando autenticação" />;
+  }
+
+  return hasSession ? <Shell /> : <Navigate to="/login" replace />;
+}
+
+function App() {
   return (
     <>
-      {isLoginRoute ? <Login /> : <Shell />}
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<ProtectedApp />} />
+      </Routes>
       <Toaster />
     </>
   );

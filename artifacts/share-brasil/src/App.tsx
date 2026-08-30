@@ -13,7 +13,7 @@ import {
   useGetFinancialMovements,
   useGetShareholders,
   useHealthCheck,
-} from '@workspace/api-client-react';
+} from '@/lib/api';
 import {
   Activity,
   AlertCircle,

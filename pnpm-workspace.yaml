@@ -32,7 +32,6 @@ minimumReleaseAgeExclude: [ '@cloudflare/workers-types@5.20260830.1' ]
 packages:
   - apps/*
   - app/*
-  - artifacts/*
   - lib/*
   - lib/integrations/*
   - scripts

@@ -1,23 +1,8 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import NotFound from '@/pages/not-found';
-import {
-  getGetDashboardSummaryQueryKey,
-  getGetFinancialMovementsQueryKey,
-  getGetShareholdersQueryKey,
-  getHealthCheckQueryKey,
-  useGetDashboardSummary,
-  useGetFinancialMovements,
-  useGetShareholders,
-  useHealthCheck,
-} from '@/lib/api';
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
   AlertCircle,
-  ArrowDownLeft,
+  ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
   Bell,
@@ -26,22 +11,28 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleDollarSign,
+  ClipboardCheck,
   Clock3,
   CloudSun,
   CreditCard,
   FileBarChart,
+  FileCheck2,
+  FileClock,
   FileText,
-  Filter,
+  Fuel,
   Gauge,
-  HelpCircle,
   LayoutDashboard,
   LineChart,
   LogOut,
+  Mail,
   Menu,
   Moon,
   MoreHorizontal,
+  NotebookPen,
+  PanelLeftClose,
   Plane,
   Plus,
+  Receipt,
   RefreshCw,
   Search,
   Settings2,
@@ -50,54 +41,88 @@ import {
   Sun,
   Users,
   WalletCards,
+  Wrench,
   X,
-  Zap,
-} from 'lucide-react';
-import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const queryClient = new QueryClient();
+type Workspace = "gestor" | "operacoes" | "financeiro" | "portal";
+type Theme = "dark" | "light";
+type IconType = typeof LayoutDashboard;
 
-type Department = 'operacoes' | 'financeiro' | 'gestor' | 'portal';
-type Theme = 'dark' | 'light';
-
-const departmentLabels: Record<Department, string> = {
-  operacoes: 'Operações',
-  financeiro: 'Financeiro',
-  gestor: 'Gestor',
-  portal: 'Portal Cliente',
+type MenuItem = {
+  id: string;
+  label: string;
+  icon: IconType;
+  badge?: string;
 };
 
-const navItems = [
-  { href: '/', label: 'Visão geral', icon: LayoutDashboard },
-  { href: '/operacoes', label: 'Operações', icon: Plane },
-  { href: '/financeiro', label: 'Financeiro', icon: CircleDollarSign },
-  { href: '/cotistas', label: 'Cotistas', icon: Users },
-];
+const workspaceLabels: Record<Workspace, string> = {
+  portal: "Portal Cliente",
+  operacoes: "Operações",
+  financeiro: "Financeiro",
+  gestor: "Gestor",
+};
+
+const workspaceDescriptions: Record<Workspace, string> = {
+  gestor: "Visão executiva e financeira",
+  operacoes: "Controle da operação aérea",
+  financeiro: "Conciliação e rotinas administrativas",
+  portal: "Acompanhamento do cliente",
+};
+
+const menus: Record<Workspace, MenuItem[]> = {
+  operacoes: [
+    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "agendamentos", label: "Agendamentos", icon: CalendarDays, badge: "4" },
+    { id: "plano-de-voo", label: "Plano de voo", icon: FileText },
+    { id: "diario-de-bordo", label: "Diário de bordo", icon: NotebookPen },
+    { id: "tripulacao", label: "Tripulação", icon: Users },
+    { id: "abastecimentos", label: "Abastecimentos", icon: Fuel },
+    { id: "ctm", label: "CTM", icon: Wrench },
+  ],
+  financeiro: [
+    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "recibos", label: "Emissão de recibo", icon: Receipt, badge: "8" },
+    { id: "despesas", label: "Relatório despesa de viagem", icon: FileBarChart },
+    { id: "pagamentos", label: "Programação de pagamento", icon: CreditCard, badge: "5" },
+    { id: "email", label: "E-mail", icon: Mail },
+    { id: "ponto", label: "Ponto e histórico do ponto", icon: Clock3 },
+    { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
+  ],
+  gestor: [
+    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "financeiro-share", label: "Financeiro Share", icon: WalletCards, badge: "3" },
+    { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Users },
+    { id: "configuracoes", label: "Configurações", icon: Settings2 },
+  ],
+  portal: [
+    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "pagamentos", label: "Pagamentos", icon: CreditCard, badge: "2" },
+    { id: "documentos", label: "Documentos", icon: FileCheck2 },
+  ],
+};
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 
-const formatDate = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' })
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
     .format(date)
-    .replace('.', '');
-};
+    .replace(".", "");
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cn('flex items-center gap-2.5', compact && 'gap-0')}>
-      <div className="relative h-8 w-8 shrink-0" aria-label="Share Brasil">
-        <span className="absolute left-1 top-1 h-4 w-4 rounded-[7px] bg-[#4f7d4a] rotate-[-12deg]" />
-        <span className="absolute bottom-1 left-1.5 h-4 w-4 rounded-[7px] bg-[#f1c348] rotate-[18deg]" />
-        <span className="absolute right-1 top-1.5 h-4 w-4 rounded-[7px] bg-[#0b4a78] rotate-[14deg]" />
+    <div className={cn("flex items-center gap-3", compact && "gap-0")}>
+      <div className="relative h-9 w-9 shrink-0" aria-label="Share Brasil">
+        <span className="absolute left-1 top-1 h-[18px] w-[18px] rotate-[-12deg] rounded-[7px] bg-[#4f7d4a]" />
+        <span className="absolute bottom-1 left-1.5 h-[18px] w-[18px] rotate-[18deg] rounded-[7px] bg-[#f1c348]" />
+        <span className="absolute right-1 top-1.5 h-[18px] w-[18px] rotate-[14deg] rounded-[7px] bg-[#167db7]" />
       </div>
       {!compact && (
         <div className="leading-none">
-          <p className="font-extrabold tracking-[.19em] text-[13px] text-foreground">SHARE</p>
-          <p className="mt-0.5 font-semibold italic text-[10px] tracking-[.1em] text-primary">Brasil</p>
+          <p className="text-[14px] font-extrabold tracking-[.22em] text-foreground">SHARE</p>
+          <p className="mt-1 text-[10px] font-semibold italic tracking-[.12em] text-primary">Brasil</p>
         </div>
       )}
     </div>
@@ -110,322 +135,297 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
       type="button"
       onClick={onToggle}
       data-testid="button-toggle-theme"
-      className="group flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-card/65 px-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-      aria-label={`Ativar modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
+      aria-label={`Ativar modo ${theme === "dark" ? "claro" : "escuro"}`}
+      className="hidden h-9 items-center gap-2 rounded-lg border border-border/70 bg-card/65 px-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:flex"
     >
-      {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-      <span className="hidden text-[10px] font-bold uppercase tracking-[.14em] sm:block">
-        {theme === 'dark' ? 'Claro' : 'Escuro'}
-      </span>
+      {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+      <span className="text-[10px] font-bold uppercase tracking-[.14em]">{theme === "dark" ? "Claro" : "Escuro"}</span>
     </button>
   );
 }
 
-function TopBar({ theme, onToggleTheme, onOpenMenu }: { theme: Theme; onToggleTheme: () => void; onOpenMenu: () => void }) {
-  const [location, setLocation] = useLocation();
+function TopBar({
+  workspace,
+  theme,
+  onWorkspaceChange,
+  onToggleTheme,
+  onOpenMenu,
+}: {
+  workspace: Workspace;
+  theme: Theme;
+  onWorkspaceChange: (workspace: Workspace) => void;
+  onToggleTheme: () => void;
+  onOpenMenu: () => void;
+}) {
   const [time, setTime] = useState(new Date());
-  const queryDepartment = new URLSearchParams(location.split('?')[1] ?? '').get('departamento') as Department | null;
-  const activeDepartment = location === '/' ? queryDepartment ?? 'gestor' : location.includes('financeiro') || location.includes('cotistas') ? 'financeiro' : 'operacoes';
   useEffect(() => {
     const timer = window.setInterval(() => setTime(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-[68px] items-center justify-between border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl md:px-7">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex min-h-[68px] items-center justify-between border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl md:px-7">
+      <div className="flex min-w-0 items-center gap-3">
         <button type="button" onClick={onOpenMenu} data-testid="button-open-menu" className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground md:hidden">
           <Menu size={20} />
         </button>
         <div className="md:hidden"><LogoMark compact /></div>
-        <div className="hidden items-center gap-1 rounded-xl border border-border bg-card/70 p-1 md:flex">
-          {(Object.keys(departmentLabels) as Department[]).map((department) => (
+        <div className="hidden min-w-0 items-center gap-1 rounded-xl border border-border bg-card/70 p-1 md:flex">
+          {(Object.keys(workspaceLabels) as Workspace[]).map((item) => (
             <button
               type="button"
-              key={department}
-              onClick={() => setLocation(department === 'gestor' ? '/' : department === 'financeiro' ? '/financeiro' : department === 'operacoes' ? '/operacoes' : '/?departamento=portal')}
-              data-testid={`button-department-${department}`}
+              key={item}
+              onClick={() => onWorkspaceChange(item)}
+              data-testid={`button-workspace-${item}`}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all',
-                activeDepartment === department ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                "rounded-lg px-3 py-2 text-[11px] font-bold transition-all",
+                workspace === item ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
             >
-              {departmentLabels[department]}
+              {workspaceLabels[item]}
             </button>
           ))}
         </div>
         <div className="hidden items-center gap-2 text-[10px] text-muted-foreground lg:flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#5bbd75] pulse-dot" />
+          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#5bbd75]" />
           Sistema operacional
         </div>
       </div>
       <div className="flex items-center gap-2">
         <div className="hidden items-center gap-2 rounded-lg border border-border/70 bg-card/65 px-3 py-2 font-mono text-[10px] text-muted-foreground lg:flex">
           <Clock3 size={13} className="text-primary" />
-          <span className="text-foreground">{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-foreground">{time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
           <span className="text-primary/70">BRT</span>
         </div>
         <div className="hidden items-center gap-2 rounded-lg border border-border/70 bg-card/65 px-2.5 py-2 text-[10px] text-muted-foreground xl:flex">
           <CloudSun size={14} className="text-[#f1c348]" />
           <span>São Paulo</span>
-          <strong className="font-mono text-foreground">24°</strong>
+          <strong className="font-mono text-foreground">22°C</strong>
         </div>
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         <button type="button" data-testid="button-notifications" className="relative rounded-lg border border-transparent p-2 text-muted-foreground transition-colors hover:border-border hover:bg-secondary hover:text-foreground">
           <Bell size={17} />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#f1c348]" />
         </button>
-        <div className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg bg-[#0b4a78] text-[11px] font-bold text-white">CM</div>
+        <button type="button" data-testid="button-user-menu" className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b4a78] text-[11px] font-bold text-white ring-2 ring-primary/10">CM</button>
       </div>
     </header>
   );
 }
 
-function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [location] = useLocation();
+function Sidebar({
+  workspace,
+  activeMenu,
+  open,
+  collapsed,
+  onClose,
+  onToggleCollapse,
+  onMenuChange,
+}: {
+  workspace: Workspace;
+  activeMenu: string;
+  open: boolean;
+  collapsed: boolean;
+  onClose: () => void;
+  onToggleCollapse: () => void;
+  onMenuChange: (menu: string) => void;
+}) {
   return (
     <>
-      <div className={cn('fixed inset-0 z-40 bg-[#061321]/70 backdrop-blur-sm transition-opacity md:hidden', open ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={onClose} />
-      <aside className={cn('fixed inset-y-0 left-0 z-50 flex w-[252px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-300 md:static md:z-auto md:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="flex h-[68px] items-center border-b border-sidebar-border px-6">
-          <LogoMark />
+      <div className={cn("fixed inset-0 z-40 bg-[#061321]/75 backdrop-blur-sm transition-opacity md:hidden", open ? "opacity-100" : "pointer-events-none opacity-0")} onClick={onClose} />
+      <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[258px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 md:static md:z-auto md:translate-x-0", open ? "translate-x-0" : "-translate-x-full", collapsed && "md:w-[82px]")}>
+        <div className={cn("flex h-[68px] items-center border-b border-sidebar-border px-6", collapsed && "md:justify-center md:px-0")}>
+          <LogoMark compact={collapsed} />
+          {!collapsed && <span className="ml-auto hidden rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40 md:block">OPS</span>}
           <button type="button" onClick={onClose} data-testid="button-close-menu" className="ml-auto rounded-md p-1 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden"><X size={17} /></button>
         </div>
-        <div className="px-4 pb-3 pt-6">
-          <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Navegação</p>
+        <div className="border-b border-sidebar-border/80 px-4 py-5">
+          {!collapsed && <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Área atual</p>}
+          <div className={cn("mt-3 flex items-center gap-3 rounded-xl bg-sidebar-accent/60 px-3 py-3", collapsed && "md:justify-center md:px-0")}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"><WorkspaceIcon workspace={workspace} size={16} /></div>
+            {!collapsed && <div className="min-w-0"><p className="truncate text-[11px] font-bold text-sidebar-foreground">{workspaceLabels[workspace]}</p><p className="mt-0.5 truncate text-[9px] text-sidebar-foreground/45">{workspaceDescriptions[workspace]}</p></div>}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 pb-4 pt-5">
+          {!collapsed && <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Navegação</p>}
           <nav className="mt-3 space-y-1">
-            {navItems.map(({ href, label, icon: Icon }) => {
-              const selected = href === '/' ? location === '/' : location.startsWith(href);
+            {menus[workspace].map(({ id, label, icon: Icon, badge }) => {
+              const selected = activeMenu === id;
               return (
-                <Link
-                  href={href}
-                  key={href}
-                  onClick={onClose}
-                  data-testid={`link-nav-${label.toLowerCase().replace(/\s+/g, '-')}`}
-                  className={cn('group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-semibold transition-all', selected ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground')}
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => { onMenuChange(id); onClose(); }}
+                  data-testid={`link-menu-${id}`}
+                  title={collapsed ? label : undefined}
+                  className={cn("group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[11px] font-semibold transition-all", collapsed && "md:justify-center md:px-0", selected ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_7px_18px_rgba(32,177,221,.16)]" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground")}
                 >
                   <Icon size={16} strokeWidth={selected ? 2.3 : 1.8} />
-                  <span>{label}</span>
-                  {selected && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary-foreground" />}
-                </Link>
+                  {!collapsed && <><span className="min-w-0 flex-1 truncate">{label}</span>{badge && <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", selected ? "bg-primary-foreground/15" : "bg-sidebar-accent text-sidebar-foreground/50")}>{badge}</span>}</>}
+                </button>
               );
             })}
           </nav>
         </div>
-        <div className="mt-2 border-t border-sidebar-border px-4 pt-5">
-          <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Administração</p>
-          <Link href="/configuracoes" onClick={onClose} data-testid="link-nav-configuracoes" className={cn('mt-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-semibold transition-all', location === '/configuracoes' ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground')}>
-            <Settings2 size={16} />
-            Configurações
-          </Link>
-        </div>
         <div className="mt-auto p-4">
-          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3.5">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={15} className="text-[#5bbd75]" />
-              <span className="text-[11px] font-semibold">Ambiente seguro</span>
-            </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-sidebar-foreground/45">Dados financeiros protegidos e sincronizados.</p>
-          </div>
-          <button type="button" data-testid="button-logout" className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground">
-            <LogOut size={15} /> Encerrar sessão
+          {!collapsed && <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3.5"><div className="flex items-center gap-2"><ShieldCheck size={15} className="text-[#5bbd75]" /><span className="text-[11px] font-semibold">Ambiente seguro</span></div><p className="mt-2 text-[10px] leading-relaxed text-sidebar-foreground/45">Dados financeiros protegidos e sincronizados.</p></div>}
+          <button type="button" onClick={onToggleCollapse} data-testid="button-collapse-sidebar" className={cn("mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground", collapsed && "md:justify-center md:px-0")} title={collapsed ? "Expandir menu" : "Recolher menu"}>
+            {collapsed ? <PanelLeftClose size={15} className="rotate-180" /> : <><PanelLeftClose size={15} /><span>Recolher menu</span></>}
           </button>
-          <p className="mt-3 px-3 font-mono text-[9px] text-sidebar-foreground/30">SHARE OPS · v2.4.1</p>
+          {!collapsed && <><button type="button" data-testid="button-logout" className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><LogOut size={15} /> Encerrar sessão</button><p className="mt-3 px-3 font-mono text-[9px] text-sidebar-foreground/30">SHARE OPS · v2.5.0</p></>}
         </div>
       </aside>
     </>
   );
 }
 
-function DataState({ loading, error, children, empty = false, onRetry }: { loading: boolean; error: boolean; children: ReactNode; empty?: boolean; onRetry?: () => void }) {
-  if (loading) {
-    return <div className="space-y-3" data-testid="state-loading">{[1, 2, 3].map((item) => <div className="skeleton h-20 rounded-xl" key={item} />)}</div>;
-  }
-  if (error) {
-    return <div className="flex items-center justify-between rounded-xl border border-[#a84d54]/35 bg-[#a84d54]/10 p-4" data-testid="state-error"><div className="flex items-center gap-3"><AlertCircle size={17} className="text-[#e77b80]" /><div><p className="text-xs font-bold">Não foi possível carregar os dados</p><p className="mt-0.5 text-[11px] text-muted-foreground">A operação pode continuar, mas esta visão está desatualizada.</p></div></div>{onRetry && <button type="button" onClick={onRetry} data-testid="button-retry" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold hover:bg-secondary"><RefreshCw size={12} /> Tentar novamente</button>}</div>;
-  }
-  if (empty) return <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 py-12 text-center" data-testid="state-empty"><div className="mb-3 rounded-xl bg-secondary p-3 text-muted-foreground"><FileText size={21} /></div><p className="text-xs font-bold">Nenhum registro encontrado</p><p className="mt-1 max-w-xs text-[11px] text-muted-foreground">Quando novos dados entrarem no sistema, eles aparecerão nesta área.</p></div>;
-  return <>{children}</>;
+function WorkspaceIcon({ workspace, size = 18 }: { workspace: Workspace; size?: number }) {
+  const Icon = workspace === "operacoes" ? Plane : workspace === "financeiro" ? CircleDollarSign : workspace === "portal" ? Users : Gauge;
+  return <Icon size={size} />;
 }
 
-function PageTitle({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
-  return <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> {eyebrow}</div><h1 className="text-2xl font-extrabold tracking-[-.04em] text-foreground md:text-[30px]">{title}</h1><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">{description}</p></div>{action}</div>;
+function PageEyebrow({ children }: { children: ReactNode }) {
+  return <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" />{children}</div>;
 }
 
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    pago: { label: 'Pago', className: 'bg-[#5bbd75]/12 text-[#6bd188]' },
-    pendente: { label: 'Pendente', className: 'bg-[#f1c348]/14 text-[#f4cc64]' },
-    agendado: { label: 'Agendado', className: 'bg-primary/12 text-primary' },
-    regular: { label: 'Regular', className: 'bg-[#5bbd75]/12 text-[#6bd188]' },
-    atencao: { label: 'Atenção', className: 'bg-[#f1c348]/14 text-[#f4cc64]' },
-    inadimplente: { label: 'Inadimplente', className: 'bg-[#e77b80]/14 text-[#ed8c90]' },
-  };
-  const item = map[status] ?? { label: status, className: 'bg-secondary text-muted-foreground' };
-  return <span className={cn('inline-flex items-center rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.08em]', item.className)} data-testid={`status-${status}`}>{item.label}</span>;
+function SectionHeader({ icon, title, detail, action }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode }) {
+  return <div className="flex items-center justify-between border-b border-border px-4 py-3.5"><div className="flex min-w-0 items-center gap-2.5"><span className="text-primary">{icon}</span><div className="min-w-0"><h2 className="truncate text-xs font-bold">{title}</h2>{detail && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{detail}</p>}</div></div>{action}</div>;
 }
 
-function DashboardPage({ department = 'gestor' }: { department?: Department }) {
-  const [location] = useLocation();
-  const queryDepartment = new URLSearchParams(location.split('?')[1] ?? '').get('departamento') as Department | null;
-  const currentDepartment = queryDepartment ?? department;
-  const dashboard = useGetDashboardSummary({ departamento: currentDepartment }, { query: { queryKey: getGetDashboardSummaryQueryKey({ departamento: currentDepartment }) } });
-  const health = useHealthCheck({ query: { queryKey: getHealthCheckQueryKey() } });
-  const summary = dashboard.data;
-  const metrics = summary?.metrics ?? [];
-  const alerts = summary?.alerts ?? [];
-  return (
-    <div className="route-enter">
-      <section className="relative mb-6 overflow-hidden rounded-2xl border border-border/80 bg-card">
-        <div className="command-grid absolute inset-0 opacity-50" />
-        <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex min-h-[174px] flex-col justify-between gap-8 p-6 md:p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-primary"><Activity size={13} /> Dashboard {departmentLabels[currentDepartment]}</div>
-            <div className="hidden items-center gap-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[#5bbd75]" /> Live feed</div>
-          </div>
-          <div><p className="mb-2 text-xs font-semibold text-muted-foreground">{summary?.period ?? 'Atualização em tempo real'}</p><h1 className="text-[27px] font-extrabold tracking-[-.045em] md:text-[34px]" data-testid="text-dashboard-greeting">{summary?.greeting ?? 'Bom dia, equipe Share'}</h1></div>
-        </div>
-      </section>
-      {health.isError && <div className="mb-5 flex items-center gap-2 rounded-lg border border-[#f1c348]/30 bg-[#f1c348]/8 px-3 py-2.5 text-[11px] text-[#f4cc64]" data-testid="status-health-warning"><AlertCircle size={14} /> Serviço de dados operacionais em modo de contingência.</div>}
-      <DataState loading={dashboard.isLoading} error={dashboard.isError} onRetry={() => dashboard.refetch()}>
-        <section className="grid gap-3 md:grid-cols-3">
-          {metrics.length ? metrics.map((metric, index) => <MetricCard key={`${metric.label}-${index}`} label={metric.label} value={metric.value} detail={metric.detail} tone={metric.tone} index={index} />) : <EmptyMetrics />}
-        </section>
-        <section className="mt-6 grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-          <div className="rounded-xl border border-border bg-card/80">
-            <PanelHeader icon={<Zap size={15} />} title="Ações rápidas" detail="Acesso operacional" />
-            <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
-              {[
-                { label: 'Agenda de voos', icon: CalendarDays, href: '/operacoes' },
-                { label: 'Lançamentos', icon: FileBarChart, href: '/financeiro' },
-                { label: 'Cotistas', icon: Users, href: '/cotistas' },
-                { label: 'Relatórios', icon: LineChart, href: '/financeiro' },
-              ].map(({ label, icon: Icon, href }) => <Link href={href} key={label} data-testid={`link-quick-${label.toLowerCase().replace(/\s+/g, '-')}`} className="group flex min-h-[88px] flex-col justify-between rounded-lg border border-border/75 bg-secondary/30 p-3 transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:bg-primary/8"><Icon size={17} className="text-primary transition-transform group-hover:translate-x-0.5" /><div className="flex items-end justify-between gap-2"><span className="text-[11px] font-bold leading-snug">{label}</span><ArrowRight size={13} className="mb-0.5 text-muted-foreground" /></div></Link>)}
-            </div>
-          </div>
-          <AlertsPanel alerts={alerts} />
-        </section>
-      </DataState>
-    </div>
-  );
+function Hero({ workspace, title, subtitle, children }: { workspace: Workspace; title: string; subtitle: string; children?: ReactNode }) {
+  return <section className="hero-panel relative mb-6 overflow-hidden rounded-2xl border border-border/80 bg-card"><div className="command-grid absolute inset-0 opacity-40" /><div className={cn("absolute -right-24 -top-32 h-80 w-80 rounded-full blur-3xl", workspace === "operacoes" ? "bg-primary/12" : workspace === "financeiro" ? "bg-[#f1c348]/10" : workspace === "portal" ? "bg-[#8d6be8]/10" : "bg-primary/12")} /><div className="relative flex min-h-[175px] flex-col justify-between gap-8 p-6 md:min-h-[205px] md:p-8"><div className="flex items-center justify-between gap-4"><PageEyebrow>Dashboard {workspaceLabels[workspace]}</PageEyebrow><span className="hidden items-center gap-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground sm:flex"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#5bbd75]" /> Live feed</span></div><div className="flex items-end justify-between gap-6"><div><p className="mb-2 text-xs font-semibold text-muted-foreground">{subtitle}</p><h1 className="text-[28px] font-extrabold tracking-[-.05em] text-foreground md:text-[38px]">{title}</h1></div>{children}</div></div></section>;
 }
 
-function MetricCard({ label, value, detail, tone, index }: { label: string; value: string; detail: string; tone: string; index: number }) {
-  const toneClass = tone === 'green' ? 'text-[#6bd188] bg-[#5bbd75]/10' : tone === 'amber' ? 'text-[#f4cc64] bg-[#f1c348]/10' : tone === 'red' ? 'text-[#ed8c90] bg-[#e77b80]/10' : tone === 'blue' ? 'text-primary bg-primary/10' : 'text-muted-foreground bg-secondary';
-  const icons = [Gauge, ArrowUpRight, WalletCards];
-  const Icon = icons[index % icons.length];
-  return <div className="group rounded-xl border border-border bg-card/80 p-4 transition-colors hover:border-primary/35" data-testid={`card-metric-${label.toLowerCase().replace(/\s+/g, '-')}`}><div className="flex items-start justify-between"><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}</span><span className={cn('rounded-lg p-2', toneClass)}><Icon size={15} /></span></div><div className="mt-4 flex items-end justify-between gap-3"><strong className="font-mono text-2xl font-medium tracking-[-.04em]">{value}</strong><span className="text-right text-[10px] leading-tight text-muted-foreground">{detail}</span></div></div>;
+function KpiCard({ label, value, detail, tone = "blue", icon, trend }: { label: string; value: string; detail: string; tone?: "blue" | "green" | "amber" | "red" | "violet"; icon: ReactNode; trend?: string }) {
+  const styles = { blue: "text-primary bg-primary/10", green: "text-[#6bd188] bg-[#5bbd75]/10", amber: "text-[#f4cc64] bg-[#f1c348]/10", red: "text-[#ed8c90] bg-[#e77b80]/10", violet: "text-[#b397ff] bg-[#8d6be8]/10" };
+  return <div className="group rounded-xl border border-border bg-card/80 p-4 transition-all hover:-translate-y-0.5 hover:border-primary/35"><div className="flex items-start justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}</span><span className={cn("rounded-lg p-2", styles[tone])}>{icon}</span></div><div className="mt-4 flex items-end justify-between gap-3"><strong className="font-mono text-[23px] font-medium tracking-[-.05em]">{value}</strong>{trend && <span className={cn("mb-1 flex items-center gap-0.5 text-[9px] font-bold", trend.startsWith("+") ? "text-[#6bd188]" : "text-[#ed8c90]")}>{trend.startsWith("+") ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}{trend}</span>}</div><p className="mt-1 text-[10px] leading-snug text-muted-foreground">{detail}</p></div>;
 }
 
-function EmptyMetrics() {
-  return <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground md:col-span-3" data-testid="text-empty-metrics">Métricas aguardando a próxima sincronização.</div>;
+function QuickAction({ icon, label, detail, color = "blue", onClick }: { icon: ReactNode; label: string; detail: string; color?: "blue" | "green" | "amber" | "violet"; onClick: () => void }) {
+  const colors = { blue: "text-primary bg-primary/10", green: "text-[#6bd188] bg-[#5bbd75]/10", amber: "text-[#f4cc64] bg-[#f1c348]/10", violet: "text-[#b397ff] bg-[#8d6be8]/10" };
+  return <button type="button" onClick={onClick} className="group flex min-h-[104px] flex-col justify-between rounded-xl border border-border bg-card/65 p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[.04]"><span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", colors[color])}>{icon}</span><span><span className="flex items-center justify-between gap-2 text-[11px] font-bold"><span>{label}</span><ArrowRight size={12} className="text-muted-foreground transition-transform group-hover:translate-x-1" /></span><span className="mt-1 block text-[9px] text-muted-foreground">{detail}</span></span></button>;
 }
 
-function PanelHeader({ icon, title, detail, action }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode }) {
-  return <div className="flex items-center justify-between border-b border-border px-4 py-3"><div className="flex items-center gap-2.5"><span className="text-primary">{icon}</span><div><h2 className="text-xs font-bold">{title}</h2>{detail && <p className="mt-0.5 text-[10px] text-muted-foreground">{detail}</p>}</div></div>{action}</div>;
+function ProgressBar({ value, color = "blue" }: { value: number; color?: "blue" | "green" | "amber" | "red" }) {
+  const colors = { blue: "bg-primary", green: "bg-[#5bbd75]", amber: "bg-[#f1c348]", red: "bg-[#e77b80]" };
+  return <div className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className={cn("h-full rounded-full transition-all", colors[color])} style={{ width: `${value}%` }} /></div>;
 }
 
-function AlertsPanel({ alerts }: { alerts: Array<{ id: string; title: string; description: string; severity: string }> }) {
-  const [showAll, setShowAll] = useState(false);
-  return <div className="rounded-xl border border-border bg-card/80"><PanelHeader icon={<Bell size={15} />} title="Alertas e pendências" detail={`${alerts.length} sinalizações`} action={alerts.length > 3 ? <button type="button" onClick={() => setShowAll(!showAll)} data-testid="button-view-alerts" className="text-[10px] font-bold text-primary hover:underline">{showAll ? 'Recolher' : 'Ver todos'}</button> : undefined} /><div className="p-3">{alerts.length ? <div className="space-y-2">{alerts.slice(0, showAll ? alerts.length : 3).map((alert) => <div key={alert.id} data-testid={`alert-item-${alert.id}`} className="flex gap-3 rounded-lg border border-border/70 bg-secondary/25 p-3"><AlertIcon severity={alert.severity} /><div className="min-w-0"><p className="text-[11px] font-bold">{alert.title}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{alert.description}</p></div></div>)}</div> : <div className="flex items-center gap-3 px-2 py-7 text-[11px] text-muted-foreground"><CheckCircle2 size={17} className="text-[#6bd188]" /> Nenhuma pendência crítica no momento.</div>}</div></div>;
+function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "neutral" }) {
+  const styles = { green: "bg-[#5bbd75]/12 text-[#6bd188]", amber: "bg-[#f1c348]/14 text-[#f4cc64]", red: "bg-[#e77b80]/12 text-[#ed8c90]", blue: "bg-primary/12 text-primary", neutral: "bg-secondary text-muted-foreground" };
+  return <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone])}><span className="h-1.5 w-1.5 rounded-full bg-current" />{children}</span>;
 }
 
-function AlertIcon({ severity }: { severity: string }) {
-  const Icon = severity === 'critical' ? AlertCircle : severity === 'success' ? CheckCircle2 : severity === 'warning' ? AlertCircle : HelpCircle;
-  return <Icon size={16} className={cn('mt-0.5 shrink-0', severity === 'critical' ? 'text-[#ed8c90]' : severity === 'warning' ? 'text-[#f4cc64]' : severity === 'success' ? 'text-[#6bd188]' : 'text-primary')} />;
+function EmptyState({ label = "Nenhum registro encontrado" }: { label?: string }) {
+  return <div className="flex flex-col items-center justify-center py-12 text-center"><div className="mb-3 rounded-xl bg-secondary p-3 text-muted-foreground"><FileText size={21} /></div><p className="text-xs font-bold">{label}</p><p className="mt-1 max-w-xs text-[11px] text-muted-foreground">Os dados aparecerão aqui assim que forem registrados no sistema.</p></div>;
 }
 
-function FinancePage() {
-  const [cashView, setCashView] = useState<'share' | 'cliente'>('share');
-  const [search, setSearch] = useState('');
-  const [notice, setNotice] = useState('');
-  const movementsQuery = useGetFinancialMovements({ limite: 50 }, { query: { queryKey: getGetFinancialMovementsQueryKey({ limite: 50 }) } });
-  const movements = movementsQuery.data ?? [];
-  const filtered = useMemo(() => movements.filter((item) => `${item.description} ${item.category} ${item.paidBy}`.toLowerCase().includes(search.toLowerCase())), [movements, search]);
-  const viewMovements = filtered.filter((item) => item.caixa === cashView);
-  const total = viewMovements.reduce((sum, item) => sum + item.amount, 0);
-  const paid = viewMovements.filter((item) => item.status === 'pago').reduce((sum, item) => sum + item.amount, 0);
-  const pending = viewMovements.filter((item) => item.status !== 'pago').reduce((sum, item) => sum + item.amount, 0);
-  return <div className="route-enter"><PageTitle eyebrow="Financeiro / Conciliação" title="Visão de caixa" description="Acompanhe o caixa Share e o caixa Cliente sem misturar responsabilidades." action={<button type="button" onClick={() => setNotice('O formulário de lançamento estará disponível após a seleção da conta.')} data-testid="button-new-movement" className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-[11px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"><Plus size={15} /> Novo lançamento</button>} />{notice && <div className="mb-5 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary" data-testid="status-finance-notice"><span>{notice}</span><button type="button" onClick={() => setNotice('')} data-testid="button-dismiss-finance-notice" className="rounded p-1 hover:bg-primary/10"><X size={13} /></button></div>}
-    <div className="mb-5 grid gap-3 md:grid-cols-2">
-      <CashCard type="share" active={cashView === 'share'} onClick={() => setCashView('share')} total={cashView === 'share' ? total : movements.filter((item) => item.caixa === 'share').reduce((sum, item) => sum + item.amount, 0)} />
-      <CashCard type="cliente" active={cashView === 'cliente'} onClick={() => setCashView('cliente')} total={cashView === 'cliente' ? total : movements.filter((item) => item.caixa === 'cliente').reduce((sum, item) => sum + item.amount, 0)} />
-    </div>
-    <div className="mb-5 flex items-start gap-3 rounded-xl border border-[#f1c348]/25 bg-[#f1c348]/7 p-3.5"><AlertCircle size={16} className="mt-0.5 shrink-0 text-[#f4cc64]" /><p className="text-[11px] leading-relaxed text-muted-foreground"><strong className="text-[#f4cc64]">Regra de rateio:</strong> despesas reembolsáveis e rateios pertencem aos cotistas. O caixa Share registra apenas os compromissos da administradora.</p></div>
-    <div className="mb-5 grid gap-3 sm:grid-cols-3"><MiniStat label="Movimentação do período" value={formatCurrency(total)} icon={<LineChart size={15} />} /><MiniStat label="Já conciliado" value={formatCurrency(paid)} icon={<Check size={15} />} tone="green" /><MiniStat label="A liquidar" value={formatCurrency(pending)} icon={<Clock3 size={15} />} tone="amber" /></div>
-    <div className="overflow-hidden rounded-xl border border-border bg-card/80"><PanelHeader icon={<FileBarChart size={15} />} title="Lançamentos recentes" detail={`${viewMovements.length} registros · Caixa ${cashView === 'share' ? 'Share' : 'Cliente'}`} action={<div className="hidden items-center gap-2 sm:flex"><button type="button" onClick={() => setNotice('A exportação será preparada com os filtros atuais.')} data-testid="button-export-movements" className="rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary hover:text-foreground">Exportar CSV</button><button type="button" onClick={() => setNotice('Filtros avançados abertos.')} data-testid="button-filter-movements" className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"><Filter size={13} /></button></div>} /><div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row"><div className="relative flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} data-testid="input-search-movements" placeholder="Buscar descrição, categoria ou responsável" className="h-9 w-full rounded-lg border border-border bg-secondary/45 pl-9 pr-3 text-[11px] outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60" /></div><button type="button" onClick={() => setNotice('Filtro de status selecionado.')} data-testid="button-filter-status" className="flex items-center justify-between gap-5 rounded-lg border border-border bg-secondary/45 px-3 text-[10px] font-semibold text-muted-foreground hover:text-foreground"><span>Todos os status</span><ChevronDown size={13} /></button></div>
-      <DataState loading={movementsQuery.isLoading} error={movementsQuery.isError} empty={!movements.length && !movementsQuery.isLoading} onRetry={() => movementsQuery.refetch()}><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-4 py-3">Data</th><th className="px-4 py-3">Descrição</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Pago por</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3" /></tr></thead><tbody>{viewMovements.length ? viewMovements.map((movement) => <tr key={movement.id} data-testid={`row-movement-${movement.id}`} className="border-b border-border/60 last:border-0 transition-colors hover:bg-secondary/30"><td className="px-4 py-3.5 font-mono text-[10px] text-muted-foreground">{formatDate(movement.date)}</td><td className="px-4 py-3.5"><p className="max-w-[245px] truncate text-[11px] font-bold">{movement.description}</p><p className="mt-1 text-[9px] text-muted-foreground">{movement.account}</p></td><td className="px-4 py-3.5"><span className="rounded-md bg-primary/10 px-2 py-1 text-[9px] font-bold text-primary">{movement.category}</span>{movement.reimbursable && <span className="ml-1.5 rounded-md bg-[#f1c348]/10 px-2 py-1 text-[9px] font-bold text-[#f4cc64]">Rateio</span>}</td><td className="px-4 py-3.5 text-[10px] text-muted-foreground">{movement.paidBy}</td><td className="px-4 py-3.5 text-right font-mono text-[11px] font-medium">{formatCurrency(movement.amount)}</td><td className="px-4 py-3.5"><StatusPill status={movement.status} /></td><td className="px-4 py-3.5 text-right"><button type="button" onClick={() => setNotice(`Ações do lançamento ${movement.id} abertas.`)} data-testid={`button-movement-menu-${movement.id}`} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"><MoreHorizontal size={15} /></button></td></tr>) : <tr><td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum lançamento corresponde à busca ou a este caixa.</td></tr>}</tbody></table></div></DataState>
-    </div>
-  </div>;
+function GestorDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
+  const [period, setPeriod] = useState("Agosto 2026");
+  const [notice, setNotice] = useState("");
+  const months = ["Mar", "Abr", "Mai", "Jun", "Jul", "Ago"];
+  const bars = [48, 62, 54, 76, 68, 88];
+  return <div className="route-enter"><Hero workspace="gestor" title="Bom dia, Camilla" subtitle="Visão executiva · atualizado há 12 minutos"><div className="hidden rounded-lg border border-border/70 bg-background/35 px-3 py-2 text-right sm:block"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground">Período consolidado</p><p className="mt-1 text-[11px] font-bold text-foreground">{period}</p></div></Hero>{notice && <div className="mb-5 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary"><span>{notice}</span><button type="button" onClick={() => setNotice("")}><X size={13} /></button></div>}<div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Caixa Share" value="R$ 286.420" detail="Saldo consolidado da administradora" tone="green" icon={<WalletCards size={16} />} trend="+8,4%" /><KpiCard label="A receber" value="R$ 84.630" detail="12 cobranças em aberto" tone="blue" icon={<ArrowDownRight size={16} />} trend="+12,1%" /><KpiCard label="A pagar" value="R$ 42.180" detail="8 pagamentos programados" tone="amber" icon={<CreditCard size={16} />} /><KpiCard label="Fechamento mensal" value="09 / 12" detail="3 balanços aguardam conferência" tone="violet" icon={<ClipboardCheck size={16} />} /></div><div className="mb-5 rounded-xl border border-border bg-card/70 p-1"><div className="grid gap-1 sm:grid-cols-4"><QuickAction icon={<Plus size={16} />} label="Novo lançamento" detail="Registrar entrada ou saída" onClick={() => setNotice("Novo lançamento: selecione a conta e o centro de custo.")} /><QuickAction icon={<CreditCard size={16} />} label="Contas a pagar" detail="5 vencem nos próximos dias" color="amber" onClick={() => onNavigate("financeiro-share")} /><QuickAction icon={<FileCheck2 size={16} />} label="Emitir NF de saída" detail="Notas mensais da administração" color="green" onClick={() => setNotice("Emissão de NF de saída será aberta na próxima etapa.")} /><QuickAction icon={<Receipt size={16} />} label="Recibo de saída" detail="3 clientes sem nota fiscal" color="violet" onClick={() => setNotice("Recibos de saída: 3 documentos aguardando emissão.")} /></div></div><div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<LineChart size={15} />} title="Movimentação do caixa Share" detail="Entradas e saídas · últimos 6 meses" action={<select value={period} onChange={(event) => setPeriod(event.target.value)} className="rounded-md border border-border bg-secondary/50 px-2 py-1.5 text-[10px] font-semibold outline-none"><option>Agosto 2026</option><option>Julho 2026</option><option>Junho 2026</option></select>} /><div className="p-4"><div className="flex items-end justify-between gap-3"><div><p className="text-[10px] text-muted-foreground">Saldo no período</p><p className="mt-1 font-mono text-2xl tracking-[-.05em]">R$ 286.420</p></div><StatusBadge tone="green">Caixa saudável</StatusBadge></div><div className="mt-7 flex h-[168px] items-end gap-2 border-b border-border/70 pb-0 sm:gap-4">{bars.map((height, index) => <div key={months[index]} className="group flex h-full flex-1 flex-col items-center justify-end gap-2"><div className="relative flex w-full max-w-[42px] flex-1 items-end"><div className="w-full rounded-t-md bg-primary/20 transition-all group-hover:bg-primary/35" style={{ height: `${height}%` }} /><div className="absolute bottom-0 left-1/2 w-[5px] -translate-x-1/2 rounded-t-full bg-primary" style={{ height: `${Math.max(15, height - 20)}%` }} /></div><span className="font-mono text-[9px] text-muted-foreground">{months[index]}</span></div>)}</div><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-primary" />Entradas</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-primary/25" />Saídas</span><span className="ml-auto font-mono text-[#6bd188]">+ R$ 21.940 no mês</span></div></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<AlertCircle size={15} />} title="Atenção do gestor" detail="Itens que precisam de decisão" action={<button type="button" className="text-[10px] font-bold text-primary hover:underline">Ver tudo</button>} /><div className="divide-y divide-border/70"><AttentionItem tone="amber" title="3 fechamentos aguardam conferência" description="DGA, PT-OJG e PR-SBR" action="Conferir" onClick={() => onNavigate("financeiro-cotista")} /><AttentionItem tone="red" title="2 clientes em inadimplência crítica" description="Saldo vencido há mais de 30 dias" action="Analisar" onClick={() => onNavigate("financeiro-cotista")} /><AttentionItem tone="blue" title="5 pagamentos programados" description="Próximo vencimento em 02 set." action="Abrir" onClick={() => onNavigate("financeiro-share")} /></div></section></div><div className="mt-5 grid gap-5 xl:grid-cols-[.95fr_1.05fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<ClipboardCheck size={15} />} title="Fechamento do balanço mensal" detail="Competência · agosto de 2026" action={<StatusBadge tone="amber">Em andamento</StatusBadge>} /><div className="p-4"><div className="flex items-end justify-between gap-3"><div><p className="text-3xl font-extrabold tracking-[-.05em]">75%</p><p className="mt-1 text-[10px] text-muted-foreground">9 de 12 cotistas conferidos</p></div><div className="text-right"><p className="font-mono text-[11px] font-bold text-[#f4cc64]">3 pendentes</p><p className="mt-1 text-[9px] text-muted-foreground">prazo: 05 set.</p></div></div><div className="mt-5"><ProgressBar value={75} color="amber" /></div><div className="mt-5 grid grid-cols-3 gap-2"><CloseStep label="Lançamentos" value="12 / 12" complete /><CloseStep label="Conferência" value="9 / 12" /><CloseStep label="Envio cotistas" value="0 / 12" /></div><button type="button" onClick={() => onNavigate("financeiro-cotista")} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/8 py-2.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15">Abrir fechamento <ArrowRight size={13} /></button></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Users size={15} />} title="Financeiro Cotista" detail="Resumo de saldos e utilização" action={<button type="button" onClick={() => onNavigate("financeiro-cotista")} className="text-[10px] font-bold text-primary hover:underline">Ver relatório</button>} /><div className="overflow-x-auto"><table className="w-full min-w-[450px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Cotista</th><th className="px-4 py-3">Horas</th><th className="px-4 py-3 text-right">Saldo</th><th className="px-4 py-3">Status</th></tr></thead><tbody><ShareholderRow name="DGA Administradora" aircraft="PT-OJG" hours="18,4 h" balance="R$ 12.450" tone="green" status="Regular" /><ShareholderRow name="Dejalmo Ribeiro" aircraft="PR-SBR" hours="11,2 h" balance="- R$ 1.830" tone="amber" status="Atenção" /><ShareholderRow name="Mauricio Almeida" aircraft="PT-OJG" hours="8,7 h" balance="R$ 3.260" tone="green" status="Regular" /><ShareholderRow name="Gerson Duarte" aircraft="PT-OJG" hours="4,2 h" balance="- R$ 6.420" tone="red" status="Inadimplente" /></tbody></table></div></section></div><NoticeBoard /></div>;
 }
 
-function CashCard({ type, active, onClick, total }: { type: 'share' | 'cliente'; active: boolean; onClick: () => void; total: number }) {
-  const share = type === 'share';
-  return <button type="button" onClick={onClick} data-testid={`button-cash-${type}`} className={cn('relative overflow-hidden rounded-xl border p-5 text-left transition-all hover:-translate-y-0.5', active ? 'border-primary/60 bg-primary/8' : 'border-border bg-card/75 hover:border-primary/30')}><div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl" /><div className="relative flex items-start justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">Caixa {share ? 'Share' : 'Cliente'}</p><h2 className="mt-2 text-lg font-extrabold">{share ? 'Administradora' : 'Operação dos cotistas'}</h2></div><div className={cn('rounded-lg p-2.5', share ? 'bg-primary/12 text-primary' : 'bg-[#f1c348]/12 text-[#f4cc64]')}>{share ? <CircleDollarSign size={18} /> : <Users size={18} />}</div></div><div className="relative mt-6 flex items-end justify-between"><strong className="font-mono text-2xl">{formatCurrency(total)}</strong><span className={cn('flex items-center gap-1 text-[10px] font-bold', share ? 'text-primary' : 'text-[#f4cc64]')}>{active ? 'Selecionado' : 'Visualizar'} <ArrowRight size={12} /></span></div></button>;
+function AttentionItem({ tone, title, description, action, onClick }: { tone: "amber" | "red" | "blue"; title: string; description: string; action: string; onClick: () => void }) {
+  const colors = { amber: "text-[#f4cc64] bg-[#f1c348]/10", red: "text-[#ed8c90] bg-[#e77b80]/10", blue: "text-primary bg-primary/10" };
+  return <div className="flex items-start gap-3 p-4"><span className={cn("mt-0.5 rounded-lg p-2", colors[tone])}>{tone === "red" ? <AlertCircle size={14} /> : tone === "amber" ? <Clock3 size={14} /> : <FileClock size={14} />}</span><div className="min-w-0 flex-1"><p className="text-[11px] font-bold leading-snug">{title}</p><p className="mt-1 text-[10px] text-muted-foreground">{description}</p></div><button type="button" onClick={onClick} className="mt-1 text-[10px] font-bold text-primary hover:underline">{action}</button></div>;
 }
 
-function MiniStat({ label, value, icon, tone = 'blue' }: { label: string; value: string; icon: ReactNode; tone?: string }) {
-  return <div className="rounded-xl border border-border bg-card/75 p-4"><div className={cn('mb-4 flex h-7 w-7 items-center justify-center rounded-md', tone === 'green' ? 'bg-[#5bbd75]/12 text-[#6bd188]' : tone === 'amber' ? 'bg-[#f1c348]/12 text-[#f4cc64]' : 'bg-primary/12 text-primary')}>{icon}</div><p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}</p><p className="mt-1 font-mono text-lg">{value}</p></div>;
+function CloseStep({ label, value, complete = false }: { label: string; value: string; complete?: boolean }) {
+  return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><div className="flex items-center gap-1.5">{complete ? <CheckCircle2 size={12} className="text-[#6bd188]" /> : <span className="h-2.5 w-2.5 rounded-full border border-[#f4cc64]" />}<span className="truncate text-[9px] font-bold">{label}</span></div><p className="mt-2 font-mono text-[10px] text-muted-foreground">{value}</p></div>;
 }
 
-function ShareholdersPage() {
-  const shareholdersQuery = useGetShareholders({ query: { queryKey: getGetShareholdersQueryKey() } });
-  const shareholders = shareholdersQuery.data ?? [];
-  const [closed, setClosed] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const totalHours = shareholders.reduce((sum, item) => sum + item.hours, 0);
-  const attention = shareholders.filter((item) => item.status !== 'regular').length;
-  return <div className="route-enter"><PageTitle eyebrow="Financeiro / Base societária" title="Cotistas" description="Acompanhe utilização, saldos e o preparo para o próximo fechamento." action={<button type="button" onClick={() => setClosed(!closed)} data-testid="button-close-period" className={cn('flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-[11px] font-bold transition-colors', closed ? 'bg-[#5bbd75]/15 text-[#6bd188]' : 'bg-primary text-primary-foreground')}>{closed ? <Check size={15} /> : <CheckCircle2 size={15} />} {closed ? 'Período preparado' : 'Fechamento do período'}</button>} /><div className="mb-5 grid gap-3 sm:grid-cols-3"><MiniStat label="Cotistas ativos" value={String(shareholders.length)} icon={<Users size={15} />} /><MiniStat label="Horas utilizadas" value={`${totalHours.toLocaleString('pt-BR')} h`} icon={<Clock3 size={15} />} /><MiniStat label="Pontos de atenção" value={String(attention)} icon={<AlertCircle size={15} />} tone={attention ? 'amber' : 'green'} /></div><div className="overflow-hidden rounded-xl border border-border bg-card/80"><PanelHeader icon={<Users size={15} />} title="Acompanhamento de cotistas" detail="Saldo e utilização por aeronave" action={<button type="button" onClick={() => setFilterOpen(!filterOpen)} data-testid="button-filter-shareholders" className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary hover:text-foreground"><SlidersHorizontal size={12} /> {filterOpen ? 'Ocultar filtros' : 'Filtros'}</button>} />{filterOpen && <div className="border-b border-border bg-secondary/25 px-4 py-3 text-[10px] text-muted-foreground" data-testid="panel-shareholder-filters">Filtro ativo: todos os cotistas · todos os status</div>}<DataState loading={shareholdersQuery.isLoading} error={shareholdersQuery.isError} empty={!shareholders.length && !shareholdersQuery.isLoading} onRetry={() => shareholdersQuery.refetch()}><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-4 py-3">Cotista</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3 text-right">Horas</th><th className="px-4 py-3">Utilização</th><th className="px-4 py-3 text-right">Saldo</th><th className="px-4 py-3">Status</th></tr></thead><tbody>{shareholders.map((person) => <tr key={person.id} data-testid={`row-shareholder-${person.id}`} className="border-b border-border/60 last:border-0 hover:bg-secondary/30"><td className="px-4 py-4"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0b4a78] text-[10px] font-bold text-white">{person.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><span className="text-[11px] font-bold">{person.name}</span></div></td><td className="px-4 py-4 font-mono text-[10px] text-muted-foreground">{person.aircraft}</td><td className="px-4 py-4 text-right font-mono text-[11px]">{person.hours} h</td><td className="px-4 py-4"><div className="flex items-center gap-2"><div className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(person.utilization, 100)}%` }} /></div><span className="font-mono text-[10px] text-muted-foreground">{person.utilization}%</span></div></td><td className={cn('px-4 py-4 text-right font-mono text-[11px] font-medium', person.balance < 0 ? 'text-[#ed8c90]' : 'text-[#6bd188]')}>{formatCurrency(person.balance)}</td><td className="px-4 py-4"><StatusPill status={person.status} /></td></tr>)}</tbody></table></div></DataState></div><div className="mt-5 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" /><p className="text-[11px] leading-relaxed text-muted-foreground"><strong className="text-foreground">Fechamento confiável.</strong> A utilização é consolidada por aeronave e o saldo apresentado é a referência para os lançamentos do caixa Cliente.</p></div></div>;
+function ShareholderRow({ name, aircraft, hours, balance, tone, status }: { name: string; aircraft: string; hours: string; balance: string; tone: "green" | "amber" | "red"; status: string }) {
+  return <tr className="border-b border-border/60 last:border-0"><td className="px-4 py-3"><p className="text-[10px] font-bold">{name}</p><p className="mt-0.5 font-mono text-[9px] text-muted-foreground">{aircraft}</p></td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{hours}</td><td className={cn("px-4 py-3 text-right font-mono text-[10px] font-bold", tone === "red" ? "text-[#ed8c90]" : "text-foreground")}>{balance}</td><td className="px-4 py-3"><StatusBadge tone={tone}>{status}</StatusBadge></td></tr>;
 }
 
-function OperationsPage() {
-  const dashboard = useGetDashboardSummary({ departamento: 'operacoes' }, { query: { queryKey: getGetDashboardSummaryQueryKey({ departamento: 'operacoes' }) } });
-  const metrics = dashboard.data?.metrics ?? [];
-  const alerts = dashboard.data?.alerts ?? [];
-  const [notice, setNotice] = useState('');
-  return <div className="route-enter"><PageTitle eyebrow="Operações / Centro de comando" title="Operação de voos" description="Agenda, prontidão e pendências da frota em uma única leitura." action={<button type="button" onClick={() => setNotice('O novo voo será iniciado pela agenda operacional.')} data-testid="button-new-flight" className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-[11px] font-bold text-primary-foreground"><Plus size={15} /> Novo voo</button>} />{notice && <div className="mb-5 rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary" data-testid="status-operations-notice">{notice}</div>}<DataState loading={dashboard.isLoading} error={dashboard.isError} onRetry={() => dashboard.refetch()}><div className="mb-5 grid gap-3 md:grid-cols-3">{metrics.length ? metrics.map((metric, index) => <MetricCard key={`${metric.label}-${index}`} {...metric} index={index} />) : <EmptyMetrics />}</div><div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]"><FlightSchedule onAction={() => setNotice('Agenda atualizada com a última sincronização disponível.')} /><AlertsPanel alerts={alerts} /></div></DataState></div>;
+function NoticeBoard() {
+  return <section className="mt-5 overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Bell size={15} />} title="Recados para todos" detail="Comunicação interna da Share Brasil" action={<button type="button" className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"><Plus size={12} /> Novo recado</button>} /><div className="grid gap-3 p-4 md:grid-cols-3"><Notice tone="blue" title="Fechamento de agosto" description="O prazo para conferência dos balanços é 05 de setembro." time="há 26 min" /><Notice tone="amber" title="Manutenção programada" description="PT-OJG ficará indisponível em 03/09 das 08h às 12h." time="há 1 h" /><Notice tone="green" title="Novo procedimento" description="Recibos de saída devem ser anexados ao lançamento." time="ontem" /></div></section>;
 }
 
-function FlightSchedule({ onAction }: { onAction: () => void }) {
-  return <div className="rounded-xl border border-border bg-card/80"><PanelHeader icon={<CalendarDays size={15} />} title="Próximos movimentos" detail="Janela operacional de hoje" action={<button type="button" onClick={onAction} data-testid="button-calendar-view" className="text-[10px] font-bold text-primary hover:underline">Abrir agenda</button>} /><div className="p-3"><div className="mb-3 flex items-center gap-2 rounded-lg bg-primary/7 px-3 py-2 text-[10px] text-primary"><Activity size={13} /> Pista ativa · atualização automática</div><div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-11 text-center"><Plane size={22} className="mb-3 text-muted-foreground" /><p className="text-xs font-bold">Agenda sincronizada</p><p className="mt-1 max-w-[230px] text-[10px] leading-relaxed text-muted-foreground">Os próximos voos e planos de voo aparecem aqui após a confirmação operacional.</p><button type="button" onClick={onAction} data-testid="button-sync-schedule" className="mt-4 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[10px] font-bold hover:bg-secondary"><RefreshCw size={12} /> Atualizar agenda</button></div></div></div>;
+function Notice({ tone, title, description, time }: { tone: "blue" | "amber" | "green"; title: string; description: string; time: string }) {
+  return <div className="rounded-lg border border-border/70 bg-secondary/20 p-3.5"><div className="flex items-start justify-between gap-3"><span className={cn("h-2 w-2 rounded-full", tone === "blue" ? "bg-primary" : tone === "amber" ? "bg-[#f1c348]" : "bg-[#5bbd75]")} /><span className="font-mono text-[9px] text-muted-foreground">{time}</span></div><p className="mt-3 text-[11px] font-bold">{title}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{description}</p></div>;
 }
 
-function SettingsPage() {
-  const [autoReconcile, setAutoReconcile] = useState(true);
-  const [alerts, setAlerts] = useState(true);
-  const [saved, setSaved] = useState(false);
-  const save = () => { setSaved(true); window.setTimeout(() => setSaved(false), 2200); };
-  return <div className="route-enter max-w-4xl"><PageTitle eyebrow="Administração / Preferências" title="Configurações financeiras" description="Defina como o Share Brasil organiza conciliação, alertas e fechamentos." action={saved ? <span className="flex items-center gap-2 text-[11px] font-bold text-[#6bd188]" data-testid="status-settings-saved"><CheckCircle2 size={15} /> Alterações salvas</span> : <button type="button" onClick={save} data-testid="button-save-settings" className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-[11px] font-bold text-primary-foreground"><Check size={15} /> Salvar alterações</button>} /><div className="space-y-4"><SettingsSection title="Conciliação" icon={<WalletCards size={16} />} description="Automatize o acompanhamento dos movimentos importados."><SettingToggle label="Conciliação automática" description="Conferir novos lançamentos com o extrato bancário." enabled={autoReconcile} onToggle={() => setAutoReconcile(!autoReconcile)} testId="toggle-auto-reconcile" /><SettingRow label="Conta padrão Share" description="Usada para novos lançamentos da administradora." value="Conta operacional Share Brasil" /></SettingsSection><SettingsSection title="Fechamento e alertas" icon={<Bell size={16} />} description="Mantenha a equipe gestora informada no momento certo."><SettingToggle label="Alertas de vencimento" description="Avisar sobre pendências e fechamentos próximos." enabled={alerts} onToggle={() => setAlerts(!alerts)} testId="toggle-due-alerts" /><SettingRow label="Antecedência dos alertas" description="Quando a equipe deve ser avisada." value="3 dias antes" /></SettingsSection><div className="rounded-xl border border-[#f1c348]/25 bg-[#f1c348]/7 p-4"><div className="flex gap-3"><ShieldCheck size={17} className="mt-0.5 text-[#f4cc64]" /><div><p className="text-xs font-bold">Permissões da equipe gestora</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Alterações nestas preferências afetam as rotinas financeiras compartilhadas. Consulte o histórico antes de alterar regras de fechamento.</p></div></div></div></div></div>;
+function OperationsDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
+  const [notice, setNotice] = useState("");
+  return <div className="route-enter"><Hero workspace="operacoes" title="Bom dia, Camilla" subtitle="Centro de comando · quinta-feira, 30 de agosto"><div className="hidden items-center gap-2 rounded-lg border border-[#5bbd75]/25 bg-[#5bbd75]/8 px-3 py-2 sm:flex"><span className="pulse-dot h-2 w-2 rounded-full bg-[#5bbd75]" /><span className="text-[10px] font-bold text-[#6bd188]">Operação normal</span></div></Hero>{notice && <div className="mb-5 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary"><span>{notice}</span><button type="button" onClick={() => setNotice("")}><X size={13} /></button></div>}<div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Voos hoje" value="04" detail="2 em voo agora" tone="blue" icon={<Plane size={16} />} /><KpiCard label="Aeronaves" value="07" detail="6 disponíveis para agenda" tone="green" icon={<Gauge size={16} />} /><KpiCard label="Tripulação" value="12" detail="3 escalas confirmadas" tone="violet" icon={<Users size={16} />} /><KpiCard label="Pendências" value="03" detail="1 documento crítico" tone="amber" icon={<AlertCircle size={16} />} /></div><div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"><QuickAction icon={<CalendarDays size={16} />} label="Agendamentos" detail="4 voos" onClick={() => onNavigate("agendamentos")} /><QuickAction icon={<FileText size={16} />} label="Plano de voo" detail="2 em revisão" color="violet" onClick={() => onNavigate("plano-de-voo")} /><QuickAction icon={<NotebookPen size={16} />} label="Diário de bordo" detail="Atualizar" color="green" onClick={() => onNavigate("diario-de-bordo")} /><QuickAction icon={<Users size={16} />} label="Tripulação" detail="Escalas" color="violet" onClick={() => onNavigate("tripulacao")} /><QuickAction icon={<Fuel size={16} />} label="Abastecimento" detail="Último há 1h" color="amber" onClick={() => onNavigate("abastecimentos")} /><QuickAction icon={<Wrench size={16} />} label="CTM" detail="Manutenção" color="green" onClick={() => onNavigate("ctm")} /></div><div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Activity size={15} />} title="Status de voo ao vivo" detail="Aeronaves agendadas e em voo" action={<button type="button" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary"><RefreshCw size={12} /> Atualizar</button>} /><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Horário</th><th className="px-4 py-3">Piloto</th><th className="px-4 py-3">Status</th></tr></thead><tbody><FlightRow aircraft="PT-OJG" route="SBGR → SBRJ" time="09:40" pilot="Mauricio A." status="Em voo" tone="green" /><FlightRow aircraft="PR-SBR" route="SBMT → SBSP" time="11:20" pilot="Dejalmo R." status="Embarque" tone="blue" /><FlightRow aircraft="PT-FAZ" route="SBKP → SBGL" time="14:10" pilot="A definir" status="Agendado" tone="amber" /><FlightRow aircraft="PP-XAB" route="SBRP → SBSP" time="16:30" pilot="Gerson D." status="Agendado" tone="amber" /></tbody></table></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Bell size={15} />} title="Recados para todos" detail="Últimas comunicações" action={<button type="button" onClick={() => setNotice("Novo recado: funcionalidade em preparação.")} className="text-[10px] font-bold text-primary hover:underline">Novo recado</button>} /><div className="divide-y divide-border/70"><NoticeCompact title="Manutenção PT-OJG" text="Aeronave liberada após inspeção de rotina." time="09:12" tone="green" /><NoticeCompact title="Alteração de escala" text="Voo PR-SBR confirmado para 11:20." time="08:48" tone="blue" /><NoticeCompact title="Atenção ao abastecimento" text="Anexar comprovante ao diário de bordo." time="ontem" tone="amber" /></div></section></div><div className="mt-5 grid gap-5 md:grid-cols-3"><MiniPanel title="Agenda do dia" icon={<CalendarDays size={15} />} value="04 voos" detail="Próximo em 01h 42min" action="Abrir agenda" onClick={() => onNavigate("agendamentos")} /><MiniPanel title="Documentos de voo" icon={<FileCheck2 size={15} />} value="18 / 20" detail="2 aguardando assinatura" action="Revisar documentos" onClick={() => onNavigate("plano-de-voo")} /><MiniPanel title="Horas de voo" icon={<Clock3 size={15} />} value="38,3 h" detail="+6,2 h contra ontem" action="Ver ciclo de voo" onClick={() => onNavigate("diario-de-bordo")} /></div></div>;
 }
 
-function SettingsSection({ title, icon, description, children }: { title: string; icon: ReactNode; description: string; children: ReactNode }) {
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/80"><PanelHeader icon={icon} title={title} detail={description} /><div className="divide-y divide-border/70">{children}</div></section>;
+function FlightRow({ aircraft, route, time, pilot, status, tone }: { aircraft: string; route: string; time: string; pilot: string; status: string; tone: "green" | "blue" | "amber" }) {
+  return <tr className="border-b border-border/60 last:border-0"><td className="px-4 py-3.5"><div className="flex items-center gap-2.5"><span className={cn("flex h-7 w-7 items-center justify-center rounded-md", tone === "green" ? "bg-[#5bbd75]/10 text-[#6bd188]" : tone === "blue" ? "bg-primary/10 text-primary" : "bg-[#f1c348]/10 text-[#f4cc64]")}><Plane size={13} /></span><span className="font-mono text-[10px] font-bold">{aircraft}</span></div></td><td className="px-4 py-3.5 font-mono text-[10px] text-muted-foreground">{route}</td><td className="px-4 py-3.5 font-mono text-[10px] font-bold">{time}</td><td className="px-4 py-3.5 text-[10px] text-muted-foreground">{pilot}</td><td className="px-4 py-3.5"><StatusBadge tone={tone}>{status}</StatusBadge></td></tr>;
 }
 
-function SettingToggle({ label, description, enabled, onToggle, testId }: { label: string; description: string; enabled: boolean; onToggle: () => void; testId: string }) {
-  return <div className="flex items-center justify-between gap-4 px-4 py-4"><div><p className="text-[11px] font-bold">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{description}</p></div><button type="button" onClick={onToggle} data-testid={testId} aria-pressed={enabled} className={cn('relative h-6 w-11 shrink-0 rounded-full p-1 transition-colors', enabled ? 'bg-primary' : 'bg-secondary')}><span className={cn('block h-4 w-4 rounded-full bg-background shadow-sm transition-transform', enabled ? 'translate-x-5' : 'translate-x-0')} /></button></div>;
+function NoticeCompact({ title, text, time, tone }: { title: string; text: string; time: string; tone: "green" | "blue" | "amber" }) {
+  return <div className="flex gap-3 p-4"><span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", tone === "green" ? "bg-[#5bbd75]" : tone === "blue" ? "bg-primary" : "bg-[#f1c348]")} /><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><p className="text-[10px] font-bold">{title}</p><span className="font-mono text-[9px] text-muted-foreground">{time}</span></div><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{text}</p></div></div>;
 }
 
-function SettingRow({ label, description, value }: { label: string; description: string; value: string }) {
-  const options = label.includes('Antecedência') ? ['1 dia antes', '3 dias antes', '7 dias antes'] : ['Conta operacional Share Brasil', 'Conta de reserva'];
-  return <div className="flex items-center justify-between gap-4 px-4 py-4"><div><p className="text-[11px] font-bold">{label}</p><p className="mt-1 text-[10px] text-muted-foreground">{description}</p></div><div className="relative min-w-[170px]"><select defaultValue={value} data-testid={`select-setting-${label.toLowerCase().replace(/\s+/g, '-')}`} className="w-full appearance-none rounded-lg border border-border bg-secondary/45 px-3 py-2 pr-8 text-[10px] font-semibold outline-none hover:border-primary/45 focus:border-primary/60">{options.map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" /></div></div>;
+function MiniPanel({ title, icon, value, detail, action, onClick }: { title: string; icon: ReactNode; value: string; detail: string; action: string; onClick: () => void }) {
+  return <section className="rounded-xl border border-border bg-card/75 p-4"><div className="flex items-center gap-2 text-primary"><span>{icon}</span><span className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{title}</span></div><p className="mt-5 font-mono text-2xl tracking-[-.05em]">{value}</p><p className="mt-1 text-[10px] text-muted-foreground">{detail}</p><button type="button" onClick={onClick} className="mt-4 flex items-center gap-1 text-[10px] font-bold text-primary hover:underline">{action}<ArrowRight size={12} /></button></section>;
+}
+
+function FinanceDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
+  const [cashView, setCashView] = useState<"share" | "cliente">("share");
+  const pending = cashView === "share" ? 42180 : 8440;
+  return <div className="route-enter"><Hero workspace="financeiro" title="Visão financeira" subtitle="Conciliação, documentos e compromissos administrativos"><div className="hidden items-center gap-2 rounded-lg border border-[#f1c348]/25 bg-[#f1c348]/8 px-3 py-2 sm:flex"><Clock3 size={13} className="text-[#f4cc64]" /><span className="text-[10px] font-bold text-[#f4cc64]">5 rotinas pendentes</span></div></Hero><div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Recibos a emitir" value="08" detail="5 clientes · competência atual" tone="blue" icon={<Receipt size={16} />} /><KpiCard label="Despesas de viagem" value="12" detail="R$ 8.940 aguardando relatório" tone="amber" icon={<FileBarChart size={16} />} /><KpiCard label="Pagamentos programados" value="R$ 42.180" detail="8 compromissos neste ciclo" tone="violet" icon={<CreditCard size={16} />} /><KpiCard label="Inadimplência crítica" value="02" detail="Saldo vencido acima de 30 dias" tone="red" icon={<AlertCircle size={16} />} /></div><div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"><QuickAction icon={<Receipt size={16} />} label="Recibos" detail="8 pendentes" onClick={() => onNavigate("recibos")} /><QuickAction icon={<FileBarChart size={16} />} label="Despesas" detail="12 relatórios" color="amber" onClick={() => onNavigate("despesas")} /><QuickAction icon={<CreditCard size={16} />} label="Pagamentos" detail="Programar" color="violet" onClick={() => onNavigate("pagamentos")} /><QuickAction icon={<Mail size={16} />} label="E-mail" detail="Caixa de saída" color="blue" onClick={() => onNavigate("email")} /><QuickAction icon={<Clock3 size={16} />} label="Ponto" detail="Fechamento" color="green" onClick={() => onNavigate("ponto")} /><QuickAction icon={<RefreshCw size={16} />} label="Ciclo de voo" detail="Atualizado" color="amber" onClick={() => onNavigate("ciclo")} /></div><div className="mb-5 flex items-center gap-1 rounded-lg border border-border bg-card/65 p-1 sm:w-fit"><button type="button" onClick={() => setCashView("share")} className={cn("rounded-md px-4 py-2 text-[10px] font-bold", cashView === "share" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary")}>Caixa Share</button><button type="button" onClick={() => setCashView("cliente")} className={cn("rounded-md px-4 py-2 text-[10px] font-bold", cashView === "cliente" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary")}>Caixa Cliente</button></div><div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<CircleDollarSign size={15} />} title={`Compromissos · Caixa ${cashView === "share" ? "Share" : "Cliente"}`} detail="Próximos vencimentos" action={<button type="button" onClick={() => onNavigate("pagamentos")} className="text-[10px] font-bold text-primary hover:underline">Ver programação</button>} /><div className="p-4"><div className="flex items-end justify-between"><div><p className="text-[10px] text-muted-foreground">Total a vencer</p><p className="mt-1 font-mono text-2xl">{formatCurrency(pending)}</p></div><StatusBadge tone="amber">Acompanhar</StatusBadge></div><div className="mt-6 space-y-4"><DueItem label="Folha e encargos" meta="02 set. · Caixa Share" value="R$ 18.600" tone="red" progress={88} /><DueItem label="Combustível JET" meta="03 set. · Caixa Cliente" value="R$ 7.751" tone="amber" progress={58} /><DueItem label="Fornecedores operacionais" meta="05 set. · Caixa Share" value="R$ 5.430" tone="blue" progress={34} /></div></div></section><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1"><section className="overflow-hidden rounded-xl border border-[#e77b80]/25 bg-[#e77b80]/[.035]"><SectionHeader icon={<AlertCircle size={15} />} title="Inadimplência crítica" detail="Ação necessária" action={<button type="button" onClick={() => onNavigate("recibos")} className="text-[10px] font-bold text-[#ed8c90] hover:underline">Analisar</button>} /><div className="divide-y divide-[#e77b80]/10"><CriticalClient name="Gerson Duarte" aircraft="PT-OJG" value="- R$ 6.420" days="42 dias em aberto" /><CriticalClient name="Dejalmo Ribeiro" aircraft="PR-SBR" value="- R$ 1.830" days="18 dias em aberto" /></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<FileClock size={15} />} title="Despesas a vencer" detail="Próximos 7 dias" action={<button type="button" onClick={() => onNavigate("despesas")} className="text-[10px] font-bold text-primary hover:underline">Abrir relatório</button>} /><div className="grid grid-cols-3 gap-2 p-4"><MiniValue label="Combustível" value="R$ 7,7k" /><MiniValue label="Viagens" value="R$ 4,1k" /><MiniValue label="Taxas" value="R$ 2,3k" /></div></section></div></div><div className="mt-5 grid gap-5 lg:grid-cols-3"><MiniPanel title="Emissão de recibo" icon={<Receipt size={15} />} value="08 pendentes" detail="5 clientes aguardam documento" action="Abrir emissão" onClick={() => onNavigate("recibos")} /><MiniPanel title="Ponto e histórico" icon={<Clock3 size={15} />} value="98% conferido" detail="Fechamento do mês em andamento" action="Ver histórico" onClick={() => onNavigate("ponto")} /><MiniPanel title="Ciclo de voo" icon={<RefreshCw size={15} />} value="38,3 horas" detail="Dados sincronizados hoje" action="Consultar ciclo" onClick={() => onNavigate("ciclo")} /></div></div>;
+}
+
+function DueItem({ label, meta, value, tone, progress }: { label: string; meta: string; value: string; tone: "red" | "amber" | "blue"; progress: number }) {
+  return <div><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-bold">{label}</p><p className="mt-1 text-[9px] text-muted-foreground">{meta}</p></div><div className="text-right"><p className="font-mono text-[10px] font-bold">{value}</p><StatusBadge tone={tone}>{progress > 75 ? "Urgente" : progress > 45 ? "A vencer" : "Programado"}</StatusBadge></div></div><div className="mt-2"><ProgressBar value={progress} color={tone} /></div></div>;
+}
+
+function CriticalClient({ name, aircraft, value, days }: { name: string; aircraft: string; value: string; days: string }) {
+  return <div className="flex items-center gap-3 p-3.5"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e77b80]/10 text-[#ed8c90]"><Users size={15} /></div><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold">{name}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{aircraft} · {days}</p></div><p className="font-mono text-[10px] font-bold text-[#ed8c90]">{value}</p></div>;
+}
+
+function MiniValue({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><p className="truncate text-[9px] text-muted-foreground">{label}</p><p className="mt-2 font-mono text-[11px] font-bold">{value}</p></div>;
+}
+
+function PortalDashboard() {
+  return <div className="route-enter"><Hero workspace="portal" title="Olá, Camilla" subtitle="Portal Cliente · documentos e pagamentos"><div className="hidden items-center gap-2 rounded-lg border border-[#8d6be8]/25 bg-[#8d6be8]/8 px-3 py-2 sm:flex"><ShieldCheck size={13} className="text-[#b397ff]" /><span className="text-[10px] font-bold text-[#b397ff]">Somente visualização</span></div></Hero><div className="mb-5 grid gap-3 sm:grid-cols-3"><KpiCard label="Em aberto" value="R$ 4.475" detail="2 cobranças aguardando pagamento" tone="amber" icon={<CreditCard size={16} />} /><KpiCard label="Pagos no mês" value="R$ 18.260" detail="5 lançamentos confirmados" tone="green" icon={<CheckCircle2 size={16} />} /><KpiCard label="Documentos" value="08" detail="Todos disponíveis para consulta" tone="violet" icon={<FileCheck2 size={16} />} /></div><div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<CreditCard size={15} />} title="Pagamentos recentes" detail="Acompanhe o que foi enviado para você" /><div className="divide-y divide-border/70"><PaymentRow label="Combustível · JET" due="Vencimento 02 set. 2026" value="R$ 4.475" status="Pendente" tone="amber" /><PaymentRow label="Administração Share · agosto" due="Pago em 05 ago. 2026" value="R$ 18.260" status="Pago" tone="green" /><PaymentRow label="Tarifa aeroportuária" due="Pago em 29 jul. 2026" value="R$ 392" status="Pago" tone="green" /></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<FileCheck2 size={15} />} title="Documentos disponíveis" detail="Últimos arquivos enviados" /><div className="divide-y divide-border/70"><DocumentRow name="Recibo de saída · agosto" date="30 ago. 2026" /><DocumentRow name="Balanço mensal · julho" date="05 ago. 2026" /><DocumentRow name="Relatório de despesas · julho" date="05 ago. 2026" /></div></section></div></div>;
+}
+
+function PaymentRow({ label, due, value, status, tone }: { label: string; due: string; value: string; status: string; tone: "amber" | "green" }) {
+  return <div className="flex items-center gap-3 p-4"><div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", tone === "green" ? "bg-[#5bbd75]/10 text-[#6bd188]" : "bg-[#f1c348]/10 text-[#f4cc64]")}><CreditCard size={14} /></div><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{label}</p><p className="mt-1 text-[9px] text-muted-foreground">{due}</p></div><div className="text-right"><p className="font-mono text-[11px] font-bold">{value}</p><StatusBadge tone={tone}>{status}</StatusBadge></div></div>;
+}
+
+function DocumentRow({ name, date }: { name: string; date: string }) {
+  return <button type="button" className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/25"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText size={14} /></div><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold">{name}</p><p className="mt-1 text-[9px] text-muted-foreground">Disponível desde {date}</p></div><ArrowRight size={13} className="text-muted-foreground" /></button>;
+}
+
+function PlaceholderView({ workspace, menu, onBack }: { workspace: Workspace; menu: MenuItem; onBack: () => void }) {
+  const Icon = menu.icon;
+  return <div className="route-enter"><div className="mb-6 flex items-end justify-between gap-4"><div><PageEyebrow>{workspaceLabels[workspace]} / Módulo</PageEyebrow><h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">{menu.label}</h1><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">Esta tela já está separada no dashboard correto e será detalhada na próxima etapa do sistema.</p></div><button type="button" onClick={onBack} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary hover:text-foreground"><ArrowRight size={13} className="rotate-180" /> Voltar à visão geral</button></div><div className="grid gap-4 sm:grid-cols-3"><div className="rounded-xl border border-border bg-card/70 p-5 sm:col-span-2"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon size={21} /></div><h2 className="mt-5 text-sm font-bold">Área preparada para {menu.label}</h2><p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">A navegação, a identidade visual e o contexto do departamento estão prontos. Os formulários, filtros e integrações serão construídos mantendo esta mesma linguagem operacional.</p><div className="mt-6 grid gap-2 sm:grid-cols-3"><MiniValue label="Área" value={workspaceLabels[workspace]} /><MiniValue label="Acesso" value={workspace === "portal" ? "Leitura" : "Interno"} /><MiniValue label="Status" value="Em preparação" /></div></div><div className="rounded-xl border border-border bg-card/70 p-5"><div className="flex items-center gap-2 text-[#f4cc64]"><SlidersHorizontal size={16} /><span className="text-[10px] font-bold uppercase tracking-[.12em]">Próximos passos</span></div><div className="mt-5 space-y-4"><Checklist label="Estrutura visual" done /><Checklist label="Permissões por área" /><Checklist label="Dados do módulo" /><Checklist label="Ações e relatórios" /></div></div></div></div>;
+}
+
+function Checklist({ label, done = false }: { label: string; done?: boolean }) {
+  return <div className="flex items-center gap-2.5 text-[11px]">{done ? <CheckCircle2 size={15} className="text-[#6bd188]" /> : <span className="h-[15px] w-[15px] rounded-full border border-border" />}<span className={done ? "text-foreground" : "text-muted-foreground"}>{label}</span></div>;
 }
 
 function Shell() {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('share-brasil-theme') as Theme) || 'dark');
+  const [workspace, setWorkspace] = useState<Workspace>("gestor");
+  const [activeMenu, setActiveMenu] = useState("overview");
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("share-brasil-theme") as Theme) || "dark");
   const [menuOpen, setMenuOpen] = useState(false);
-  useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); localStorage.setItem('share-brasil-theme', theme); }, [theme]);
-  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} /><div className="min-w-0 flex-1"><TopBar theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8"><Switch><Route path="/" component={() => <DashboardPage />} /><Route path="/financeiro" component={FinancePage} /><Route path="/cotistas" component={ShareholdersPage} /><Route path="/operacoes" component={OperationsPage} /><Route path="/configuracoes" component={SettingsPage} /><Route component={NotFound} /></Switch></main></div></div>;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const activeItem = useMemo(() => menus[workspace].find((item) => item.id === activeMenu) || menus[workspace][0], [workspace, activeMenu]);
+  useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark"); localStorage.setItem("share-brasil-theme", theme); }, [theme]);
+  const changeWorkspace = (next: Workspace) => { setWorkspace(next); setActiveMenu("overview"); setMenuOpen(false); };
+  const renderDashboard = () => {
+    if (activeMenu !== "overview") return <PlaceholderView workspace={workspace} menu={activeItem} onBack={() => setActiveMenu("overview")} />;
+    if (workspace === "operacoes") return <OperationsDashboard onNavigate={setActiveMenu} />;
+    if (workspace === "financeiro") return <FinanceDashboard onNavigate={setActiveMenu} />;
+    if (workspace === "portal") return <PortalDashboard />;
+    return <GestorDashboard onNavigate={setActiveMenu} />;
+  };
+  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar workspace={workspace} activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
 }
 
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RoutedErrorBoundary><Shell /></RoutedErrorBoundary></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
-}
-
-function RoutedErrorBoundary({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  return <Shell />;
 }
 
 export default App;

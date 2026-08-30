@@ -2,11 +2,11 @@
   "name": "Gestão Share Brasil",
   "short_name": "Share Brasil",
   "description": "Portal Share Brasil",
-  "start_url": "/",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "theme_color": "#061223",
-  "background_color": "#ffffff",
+  "background_color": "#061223",
   "orientation": "portrait-primary",
   "icons": [
     {

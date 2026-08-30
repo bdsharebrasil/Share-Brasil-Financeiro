@@ -51,6 +51,10 @@ type QueryOptions = { query?: { queryKey?: readonly unknown[] } };
 const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!supabase) {
+    throw new Error("A autenticação ainda não foi configurada.");
+  }
+
   const { data } = await supabase.auth.getSession();
   const headers = new Headers(init?.headers);
   headers.set("Accept", "application/json");

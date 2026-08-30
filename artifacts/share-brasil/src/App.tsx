@@ -44,7 +44,10 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { Toaster } from "@/components/ui/toaster";
+import Login from "@/pages/login";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 type Workspace = "gestor" | "operacoes" | "financeiro" | "portal";
 type Theme = "dark" | "light";
@@ -444,7 +447,14 @@ function Shell() {
 }
 
 function App() {
-  return <Shell />;
+  const [location] = useLocation();
+
+  return (
+    <>
+      {location === "/login" ? <Login /> : <Shell />}
+      <Toaster />
+    </>
+  );
 }
 
 export default App;

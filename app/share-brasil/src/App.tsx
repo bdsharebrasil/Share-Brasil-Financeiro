@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/login";
-import { getCurrentSession } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -477,7 +477,7 @@ function ProtectedApp() {
 
   useEffect(() => {
     let active = true;
-    void getCurrentSession().then((session) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (!active) return;
       setHasSession(Boolean(session));
       setIsCheckingSession(false);

@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentSession, login as loginWithWorker } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 const flightRoutes = [
   { y: "-18vh", duration: "19s", delay: "-4s", size: 22, opacity: 0.34 },
@@ -75,7 +75,7 @@ export default function Login() {
       setRememberUser(true);
     }
 
-    void getCurrentSession().then((session) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) navigate("/", { replace: true });
       else setIsCheckingSession(false);
     });
@@ -117,7 +117,11 @@ export default function Login() {
       if (rememberUser) window.localStorage.setItem("login_username", trimmedUsername);
       else window.localStorage.removeItem("login_username");
 
-      await loginWithWorker(formattedLogin, password);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formattedLogin,
+        password,
+      });
+      if (error) throw error;
       toast({
         title: "Acesso autorizado",
         description: "Bem-vindo(a) ao portal Share Brasil.",
@@ -127,7 +131,7 @@ export default function Login() {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       toast({
         title: "Acesso negado",
-        description: message.includes("credenciais_invalidas")
+        description: message.includes("invalid") || message.includes("credential")
           ? "Usuário ou senha incorretos. Tente novamente."
           : "Não foi possível realizar o login. Tente novamente.",
         variant: "destructive",

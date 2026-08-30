@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Resumos operacionais e financeiros
+  - name: financeiro
+    description: Visão de caixa, pendências e rateios
 paths:
   /healthz:
     get:
@@ -24,6 +28,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Retorna o resumo de um dashboard
+      parameters:
+        - name: departamento
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Departamento"
+      responses:
+        "200":
+          description: Resumo do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /financeiro/movimentacoes:
+    get:
+      operationId: getFinancialMovements
+      tags: [financeiro]
+      summary: Lista os últimos lançamentos financeiros
+      parameters:
+        - name: caixa
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CaixaTipo"
+        - name: limite
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Lançamentos financeiros
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinancialMovement"
+  /financeiro/cotistas:
+    get:
+      operationId: getShareholders
+      tags: [financeiro]
+      summary: Lista cotistas com saldo e utilização
+      responses:
+        "200":
+          description: Cotistas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Shareholder"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +97,98 @@ components:
           type: string
       required:
         - status
+    Departamento:
+      type: string
+      enum: [operacoes, financeiro, gestor, portal]
+    CaixaTipo:
+      type: string
+      enum: [share, cliente]
+    DashboardMetric:
+      type: object
+      required: [label, value, detail, tone]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        detail:
+          type: string
+        tone:
+          type: string
+          enum: [blue, green, amber, red, neutral]
+    AlertItem:
+      type: object
+      required: [id, title, description, severity]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical, success]
+    DashboardSummary:
+      type: object
+      required: [departamento, greeting, metrics, alerts, period]
+      properties:
+        departamento:
+          $ref: "#/components/schemas/Departamento"
+        greeting:
+          type: string
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardMetric"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertItem"
+        period:
+          type: string
+    FinancialMovement:
+      type: object
+      required: [id, date, description, category, account, paidBy, amount, status, caixa]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        account:
+          type: string
+        paidBy:
+          type: string
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [pago, pendente, agendado]
+        caixa:
+          $ref: "#/components/schemas/CaixaTipo"
+        reimbursable:
+          type: boolean
+    Shareholder:
+      type: object
+      required: [id, name, aircraft, hours, balance, utilization, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        aircraft:
+          type: string
+        hours:
+          type: number
+        balance:
+          type: number
+        utilization:
+          type: number
+        status:
+          type: string
+          enum: [regular, atencao, inadimplente]
 

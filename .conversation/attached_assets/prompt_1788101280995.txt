@@ -1,0 +1,52 @@
+vamos criar um sistema de uso interno da empresa de compartilhamento de aeronaves ' Share Brasil'.
+Esse sistema será usado para a operação da empresa, desde o agendamento e criação de um voo até o caixa da empresa, e apresentar relatorios aos cotistas.
+Como o sistema é amplo vamos por etapas.
+Primeiro eu quero a criação visual seguindo a referencia da imagem, o sistema terá 3 dashboard de visualização separado os menus de acordo com os departamentos para ficar mais fácil o acesso, a troca dos dashboard será pelo top head que também temos o portal do cliente que será apenas para visualizar o que foi enviado ao cliente para pagamento e o status de pagamento.
+Eu quero de inicio a criação do layout dos dashboards operação, financeiro e gestor.
+No operações temos os menus: 'agendamentos', 'plano de voo' , 'diario de bordo', ' tripulação', ' abastecimentos' e 'ctm'.
+também temos o status de voo ao vivo mostrando aeronaves agendadas e em voo, também temos um quadro de recados que é para ser visto por todos.
+no dashboard financeiro temos: 'emissão de recibo', ' relatorio despesa de viagem' , ' programação de pagamento' , ' email' , ' ponto e junto historico do ponto', ' ciclo de voo', card mostrando inadimplencia de clientes criticas e outro card com despesas a vencer.
+no dashboard do gestor é onde iremos iniciar e é a parte mais importe, menu ' Financeiro Share' nele teremos o caixa da empresa, contas a pagar a receber , pagamento de salarios dos colaboradores, emitit nf de saida que é as notas mensais que o cliente precisa pagar da administração share, recibo de saida pois tem cliente que é recibo e nao nota fiscal. 
+Configurações - inserir fornecedor favorito, contas bancarias e categorias de despesas do caixa share e do caixa cliente.
+temos também o ' Financeiro Cotista', nele teremos todos os clientes de forma separada em um perfil individual mostrando todo o relatorio do cliente: horas voadas mes, categoria de ranking de gastos, Aeroportos mais visitados, médias de custos fixos e variavel, Comparativo mensal , Custos por Categoria, graficos, Média de Custo/Hora por Mês, Médias por Cotista,Histórico de Utilização e o mais importante de tudo o fechamento do balanço mensal.
+Construa as telas usando o layout ux das imagens como referencia e depois foque no dashboard gestor pois precisamos desse financeiro correto.
+Share Brasil administra aeronaves compartilhadas entre cotistas (clientes que compraram uma porcentagem da aeronave). Cada cotista usa o avião, gera despesas, e essas despesas precisam ser rateadas corretamente entre os cotistas — mesmo quando um paga mais do que a sua parte, mesmo quando a Share antecipa um pagamento, e mesmo em arranjos societários diferentes (caso DGA).
+
+Existem dois "caixas" conceituais que nunca podem se misturar:
+
+Caixa Share: dinheiro/despesas da própria empresa Share (aluguel, folha, impostos etc.).
+Caixa Cliente: dinheiro/despesas do cotista, relacionadas ao uso da aeronave.
+Todo lançamento financeiro nasce em movimentacoes e, quando pertence a um cliente, se desdobra obrigatoriamente em rateio_despesas. Essas duas tabelas são a fonte da verdade do sistema — as demais tabelas (abastecimentos, relatórios de viagem etc.) são auxiliares de conferência, nunca substituem esse fluxo.
+ movimentacoes é sempre o ponto de entrada do caixa share.
+Toda despesa — é lançada primeiro em movimentacoes
+
+Programação de pagamento: para contas que ainda precisam ser pagas. O financeiro dá baixa depois.
+grupo_categoria:FOLHA DE PAGAMENTO, DESPESAS EMPRESA, DESPESAS EMPRESA-BANCO, DESPESAS PARTICULARES, IMPOSTOS, RECEITAS OPERACIONAIS- Despesa só da Share (ex.: aluguel). Usa tipo_despesa = fixo ou variável. Não gera rateio_despesas.
+CAIXA CLIENTE
+Despesa direta do cliente, a Share não participa financeiramente — ele pagou e enviou o comprovante. tipo_caixa = cliente.
+DESPESAS REEMBOLSÁVEIS 	Despesa que a Share antecipa (paga do próprio caixa) para o cliente reembolsar depois. tipo_caixa = share.
+REEMBOLSOS ENTRADAS reembolsa o que saiu como DESPESAS REEMBOLSÁVEIS. tipo_caixa = share.
+tipo_caixa é uma coluna que existe só em movimentacoes (valores share ou cliente). Ela não indica de quem é a despesa por natureza — indica de qual caixa o dinheiro está saindo/entrando neste momento da operação. É por isso que uma despesa "do cliente" pode ter tipo_caixa = share:
+Se o cliente paga direto do próprio bolso → grupo_categoria = CAIXA CLIENTE, tipo_caixa = cliente. O dinheiro nunca passou pelo caixa da Share.
+Se a Share antecipa (paga primeiro, do caixa dela, pra depois cobrar do cliente) → grupo_categoria = DESPESAS REEMBOLSÁVEIS, mas tipo_caixa = share — porque é o caixa da Share que está desembolsando agora, mesmo sendo uma despesa que pertence ao cliente. A categoria específica (categoria_id / categorias_movimentacao) usada aqui é reembolsável) e o tipo_caixa (marca que quem desembolsou foi a Share).
+Quando o cliente reembolsa esse valor, gera-se uma nova movimentação de entrada com grupo_categoria = REEMBOLSOS ENTRADAS e tipo_caixa = share (entrada no caixa da Share).
+Enquanto isso não acontece, a despesa fica pendente para o cliente no rateio despesa.
+Toda despesa lançada para um cliente (CAIXA CLIENTE ou DESPESAS REEMBOLSÁVEIS), independente de ter sido direta ou reembolsável, precisa gerar um registro em rateio_despesas. Sem exceção. É esse registro que carrega a verdade sobre o rateio.
+
+Importante: rateio_despesas é agnóstico a quem desembolsou o dinheiro (Share ou o próprio cliente). Ele mostra a divisão correta da despesa entre os cotistas, como se cada um tivesse pagado certinho do próprio bolso — a situação de "quem adiantou pra quem" (Share ⇄ cliente) está na coluna pago_diretamente (true ou false). Isso vale mesmo quando a Share pagou o fornecedor: essa coluna é false se foi o cliente que pagou sem intermedio da share a coluna é true, a coluna pago_por sempre será quem está pagando a despesa , indepentende se foi por reembolso ou nao, ela mostra quem está pagando e o percentual que ele está pagando.
+Nós temos os cliente e o cliente com holding, nesse caso se o cliente tiver holding o que conta é a tabela hold_socios.
+no caso de cliente com holding temos uma parte do financeiro diferente para ele, pois o holding cria uma conta bancaria propria, e o financeiro da share que administra então todas as despesas são pagas por essa conta em conjunto e todo mes cada socio deposita um valor na conta. No fechamento do balanço então temos que ver o quanto cada um depositou e usou e se só usou tudo da conta ou se teve alguma despesa que ele apgou do bolso sem usar a conta conjunta. Então além do balanço da despesa mensal que é gerado normalmente entre os cotistas, precisamos apresentar o financeiro bancario da holding e o saldo de cada um.
+Empréstimo de aeronave
+Quando a aeronave é emprestada a um cliente que não é cotista dela (emprestimos_aeronave, lancamentos_diario_bordo.emprestimo, socio_tomador_emprestimo_id / cliente_tomador_emprestimo_id):
+
+Despesas variáveis do voo (abastecimento, tarifas de pouso, INFRAERO, DECEA etc.) são pagas por quem usou o avião (o tomador do empréstimo).
+Mas no rateio, esse voo é considerado como se o cotista proprietário que emprestou tivesse voado — porque, na hora de ratear despesas de manutenção/uso percentual da aeronave, é o proprietário quem assume aquele uso.
+Ou seja: quem paga a despesa pontual do voo (combustível, taxas) ≠ quem "usa" o percentual de horas para fins de rateio de manutenção. Essas duas coisas são propositalmente separadas.
+O fechamento de balanço entre cotistas nunca inclui a Share como parte devedora ou credora — ela é sempre intermediária, mesmo quando antecipa pagamentos.
+Todo o codigo deve ser gerado em pt e o banco de dados já existe Banco de dados do D1
+bd_sharebrasil 4267a49f-e38f-442f-8b6f-47fe02dea308
+estou migrando aos poucos os dados que estão no supabase ao d1.
+precisa ser ajustado o worker api.share-brasil.com
+pois ainda nao foi configurado nenhuma rota.
+O auth do login irá manter do supabase.
+eu quero uma opção de layout no modo dark e light

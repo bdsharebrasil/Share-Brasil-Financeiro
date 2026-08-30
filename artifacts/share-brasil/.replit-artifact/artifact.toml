@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Share Brasil"
+description = "Sistema interno da Share Brasil para operações aeronáuticas, financeiro, gestão e acompanhamento de cotistas, com dashboards por departamento e suporte a temas claro e escuro."
+version = "1.0.0"
+id = "artifacts/share-brasil"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24477
+
+[services.development]
+run = "pnpm --filter @workspace/share-brasil run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/share-brasil", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/share-brasil/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24477"
+BASE_PATH = "/"

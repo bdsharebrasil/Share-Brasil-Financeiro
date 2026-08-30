@@ -1,11 +1,23 @@
+import { copyFile, mkdir } from 'node:fs/promises';
 import path from 'path';
 import react from '@vitejs/plugin-react-swc';
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT || 4175);
+const outputDir = path.resolve(import.meta.dirname, 'dist/public');
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-login-entry',
+      async writeBundle() {
+        const loginDir = path.join(outputDir, 'login');
+        await mkdir(loginDir, { recursive: true });
+        await copyFile(path.join(outputDir, 'index.html'), path.join(loginDir, 'index.html'));
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
@@ -21,7 +33,7 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname),
   publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
+    outDir: outputDir,
     emptyOutDir: true,
   },
   server: {

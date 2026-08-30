@@ -3,18 +3,32 @@ import { API_BASE } from "@/lib/api";
 
 export type PerfilColaborador = {
   id: string;
-  usuario_id: string;
   email: string;
   nome_completo: string;
-  cpf: string | null;
-  cargo: string | null;
-  departamento: string | null;
-  telefone: string | null;
-  data_admissao: string | null;
+  nome_exibicao: string | null;
   foto_url: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  uf: string | null;
+  telefone: string | null;
+  data_criacao: string;
+  data_atualizacao: string;
+  data_nascimento: string | null;
+  data_admissao: string | null;
+  cpf: string | null;
+  rg: string | null;
+  canac: string | null;
+  status: string;
+  nome_banco: string | null;
+  tipo_conta: string | null;
+  conta_numero: string | null;
+  agencia_numero: string | null;
+  tipo_chave_pix: string | null;
+  pix: string | null;
+  tipo_user: string | null;
+  departamento: string | null;
+  cliente_id: string | null;
   dias_ferias_direito: number;
-  criado_em: string;
-  atualizado_em: string;
 };
 
 export type PagamentoColaborador = {
@@ -80,7 +94,7 @@ export function buscarPerfilColaborador() {
   return colaboradorRequest<PerfilColaboradorResponse>("/api/colaborador/perfil");
 }
 
-export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "cargo" | "departamento" | "telefone">>) {
+export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {
   return colaboradorRequest<{ perfil: PerfilColaborador }>("/api/colaborador/perfil", {
     method: "PATCH",
     body: JSON.stringify(dados),

@@ -82,6 +82,7 @@ export const getGetFinancialMovementsQueryKey = (params?: { caixa?: CashType; li
 export const getGetShareholdersQueryKey = () => ["cotistas"] as const;
 
 export const getHealthCheck = () => request<HealthStatus>("/api/healthz");
+export const getUnreadMessageCount = () => request<{ unread: number }>("/api/mensagens/unread-count");
 export const getDashboardSummary = (params: { departamento: Department }) =>
   request<DashboardSummary>(`/api/dashboard/summary?departamento=${encodeURIComponent(params.departamento)}`);
 export const getFinancialMovements = (params: { caixa?: CashType; limite?: number } = {}) => {

@@ -6,10 +6,14 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bell,
+  Calendar,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
   CircleDollarSign,
   ClipboardCheck,
   Clock3,
@@ -19,8 +23,12 @@ import {
   FileCheck2,
   FileClock,
   FileText,
+  GraduationCap,
   Fuel,
   Gauge,
+  Home,
+  Key,
+  Landmark,
   LayoutDashboard,
   LineChart,
   LogOut,
@@ -47,6 +55,9 @@ import {
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/login";
 import { cn } from "@/lib/utils";
+import { getUnreadMessageCount } from "@/lib/api";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useLocation } from "wouter";
 
 type Workspace = "gestor" | "operacoes" | "financeiro" | "portal";
@@ -219,8 +230,31 @@ function TopBar({
   );
 }
 
+const sidebarMenuGroups = [
+  {
+    title: "Navegação Principal",
+    items: [
+      { id: "overview", label: "Início", icon: Home },
+      { id: "documentos", label: "Documentos", icon: FileText },
+      { id: "senhas", label: "Senhas", icon: Key },
+      { id: "mensagens", label: "Mensagens", icon: Mail, badgeKey: "unreadMessages" },
+      { id: "minhas-tarefas", label: "Minhas Tarefas", icon: CheckSquare },
+    ],
+  },
+  { title: "Agenda & Contatos", items: [{ id: "agenda", label: "Agenda", icon: Calendar }] },
+  {
+    title: "Financeiro & Cartões",
+    items: [
+      { id: "solicitacoes-compras", label: "Solicitações compras/pagamentos", icon: CreditCard },
+      { id: "cartoes-corporativos", label: "Cartões Corporativos", icon: WalletCards },
+    ],
+  },
+  { title: "Ajuda", items: [{ id: "centro-treinamento", label: "Centro Treinamento", icon: GraduationCap }] },
+] satisfies Array<{ title: string; items: Array<MenuItem & { badgeKey?: "unreadMessages" }> }>;
+
+const sidebarItems = sidebarMenuGroups.flatMap((group) => group.items);
+
 function Sidebar({
-  workspace,
   activeMenu,
   open,
   collapsed,
@@ -228,7 +262,6 @@ function Sidebar({
   onToggleCollapse,
   onMenuChange,
 }: {
-  workspace: Workspace;
   activeMenu: string;
   open: boolean;
   collapsed: boolean;
@@ -236,53 +269,41 @@ function Sidebar({
   onToggleCollapse: () => void;
   onMenuChange: (menu: string) => void;
 }) {
-  return (
-    <>
-      <div className={cn("fixed inset-0 z-40 bg-[#061321]/75 backdrop-blur-sm transition-opacity md:hidden", open ? "opacity-100" : "pointer-events-none opacity-0")} onClick={onClose} />
-      <aside className={cn("fixed inset-y-0 left-0 z-50 flex w-[258px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 md:static md:z-auto md:translate-x-0", open ? "translate-x-0" : "-translate-x-full", collapsed && "md:w-[82px]")}>
-        <div className={cn("flex h-[68px] items-center border-b border-sidebar-border px-6", collapsed && "md:justify-center md:px-0")}>
-          <LogoMark compact={collapsed} />
-          {!collapsed && <span className="ml-auto hidden rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40 md:block">OPS</span>}
-          <button type="button" onClick={onClose} data-testid="button-close-menu" className="ml-auto rounded-md p-1 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden"><X size={17} /></button>
-        </div>
-        <div className="border-b border-sidebar-border/80 px-4 py-5">
-          {!collapsed && <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Área atual</p>}
-          <div className={cn("mt-3 flex items-center gap-3 rounded-xl bg-sidebar-accent/60 px-3 py-3", collapsed && "md:justify-center md:px-0")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"><WorkspaceIcon workspace={workspace} size={16} /></div>
-            {!collapsed && <div className="min-w-0"><p className="truncate text-[11px] font-bold text-sidebar-foreground">{workspaceLabels[workspace]}</p><p className="mt-0.5 truncate text-[9px] text-sidebar-foreground/45">{workspaceDescriptions[workspace]}</p></div>}
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 pb-4 pt-5">
-          {!collapsed && <p className="px-3 text-[9px] font-bold uppercase tracking-[.19em] text-sidebar-foreground/40">Navegação</p>}
-          <nav className="mt-3 space-y-1">
-            {menus[workspace].map(({ id, label, icon: Icon, badge }) => {
-              const selected = activeMenu === id;
-              return (
-                <button
-                  type="button"
-                  key={id}
-                  onClick={() => { onMenuChange(id); onClose(); }}
-                  data-testid={`link-menu-${id}`}
-                  title={collapsed ? label : undefined}
-                  className={cn("group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[11px] font-semibold transition-all", collapsed && "md:justify-center md:px-0", selected ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_7px_18px_rgba(32,177,221,.16)]" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground")}
-                >
-                  <Icon size={16} strokeWidth={selected ? 2.3 : 1.8} />
-                  {!collapsed && <><span className="min-w-0 flex-1 truncate">{label}</span>{badge && <span className={cn("rounded-md px-1.5 py-0.5 text-[9px] font-bold", selected ? "bg-primary-foreground/15" : "bg-sidebar-accent text-sidebar-foreground/50")}>{badge}</span>}</>}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          {!collapsed && <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3.5"><div className="flex items-center gap-2"><ShieldCheck size={15} className="text-[#5bbd75]" /><span className="text-[11px] font-semibold">Ambiente seguro</span></div><p className="mt-2 text-[10px] leading-relaxed text-sidebar-foreground/45">Dados financeiros protegidos e sincronizados.</p></div>}
-          <button type="button" onClick={onToggleCollapse} data-testid="button-collapse-sidebar" className={cn("mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground", collapsed && "md:justify-center md:px-0")} title={collapsed ? "Expandir menu" : "Recolher menu"}>
-            {collapsed ? <PanelLeftClose size={15} className="rotate-180" /> : <><PanelLeftClose size={15} /><span>Recolher menu</span></>}
-          </button>
-          {!collapsed && <><button type="button" data-testid="button-logout" className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"><LogOut size={15} /> Encerrar sessão</button><p className="mt-3 px-3 font-mono text-[9px] text-sidebar-foreground/30">SHARE OPS · v2.5.0</p></>}
-        </div>
-      </aside>
-    </>
-  );
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(sidebarMenuGroups.map((group) => group.title));
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    void getUnreadMessageCount()
+      .then(({ unread }) => { if (active) setUnreadMessages(unread); })
+      .catch(() => { if (active) setUnreadMessages(0); });
+    return () => { active = false; };
+  }, []);
+
+  const selectItem = (id: string) => {
+    onMenuChange(id);
+    onClose();
+  };
+
+  const renderMobileItem = (item: typeof sidebarItems[number]) => {
+    const Icon = item.icon;
+    const selected = activeMenu === item.id;
+    const badge = item.badgeKey === "unreadMessages" ? unreadMessages : 0;
+    return <button type="button" key={item.id} onClick={() => selectItem(item.id)} data-testid={`link-menu-${item.id}`} className={cn("flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-[11px] font-semibold transition-colors", selected ? "border-primary bg-primary/15 text-primary" : "border-transparent text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground")}><Icon size={16} strokeWidth={selected ? 2.3 : 1.8} /><span className="min-w-0 flex-1 truncate">{item.label}</span>{badge > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">{badge}</span>}</button>;
+  };
+
+  return <>
+    {collapsed ? <div className="fixed left-3 top-[84px] z-30 hidden md:block"><button type="button" aria-label="Abrir menu" onClick={onToggleCollapse} data-testid="button-expand-sidebar" className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg transition-colors hover:bg-sidebar-accent"><ChevronRight size={18} /></button></div> : <aside className="fixed left-0 top-[68px] z-30 hidden h-[calc(100dvh-68px)] w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex"><button type="button" aria-label="Fechar menu" onClick={onToggleCollapse} data-testid="button-collapse-sidebar" className="mb-4 flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/60 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"><ChevronLeft size={16} /></button><nav className="flex w-full flex-col items-center gap-3 px-2">{sidebarItems.map((item) => { const Icon = item.icon; const selected = activeMenu === item.id; const badge = item.badgeKey === "unreadMessages" ? unreadMessages : 0; return <button type="button" key={item.id} onClick={() => selectItem(item.id)} data-testid={`sidebar-icon-${item.id}`} title={item.label} className={cn("group relative flex h-10 w-10 items-center justify-center rounded-full border transition-all", selected ? "border-sidebar-primary bg-sidebar-primary/15 text-sidebar-primary shadow-[0_0_15px_rgba(32,177,221,.22)]" : "border-sidebar-border bg-sidebar-accent/30 text-sidebar-foreground/70 hover:scale-105 hover:border-sidebar-primary hover:bg-sidebar-primary/10 hover:text-sidebar-primary")}><Icon size={18} strokeWidth={selected ? 2.3 : 1.8} />{badge > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground">{badge}</span>}<span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md border border-sidebar-border bg-sidebar px-2.5 py-1 text-xs text-sidebar-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">{item.label}</span></button>; })}</nav></aside>}
+
+    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <SheetContent side="left" className="w-80 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <div className="flex h-[68px] items-center border-b border-sidebar-border px-6"><LogoMark /><span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">MENU</span></div>
+        <nav className="h-[calc(100dvh-68px)] space-y-3 overflow-y-auto p-4">
+          {sidebarMenuGroups.map((group) => <Collapsible key={group.title} open={expandedGroups.includes(group.title)} onOpenChange={() => setExpandedGroups((current) => current.includes(group.title) ? current.filter((title) => title !== group.title) : [...current, group.title])} className="rounded-xl border border-sidebar-border bg-sidebar-accent/25"><CollapsibleTrigger className="flex w-full items-center justify-between px-3.5 py-3 text-left text-[10px] font-bold uppercase tracking-[.12em] text-sidebar-foreground/60"><span>{group.title}</span>{expandedGroups.includes(group.title) ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</CollapsibleTrigger><CollapsibleContent className="space-y-1 px-2 pb-2">{group.items.map(renderMobileItem)}</CollapsibleContent></Collapsible>)}
+        </nav>
+      </SheetContent>
+    </Sheet>
+  </>;
 }
 
 function WorkspaceIcon({ workspace, size = 18 }: { workspace: Workspace; size?: number }) {
@@ -373,7 +394,7 @@ function Notice({ tone, title, description, time }: { tone: "blue" | "amber" | "
 
 function OperationsDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
   const [notice, setNotice] = useState("");
-  return <div className="route-enter"><Hero workspace="operacoes" title="Bom dia, Camilla" subtitle="Centro de comando · quinta-feira, 30 de agosto"><div className="hidden items-center gap-2 rounded-lg border border-[#5bbd75]/25 bg-[#5bbd75]/8 px-3 py-2 sm:flex"><span className="pulse-dot h-2 w-2 rounded-full bg-[#5bbd75]" /><span className="text-[10px] font-bold text-[#6bd188]">Operação normal</span></div></Hero>{notice && <div className="mb-5 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary"><span>{notice}</span><button type="button" onClick={() => setNotice("")}><X size={13} /></button></div>}<div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Voos hoje" value="04" detail="2 em voo agora" tone="blue" icon={<Plane size={16} />} /><KpiCard label="Aeronaves" value="07" detail="6 disponíveis para agenda" tone="green" icon={<Gauge size={16} />} /><KpiCard label="Tripulação" value="12" detail="3 escalas confirmadas" tone="violet" icon={<Users size={16} />} /><KpiCard label="Pendências" value="03" detail="1 documento crítico" tone="amber" icon={<AlertCircle size={16} />} /></div><div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"><QuickAction icon={<CalendarDays size={16} />} label="Agendamentos" detail="4 voos" onClick={() => onNavigate("agendamentos")} /><QuickAction icon={<FileText size={16} />} label="Plano de voo" detail="2 em revisão" color="violet" onClick={() => onNavigate("plano-de-voo")} /><QuickAction icon={<NotebookPen size={16} />} label="Diário de bordo" detail="Atualizar" color="green" onClick={() => onNavigate("diario-de-bordo")} /><QuickAction icon={<Users size={16} />} label="Tripulação" detail="Escalas" color="violet" onClick={() => onNavigate("tripulacao")} /><QuickAction icon={<Fuel size={16} />} label="Abastecimento" detail="Último há 1h" color="amber" onClick={() => onNavigate("abastecimentos")} /><QuickAction icon={<Wrench size={16} />} label="CTM" detail="Manutenção" color="green" onClick={() => onNavigate("ctm")} /></div><div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Activity size={15} />} title="Status de voo ao vivo" detail="Aeronaves agendadas e em voo" action={<button type="button" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary"><RefreshCw size={12} /> Atualizar</button>} /><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Horário</th><th className="px-4 py-3">Piloto</th><th className="px-4 py-3">Status</th></tr></thead><tbody><FlightRow aircraft="PT-OJG" route="SBGR → SBRJ" time="09:40" pilot="Mauricio A." status="Em voo" tone="green" /><FlightRow aircraft="PR-SBR" route="SBMT → SBSP" time="11:20" pilot="Dejalmo R." status="Embarque" tone="blue" /><FlightRow aircraft="PT-FAZ" route="SBKP → SBGL" time="14:10" pilot="A definir" status="Agendado" tone="amber" /><FlightRow aircraft="PP-XAB" route="SBRP → SBSP" time="16:30" pilot="Gerson D." status="Agendado" tone="amber" /></tbody></table></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Bell size={15} />} title="Recados para todos" detail="Últimas comunicações" action={<button type="button" onClick={() => setNotice("Novo recado: funcionalidade em preparação.")} className="text-[10px] font-bold text-primary hover:underline">Novo recado</button>} /><div className="divide-y divide-border/70"><NoticeCompact title="Manutenção PT-OJG" text="Aeronave liberada após inspeção de rotina." time="09:12" tone="green" /><NoticeCompact title="Alteração de escala" text="Voo PR-SBR confirmado para 11:20." time="08:48" tone="blue" /><NoticeCompact title="Atenção ao abastecimento" text="Anexar comprovante ao diário de bordo." time="ontem" tone="amber" /></div></section></div><div className="mt-5 grid gap-5 md:grid-cols-3"><MiniPanel title="Agenda do dia" icon={<CalendarDays size={15} />} value="04 voos" detail="Próximo em 01h 42min" action="Abrir agenda" onClick={() => onNavigate("agendamentos")} /><MiniPanel title="Documentos de voo" icon={<FileCheck2 size={15} />} value="18 / 20" detail="2 aguardando assinatura" action="Revisar documentos" onClick={() => onNavigate("plano-de-voo")} /><MiniPanel title="Horas de voo" icon={<Clock3 size={15} />} value="38,3 h" detail="+6,2 h contra ontem" action="Ver ciclo de voo" onClick={() => onNavigate("diario-de-bordo")} /></div></div>;
+  return <div className="route-enter"><Hero workspace="operacoes" title="Bom dia, Camilla" subtitle="Centro de comando · quinta-feira, 30 de agosto"><div className="hidden items-center gap-2 rounded-lg border border-[#5bbd75]/25 bg-[#5bbd75]/8 px-3 py-2 sm:flex"><span className="pulse-dot h-2 w-2 rounded-full bg-[#5bbd75]" /><span className="text-[10px] font-bold text-[#6bd188]">Operação normal</span></div></Hero>{notice && <div className="mb-5 flex items-center justify-between rounded-lg border border-primary/25 bg-primary/7 px-3.5 py-2.5 text-[11px] text-primary"><span>{notice}</span><button type="button" onClick={() => setNotice("")}><X size={13} /></button></div>}<div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><KpiCard label="Voos hoje" value="04" detail="2 em voo agora" tone="blue" icon={<Plane size={16} />} /><KpiCard label="Tripulação" value="12" detail="3 escalas confirmadas" tone="violet" icon={<Users size={16} />} /><KpiCard label="Pendências" value="03" detail="1 documento crítico" tone="amber" icon={<AlertCircle size={16} />} /></div><div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"><QuickAction icon={<CalendarDays size={16} />} label="Agendamentos" detail="4 voos" onClick={() => onNavigate("agendamentos")} /><QuickAction icon={<FileText size={16} />} label="Plano de voo" detail="2 em revisão" color="violet" onClick={() => onNavigate("plano-de-voo")} /><QuickAction icon={<NotebookPen size={16} />} label="Diário de bordo" detail="Atualizar" color="green" onClick={() => onNavigate("diario-de-bordo")} /><QuickAction icon={<Fuel size={16} />} label="Abastecimento" detail="Último há 1h" color="amber" onClick={() => onNavigate("abastecimentos")} /><QuickAction icon={<Wrench size={16} />} label="CTM" detail="Manutenção" color="green" onClick={() => onNavigate("ctm")} /></div><div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Activity size={15} />} title="Status de voo ao vivo" detail="Aeronaves agendadas e em voo" action={<button type="button" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:bg-secondary"><RefreshCw size={12} /> Atualizar</button>} /><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Horário</th><th className="px-4 py-3">Piloto</th><th className="px-4 py-3">Status</th></tr></thead><tbody><FlightRow aircraft="PT-OJG" route="SBGR → SBRJ" time="09:40" pilot="Mauricio A." status="Em voo" tone="green" /><FlightRow aircraft="PR-SBR" route="SBMT → SBSP" time="11:20" pilot="Dejalmo R." status="Embarque" tone="blue" /><FlightRow aircraft="PT-FAZ" route="SBKP → SBGL" time="14:10" pilot="A definir" status="Agendado" tone="amber" /><FlightRow aircraft="PP-XAB" route="SBRP → SBSP" time="16:30" pilot="Gerson D." status="Agendado" tone="amber" /></tbody></table></div></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Bell size={15} />} title="Recados para todos" detail="Últimas comunicações" action={<button type="button" onClick={() => setNotice("Novo recado: funcionalidade em preparação.")} className="text-[10px] font-bold text-primary hover:underline">Novo recado</button>} /><div className="divide-y divide-border/70"><NoticeCompact title="Manutenção PT-OJG" text="Aeronave liberada após inspeção de rotina." time="09:12" tone="green" /><NoticeCompact title="Alteração de escala" text="Voo PR-SBR confirmado para 11:20." time="08:48" tone="blue" /><NoticeCompact title="Atenção ao abastecimento" text="Anexar comprovante ao diário de bordo." time="ontem" tone="amber" /></div></section></div><div className="mt-5 grid gap-5 md:grid-cols-3"></div></div>;
 }
 
 function FlightRow({ aircraft, route, time, pilot, status, tone }: { aircraft: string; route: string; time: string; pilot: string; status: string; tone: "green" | "blue" | "amber" }) {
@@ -432,8 +453,8 @@ function Shell() {
   const [activeMenu, setActiveMenu] = useState("overview");
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("share-brasil-theme") as Theme) || "dark");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const activeItem = useMemo(() => menus[workspace].find((item) => item.id === activeMenu) || menus[workspace][0], [workspace, activeMenu]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const activeItem = useMemo(() => sidebarItems.find((item) => item.id === activeMenu) || menus[workspace][0], [workspace, activeMenu]);
   useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark"); localStorage.setItem("share-brasil-theme", theme); }, [theme]);
   const changeWorkspace = (next: Workspace) => { setWorkspace(next); setActiveMenu("overview"); setMenuOpen(false); };
   const renderDashboard = () => {
@@ -443,7 +464,7 @@ function Shell() {
     if (workspace === "portal") return <PortalDashboard />;
     return <GestorToolsDashboard onNavigate={setActiveMenu} />;
   };
-  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar workspace={workspace} activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
+  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
 }
 
 function App() {

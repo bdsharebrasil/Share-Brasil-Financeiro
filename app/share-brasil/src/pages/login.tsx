@@ -153,8 +153,14 @@ export default function Login() {
       `}</style>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
       <div
-        className="absolute inset-0 bg-cover bg-center opacity-[.13] mix-blend-screen"
-        style={{ backgroundImage: "url('/aviation-hero1.jpg')" }}
+        className="pointer-events-none absolute inset-0 z-0 bg-no-repeat bg-center opacity-20 mix-blend-screen"
+        style={{
+          backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')",
+          backgroundSize: "90% auto",
+          filter: "invert(70%) sepia(100%) saturate(300%) hue-rotate(150deg) brightness(120%) drop-shadow(0 0 10px rgba(57,208,255,0.2))",
+          maskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
+          WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
+        }}
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
 

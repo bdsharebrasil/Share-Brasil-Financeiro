@@ -110,10 +110,14 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
+      const formattedLogin = /@share-brasil\.com$/i.test(trimmedUsername)
+        ? trimmedUsername
+        : `${trimmedUsername}@share-brasil.com`;
+
       if (rememberUser) window.localStorage.setItem("login_username", trimmedUsername);
       else window.localStorage.removeItem("login_username");
 
-      await loginWithWorker(trimmedUsername, password);
+      await loginWithWorker(formattedLogin, password);
       toast({
         title: "Acesso autorizado",
         description: "Bem-vindo(a) ao portal Share Brasil.",

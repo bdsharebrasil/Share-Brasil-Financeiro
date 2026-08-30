@@ -65,7 +65,7 @@ const workspaceLabels: Record<Workspace, string> = {
 };
 
 const workspaceDescriptions: Record<Workspace, string> = {
-  gestor: "Visão executiva e financeira",
+  gestor: "Ferramentas de gestão",
   operacoes: "Controle da operação aérea",
   financeiro: "Conciliação e rotinas administrativas",
   portal: "Acompanhamento do cliente",
@@ -91,9 +91,12 @@ const menus: Record<Workspace, MenuItem[]> = {
     { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
   ],
   gestor: [
-    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-    { id: "financeiro-share", label: "Financeiro Share", icon: WalletCards, badge: "3" },
-    { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Users },
+    { id: "overview", label: "Ferramentas de Gestão", icon: LayoutDashboard },
+    { id: "simulador-custos", label: "Simulador de Custos", icon: CircleDollarSign },
+    { id: "financeiro-share", label: "Financeiro Share Brasil", icon: WalletCards, badge: "3" },
+    { id: "gestao-funcionarios", label: "Gestão de Funcionários", icon: Users },
+    { id: "financeiro-cotista", label: "Financeiro Cotistas", icon: Users },
+    { id: "master", label: "Master", icon: LineChart },
     { id: "configuracoes", label: "Configurações", icon: Settings2 },
   ],
   portal: [
@@ -320,6 +323,22 @@ function EmptyState({ label = "Nenhum registro encontrado" }: { label?: string }
   return <div className="flex flex-col items-center justify-center py-12 text-center"><div className="mb-3 rounded-xl bg-secondary p-3 text-muted-foreground"><FileText size={21} /></div><p className="text-xs font-bold">{label}</p><p className="mt-1 max-w-xs text-[11px] text-muted-foreground">Os dados aparecerão aqui assim que forem registrados no sistema.</p></div>;
 }
 
+function GestorToolsDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
+  const modules: Array<{ id: string; title: string; description: string; icon: IconType; tone: "amber" | "green" | "blue" | "violet" }> = [
+    { id: "simulador-custos", title: "Simulador de Custos", description: "Projeções e cenários financeiros", icon: CircleDollarSign, tone: "amber" },
+    { id: "financeiro-share", title: "Financeiro Share Brasil", description: "Caixa, contas e documentos", icon: WalletCards, tone: "green" },
+    { id: "gestao-funcionarios", title: "Gestão de Funcionários", description: "Equipe, folha e permissões", icon: Users, tone: "blue" },
+    { id: "financeiro-cotista", title: "Financeiro Cotistas", description: "Balanços e relatórios individuais", icon: CircleDollarSign, tone: "green" },
+    { id: "master", title: "Master", description: "Visão central e parâmetros", icon: LineChart, tone: "amber" },
+  ];
+  return <div className="route-enter"><div className="mb-6"><PageEyebrow>Gestor / Acesso rápido</PageEyebrow><h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">Ferramentas de Gestão</h1><p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">Selecione um módulo para acessar a página de trabalho correspondente.</p></div><section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{modules.map((module) => <ManagementToolCard key={module.id} {...module} onClick={() => onNavigate(module.id)} />)}</section><section className="mt-8 min-h-[240px] overflow-hidden rounded-xl border border-border bg-card/75"><SectionHeader icon={<Clock3 size={15} />} title="Aprovações Pendentes" detail="Itens que aguardam sua análise" action={<button type="button" className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:underline">Ver todas <ArrowRight size={13} /></button>} /><div className="flex min-h-[180px] flex-col items-center justify-center p-6 text-center"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-secondary/35 text-muted-foreground/45"><Clock3 size={23} /></div><p className="text-xs font-bold text-muted-foreground">Nenhuma aprovação pendente</p><p className="mt-1 max-w-sm text-[10px] leading-relaxed text-muted-foreground/70">Quando houver pagamentos, fechamentos ou documentos aguardando sua decisão, eles aparecerão aqui.</p></div></section></div>;
+}
+
+function ManagementToolCard({ id, title, description, icon: Icon, tone, onClick }: { id: string; title: string; description: string; icon: IconType; tone: "amber" | "green" | "blue" | "violet"; onClick: () => void }) {
+  const tones = { amber: "bg-[#f1c348]/10 text-[#f4a64d]", green: "bg-[#2bbf8a]/10 text-[#45d5a5]", blue: "bg-primary/10 text-primary", violet: "bg-[#8d6be8]/10 text-[#b397ff]" };
+  return <button type="button" onClick={onClick} data-testid={`button-management-tool-${id}`} className="group flex min-h-[92px] items-center gap-4 rounded-xl border border-border bg-card/65 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:bg-card"><span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", tones[tone])}><Icon size={22} strokeWidth={1.8} /></span><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-bold text-foreground">{title}</span><span className="mt-1 block truncate text-[10px] text-muted-foreground">{description}</span></span><ArrowRight size={15} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" /></button>;
+}
+
 function GestorDashboard({ onNavigate }: { onNavigate: (menu: string) => void }) {
   const [period, setPeriod] = useState("Agosto 2026");
   const [notice, setNotice] = useState("");
@@ -419,7 +438,7 @@ function Shell() {
     if (workspace === "operacoes") return <OperationsDashboard onNavigate={setActiveMenu} />;
     if (workspace === "financeiro") return <FinanceDashboard onNavigate={setActiveMenu} />;
     if (workspace === "portal") return <PortalDashboard />;
-    return <GestorDashboard onNavigate={setActiveMenu} />;
+    return <GestorToolsDashboard onNavigate={setActiveMenu} />;
   };
   return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar workspace={workspace} activeMenu={activeMenu} open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} onMenuChange={setActiveMenu} /><div className="min-w-0 flex-1"><TopBar workspace={workspace} theme={theme} onWorkspaceChange={changeWorkspace} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} onOpenMenu={() => setMenuOpen(true)} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderDashboard()}</main></div></div>;
 }

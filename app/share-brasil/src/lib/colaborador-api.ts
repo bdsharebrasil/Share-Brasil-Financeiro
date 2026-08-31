@@ -188,6 +188,7 @@ export type TripulanteAgendamento = {
   canac: string;
   status: string | null;
   tipo_licenca: string | null;
+  url_avatar?: string | null;
   origem: "tripulacao" | "freelancer";
 };
 

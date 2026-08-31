@@ -4,8 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { supabase } from "@/lib/supabase";
 import LayoutInterno from "@/components/layout/LayoutInterno";
 import Login from "@/pages/login";
-import PortalClienteLogin from "@/pages/portal/PortalClienteLogin";
-import PortalClienteApp from "@/pages/portal/PortalClienteApp";
 
 function ProtecaoColaborador() {
   const [verificando, setVerificando] = useState(true);
@@ -26,5 +24,5 @@ function ProtecaoColaborador() {
 }
 
 export default function App() {
-  return <><Routes><Route path="/login" element={<Login />} /><Route path="/portal-cliente/login" element={<PortalClienteLogin />} /><Route path="/portal-cliente" element={<PortalClienteApp />} /><Route path="*" element={<ProtecaoColaborador />} /></Routes><Toaster /></>;
+  return <><Routes><Route path="/login" element={<Login />} /><Route path="*" element={<ProtecaoColaborador />} /></Routes><Toaster /></>;
 }

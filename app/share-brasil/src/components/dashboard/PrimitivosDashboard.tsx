@@ -27,7 +27,7 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
   );
 }
 
-export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle: string; children?: ReactNode }) {
+export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   return (
     <section className="hero-panel relative mb-6 overflow-hidden rounded-2xl border border-border/80 bg-card">
       <div className="command-grid absolute inset-0 opacity-40" />
@@ -35,10 +35,9 @@ export function HeroDashboard({ ambiente, title, subtitle, children }: { ambient
       <div className="relative flex min-h-[175px] flex-col justify-between gap-8 p-6 md:min-h-[205px] md:p-8">
         <div className="flex items-center justify-between gap-4">
           <IndicadorPagina>Dashboard {nomesAmbiente[ambiente]}</IndicadorPagina>
-          <span className="hidden items-center gap-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground sm:flex"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#5bbd75]" /> Sistema operacional</span>
         </div>
         <div className="flex items-end justify-between gap-6">
-          <div><p className="mb-2 text-xs font-semibold text-muted-foreground">{subtitle}</p><h1 className="text-[28px] font-extrabold tracking-[-.05em] text-foreground md:text-[38px]">{title}</h1></div>
+          <div>{subtitle && <p className="mb-2 text-xs font-semibold text-muted-foreground">{subtitle}</p>}<h1 className="text-[28px] font-extrabold tracking-[-.05em] text-foreground md:text-[38px]">{title}</h1></div>
           {children}
         </div>
       </div>

@@ -453,3 +453,123 @@ export function salvarPlanoVoo(payload: Record<string, unknown>) {
 export function buscarPainelFinanceiro() {
   return colaboradorRequest<PainelFinanceiroResponse>("/api/interno/dashboard/financeiro");
 }
+
+export type DiarioAeronaveResumo = {
+  id: string;
+  matricula_registro: string;
+  fabricante: string | null;
+  modelo: string | null;
+  status: string | null;
+  consumo_combustivel: number | string | null;
+  horas_ano: number;
+  celula_atual_ttotal: number;
+  celula_prox_revisao_ttotal: number;
+  mes_referencia: number;
+  fechado: number;
+};
+
+export type DiarioTripulante = { id: string; canac: string; nome_completo: string; status: string | null; origem: string };
+export type DiarioOpcaoCliente = { id: string; nome: string | null; codigo_cliente: string | null; proprietario?: string | null };
+export type DiarioOpcaoSocio = { id: string; nome: string; cliente_id: string | null };
+export type DiarioOpcaoAerodromo = { id: string; designativo: string; nome: string };
+export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[] };
+export type DiarioMes = {
+  id: string;
+  aeronave_id: string;
+  ano: number;
+  mes: number;
+  celula_anterior_ttotal: number;
+  celula_atual_ttotal: number;
+  celula_prox_revisao_ttotal: number;
+  celula_disponivel_ttotal: number;
+  horimetro_inicio: number;
+  horimetro_final: number;
+  horimetro_ativo: number;
+  fechado: number;
+  aerodromo_base: string | null;
+  tarifa_diaria: number;
+  consumo_combustivel: string | null;
+  tem_tarifa_diaria: number;
+  celula_atual_tvoo: number | null;
+  celula_disponivel_tvoo: number | null;
+  celula_anterior_tvoo: number | null;
+  celula_prox_revisao_tvoo: number | null;
+};
+export type DiarioLancamento = {
+  id: string;
+  numero_sequencial: number;
+  diario_mes_id: string;
+  aeronave_id: string;
+  numero_voo: string | null;
+  data_registro: string;
+  aerodromo_partida: string;
+  aerodromo_chegada: string;
+  trecho: string | null;
+  pic_canac: string;
+  pic_nome: string | null;
+  sic_canac: string | null;
+  sic_nome: string | null;
+  cliente_id: string | null;
+  socio_id: string | null;
+  cliente_tomador_emprestimo_id?: string | null;
+  socio_tomador_emprestimo_id?: string | null;
+  cliente_nome?: string | null;
+  socio_nome?: string | null;
+  voo_emprestado: number;
+  tempo_ac: string | null;
+  tempo_dep: string | null;
+  tempo_pou: string | null;
+  tempo_cor: string | null;
+  tempo_ifr: number;
+  tempo_voo: number;
+  tempo_total: number;
+  horas_diurnas: number;
+  horas_noturnas: number;
+  pousos_total: number;
+  distancia_nm: number;
+  litros_combustivel_inicio_voo: number;
+  litros_combustivel_abastecido: number;
+  local_combustivel: string | null;
+  celula: number;
+  passageiros: number;
+  carga_kg: string | null;
+  natureza_voo: string;
+  ocorrencias: string | null;
+  discrepancias: string | null;
+  acoes_corretivas: string | null;
+  confirmado: number;
+};
+export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal">> };
+
+export function buscarResumoDiario(ano?: number) {
+  return colaboradorRequest<{ ano: number; aeronaves: DiarioAeronaveResumo[] }>(`/api/interno/diario-bordo/resumo${ano ? `?ano=${ano}` : ""}`);
+}
+
+export function buscarOpcoesDiario() {
+  return colaboradorRequest<DiarioOpcoesResponse>("/api/interno/diario-bordo/opcoes");
+}
+
+export function buscarDetalhesDiario(aeronaveId: string, ano: number, mes: number) {
+  const params = new URLSearchParams({ aeronave_id: aeronaveId, ano: String(ano), mes: String(mes) });
+  return colaboradorRequest<DiarioDetalhesResponse>(`/api/interno/diario-bordo/detalhes?${params.toString()}`);
+}
+
+export function criarMesDiario(payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioMes>("/api/interno/diario-bordo/mes", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function atualizarMesDiario(id: string, payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioMes>(`/api/interno/diario-bordo/mes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function criarLancamentoDiario(payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioLancamento>("/api/interno/diario-bordo/lancamentos", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function atualizarLancamentoDiario(id: string, payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioLancamento>(`/api/interno/diario-bordo/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function excluirLancamentoDiario(id: string) {
+  return colaboradorRequest<{ success: boolean }>(`/api/interno/diario-bordo/lancamentos/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

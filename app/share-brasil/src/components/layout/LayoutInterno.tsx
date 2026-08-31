@@ -7,6 +7,7 @@ import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
 import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
 import PlanoDeVoo from "@/pages/PlanoDeVoo";
+import DiarioBordo from "@/pages/DiarioBordo";
 import Ferias from "@/pages/Ferias";
 import Recados from "@/pages/Recados";
 import GestaoTripulacao from "@/pages/GestaoTripulacao";
@@ -36,6 +37,7 @@ export default function LayoutInterno() {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;
     if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos />;
     if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo />;
+    if (ambiente === "operacoes" && menuAtivo === "diario-de-bordo") return <DiarioBordo aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;

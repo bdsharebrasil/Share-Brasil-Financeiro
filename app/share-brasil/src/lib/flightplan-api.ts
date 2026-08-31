@@ -54,6 +54,18 @@ export type FlightPlanResponse = {
     flight_minutes: number;
     cruise_speed: number;
   };
+  performance?: {
+    source: "performance_aeronave" | "aeronave";
+    fabricante: string | null;
+    modelo: string | null;
+    tipo_aeronave: string | null;
+    velocidade_cruzeiro_kt: number;
+    consumo_combustivel_lh: number;
+    categoria: string | null;
+    teto_servico_ft: number | null;
+    taxa_subida_fpm: number | null;
+    taxa_descida_fpm: number | null;
+  } | null;
   fuel: {
     burn_lh: number;
     trip_liters: number;
@@ -91,6 +103,7 @@ export async function calcularPlanoVoo(params: {
   speed: number;
   fuelBurn: number;
   reserveMin: number;
+  aircraftId?: string;
 }): Promise<FlightPlanResponse> {
   const query = new URLSearchParams({
     adep: params.adep,
@@ -99,5 +112,6 @@ export async function calcularPlanoVoo(params: {
     fuel_burn: String(params.fuelBurn),
     reserve: String(params.reserveMin),
   });
+  if (params.aircraftId) query.set("aeronave_id", params.aircraftId);
   return apiFetch(`/api/flightplan?${query.toString()}`) as Promise<FlightPlanResponse>;
 }

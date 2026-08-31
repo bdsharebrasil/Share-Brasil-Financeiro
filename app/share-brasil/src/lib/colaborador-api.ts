@@ -194,6 +194,13 @@ export type AeronaveAgendamento = {
   base: string | null;
   url_imagem: string | null;
   tipo_aeronave: string | null;
+  consumo_combustivel?: number | string | null;
+  velocidade_cruzeiro?: number | string | null;
+  performance_categoria?: string | null;
+  performance_velocidade_cruzeiro_kt?: number | null;
+  performance_teto_servico_ft?: number | null;
+  performance_taxa_subida_fpm?: number | null;
+  performance_taxa_descida_fpm?: number | null;
 };
 
 export type TripulanteAgendamento = {
@@ -348,7 +355,7 @@ export type PlanoVooSalvo = {
   data_voo: string | null;
   eobt: string | null;
   created_at: string;
-  payload: Record<string, unknown>;
+  payload: Record<string, any>;
 };
 
 export function buscarPlanosVoo() {

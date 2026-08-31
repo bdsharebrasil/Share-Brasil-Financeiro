@@ -11,6 +11,7 @@ import {
   Compass,
   ExternalLink,
   FileText,
+  FolderOpen,
   Fuel,
   Gauge,
   LoaderCircle,
@@ -22,7 +23,7 @@ import {
   Wind,
   XCircle,
 } from "lucide-react";
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, WMSTileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,16 +129,6 @@ const WAKE_OPTIONS = [
   { id: "L", label: "L · Leve · < 7.000 kg" },
 ];
 
-const AIRCRAFT_OPTIONS = [
-  { id: "C172", label: "C172 · Cessna 172" },
-  { id: "PA28", label: "PA28 · Piper PA-28" },
-  { id: "BE36", label: "BE36 · Beechcraft Bonanza" },
-  { id: "B350", label: "B350 · King Air 350" },
-  { id: "C208", label: "C208 · Caravan" },
-  { id: "C130E", label: "C130E · Hercules" },
-  { id: "ZZZZ", label: "ZZZZ · Tipo não designado (informar em RMK TYP/)" },
-];
-
 const inputClass = "h-10 rounded-lg border-border/70 bg-background/70 text-sm shadow-sm";
 const textareaClass = "min-h-[88px] rounded-lg border-border/70 bg-background/70 text-sm shadow-sm";
 
@@ -148,7 +139,7 @@ function initialForm(): FlightPlanForm {
     flightNumber: "",
     aircraftId: "",
     aircraftRegistration: "",
-    aircraftType: "C172",
+    aircraftType: "",
     aircraftCount: "1",
     wakeCategory: "L",
     flightRules: "V",
@@ -251,38 +242,54 @@ function SelectField({
   );
 }
 
+function distanceNm(from: [number, number], to: [number, number]) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(to[0] - from[0]);
+  const dLon = toRad(to[1] - from[1]);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from[0])) * Math.cos(toRad(to[0])) * Math.sin(dLon / 2) ** 2;
+  return 3440.065 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function bearingDegrees(from: [number, number], to: [number, number]) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const toDeg = (value: number) => (value * 180) / Math.PI;
+  const y = Math.sin(toRad(to[1] - from[1])) * Math.cos(toRad(to[0]));
+  const x = Math.cos(toRad(from[0])) * Math.sin(toRad(to[0])) - Math.sin(toRad(from[0])) * Math.cos(toRad(to[0])) * Math.cos(toRad(to[1] - from[1]));
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function WeatherRadarLayer() {
+  const [radarTime, setRadarTime] = useState<number | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch('https://api.rainviewer.com/public/weather-maps.json').then((response) => response.json()).then((data: any) => {
+      const frames = [...(data?.radar?.past || []), ...(data?.radar?.nowcast || [])];
+      const last = frames.at(-1)?.time;
+      if (active && typeof last === 'number') setRadarTime(last);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  if (!radarTime) return null;
+  return <TileLayer url={`https://tilecache.rainviewer.com/v2/radar/${radarTime}/256/{z}/{x}/{y}/2/1_1.png`} opacity={0.48} zIndex={450} attribution='Radar: RainViewer' />;
+}
+
+function MeasureLayer({ points, onChange }: { points: [number, number][]; onChange: (points: [number, number][]) => void }) {
+  useMapEvents({ click(event) { const next: [number, number] = [event.latlng.lat, event.latlng.lng]; onChange(points.length >= 2 ? [next] : [...points, next]); } });
+  return <>{points.map((point, index) => <CircleMarker key={`${point[0]}-${point[1]}-${index}`} center={point} radius={6} pathOptions={{ color: '#f1c348', fillColor: '#f1c348', fillOpacity: 1 }}><Tooltip permanent direction="top">P{index + 1}</Tooltip></CircleMarker>)}{points.length === 2 && <Polyline positions={points as [[number, number], [number, number]]} pathOptions={{ color: '#f1c348', weight: 3, dashArray: '6 6' }} />}</>;
+}
+
 function RouteMap({ data }: { data: GeneratedData }) {
   const response = data.response;
-  const positions: [[number, number], [number, number]] = [
-    [response.departure.lat, response.departure.lon],
-    [response.destination.lat, response.destination.lon],
-  ];
-  const center: [number, number] = [
-    (response.departure.lat + response.destination.lat) / 2,
-    (response.departure.lon + response.destination.lon) / 2,
-  ];
+  const positions: [[number, number], [number, number]] = [[response.departure.lat, response.departure.lon], [response.destination.lat, response.destination.lon]];
+  const center: [number, number] = [(response.departure.lat + response.destination.lat) / 2, (response.departure.lon + response.destination.lon) / 2];
   const mapKey = `${response.departure.icao}-${response.destination.icao}`;
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-[#0b1725]">
-      <MapContainer key={mapKey} center={center} zoom={5} scrollWheelZoom className="h-[320px] w-full sm:h-[390px]">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Polyline positions={positions} pathOptions={{ color: "#4aa3f0", weight: 4, dashArray: "10 8" }} />
-        <CircleMarker center={positions[0]} radius={8} pathOptions={{ color: "#66d190", fillColor: "#66d190", fillOpacity: 0.95 }}>
-          <Tooltip permanent direction="top" offset={[0, -7]}>{response.departure.icao}</Tooltip>
-        </CircleMarker>
-        <CircleMarker center={positions[1]} radius={8} pathOptions={{ color: "#f1c348", fillColor: "#f1c348", fillOpacity: 0.95 }}>
-          <Tooltip permanent direction="top" offset={[0, -7]}>{response.destination.icao}</Tooltip>
-        </CircleMarker>
-      </MapContainer>
-      <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-lg border border-white/10 bg-[#081321]/85 px-3 py-2 backdrop-blur">
-        <p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#78bdf4]">Rota operacional</p>
-        <p className="mt-1 font-mono text-[11px] text-white">{response.flightplan.route}</p>
-      </div>
-    </div>
-  );
+  const [baseLayer, setBaseLayer] = useState<'mapa' | 'terreno' | 'satelite'>('mapa');
+  const [showAirspace, setShowAirspace] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+  const [measurePoints, setMeasurePoints] = useState<[number, number][]>([]);
+  const measure = measurePoints.length === 2 ? { distance: distanceNm(measurePoints[0], measurePoints[1]), bearing: bearingDegrees(measurePoints[0], measurePoints[1]) } : null;
+  const tileUrl = baseLayer === 'satelite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : baseLayer === 'terreno' ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  return <div className="relative overflow-hidden rounded-xl border border-border bg-[#0b1725]"><MapContainer key={mapKey} center={center} zoom={5} scrollWheelZoom className="h-[320px] w-full sm:h-[390px]"><TileLayer attribution={baseLayer === 'satelite' ? 'Tiles &copy; Esri' : baseLayer === 'terreno' ? '&copy; OpenTopoMap' : '&copy; OpenStreetMap'} url={tileUrl} />{showAirspace && <WMSTileLayer url="https://geoaisweb.decea.mil.br/geoserver/ows" params={{ layers: 'ICA:airspace,ICA:airway', format: 'image/png', transparent: true, version: '1.1.1' }} opacity={0.58} />}{showWeather && <WeatherRadarLayer />}<Polyline positions={positions} pathOptions={{ color: '#4aa3f0', weight: 4, dashArray: '10 8' }} /><CircleMarker center={positions[0]} radius={8} pathOptions={{ color: '#66d190', fillColor: '#66d190', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.departure.icao}</Tooltip></CircleMarker><CircleMarker center={positions[1]} radius={8} pathOptions={{ color: '#f1c348', fillColor: '#f1c348', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.destination.icao}</Tooltip></CircleMarker><MeasureLayer points={measurePoints} onChange={setMeasurePoints} /></MapContainer><div className="absolute left-3 top-3 z-[500] rounded-lg border border-white/10 bg-[#081321]/90 px-3 py-2 backdrop-blur"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#78bdf4]">Rota sugerida</p><p className="mt-1 max-w-[250px] font-mono text-[11px] text-white">{response.flightplan.route}</p><p className="mt-1 text-[9px] text-white/60">{response.flightplan.route_source === 'AISWEB/DECEA' ? 'AISWEB / DECEA' : 'Direta / fallback'}</p></div><div className="absolute right-3 top-3 z-[500] flex max-w-[220px] flex-wrap justify-end gap-1.5 rounded-lg border border-white/10 bg-[#081321]/90 p-2 backdrop-blur"><span className="w-full px-1 pb-1 text-[9px] font-bold uppercase tracking-[.12em] text-white/60">Camadas e cartas</span>{(['mapa', 'terreno', 'satelite'] as const).map((layer) => <button key={layer} type="button" onClick={() => setBaseLayer(layer)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${baseLayer === layer ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>{layer === 'satelite' ? 'Satélite' : layer[0].toUpperCase() + layer.slice(1)}</button>)}<button type="button" onClick={() => setShowAirspace((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showAirspace ? 'bg-[#62c7a0] text-[#061b16]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Espaço aéreo</button><button type="button" onClick={() => setShowWeather((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showWeather ? 'bg-[#7bb8ed] text-[#061521]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Meteo ao vivo</button><button type="button" onClick={() => setMeasurePoints([])} className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-bold text-white/75 hover:bg-white/20">Limpar régua</button></div>{measure && <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-[#f1c348]/40 bg-[#081321]/90 px-3 py-2 text-[10px] text-white shadow-lg backdrop-blur"><p className="font-bold text-[#f1c348]">Régua de navegação</p><p className="mt-1 font-mono">Proa {String(Math.round(measure.bearing)).padStart(3, '0')}° · {measure.distance.toFixed(1)} NM</p><p className="text-[9px] text-white/60">Clique em dois pontos do mapa para medir.</p></div>}{!measure && <p className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-md bg-[#081321]/75 px-2 py-1 text-[9px] text-white/70">Régua: clique em dois pontos</p>}</div>;
 }
 
 function WeatherCard({ title, icao, weather }: { title: string; icao: string; weather: WeatherResponse | null }) {
@@ -365,6 +372,8 @@ function OperationalResult({ data, form, onSave, saving, saved }: { data: Genera
         <CartaoKpi label="Margem de autonomia" value={`${Math.round(marginFuel)} L`} detail={`${endurance.toFixed(1)} h disponíveis`} tone={canReach ? "green" : "red"} icon={<ShieldCheck size={16} />} />
       </div>
 
+      {response.performance && <section className="rounded-xl border border-primary/25 bg-primary/[.04] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-[.13em] text-primary">Performance da aeronave</p><h3 className="mt-1 text-sm font-bold">{[response.performance.fabricante, response.performance.modelo].filter(Boolean).join(' · ') || 'Dados cadastrados'}</h3></div><EtiquetaStatus tone="green">Fonte: {response.performance.source === 'performance_aeronave' ? 'performance_aeronave' : 'aeronave'}</EtiquetaStatus></div><div className="mt-3 grid grid-cols-2 gap-2 text-[10px] sm:grid-cols-4"><WeatherMetric label="Cruzeiro" value={`${response.performance.velocidade_cruzeiro_kt} kt`} /><WeatherMetric label="Consumo" value={`${response.performance.consumo_combustivel_lh} L/h`} /><WeatherMetric label="Teto" value={response.performance.teto_servico_ft ? `${response.performance.teto_servico_ft} ft` : '—'} /><WeatherMetric label="Subida" value={response.performance.taxa_subida_fpm ? `${response.performance.taxa_subida_fpm} ft/min` : '—'} /></div></section>}
+
       <div className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
         <RouteMap data={data} />
         <div className="space-y-4">
@@ -434,7 +443,7 @@ export default function PlanoDeVoo() {
     const flight = flights.find((item) => item.id === id);
     if (!flight) return;
     const selectedAircraft = aircraft.find((item) => item.id === flight.aeronave_id);
-    const aircraftType = selectedAircraft?.tipo_aeronave || form.aircraftType;
+    const aircraftType = selectedAircraft ? `${selectedAircraft.fabricante} ${selectedAircraft.modelo}`.trim() : form.aircraftType;
     const existingPilot = crew.find((item) => item.id === flight.piloto_id);
     setForm((current) => ({
       ...current,
@@ -457,7 +466,7 @@ export default function PlanoDeVoo() {
   const selectAircraft = (id: string) => {
     const item = aircraft.find((aircraftItem) => aircraftItem.id === id);
     update("aircraftId", id);
-    if (item) setForm((current) => ({ ...current, aircraftId: id, aircraftRegistration: item.matricula_registro, aircraftType: item.tipo_aeronave || current.aircraftType }));
+    if (item) setForm((current) => ({ ...current, aircraftId: id, aircraftRegistration: item.matricula_registro, aircraftType: `${item.fabricante} ${item.modelo}`.trim() || item.tipo_aeronave || current.aircraftType, cruiseSpeed: String(item.performance_velocidade_cruzeiro_kt || item.velocidade_cruzeiro || current.cruiseSpeed), fuelBurn: String(item.consumo_combustivel || current.fuelBurn) }));
   };
 
   const generatePlan = async () => {
@@ -480,7 +489,7 @@ export default function PlanoDeVoo() {
     }
     setGenerating(true);
     try {
-      const response = await calcularPlanoVoo({ adep: departure, ades: destination, speed: Number(form.cruiseSpeed) || 120, fuelBurn: Number(form.fuelBurn) || 36, reserveMin: Number(form.reserveMin) || 45 });
+      const response = await calcularPlanoVoo({ adep: departure, ades: destination, speed: Number(form.cruiseSpeed) || 120, fuelBurn: Number(form.fuelBurn) || 36, reserveMin: Number(form.reserveMin) || 45, aircraftId: form.aircraftId || undefined });
       const [departureAirport, destinationAirport, departureWeather, destinationWeather, departureCharts, destinationCharts] = await Promise.all([
         buscarRotaer(departure).then((result) => result.airport).catch(() => null),
         buscarRotaer(destination).then((result) => result.airport).catch(() => null),
@@ -489,9 +498,55 @@ export default function PlanoDeVoo() {
         buscarCartas(departure).then((result) => result.charts || []).catch(() => []),
         buscarCartas(destination).then((result) => result.charts || []).catch(() => []),
       ]);
+      setForm((current) => ({ ...current, route: response.flightplan.route }));
       setGenerated({ response, departureAirport, destinationAirport, departureWeather, destinationWeather, departureCharts, destinationCharts });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível calcular o plano com o AISWEB.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const openSavedPlan = async (plan: PlanoVooSalvo) => {
+    const payload = plan.payload || {};
+    const savedForm = (payload.form || {}) as Partial<FlightPlanForm>;
+    const selectedAircraft = aircraft.find((item) => item.id === savedForm.aircraftId);
+    const restoredForm: FlightPlanForm = {
+      ...initialForm(),
+      ...savedForm,
+      existingFlightId: '',
+      flightNumber: plan.numero_voo || savedForm.flightNumber || '',
+      aircraftId: savedForm.aircraftId || '',
+      aircraftRegistration: selectedAircraft?.matricula_registro || savedForm.aircraftRegistration || '',
+      aircraftType: selectedAircraft ? `${selectedAircraft.fabricante} ${selectedAircraft.modelo}`.trim() : savedForm.aircraftType || '',
+      departure: plan.adep || savedForm.departure || '',
+      destination: plan.ades || savedForm.destination || '',
+      date: plan.data_voo || savedForm.date || initialForm().date,
+      eobt: plan.eobt || savedForm.eobt || '',
+    };
+    if (selectedAircraft) {
+      restoredForm.cruiseSpeed = String(selectedAircraft.performance_velocidade_cruzeiro_kt || selectedAircraft.velocidade_cruzeiro || restoredForm.cruiseSpeed);
+      restoredForm.fuelBurn = String(selectedAircraft.consumo_combustivel || restoredForm.fuelBurn);
+    }
+    setForm(restoredForm);
+    setSaved(true);
+    setGenerated(null);
+    setError(null);
+    setGenerating(true);
+    try {
+      const response = await calcularPlanoVoo({ adep: restoredForm.departure.toUpperCase(), ades: restoredForm.destination.toUpperCase(), speed: Number(restoredForm.cruiseSpeed) || 120, fuelBurn: Number(restoredForm.fuelBurn) || 36, reserveMin: Number(restoredForm.reserveMin) || 45, aircraftId: restoredForm.aircraftId || undefined });
+      const [departureAirport, destinationAirport, departureWeather, destinationWeather, departureCharts, destinationCharts] = await Promise.all([
+        buscarRotaer(restoredForm.departure).then((result) => result.airport).catch(() => null),
+        buscarRotaer(restoredForm.destination).then((result) => result.airport).catch(() => null),
+        buscarClima(restoredForm.departure).catch(() => null),
+        buscarClima(restoredForm.destination).catch(() => null),
+        buscarCartas(restoredForm.departure).then((result) => result.charts || []).catch(() => []),
+        buscarCartas(restoredForm.destination).then((result) => result.charts || []).catch(() => []),
+      ]);
+      setForm((current) => ({ ...current, route: response.flightplan.route }));
+      setGenerated({ response, departureAirport, destinationAirport, departureWeather, destinationWeather, departureCharts, destinationCharts });
+    } catch (cause) {
+      setError(cause instanceof Error ? `Plano carregado, mas não foi possível atualizar a rota: ${cause.message}` : 'Plano carregado, mas não foi possível atualizar a rota.');
     } finally {
       setGenerating(false);
     }
@@ -502,7 +557,7 @@ export default function PlanoDeVoo() {
     setSaving(true);
     setError(null);
     try {
-      const result = await salvarPlanoVoo({
+      const payload = {
         numero_voo: form.flightNumber || null,
         adep: form.departure.toUpperCase(),
         ades: form.destination.toUpperCase(),
@@ -510,13 +565,15 @@ export default function PlanoDeVoo() {
         eobt: form.eobt || null,
         form,
         flightplan: generated.response.flightplan,
+        performance: generated.response.performance,
         fuel: generated.response.fuel,
         alternates: generated.response.alternates,
         notam_alerts: generated.response.notam_alerts,
         meteorology: { departure: generated.departureWeather, destination: generated.destinationWeather },
-      });
+      };
+      const result = await salvarPlanoVoo(payload);
       setSaved(true);
-      setSavedPlans((current) => [{ id: result.id, numero_voo: form.flightNumber || null, adep: form.departure.toUpperCase(), ades: form.destination.toUpperCase(), data_voo: form.date, eobt: form.eobt || null, created_at: result.created_at, payload: {} }, ...current]);
+      setSavedPlans((current) => [{ id: result.id, numero_voo: form.flightNumber || null, adep: form.departure.toUpperCase(), ades: form.destination.toUpperCase(), data_voo: form.date, eobt: form.eobt || null, created_at: result.created_at, payload }, ...current]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o plano.");
     } finally {
@@ -556,7 +613,7 @@ export default function PlanoDeVoo() {
           <Field label="Número do voo / identificação"><Input value={form.flightNumber} onChange={(event) => update("flightNumber", event.target.value.toUpperCase())} placeholder="Ex.: PT-SHR-0124" className={inputClass} /></Field>
           <Field label="Aeronave da frota"><SearchableCombobox items={aircraftItems} value={form.aircraftId} onChange={selectAircraft} placeholder="Selecionar aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave ativa encontrada." className="h-10 rounded-lg bg-background/70 text-sm" /></Field>
           <Field label="Matrícula"><Input value={form.aircraftRegistration} onChange={(event) => update("aircraftRegistration", event.target.value.toUpperCase())} placeholder="PT-ABC" className={`${inputClass} font-mono`} /></Field>
-          <SelectField label="Tipo de aeronave" value={form.aircraftType} items={selectItems(AIRCRAFT_OPTIONS)} onChange={(value) => update("aircraftType", value)} placeholder="Código OACI" allowFreeText hint="ZZZZ exige RMK TYP/" />
+          <Field label="Tipo de aeronave · fabricante e modelo" hint="Preenchido pela tabela aeronave"><Input value={form.aircraftType} readOnly placeholder="Selecione uma aeronave" className={inputClass} /></Field>
           <Field label="Número de aeronaves" hint="Formação"><Input type="number" min="1" value={form.aircraftCount} onChange={(event) => update("aircraftCount", event.target.value)} className={`${inputClass} font-mono`} /></Field>
           <SelectField label="Esteira de turbulência" value={form.wakeCategory} items={selectItems(WAKE_OPTIONS)} onChange={(value) => update("wakeCategory", value)} placeholder="Categoria" />
           <SelectField label="Regra de voo · Item 8" value={form.flightRules} items={selectItems(RULE_OPTIONS)} onChange={(value) => update("flightRules", value)} placeholder="Selecionar regra" />
@@ -601,7 +658,7 @@ export default function PlanoDeVoo() {
 
       {generated && <OperationalResult data={generated} form={form} onSave={() => void savePlan()} saving={saving} saved={saved} />}
 
-      <section className="rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<BookmarkCheck size={15} />} title="Planos salvos" detail="Somente planos concluídos e salvos manualmente aparecem aqui." />{savedPlans.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Voo</th><th className="px-4 py-3">Trecho</th><th className="px-4 py-3">Data / EOBT</th><th className="px-4 py-3">Salvo em</th></tr></thead><tbody>{savedPlans.slice(0, 12).map((plan) => <tr key={plan.id} className="border-b border-border/60 last:border-0"><td className="px-4 py-3 font-mono text-[10px] font-bold">{plan.numero_voo || "Sem número"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{plan.adep} → {plan.ades}</td><td className="px-4 py-3 text-[10px]"><p>{plan.data_voo || "—"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{plan.eobt || "UTC a definir"}</p></td><td className="px-4 py-3 text-[10px] text-muted-foreground">{new Date(plan.created_at).toLocaleString("pt-BR")}</td></tr>)}</tbody></table></div> : <EstadoVazio label="Nenhum plano salvo ainda" />}</section>
+      <section className="rounded-xl border border-border bg-card/75">        <CabecalhoSecao icon={<BookmarkCheck size={15} />} title="Planos salvos" detail="Abra um plano concluído para revisar o briefing e atualizar a rota." />{savedPlans.length ? <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Voo</th><th className="px-4 py-3">Trecho</th><th className="px-4 py-3">Data / EOBT</th><th className="px-4 py-3">Salvo em</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{savedPlans.slice(0, 12).map((plan) => <tr key={plan.id} className="border-b border-border/60 last:border-0"><td className="px-4 py-3 font-mono text-[10px] font-bold">{plan.numero_voo || "Sem número"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{plan.adep} → {plan.ades}</td><td className="px-4 py-3 text-[10px]"><p>{plan.data_voo || "—"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{plan.eobt || "UTC a definir"}</p></td><td className="px-4 py-3 text-[10px] text-muted-foreground">{new Date(plan.created_at).toLocaleString("pt-BR")}</td><td className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => void openSavedPlan(plan)} disabled={generating} className="h-8 gap-1.5 border-border bg-transparent text-[10px]"><FolderOpen size={13} /> Abrir</Button></td></tr>)}</tbody></table></div> : <EstadoVazio label="Nenhum plano salvo ainda" />}</section>
     </div>
   );
 }

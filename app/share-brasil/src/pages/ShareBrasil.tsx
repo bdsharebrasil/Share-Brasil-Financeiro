@@ -95,6 +95,8 @@ export function SenhasShareBrasil() {
 
 export function ContatosClientesShareBrasil() {
   const [tab, setTab] = useState<"contatos" | "clientes">("contatos");
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [showNewCotista, setShowNewCotista] = useState(false);
   const [contactView, setContactView] = useState<"lista" | "grade">("grade");
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
@@ -144,6 +146,7 @@ export function ContatosClientesShareBrasil() {
     try {
       await criarContatoShare(form);
       setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "" });
+      setShowNewContact(false);
       setOk("Contato salvo.");
       refresh();
     } catch (e) {
@@ -164,6 +167,7 @@ export function ContatosClientesShareBrasil() {
     try {
       const result = await criarClienteShare(clientForm);
       setSelectedClient(result.id);
+      setShowNewCotista(false);
       setOk("Cliente criado.");
       refresh();
     } catch (e) {
@@ -253,19 +257,30 @@ export function ContatosClientesShareBrasil() {
 
       {tab === "contatos" ? (
         <div className="space-y-4">
-          <section className={`${card} p-4 md:p-5`}>
-            <CabecalhoSecao icon={<Plus size={15} />} title="Novo contato" detail="Adicione pessoas e parceiros à agenda." />
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-              <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
-              <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
-              <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
-              <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
-              <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
-              <Button type="button" onClick={() => void addContact()} className="h-10 gap-2 text-xs">
-                <Plus size={14} /> Salvar
-              </Button>
-            </div>
-          </section>
+          {showNewContact ? (
+            <section className={`${card} p-4 md:p-5`}>
+              <CabecalhoSecao icon={<Plus size={15} />} title="Novo contato" detail="Adicione pessoas e parceiros à agenda." />
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+                <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
+                <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
+                <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
+                <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
+                <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
+                <div className="flex gap-2">
+                  <Button type="button" onClick={() => void addContact()} className="h-10 flex-1 gap-2 text-xs">
+                    <Plus size={14} /> Salvar
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowNewContact(false)} className="h-10 gap-2 text-xs">
+                    <X size={14} /> Cancelar
+                  </Button>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <Button type="button" onClick={() => setShowNewContact(true)} className="h-10 gap-2 text-xs">
+              <Plus size={14} /> Novo contato
+            </Button>
+          )}
 
           <section className={`${card} overflow-hidden`}>
             <CabecalhoSecao
@@ -338,33 +353,39 @@ export function ContatosClientesShareBrasil() {
             )}
           </section>
 
-          <section className={`${card} p-4 md:p-5`}>
-            <CabecalhoSecao icon={<Plus size={15} />} title={selectedClient ? "Perfil do cliente" : "Novo cliente cotista"} detail="Todos os dados cadastrais podem ser editados." />
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {input("razao_social", "Razão social")}
-              {input("codigo_cliente", "Código do cliente")}
-              {input("cnpj", "CNPJ")}
-              {input("proprietario", "Proprietário")}
-              {input("telefone_cliente", "Telefone")}
-              {input("email_principal", "E-mail")}
-              {input("endereco", "Endereço")}
-              {input("cidade", "Cidade")}
-              {input("uf", "UF")}
-              {input("observacoes", "Observações")}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button type="button" onClick={() => void (selectedClient ? saveClient() : addClient())} className="h-9 gap-2 text-xs">
-                <Plus size={14} /> {selectedClient ? "Salvar alterações" : "Criar cliente"}
-              </Button>
+          {selectedClient || showNewCotista ? (
+            <section className={`${card} p-4 md:p-5`}>
+              <CabecalhoSecao icon={<Plus size={15} />} title={selectedClient ? "Perfil do cliente" : "Novo cliente cotista"} detail="Todos os dados cadastrais podem ser editados." />
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {input("razao_social", "Razão social")}
+                {input("codigo_cliente", "Código do cliente")}
+                {input("cnpj", "CNPJ")}
+                {input("proprietario", "Proprietário")}
+                {input("telefone_cliente", "Telefone")}
+                {input("email_principal", "E-mail")}
+                {input("endereco", "Endereço")}
+                {input("cidade", "Cidade")}
+                {input("uf", "UF")}
+                {input("observacoes", "Observações")}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" onClick={() => void (selectedClient ? saveClient() : addClient())} className="h-9 gap-2 text-xs">
+                  <Plus size={14} /> {selectedClient ? "Salvar alterações" : "Criar cliente"}
+                </Button>
+                {!selectedClient && (
+                  <Button type="button" variant="outline" onClick={() => setShowNewCotista(false)} className="h-9 gap-2 text-xs">
+                    <X size={14} /> Cancelar
+                  </Button>
+                )}
+                {selectedClient && (
+                  <>
+                    <Input type="file" accept="image/*" aria-label="Enviar logo do cliente" onChange={(e) => void upload("logo", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
+                    <Input type="file" aria-label="Enviar documento do cliente" onChange={(e) => void upload("doc", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
+                  </>
+                )}
+              </div>
               {selectedClient && (
-                <>
-                  <Input type="file" accept="image/*" aria-label="Enviar logo do cliente" onChange={(e) => void upload("logo", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
-                  <Input type="file" aria-label="Enviar documento do cliente" onChange={(e) => void upload("doc", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
-                </>
-              )}
-            </div>
-            {selectedClient && (
-              <div className="mt-5 border-t border-border pt-4">
+                <div className="mt-5 border-t border-border pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Vincular aeronave</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <select aria-label="Selecionar aeronave" value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className={`${field} min-w-[230px]`}>
@@ -377,9 +398,16 @@ export function ContatosClientesShareBrasil() {
                 <div className="mt-3 space-y-1">
                   {links.filter((item) => item.cliente_id === selectedClient).map((item) => <p key={item.id} className="text-[10px] text-muted-foreground">{item.matricula_registro || "Aeronave"} · {item.fabricante} {item.modelo} · {item.percentual_sociedade}%</p>)}
                 </div>
-              </div>
-            )}
-          </section>
+                </div>
+              )}
+            </section>
+          ) : (
+            <div className={`${card} flex items-center justify-center p-5`}>
+              <Button type="button" onClick={() => setShowNewCotista(true)} className="h-10 gap-2 text-xs">
+                <Plus size={14} /> Novo cliente cotista
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Shell>

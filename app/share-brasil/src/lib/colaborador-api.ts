@@ -161,6 +161,7 @@ export type SolicitacaoVooInterna = {
   criado_em: string;
   atualizado_em: string | null;
   cliente_razao_social: string | null;
+  socio_nome?: string | null;
   codigo_cliente: string | null;
   matricula_registro: string | null;
   modelo: string | null;
@@ -214,6 +215,11 @@ export type DisponibilidadeTripulacao = {
   observacoes: string | null;
 };
 
+export type OpcaoClienteAgendamento = { id: string; nome: string; codigo_cliente: string | null };
+export type OpcaoSocioAgendamento = { id: string; nome: string; cliente_id: string | null };
+export type VinculoCotistaAgendamento = { id: string; cliente_id: string | null; socio_id: string | null; aeronave_id: string; codigo_cliente: string | null; matricula_registro: string | null; modelo: string | null };
+export type OpcoesAgendamentoResponse = { clientes: OpcaoClienteAgendamento[]; socios: OpcaoSocioAgendamento[]; aeronaves: AeronaveAgendamento[]; vinculos: VinculoCotistaAgendamento[] };
+
 export type PainelAgendamentoResponse = {
   inicio: string;
   fim: string;
@@ -245,6 +251,10 @@ export type PainelFinanceiroResponse = {
   movimentacoes: MovimentacaoFinanceira[];
 };
 
+export function buscarOpcoesAgendamento() {
+  return colaboradorRequest<OpcoesAgendamentoResponse>("/api/interno/agendamento/opcoes");
+}
+
 export function buscarPainelAgendamento(inicio?: string, fim?: string) {
   const params = new URLSearchParams();
   if (inicio) params.set("inicio", inicio);
@@ -262,7 +272,7 @@ export function definirDisponibilidadeTripulacao(dados: { tripulante_id: string;
 
 export type NovoAgendamento = {
   cliente_id?: string;
-  codigo_cliente?: string;
+  socio_id?: string;
   aeronave_id: string;
   origem: string;
   destino: string;

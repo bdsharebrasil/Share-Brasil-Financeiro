@@ -16,6 +16,7 @@ import CentroTreinamento from "@/pages/CentroTreinamento";
 import CentroMateriais from "@/pages/CentroMateriais";
 import SalaReuniao from "@/pages/SalaReuniao";
 import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
+import GestaoColaborador from "@/pages/GestaoColaborador";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
@@ -45,6 +46,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
+    if (ambiente === "gestor" && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;

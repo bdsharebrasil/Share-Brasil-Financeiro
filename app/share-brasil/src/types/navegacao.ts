@@ -91,7 +91,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
     { id: "financeiro-share", label: "Financeiro Share Brasil", icon: WalletCards, badge: "3" },
     { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Users },
-    { id: "gestao-funcionarios", label: "Gestão de funcionários", icon: Users },
+    { id: "gestao-colaborador", label: "Gestão Colaborador", icon: Users },
     { id: "ferias", label: "Férias", icon: CalendarDays },
     { id: "simulador-custos", label: "Simulador de custos", icon: CircleDollarSign },
     { id: "configuracoes", label: "Configurações", icon: Settings2 },

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Perfil from "@/pages/perfil";
-import DashboardGestor from "@/pages/interno/DashboardGestor";
-import DashboardOperacoes from "@/pages/interno/DashboardOperacoes";
-import DashboardFinanceiro from "@/pages/interno/DashboardFinanceiro";
-import ModuloInterno from "@/pages/interno/ModuloInterno";
-import Agendamentos from "@/pages/interno/Agendamentos";
-import Ferias from "@/pages/interno/Ferias";
+import DashboardGestor from "@/pages/DashboardGestor";
+import DashboardOperacoes from "@/pages/DashboardOperacoes";
+import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
+import ModuloInterno from "@/pages/ModuloInterno";
+import Agendamentos from "@/pages/Agendamentos";
+import Ferias from "@/pages/Ferias";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar";

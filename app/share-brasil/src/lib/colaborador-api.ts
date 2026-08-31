@@ -164,6 +164,64 @@ export type SolicitacaoVooInterna = {
   codigo_cliente: string | null;
   matricula_registro: string | null;
   modelo: string | null;
+  observacoes?: string | null;
+  piloto_id?: string | null;
+  copiloto_id?: string | null;
+};
+
+export type AeronaveAgendamento = {
+  id: string;
+  matricula_registro: string;
+  fabricante: string;
+  modelo: string;
+  status: string;
+  ano: string | null;
+  base: string | null;
+  url_imagem: string | null;
+  tipo_aeronave: string | null;
+};
+
+export type TripulanteAgendamento = {
+  id: string;
+  nome_completo: string;
+  canac: string;
+  status: string | null;
+  tipo_licenca: string | null;
+  origem: "tripulacao" | "freelancer";
+};
+
+export type EscalaAgendamento = {
+  id: string;
+  data_agendada: string;
+  data_fim: string;
+  numero_voo: string | null;
+  origem: string;
+  destino: string;
+  piloto_id: string | null;
+  piloto_nome: string | null;
+  copiloto_id: string | null;
+  copiloto_nome: string | null;
+  status: string;
+};
+
+export type DisponibilidadeTripulacao = {
+  id: string;
+  tripulante_id: string;
+  tripulante_origem: "tripulacao" | "freelancer";
+  data_inicio: string;
+  data_fim: string;
+  status: "aviso" | "ferias" | "disponivel" | string;
+  observacoes: string | null;
+};
+
+export type PainelAgendamentoResponse = {
+  inicio: string;
+  fim: string;
+  agendamentos: SolicitacaoVooInterna[];
+  aeronaves: AeronaveAgendamento[];
+  tripulacao: TripulanteAgendamento[];
+  escala: EscalaAgendamento[];
+  disponibilidades: DisponibilidadeTripulacao[];
 };
 
 export type PainelOperacoesResponse = {
@@ -186,6 +244,44 @@ export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
   movimentacoes: MovimentacaoFinanceira[];
 };
+
+export function buscarPainelAgendamento(inicio?: string, fim?: string) {
+  const params = new URLSearchParams();
+  if (inicio) params.set("inicio", inicio);
+  if (fim) params.set("fim", fim);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return colaboradorRequest<PainelAgendamentoResponse>(`/api/interno/agendamento${query}`);
+}
+
+export function definirDisponibilidadeTripulacao(dados: { tripulante_id: string; data_inicio: string; data_fim?: string; status: "aviso" | "ferias" | "disponivel"; observacoes?: string }) {
+  return colaboradorRequest<{ id: string; tripulante_nome: string }>("/api/interno/agendamento/disponibilidade", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export type NovoAgendamento = {
+  cliente_id?: string;
+  codigo_cliente?: string;
+  aeronave_id: string;
+  origem: string;
+  destino: string;
+  data_agendada: string;
+  horario_previsto_agendamento?: string;
+  dias_duracao?: number;
+  numero_passageiros?: number;
+  voo_emprestado?: string;
+  piloto_id?: string;
+  copiloto_id?: string;
+  observacoes?: string;
+};
+
+export function criarAgendamento(dados: NovoAgendamento) {
+  return colaboradorRequest<{ id: string; status: string; numero_voo: string | null }>("/api/interno/agendamento", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
 
 export function buscarPainelOperacoes(data?: string) {
   const query = data ? `?data=${encodeURIComponent(data)}` : "";

@@ -95,6 +95,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
+  const [versaoFoto, setVersaoFoto] = useState(0);
   const [fotoDialogAberto, setFotoDialogAberto] = useState(false);
   const [arquivoFoto, setArquivoFoto] = useState<File | null>(null);
   const [fotoOrigemUrl, setFotoOrigemUrl] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
     let ativo = true;
     let url: string | null = null;
     if (dados?.perfil.foto_url) {
-      void carregarArquivoColaborador("/api/colaborador/foto").then((blob) => {
+      void carregarArquivoColaborador(`/api/colaborador/foto?v=${versaoFoto}`).then((blob) => {
         if (!ativo) return;
         url = URL.createObjectURL(blob);
         setFoto(url);
@@ -158,7 +159,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
       ativo = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [dados?.perfil.foto_url]);
+  }, [dados?.perfil.foto_url, versaoFoto]);
 
   const salvarDados = async () => {
     if (!nome.trim()) return;
@@ -251,6 +252,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
     try {
       await enviarFotoColaborador(fotoPreviewFile);
       limparTrocaFoto();
+      setVersaoFoto((versao) => versao + 1);
       await carregar();
       toast({ title: "Foto atualizada", description: "Sua foto foi alterada com sucesso." });
     } catch {

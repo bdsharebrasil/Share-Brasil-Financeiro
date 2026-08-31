@@ -6,6 +6,7 @@ import DashboardOperacoes from "@/pages/DashboardOperacoes";
 import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
 import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
+import PlanoDeVoo from "@/pages/PlanoDeVoo";
 import Ferias from "@/pages/Ferias";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
@@ -30,6 +31,7 @@ export default function LayoutInterno() {
   const renderConteudo = () => {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;
     if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos />;
+    if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (menuAtivo !== "overview" && itemAtivo) return <ModuloInterno ambiente={ambiente} menu={itemAtivo} aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes") return <DashboardOperacoes aoNavegar={selecionarMenu} />;

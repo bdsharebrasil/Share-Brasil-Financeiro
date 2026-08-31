@@ -326,6 +326,28 @@ export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
   });
 }
 
+export type PlanoVooSalvo = {
+  id: string;
+  numero_voo: string | null;
+  adep: string;
+  ades: string;
+  data_voo: string | null;
+  eobt: string | null;
+  created_at: string;
+  payload: Record<string, unknown>;
+};
+
+export function buscarPlanosVoo() {
+  return colaboradorRequest<PlanoVooSalvo[]>("/api/interno/planos-voo");
+}
+
+export function salvarPlanoVoo(payload: Record<string, unknown>) {
+  return colaboradorRequest<{ id: string; created_at: string }>("/api/interno/planos-voo", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function buscarPainelFinanceiro() {
   return colaboradorRequest<PainelFinanceiroResponse>("/api/interno/dashboard/financeiro");
 }

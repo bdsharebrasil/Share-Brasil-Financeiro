@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Video,
   BookOpen,
+  Building2,
   FileBarChart,
   FileCheck2,
   FileText,
@@ -84,6 +85,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
     { id: "contatos-clientes", label: "Contatos e Clientes", icon: ContactRound },
+    { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },

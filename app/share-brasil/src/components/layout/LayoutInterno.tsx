@@ -15,6 +15,7 @@ import ControleAbastecimento from "@/pages/ControleAbastecimento";
 import CentroTreinamento from "@/pages/CentroTreinamento";
 import CentroMateriais from "@/pages/CentroMateriais";
 import SalaReuniao from "@/pages/SalaReuniao";
+import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
@@ -50,6 +51,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;
     if (ambiente === "share-brasil" && menuAtivo === "sala-reuniao") return <SalaReuniao />;
     if (ambiente === "share-brasil" && menuAtivo === "tutorial") return <CentroMateriais categoria="TUTORIAL" />;

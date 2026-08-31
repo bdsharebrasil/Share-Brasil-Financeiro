@@ -518,8 +518,10 @@ export type DiarioLancamento = {
   trecho: string | null;
   pic_canac: string;
   pic_nome: string | null;
+  pic_nome_exibicao?: string | null;
   sic_canac: string | null;
   sic_nome: string | null;
+  sic_nome_exibicao?: string | null;
   cliente_id: string | null;
   socio_id: string | null;
   cliente_tomador_emprestimo_id?: string | null;

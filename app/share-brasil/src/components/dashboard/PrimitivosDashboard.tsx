@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import aviationHero from "@/assets/aviation-hero.jpg";
 import { ArrowDownRight, ArrowRight, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomesAmbiente, type Ambiente } from "@/types/navegacao";
@@ -27,18 +28,19 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
   );
 }
 
-export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle: string; children?: ReactNode }) {
+export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   return (
-    <section className="hero-panel relative mb-6 overflow-hidden rounded-2xl border border-border/80 bg-card">
-      <div className="command-grid absolute inset-0 opacity-40" />
-      <div className={cn("absolute -right-24 -top-32 h-80 w-80 rounded-full blur-3xl", ambiente === "financeiro" ? "bg-[#f1c348]/10" : ambiente === "gestor" ? "bg-primary/12" : "bg-[#2bbf8a]/10")} />
+    <section className="hero-panel relative mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#111b29] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
+      <img src={aviationHero} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
+      <div className="command-grid absolute inset-0 opacity-30" />
       <div className="relative flex min-h-[175px] flex-col justify-between gap-8 p-6 md:min-h-[205px] md:p-8">
         <div className="flex items-center justify-between gap-4">
           <IndicadorPagina>Dashboard {nomesAmbiente[ambiente]}</IndicadorPagina>
-          <span className="hidden items-center gap-2 font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground sm:flex"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#5bbd75]" /> Sistema operacional</span>
         </div>
         <div className="flex items-end justify-between gap-6">
-          <div><p className="mb-2 text-xs font-semibold text-muted-foreground">{subtitle}</p><h1 className="text-[28px] font-extrabold tracking-[-.05em] text-foreground md:text-[38px]">{title}</h1></div>
+          <div>{subtitle && <p className="mb-2 text-xs font-semibold text-white/65">{subtitle}</p>}<h1 className="text-[28px] font-extrabold tracking-[-.05em] text-white md:text-[38px]">{title}</h1></div>
           {children}
         </div>
       </div>

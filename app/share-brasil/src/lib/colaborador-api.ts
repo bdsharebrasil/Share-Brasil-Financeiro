@@ -85,6 +85,10 @@ export type PerfilColaboradorResponse = {
   };
 };
 
+export type MensagensNaoLidasResponse = {
+  unread: number;
+};
+
 async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");
@@ -99,6 +103,10 @@ async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Prom
 
 export function buscarPerfilColaborador() {
   return colaboradorRequest<PerfilColaboradorResponse>("/api/colaborador/perfil");
+}
+
+export function buscarContagemMensagensNaoLidas() {
+  return colaboradorRequest<MensagensNaoLidasResponse>("/api/mensagens/unread-count");
 }
 
 export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {

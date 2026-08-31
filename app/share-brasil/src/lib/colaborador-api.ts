@@ -450,6 +450,10 @@ export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
   });
 }
 
+export type ChecklistPreVoo = { id: string; solicitacao_id: string; itens: Record<string, boolean>; observacoes: string | null; abastecimento_id: string | null; status: string };
+export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<ChecklistPreVoo | null>(`/api/interno/agendamento/${id}/checklist`); }
+export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, boolean>; observacoes?: string; abastecimento?: { litros: number; local?: string; numero_comanda?: string }; status?: string }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
+
 export type PlanoVooSalvo = {
   id: string;
   numero_voo: string | null;
@@ -562,8 +566,14 @@ export type DiarioLancamento = {
   discrepancias: string | null;
   acoes_corretivas: string | null;
   confirmado: number;
+  abastecimento_id?: string | null;
+  abastecimento_litros?: number | null;
+  abastecimento_data?: string | null;
+  abastecimento_pagador_nome?: string | null;
+  abastecimento_comanda?: string | null;
+  abastecimento_nota?: string | null;
 };
-export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal">> };
+export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal">>; horas_cotistas?: Array<{ cotista_id: string | null; cotista_nome: string; horas_voo: number }>; horas_emprestadas?: { horas_total: number; quantidade: number } };
 
 export function buscarResumoDiario(ano?: number) {
   return colaboradorRequest<{ ano: number; aeronaves: DiarioAeronaveResumo[] }>(`/api/interno/diario-bordo/resumo${ano ? `?ano=${ano}` : ""}`);
@@ -595,5 +605,11 @@ export function atualizarLancamentoDiario(id: string, payload: Record<string, un
 }
 
 export function excluirLancamentoDiario(id: string) {
-  return colaboradorRequest<{ success: boolean }>(`/api/interno/diario-bordo/lancamentos/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return colaboradorRequest<{ success: boolean }>(`/api/interno/diario-bordo/lancamentos/${id}`, { method: "DELETE" });
 }
+
+export type AerodromoCadastro = { id: string; nome: string; designativo_icao: string; coordenadas: string | null };
+export function buscarAerodromosCadastro() { return colaboradorRequest<{ aerodromos: AerodromoCadastro[] }>("/api/interno/aerodromos"); }
+export function criarAerodromoCadastro(payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<AerodromoCadastro>("/api/interno/aerodromos", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarAerodromoCadastro(id: string, payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirAerodromoCadastro(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "DELETE" }); }

@@ -132,6 +132,37 @@ export async function carregarArquivoColaborador(path: string) {
   return response.blob();
 }
 
+export type PontoLancamento = { id: string; user_id: string; data_entrada: string; entrada_hora: string | null; inicio_almoco: string | null; fim_almoco: string | null; saida_hora: string | null; horas_totais: number | null; status: string; motivo_da_ausencia?: string | null };
+export type PontoResponse = { mes: string; lancamentos: PontoLancamento[]; anexos: Array<Record<string, any>>; justificativas: Array<Record<string, any>>; correcoes: Array<Record<string, any>> };
+export type DocumentoInterno = { id: string; pasta_id: string | null; nome: string; caminho_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number; enviado_por: string; criado_em: string; arquivo_url: string };
+export type PastaDocumento = { id: string; nome: string; pasta_pai_id: string | null; criado_por: string; criado_em: string; restrita: number };
+export type SenhaEmpresa = { id: string; titulo: string; site: string; login: string; senha?: string; observacoes: string | null; setor: string | null; criado_em: string };
+export type ContatoAgenda = { id: string; nome: string; telefone: string | null; email: string | null; empresa: string | null; cargo: string | null; observacoes: string | null; endereco: string | null; uf: string | null; cidade: string | null; categoria: string | null };
+export type ClienteShare = Record<string, any>;
+
+export function buscarPonto(mes?: string) { return colaboradorRequest<PontoResponse>(`/api/sharebrasil/ponto${mes ? `?mes=${encodeURIComponent(mes)}` : ""}`); }
+export function marcarPonto(acao: "entrada" | "inicio_almoco" | "fim_almoco" | "pausa" | "saida" | "encerrar", data?: string, hora?: string) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/marcar", { method: "POST", body: JSON.stringify({ acao, data, hora }) }); }
+export function solicitarCorrecaoPonto(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/correcao", { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarJustificativaAusencia(data: string, justificativa: string, arquivo?: File) { const body = new FormData(); body.append("data_registro", data); body.append("justificativa", justificativa); if (arquivo) body.append("arquivo", arquivo); return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/justificativa", { method: "POST", body }); }
+export function buscarPastasDocumentos() { return colaboradorRequest<PastaDocumento[]>("/api/sharebrasil/documentos/pastas"); }
+export function criarPastaDocumento(nome: string, pastaPaiId?: string) { return colaboradorRequest<PastaDocumento>("/api/sharebrasil/documentos/pastas", { method: "POST", body: JSON.stringify({ nome, pasta_pai_id: pastaPaiId || null }) }); }
+export function buscarDocumentosInternos(pastaId?: string) { return colaboradorRequest<DocumentoInterno[]>(`/api/sharebrasil/documentos${pastaId ? `?pasta_id=${encodeURIComponent(pastaId)}` : ""}`); }
+export function enviarDocumentoInterno(arquivo: File, pastaId?: string) { const body = new FormData(); body.append("arquivo", arquivo); if (pastaId) body.append("pasta_id", pastaId); return colaboradorRequest<DocumentoInterno>("/api/sharebrasil/documentos", { method: "POST", body }); }
+export function buscarSenhas() { return colaboradorRequest<SenhaEmpresa[]>("/api/sharebrasil/senhas"); }
+export function revelarSenha(id: string) { return colaboradorRequest<SenhaEmpresa>(`/api/sharebrasil/senhas/${id}`); }
+export function criarSenha(payload: Partial<SenhaEmpresa>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/senhas", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarSenha(id: string, payload: Partial<SenhaEmpresa>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/senhas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirSenha(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/senhas/${id}`, { method: "DELETE" }); }
+export function buscarContatosShare() { return colaboradorRequest<ContatoAgenda[]>("/api/sharebrasil/contatos"); }
+export function criarContatoShare(payload: Partial<ContatoAgenda>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/contatos", { method: "POST", body: JSON.stringify(payload) }); }
+export function excluirContatoShare(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/contatos/${id}`, { method: "DELETE" }); }
+export function buscarClientesShare() { return colaboradorRequest<{ clientes: ClienteShare[]; socios: ClienteShare[]; vinculos: ClienteShare[]; documentos: ClienteShare[]; aeronaves: ClienteShare[] }>("/api/sharebrasil/clientes"); }
+export function criarClienteShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/clientes", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarClienteShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function vincularAeronaveCliente(clienteId: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/aeronaves`, { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarLogoCliente(clienteId: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/logo`, { method: "POST", body }); }
+export function enviarDocumentoCliente(clienteId: string, arquivo: File, categoria = "geral") { const body = new FormData(); body.append("arquivo", arquivo); body.append("categoria", categoria); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/documentos`, { method: "POST", body }); }
+
 export function enviarFotoColaborador(foto: File) {
   const body = new FormData();
   body.append("foto", foto);

@@ -6,7 +6,9 @@ import {
   FileBarChart,
   FileCheck2,
   FileText,
+  Folder,
   Fuel,
+  KeyRound,
   LayoutDashboard,
   Mail,
   NotebookPen,
@@ -16,10 +18,11 @@ import {
   Users,
   WalletCards,
   Wrench,
+  ContactRound,
   type LucideIcon,
 } from "lucide-react";
 
-export type Ambiente = "gestor" | "operacoes" | "financeiro" | "portal";
+export type Ambiente = "gestor" | "operacoes" | "financeiro" | "share-brasil" | "portal";
 export type Tema = "dark" | "light";
 
 export type ItemMenu = {
@@ -33,6 +36,7 @@ export const nomesAmbiente: Record<Ambiente, string> = {
   gestor: "Gestor",
   operacoes: "Operações",
   financeiro: "Financeiro",
+  "share-brasil": "Share Brasil",
   portal: "Portal do Cliente",
 };
 
@@ -40,6 +44,7 @@ export const descricoesAmbiente: Record<Ambiente, string> = {
   gestor: "Visão executiva e decisões da empresa",
   operacoes: "Controle da operação aérea",
   financeiro: "Rotinas financeiras e administrativas",
+  "share-brasil": "Pessoas, documentos e relacionamento corporativo",
   portal: "Consulta de cobranças e documentos",
 };
 
@@ -59,8 +64,14 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "despesas", label: "Relatório de despesa de viagem", icon: FileBarChart },
     { id: "pagamentos", label: "Programação de pagamento", icon: CreditCard, badge: "5" },
     { id: "email", label: "E-mail", icon: Mail },
-    { id: "ponto", label: "Ponto e histórico do ponto", icon: Clock3 },
     { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
+  ],
+  "share-brasil": [
+    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "ponto", label: "Ponto e jornada", icon: Clock3 },
+    { id: "documentos", label: "Documentos", icon: Folder },
+    { id: "senhas", label: "Senhas", icon: KeyRound },
+    { id: "contatos-clientes", label: "Contatos e Clientes", icon: ContactRound },
   ],
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },

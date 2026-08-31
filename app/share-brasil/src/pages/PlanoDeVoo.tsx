@@ -58,6 +58,7 @@ import {
   EstadoVazio,
   IndicadorPagina,
 } from "@/components/dashboard/PrimitivosDashboard";
+import NotamLeituraAjuda from "@/components/plano/NotamLeituraAjuda";
 
 type FlightPlanForm = {
   existingFlightId: string;
@@ -391,6 +392,7 @@ function OperationalResult({ data, form, onSave, saving, saved }: { data: Genera
       <div className="grid gap-4 lg:grid-cols-2"><WeatherCard title="Meteorologia de saída" icao={response.departure.icao} weather={data.departureWeather} /><WeatherCard title="Meteorologia de destino" icao={response.destination.icao} weather={data.destinationWeather} /></div>
       <div className="grid gap-4 lg:grid-cols-2"><ChartsList title={`Cartas de ${response.departure.icao}`} charts={data.departureCharts} /><ChartsList title={`Cartas de ${response.destination.icao}`} charts={data.destinationCharts} /></div>
 
+      <NotamLeituraAjuda />
       {response.notam_alerts.length > 0 && <section className="rounded-xl border border-[#f1c348]/30 bg-card/70"><CabecalhoSecao icon={<AlertTriangle size={15} />} title="NOTAMs agregados" detail="Consulte o texto oficial antes de liberar o voo" /><div className="space-y-2 p-4">{response.notam_alerts.slice(0, 8).map((notam) => <div key={notam.id} className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-mono text-[10px] font-bold">{notam.number || "NOTAM"}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{notam.message}</p></div>)}</div></section>}
     </section>
   );

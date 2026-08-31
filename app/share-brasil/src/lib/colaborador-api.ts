@@ -155,10 +155,14 @@ export function solicitarFerias(dataInicio: string, dataFim: string, observacoes
 export type SolicitacaoVooInterna = {
   id: string;
   cliente_id: string | null;
+  socio_id?: string | null;
+  cliente_emprestimo_id?: string | null;
+  socio_emprestimo_id?: string | null;
   aeronave_id: string | null;
   origem: string;
   destino: string;
   data_agendada: string;
+  data_fim?: string | null;
   horario_previsto_agendamento: string | null;
   dias_duracao: number;
   numero_passageiros: number;
@@ -170,6 +174,8 @@ export type SolicitacaoVooInterna = {
   atualizado_em: string | null;
   cliente_razao_social: string | null;
   socio_nome?: string | null;
+  cliente_emprestimo_nome?: string | null;
+  socio_emprestimo_nome?: string | null;
   codigo_cliente: string | null;
   matricula_registro: string | null;
   modelo: string | null;
@@ -286,10 +292,12 @@ export type NovoAgendamento = {
   origem: string;
   destino: string;
   data_agendada: string;
+  data_fim: string;
   horario_previsto_agendamento?: string;
-  dias_duracao?: number;
   numero_passageiros?: number;
-  voo_emprestado?: string;
+  cliente_emprestimo_id?: string;
+  socio_emprestimo_id?: string;
+  voo_emprestimo_confirmado?: boolean;
   piloto_id?: string;
   copiloto_id?: string;
   observacoes?: string;
@@ -299,6 +307,12 @@ export function criarAgendamento(dados: NovoAgendamento) {
   return colaboradorRequest<{ id: string; status: string; numero_voo: string | null }>("/api/interno/agendamento", {
     method: "POST",
     body: JSON.stringify(dados),
+  });
+}
+
+export function excluirAgendamento(id: string) {
+  return colaboradorRequest<{ success: boolean; agendamento_id: string }>(`/api/interno/agendamento/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 

@@ -34,7 +34,6 @@ export function HeroDashboard({ ambiente, title, subtitle, children }: { ambient
       <img src={aviationHero} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
-      <div className="command-grid absolute inset-0 opacity-30" />
       <div className="relative flex min-h-[175px] flex-col justify-between gap-8 p-6 md:min-h-[205px] md:p-8">
         <div className="flex items-center justify-between gap-4">
           <IndicadorPagina>Dashboard {nomesAmbiente[ambiente]}</IndicadorPagina>

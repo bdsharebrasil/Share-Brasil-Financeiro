@@ -453,6 +453,7 @@ export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
 export type ChecklistPreVoo = { id: string; solicitacao_id: string; itens: Record<string, boolean>; observacoes: string | null; abastecimento_id: string | null; status: string };
 export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<ChecklistPreVoo | null>(`/api/interno/agendamento/${id}/checklist`); }
 export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, boolean>; observacoes?: string; abastecimento?: { litros: number; local?: string; numero_comanda?: string }; status?: string }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }
 
 export type PlanoVooSalvo = {
   id: string;

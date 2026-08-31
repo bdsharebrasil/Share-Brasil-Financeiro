@@ -42,6 +42,7 @@ function dataIso(data: Date) {
 }
 function primeiroDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth(), 1); }
 function ultimoDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth() + 1, 0); }
+function inicioSemana(data: Date) { return new Date(data.getFullYear(), data.getMonth(), data.getDate() - ((data.getDay() + 6) % 7)); }
 function diasCalendario(data: Date) {
   const inicio = primeiroDiaMes(data);
   const deslocamento = (inicio.getDay() + 6) % 7;
@@ -73,6 +74,8 @@ export default function Agendamentos() {
   const { toast } = useToast();
   const [aba, setAba] = useState<AbaAgendamento>("calendario");
   const [mes, setMes] = useState(() => primeiroDiaMes(new Date()));
+  const [semanaCalendario, setSemanaCalendario] = useState(() => inicioSemana(new Date()));
+  const [visaoCalendario, setVisaoCalendario] = useState<VisaoEscala>("semanal");
   const [visaoEscala, setVisaoEscala] = useState<VisaoEscala>("semanal");
   const [painel, setPainel] = useState<PainelAgendamentoResponse | null>(null);
   const [opcoes, setOpcoes] = useState<OpcoesAgendamentoResponse>({ clientes: [], socios: [], aeronaves: [], vinculos: [] });
@@ -170,6 +173,12 @@ export default function Agendamentos() {
     finally { setProcessando(false); }
   };
   const mudarMes = (delta: number) => setMes((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
+  const mudarSemana = (delta: number) => setSemanaCalendario((atual) => new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + delta * 7));
+  const mudarVisaoCalendario = (visao: VisaoEscala) => {
+    setVisaoCalendario(visao);
+    if (visao === "mensal") setMes(primeiroDiaMes(semanaCalendario));
+    else setSemanaCalendario(inicioSemana(mes));
+  };
 
   return <div className="route-enter space-y-5">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><IndicadorPagina>Operações / agendamento de voo</IndicadorPagina><h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">Agendamento de Voo</h1><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">Organize solicitações, aeronaves, confirmação de voos e escala da tripulação em uma única central.</p></div><div className="flex flex-wrap gap-2"><Button type="button" onClick={() => setMostrarNovo((atual) => !atual)} className="gap-2 bg-primary text-primary-foreground"><Plus size={14} /> Novo agendamento</Button><Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="gap-2 border-border bg-card text-xs"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button></div></div>
@@ -177,7 +186,7 @@ export default function Agendamentos() {
     {mostrarNovo && <FormularioAgendamento novo={novo} opcoes={opcoes} titulares={titulares} tripulacao={painel?.tripulacao || []} atualizando={processando} atualizar={atualizarNovo} aoCancelar={() => setMostrarNovo(false)} aoEnviar={criarNovo} />}
     {erro && <div className="rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
     <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">{abas.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Icon size={14} />{item.label}</button>; })}</nav>
-    {aba === "calendario" && <CalendarioAgendamento mes={mes} dias={dias} confirmados={confirmados} pendentes={pendentes} aeronaves={painel?.aeronaves || []} aoMudarMes={mudarMes} aoAbrir={abrirSolicitacao} />}
+    {aba === "calendario" && <CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={confirmados} pendentes={pendentes} aeronaves={painel?.aeronaves || []} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao} />}
     {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} visao={visaoEscala} aoMudarVisao={setVisaoEscala} aoMarcar={() => setMostrarDisponibilidade((atual) => !atual)} />}
     {aba === "cronograma" && <Cronograma solicitacoes={solicitacoesFiltradas} busca={busca} aoMudarBusca={setBusca} aoAbrir={abrirSolicitacao} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
@@ -206,7 +215,51 @@ function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valo
   return <div className="space-y-1.5"><Label htmlFor="data-agendamento" className="text-[10px]">Data do voo</Label><div className="flex gap-2"><Input id="data-agendamento" type="date" value={valor} onChange={(event) => aoAlterar(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar mode="single" selected={selecionada} onSelect={(data) => data && aoAlterar(dataIso(data))} initialFocus /></PopoverContent></Popover></div></div>;
 }
 
-function CalendarioAgendamento({ mes, dias, confirmados, pendentes, aeronaves, aoMudarMes, aoAbrir }: { mes: Date; dias: Date[]; confirmados: SolicitacaoVooInterna[]; pendentes: SolicitacaoVooInterna[]; aeronaves: AeronaveAgendamento[]; aoMudarMes: (delta: number) => void; aoAbrir: (item: SolicitacaoVooInterna) => void }) {
+function formatarHorarioAgendamento(valor: string | null | undefined) {
+  if (!valor) return { utc: "—", brasilia: "—" };
+  const partes = valor.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!partes) return { utc: valor, brasilia: "—" };
+  const horas = Number(partes[1]);
+  const minutos = Number(partes[2]);
+  const segundos = Number(partes[3] || 0);
+  if (horas > 23 || minutos > 59 || segundos > 59) return { utc: valor, brasilia: "—" };
+  const utc = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+  const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(Date.UTC(1970, 0, 1, horas, minutos, segundos)));
+  return { utc, brasilia };
+}
+
+type CalendarioAgendamentoProps = {
+  mes: Date;
+  semana: Date;
+  dias: Date[];
+  visao: VisaoEscala;
+  confirmados: SolicitacaoVooInterna[];
+  pendentes: SolicitacaoVooInterna[];
+  aeronaves: AeronaveAgendamento[];
+  aoMudarMes: (delta: number) => void;
+  aoMudarSemana: (delta: number) => void;
+  aoMudarVisao: (visao: VisaoEscala) => void;
+  aoAbrir: (item: SolicitacaoVooInterna) => void;
+};
+
+function CalendarioAgendamento({ mes, semana, dias, visao, confirmados, pendentes, aeronaves, aoMudarMes, aoMudarSemana, aoMudarVisao, aoAbrir }: CalendarioAgendamentoProps) {
+  const eventosPorDia = new Map<string, SolicitacaoVooInterna[]>();
+  [...confirmados, ...pendentes].forEach((item) => eventosPorDia.set(item.data_agendada, [...(eventosPorDia.get(item.data_agendada) || []), item]));
+  const diasVisao = visao === "semanal" ? Array.from({ length: 7 }, (_, indice) => new Date(semana.getFullYear(), semana.getMonth(), semana.getDate() + indice)) : dias;
+  const periodo = visao === "semanal"
+    ? `${diasVisao[0].getDate()} ${nomesMeses[diasVisao[0].getMonth()]} – ${diasVisao[6].getDate()} ${nomesMeses[diasVisao[6].getMonth()]} ${diasVisao[6].getFullYear()}`
+    : `${nomesMeses[mes.getMonth()]} ${mes.getFullYear()}`;
+  const mudarPeriodo = visao === "semanal" ? aoMudarSemana : aoMudarMes;
+  const descricao = visao === "semanal" ? "Visão semanal dos voos e solicitações" : "Visão mensal dos voos e solicitações";
+  return <div className="space-y-5"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<CalendarDays size={15} />} title="Calendário de agendamento" detail={descricao} action={<div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5"><button type="button" onClick={() => aoMudarVisao("semanal")} className={`rounded px-2 py-1 text-[9px] font-bold ${visao === "semanal" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Semanal</button><button type="button" onClick={() => aoMudarVisao("mensal")} className={`rounded px-2 py-1 text-[9px] font-bold ${visao === "mensal" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Mensal</button></div><div className="flex items-center gap-1"><button type="button" onClick={() => mudarPeriodo(-1)} aria-label={visao === "semanal" ? "Semana anterior" : "Mês anterior"} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"><ChevronLeft size={15} /></button><span className="min-w-[150px] text-center text-[10px] font-bold">{periodo}</span><button type="button" onClick={() => mudarPeriodo(1)} aria-label={visao === "semanal" ? "Próxima semana" : "Próximo mês"} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"><ChevronRight size={15} /></button></div></div>} /><div className="grid grid-cols-7 border-b border-border bg-secondary/20">{nomesDias.map((dia) => <div key={dia} className="px-2 py-2 text-center text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">{dia}</div>)}</div><div className="grid grid-cols-7">{diasVisao.map((dia) => { const chave = dataIso(dia); const eventos = eventosPorDia.get(chave) || []; const noMes = visao === "semanal" || dia.getMonth() === mes.getMonth(); const hoje = chave === dataIso(new Date()); return <div key={chave} className={`min-h-[150px] border-b border-r border-border/60 p-2 ${noMes ? "bg-card/25" : "bg-background/25"}`}><div className={`mb-2 flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] ${hoje ? "bg-primary text-primary-foreground" : noMes ? "text-foreground" : "text-muted-foreground"}`}>{dia.getDate()}</div><div className="space-y-1.5">{eventos.map((item) => <ResumoVooCalendario key={item.id} item={item} aeronave={item.matricula_registro || aeronaves.find((aeronave) => aeronave.id === item.aeronave_id)?.matricula_registro || "Aeronave a definir"} aoAbrir={aoAbrir} />)}</div></div>; })}</div></section></div>;
+}
+
+function ResumoVooCalendario({ item, aeronave, aoAbrir }: { item: SolicitacaoVooInterna; aeronave: string; aoAbrir: (item: SolicitacaoVooInterna) => void }) {
+  const horario = formatarHorarioAgendamento(item.horario_previsto_agendamento);
+  return <button type="button" onClick={() => aoAbrir(item)} className={`w-full rounded-md border p-2 text-left transition-colors hover:bg-secondary/40 ${item.status === "aprovada" ? "border-[#2bbf8a]/25 bg-[#2bbf8a]/5" : "border-[#f1c348]/25 bg-[#f1c348]/5"}`}><div className="flex items-start gap-1.5"><Plane size={12} className={`mt-0.5 shrink-0 ${item.status === "aprovada" ? "text-[#6bd188]" : "text-[#f4cc64]"}`} /><div className="min-w-0"><p className="truncate text-[10px] font-bold">{item.numero_voo || "Solicitação sem número"}</p><p className="truncate text-[9px] text-muted-foreground">{item.origem} → {item.destino}</p><p className="truncate text-[9px] text-muted-foreground">{aeronave}</p><p className="mt-1 text-[9px] font-semibold leading-tight text-foreground">UTC: {horario.utc}</p><p className="text-[9px] font-semibold leading-tight text-foreground">Brasília: {horario.brasilia}</p></div></div></button>;
+}
+
+function CalendarioAgendamentoLegado({ mes, dias, confirmados, pendentes, aeronaves, aoMudarMes, aoAbrir }: { mes: Date; dias: Date[]; confirmados: SolicitacaoVooInterna[]; pendentes: SolicitacaoVooInterna[]; aeronaves: AeronaveAgendamento[]; aoMudarMes: (delta: number) => void; aoAbrir: (item: SolicitacaoVooInterna) => void }) {
   const eventosPorDia = new Map<string, SolicitacaoVooInterna[]>();
   [...confirmados, ...pendentes].forEach((item) => eventosPorDia.set(item.data_agendada, [...(eventosPorDia.get(item.data_agendada) || []), item]));
   return <div className="space-y-5"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<CalendarDays size={15} />} title="Calendário de agendamento" detail="Visualização mensal dos voos e solicitações" action={<div className="flex items-center gap-1"><button type="button" onClick={() => aoMudarMes(-1)} aria-label="Mês anterior" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"><ChevronLeft size={15} /></button><span className="min-w-[112px] text-center text-[10px] font-bold">{nomesMeses[mes.getMonth()]} {mes.getFullYear()}</span><button type="button" onClick={() => aoMudarMes(1)} aria-label="Próximo mês" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary"><ChevronRight size={15} /></button></div>} /><div className="grid grid-cols-7 border-b border-border bg-secondary/20">{nomesDias.map((dia) => <div key={dia} className="px-2 py-2 text-center text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">{dia}</div>)}</div><div className="grid grid-cols-7">{dias.map((dia) => { const chave = dataIso(dia); const eventos = eventosPorDia.get(chave) || []; const noMes = dia.getMonth() === mes.getMonth(); const hoje = chave === dataIso(new Date()); return <div key={chave} className={`min-h-[86px] border-b border-r border-border/60 p-2 ${noMes ? "bg-card/25" : "bg-background/25"}`}><div className={`mb-2 flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] ${hoje ? "bg-primary text-primary-foreground" : noMes ? "text-foreground" : "text-muted-foreground/40"}`}>{dia.getDate()}</div><div className="space-y-1">{eventos.slice(0, 3).map((item) => <button key={item.id} type="button" onClick={() => aoAbrir(item)} className={`flex w-full items-center gap-1 rounded-md border px-1.5 py-1 text-left text-[9px] ${item.status === "aprovada" ? "border-[#2bbf8a]/20 bg-[#2bbf8a]/10 text-[#6bd188]" : "border-[#f1c348]/20 bg-[#f1c348]/10 text-[#f4cc64]"}`}><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" /><span className="truncate">{item.numero_voo || `${item.origem} → ${item.destino}`}</span></button>)}{eventos.length > 3 && <p className="px-1 text-[9px] text-muted-foreground">+{eventos.length - 3} registros</p>}</div></div>; })}</div></section><div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]"><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<Plane size={15} />} title="Agendamentos confirmados" detail="Voos aprovados no período" />{confirmados.length ? <div className="divide-y divide-border/60">{confirmados.slice(0, 8).map((item) => <ResumoVoo key={item.id} item={item} aoAbrir={aoAbrir} />)}</div> : <EstadoVazio label="Nenhum voo confirmado neste período" />}</section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<CalendarDays size={15} />} title="Aeronaves disponíveis" detail="Frota ativa retornada pelo D1" />{aeronaves.length ? <div className="grid gap-2 p-4 sm:grid-cols-2">{aeronaves.slice(0, 6).map((item) => <div key={item.id} className="overflow-hidden rounded-lg border border-border/70 bg-secondary/20"><div className="relative h-20 bg-secondary/40">{item.url_imagem ? <img src={item.url_imagem} alt={`${item.matricula_registro} ${item.modelo}`} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-primary/70"><Plane size={24} /></div>}<span className="absolute right-2 top-2"><EtiquetaStatus tone="green">Disponível</EtiquetaStatus></span></div><div className="p-3"><p className="font-mono text-[10px] font-bold">{item.matricula_registro}</p><p className="mt-2 text-[10px] text-muted-foreground">{item.fabricante} {item.modelo}</p><p className="mt-1 text-[9px] text-muted-foreground">{item.base || "Base não informada"} · {item.tipo_aeronave || "Aeronave"}</p></div></div>)}</div> : <EstadoVazio label="Nenhuma aeronave ativa encontrada" />}</section></div><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<Clock3 size={15} />} title="Solicitações aguardando confirmação" detail="Selecione uma solicitação para escalar a tripulação e gerar o voo" />{pendentes.length ? <div className="divide-y divide-border/60">{pendentes.map((item) => <ResumoVoo key={item.id} item={item} aoAbrir={aoAbrir} />)}</div> : <EstadoVazio label="Nenhuma solicitação pendente" />}</section></div>;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, ArrowRight, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, Users, Wrench } from "lucide-react";
+import { Activity, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, Users, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
@@ -41,11 +41,9 @@ function HeroOperacoes({ nome }: { nome: string }) {
       <div className="relative flex min-h-[195px] flex-col justify-between p-6 md:min-h-[205px] md:p-8">
         <div className="flex items-center justify-between gap-4">
           <p className="text-[11px] font-bold uppercase tracking-[.16em] text-[#4aa3f0]">Dashboard Operações</p>
-          <span className="hidden items-center gap-2 font-mono text-[9px] uppercase tracking-[.12em] text-white/65 sm:flex"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#5bbd75]" /> Sistema operacional</span>
         </div>
         <div>
           <h1 className="text-[30px] font-extrabold tracking-[-.045em] text-white md:text-[38px]">{saudacaoAtual()}, {primeiroNome(nome)}</h1>
-          <p className="mt-2 text-xs text-white/65">Centro de comando · operação aérea em tempo real</p>
         </div>
       </div>
     </section>
@@ -106,15 +104,10 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
         {carregando ? <div className="space-y-3 p-5"><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /></div> : dados?.solicitacoes.length ? <div className="overflow-x-auto"><table className="w-full min-w-[730px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Passageiros</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{dados.solicitacoes.slice(0, 12).map((item) => <LinhaVoo key={item.id} item={item} onOpen={() => aoNavegar("agendamentos")} />)}</tbody></table></div> : <EstadoVazio label="Nenhuma solicitação futura encontrada" />}
       </section>
 
-      <div className="mt-5 grid gap-5 md:grid-cols-3"><Resumo titulo="Solicitações pendentes" valor={carregando ? "—" : String(resumo?.pendencias ?? 0)} detalhe="Requerem decisão operacional" onClick={() => aoNavegar("agendamentos")} /><Resumo titulo="Aeronaves ativas" valor={carregando ? "—" : String(resumo?.aeronaves_ativas ?? 0)} detalhe="Consulta baseada no cadastro D1" onClick={() => aoNavegar("ctm")} /><Resumo titulo="Data de referência" valor={dados ? formatarData(dados.data_referencia) : "—"} detalhe="Última atualização solicitada" onClick={() => void carregar(true)} /></div>
     </div>
   );
 }
 
 function LinhaVoo({ item, onOpen }: { item: SolicitacaoVooInterna; onOpen: () => void }) {
   return <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20"><td className="px-4 py-3"><p className="max-w-[180px] truncate text-[10px] font-bold">{item.cliente_razao_social || item.codigo_cliente || "Cliente não informado"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.codigo_cliente || item.id.slice(0, 8)}</p></td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{item.origem} → {item.destino}</td><td className="px-4 py-3"><p className="text-[10px] font-semibold">{formatarData(item.data_agendada)}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.horario_previsto_agendamento || "A definir"}</p></td><td className="px-4 py-3 font-mono text-[10px] font-bold">{item.matricula_registro || "A definir"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{item.numero_passageiros}</td><td className="px-4 py-3"><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></td><td className="px-4 py-3 text-right"><button type="button" onClick={onOpen} className="text-[10px] font-bold text-primary hover:underline">Abrir</button></td></tr>;
-}
-
-function Resumo({ titulo, valor, detalhe, onClick }: { titulo: string; valor: string; detalhe: string; onClick: () => void }) {
-  return <section className="rounded-xl border border-border bg-card/75 p-4"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{titulo}</p><p className="mt-4 font-mono text-2xl tracking-[-.05em]">{valor}</p><p className="mt-1 text-[10px] text-muted-foreground">{detalhe}</p><button type="button" onClick={onClick} className="mt-4 flex items-center gap-1 text-[10px] font-bold text-primary hover:underline">Abrir módulo <ArrowRight size={12} /></button></section>;
 }

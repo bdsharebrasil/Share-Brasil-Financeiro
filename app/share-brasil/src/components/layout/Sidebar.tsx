@@ -127,9 +127,6 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
               <ChevronLeft size={16} />
             </button>
             <nav className="flex w-full flex-col items-center gap-3 px-2">{itens.map((item) => renderItem(item, true))}</nav>
-            <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground/65" title={`${nome} · ${funcao}`}>
-              <img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full rounded-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} />
-            </div>
           </>
         )}
       </div>

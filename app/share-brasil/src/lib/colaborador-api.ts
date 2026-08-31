@@ -53,6 +53,12 @@ export type DocumentoPessoal = {
   arquivo_url: string;
 };
 
+export type FuncaoColaborador = {
+  id: string;
+  funcao: string;
+  criado_em: string | null;
+};
+
 export type SolicitacaoFerias = {
   id: string;
   data_inicio: string;
@@ -70,6 +76,7 @@ export type PerfilColaboradorResponse = {
   perfil: PerfilColaborador;
   pagamentos: PagamentoColaborador[];
   documentos: DocumentoPessoal[];
+  funcoes: FuncaoColaborador[];
   ferias: SolicitacaoFerias[];
   resumo_ferias: {
     dias_direito: number;

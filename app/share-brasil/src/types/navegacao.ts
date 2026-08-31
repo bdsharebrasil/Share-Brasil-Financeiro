@@ -12,6 +12,7 @@ import {
   ListTodo,
   LayoutDashboard,
   Mail,
+  MessageSquare,
   NotebookPen,
   Receipt,
   RefreshCw,
@@ -58,6 +59,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "tripulacao", label: "Tripulação", icon: Users },
     { id: "abastecimentos", label: "Abastecimentos", icon: Fuel },
     { id: "ctm", label: "CTM", icon: Wrench },
+    { id: "recados", label: "Recados", icon: MessageSquare },
   ],
   financeiro: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
@@ -66,6 +68,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "pagamentos", label: "Programação de pagamento", icon: CreditCard, badge: "5" },
     { id: "email", label: "E-mail", icon: Mail },
     { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
+    { id: "recados", label: "Recados", icon: MessageSquare },
   ],
   "share-brasil": [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
@@ -83,6 +86,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "ferias", label: "Férias", icon: CalendarDays },
     { id: "simulador-custos", label: "Simulador de custos", icon: CircleDollarSign },
     { id: "configuracoes", label: "Configurações", icon: Settings2 },
+    { id: "recados", label: "Recados", icon: MessageSquare },
   ],
   portal: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },

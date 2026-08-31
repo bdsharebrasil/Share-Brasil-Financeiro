@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Activity, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, Users, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RecadosPanel } from "@/components/dashboard/Recados";
 import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
 
@@ -103,6 +104,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
         <CabecalhoSecao icon={<Activity size={15} />} title="Solicitações e voos programados" detail="Atualização direta do endpoint interno" action={<Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"><RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button>} />
         {carregando ? <div className="space-y-3 p-5"><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /></div> : dados?.solicitacoes.length ? <div className="overflow-x-auto"><table className="w-full min-w-[730px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Passageiros</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{dados.solicitacoes.slice(0, 12).map((item) => <LinhaVoo key={item.id} item={item} onOpen={() => aoNavegar("agendamentos")} />)}</tbody></table></div> : <EstadoVazio label="Nenhuma solicitação futura encontrada" />}
       </section>
+
+      <div className="mt-5"><RecadosPanel compact aoAbrir={() => aoNavegar("recados")} /></div>
 
     </div>
   );

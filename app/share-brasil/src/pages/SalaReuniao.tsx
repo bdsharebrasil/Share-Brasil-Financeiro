@@ -9,7 +9,7 @@ import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";
 type Participant = { id: string; userId?: string; name: string };
 type Signal = { type: string; from?: string; fromName?: string; to?: string; participant?: Participant; participants?: Participant[]; whiteboard?: unknown[]; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; action?: { kind: "path"; points: Array<{ x: number; y: number }>; color: string; width: number }; text?: string };
-function managerRole(value?: string | null) { return ["admin", "administrador", "gestor_master", "gestormaster"].includes((value || "").toLowerCase().replace(/[\s-]+/g, "_")); }
+function managerRole(value?: string | null) { return ["admin", "administrador", "gestor_master", "gestormaster", "financeiro_master", "financeiromaster"].includes((value || "").toLowerCase().replace(/[\s-]+/g, "_")); }
 
 export default function SalaReuniao() {
   const [rooms, setRooms] = useState<SalaTreinamento[]>([]);
@@ -38,7 +38,7 @@ export default function SalaReuniao() {
   const myName = useRef("Participante");
   const participantMap = useRef<Record<string, Participant>>({});
 
-  const loadRooms = useCallback(async () => { try { const [list, profile] = await Promise.all([buscarSalasTreinamento(), buscarPerfilColaborador()]); setRooms(list); setManager(managerRole(profile.perfil.tipo_user)); myName.current = profile.perfil.nome_exibicao || profile.perfil.nome_completo || profile.perfil.email; } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as salas."); } }, []);
+  const loadRooms = useCallback(async () => { try { const [list, profile] = await Promise.all([buscarSalasTreinamento(), buscarPerfilColaborador()]); const perfilPodeGerenciar = managerRole(profile.perfil.tipo_user) || profile.funcoes.some((funcao) => managerRole(funcao.funcao)); setRooms(list); setManager(perfilPodeGerenciar); myName.current = profile.perfil.nome_exibicao || profile.perfil.nome_completo || profile.perfil.email; } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as salas."); } }, []);
   useEffect(() => { void loadRooms(); }, [loadRooms]);
 
   const send = useCallback((payload: Record<string, unknown>) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(payload)); }, []);

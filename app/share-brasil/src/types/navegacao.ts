@@ -9,6 +9,7 @@ import {
   Folder,
   Fuel,
   KeyRound,
+  ListTodo,
   LayoutDashboard,
   Mail,
   NotebookPen,
@@ -71,6 +72,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "ponto", label: "Ponto e jornada", icon: Clock3 },
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
+    { id: "tarefas", label: "Tarefas", icon: ListTodo },
     { id: "contatos-clientes", label: "Contatos e Clientes", icon: ContactRound },
   ],
   gestor: [

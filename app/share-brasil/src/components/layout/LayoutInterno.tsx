@@ -8,7 +8,7 @@ import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
 import PlanoDeVoo from "@/pages/PlanoDeVoo";
 import Ferias from "@/pages/Ferias";
-import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil } from "@/pages/ShareBrasil";
+import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -37,6 +37,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (menuAtivo !== "overview" && itemAtivo) return <ModuloInterno ambiente={ambiente} menu={itemAtivo} aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes") return <DashboardOperacoes aoNavegar={selecionarMenu} />;

@@ -163,6 +163,23 @@ export function vincularAeronaveCliente(clienteId: string, payload: Record<strin
 export function enviarLogoCliente(clienteId: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/logo`, { method: "POST", body }); }
 export function enviarDocumentoCliente(clienteId: string, arquivo: File, categoria = "geral") { const body = new FormData(); body.append("arquivo", arquivo); body.append("categoria", categoria); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/documentos`, { method: "POST", body }); }
 
+export type TarefaShare = { id: string; titulo: string; descricao: string | null; status: string; prioridade: string; criado_por: string | null; prazo: string | null; criado_em: string; atualizado_em: string | null; publico: number; origem: string; progresso: number; atribuido_para: string[]; comentarios: Array<Record<string, any>> };
+export type NotificacaoTarefa = { id: string; id_da_tarefa: string; user_id: string; mensagem: string; status_alterado_para: string | null; lido: number; criado_em: string; atualizado_em: string | null };
+export type CategoriaCalendario = { id: string; usuario_id: string; nome: string; cor: string; criado_em: string };
+export type LembreteCalendario = { id: string; usuario_id: string; titulo: string; descricao: string | null; data: string; hora: string | null; visibilidade: "PRIVADO" | "TODOS"; cor_categoria_id: string | null; categoria_nome?: string | null; categoria_cor?: string | null };
+export type TarefasResponse = { tarefas: TarefaShare[]; notificacoes: NotificacaoTarefa[] };
+export type UsuariosTarefas = Array<{ id: string; nome_completo: string; nome_exibicao: string | null; email: string; tipo_user: string | null; departamento: string | null }>;
+export function buscarTarefas() { return colaboradorRequest<TarefasResponse>("/api/sharebrasil/tarefas"); }
+export function buscarUsuariosTarefas() { return colaboradorRequest<UsuariosTarefas>("/api/sharebrasil/tarefas/usuarios"); }
+export function criarTarefaShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/tarefas", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarTarefaShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function comentarTarefaShare(id: string, comentario: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}/comentarios`, { method: "POST", body: JSON.stringify({ comentario }) }); }
+export function marcarNotificacaoTarefaLida(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/notificacoes/${id}/lida`, { method: "PATCH" }); }
+export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
+export function criarCategoriaCalendario(nome: string, cor: string) { return colaboradorRequest<CategoriaCalendario>("/api/sharebrasil/calendario/categorias", { method: "POST", body: JSON.stringify({ nome, cor }) }); }
+export function buscarLembretesCalendario(inicio: string, fim: string) { return colaboradorRequest<LembreteCalendario[]>(`/api/sharebrasil/calendario?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`); }
+export function criarLembreteCalendario(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/calendario", { method: "POST", body: JSON.stringify(payload) }); }
+
 export function enviarFotoColaborador(foto: File) {
   const body = new FormData();
   body.append("foto", foto);

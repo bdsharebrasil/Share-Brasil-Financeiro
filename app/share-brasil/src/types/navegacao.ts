@@ -31,6 +31,9 @@ import {
 export type Ambiente = "gestor" | "operacoes" | "financeiro" | "share-brasil" | "portal";
 export type Tema = "dark" | "light";
 
+export const PONTO_ATIVO_EVENTO = "share-brasil:ponto-status";
+export const PONTO_ATIVO_STORAGE = "share-brasil:ponto-ativo";
+
 export type ItemMenu = {
   id: string;
   label: string;

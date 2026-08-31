@@ -85,8 +85,8 @@ export default function Agendamentos() {
     if (silencioso) setAtualizando(true); else setCarregando(true);
     setErro(null);
     try {
-      const inicio = dataIso(primeiroDiaMes(mes));
-      const fim = dataIso(ultimoDiaMes(mes));
+      const inicio = "2000-01-01";
+      const fim = "2099-12-31";
       setPainel(await buscarPainelAgendamento(inicio, fim));
     } catch {
       setErro("Não foi possível carregar o calendário de agendamentos.");

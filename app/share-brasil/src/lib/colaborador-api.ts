@@ -136,3 +136,74 @@ export function solicitarFerias(dataInicio: string, dataFim: string, observacoes
     body: JSON.stringify({ data_inicio: dataInicio, data_fim: dataFim, observacoes }),
   });
 }
+
+export type SolicitacaoVooInterna = {
+  id: string;
+  cliente_id: string | null;
+  aeronave_id: string | null;
+  origem: string;
+  destino: string;
+  data_agendada: string;
+  horario_previsto_agendamento: string | null;
+  dias_duracao: number;
+  numero_passageiros: number;
+  voo_emprestado: string;
+  status: "pendente" | "aprovada" | "reprovada" | "cancelada" | string;
+  motivo_rejeicao: string | null;
+  numero_voo: string | null;
+  criado_em: string;
+  atualizado_em: string | null;
+  cliente_razao_social: string | null;
+  codigo_cliente: string | null;
+  matricula_registro: string | null;
+  modelo: string | null;
+};
+
+export type PainelOperacoesResponse = {
+  data_referencia: string;
+  resumo: { voos_hoje: number; pendencias: number; reservas_abertas: number; aeronaves_ativas: number };
+  solicitacoes: SolicitacaoVooInterna[];
+};
+
+export type MovimentacaoFinanceira = {
+  id: string;
+  descricao: string;
+  status: string | null;
+  data_pagamento: string | null;
+  valor: number;
+  observacoes: string | null;
+  criado_em: string;
+};
+
+export type PainelFinanceiroResponse = {
+  resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
+  movimentacoes: MovimentacaoFinanceira[];
+};
+
+export function buscarPainelOperacoes(data?: string) {
+  const query = data ? `?data=${encodeURIComponent(data)}` : "";
+  return colaboradorRequest<PainelOperacoesResponse>(`/api/interno/dashboard/operacoes${query}`);
+}
+
+export function buscarSolicitacoesInternas(status?: string) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return colaboradorRequest<SolicitacaoVooInterna[]>(`/api/interno/solicitacoes${query}`);
+}
+
+export function aprovarSolicitacaoVoo(id: string, pilotoId: string, copilotoId?: string) {
+  return colaboradorRequest<{ success: boolean; status: string; solicitacao_id: string; numero_voo: string }>(`/api/interno/solicitacoes/${id}/aprovar`, {
+    method: "POST",
+    body: JSON.stringify({ piloto_id: pilotoId, copiloto_id: copilotoId || undefined }),
+  });
+}
+
+export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
+  return colaboradorRequest<{ success: boolean; status: string; solicitacao_id: string }>(`/api/interno/solicitacoes/${id}/reprovar`, {
+    method: "POST",
+    body: JSON.stringify({ motivo_rejeicao: motivoRejeicao }),
+  });
+}
+
+export function buscarPainelFinanceiro() {
+  return colaboradorRequest<PainelFinanceiroResponse>("/api/interno/dashboard/financeiro");
+}

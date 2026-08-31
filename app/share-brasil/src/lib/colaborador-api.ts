@@ -89,7 +89,7 @@ async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Prom
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
   const data = await response.json().catch(() => null) as T & { error?: string } | null;

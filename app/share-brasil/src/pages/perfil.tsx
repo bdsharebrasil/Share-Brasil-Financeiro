@@ -19,6 +19,8 @@ import {
 type AbaPerfil = "dados" | "extrato" | "documentos" | "ferias";
 type Tema = "dark" | "light";
 
+const AVATAR_PADRAO = "/icon.pilot.png";
+
 const abas: Array<{ id: AbaPerfil; label: string }> = [
   { id: "dados", label: "Dados pessoais" },
   { id: "extrato", label: "Extrato bancário" },
@@ -134,7 +136,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
       await carregar();
       toast({ title: "Foto atualizada", description: "Sua foto foi alterada com sucesso." });
     } catch {
-      toast({ title: "Falha ao enviar foto", description: "Escolha uma imagem de até 10 MB.", variant: "destructive" });
+      toast({ title: "Falha ao enviar foto", description: "Escolha uma imagem de até 10 MB e tente novamente.", variant: "destructive" });
     } finally {
       event.target.value = "";
     }
@@ -219,7 +221,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
 
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-card/75 p-5 sm:flex-row sm:items-center">
         <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xl font-extrabold text-primary">
-          {foto ? <img src={foto} alt={`Foto de ${perfil.nome_completo}`} className="h-full w-full object-cover" /> : iniciais}
+          <img src={foto || AVATAR_PADRAO} alt={`Foto de ${perfil.nome_completo}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = AVATAR_PADRAO; }} />
           <label htmlFor="foto-colaborador" className="absolute bottom-0 right-0 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground" title="Trocar foto"><Pencil size={12} /><input id="foto-colaborador" type="file" accept="image/*" className="hidden" onChange={trocarFoto} /></label>
         </div>
         <div className="min-w-0 flex-1"><h2 className="truncate text-lg font-bold">{perfil.nome_completo}</h2><p className="mt-1 text-xs text-muted-foreground">{perfil.tipo_user || "Colaborador"} · {perfil.departamento || "Share Brasil"}</p><p className="mt-1 text-xs text-muted-foreground">{perfil.email}</p></div>

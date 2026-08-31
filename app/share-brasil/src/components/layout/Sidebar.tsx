@@ -55,7 +55,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
 
   const nome = dados?.perfil.nome_exibicao || dados?.perfil.nome_completo || "Colaborador";
   const funcao = dados?.funcoes?.[0]?.funcao || dados?.perfil.tipo_user || "Colaborador";
-  const avatar = dados?.perfil.foto_url;
+  const avatar = dados?.perfil.foto_url || "/icon.pilot.png";
 
   const renderItem = (item: ItemMenu, compacto = false) => {
     const Icon = item.icon;
@@ -87,7 +87,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
     <nav className="space-y-4">
       <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/35 p-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary">
-          {avatar ? <img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" /> : iniciaisDoNome(nome)}
+          <img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} />
         </div>
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p>
@@ -128,7 +128,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
             </button>
             <nav className="flex w-full flex-col items-center gap-3 px-2">{itens.map((item) => renderItem(item, true))}</nav>
             <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground/65" title={`${nome} · ${funcao}`}>
-              <UserRound size={15} />
+              <img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full rounded-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} />
             </div>
           </>
         )}

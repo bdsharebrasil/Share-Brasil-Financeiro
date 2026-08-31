@@ -1,8 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import Cropper from "react-easy-crop";
 import { CheckCircle2, FileText, KeyRound, Moon, Pencil, Sun, Upload, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,6 +23,32 @@ type AbaPerfil = "dados" | "extrato" | "documentos" | "ferias";
 type Tema = "dark" | "light";
 
 const AVATAR_PADRAO = "/icon.pilot.png";
+const TAMANHO_MAXIMO_FOTO = 10 * 1024 * 1024;
+
+type AreaCortada = { x: number; y: number; width: number; height: number };
+
+async function criarFotoCortada(origem: string, area: AreaCortada, nomeOriginal: string) {
+  const imagem = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const elemento = new Image();
+    elemento.onload = () => resolve(elemento);
+    elemento.onerror = () => reject(new Error("imagem_invalida"));
+    elemento.src = origem;
+  });
+  const largura = Math.max(1, Math.round(area.width));
+  const altura = Math.max(1, Math.round(area.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = largura;
+  canvas.height = altura;
+  const contexto = canvas.getContext("2d");
+  if (!contexto) throw new Error("canvas_indisponivel");
+  contexto.drawImage(imagem, area.x, area.y, area.width, area.height, 0, 0, largura, altura);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((resultado) => resultado ? resolve(resultado) : reject(new Error("canvas_vazio")), "image/jpeg", 0.92);
+  });
+  const nomeSemExtensao = nomeOriginal.replace(/\.[^/.]+$/, "") || "foto-perfil";
+  const arquivo = new File([blob], `${nomeSemExtensao}-cortada.jpg`, { type: "image/jpeg" });
+  return { arquivo, url: URL.createObjectURL(blob) };
+}
 
 const abas: Array<{ id: AbaPerfil; label: string }> = [
   { id: "dados", label: "Dados pessoais" },
@@ -66,6 +95,18 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
+  const [fotoDialogAberto, setFotoDialogAberto] = useState(false);
+  const [arquivoFoto, setArquivoFoto] = useState<File | null>(null);
+  const [fotoOrigemUrl, setFotoOrigemUrl] = useState<string | null>(null);
+  const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null);
+  const [fotoPreviewFile, setFotoPreviewFile] = useState<File | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [areaCortada, setAreaCortada] = useState<AreaCortada | null>(null);
+  const [gerandoPreview, setGerandoPreview] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const fotoOrigemUrlRef = useRef<string | null>(null);
+  const fotoPreviewUrlRef = useRef<string | null>(null);
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -95,6 +136,11 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
   };
 
   useEffect(() => { void carregar(); }, []);
+
+  useEffect(() => () => {
+    if (fotoOrigemUrlRef.current) URL.revokeObjectURL(fotoOrigemUrlRef.current);
+    if (fotoPreviewUrlRef.current) URL.revokeObjectURL(fotoPreviewUrlRef.current);
+  }, []);
 
   useEffect(() => {
     let ativo = true;
@@ -128,17 +174,89 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
     }
   };
 
-  const trocarFoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const arquivo = event.target.files?.[0];
-    if (!arquivo) return;
+  useEffect(() => {
+    if (!fotoOrigemUrl || !areaCortada || !arquivoFoto) return;
+    let ativo = true;
+    setGerandoPreview(true);
+    setFotoPreviewFile(null);
+    if (fotoPreviewUrlRef.current) {
+      URL.revokeObjectURL(fotoPreviewUrlRef.current);
+      fotoPreviewUrlRef.current = null;
+      setFotoPreviewUrl(null);
+    }
+    void criarFotoCortada(fotoOrigemUrl, areaCortada, arquivoFoto.name).then(({ arquivo, url }) => {
+      if (!ativo) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      fotoPreviewUrlRef.current = url;
+      setFotoPreviewUrl(url);
+      setFotoPreviewFile(arquivo);
+    }).catch(() => {
+      if (ativo) toast({ title: "Falha ao preparar foto", description: "Não foi possível recortar esta imagem. Escolha outra e tente novamente.", variant: "destructive" });
+    }).finally(() => {
+      if (ativo) setGerandoPreview(false);
+    });
+    return () => { ativo = false; };
+  }, [areaCortada, arquivoFoto, fotoOrigemUrl, toast]);
+
+  const limparTrocaFoto = () => {
+    if (fotoOrigemUrlRef.current) {
+      URL.revokeObjectURL(fotoOrigemUrlRef.current);
+      fotoOrigemUrlRef.current = null;
+    }
+    if (fotoPreviewUrlRef.current) {
+      URL.revokeObjectURL(fotoPreviewUrlRef.current);
+      fotoPreviewUrlRef.current = null;
+    }
+    setFotoDialogAberto(false);
+    setArquivoFoto(null);
+    setFotoOrigemUrl(null);
+    setFotoPreviewUrl(null);
+    setFotoPreviewFile(null);
+    setAreaCortada(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setGerandoPreview(false);
+  };
+
+  const trocarFoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!arquivo || enviandoFoto) return;
+    if (!arquivo.type.startsWith("image/") || arquivo.size > TAMANHO_MAXIMO_FOTO) {
+      toast({ title: "Falha ao enviar foto", description: "Escolha uma imagem de até 10 MB e tente novamente.", variant: "destructive" });
+      return;
+    }
+    if (fotoOrigemUrlRef.current) URL.revokeObjectURL(fotoOrigemUrlRef.current);
+    if (fotoPreviewUrlRef.current) {
+      URL.revokeObjectURL(fotoPreviewUrlRef.current);
+      fotoPreviewUrlRef.current = null;
+    }
+    const origemUrl = URL.createObjectURL(arquivo);
+    fotoOrigemUrlRef.current = origemUrl;
+    setArquivoFoto(arquivo);
+    setFotoOrigemUrl(origemUrl);
+    setFotoPreviewFile(null);
+    setFotoPreviewUrl(null);
+    setAreaCortada(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setFotoDialogAberto(true);
+  };
+
+  const salvarFoto = async () => {
+    if (!fotoPreviewFile || enviandoFoto || gerandoPreview) return;
+    setEnviandoFoto(true);
     try {
-      await enviarFotoColaborador(arquivo);
+      await enviarFotoColaborador(fotoPreviewFile);
+      limparTrocaFoto();
       await carregar();
       toast({ title: "Foto atualizada", description: "Sua foto foi alterada com sucesso." });
     } catch {
       toast({ title: "Falha ao enviar foto", description: "Escolha uma imagem de até 10 MB e tente novamente.", variant: "destructive" });
     } finally {
-      event.target.value = "";
+      setEnviandoFoto(false);
     }
   };
 
@@ -221,11 +339,36 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-card/75 p-5 sm:flex-row sm:items-center">
         <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xl font-extrabold text-primary">
           <img src={foto || AVATAR_PADRAO} alt={`Foto de ${perfil.nome_completo}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = AVATAR_PADRAO; }} />
-          <label htmlFor="foto-colaborador" className="absolute bottom-0 right-0 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground" title="Trocar foto"><Pencil size={12} /><input id="foto-colaborador" type="file" accept="image/*" className="hidden" onChange={trocarFoto} /></label>
+          <label htmlFor="foto-colaborador" className={`absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground ${enviandoFoto ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`} title={enviandoFoto ? "Enviando foto" : "Trocar foto"}><Pencil size={12} /><input id="foto-colaborador" type="file" accept="image/*" className="hidden" onChange={trocarFoto} disabled={enviandoFoto} /></label>
         </div>
         <div className="min-w-0 flex-1"><h2 className="truncate text-lg font-bold">{perfil.nome_completo}</h2><p className="mt-1 text-xs text-muted-foreground">{perfil.tipo_user || "Colaborador"} · {perfil.departamento || "Share Brasil"}</p><p className="mt-1 text-xs text-muted-foreground">{perfil.email}</p></div>
         <div className="grid grid-cols-2 gap-2 text-center sm:min-w-[230px]"><div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><p className="text-[9px] text-muted-foreground">Férias disponíveis</p><p className="mt-1 font-mono text-lg font-bold text-primary">{resumo_ferias.dias_disponiveis} dias</p></div><div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><p className="text-[9px] text-muted-foreground">Pagamentos</p><p className="mt-1 font-mono text-lg font-bold">{pagamentos.length}</p></div></div>
       </section>
+
+      <Dialog open={fotoDialogAberto} onOpenChange={(aberto) => { if (!aberto && !enviandoFoto) limparTrocaFoto(); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ajustar foto do perfil</DialogTitle>
+            <DialogDescription>Arraste a imagem para centralizar o rosto e use o zoom para ajustar o enquadramento.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_150px]">
+            <div className="space-y-3">
+              <div className="relative h-[min(70vw,360px)] min-h-[240px] overflow-hidden rounded-lg bg-slate-950">
+                {fotoOrigemUrl && <Cropper image={fotoOrigemUrl} crop={crop} zoom={zoom} aspect={1} cropShape="rect" showGrid onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_, pixels) => setAreaCortada(pixels)} />}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold"><Label htmlFor="zoom-foto">Zoom</Label><span className="font-mono text-muted-foreground">{zoom.toFixed(1)}x</span></div>
+                <div className="flex items-center gap-3"><span className="text-[10px] text-muted-foreground">1x</span><Slider id="zoom-foto" min={1} max={3} step={0.1} value={[zoom]} onValueChange={(valor) => setZoom(valor[0] ?? 1)} aria-label="Zoom da foto" disabled={enviandoFoto} /><span className="text-[10px] text-muted-foreground">3x</span></div>
+              </div>
+            </div>
+            <div className="space-y-2"><p className="text-xs font-semibold">Prévia final</p><div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-border bg-secondary/30">{fotoPreviewUrl ? <img src={fotoPreviewUrl} alt="Prévia da foto recortada" className="h-full w-full object-cover" /> : <span className="px-4 text-center text-[10px] text-muted-foreground">{gerandoPreview ? "Gerando prévia..." : "A prévia aparecerá aqui"}</span>}</div></div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={limparTrocaFoto} disabled={enviandoFoto}>Cancelar</Button>
+            <Button type="button" onClick={() => void salvarFoto()} disabled={!fotoPreviewFile || gerandoPreview || enviandoFoto}>{enviandoFoto ? "Salvando..." : "Salvar foto"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">
         {abas.map((item) => <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{item.label}</button>)}

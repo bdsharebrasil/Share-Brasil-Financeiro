@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Building2, CalendarDays, ChevronLeft, ChevronRight, Clipboard, Clock3, Columns3, Copy, FilePlus2, Folder, FolderPlus, GraduationCap, KeyRound, ListTodo, LogIn, LogOut, MessageSquare, Pause, Play, Plus, Upload, Users, UserRound, X } from "lucide-react";
+import { Bell, Building2, CalendarDays, ChevronLeft, ChevronRight, Clipboard, Clock3, Columns3, Copy, FilePlus2, Folder, FolderPlus, GraduationCap, Grid2X2, KeyRound, List, ListTodo, LogIn, LogOut, MessageSquare, Pause, Play, Plus, Upload, Users, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,25 +95,295 @@ export function SenhasShareBrasil() {
 
 export function ContatosClientesShareBrasil() {
   const [tab, setTab] = useState<"contatos" | "clientes">("contatos");
+  const [contactView, setContactView] = useState<"lista" | "grade">("grade");
+  const [clientView, setClientView] = useState<"lista" | "grade">("grade");
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
   const [clients, setClients] = useState<ClienteShare[]>([]);
   const [links, setLinks] = useState<ClienteShare[]>([]);
   const [aircraft, setAircraft] = useState<ClienteShare[]>([]);
   const [form, setForm] = useState({ nome: "", telefone: "", email: "", empresa: "", cargo: "" });
   const [clientForm, setClientForm] = useState<Record<string, any>>({ razao_social: "", codigo_cliente: "", cnpj: "", proprietario: "", telefone_cliente: "", email_principal: "", endereco: "", cidade: "", uf: "", observacoes: "" });
-  const [aircraftId, setAircraftId] = useState(""); const [aircraftPercent, setAircraftPercent] = useState("100");
-  const [selectedClient, setSelectedClient] = useState<string>(); const [error, setError] = useState<string | null>(null); const [ok, setOk] = useState<string | null>(null);
-  const refresh = () => { void Promise.all([buscarContatosShare(), buscarClientesShare()]).then(([c, data]) => { setContacts(c); setClients(data.clientes); setLinks(data.vinculos); setAircraft(data.aeronaves); }).catch((e) => setError(e.message)); };
+  const [aircraftId, setAircraftId] = useState("");
+  const [aircraftPercent, setAircraftPercent] = useState("100");
+  const [selectedClient, setSelectedClient] = useState<string>();
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const refresh = () => {
+    void Promise.all([buscarContatosShare(), buscarClientesShare()])
+      .then(([c, data]) => {
+        setContacts(c);
+        setClients(data.clientes);
+        setLinks(data.vinculos);
+        setAircraft(data.aeronaves);
+      })
+      .catch((e) => setError(e.message));
+  };
   useEffect(refresh, []);
+
   const selected = clients.find((item) => item.id === selectedClient);
-  useEffect(() => { if (selected) setClientForm({ razao_social: selected.razao_social || "", codigo_cliente: selected.codigo_cliente || "", cnpj: selected.cnpj || "", proprietario: selected.proprietario || "", telefone_cliente: selected.telefone_cliente || "", email_principal: selected.email_principal || "", endereco: selected.endereco || "", cidade: selected.cidade || "", uf: selected.uf || "", observacoes: selected.observacoes || "" }); }, [selected]);
-  const addContact = async () => { if (!form.nome) return; try { await criarContatoShare(form); setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "" }); setOk("Contato salvo."); refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar o contato."); } };
-  const addClient = async () => { if (!clientForm.razao_social) return; try { const result = await criarClienteShare(clientForm); setSelectedClient(result.id); setOk("Cliente criado."); refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível criar o cliente."); } };
-  const saveClient = async () => { if (!selectedClient) return; try { await atualizarClienteShare(selectedClient, clientForm); setOk("Cadastro atualizado."); refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível atualizar o cliente."); } };
-  const linkAircraft = async () => { if (!selectedClient || !aircraftId) return; try { await vincularAeronaveCliente(selectedClient, { aeronave_id: aircraftId, percentual_sociedade: Number(aircraftPercent) || 100, codigo_cliente: clientForm.codigo_cliente || null }); setOk("Aeronave vinculada ao cliente."); setAircraftId(""); refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível vincular a aeronave."); } };
-  const upload = async (kind: "logo" | "doc", file?: File) => { if (!selectedClient || !file) return; try { if (kind === "logo") await enviarLogoCliente(selectedClient, file); else await enviarDocumentoCliente(selectedClient, file); setOk(kind === "logo" ? "Logo salva." : "Documento salvo."); refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível enviar o arquivo."); } };
-  const input = (name: string, placeholder: string) => <Input placeholder={placeholder} value={String(clientForm[name] || "")} onChange={(e) => setClientForm({ ...clientForm, [name]: e.target.value })} className={field} />;
-  return <Shell title="Contatos e Clientes" detail="Agenda de relacionamento e cadastro completo de clientes cotistas, com vínculos, documentos e logo."><Feedback error={error} ok={ok} /><div className="flex gap-2 border-b border-border"><Button type="button" variant={tab === "contatos" ? "default" : "ghost"} onClick={() => setTab("contatos")} className="gap-2 text-xs"><UserRound size={14} /> Agenda de contatos</Button><Button type="button" variant={tab === "clientes" ? "default" : "ghost"} onClick={() => setTab("clientes")} className="gap-2 text-xs"><Users size={14} /> Clientes cotistas</Button></div>{tab === "contatos" ? <><section className={`${card} p-4`}><CabecalhoSecao icon={<Plus size={15} />} title="Novo contato" detail="Adicione pessoas e parceiros à agenda." /><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6"><Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} /><Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} /><Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} /><Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} /><Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} /><Button type="button" onClick={() => void addContact()} className="h-10 gap-2 text-xs"><Plus size={14} /> Salvar</Button></div></section><section className={`${card} divide-y divide-border/60`}>{contacts.length ? contacts.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3"><div><p className="text-xs font-bold">{item.nome}</p><p className="mt-1 text-[10px] text-muted-foreground">{[item.cargo, item.empresa, item.email, item.telefone].filter(Boolean).join(" · ")}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => void excluirContatoShare(item.id).then(refresh)}><X size={14} /></Button></div>) : <EstadoVazio label="Nenhum contato cadastrado" />}</section></> : <div className="grid gap-4 xl:grid-cols-[320px_1fr]"><section className={`${card} overflow-hidden`}><CabecalhoSecao icon={<Users size={15} />} title="Clientes cotistas" detail="Selecione um cliente para editar o perfil." />{clients.length ? <div className="divide-y divide-border/60">{clients.map((item) => <button type="button" key={item.id} onClick={() => setSelectedClient(item.id)} className={`block w-full px-4 py-3 text-left ${selectedClient === item.id ? "bg-primary/[.08]" : "hover:bg-secondary/40"}`}><p className="text-xs font-bold">{item.razao_social || "Cliente sem razão social"}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.codigo_cliente || "Sem código"} · {item.cnpj || "CNPJ não informado"}</p></button>)}</div> : <EstadoVazio label="Nenhum cliente cadastrado" />}</section><section className={`${card} p-4`}><CabecalhoSecao icon={<Plus size={15} />} title={selectedClient ? "Perfil do cliente" : "Novo cliente cotista"} detail="Todos os dados cadastrais podem ser editados." /><div className="mt-4 grid gap-2 sm:grid-cols-2">{input("razao_social", "Razão social")}{input("codigo_cliente", "Código do cliente")}{input("cnpj", "CNPJ")}{input("proprietario", "Proprietário")}{input("telefone_cliente", "Telefone")}{input("email_principal", "E-mail")}{input("endereco", "Endereço")}{input("cidade", "Cidade")}{input("uf", "UF")}{input("observacoes", "Observações")}</div><div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => void (selectedClient ? saveClient() : addClient())} className="h-9 gap-2 text-xs"><Plus size={14} /> {selectedClient ? "Salvar alterações" : "Criar cliente"}</Button>{selectedClient && <><Input type="file" accept="image/*" onChange={(e) => void upload("logo", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" /><Input type="file" onChange={(e) => void upload("doc", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" /></>}</div>{selectedClient && <div className="mt-5 border-t border-border pt-4"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Vincular aeronave</p><div className="mt-2 flex flex-wrap gap-2"><select value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className={`${field} min-w-[230px]`}><option value="">Selecionar aeronave</option>{aircraft.map((item) => <option key={item.id} value={item.id}>{item.matricula_registro} · {item.fabricante} {item.modelo}</option>)}</select><Input value={aircraftPercent} onChange={(e) => setAircraftPercent(e.target.value)} type="number" min="0" max="100" placeholder="%" className="h-10 w-24" /><Button type="button" onClick={() => void linkAircraft()} className="h-10 text-xs">Vincular</Button></div><div className="mt-3 space-y-1">{links.filter((item) => item.cliente_id === selectedClient).map((item) => <p key={item.id} className="text-[10px] text-muted-foreground">{item.matricula_registro || "Aeronave"} · {item.fabricante} {item.modelo} · {item.percentual_sociedade}%</p>)}</div></div>}</section></div>}</Shell>;
+  useEffect(() => {
+    if (selected) {
+      setClientForm({
+        razao_social: selected.razao_social || "",
+        codigo_cliente: selected.codigo_cliente || "",
+        cnpj: selected.cnpj || "",
+        proprietario: selected.proprietario || "",
+        telefone_cliente: selected.telefone_cliente || "",
+        email_principal: selected.email_principal || "",
+        endereco: selected.endereco || "",
+        cidade: selected.cidade || "",
+        uf: selected.uf || "",
+        observacoes: selected.observacoes || "",
+      });
+    }
+  }, [selected]);
+
+  const addContact = async () => {
+    if (!form.nome) return;
+    try {
+      await criarContatoShare(form);
+      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "" });
+      setOk("Contato salvo.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
+    }
+  };
+  const removeContact = async (id: string) => {
+    try {
+      await excluirContatoShare(id);
+      setOk("Contato removido.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover o contato.");
+    }
+  };
+  const addClient = async () => {
+    if (!clientForm.razao_social) return;
+    try {
+      const result = await criarClienteShare(clientForm);
+      setSelectedClient(result.id);
+      setOk("Cliente criado.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível criar o cliente.");
+    }
+  };
+  const saveClient = async () => {
+    if (!selectedClient) return;
+    try {
+      await atualizarClienteShare(selectedClient, clientForm);
+      setOk("Cadastro atualizado.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível atualizar o cliente.");
+    }
+  };
+  const linkAircraft = async () => {
+    if (!selectedClient || !aircraftId) return;
+    try {
+      await vincularAeronaveCliente(selectedClient, {
+        aeronave_id: aircraftId,
+        percentual_sociedade: Number(aircraftPercent) || 100,
+        codigo_cliente: clientForm.codigo_cliente || null,
+      });
+      setOk("Aeronave vinculada ao cliente.");
+      setAircraftId("");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível vincular a aeronave.");
+    }
+  };
+  const upload = async (kind: "logo" | "doc", file?: File) => {
+    if (!selectedClient || !file) return;
+    try {
+      if (kind === "logo") await enviarLogoCliente(selectedClient, file);
+      else await enviarDocumentoCliente(selectedClient, file);
+      setOk(kind === "logo" ? "Logo salva." : "Documento salvo.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível enviar o arquivo.");
+    }
+  };
+  const input = (name: string, placeholder: string) => (
+    <Input
+      placeholder={placeholder}
+      value={String(clientForm[name] || "")}
+      onChange={(e) => setClientForm({ ...clientForm, [name]: e.target.value })}
+      className={field}
+    />
+  );
+  const viewToggle = (view: "lista" | "grade", setView: (view: "lista" | "grade") => void, label: string) => (
+    <div className="flex items-center gap-0.5 rounded-lg border border-border/70 bg-background/60 p-1" role="group" aria-label={`Visualização ${label}`}>
+      <button
+        type="button"
+        onClick={() => setView("lista")}
+        aria-label={`Visualizar ${label} em lista`}
+        aria-pressed={view === "lista"}
+        title="Visualização em lista"
+        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${view === "lista" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+      >
+        <List size={14} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setView("grade")}
+        aria-label={`Visualizar ${label} em grade`}
+        aria-pressed={view === "grade"}
+        title="Visualização em grade"
+        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${view === "grade" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+      >
+        <Grid2X2 size={14} aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  return (
+    <Shell title="Contatos e Clientes" detail="Agenda de relacionamento e cadastro completo de clientes cotistas, com vínculos, documentos e logo.">
+      <Feedback error={error} ok={ok} />
+      <div className="flex flex-wrap gap-2 border-b border-border">
+        <Button type="button" variant={tab === "contatos" ? "default" : "ghost"} onClick={() => setTab("contatos")} className="gap-2 text-xs">
+          <UserRound size={14} /> Agenda de contatos
+        </Button>
+        <Button type="button" variant={tab === "clientes" ? "default" : "ghost"} onClick={() => setTab("clientes")} className="gap-2 text-xs">
+          <Users size={14} /> Clientes cotistas
+        </Button>
+      </div>
+
+      {tab === "contatos" ? (
+        <div className="space-y-4">
+          <section className={`${card} p-4 md:p-5`}>
+            <CabecalhoSecao icon={<Plus size={15} />} title="Novo contato" detail="Adicione pessoas e parceiros à agenda." />
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+              <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
+              <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
+              <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
+              <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
+              <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
+              <Button type="button" onClick={() => void addContact()} className="h-10 gap-2 text-xs">
+                <Plus size={14} /> Salvar
+              </Button>
+            </div>
+          </section>
+
+          <section className={`${card} overflow-hidden`}>
+            <CabecalhoSecao
+              icon={<UserRound size={15} />}
+              title="Agenda de contatos"
+              detail={`${contacts.length} contato(s) cadastrado(s)`}
+              action={viewToggle(contactView, setContactView, "a agenda de contatos")}
+            />
+            {contacts.length ? (
+              <div className={`p-4 ${contactView === "lista" ? "space-y-2" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"}`}>
+                {contacts.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border border-border/70 bg-background/35 transition-colors hover:border-primary/35 hover:bg-primary/[.03] ${contactView === "lista" ? "flex items-center justify-between gap-3 px-4 py-3" : "flex min-h-[142px] flex-col justify-between gap-5 p-4"}`}
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+                        {item.nome?.charAt(0).toUpperCase() || "?"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold">{item.nome}</p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{[item.cargo, item.empresa, item.email, item.telefone].filter(Boolean).join(" · ")}</p>
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} title="Remover contato" className="shrink-0 self-end text-muted-foreground hover:bg-red-400/10 hover:text-red-300">
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EstadoVazio label="Nenhum contato cadastrado" />
+            )}
+          </section>
+        </div>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+          <section className={`${card} overflow-hidden`}>
+            <CabecalhoSecao
+              icon={<Users size={15} />}
+              title="Clientes cotistas"
+              detail="Selecione um cliente para editar o perfil."
+              action={viewToggle(clientView, setClientView, "os clientes")}
+            />
+            {clients.length ? (
+              <div className={`p-3 ${clientView === "lista" ? "space-y-2" : "grid gap-3 sm:grid-cols-2"}`}>
+                {clients.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setSelectedClient(item.id)}
+                    aria-pressed={selectedClient === item.id}
+                    className={`w-full rounded-xl border text-left transition-all ${selectedClient === item.id ? "border-primary/45 bg-primary/[.08] shadow-sm" : "border-border/70 bg-background/35 hover:border-primary/35 hover:bg-primary/[.03]"} ${clientView === "lista" ? "flex items-center gap-3 px-3 py-3" : "flex min-h-[128px] flex-col justify-between gap-4 p-4"}`}
+                  >
+                    <span className="flex min-w-0 items-start gap-3">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${selectedClient === item.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>
+                        {(item.razao_social || "?").charAt(0).toUpperCase()}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold">{item.razao_social || "Cliente sem razão social"}</span>
+                        <span className="mt-1 block truncate text-[10px] text-muted-foreground">{item.codigo_cliente || "Sem código"} · {item.cnpj || "CNPJ não informado"}</span>
+                      </span>
+                    </span>
+                    {selectedClient === item.id && <span className="shrink-0 text-[9px] font-bold uppercase tracking-[.08em] text-primary">Selecionado</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EstadoVazio label="Nenhum cliente cadastrado" />
+            )}
+          </section>
+
+          <section className={`${card} p-4 md:p-5`}>
+            <CabecalhoSecao icon={<Plus size={15} />} title={selectedClient ? "Perfil do cliente" : "Novo cliente cotista"} detail="Todos os dados cadastrais podem ser editados." />
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {input("razao_social", "Razão social")}
+              {input("codigo_cliente", "Código do cliente")}
+              {input("cnpj", "CNPJ")}
+              {input("proprietario", "Proprietário")}
+              {input("telefone_cliente", "Telefone")}
+              {input("email_principal", "E-mail")}
+              {input("endereco", "Endereço")}
+              {input("cidade", "Cidade")}
+              {input("uf", "UF")}
+              {input("observacoes", "Observações")}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button type="button" onClick={() => void (selectedClient ? saveClient() : addClient())} className="h-9 gap-2 text-xs">
+                <Plus size={14} /> {selectedClient ? "Salvar alterações" : "Criar cliente"}
+              </Button>
+              {selectedClient && (
+                <>
+                  <Input type="file" accept="image/*" aria-label="Enviar logo do cliente" onChange={(e) => void upload("logo", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
+                  <Input type="file" aria-label="Enviar documento do cliente" onChange={(e) => void upload("doc", e.target.files?.[0])} className="h-9 max-w-[190px] text-[10px]" />
+                </>
+              )}
+            </div>
+            {selectedClient && (
+              <div className="mt-5 border-t border-border pt-4">
+                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Vincular aeronave</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <select aria-label="Selecionar aeronave" value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className={`${field} min-w-[230px]`}>
+                    <option value="">Selecionar aeronave</option>
+                    {aircraft.map((item) => <option key={item.id} value={item.id}>{item.matricula_registro} · {item.fabricante} {item.modelo}</option>)}
+                  </select>
+                  <Input value={aircraftPercent} onChange={(e) => setAircraftPercent(e.target.value)} type="number" min="0" max="100" placeholder="%" aria-label="Percentual de sociedade" className="h-10 w-24" />
+                  <Button type="button" onClick={() => void linkAircraft()} className="h-10 text-xs">Vincular</Button>
+                </div>
+                <div className="mt-3 space-y-1">
+                  {links.filter((item) => item.cliente_id === selectedClient).map((item) => <p key={item.id} className="text-[10px] text-muted-foreground">{item.matricula_registro || "Aeronave"} · {item.fabricante} {item.modelo} · {item.percentual_sociedade}%</p>)}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </Shell>
+  );
 }
 
 

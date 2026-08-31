@@ -9,6 +9,7 @@ import Agendamentos from "@/pages/Agendamentos";
 import PlanoDeVoo from "@/pages/PlanoDeVoo";
 import Ferias from "@/pages/Ferias";
 import Recados from "@/pages/Recados";
+import GestaoTripulacao from "@/pages/GestaoTripulacao";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
@@ -34,6 +35,7 @@ export default function LayoutInterno() {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;
     if (ambiente === "operacoes" && menuAtivo === "agendamentos") return <Agendamentos />;
     if (ambiente === "operacoes" && menuAtivo === "plano-de-voo") return <PlanoDeVoo />;
+    if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;

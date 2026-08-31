@@ -56,7 +56,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "agendamentos", label: "Agendamentos", icon: CalendarDays, badge: "4" },
     { id: "plano-de-voo", label: "Plano de voo", icon: FileText },
     { id: "diario-de-bordo", label: "Diário de bordo", icon: NotebookPen },
-    { id: "tripulacao", label: "Tripulação", icon: Users },
+    { id: "tripulacao", label: "Gestão Tripulação", icon: Users },
     { id: "abastecimentos", label: "Abastecimentos", icon: Fuel },
     { id: "ctm", label: "CTM", icon: Wrench },
     { id: "recados", label: "Recados", icon: MessageSquare },

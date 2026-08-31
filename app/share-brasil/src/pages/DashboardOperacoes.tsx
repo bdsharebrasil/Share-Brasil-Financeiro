@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Activity, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, Users, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
+import { ResumoTripulacaoOperacoes } from "@/pages/GestaoTripulacao";
 import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
 
@@ -99,6 +100,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
         <AcaoRapida icon={<Fuel size={17} />} label="Abastecimento" detail="Abrir módulo" onClick={() => aoNavegar("abastecimentos")} color="amber" />
         <AcaoRapida icon={<Wrench size={17} />} label="CTM" detail="Abrir módulo" onClick={() => aoNavegar("ctm")} color="green" />
       </section>
+
+      <ResumoTripulacaoOperacoes aoNavegar={aoNavegar} />
 
       <section className="overflow-hidden rounded-xl border border-border bg-card/75">
         <CabecalhoSecao icon={<Activity size={15} />} title="Solicitações e voos programados" detail="Atualização direta do endpoint interno" action={<Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"><RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button>} />

@@ -187,6 +187,21 @@ export function buscarDepartamentosRecados() { return colaboradorRequest<Departa
 export function criarRecado(mensagem: string, departamento?: string | null, fixado = false) { return colaboradorRequest<Record<string, any>>("/api/colaborador/recados", { method: "POST", body: JSON.stringify({ mensagem, departamento: departamento || null, fixado }) }); }
 export function marcarRecadoLido(id: string) { return colaboradorRequest<Record<string, any>>(`/api/colaborador/recados/${id}/lido`, { method: "PATCH" }); }
 
+export type HabilitacaoTripulante = { id: string; tripulacao_id: string | null; tipo_habilitacao: string; data_validade: string | null; classe_cma: string | null; validade_cma: string | null; fs_rh: string | null };
+export type TripulanteGestao = { id: string; user_id: string | null; canac: string; nome_completo: string; status: string | null; tipo_licenca: string | null; email?: string | null; telefone?: string | null; url_avatar?: string | null; departamento?: string | null };
+export type FreelancerTripulacao = { id: string; canac: string; nome_completo: string; data_nascimento?: string | null; url_avatar?: string | null; status: string | null; telefone?: string | null; aeronave_id?: string | null; matricula_registro?: string | null; fabricante?: string | null; modelo?: string | null; observacao?: string | null };
+export type AeronaveTripulacao = { id: string; matricula_registro: string; fabricante: string; modelo: string; tipo_aeronave: string | null; numero_motores: number | null; status: string | null };
+export type GestaoTripulacaoResponse = { tripulantes: TripulanteGestao[]; habilitacoes: HabilitacaoTripulante[]; freelancers: FreelancerTripulacao[]; aeronaves: AeronaveTripulacao[] };
+export type HoraTripulacao = { canac: string | null; nome: string; funcao: "PIC" | "SIC"; horas_totais: number; horas_pic: number; horas_sic: number; horas_diurnas: number; horas_noturnas: number; horas_ifr: number; voos: number };
+export type HorasTripulacaoResponse = { inicio: string; fim: string; voos: Array<Record<string, any>>; totais: HoraTripulacao[] };
+export function buscarGestaoTripulacao() { return colaboradorRequest<GestaoTripulacaoResponse>("/api/interno/tripulacao/gestao"); }
+export function atualizarTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function criarHabilitacaoTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/${id}/habilitacoes`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarHabilitacaoTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/habilitacoes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function criarTripulanteFreelancer(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/interno/tripulacao-freelancer", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarTripulanteFreelancer(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao-freelancer/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function buscarHorasTripulacao(params: { mes?: string; inicio?: string; fim?: string; aeronave_id?: string }) { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>).toString(); return colaboradorRequest<HorasTripulacaoResponse>(`/api/interno/tripulacao/horas${query ? `?${query}` : ""}`); }
+
 export function enviarFotoColaborador(foto: File) {
   const body = new FormData();
   body.append("foto", foto);

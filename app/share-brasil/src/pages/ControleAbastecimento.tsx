@@ -185,9 +185,9 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   };
 
   return (
-    <div className="min-h-screen bg-[#020d1d] px-4 py-5 text-white">
+    <div className="!mb-[-30px] !ml-[-26px] !mr-[-26px] !mt-[-30px] min-h-screen !bg-[#050714] px-4 py-5 text-white">
       <div className="mx-auto max-w-[1500px]">
-        <div className="mb-6 flex w-full gap-2 rounded-xl border border-[#1a2d42] bg-[#071827] p-1">
+        <div className="!ml-[19px] !mr-[-24px] !mt-[18px] mb-6 flex w-full gap-[27px] rounded-xl border border-transparent bg-transparent !px-[14px] !py-[6px] leading-[23px] text-sm font-light">
           <button
             type="button"
             onClick={() => setTab("registros")}
@@ -210,7 +210,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
 
             {!clienteSelecionado && <>
               <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
+                <div className="!ml-[40px] !mr-[40px]">
                   <h1 className="flex items-center gap-2 text-3xl font-black tracking-[-0.04em] text-white"><Building2 size={26} className="text-[#3ba6ff]" /> Selecione um Cliente</h1>
                   <p className="mt-1 text-sm text-slate-400">{clientesFiltrados.length} cliente(s) disponível(is)</p>
                 </div>
@@ -222,13 +222,13 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       value={buscaCliente}
                       onChange={(event) => setBuscaCliente(event.target.value)}
                       placeholder="Buscar cliente por nome..."
-                      className="h-10 w-full rounded-lg border border-[#20344d] bg-[#0a1727] pl-9 text-sm text-white placeholder:text-slate-400"
+                      className="!mx-[-30px] h-10 w-full rounded-lg border border-[#20344d] bg-[#0a1727] !pl-[67px] text-sm text-white placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="mb-6 grid gap-[20px] px-[21px] py-[13px] md:grid-cols-2 xl:grid-cols-3">
                 {clientesFiltrados.map((cliente) => (
                   <button
                     key={cliente.id}

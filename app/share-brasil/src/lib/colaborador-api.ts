@@ -343,7 +343,7 @@ export type DisponibilidadeTripulacao = {
   tripulante_origem: "tripulacao" | "freelancer";
   data_inicio: string;
   data_fim: string;
-  status: "aviso" | "ferias" | "disponivel" | string;
+  status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel" | string;
   observacoes: string | null;
 };
 
@@ -395,7 +395,7 @@ export function buscarPainelAgendamento(inicio?: string, fim?: string) {
   return colaboradorRequest<PainelAgendamentoResponse>(`/api/interno/agendamento${query}`);
 }
 
-export function definirDisponibilidadeTripulacao(dados: { tripulante_id: string; data_inicio: string; data_fim?: string; status: "aviso" | "ferias" | "disponivel"; observacoes?: string }) {
+export function definirDisponibilidadeTripulacao(dados: { tripulante_id: string; data_inicio: string; data_fim?: string; status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel"; observacoes?: string }) {
   return colaboradorRequest<{ id: string; tripulante_nome: string }>("/api/interno/agendamento/disponibilidade", {
     method: "POST",
     body: JSON.stringify(dados),

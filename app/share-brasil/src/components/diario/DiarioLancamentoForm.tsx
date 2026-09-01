@@ -63,8 +63,8 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
   useEffect(() => { setForm(formFromEntry(initialData || undefined, today, sugeridaCelula, sugestaoTrecho)); setError(null); }, [initialData, diarioMesId, sugeridaCelula, sugestaoTrecho]);
   const setField = (key: string, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
   const value = (key: string) => String(form[key] ?? "");
-  const selectedPic = useMemo(() => opcoes.tripulantes.find((tripulante) => tripulante.canac === value("pic_canac")), [opcoes.tripulantes, form.pic_canac]);
-  const selectedSic = useMemo(() => opcoes.tripulantes.find((tripulante) => tripulante.canac === value("sic_canac")), [opcoes.tripulantes, form.sic_canac]);
+  const selectedPic = useMemo(() => opcoes.tripulantes.find((tripulante) => tripulante.canac?.toUpperCase() === value("pic_canac").toUpperCase()), [opcoes.tripulantes, form.pic_canac]);
+  const selectedSic = useMemo(() => opcoes.tripulantes.find((tripulante) => tripulante.canac?.toUpperCase() === value("sic_canac").toUpperCase()), [opcoes.tripulantes, form.sic_canac]);
   const clientesSocios = useMemo(() => opcoes.socios.filter((socio) => !value("cliente_id") || socio.cliente_id === value("cliente_id")), [opcoes.socios, form.cliente_id]);
 
   const submit = async () => {

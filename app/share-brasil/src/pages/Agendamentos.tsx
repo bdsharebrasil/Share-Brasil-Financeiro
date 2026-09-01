@@ -108,7 +108,7 @@ export default function Agendamentos() {
     setErro(null);
     try {
       const [painelAtual, opcoesAtuais] = await Promise.all([buscarPainelAgendamento("2000-01-01", "2099-12-31"), buscarOpcoesAgendamento()]);
-      setPainel(painelAtual);
+      setPainel({ ...painelAtual, tripulacao: painelAtual.tripulacao.filter((tripulante) => tripulante.origem === "tripulacao") });
       setOpcoes(opcoesAtuais);
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o módulo de agendamento.");

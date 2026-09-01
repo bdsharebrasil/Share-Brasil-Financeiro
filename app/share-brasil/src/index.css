@@ -38,8 +38,8 @@
   --chart-3: 43 89% 57%;
   --chart-4: 271 56% 61%;
   --chart-5: 0 70% 53%;
-  --app-font-sans: 'Manrope', sans-serif;
-  --app-font-mono: 'DM Mono', monospace;
+  --app-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --app-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --radius: 0.75rem;
   --button-outline: rgba(16, 40, 66, .14);
   --elevate-1: rgba(16, 40, 66, .04);
@@ -101,6 +101,8 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
     min-width: 320px;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
   }
   button, a, input, select { -webkit-tap-highlight-color: transparent; }
 }
@@ -114,6 +116,13 @@
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
 }
+
+.diario-bordo .text-\[8px\] { font-size: 0.625rem; }
+.diario-bordo .text-\[9px\] { font-size: 0.6875rem; }
+.diario-bordo .text-\[10px\] { font-size: 0.75rem; }
+.diario-bordo .text-\[11px\] { font-size: 0.8125rem; }
+.diario-bordo .text-slate-500 { color: rgb(148 163 184); }
+.diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
 .app-noise::after {
   content: '';

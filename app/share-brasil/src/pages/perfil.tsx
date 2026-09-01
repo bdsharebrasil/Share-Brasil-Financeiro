@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Cropper from "react-easy-crop";
-import { CheckCircle2, FileText, KeyRound, Moon, Pencil, Sun, Upload, UserRound } from "lucide-react";
+import { CheckCircle2, FileText, KeyRound, LogOut, Moon, Pencil, Sun, Upload, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
 import {
   atualizarPerfilColaborador,
   atualizarSenhaColaborador,
@@ -120,6 +122,20 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
   const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const navegar = useNavigate();
+
+  const sair = async () => {
+    if (saindo || !window.confirm("Deseja realmente sair da sua conta?")) return;
+    setSaindo(true);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSaindo(false);
+      toast({ title: "Não foi possível sair", description: "Tente novamente em instantes.", variant: "destructive" });
+      return;
+    }
+    navegar("/login", { replace: true });
+  };
 
   const carregar = async () => {
     setCarregando(true);
@@ -331,10 +347,15 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
           <h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">Meu perfil</h1>
           <p className="mt-1.5 text-xs text-muted-foreground">Gerencie seus dados, documentos, pagamentos e férias.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
-          <span className="px-2 text-[10px] font-bold text-muted-foreground">Aparência</span>
-          <button type="button" onClick={tema === "dark" ? undefined : onAlternarTema} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[10px] font-bold ${tema === "dark" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><Moon size={13} /> Escuro</button>
-          <button type="button" onClick={tema === "light" ? undefined : onAlternarTema} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[10px] font-bold ${tema === "light" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><Sun size={13} /> Claro</button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
+            <span className="px-2 text-[10px] font-bold text-muted-foreground">Aparência</span>
+            <button type="button" onClick={tema === "dark" ? undefined : onAlternarTema} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[10px] font-bold ${tema === "dark" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><Moon size={13} /> Escuro</button>
+            <button type="button" onClick={tema === "light" ? undefined : onAlternarTema} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[10px] font-bold ${tema === "light" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><Sun size={13} /> Claro</button>
+          </div>
+          <Button type="button" variant="outline" onClick={() => void sair()} disabled={saindo} className="gap-2 border-[#e77b80]/40 text-[#d96b72] hover:bg-[#e77b80]/10 hover:text-[#c9545d]">
+            <LogOut size={14} /> {saindo ? "Saindo..." : "Sair"}
+          </Button>
         </div>
       </div>
 

@@ -5,6 +5,14 @@ import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT || 4175);
 const outputDir = path.resolve(import.meta.dirname, 'dist/public');
+const apiProxy = {
+  '/api': {
+    target: 'https://api-workers.sharebrasil.workers.dev',
+    changeOrigin: true,
+    secure: true,
+    ws: true,
+  },
+};
 
 export default defineConfig({
   plugins: [
@@ -38,6 +46,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    proxy: apiProxy,
     port,
     host: '0.0.0.0',
     strictPort: false,
@@ -52,6 +61,7 @@ export default defineConfig({
     },
   },
   preview: {
+    proxy: apiProxy,
     port,
     host: '0.0.0.0',
     strictPort: false,

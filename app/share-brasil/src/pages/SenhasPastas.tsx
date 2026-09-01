@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Folder, KeyRound, LockKeyhole, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Folder, KeyRound, LockKeyhole, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buscarSenhas, criarSenha, excluirSenha, revelarSenha, type SenhaEmpresa } from "@/lib/colaborador-api";
@@ -88,7 +88,6 @@ export default function SenhasPastas() {
     <div className="route-enter space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Share Brasil / Cofre</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-.045em] md:text-[30px]">Senhas</h1>
           <p className="mt-1.5 text-xs text-muted-foreground">Credenciais corporativas organizadas para uma consulta segura e rápida.</p>
         </div>
@@ -96,21 +95,6 @@ export default function SenhasPastas() {
       </header>
 
       {error && <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">{error}</p>}
-
-      <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[.14] via-card to-card p-5 shadow-sm md:p-6">
-        <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary"><ShieldCheck size={18} /></span>
-            <h2 className="mt-3 text-xl font-extrabold tracking-[-.03em]">Seu cofre, bem organizado.</h2>
-            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-muted-foreground">Cada pasta reúne as credenciais da mesma área, sem expor senhas até que você escolha revelá-las.</p>
-          </div>
-          <div className="flex gap-2">
-            <Stat label="Pastas" value={folders.length} />
-            <Stat label="Credenciais" value={items.length} accent />
-          </div>
-        </div>
-      </section>
 
       {showForm && <section className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
         <div className="flex items-start justify-between gap-3">
@@ -149,10 +133,6 @@ export default function SenhasPastas() {
       )}
     </div>
   );
-}
-
-function Stat({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
-  return <div className={`min-w-[92px] rounded-xl border px-3.5 py-3 ${accent ? "border-primary/25 bg-primary/10" : "border-border bg-background/60"}`}><p className="text-[9px] font-bold uppercase tracking-[.13em] text-muted-foreground">{label}</p><p className={`mt-1 text-xl font-extrabold tracking-tight ${accent ? "text-primary" : ""}`}>{value}</p></div>;
 }
 
 function FolderTile({ name, count, onOpen }: { name: string; count: number; onOpen: () => void }) {

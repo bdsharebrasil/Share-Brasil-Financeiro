@@ -228,7 +228,7 @@ export default function Agendamentos() {
     {aba === "cronograma" && <Cronograma solicitacoes={solicitacoesFiltradas} busca={busca} aoMudarBusca={setBusca} aoAbrir={abrirSolicitacao} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
-    {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo item={selecionada} />}
+    {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo item={selecionada} aoConcluir={() => carregar(true)} />}
     {selecionada?.status === "aprovada" && jornadaAberta && <JornadaVoo item={selecionada} />}
   </div>;
 }

@@ -83,18 +83,12 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
     );
   };
 
-  const renderMenuCompleto = () => (
+  const renderMenuCompleto = (mostrarPerfil = true) => (
     <nav className="space-y-4">
-      <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/35 p-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary">
-          <img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p>
-          <p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p>
-          <p className="mt-0.5 truncate text-[9px] text-sidebar-foreground/40">Dados sincronizados pelo D1</p>
-        </div>
-      </div>
+      {mostrarPerfil && <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/35 p-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary"><img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} /></div>
+        <div className="min-w-0"><p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p><p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p><p className="mt-0.5 truncate text-[9px] text-sidebar-foreground/40">Dados sincronizados pelo D1</p></div>
+      </div>}
       {grupos.map((grupo) => (
         <Collapsible
           key={grupo.title}
@@ -137,7 +131,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
             <LogoShare />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>
           </div>
-          <div className="h-[calc(100dvh-68px)] overflow-y-auto p-4">{renderMenuCompleto()}</div>
+          <div className="h-[calc(100dvh-68px)] overflow-y-auto p-4">{renderMenuCompleto(false)}</div>
         </SheetContent>
       </Sheet>
       <span className="sr-only"><Mail aria-hidden="true" />Dados do menu carregados do D1</span>

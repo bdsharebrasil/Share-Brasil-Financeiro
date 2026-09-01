@@ -281,6 +281,7 @@ export type SolicitacaoVooInterna = {
   numero_passageiros: number;
   voo_emprestado: string;
   status: "pendente" | "aprovada" | "reprovada" | "cancelada" | string;
+  checklist_status?: string | null;
   motivo_rejeicao: string | null;
   numero_voo: string | null;
   criado_em: string;
@@ -633,3 +634,9 @@ export function buscarAerodromosCadastro() { return colaboradorRequest<{ aerodro
 export function criarAerodromoCadastro(payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<AerodromoCadastro>("/api/interno/aerodromos", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarAerodromoCadastro(id: string, payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirAerodromoCadastro(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "DELETE" }); }
+
+export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_corte_inicio: string | null; horario_corte_final: string | null; status: string; pernas: Array<{ id: string; numero: number; origem: string; destino: string; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string }> };
+export function buscarJornadaVoo(id: string) { return colaboradorRequest<JornadaVoo | null>(`/api/interno/agendamento/${id}/jornada`); }
+export function iniciarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function adicionarPernaJornada(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }

@@ -208,52 +208,51 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
           <>
             {formOpen && <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} setField={setField} onClose={closeForm} onSave={() => void save()} />}
 
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <div>
-                <h1 className="text-5xl font-black tracking-[-0.06em] text-white">Selecione um Cliente</h1>
-                <p className="mt-2 text-xl text-slate-400">{clientesFiltrados.length} cliente(s) disponível(is)</p>
-              </div>
+            {!clienteSelecionado && <>
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h1 className="flex items-center gap-2 text-3xl font-black tracking-[-0.04em] text-white"><Building2 size={26} className="text-[#3ba6ff]" /> Selecione um Cliente</h1>
+                  <p className="mt-1 text-sm text-slate-400">{clientesFiltrados.length} cliente(s) disponível(is)</p>
+                </div>
 
-              <div className="w-full max-w-[420px]">
-                <div className="relative">
-                  <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    value={buscaCliente}
-                    onChange={(event) => setBuscaCliente(event.target.value)}
-                    placeholder="Buscar cliente por nome..."
-                    className="h-12 w-full rounded-xl border border-[#20344d] bg-[#0a1727] pl-12 text-base text-white placeholder:text-slate-400"
-                  />
+                <div className="w-full max-w-[320px]">
+                  <div className="relative">
+                    <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={buscaCliente}
+                      onChange={(event) => setBuscaCliente(event.target.value)}
+                      placeholder="Buscar cliente por nome..."
+                      className="h-10 w-full rounded-lg border border-[#20344d] bg-[#0a1727] pl-9 text-sm text-white placeholder:text-slate-400"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mb-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {clientesFiltrados.map((cliente) => {
-                const isSelected = clienteSelecionado === cliente.id;
-                return (
+              <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {clientesFiltrados.map((cliente) => (
                   <button
                     key={cliente.id}
                     type="button"
-                    onClick={() => setClienteSelecionado(isSelected ? null : cliente.id)}
-                    className={`group min-h-[220px] rounded-2xl border bg-[#0d1d2d] p-5 text-left transition hover:border-[#36a7ff] hover:bg-[#10253b] ${isSelected ? "border-[#36a7ff] bg-[#0d2238]" : "border-[#1a2d42]"}`}
+                    onClick={() => setClienteSelecionado(cliente.id)}
+                    className="group min-h-[132px] rounded-xl border border-[#1a2d42] bg-[#0d1d2d] p-4 text-left transition hover:border-[#36a7ff] hover:bg-[#10253b]"
                   >
-                    <div className="mb-6 flex items-center justify-between gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#2a6fa6] bg-[#122b42] text-[#7ec3ff]">
-                        <Building2 size={20} />
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2a6fa6] bg-[#122b42] text-[#7ec3ff]">
+                        <Building2 size={15} />
                       </div>
 
-                      <span className="inline-flex items-center rounded-lg border border-[#1d3e5f] bg-[#0a1e33] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-sky-200">
-                        {cliente.codigo || "AERONAVES 01"}
+                      <span className="inline-flex items-center gap-1 rounded-md border border-[#1d3e5f] bg-[#0a1e33] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] text-sky-200">
+                        <Plane size={10} /> {cliente.codigo || "AERONAVES 01"}
                       </span>
                     </div>
 
-                    <div className="text-2xl font-black uppercase leading-tight tracking-[-0.04em] text-white">
-                      {cliente.nome.length > 30 ? `${cliente.nome.slice(0, 30)}...` : cliente.nome}
+                    <div className="truncate text-base font-black uppercase leading-tight tracking-[-0.03em] text-white">
+                      {cliente.nome}
                     </div>
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </>}
 
             {clienteSelecionado && (
               <div className="space-y-4">
@@ -265,9 +264,10 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                     >
                       <ChevronLeft size={16} /> Voltar
                     </button>
-                    <h2 className="text-2xl font-bold text-white">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-400">Histórico de abastecimentos</p>
+                    <h1 className="mt-1 text-3xl font-black tracking-[-0.04em] text-white">
                       {clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.nome || "Cliente selecionado"}
-                    </h2>
+                    </h1>
                     <p className="mt-1 text-sm text-slate-400">
                       {clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.codigo ? `• ${clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.codigo}` : ""}
                     </p>
@@ -344,7 +344,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                               <td className="px-4 py-4 text-slate-300">{record.fornecedor_apelido || record.fornecedor_nome || "—"}</td>
                               <td className="px-4 py-4">
                                 <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold ${record.status === "pago" ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}>
-                                  {record.status === "pago" ? "Pendente" : record.status || "Pendente"}
+                                  {record.status === "pago" ? "Pago" : record.status || "Pendente"}
                                 </span>
                               </td>
                               <td className="px-4 py-4 text-right font-mono text-sm text-slate-200">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>

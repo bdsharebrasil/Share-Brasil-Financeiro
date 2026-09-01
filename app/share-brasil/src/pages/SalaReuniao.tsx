@@ -8,7 +8,7 @@ import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";
 type Participant = { id: string; userId?: string; name: string };
-type Signal = { type: string; from?: string; fromName?: string; to?: string; participant?: Participant; participants?: Participant[]; whiteboard?: unknown[]; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; action?: { kind: "path"; points: Array<{ x: number; y: number }>; color: string; width: number }; text?: string };
+type Signal = { type: string; from?: string; fromName?: string; to?: string; participant?: Participant; participants?: Participant[]; participantId?: string; whiteboard?: unknown[]; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; action?: { kind: "path"; points: Array<{ x: number; y: number }>; color: string; width: number }; text?: string };
 function managerRole(value?: string | null) { return ["admin", "administrador", "gestor_master", "gestormaster", "financeiro_master", "financeiromaster"].includes((value || "").toLowerCase().replace(/[\s-]+/g, "_")); }
 
 export default function SalaReuniao() {
@@ -27,6 +27,7 @@ export default function SalaReuniao() {
   const [microphone, setMicrophone] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([{ urls: "stun:stun.cloudflare.com:3478" }]);
+  const [localReady, setLocalReady] = useState(false);
   const [error, setError] = useState("");
   const localVideo = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -34,6 +35,7 @@ export default function SalaReuniao() {
   const localStream = useRef<MediaStream | null>(null);
   const screenStream = useRef<MediaStream | null>(null);
   const peers = useRef<Record<string, RTCPeerConnection>>({});
+  const iceServersRef = useRef<RTCIceServer[]>([{ urls: "stun:stun.cloudflare.com:3478" }]);
   const myId = useRef(crypto.randomUUID());
   const myName = useRef("Participante");
   const participantMap = useRef<Record<string, Participant>>({});
@@ -46,14 +48,14 @@ export default function SalaReuniao() {
   const closePeer = (id: string) => { peers.current[id]?.close(); delete peers.current[id]; setRemoteStreams((current) => { const next = { ...current }; delete next[id]; return next; }); };
   const ensurePeer = useCallback((remote: Participant) => {
     if (peers.current[remote.id]) return peers.current[remote.id];
-    const peer = new RTCPeerConnection({ iceServers });
+    const peer = new RTCPeerConnection({ iceServers: iceServersRef.current });
     peers.current[remote.id] = peer;
     localStream.current?.getTracks().forEach((track) => peer.addTrack(track, localStream.current!));
     peer.onicecandidate = (event) => { if (event.candidate) send({ type: "ice", to: remote.id, candidate: event.candidate.toJSON() }); };
     peer.ontrack = (event) => { const stream = event.streams[0]; if (stream) setRemoteStreams((current) => ({ ...current, [remote.id]: stream })); };
     peer.onconnectionstatechange = () => { if (["failed", "closed", "disconnected"].includes(peer.connectionState)) closePeer(remote.id); };
     return peer;
-  }, [send, iceServers]);
+  }, [send]);
   const offerPeer = useCallback(async (remote: Participant) => { const peer = ensurePeer(remote); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); send({ type: "offer", to: remote.id, description: offer }); }, [ensurePeer, send]);
 
   const join = async (selected: SalaTreinamento) => {
@@ -61,12 +63,22 @@ export default function SalaReuniao() {
     try {
       const [{ data: { session } }, ice] = await Promise.all([supabase.auth.getSession(), buscarIceServersCentro()]);
       if (!session?.access_token) throw new Error("sessao_nao_encontrada");
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
-      localStream.current = stream; if (localVideo.current && stream) { localVideo.current.srcObject = stream; await localVideo.current.play().catch(() => undefined); }
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera_microfone_indisponiveis_neste_navegador");
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (mediaError) {
+        const nome = mediaError instanceof DOMException ? mediaError.name : "";
+        if (nome === "NotAllowedError" || nome === "PermissionDeniedError") throw new Error("Permita o acesso à câmera e ao microfone nas configurações do navegador e tente novamente.");
+        if (nome === "NotFoundError") throw new Error("Nenhuma câmera ou microfone foi encontrado neste dispositivo.");
+        throw new Error("Não foi possível acessar a câmera e o microfone. Verifique se eles não estão sendo usados por outro aplicativo.");
+      }
+      localStream.current = stream;
+      setCamera(stream.getVideoTracks().some((track) => track.enabled)); setMicrophone(stream.getAudioTracks().some((track) => track.enabled)); setLocalReady(true);
       const participantId = myId.current;
       const url = new URL(`${API_BASE.replace(/^http/, "ws")}/api/sharebrasil/centro-treinamento/reunioes/${selected.id}/ws`); url.searchParams.set("access_token", session.access_token); url.searchParams.set("participant_id", participantId);
       const socket = new WebSocket(url); ws.current = socket;
-      setIceServers(ice.ice_servers.length ? ice.ice_servers : [{ urls: "stun:stun.cloudflare.com:3478" }]);
+      const servidoresIce = ice.ice_servers.length ? ice.ice_servers : [{ urls: "stun:stun.cloudflare.com:3478" }]; setIceServers(servidoresIce); iceServersRef.current = servidoresIce;
       socket.onopen = () => { setConnected(true); };
       socket.onclose = () => setConnected(false);
       socket.onerror = () => setError("A conexão da sala foi interrompida.");
@@ -82,7 +94,8 @@ export default function SalaReuniao() {
       };
     } catch (cause) { setRoom(null); setError(cause instanceof Error ? cause.message : "Não foi possível entrar na sala."); }
   };
-  const leave = () => { ws.current?.close(); ws.current = null; Object.keys(peers.current).forEach(closePeer); localStream.current?.getTracks().forEach((track) => track.stop()); screenStream.current?.getTracks().forEach((track) => track.stop()); localStream.current = null; setRoom(null); setConnected(false); setParticipants([]); setRemoteStreams({}); void loadRooms(); };
+  useEffect(() => { const video = localVideo.current; const stream = localStream.current; if (!video || !stream) return; video.srcObject = stream; void video.play().catch(() => undefined); }, [room, localReady]);
+  const leave = () => { ws.current?.close(); ws.current = null; Object.keys(peers.current).forEach(closePeer); localStream.current?.getTracks().forEach((track) => track.stop()); screenStream.current?.getTracks().forEach((track) => track.stop()); localStream.current = null; setLocalReady(false); setRoom(null); setConnected(false); setParticipants([]); setRemoteStreams({}); void loadRooms(); };
   useEffect(() => () => leave(), []);
   const createRoom = async (event: React.FormEvent) => { event.preventDefault(); setCreating(true); try { const created = await criarSalaTreinamento({ titulo: title, descricao: description }); setTitle(""); setDescription(""); await loadRooms(); await join(created); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível criar a sala."); } finally { setCreating(false); } };
   const shareScreen = async () => { if (!room) return; if (sharing) { screenStream.current?.getTracks().forEach((track) => track.stop()); setSharing(false); return; } const stream = await navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => null); if (!stream) return; screenStream.current = stream; const track = stream.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === "video")?.replaceTrack(track)); track.onended = () => { setSharing(false); }; setSharing(true); };

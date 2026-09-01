@@ -145,7 +145,7 @@
 .campo {
   width: 100%;
   border: 1px solid hsl(var(--border));
-  border-radius: 2px;
+  border-radius: 9px;
   background-color: hsl(var(--secondary) / .35);
   color: hsl(var(--foreground));
   padding: .6rem .75rem;

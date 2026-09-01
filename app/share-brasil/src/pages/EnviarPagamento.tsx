@@ -225,7 +225,7 @@ export default function EnviarPagamento() {
       <header>
         <IndicadorPagina>Financeiro / Enviar pagamento</IndicadorPagina>
         <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Send className="text-primary" size={22} /> Enviar pagamento</h1>
-        <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Um fluxo único e guiado: escolha o modo, informe a despesa e envie. O modo define se o lançamento entra no caixa Share, no caixa Cliente ou no rateio.</p>
+        <p className="mt-1.5 max-w-2xl overflow-hidden text-[11px] leading-relaxed text-muted-foreground">Um fluxo único e guiado: escolha o modo, informe a despesa e envie. O modo define se o lançamento entra no caixa Share, no caixa Cliente ou no rateio.</p>
       </header>
 
       <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
@@ -286,11 +286,6 @@ export default function EnviarPagamento() {
                   <button type="button" onClick={trocarModo} className="text-[11px] font-bold text-foreground underline-offset-4 hover:underline">Trocar modo</button>
                 </div>
                 <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{selecionada.detalhe}</p>
-                <div className="mt-3 grid gap-3 border-t border-primary/15 pt-3 sm:grid-cols-3">
-                  <Mini label="Quem paga" value={selecionada.pagador} />
-                  <Mini label="Onde registra" value={selecionada.destino} />
-                  <Mini label="Regra" value={selecionada.regra} />
-                </div>
               </div>
 
               {etapa === 1 && (
@@ -403,10 +398,6 @@ export default function EnviarPagamento() {
 
 function Campo({ label, obrigatorio, className = "", children }: { label: string; obrigatorio?: boolean; className?: string; children: ReactNode }) {
   return <label className={`block ${className}`}><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}{obrigatorio && <sup className="ml-1 text-primary">*</sup>}</span>{children}</label>;
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p><p className="mt-1 truncate text-[11px] font-semibold text-foreground" title={value}>{value}</p></div>;
 }
 
 function Resumo({ label, valor }: { label: string; valor: string }) {

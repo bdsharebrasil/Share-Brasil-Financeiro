@@ -96,8 +96,11 @@ async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Prom
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
-  const data = await response.json().catch(() => null) as T & { error?: string } | null;
-  if (!response.ok) throw new Error(data?.error || `api_${response.status}`);
+  const data = await response.json().catch(() => null) as T & { error?: string; detail?: string; solicitacao_id?: string; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
+  if (!response.ok) {
+    const diagnostico = [data?.detail, data?.solicitacao_id && `solicitacao=${data.solicitacao_id}`, data?.cliente_id && `cliente=${data.cliente_id}`, data?.socio_id && `socio=${data.socio_id}`, data?.aeronave_id && `aeronave=${data.aeronave_id}`].filter(Boolean).join(" | ");
+    throw new Error([data?.error || `api_${response.status}`, diagnostico].filter(Boolean).join(" — "));
+  }
   return data as T;
 }
 

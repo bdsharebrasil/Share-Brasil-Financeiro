@@ -58,6 +58,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
+  const [buscaCliente, setBuscaCliente] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -78,6 +80,39 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const totalValor = useMemo(() => records.reduce((sum, item) => sum + Number(item.valor_total || 0), 0), [records]);
   const gruposMes = useMemo(() => { const grupos: Record<string, Abastecimento[]> = {}; records.forEach((item) => { const mes = (item.data || "sem-data").slice(0, 7); (grupos[mes] ||= []).push(item); }); return Object.entries(grupos).sort(([a], [b]) => b.localeCompare(a)); }, [records]);
   const gruposPastas = useMemo(() => { const grupos: Record<string, Abastecimento[]> = {}; records.forEach((item) => { const nome = item.socio_nome || item.cliente_nome || "Sem cliente ou sócio"; (grupos[nome] ||= []).push(item); }); return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b)); }, [records]);
+  const clientesDisponiveis = useMemo(() => {
+    const mapa = new Map<string, { id: string; nome: string; codigo?: string | null }>();
+    (options?.clientes || []).forEach((cliente) => {
+      if (cliente.id && cliente.nome) mapa.set(cliente.id, { id: cliente.id, nome: cliente.nome, codigo: cliente.codigo_cliente });
+    });
+    records.forEach((item) => {
+      const id = item.cliente_id || item.socio_id;
+      const nome = item.cliente_nome || item.socio_nome || "Cliente sem nome";
+      if (id && !mapa.has(id)) mapa.set(id, { id, nome, codigo: item.numero_voo || item.numero_comanda || null });
+    });
+    return Array.from(mapa.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [options, records]);
+  const clientesFiltrados = useMemo(() => clientesDisponiveis.filter((cliente) => cliente.nome.toLowerCase().includes(buscaCliente.toLowerCase())), [clientesDisponiveis, buscaCliente]);
+  const registrosCliente = useMemo(() => {
+    if (!clienteSelecionado) return [];
+    let itens = records.filter((item) => item.cliente_id === clienteSelecionado || item.socio_id === clienteSelecionado);
+    
+    // Aplicar filtros
+    if (filters.busca) {
+      const termo = filters.busca.toLowerCase();
+      itens = itens.filter((item) => 
+        (item.trecho?.toLowerCase().includes(termo)) ||
+        (item.local?.toLowerCase().includes(termo)) ||
+        (item.numero_comanda?.toLowerCase().includes(termo)) ||
+        (item.numero_nf?.toLowerCase().includes(termo))
+      );
+    }
+    if (filters.status) {
+      itens = itens.filter((item) => item.status === filters.status);
+    }
+    
+    return itens.sort((a, b) => new Date(b.data || "").getTime() - new Date(a.data || "").getTime());
+  }, [clienteSelecionado, records, filters]);
   const setField = (key: keyof Form, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
 
   const closeForm = () => {
@@ -150,36 +185,194 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   };
 
   return (
-    <div className="route-enter space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <IndicadorPagina>Operações / Controle de combustível</IndicadorPagina>
-          <h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[29px]">Abastecimentos</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Histórico operacional, documentos e pagamentos de combustível.</p>
+    <div className="min-h-screen bg-[#020d1d] px-4 py-5 text-white">
+      <div className="mx-auto max-w-[1500px]">
+        <div className="mb-6 flex w-full gap-2 rounded-xl border border-[#1a2d42] bg-[#071827] p-1">
+          <button
+            type="button"
+            onClick={() => setTab("registros")}
+            className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-base font-semibold transition ${tab === "registros" ? "border-[#23a7ff] bg-[#0f233a] text-white shadow-inner shadow-[#1f6fff]/20" : "border-transparent bg-transparent text-slate-300 hover:text-white"}`}
+          >
+            <Fuel size={16} /> Histórico de abastecimentos
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("fornecedores")}
+            className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-base font-semibold transition ${tab === "fornecedores" ? "border-[#23a7ff] bg-[#0f233a] text-white shadow-inner shadow-[#1f6fff]/20" : "border-transparent bg-transparent text-slate-300 hover:text-white"}`}
+          >
+            <Building2 size={16} /> Fornecedores
+          </button>
         </div>
-        <div className="flex gap-2">
-          {aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-2 border-border bg-card px-3 text-xs"><ChevronLeft size={14} /> Voltar</Button>}
-          {tab === "registros" && <><Button type="button" variant="outline" onClick={() => window.print()} className="h-9 gap-2 border-border bg-card px-3 text-xs"><Download size={14} /> Exportar PDF</Button><Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-9 gap-2 px-3 text-xs"><Plus size={14} /> Novo registro</Button></>}
-        </div>
+
+        {tab === "fornecedores" ? <FornecedorTab options={options} onSaved={() => void load()} onError={setError} /> : (
+          <>
+            {formOpen && <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} setField={setField} onClose={closeForm} onSave={() => void save()} />}
+
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <h1 className="text-5xl font-black tracking-[-0.06em] text-white">Selecione um Cliente</h1>
+                <p className="mt-2 text-xl text-slate-400">{clientesFiltrados.length} cliente(s) disponível(is)</p>
+              </div>
+
+              <div className="w-full max-w-[420px]">
+                <div className="relative">
+                  <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={buscaCliente}
+                    onChange={(event) => setBuscaCliente(event.target.value)}
+                    placeholder="Buscar cliente por nome..."
+                    className="h-12 w-full rounded-xl border border-[#20344d] bg-[#0a1727] pl-12 text-base text-white placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {clientesFiltrados.map((cliente) => {
+                const isSelected = clienteSelecionado === cliente.id;
+                return (
+                  <button
+                    key={cliente.id}
+                    type="button"
+                    onClick={() => setClienteSelecionado(isSelected ? null : cliente.id)}
+                    className={`group min-h-[220px] rounded-2xl border bg-[#0d1d2d] p-5 text-left transition hover:border-[#36a7ff] hover:bg-[#10253b] ${isSelected ? "border-[#36a7ff] bg-[#0d2238]" : "border-[#1a2d42]"}`}
+                  >
+                    <div className="mb-6 flex items-center justify-between gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#2a6fa6] bg-[#122b42] text-[#7ec3ff]">
+                        <Building2 size={20} />
+                      </div>
+
+                      <span className="inline-flex items-center rounded-lg border border-[#1d3e5f] bg-[#0a1e33] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-sky-200">
+                        {cliente.codigo || "AERONAVES 01"}
+                      </span>
+                    </div>
+
+                    <div className="text-2xl font-black uppercase leading-tight tracking-[-0.04em] text-white">
+                      {cliente.nome.length > 30 ? `${cliente.nome.slice(0, 30)}...` : cliente.nome}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {clienteSelecionado && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <button 
+                      onClick={() => setClienteSelecionado(null)} 
+                      className="mb-3 flex items-center gap-2 text-sky-400 hover:text-sky-300 transition"
+                    >
+                      <ChevronLeft size={16} /> Voltar
+                    </button>
+                    <h2 className="text-2xl font-bold text-white">
+                      {clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.nome || "Cliente selecionado"}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.codigo ? `• ${clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.codigo}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[#1a2d42] bg-[#071827] p-0">
+                  <div className="flex flex-col gap-4 border-b border-[#1a2d42] p-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <label className="block">
+                        <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Buscar</span>
+                        <div className="relative">
+                          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <Input value={filters.busca} onChange={(event) => setFilters({ ...filters, busca: event.target.value })} placeholder="Trecho, local, comanda..." className="h-11 w-full rounded-xl border border-[#20344d] bg-[#0a1727] pl-9 text-sm text-white placeholder:text-slate-400" />
+                        </div>
+                      </label>
+
+                      <label className="block">
+                        <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Cliente</span>
+                        <select value={filters.cliente_id} onChange={(event) => setFilters({ ...filters, cliente_id: event.target.value })} className="h-11 w-full rounded-xl border border-[#20344d] bg-[#0a1727] px-3 text-sm text-white">
+                          <option value="">Todos</option>
+                          {options?.clientes.map((client) => <option key={client.id} value={client.id}>{client.nome || "Sem razão social"}</option>)}
+                        </select>
+                      </label>
+
+                      <label className="block">
+                        <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Mês</span>
+                        <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className="h-11 w-full rounded-xl border border-[#20344d] bg-[#0a1727] px-3 text-sm text-white">
+                          <option value="">Todos</option>
+                          <option value="pendente">Pendente</option>
+                          <option value="pago">Pago</option>
+                          <option value="cancelado">Cancelado</option>
+                        </select>
+                      </label>
+
+                      <label className="block">
+                        <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Ano</span>
+                        <input type="text" value="2026" readOnly className="h-11 w-full rounded-xl border border-[#20344d] bg-[#0a1727] px-3 text-sm text-white" />
+                      </label>
+                    </div>
+
+                    <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-12 gap-2 bg-[#2d8cff] px-6 text-base font-semibold text-white hover:bg-[#1f78f2]">
+                      <Plus size={16} /> Novo Registro
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[1200px] w-full border-separate border-spacing-0 text-left">
+                      <thead>
+                        <tr className="bg-[#081d2c] text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                          <th className="px-4 py-4">Data</th>
+                          <th className="px-4 py-4">Voo</th>
+                          <th className="px-4 py-4">Trecho</th>
+                          <th className="px-4 py-4">Local</th>
+                          <th className="px-4 py-4">Comanda</th>
+                          <th className="px-4 py-4">N.F.</th>
+                          <th className="px-4 py-4">Fornecedor</th>
+                          <th className="px-4 py-4">Status</th>
+                          <th className="px-4 py-4 text-right">Litros</th>
+                          <th className="px-4 py-4 text-right">Valor unit.</th>
+                          <th className="px-4 py-4 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {registrosCliente.length ? (
+                          registrosCliente.slice(0, 10).map((record) => (
+                            <tr key={record.id} className="border-t border-[#1a2d42] bg-[#071827] text-sm text-slate-200">
+                              <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-300">{date(record.data)}</td>
+                              <td className="px-4 py-4 font-mono text-xs font-semibold text-sky-300">{record.numero_voo || record.matricula_registro || "—"}</td>
+                              <td className="max-w-[180px] px-4 py-4 text-slate-300">{record.trecho || "—"}</td>
+                              <td className="px-4 py-4 text-slate-300">{record.local || "—"}</td>
+                              <td className="px-4 py-4 font-mono text-xs text-sky-300">{record.numero_comanda || "—"}</td>
+                              <td className="px-4 py-4 font-mono text-xs text-sky-300">{record.numero_nf || "—"}</td>
+                              <td className="px-4 py-4 text-slate-300">{record.fornecedor_apelido || record.fornecedor_nome || "—"}</td>
+                              <td className="px-4 py-4">
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold ${record.status === "pago" ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}>
+                                  {record.status === "pago" ? "Pendente" : record.status || "Pendente"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 text-right font-mono text-sm text-slate-200">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-4 text-right font-mono text-sm text-slate-200">{money(record.valor_unitario)}</td>
+                              <td className="px-4 py-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button type="button" onClick={() => editRecord(record)} className="rounded-lg border border-[#20344d] bg-transparent p-2 text-slate-300 hover:border-sky-400 hover:text-white"><Edit3 size={14} /></button>
+                                  <button type="button" onClick={() => remove(record.id)} className="rounded-lg border border-[#20344d] bg-transparent p-2 text-slate-300 hover:border-red-400 hover:text-red-300"><X size={14} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
+                              Nenhum registro para este cliente.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
-
-      {(message || error) && <div className={`rounded-md border px-3 py-2.5 text-xs ${error ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"}`}>{error || message}</div>}
-
-      <div className="flex gap-1 border-b border-border">
-        <button type="button" onClick={() => setTab("registros")} className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[.08em] ${tab === "registros" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Fuel size={13} /> Histórico de abastecimentos</button>
-        <button type="button" onClick={() => setTab("fornecedores")} className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-[10px] font-bold uppercase tracking-[.08em] ${tab === "fornecedores" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Building2 size={13} /> Fornecedores</button>
-      </div>
-
-      {tab === "fornecedores" ? <FornecedorTab options={options} onSaved={() => void load()} onError={setError} /> : <>
-        {formOpen && <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} setField={setField} onClose={closeForm} onSave={() => void save()} />}
-        <section className={`${card} overflow-hidden`}>
-          <div className="border-b border-border p-3 md:p-4">
-            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4"><FilterField label="Busca inteligente"><div className="relative"><Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={filters.busca} onChange={(event) => setFilters({ ...filters, busca: event.target.value })} placeholder="Trecho, comanda, NF ou voo..." className={`${field} w-full pl-9`} /></div></FilterField><FilterField label="Data inicial"><Input type="date" value={filters.inicio} onChange={(event) => setFilters({ ...filters, inicio: event.target.value })} className={`${field} w-full`} /></FilterField><FilterField label="Data final"><Input type="date" value={filters.fim} onChange={(event) => setFilters({ ...filters, fim: event.target.value })} className={`${field} w-full`} /></FilterField><FilterField label="Status"><select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className={`${field} w-full`}><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="pago">Pago</option><option value="cancelado">Cancelado</option></select></FilterField><FilterField label="Cliente"><select value={filters.cliente_id} onChange={(event) => setFilters({ ...filters, cliente_id: event.target.value })} className={`${field} w-full`}><option value="">Todos</option>{options?.clientes.map((client) => <option key={client.id} value={client.id}>{client.nome || "Sem razão social"}</option>)}</select></FilterField><FilterField label="Aeronave"><select value={filters.aeronave_id} onChange={(event) => setFilters({ ...filters, aeronave_id: event.target.value })} className={`${field} w-full`}><option value="">Todas</option>{options?.aeronaves.map((aircraft) => <option key={aircraft.id} value={aircraft.id}>{aircraft.matricula_registro}</option>)}</select></FilterField><FilterField label="Valor mínimo"><Input type="number" min="0" step="0.01" value={filters.valor_min} onChange={(event) => setFilters({ ...filters, valor_min: event.target.value })} placeholder="R$ 0,00" className={`${field} w-full`} /></FilterField><FilterField label="Valor máximo"><Input type="number" min="0" step="0.01" value={filters.valor_max} onChange={(event) => setFilters({ ...filters, valor_max: event.target.value })} placeholder="R$ 0,00" className={`${field} w-full`} /></FilterField><Button type="button" onClick={() => void load()} className="h-9 gap-2 px-4 text-xs lg:col-span-2 xl:col-span-1"><Search size={13} /> Aplicar filtros</Button></div>
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border bg-secondary/15 px-4 py-2.5 text-[10px] text-muted-foreground"><span><strong className="mr-1 text-foreground">{records.length}</strong> registros</span><span><strong className="mr-1 text-foreground">{totalLitros.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</strong> litros</span><span><strong className="mr-1 text-foreground">{money(totalValor)}</strong> valor total</span></div>
-          {loading ? <p className="p-7 text-center text-xs text-muted-foreground">Carregando registros...</p> : records.length ? <div className="space-y-4 p-3 md:p-4">{gruposPastas.map(([pasta, itens]) => <section key={pasta} className="overflow-hidden rounded-xl border border-border/70"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-secondary/20 px-4 py-3"><div className="flex items-center gap-2"><FolderOpen size={15} className="text-primary" /><div><h3 className="text-xs font-extrabold">{pasta}</h3><p className="text-[9px] text-muted-foreground">Pasta do histórico · {itens.length} registro(s)</p></div></div><span className="font-mono text-[10px] font-bold text-emerald-300">{money(itens.reduce((total, item) => total + Number(item.valor_total || 0), 0))}</span></div>{Object.entries(itens.reduce<Record<string, Abastecimento[]>>((acc, item) => { const mes = (item.data || "sem-data").slice(0, 7); (acc[mes] ||= []).push(item); return acc; }, {})).sort(([a], [b]) => b.localeCompare(a)).map(([mes, mesItens]) => <div key={mes} className="border-b border-border/50 last:border-0"><div className="flex items-center gap-2 bg-background/30 px-4 py-2 text-[10px] font-bold"><CalendarRange size={12} className="text-primary" /> {mes === "sem-data" ? "Sem data" : new Date(`${mes}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}<span className="font-normal text-muted-foreground">· {mesItens.length} lançamento(s)</span></div><div className="overflow-x-auto"><table className="w-full min-w-[1170px] text-left"><thead><tr className="border-b border-border/60 text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-4 py-2">Data</th><th className="px-4 py-2">Voo</th><th className="px-4 py-2">Trecho</th><th className="px-4 py-2">Local</th><th className="px-4 py-2">Comanda</th><th className="px-4 py-2">N.F.</th><th className="px-4 py-2">Fornecedor</th><th className="px-4 py-2">Status</th><th className="px-4 py-2 text-right">Litros</th><th className="px-4 py-2 text-right">Valor unit.</th><th className="px-4 py-2 text-right">Valor total</th><th className="px-4 py-2 text-right">Ações</th></tr></thead><tbody>{mesItens.map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />)}</tbody></table></div></div>)}</section>)}</div> : <EstadoVazio label="Nenhum abastecimento encontrado" />}
-        </section>
-      </>}
     </div>
   );
 }

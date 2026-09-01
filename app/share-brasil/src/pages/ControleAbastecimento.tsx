@@ -185,7 +185,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   };
 
   return (
-    <div className="!mb-[-30px] !ml-[-26px] !mr-[-26px] !mt-[-30px] min-h-screen !bg-[#050714] px-4 py-5 text-white">
+    <div className="!mb-[-30px] !ml-[-26px] !mr-[-26px] !mt-[-30px] min-h-screen !bg-[rgba(5,7,20,0.28)] px-4 py-5 text-white">
       <div className="mx-auto max-w-[1500px]">
         <div className="!ml-[19px] !mr-[-24px] !mt-[18px] mb-6 flex w-full gap-[27px] rounded-xl border border-transparent bg-transparent !px-[14px] !py-[6px] leading-[23px] text-sm font-light">
           <button
@@ -256,7 +256,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
 
             {clienteSelecionado && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="!mx-[18px] flex items-center justify-between font-light">
                   <div>
                     <button 
                       onClick={() => setClienteSelecionado(null)} 
@@ -265,7 +265,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       <ChevronLeft size={16} /> Voltar
                     </button>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-400">Histórico de abastecimentos</p>
-                    <h1 className="mt-1 text-3xl font-black tracking-[-0.04em] text-white">
+                    <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-white">
                       {clientesDisponiveis.find((c) => c.id === clienteSelecionado)?.nome || "Cliente selecionado"}
                     </h1>
                     <p className="mt-1 text-sm text-slate-400">
@@ -274,7 +274,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#1a2d42] bg-[#071827] p-0">
+                <div className="rounded-2xl border border-[#1a2d42] !bg-[rgba(7,24,39,0.11)] p-0">
                   <div className="flex flex-col gap-4 border-b border-[#1a2d42] p-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-4">
                       <label className="block">
@@ -309,7 +309,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       </label>
                     </div>
 
-                    <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-12 gap-2 bg-[#2d8cff] px-6 text-base font-semibold text-white hover:bg-[#1f78f2]">
+                    <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-12 gap-2 bg-[#2d8cff] px-6 text-base font-semibold text-white hover:!bg-[rgba(5,44,97,1)]">
                       <Plus size={16} /> Novo Registro
                     </Button>
                   </div>
@@ -317,7 +317,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   <div className="overflow-x-auto">
                     <table className="min-w-[1200px] w-full border-separate border-spacing-0 text-left">
                       <thead>
-                        <tr className="bg-[#081d2c] text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        <tr className="bg-[rgba(8,29,44,0.26)] text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                           <th className="px-4 py-4">Data</th>
                           <th className="px-4 py-4">Voo</th>
                           <th className="px-4 py-4">Trecho</th>
@@ -334,7 +334,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       <tbody>
                         {registrosCliente.length ? (
                           registrosCliente.slice(0, 10).map((record) => (
-                            <tr key={record.id} className="border-t border-[#1a2d42] bg-[#071827] text-sm text-slate-200">
+                            <tr key={record.id} className="border-t border-[#1a2d42] bg-[rgba(7,24,39,0.39)] text-sm text-slate-200">
                               <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-300">{date(record.data)}</td>
                               <td className="px-4 py-4 font-mono text-xs font-semibold text-sky-300">{record.numero_voo || record.matricula_registro || "—"}</td>
                               <td className="max-w-[180px] px-4 py-4 text-slate-300">{record.trecho || "—"}</td>
@@ -358,7 +358,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                             </tr>
                           ))
                         ) : (
-                          <tr>
+                          <tr className="bg-[rgba(7,24,39,0.39)]">
                             <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
                               Nenhum registro para este cliente.
                             </td>

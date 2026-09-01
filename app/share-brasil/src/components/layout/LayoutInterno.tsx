@@ -19,7 +19,8 @@ import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import GestaoColaborador from "@/pages/GestaoColaborador";
 import EnviarPagamento from "@/pages/EnviarPagamento";
 import Aerodromos from "@/pages/Aerodromos";
-import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, SenhasShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
+import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
+import SenhasPastas from "@/pages/SenhasPastas";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -57,7 +58,7 @@ export default function LayoutInterno() {
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;
-    if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasPastas />;
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
@@ -72,5 +73,5 @@ export default function LayoutInterno() {
     return podeAcessarGestor ? <DashboardGestor aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
-  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 md:pl-[76px]" style={tema === "light" ? { backgroundColor: "rgb(20, 41, 63)" } : undefined}><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8" style={tema === "light" ? { backgroundColor: "rgb(183, 197, 211)" } : undefined}>{renderConteudo()}</main></div></div>;
+  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderConteudo()}</main></div></div>;
 }

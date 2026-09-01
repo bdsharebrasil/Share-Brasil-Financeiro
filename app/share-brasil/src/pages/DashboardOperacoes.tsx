@@ -3,7 +3,7 @@ import { Activity, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, 
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import { ResumoTripulacaoOperacoes } from "@/pages/GestaoTripulacao";
-import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
+import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/PrimitivosDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
 
 function formatarData(valor: string | null | undefined) {
@@ -32,24 +32,6 @@ function saudacaoAtual() {
 
 function primeiroNome(nome: string) {
   return nome.split(" ").filter(Boolean)[0] || "Colaborador";
-}
-
-function HeroOperacoes({ nome }: { nome: string }) {
-  return (
-    <section className="relative mb-6 min-h-[195px] overflow-hidden rounded-2xl border border-white/10 bg-[#111b29] shadow-[0_18px_55px_rgba(0,0,0,.22)] md:min-h-[205px]">
-      <img src="/aviation-hero1.jpg" alt="Aeronaves da Share Brasil no pátio" className="absolute inset-0 h-full w-full object-cover object-center" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
-      <div className="relative flex min-h-[195px] flex-col justify-between p-6 md:min-h-[205px] md:p-8">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-[#4aa3f0]">Dashboard Operações</p>
-        </div>
-        <div>
-          <h1 className="text-[30px] font-extrabold tracking-[-.045em] text-white md:text-[38px]">{saudacaoAtual()}, {primeiroNome(nome)}</h1>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: string) => void }) {
@@ -82,7 +64,7 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
 
   return (
     <div className="route-enter">
-      <HeroOperacoes nome={nomeColaborador} />
+      <HeroDashboard ambiente="operacoes" title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`} />
 
       {erro && <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
 

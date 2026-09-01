@@ -27,19 +27,19 @@ function Feedback({ error, ok }: { error: string | null; ok: string | null }) { 
 
 export function DashboardShareBrasil({ aoNavegar }: { aoNavegar: (menu: string) => void }) {
   const atalhos: Array<{ menu: string; label: string; detail: string; icon: import("lucide-react").LucideIcon; tone: string }> = [
-    { menu: "documentos", label: "DOCUMENTOS", detail: "Pastas internas", icon: Folder, tone: "text-sky-300 bg-sky-400/10 border-sky-300/20" },
-    { menu: "senhas", label: "SENHAS", detail: "Cofre corporativo", icon: KeyRound, tone: "text-violet-300 bg-violet-400/10 border-violet-300/20" },
-    { menu: "tarefas", label: "TAREFAS", detail: "Kanban e agenda", icon: ListTodo, tone: "text-amber-300 bg-amber-400/10 border-amber-300/20" },
-    { menu: "contatos-clientes", label: "CONTATOS\nCLIENTES", detail: "Relacionamento", icon: Users, tone: "text-cyan-300 bg-cyan-400/10 border-cyan-300/20" },
-    { menu: "centro-treinamento", label: "CENTRO\nTREINAMENTO", detail: "Salas e materiais", icon: GraduationCap, tone: "text-sky-300 bg-sky-400/10 border-sky-300/20" },
-    { menu: "hoteis", label: "HOTÉIS", detail: "Reservas e contatos", icon: Building2, tone: "text-amber-300 bg-amber-400/10 border-amber-300/20" },
+    { menu: "documentos", label: "DOCUMENTOS", detail: "Pastas internas", icon: Folder, tone: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/25" },
+    { menu: "senhas", label: "SENHAS", detail: "Cofre corporativo", icon: KeyRound, tone: "text-violet-700 dark:text-violet-300 bg-violet-500/10 border-violet-500/25" },
+    { menu: "tarefas", label: "TAREFAS", detail: "Kanban e agenda", icon: ListTodo, tone: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25" },
+    { menu: "contatos-clientes", label: "CONTATOS\nCLIENTES", detail: "Relacionamento", icon: Users, tone: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25" },
+    { menu: "centro-treinamento", label: "CENTRO\nTREINAMENTO", detail: "Salas e materiais", icon: GraduationCap, tone: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/25" },
+    { menu: "hoteis", label: "HOTÉIS", detail: "Reservas e contatos", icon: Building2, tone: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25" },
   ];
 
   return (
     <div className="route-enter space-y-5">
-      <section className="overflow-hidden rounded-2xl border border-[#263446] bg-[#0e1622] shadow-[0_18px_55px_rgba(0,0,0,.22)]">
-        <div className="px-5 py-6 md:px-7">
-          <h1 className="text-2xl font-extrabold tracking-[-.045em] text-white md:text-[32px]">Central de trabalho</h1>
+      <section className="overflow-hidden relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[.14] via-card to-card shadow-sm">
+        <div className="relative px-5 py-6 md:px-7">
+          <h1 className="text-2xl font-extrabold tracking-[-.045em] text-foreground md:text-[32px]">Central de trabalho</h1>
         </div>
       </section>
 
@@ -49,31 +49,31 @@ export function DashboardShareBrasil({ aoNavegar }: { aoNavegar: (menu: string) 
             type="button"
             key={item.menu + "-" + item.label}
             onClick={() => aoNavegar(item.menu)}
-            className="group flex min-h-[132px] flex-col items-center justify-between rounded-xl border border-[#202d3d] bg-[#101925] px-3 py-4 text-center transition-all hover:-translate-y-0.5 hover:border-[#39cdbd]/55 hover:bg-[#142333] hover:shadow-[0_8px_25px_rgba(0,0,0,.25)]"
+            className="group flex min-h-[132px] flex-col items-center justify-between rounded-xl border border-border bg-card px-3 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
           >
             <span className={"flex h-12 w-12 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 " + item.tone}>
               <item.icon size={23} strokeWidth={1.8} />
             </span>
-            <span className="whitespace-pre-line text-[11px] font-extrabold leading-[1.15] tracking-[.03em] text-slate-100">{item.label}</span>
-            <span className="text-[9px] text-slate-500">{item.detail}</span>
+            <span className="whitespace-pre-line text-[11px] font-extrabold leading-[1.15] tracking-[.03em] text-foreground">{item.label}</span>
+            <span className="text-[9px] text-muted-foreground">{item.detail}</span>
           </button>
         ))}
       </section>
 
-      <section className="rounded-xl border border-[#202d3d] bg-[#101925] p-5">
+      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#38d1bd]">Minha jornada</p>
+            <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">Minha jornada</p>
             <h2 className="mt-1 text-lg font-extrabold text-white">Ponto de hoje</h2>
           </div>
-          <Clock3 size={19} className="text-[#38d1bd]" />
+          <Clock3 size={19} className="text-primary" />
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#263446] bg-[#0b131e] p-4">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-secondary/35 p-4">
           <div>
-            <p className="font-mono text-2xl font-bold text-white">{new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+            <p className="font-mono text-2xl font-bold">{new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
             <p className="mt-1 text-[10px] uppercase tracking-[.1em] text-slate-500">Registro de entrada</p>
           </div>
-          <Button type="button" onClick={() => aoNavegar("ponto")} className="h-10 gap-2 rounded-lg bg-emerald-500 px-4 text-[10px] font-extrabold uppercase text-[#06251c] hover:bg-emerald-400">
+          <Button type="button" onClick={() => aoNavegar("ponto")} className="h-10 gap-2 rounded-lg px-4 text-[10px] font-extrabold uppercase">
             <Play size={13} /> Abrir ponto
           </Button>
         </div>

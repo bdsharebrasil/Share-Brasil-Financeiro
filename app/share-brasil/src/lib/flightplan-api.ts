@@ -11,6 +11,7 @@ export type WeatherResponse = {
   loc: string;
   metar: string;
   taf: string;
+  weather_condition?: "clear" | "cloudy" | "rain" | "storm" | "snow";
   observed_at?: string | null;
   temperature_c?: number | null;
   dew_point_c?: number | null;

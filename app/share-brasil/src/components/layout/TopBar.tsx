@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, ChevronDown, CloudSun, Clock3, Globe2, LoaderCircle, Menu, Wind } from "lucide-react";
+import { Bell, ChevronDown, CloudRain, CloudSun, Clock3, Globe2, LoaderCircle, Menu, Wind } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomesAmbiente, PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE, type Ambiente, type Tema } from "@/types/navegacao";
 import { buscarContagemMensagensNaoLidas, buscarPerfilColaborador, carregarArquivoColaborador } from "@/lib/colaborador-api";
@@ -66,11 +66,13 @@ function WeatherTophead({ tema }: { tema: Tema }) {
     setIcao(next);
     setOpen(false);
   };
+  const WeatherIcon = weather?.weather_condition === "rain" || weather?.weather_condition === "storm" ? CloudRain : CloudSun;
+  const weatherIconClass = weather?.weather_condition === "rain" || weather?.weather_condition === "storm" ? "text-[#3b9eea]" : "text-[#f1c348]";
 
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-label="Abrir condições meteorológicas" className={cn("flex items-center gap-2 rounded-lg border border-border/70 px-2.5 py-2 text-left text-[10px] transition-colors hover:border-primary/35 hover:bg-secondary/60 sm:px-3", open && "border-primary/45 bg-primary/[.05]")} style={tema === "light" ? { backgroundColor: "rgb(255, 255, 255)" } : undefined}>
-        {loading ? <LoaderCircle size={14} className="animate-spin text-primary" /> : <CloudSun size={14} className="text-[#f1c348]" />}
+        {loading ? <LoaderCircle size={14} className="animate-spin text-primary" /> : <WeatherIcon size={14} className={weatherIconClass} />}
         <span className="hidden text-muted-foreground sm:inline">{selectedCity.label.split(" · ")[0]}</span>
         <strong className="font-mono text-foreground">{error ? "—" : valorTemperatura(weather?.temperature_c)}</strong>
         <ChevronDown size={12} className={cn("text-muted-foreground transition-transform", open && "rotate-180")} />

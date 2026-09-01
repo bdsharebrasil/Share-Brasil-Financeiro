@@ -466,6 +466,49 @@ export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<Ch
 export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
 export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }
 
+export type ItemCarregamento = { id: string; descricao: string; peso: number | null; braco: number | null };
+export type PesoBalanceamentoFicha = {
+  id: string;
+  solicitacao_id: string;
+  aeronave_id: string;
+  peso_balanceamento_id: string;
+  data_voo: string;
+  numero_voo: string | null;
+  piloto_responsavel: string;
+  peso_vazio_kg: number;
+  braco_vazio: number | null;
+  momento_vazio: number | null;
+  itens_carregamento: ItemCarregamento[];
+  fuel_litros: number | null;
+  fuel_kg: number | null;
+  fuel_braco: number | null;
+  fuel_momento: number | null;
+  peso_total_kg: number | null;
+  momento_total: number | null;
+  cg_calculado: number | null;
+  peso_maximo_decolagem: number | null;
+  peso_maximo_pouso: number | null;
+  peso_maximo_sem_combustivel: number | null;
+  cg_limite_dianteiro: number | null;
+  cg_limite_traseiro: number | null;
+  dentro_dos_limites: number | boolean | null;
+  status: string;
+  snapshot_limites: Record<string, unknown>;
+  observacoes: string | null;
+  assinatura_nome: string | null;
+  criado_em: string;
+  finalizado_em: string | null;
+};
+export type PesoBalanceamentoContexto = {
+  solicitacao: SolicitacaoVooInterna & { fabricante?: string | null; matricula_registro?: string | null; modelo?: string | null };
+  piloto: { id: string; nome: string; canac: string | null } | null;
+  copiloto: { id: string; nome: string; canac: string | null } | null;
+  configuracao: Record<string, any> | null;
+  ficha: PesoBalanceamentoFicha | null;
+};
+export function buscarPesoBalanceamentoVoo(id: string) { return colaboradorRequest<PesoBalanceamentoContexto>(`/api/interno/agendamento/${id}/peso-balanceamento`); }
+export function salvarPesoBalanceamentoVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ success: boolean; ficha: PesoBalanceamentoFicha }>(`/api/interno/agendamento/${id}/peso-balanceamento`, { method: "POST", body: JSON.stringify(payload) }); }
+
 export type PlanoVooSalvo = {
   id: string;
   numero_voo: string | null;

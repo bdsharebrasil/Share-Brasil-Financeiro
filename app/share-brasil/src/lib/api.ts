@@ -1,4 +1,8 @@
-export const API_BASE = "https://api-workers.sharebrasil.workers.dev";
+const DEFAULT_API_ORIGIN = "https://api-workers.sharebrasil.workers.dev";
+const configuredApiBase = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+
+export const API_BASE = configuredApiBase;
+export const API_ORIGIN = configuredApiBase || DEFAULT_API_ORIGIN;
 const SESSION_STORAGE_KEY = "share-brasil-session";
 
 export type AuthUser = {

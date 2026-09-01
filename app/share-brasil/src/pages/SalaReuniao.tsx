@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Clipboard, Copy, MessageCircle, Mic, MicOff, MonitorUp, PenTool, PhoneOff, Plus, Send, UserRound, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buscarIceServersCentro, buscarPerfilColaborador, buscarSalasTreinamento, criarSalaTreinamento, encerrarSalaTreinamento, type SalaTreinamento } from "@/lib/colaborador-api";
-import { API_BASE } from "@/lib/api";
+import { API_ORIGIN } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 
@@ -76,7 +76,7 @@ export default function SalaReuniao() {
       localStream.current = stream;
       setCamera(stream.getVideoTracks().some((track) => track.enabled)); setMicrophone(stream.getAudioTracks().some((track) => track.enabled)); setLocalReady(true);
       const participantId = myId.current;
-      const url = new URL(`${API_BASE.replace(/^http/, "ws")}/api/sharebrasil/centro-treinamento/reunioes/${selected.id}/ws`); url.searchParams.set("access_token", session.access_token); url.searchParams.set("participant_id", participantId);
+      const url = new URL(`${API_ORIGIN.replace(/^http/, "ws")}/api/sharebrasil/centro-treinamento/reunioes/${selected.id}/ws`); url.searchParams.set("access_token", session.access_token); url.searchParams.set("participant_id", participantId);
       const socket = new WebSocket(url); ws.current = socket;
       const servidoresIce = ice.ice_servers.length ? ice.ice_servers : [{ urls: "stun:stun.cloudflare.com:3478" }]; setIceServers(servidoresIce); iceServersRef.current = servidoresIce;
       socket.onopen = () => { setConnected(true); };

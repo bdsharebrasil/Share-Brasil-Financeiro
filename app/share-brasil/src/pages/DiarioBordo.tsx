@@ -104,7 +104,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     const closed = Boolean(month?.fechado);
     const fuelTotal = (details?.lancamentos || []).reduce((total, entry) => total + Number(entry.litros_combustivel_abastecido || 0), 0);
     return (
-      <div className="route-enter space-y-6">
+      <div className="diario-bordo route-enter space-y-6">
         <section className="relative overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_20px_60px_rgba(0,0,0,.18)]">
           <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-cyan-400/[.07] blur-3xl" />
           <div className="relative p-5 md:p-7">
@@ -142,7 +142,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
   }
 
   return (
-    <div className="route-enter space-y-5">
+    <div className="diario-bordo route-enter space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><IndicadorPagina>Operações / Diário de bordo</IndicadorPagina><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><BookOpenCheck className="text-primary" size={26} /> Diários de bordo</h1><p className="mt-1.5 text-xs text-muted-foreground">Gerencie os diários digitais, horas de voo, célula e registros operacionais das aeronaves.</p></div>
         <div className="flex gap-2">{aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]"><ArrowLeft size={13} /> Voltar</Button>}{aoAbrirAerodromos && <Button type="button" variant="outline" onClick={aoAbrirAerodromos} className="h-9 gap-1.5 text-[10px]">Aeródromos</Button>}</div>

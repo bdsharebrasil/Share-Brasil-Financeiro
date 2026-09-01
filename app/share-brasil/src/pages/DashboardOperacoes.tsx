@@ -11,15 +11,16 @@ function formatarData(valor: string | null | undefined) {
   return Number.isNaN(data.getTime()) ? valor : data.toLocaleDateString("pt-BR");
 }
 
-function tomStatus(status: string): "green" | "amber" | "red" | "neutral" {
+function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
   if (status === "aprovada") return "green";
+  if (status === "em_voo") return "blue";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 
 function statusLabel(status: string) {
-  return ({ pendente: "Pendente", aprovada: "Aprovada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 
 function saudacaoAtual() {

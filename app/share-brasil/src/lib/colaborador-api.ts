@@ -296,6 +296,17 @@ export type SolicitacaoVooInterna = {
   observacoes?: string | null;
   piloto_id?: string | null;
   copiloto_id?: string | null;
+  jornada_id?: string | null;
+  jornada_status?: string | null;
+  perna_atual_id?: string | null;
+  perna_atual_numero?: number | null;
+  perna_atual_origem?: string | null;
+  perna_atual_destino?: string | null;
+  perna_atual_horario_ac?: string | null;
+  perna_atual_horario_dep?: string | null;
+  perna_atual_horario_pouso?: string | null;
+  perna_atual_horario_corte?: string | null;
+  perna_atual_status?: string | null;
 };
 
 export type AeronaveAgendamento = {
@@ -683,6 +694,7 @@ export function buscarJornadaVoo(id: string) { return colaboradorRequest<Jornada
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function adicionarPernaJornada(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarPernaJornada(jornadaId: string, pernaId: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${jornadaId}/pernas/${pernaId}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 
 export type RelatorioDespesaViagem = Record<string, any> & {
   id: string;

@@ -683,3 +683,47 @@ export function buscarJornadaVoo(id: string) { return colaboradorRequest<Jornada
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function adicionarPernaJornada(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
+
+export type RelatorioDespesaViagem = Record<string, any> & {
+  id: string;
+  numero_relatorio: string;
+  numero_voo: string | null;
+  cliente_id: string | null;
+  cliente_nome?: string | null;
+  socio_id: string | null;
+  aeronave_id: string | null;
+  aeronave_matricula?: string | null;
+  rota: string | null;
+  data_inicio: string;
+  data_fim: string;
+  quantidade_dias: number;
+  despesas: Array<{ id?: string; data: string; categoria: string; descricao: string; valor: number; observacoes?: string }>;
+  total_valor: number;
+  status: string;
+  tripulacao_id: string | null;
+  nome_tripulante: string | null;
+  tripulante_id_2: string | null;
+  nome_tripulante_2: string | null;
+  anexos?: RelatorioDespesaViagemAnexo[];
+  pdf_url?: string | null;
+};
+export type RelatorioDespesaViagemAnexo = { id: string; relatorio_despesa_viagem_id: string; indice_despesa: number; nome_arquivo: string; caminho_arquivo: string; url_arquivo: string; tipo_arquivo: string | null; tamanho_arquivo: number | null };
+export type OpcoesRelatorioViagem = {
+  clientes: Array<{ id: string; razao_social: string | null; codigo_cliente: string | null }>;
+  aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string; status: string | null }>;
+  tripulantes: Array<{ id: string; nome_completo: string; canac: string; status: string | null; origem: string }>;
+  voos: Array<{ numero_voo: string; data_agendada: string | null }>;
+  socios: Array<{ id: string; nome: string }>;
+};
+export function buscarOpcoesRelatorioViagem() { return colaboradorRequest<OpcoesRelatorioViagem>("/api/financeiro/relatorios-despesa-viagem/opcoes"); }
+export function buscarRelatoriosDespesaViagem() { return colaboradorRequest<{ relatorios: RelatorioDespesaViagem[] }>("/api/financeiro/relatorios-despesa-viagem"); }
+export function buscarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`); }
+export function criarRelatorioDespesaViagem(payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>("/api/financeiro/relatorios-despesa-viagem", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarRelatorioDespesaViagem(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function finalizarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/finalizar`, { method: "POST" }); }
+export function enviarRelatorioParaAprovacao(id: string, tripulantePos: 1 | 2) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem; enviado_para: number }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos }) }); }
+export function decidirAprovacaoRelatorio(id: string, tripulantePos: 1 | 2, aprovado: boolean, observacoes: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos, aprovado, observacoes }) }); }
+export function enviarAnexoRelatorio(id: string, arquivo: File, indiceDespesa = 0) { const body = new FormData(); body.append("arquivo", arquivo); body.append("indice_despesa", String(indiceDespesa)); return colaboradorRequest<{ anexo: RelatorioDespesaViagemAnexo }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos`, { method: "POST", body }); }
+export function excluirAnexoRelatorio(id: string, anexoId: string) { return colaboradorRequest<{ success: boolean }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/${encodeURIComponent(anexoId)}`, { method: "DELETE" }); }
+export function enviarPdfRelatorio(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ pdf_url: string; pdf_path: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
+export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{ success: boolean; status: string; message: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-cliente`, { method: "POST" }); }

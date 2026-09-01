@@ -536,6 +536,10 @@ export type DiarioLancamento = {
   data_registro: string;
   aerodromo_partida: string;
   aerodromo_chegada: string;
+  aerodromo_partida_icao?: string | null;
+  aerodromo_partida_nome?: string | null;
+  aerodromo_chegada_icao?: string | null;
+  aerodromo_chegada_nome?: string | null;
   trecho: string | null;
   pic_canac: string;
   pic_nome: string | null;
@@ -548,7 +552,12 @@ export type DiarioLancamento = {
   cliente_tomador_emprestimo_id?: string | null;
   socio_tomador_emprestimo_id?: string | null;
   cliente_nome?: string | null;
+  cliente_codigo?: string | null;
+  cliente_proprietario?: string | null;
   socio_nome?: string | null;
+  cliente_tomador_nome?: string | null;
+  cliente_tomador_codigo?: string | null;
+  socio_tomador_nome?: string | null;
   voo_emprestado: number;
   tempo_ac: string | null;
   tempo_dep: string | null;

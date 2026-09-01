@@ -140,3 +140,30 @@
 @keyframes pulse-dot { 0%,100% { opacity: .55; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.1); } }
 .skeleton { background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 75%); background-size: 200% 100%; animation: skeleton 1.5s ease-in-out infinite; }
 @keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Campos de formulário: superfície escura, cantos retos, sem fundo branco nativo */
+.campo {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 2px;
+  background-color: hsl(var(--secondary) / .35);
+  color: hsl(var(--foreground));
+  padding: .6rem .75rem;
+  font-size: 12px;
+  line-height: 1.2rem;
+  outline: none;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  appearance: none;
+}
+.campo::placeholder { color: hsl(var(--muted-foreground)); }
+.campo:hover { border-color: hsl(var(--primary) / .45); }
+.campo:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary) / .18); background-color: hsl(var(--secondary) / .55); }
+select.campo {
+  background-image: linear-gradient(45deg, transparent 50%, hsl(var(--muted-foreground)) 50%), linear-gradient(135deg, hsl(var(--muted-foreground)) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreground)); }
+.campo::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }

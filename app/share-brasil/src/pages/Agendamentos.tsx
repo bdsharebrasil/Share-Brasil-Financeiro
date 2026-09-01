@@ -32,9 +32,9 @@ import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
 
 const abas = [
+  { id: "cronograma", label: "Cronograma de Voos", icon: ClipboardList },
   { id: "calendario", label: "Calendário", icon: CalendarDays },
   { id: "escala", label: "Escala", icon: Users },
-  { id: "cronograma", label: "Cronograma de Voos", icon: ClipboardList },
 ] as const;
 type AbaAgendamento = (typeof abas)[number]["id"];
 type VisaoEscala = "semanal" | "mensal";
@@ -77,7 +77,7 @@ function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
 
 export default function Agendamentos() {
   const { toast } = useToast();
-  const [aba, setAba] = useState<AbaAgendamento>("escala");
+  const [aba, setAba] = useState<AbaAgendamento>("cronograma");
   const [mes, setMes] = useState(() => primeiroDiaMes(new Date()));
   const [semanaCalendario, setSemanaCalendario] = useState(() => inicioSemana(new Date()));
   const [visaoCalendario, setVisaoCalendario] = useState<VisaoEscala>("semanal");

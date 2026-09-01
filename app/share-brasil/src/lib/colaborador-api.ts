@@ -461,7 +461,7 @@ export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
   });
 }
 
-export type ChecklistPreVoo = { id: string; solicitacao_id: string; itens: Record<string, unknown>; observacoes: string | null; abastecimento_id: string | null; status: string };
+export type ChecklistPreVoo = { id: string; solicitacao_id: string; itens: Record<string, unknown>; observacoes: string | null; abastecimento_id: string | null; status: string; executado_por_nome?: string | null; usuario_id?: string | null };
 export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<ChecklistPreVoo | null>(`/api/interno/agendamento/${id}/checklist`); }
 export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
 export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }

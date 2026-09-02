@@ -854,3 +854,52 @@ export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; 
 }
 export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
 export function enviarAnexoRecibo(arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<{ id: string; url: string }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
+export type ContatoEmail = {
+  id: string;
+  nome: string;
+  email: string;
+  tipo: "cliente" | "socio" | string;
+  cliente_id?: string | null;
+};
+
+export type AnexoEmail = {
+  id: string;
+  nome: string;
+  origem: "recibo" | "relatorio_despesa_viagem" | string;
+  tipo_arquivo: string | null;
+  tamanho_arquivo?: number | null;
+  arquivo_url: string;
+};
+
+export type EmailEnviado = {
+  id: string;
+  destinatarios: string[];
+  assunto: string;
+  status: "enviado" | "erro" | string;
+  quantidade_anexos: number;
+  criado_em: string;
+  erro?: string | null;
+};
+
+export type CentralEmailResponse = {
+  contatos: ContatoEmail[];
+  anexos: AnexoEmail[];
+  historico: EmailEnviado[];
+};
+
+export function buscarCentralEmail() {
+  return colaboradorRequest<CentralEmailResponse>("/api/interno/emails");
+}
+
+export function enviarEmailCliente(payload: {
+  destinatarios: string[];
+  assunto: string;
+  mensagem: string;
+  anexos?: string[];
+  nome_destinatario?: string;
+}) {
+  return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

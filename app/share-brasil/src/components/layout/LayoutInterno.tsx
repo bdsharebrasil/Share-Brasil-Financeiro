@@ -20,6 +20,7 @@ import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import GestaoColaborador from "@/pages/GestaoColaborador";
 import EnviarPagamento from "@/pages/EnviarPagamento";
 import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
+import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, ContatosClientesShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import SenhasPastas from "@/pages/SenhasPastas";
@@ -61,6 +62,7 @@ export default function LayoutInterno() {
     if (ambiente === "financeiro" && menuAtivo === "enviar-pagamento") return <EnviarPagamento />;
     if (ambiente === "financeiro" && menuAtivo === "recibos") return <EmissaoRecibo aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "despesas") return <RelatorioDespesaViagem aoVoltar={() => setMenuAtivo("overview")} />;
+    if (ambiente === "financeiro" && menuAtivo === "email") return <Emails />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;

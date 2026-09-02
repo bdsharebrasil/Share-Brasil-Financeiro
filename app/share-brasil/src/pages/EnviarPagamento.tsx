@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Loader2, Send, Users, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Loader2, Mail, Send, Users, WalletCards, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
-import { buscarEnviosPagamento, criarEnvioPagamento, type EnvioPagamento } from "@/lib/colaborador-api";
+import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
+import { AnexosEmail } from "@/components/email/AnexosEmail";
+import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarEnviosPagamento, criarEnvioPagamento, enviarEmailCliente, type AnexoEmail, type ContatoEmail, type EnvioPagamento } from "@/lib/colaborador-api";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -95,6 +100,7 @@ const statusEnvio: Record<string, { label: string; className: string }> = {
   pendente: { label: "Pendente", className: "bg-amber-400/10 text-amber-600 dark:text-amber-300" },
   pago: { label: "Pago", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
   cancelado: { label: "Cancelado", className: "bg-red-400/10 text-red-700 dark:text-red-300" },
+  enviado: { label: "Enviado", className: "bg-sky-400/10 text-sky-700 dark:text-sky-300" },
 };
 
 function dataBr(valor?: string | null) {
@@ -123,6 +129,23 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
+  const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
+  const [enviarEmailAposCriar, setEnviarEmailAposCriar] = useState(false);
+  const [modalEmail, setModalEmail] = useState(false);
+  const [contatos, setContatos] = useState<ContatoEmail[]>([]);
+  const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
+  const [buscaContato, setBuscaContato] = useState("");
+  const [destinatario, setDestinatario] = useState("");
+  const [nomeDestinatario, setNomeDestinatario] = useState("");
+  const [assunto, setAssunto] = useState("");
+  const [corpoEmail, setCorpoEmail] = useState("");
+  const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
+  const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [erroEmail, setErroEmail] = useState("");
+  const [sucessoEmail, setSucessoEmail] = useState("");
+  const [carregandoEmail, setCarregandoEmail] = useState(false);
+
   const carregar = async () => {
     setCarregando(true);
     try {
@@ -137,6 +160,20 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     }
   };
 
+  const carregarContatosEmail = async () => {
+    setCarregandoEmail(true);
+    setErroEmail("");
+    try {
+      const dados = await buscarCentralEmail();
+      setContatos(dados.contatos);
+      setAnexos(dados.anexos);
+    } catch {
+      setErroEmail("Não foi possível carregar os contatos de e-mail.");
+    } finally {
+      setCarregandoEmail(false);
+    }
+  };
+
   useEffect(() => {
     void carregar();
   }, []);
@@ -148,6 +185,25 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const totalEtapas = exigeCliente ? 3 : 2;
   const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeCliente ? "Cliente e rateio" : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
+
+  const contatosFiltrados = useMemo(() => {
+    const termo = buscaContato.trim().toLowerCase();
+    return !termo ? contatos : contatos.filter((item) => `${item.nome} ${item.email} ${item.tipo}`.toLowerCase().includes(termo));
+  }, [buscaContato, contatos]);
+
+  const montarCorpoEmail = (envio: EnvioPagamento) => {
+    const linhas = [
+      `Descrição: ${envio.descricao}`,
+      `Valor: ${formatarValor(Number(envio.valor))}`,
+      `Data da despesa: ${dataBr(envio.data_despesa)}`,
+      envio.vencimento ? `Vencimento: ${dataBr(envio.vencimento)}` : "",
+      envio.fornecedor ? `Fornecedor: ${envio.fornecedor}` : "",
+      envio.cliente_id ? `Cliente: ${envio.cliente_id}` : "",
+      envio.aeronave_id ? `Aeronave: ${envio.aeronave_id}` : "",
+      envio.observacoes ? `Observações: ${envio.observacoes}` : "",
+    ].filter(Boolean);
+    return `Prezado(a),\n\nSegue solicitação de pagamento:\n\n${linhas.join("\n")}\n\nAtenciosamente,\nShare Brasil`;
+  };
 
   const marcarModo = (novoTipo: TipoEnvio) => {
     setErro("");
@@ -213,13 +269,86 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       });
       setEnvios((atual) => [registro, ...atual]);
       setMensagem("Lançamento criado corretamente em movimentações.");
+
+      if (enviarEmailAposCriar) {
+        setEnvioRecemCriado(registro);
+        setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
+        setCorpoEmail(montarCorpoEmail(registro));
+        const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
+        if (contatoInicial) {
+          setDestinatario(contatoInicial.email);
+          setNomeDestinatario(contatoInicial.nome);
+        }
+        setModalEmail(true);
+        if (contatos.length === 0) void carregarContatosEmail();
+      }
+
       setForm({ ...inicial, data_despesa: hoje() });
       setTipo(null);
       setEtapa(0);
+      setEnviarEmailAposCriar(false);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível criar o lançamento.");
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const fecharModalEmail = () => {
+    setModalEmail(false);
+    setDestinatario("");
+    setNomeDestinatario("");
+    setAssunto("");
+    setCorpoEmail("");
+    setAnexosSelecionados([]);
+    setArquivosNovos([]);
+    setErroEmail("");
+    setSucessoEmail("");
+    setEnvioRecemCriado(null);
+  };
+
+  const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
+  const adicionarArquivos = (arquivos: File[]) => setArquivosNovos((atual) => [...atual, ...arquivos]);
+  const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
+
+  const anexosFiltrados = useMemo(() => {
+    if (!envioRecemCriado?.cliente_id) return anexos;
+    return anexos.filter((a) => {
+      if (a.origem === "recibo") return true;
+      return true;
+    });
+  }, [anexos, envioRecemCriado]);
+
+  const dispararEmail = async () => {
+    if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
+      setErroEmail("Informe destinatário, assunto e mensagem.");
+      return;
+    }
+    setEnviandoEmail(true);
+    setErroEmail("");
+    setSucessoEmail("");
+    try {
+      await enviarEmailCliente({
+        destinatarios: [destinatario.trim()],
+        assunto: assunto.trim(),
+        mensagem: corpoEmail.trim(),
+        anexos: anexosSelecionados,
+        arquivos: arquivosNovos,
+        nome_destinatario: nomeDestinatario || undefined,
+      });
+      if (envioRecemCriado) {
+        try {
+          await atualizarStatusEnvioPagamento(envioRecemCriado.id, "enviado");
+          setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "enviado" } : e));
+        } catch { /* status update is best-effort */ }
+      }
+      setSucessoEmail(`E-mail enviado com sucesso para ${destinatario.trim()}.`);
+      setMensagem("Lançamento criado e e-mail enviado ao cliente.");
+      setTimeout(() => fecharModalEmail(), 1800);
+    } catch (cause) {
+      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
+    } finally {
+      setEnviandoEmail(false);
     }
   };
 
@@ -342,6 +471,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-sky-400/30 bg-sky-400/[.06] px-4 py-3.5 transition-colors hover:bg-sky-400/[.1]">
+                    <input type="checkbox" checked={enviarEmailAposCriar} onChange={(e) => {
+                      setEnviarEmailAposCriar(e.target.checked);
+                      if (e.target.checked && contatos.length === 0) void carregarContatosEmail();
+    }} className="h-4 w-4 rounded border-border accent-primary" />
+                    <span className="flex items-center gap-2 text-[12px] font-bold text-foreground"><Mail size={15} className="text-sky-500" /> Enviar solicitação por e-mail ao cliente após criar o lançamento</span>
+                  </label>
                 </div>
               )}
             </div>
@@ -395,6 +532,50 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           )}
         </section>
       )}
+
+      <Dialog open={modalEmail} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
+            <DialogDescription className="text-[11px] text-muted-foreground">Revise o e-mail e envie ao cliente. Após o envio, a solicitação será marcada como "Enviado".</DialogDescription>
+          </DialogHeader>
+
+          {carregandoEmail ? (
+            <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-4">
+              {erroEmail && <div role="alert" className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-600 dark:text-red-200">{erroEmail}</div>}
+              {sucessoEmail && <div role="status" className="rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{sucessoEmail}</div>}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
+                <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setNomeDestinatario(contato.nome); }} />
+                <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
+                <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
+                <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 resize-y" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
+                <AnexosEmail anexos={anexosFiltrados} selecionados={anexosSelecionados} onAlternar={alternarAnexo} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+                <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px]"><X size={14} /> Cancelar</Button>
+                <Button type="button" onClick={dispararEmail} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-9 gap-2 rounded-sm px-5 text-[11px]">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

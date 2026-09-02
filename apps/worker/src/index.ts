@@ -4897,6 +4897,19 @@ app.post('/api/financeiro/envios-pagamento', async c => {
   const row = await db.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(envioId).first()
   return c.json({ ...row, movimentacao_id: movimentacaoId, rateio_id: rateioId }, 201)
 })
+app.patch('/api/financeiro/envios-pagamento/:id', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  await garantirTabelaEnvioDespesas(c)
+  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
+  const novoStatus = String(body.status || '').trim()
+  if (!novoStatus) return c.json({ error: 'status_obrigatorio' }, 400)
+  const db = portalDb(c)
+  const row = await db.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(c.req.param('id')).first<any>()
+  if (!row) return c.json({ error: 'envio_nao_encontrado' }, 404)
+  await db.prepare('UPDATE envio_despesas SET status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(novoStatus, c.req.param('id')).run()
+  return c.json({ ...row, status: novoStatus })
+})
 
 // ─── Financeiro: central de e-mail ───────────────────────────────────────────
 async function garantirTabelaEmails(c: Context<{ Bindings: Bindings }>) {
@@ -4945,11 +4958,38 @@ app.get('/api/interno/emails', async c => {
 app.post('/api/interno/emails', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const destinatarios = emailArray(body.destinatarios)
-  const assunto = String(body.assunto || '').trim(); const mensagem = String(body.mensagem || '').trim(); const ids = Array.isArray(body.anexos) ? body.anexos.map(String) : []
+  const contentType = c.req.header('Content-Type') || ''
+  let destinatarios: string[] = []
+  let assunto = ''
+  let mensagem = ''
+  let ids: string[] = []
+  let nomeDestinatario: string | undefined
+  const uploadedFiles: { filename: string; content: string; content_type: string }[] = []
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await c.req.formData()
+    destinatarios = emailArray(JSON.parse(formData.get('destinatarios') as string || '[]'))
+    assunto = String(formData.get('assunto') || '').trim()
+    mensagem = String(formData.get('mensagem') || '').trim()
+    const anexosRaw = formData.get('anexos')
+    ids = anexosRaw ? JSON.parse(anexosRaw as string) : []
+    nomeDestinatario = (formData.get('nome_destinatario') as string) || undefined
+    const files = formData.getAll('arquivos')
+    for (const file of files) {
+      if (file instanceof File) {
+        const buf = await file.arrayBuffer()
+        uploadedFiles.push({ filename: file.name, content: arrayBufferBase64(buf), content_type: file.type || 'application/octet-stream' })
+      }
+    }
+  } else {
+    const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
+    destinatarios = emailArray(body.destinatarios)
+    assunto = String(body.assunto || '').trim()
+    mensagem = String(body.mensagem || '').trim()
+    ids = Array.isArray(body.anexos) ? body.anexos.map(String) : []
+    nomeDestinatario = body.nome_destinatario || undefined
+  }
   if (!destinatarios.length || !assunto || !mensagem) return c.json({ error: 'destinatario_assunto_e_mensagem_obrigatorios' }, 400)
-  if (destinatarios.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return c.json({ error: 'destinatario_invalido' }, 400)
+  if (destinatarios.some((email) => !/^[^s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return c.json({ error: 'destinatario_invalido' }, 400)
   if (!c.env.RESEND_API_KEY || !c.env.EMAIL_FROM) return c.json({ error: 'email_nao_configurado' }, 503)
   await garantirTabelaEmails(c)
   const db = portalDb(c); const anexos: any[] = []
@@ -4957,15 +4997,17 @@ app.post('/api/interno/emails', async c => {
     const [prefix, rawId] = id.includes(':') ? id.split(':', 2) : ['', id]
     const table = prefix === 'recibo' ? 'recibo_anexos' : prefix === 'relatorio' ? 'relatorio_despesa_viagem_anexos' : ''
     if (!table) continue
-    const row = await db.prepare(`SELECT nome_arquivo, caminho_arquivo, tipo_arquivo FROM ${table} WHERE id = ?1`).bind(rawId).first<any>().catch(() => null)
+    const row = await db.prepare(\`SELECT nome_arquivo, caminho_arquivo, tipo_arquivo FROM \${table} WHERE id = ?1\`).bind(rawId).first<any>().catch(() => null)
     if (!row) continue
     const object = await shareBrasilBucket(c).get(row.caminho_arquivo); if (!object) continue
     anexos.push({ filename: row.nome_arquivo, content: arrayBufferBase64(await object.arrayBuffer()), content_type: row.tipo_arquivo || 'application/octet-stream' })
   }
+  anexos.push(...uploadedFiles)
+  const totalAnexos = ids.length + uploadedFiles.length
   const id = uuid(); let status = 'enviado'; let erro: string | null = null
-  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: c.env.EMAIL_FROM, to: destinatarios, subject: assunto, html: `<p>${escapeHtml(mensagem).replace(/\n/g, '<br>')}</p>`, attachments: anexos }) })
+  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: \`Bearer \${c.env.RESEND_API_KEY}\`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: c.env.EMAIL_FROM, to: destinatarios, subject: assunto, html: \`<p>\${escapeHtml(mensagem).replace(/\n/g, '<br>')}</p>\`, attachments: anexos, ...(nomeDestinatario ? {} : {}) }) })
   if (!response.ok) { status = 'erro'; erro = await response.text().catch(() => 'falha_ao_enviar_email') }
-  await db.prepare('INSERT INTO emails_enviados (id, destinatarios, assunto, mensagem, anexos, quantidade_anexos, status, erro_mensagem, enviado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, JSON.stringify(destinatarios), assunto, mensagem, JSON.stringify(ids), ids.length, status, erro, user.id).run()
+  await db.prepare('INSERT INTO emails_enviados (id, destinatarios, assunto, mensagem, anexos, quantidade_anexos, status, erro_mensagem, enviado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, JSON.stringify(destinatarios), assunto, mensagem, JSON.stringify(ids), totalAnexos, status, erro, user.id).run()
   if (status === 'erro') return c.json({ error: 'falha_ao_enviar_email', id }, 502)
   return c.json({ success: true, id }, 201)
 })

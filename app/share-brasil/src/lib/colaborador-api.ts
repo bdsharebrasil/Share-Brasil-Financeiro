@@ -212,6 +212,7 @@ export function buscarFeriasCorporativas(inicio?: string) { return colaboradorRe
 export type EnvioPagamento = { id: string; tipo: "share" | "reembolso" | "cliente"; descricao: string; valor: number; data_despesa: string | null; vencimento: string | null; fornecedor: string | null; cliente_id: string | null; socio_id: string | null; aeronave_id: string | null; numero_voo: string | null; centro_custo: string | null; observacoes: string | null; status: string; criado_por: string | null; criado_em: string; grupo_categoria?: string | null; tipo_caixa?: "share" | "cliente" | null; tipo_despesa?: "fixo" | "variável" | null; gera_rateio?: boolean; pago_diretamente?: boolean; pago_por?: string | null };
 export function buscarEnviosPagamento(tipo?: EnvioPagamento["tipo"]) { return colaboradorRequest<{ envios: EnvioPagamento[] }>(`/api/financeiro/envios-pagamento${tipo ? `?tipo=${tipo}` : ""}`); }
 export function criarEnvioPagamento(payload: Omit<EnvioPagamento, "id" | "status" | "criado_por" | "criado_em">) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarStatusEnvioPagamento(id: string, status: string) { return colaboradorRequest<EnvioPagamento>(`/api/financeiro/envios-pagamento/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); }
 export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
 export function criarCategoriaCalendario(nome: string, cor: string) { return colaboradorRequest<CategoriaCalendario>("/api/sharebrasil/calendario/categorias", { method: "POST", body: JSON.stringify({ nome, cor }) }); }
 export function buscarLembretesCalendario(inicio: string, fim: string) { return colaboradorRequest<LembreteCalendario[]>(`/api/sharebrasil/calendario?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`); }
@@ -922,8 +923,20 @@ export function enviarEmailCliente(payload: {
   assunto: string;
   mensagem: string;
   anexos?: string[];
+  arquivos?: File[];
   nome_destinatario?: string;
 }) {
+  const hasFiles = payload.arquivos && payload.arquivos.length > 0;
+  if (hasFiles) {
+    const body = new FormData();
+    body.append("destinatarios", JSON.stringify(payload.destinatarios));
+    body.append("assunto", payload.assunto);
+    body.append("mensagem", payload.mensagem);
+    if (payload.anexos?.length) body.append("anexos", JSON.stringify(payload.anexos));
+    if (payload.nome_destinatario) body.append("nome_destinatario", payload.nome_destinatario);
+    for (const arquivo of payload.arquivos!) body.append("arquivos", arquivo);
+    return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", { method: "POST", body });
+  }
   return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", {
     method: "POST",
     body: JSON.stringify(payload),

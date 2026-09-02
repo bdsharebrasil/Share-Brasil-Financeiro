@@ -32,6 +32,7 @@ function grupoDoItem(item: LancamentoShare) {
 function statusFinanceiro(status: string | null) {
   const normalizado = (status || "pendente").toLowerCase();
   if (["pago", "quitado", "conciliado", "aprovado"].includes(normalizado)) return { label: "Pago", tone: "green" as const };
+  if (["enviado"].includes(normalizado)) return { label: "Enviado", tone: "blue" as const };
   if (["cancelado", "reprovado"].includes(normalizado)) return { label: "Cancelado", tone: "red" as const };
   return { label: "Pendente", tone: "amber" as const };
 }

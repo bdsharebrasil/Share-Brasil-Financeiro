@@ -6,8 +6,8 @@ import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, Her
 import { buscarPainelFinanceiro, buscarPerfilColaborador, type MovimentacaoFinanceira, type PainelFinanceiroResponse } from "@/lib/colaborador-api";
 
 function dataBruta(valor: string | null | undefined) { if (!valor) return "—"; const data = new Date(`${valor.slice(0, 10)}T00:00:00`); return Number.isNaN(data.getTime()) ? valor : data.toLocaleDateString("pt-BR"); }
-function tomStatus(status: string | null): "green" | "amber" | "red" | "neutral" { const normalizado = status?.toLowerCase(); if (normalizado === "pago" || normalizado === "aprovado") return "green"; if (normalizado === "cancelado" || normalizado === "reprovado") return "red"; if (normalizado === "pendente" || normalizado === "aberto") return "amber"; return "neutral"; }
-function statusLabel(status: string | null) { if (!status) return "Sem status"; return ({ pago: "Pago", pendente: "Pendente", cancelado: "Cancelado", aprovado: "Aprovado", reprovado: "Reprovado", aberto: "Aberto" } as Record<string, string>)[status.toLowerCase()] || status; }
+function tomStatus(status: string | null): "green" | "amber" | "red" | "blue" | "neutral" { const normalizado = status?.toLowerCase(); if (normalizado === "pago" || normalizado === "aprovado") return "green"; if (normalizado === "cancelado" || normalizado === "reprovado") return "red"; if (normalizado === "enviado") return "blue"; if (normalizado === "pendente" || normalizado === "aberto") return "amber"; return "neutral"; }
+function statusLabel(status: string | null) { if (!status) return "Sem status"; return ({ pago: "Pago", pendente: "Pendente", cancelado: "Cancelado", aprovado: "Aprovado", reprovado: "Reprovado", aberto: "Aberto", enviado: "Enviado" } as Record<string, string>)[status.toLowerCase()] || status; }
 function saudacaoAtual() { const hora = new Date().getHours(); if (hora < 12) return "Bom dia"; if (hora < 18) return "Boa tarde"; return "Boa noite"; }
 function primeiroNome(nome: string) { return nome.split(" ").filter(Boolean)[0] || "Colaborador"; }
 

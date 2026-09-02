@@ -90,7 +90,8 @@ export type MensagensNaoLidasResponse = {
 };
 
 async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
@@ -125,7 +126,8 @@ export async function atualizarSenhaColaborador(novaSenha: string) {
 }
 
 export async function carregarArquivoColaborador(path: string) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },

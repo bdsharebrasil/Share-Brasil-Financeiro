@@ -11,9 +11,15 @@ function ProtecaoColaborador() {
 
   useEffect(() => {
     let ativo = true;
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (!ativo) return;
-      setAutenticado(Boolean(session));
+      if (error) await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      setAutenticado(Boolean(session) && !error);
+      setVerificando(false);
+    }).catch(async () => {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      if (!ativo) return;
+      setAutenticado(false);
       setVerificando(false);
     });
     return () => { ativo = false; };

@@ -64,7 +64,7 @@ export default function RelatorioDespesaViagem({ aoVoltar }: { aoVoltar?: () => 
 
   const carregar = async () => {
     setCarregando(true);
-    try { const [options, reports] = await Promise.all([buscarOpcoesRelatorioViagem(), buscarRelatoriosDespesaViagem()]); setOpcoes(options); setRelatorios(reports.relatorios); }
+    try { const [options, reports] = await Promise.all([buscarOpcoesRelatorioViagem(), buscarRelatoriosDespesaViagem()]); setOpcoes({ clientes: Array.isArray(options?.clientes) ? options.clientes : [], aeronaves: Array.isArray(options?.aeronaves) ? options.aeronaves : [], tripulantes: Array.isArray(options?.tripulantes) ? options.tripulantes : [], voos: Array.isArray(options?.voos) ? options.voos : [], socios: Array.isArray(options?.socios) ? options.socios : [] }); setRelatorios(Array.isArray(reports?.relatorios) ? reports.relatorios : []); }
     catch (error) { setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível carregar os relatórios." }); }
     finally { setCarregando(false); }
   };
@@ -77,7 +77,7 @@ export default function RelatorioDespesaViagem({ aoVoltar }: { aoVoltar?: () => 
   const iniciarNovo = () => { setRelatorio(null); setForm(vazioFormulario()); setDespesas([novaDespesa()]); setMensagem(null); setAba("editor"); };
   const abrirRelatorio = (item: Relatorio) => {
     setRelatorio(item); setForm({ numero_relatorio: item.numero_relatorio || "", numero_voo: item.numero_voo || "", cliente_id: item.cliente_id || "", socio_id: item.socio_id || "", aeronave_id: item.aeronave_id || "", rota: item.rota || "", data_inicio: item.data_inicio || "", data_fim: item.data_fim || "", quantidade_dias: String(item.quantidade_dias || 1), tripulacao_id: item.tripulacao_id || "", nome_tripulante: item.nome_tripulante || "", tripulante_id_2: item.tripulante_id_2 || "", nome_tripulante_2: item.nome_tripulante_2 || "", observacoes: item.observacoes || "" });
-    setDespesas((item.despesas || []).map((despesa: Partial<Despesa>) => ({ id: despesa.id || crypto.randomUUID(), data: despesa.data || "", categoria: despesa.categoria || "Outros", descricao: despesa.descricao || "", valor: Number(despesa.valor) || 0, observacoes: despesa.observacoes || "" })) || [novaDespesa()]); setMensagem(null); setAba("editor");
+    setDespesas((Array.isArray(item.despesas) ? item.despesas : []).map((despesa: Partial<Despesa>) => ({ id: despesa.id || crypto.randomUUID(), data: despesa.data || "", categoria: despesa.categoria || "Outros", descricao: despesa.descricao || "", valor: Number(despesa.valor) || 0, observacoes: despesa.observacoes || "" })) || [novaDespesa()]); setMensagem(null); setAba("editor");
   };
   const payload = () => ({ ...form, quantidade_dias: Number(form.quantidade_dias) || 1, despesas: despesas.map(({ id: _id, ...item }) => ({ ...item, valor: Number(item.valor) || 0 })), matricula_aeronave: aeronaveSelecionada?.matricula_registro || null, total_tripulante_1: total, total_tripulante_2: form.tripulante_id_2 ? total : 0 });
   const salvar = async (silencioso = false) => {

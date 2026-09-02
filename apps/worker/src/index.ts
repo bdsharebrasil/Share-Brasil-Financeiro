@@ -1570,9 +1570,9 @@ app.get('/api/weather/:icao', async (c) => {
   try {
     const data = await cachedFetch(c, `metar-${icao}`, 300, () => fetchAisweb(c, 'met', { icaoCode: icao }))
     return c.json(normalizeMet(data, icao))
-  } catch (e: any) {
+    } catch (e: any) {
     log.error(`[weather] ${icao}:`, e.message)
-    return c.json({ error: e.message }, 500)
+    return c.json({ loc: icao, metar: 'METAR indisponível no momento.', taf: '', weather_condition: 'cloudy', observed_at: null, source: 'unavailable' })
   }
 })
 

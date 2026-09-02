@@ -137,11 +137,12 @@ export function BarraSuperior({ ambiente, podeAcessarGestor, tema, aoTrocarAmbie
     let objectUrl: string | null = null;
     void buscarPerfilColaborador().then(async (response) => {
       if (!ativo) return;
-      if (!response.perfil.foto_url) {
+      const fotoUrl = response.perfil.foto_url || (response.perfil.url_avatar ? "/api/colaborador/foto" : null);
+      if (!fotoUrl) {
         setAvatar(AVATAR_PADRAO);
         return;
       }
-      const blob = await carregarArquivoColaborador("/api/colaborador/foto");
+      const blob = await carregarArquivoColaborador(fotoUrl);
       if (!ativo) return;
       objectUrl = URL.createObjectURL(blob);
       setAvatar(objectUrl);

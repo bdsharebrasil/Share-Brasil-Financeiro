@@ -162,7 +162,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
   useEffect(() => {
     let ativo = true;
     let url: string | null = null;
-    if (dados?.perfil.foto_url) {
+    if (dados?.perfil.foto_url || dados?.perfil.url_avatar) {
       void carregarArquivoColaborador(`/api/colaborador/foto?v=${versaoFoto}`).then((blob) => {
         if (!ativo) return;
         url = URL.createObjectURL(blob);
@@ -175,7 +175,7 @@ export default function Perfil({ tema, onAlternarTema }: { tema: Tema; onAlterna
       ativo = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [dados?.perfil.foto_url, versaoFoto]);
+  }, [dados?.perfil.foto_url, dados?.perfil.url_avatar, versaoFoto]);
 
   const salvarDados = async () => {
     if (!nome.trim()) return;

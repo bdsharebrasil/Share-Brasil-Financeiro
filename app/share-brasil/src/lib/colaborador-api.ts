@@ -7,6 +7,7 @@ export type PerfilColaborador = {
   nome_completo: string;
   nome_exibicao: string | null;
   foto_url: string | null;
+  url_avatar?: string | null;
   endereco: string | null;
   cidade: string | null;
   uf: string | null;

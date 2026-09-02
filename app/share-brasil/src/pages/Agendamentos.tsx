@@ -231,7 +231,7 @@ export default function Agendamentos() {
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
     {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo item={selecionada} aoConcluir={() => carregar(true)} />}
-    {selecionada?.status === "aprovada" && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); }} /></div></div>}
+    {(selecionada?.status === "aprovada" || selecionada?.status === "em_voo") && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); }} /></div></div>}
   </div>;
 }
 

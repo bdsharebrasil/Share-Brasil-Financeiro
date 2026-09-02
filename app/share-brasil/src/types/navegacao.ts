@@ -94,7 +94,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   ],
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-    { id: "financeiro-share", label: "Financeiro Share Brasil", icon: WalletCards, badge: "3" },
+    { id: "financeiro-share", label: "Financeiro Share", icon: WalletCards, badge: "3" },
     { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Users },
     { id: "gestao-colaborador", label: "Gestão Colaborador", icon: Users },
     { id: "ferias", label: "Férias", icon: CalendarDays },

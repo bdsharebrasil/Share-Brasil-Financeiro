@@ -60,7 +60,7 @@ export type ResumoShare = {
 };
 
 export type GrupoShare = { grupo: string; valor: number };
-export type FiltrosLancamentos = { mes?: string; busca?: string; categoria_id?: string; status?: string };
+export type FiltrosLancamentos = { mes?: string; inicio?: string; fim?: string; busca?: string; categoria_id?: string; status?: string };
 
 export type RateioEconomico = {
   cotista: string;
@@ -118,6 +118,34 @@ export type BalancoEconomico = {
   saldos: SaldoCotista[];
   matrizCompensacao: Record<string, Record<string, number>>;
   holdings: HoldingResumo[];
+};
+
+export type FechamentoMensalCotista = {
+  mes: string;
+  entradas: number;
+  saidas: number;
+  custoRateado: number;
+  lancamentos: number;
+  saldo: number;
+  mediaPorLancamento: number;
+};
+
+export type RankingGastoCotista = { categoria: string; grupo: string; valor: number; quantidade: number };
+export type RankingCotista = { cotista: string; devido: number; pago: number; quantidade: number };
+
+export type DashboardCotista = BalancoEconomico & {
+  resumo: {
+    entradas: number;
+    saidas: number;
+    saldo: number;
+    custo_rateado: number;
+    pendentes: number;
+    media_mensal: number;
+    media_lancamento: number;
+  };
+  fechamento_mensal: FechamentoMensalCotista[];
+  ranking_gastos: RankingGastoCotista[];
+  ranking_cotistas: RankingCotista[];
 };
 
 export type OpcoesLancamento = {
@@ -194,6 +222,29 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
   return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/balanco${sufixo}`));
+}
+
+export async function buscarDashboardCotista(inicio?: string, fim?: string) {
+  const parametros = new URLSearchParams();
+  if (inicio) parametros.set("inicio", inicio);
+  if (fim) parametros.set("fim", fim);
+  const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
+  const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/interno/financeiro-cotista/dashboard${sufixo}`);
+  return {
+    ...normalizarBalanco(payload),
+    resumo: {
+      entradas: Number(payload.resumo?.entradas ?? 0),
+      saidas: Number(payload.resumo?.saidas ?? 0),
+      saldo: Number(payload.resumo?.saldo ?? 0),
+      custo_rateado: Number(payload.resumo?.custo_rateado ?? 0),
+      pendentes: Number(payload.resumo?.pendentes ?? 0),
+      media_mensal: Number(payload.resumo?.media_mensal ?? 0),
+      media_lancamento: Number(payload.resumo?.media_lancamento ?? 0),
+    },
+    fechamento_mensal: Array.isArray(payload.fechamento_mensal) ? payload.fechamento_mensal : [],
+    ranking_gastos: Array.isArray(payload.ranking_gastos) ? payload.ranking_gastos : [],
+    ranking_cotistas: Array.isArray(payload.ranking_cotistas) ? payload.ranking_cotistas : [],
+  } as DashboardCotista;
 }
 
 export async function buscarLancamentosEconomicos(inicio?: string, fim?: string) {

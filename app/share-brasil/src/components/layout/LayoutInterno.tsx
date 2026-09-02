@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Perfil from "@/pages/perfil";
-import DashboardGestor from "@/pages/DashboardGestor";
 import DashboardOperacoes from "@/pages/DashboardOperacoes";
 import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
+import DashboardGestorFinanceiro from "@/pages/DashboardGestorFinanceiro";
 import EmissaoRecibo from "@/pages/EmissaoRecibo";
 import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
@@ -60,6 +60,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
+    if (ambiente === "gestor" && menuAtivo === "financeiro-share") return <DashboardGestorFinanceiro />;
     if (ambiente === "financeiro" && menuAtivo === "enviar-pagamento") return <EnviarPagamento />;
     if (ambiente === "financeiro" && menuAtivo === "recibos") return <EmissaoRecibo aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "despesas") return <RelatorioDespesaViagem aoVoltar={() => setMenuAtivo("overview")} />;
@@ -80,7 +81,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes") return <DashboardOperacoes aoNavegar={selecionarMenu} />;
     if (ambiente === "financeiro") return <DashboardFinanceiro aoNavegar={selecionarMenu} />;
     if (ambiente === "share-brasil") return <DashboardShareBrasil aoNavegar={selecionarMenu} />;
-    return podeAcessarGestor ? <DashboardGestor aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
+    return podeAcessarGestor ? <DashboardGestorFinanceiro /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
   return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderConteudo()}</main></div></div>;

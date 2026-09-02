@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, CircleAlert, FileDown, FilePlus2, Paperclip, Plus, Save, Send, Trash2, Upload, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleAlert, FileDown, FilePlus2, FileText, Folder, FolderOpen, Paperclip, Plane, Plus, Save, Send, Trash2, Upload, Users, X } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,8 @@ export default function RelatorioDespesaViagem({ aoVoltar }: { aoVoltar?: () => 
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [anexando, setAnexando] = useState(false);
   const [aba, setAba] = useState<"lista" | "editor">("lista");
+  const [visaoLista, setVisaoLista] = useState<"finalizados" | "rascunhos">("finalizados");
+  const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
 
   const carregar = async () => {
@@ -101,7 +103,19 @@ export default function RelatorioDespesaViagem({ aoVoltar }: { aoVoltar?: () => 
   const aprovado = relatorio?.status === "aprovado";
   const bloqueado = Boolean(relatorio && ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status));
 
-  if (aba === "lista") return <div className="route-enter space-y-5"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">Financeiro · Despesas</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight">Relatório de despesa de viagem</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Crie, finalize e encaminhe relatórios individuais para conferência da tripulação.</p></div><Button type="button" onClick={iniciarNovo} className="gap-2"><Plus size={16} /> Novo relatório</Button></div>{mensagem && <Feedback {...mensagem} />}{carregando ? <Card><CardContent className="space-y-3 p-5"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></CardContent></Card> : <Card><CardHeader><CardTitle className="text-base">Relatórios recentes</CardTitle><CardDescription>Dados sincronizados pelo D1 do Share Brasil Financeiro.</CardDescription></CardHeader><CardContent>{relatorios.length === 0 ? <div className="rounded-xl border border-dashed border-border p-10 text-center"><FilePlus2 className="mx-auto text-muted-foreground" size={28} /><p className="mt-3 text-sm font-semibold">Nenhum relatório criado</p><p className="mt-1 text-xs text-muted-foreground">Comece registrando a primeira despesa de viagem.</p></div> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-3 py-3">Relatório</th><th className="px-3 py-3">Período</th><th className="px-3 py-3">Aeronave</th><th className="px-3 py-3">Tripulação</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Ação</th></tr></thead><tbody>{relatorios.map((item) => <tr key={item.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/20"><td className="px-3 py-3"><p className="text-xs font-bold">{item.numero_relatorio}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.numero_voo || "Sem número de voo"}</p></td><td className="px-3 py-3 text-xs text-muted-foreground">{dataBr(item.data_inicio)} — {dataBr(item.data_fim)}</td><td className="px-3 py-3 text-xs">{item.aeronave_matricula || "—"}</td><td className="px-3 py-3 text-xs">{item.nome_tripulante || "—"}{item.nome_tripulante_2 && <span className="block text-[10px] text-muted-foreground">+ {item.nome_tripulante_2}</span>}</td><td className="px-3 py-3 text-right text-xs font-bold">{moeda(item.total_valor)}</td><td className="px-3 py-3"><Badge className={statusClass(item.status)}>{statusLabel(item.status)}</Badge></td><td className="px-3 py-3 text-right"><Button type="button" size="sm" variant="outline" onClick={() => abrirRelatorio(item)}>Abrir</Button></td></tr>)}</tbody></table></div>}</CardContent></Card>}</div>;
+  if (aba === "lista") return <BibliotecaRelatorios
+    carregando={carregando}
+    clientes={opcoes.clientes}
+    clienteAberto={clienteAberto}
+    onAbrirCliente={setClienteAberto}
+    onAbrirRelatorio={abrirRelatorio}
+    onNovoRelatorio={iniciarNovo}
+    onVoltarPastas={() => setClienteAberto(null)}
+    relatorios={relatorios}
+    visao={visaoLista}
+    onMudarVisao={(visao) => { setVisaoLista(visao); setClienteAberto(null); }}
+  />;
+
 
   return <div className="route-enter space-y-5"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div className="flex items-start gap-3"><Button type="button" variant="ghost" size="icon" onClick={() => { setAba("lista"); void carregar(); }} aria-label="Voltar para relatórios"><ArrowLeft size={18} /></Button><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">Financeiro · Relatório de viagem</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight">{relatorio?.numero_relatorio || "Novo relatório de despesa"}</h1><p className="mt-1 text-sm text-muted-foreground">Preencha os dados da viagem, lance as despesas e anexe as notas fiscais.</p></div></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => void salvar()} disabled={salvando || bloqueado} className="gap-2"><Save size={15} /> Salvar rascunho</Button>{relatorio && <Button type="button" onClick={() => void finalizar()} disabled={salvando || bloqueado} className="gap-2"><CheckCircle2 size={15} /> Finalizar relatório</Button>}</div></div>{mensagem && <Feedback {...mensagem} />}
       {relatorio && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/70 px-4 py-3"><Badge className={statusClass(relatorio.status)}>{statusLabel(relatorio.status)}</Badge><span className="text-xs text-muted-foreground">Última atualização: {dataBr(relatorio.atualizado_em)}</span>{relatorio.pdf_url && <a href={relatorio.pdf_url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"><FileDown size={14} /> Abrir PDF</a>}</div>}
@@ -110,6 +124,67 @@ export default function RelatorioDespesaViagem({ aoVoltar }: { aoVoltar?: () => 
       <div className="grid gap-5 lg:grid-cols-2"><Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Paperclip size={16} /> Notas fiscais e anexos</CardTitle><CardDescription>Imagens e PDFs ficam em share/relatorio_despesa_viagem/anexos_notas/.</CardDescription></CardHeader><CardContent><label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-5 text-sm font-semibold text-primary hover:bg-primary/10"><Upload size={17} /> {anexando ? "Enviando..." : "Anexar nota fiscal"}<input type="file" accept="image/*,application/pdf" className="hidden" onChange={(event) => void uploadAnexo(event)} disabled={!relatorio || anexando} /></label>{!relatorio && <p className="mt-3 text-xs text-muted-foreground">Salve o rascunho antes de anexar arquivos.</p>}<div className="mt-4 space-y-2">{(relatorio?.anexos || []).map((anexo) => <div key={anexo.id} className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2"><Paperclip size={14} className="shrink-0 text-primary" /><a href={anexo.url_arquivo} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs hover:text-primary hover:underline">{anexo.nome_arquivo}</a><span className="text-[10px] text-muted-foreground">{anexo.tamanho_arquivo ? `${Math.round(anexo.tamanho_arquivo / 1024)} KB` : ""}</span><Button type="button" variant="ghost" size="icon" onClick={() => void removerAnexo(anexo.id)} disabled={bloqueado} aria-label="Remover anexo"><X size={14} /></Button></div>)}</div></CardContent></Card><Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Users size={16} /> Aprovação da tripulação</CardTitle><CardDescription>Se houver dois tripulantes, cada envio gera uma aprovação independente.</CardDescription></CardHeader><CardContent className="space-y-3"><AprovacaoLinha pos={1} nome={relatorio?.nome_tripulante || form.nome_tripulante} status={relatorio?.status_aprovacao_tripulante} enviado={relatorio?.enviado_para_tripulante_em} onEnviar={() => void enviarAprovacao(1)} disabled={!relatorio || !["finalizado", "ajuste_necessario", "aguardando_aprovacao"].includes(relatorio.status) || salvando || aprovado} /><AprovacaoLinha pos={2} nome={relatorio?.nome_tripulante_2 || form.nome_tripulante_2} status={relatorio?.status_aprovacao_tripulante_2} enviado={relatorio?.enviado_para_tripulante_2_em} onEnviar={() => void enviarAprovacao(2)} disabled={!relatorio?.tripulante_id_2 || !["finalizado", "ajuste_necessario", "aguardando_aprovacao"].includes(relatorio.status) || salvando || aprovado} />{(relatorio?.observacoes_aprovacao_tripulante || relatorio?.observacoes_aprovacao_tripulante_2) && <div className="rounded-lg border border-rose-400/25 bg-rose-400/5 p-3 text-xs"><p className="font-bold text-rose-300">Ajustes solicitados pela tripulação</p>{relatorio.observacoes_aprovacao_tripulante && <p className="mt-2 text-muted-foreground"><strong>Tripulante 1:</strong> {relatorio.observacoes_aprovacao_tripulante}</p>}{relatorio.observacoes_aprovacao_tripulante_2 && <p className="mt-2 text-muted-foreground"><strong>Tripulante 2:</strong> {relatorio.observacoes_aprovacao_tripulante_2}</p>}</div>}<Textarea value={comentarioTripulacao} onChange={(e) => setComentarioTripulacao(e.target.value)} placeholder="Observações internas sobre a conferência..." disabled={bloqueado} />{aprovado && <div className="flex justify-end"><Button type="button" variant="outline" disabled onClick={() => void enviarCliente()} className="gap-2"><Send size={15} /> Enviar despesa ao cliente</Button></div>}</CardContent></Card></div>
     </div>;
 }
+
+type BibliotecaRelatoriosProps = {
+  carregando: boolean;
+  clientes: OpcoesRelatorioViagem["clientes"];
+  clienteAberto: string | null;
+  onAbrirCliente: (id: string) => void;
+  onAbrirRelatorio: (relatorio: Relatorio) => void;
+  onNovoRelatorio: () => void;
+  onVoltarPastas: () => void;
+  relatorios: Relatorio[];
+  visao: "finalizados" | "rascunhos";
+  onMudarVisao: (visao: "finalizados" | "rascunhos") => void;
+};
+
+function BibliotecaRelatorios({ carregando, clientes, clienteAberto, onAbrirCliente, onAbrirRelatorio, onNovoRelatorio, onVoltarPastas, relatorios, visao, onMudarVisao }: BibliotecaRelatoriosProps) {
+  const relatoriosFinalizados = relatorios.filter((item) => item.status !== "rascunho");
+  const rascunhos = relatorios.filter((item) => item.status === "rascunho");
+  const pastas = useMemo(() => {
+    const pastaPorCliente = new Map(clientes.map((cliente) => [cliente.id, { id: cliente.id, nome: cliente.razao_social || "Cliente sem razão social", codigo: cliente.codigo_cliente || "", relatorios: [] as Relatorio[] }]));
+    relatoriosFinalizados.forEach((item) => {
+      const id = item.cliente_id || "sem-cliente";
+      const pasta = pastaPorCliente.get(id) || { id, nome: item.cliente_nome || "Cliente não identificado", codigo: "", relatorios: [] as Relatorio[] };
+      pasta.relatorios.push(item);
+      pastaPorCliente.set(id, pasta);
+    });
+    return Array.from(pastaPorCliente.values()).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [clientes, relatoriosFinalizados]);
+  const pastaAtual = pastas.find((pasta) => pasta.id === clienteAberto);
+
+  return <section className="route-enter space-y-6">
+    <div className="flex flex-col gap-5 border-b border-border pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">Financeiro · Despesas</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Relatório de despesa de viagem</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Organize os relatórios por cliente e acompanhe os lançamentos em elaboração.</p>
+      </div>
+      <Button type="button" onClick={onNovoRelatorio} className="gap-2 self-start lg:self-auto"><Plus size={16} /> Criar novo</Button>
+    </div>
+
+    <div className="flex items-center gap-1 border-b border-border" role="tablist" aria-label="Relatórios de viagem">
+      <button type="button" role="tab" aria-selected={visao === "finalizados"} onClick={() => onMudarVisao("finalizados")} className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-semibold transition-colors ${visao === "finalizados" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><Folder size={15} /> Relatórios finalizados <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">{relatoriosFinalizados.length}</span></button>
+      <button type="button" role="tab" aria-selected={visao === "rascunhos"} onClick={() => onMudarVisao("rascunhos")} className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-semibold transition-colors ${visao === "rascunhos" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}><FileText size={15} /> Rascunhos <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">{rascunhos.length}</span></button>
+    </div>
+
+    {carregando ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <div key={index} className="skeleton h-36 rounded-2xl" />)}</div> : visao === "rascunhos" ? <ListaRelatorios relatorios={rascunhos} vazio="Não há rascunhos no momento." onAbrir={onAbrirRelatorio} /> : clienteAberto && pastaAtual ? <div className="space-y-4">
+      <div className="flex items-center gap-3"><Button type="button" size="icon" variant="ghost" onClick={onVoltarPastas} aria-label="Voltar para as pastas"><ArrowLeft size={17} /></Button><div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Pasta de cliente</p><h2 className="text-lg font-bold">{pastaAtual.nome}</h2></div></div>
+      <ListaRelatorios relatorios={pastaAtual.relatorios} vazio="Esta pasta ainda não possui relatórios finalizados." onAbrir={onAbrirRelatorio} />
+    </div> : <div className="space-y-4">
+      <div><h2 className="text-sm font-bold">Pastas de clientes</h2><p className="mt-1 text-xs text-muted-foreground">Selecione uma pasta para ver os relatórios finalizados daquele cliente.</p></div>
+      {pastas.length === 0 ? <EstadoVazioPastas /> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{pastas.map((pasta) => <button key={pasta.id} type="button" onClick={() => onAbrirCliente(pasta.id)} className="group relative min-h-36 overflow-hidden rounded-2xl border border-border bg-card/70 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5"><div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 transition-opacity group-hover:opacity-100" /><div className="relative flex h-full flex-col justify-between"><div className="relative w-fit"><Folder className="fill-primary/20 text-primary" size={52} strokeWidth={1.6} /><Plane className="absolute bottom-2 left-4 text-primary" size={15} strokeWidth={2} /></div><div><p className="truncate text-xs font-bold uppercase tracking-wide">{pasta.nome}</p>{pasta.codigo && <p className="mt-1 text-[10px] text-muted-foreground">Cliente {pasta.codigo}</p>}<p className="mt-2 text-xs text-muted-foreground">{pasta.relatorios.length} {pasta.relatorios.length === 1 ? "relatório finalizado" : "relatórios finalizados"}</p></div></div></button>)}</div>}
+    </div>}
+  </section>;
+}
+
+function ListaRelatorios({ relatorios, vazio, onAbrir }: { relatorios: Relatorio[]; vazio: string; onAbrir: (relatorio: Relatorio) => void }) {
+  if (relatorios.length === 0) return <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-14 text-center"><FilePlus2 className="mx-auto text-muted-foreground" size={28} /><p className="mt-3 text-sm font-semibold">{vazio}</p></div>;
+  return <div className="space-y-2">{relatorios.map((item) => <button key={item.id} type="button" onClick={() => onAbrir(item)} className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card/70 px-4 py-4 text-left transition-colors hover:border-primary/45 hover:bg-card sm:flex-row sm:items-center"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText size={18} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-sm font-bold">{item.numero_relatorio || "Sem número"}</p><Badge className={statusClass(item.status)}>{statusLabel(item.status)}</Badge></div><p className="mt-1 truncate text-xs text-muted-foreground">{[item.numero_voo && `Voo ${item.numero_voo}`, item.rota, `${dataBr(item.data_inicio)} a ${dataBr(item.data_fim)}`].filter(Boolean).join(" · ")}</p></div><div className="shrink-0 text-sm font-bold text-primary">{moeda(Number(item.total_valor) || item.despesas.reduce((total, despesa) => total + (Number(despesa.valor) || 0), 0))}</div></button>)}</div>;
+}
+
+function EstadoVazioPastas() { return <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-14 text-center"><FolderOpen className="mx-auto text-muted-foreground" size={30} /><p className="mt-3 text-sm font-semibold">Nenhum cliente cadastrado</p><p className="mt-1 text-xs text-muted-foreground">As pastas aparecem automaticamente quando houver clientes disponíveis.</p></div>; }
+
 function Campo({ label, required, children }: { label?: string; required?: boolean; children: React.ReactNode }) { return <div className="space-y-1.5">{label && <Label className="text-xs font-semibold text-muted-foreground">{label}{required && <span className="ml-1 text-rose-300">*</span>}</Label>}{children}</div>; }
 function Feedback({ tipo, texto }: { tipo: "ok" | "erro"; texto: string }) { return <div className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs ${tipo === "ok" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-rose-400/30 bg-rose-400/10 text-rose-200"}`}>{tipo === "ok" ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}{texto}</div>; }
 function AprovacaoLinha({ pos, nome, status, enviado, onEnviar, disabled }: { pos: 1 | 2; nome?: string | null; status?: string | null; enviado?: string | null; onEnviar: () => void; disabled: boolean }) { const aprovado = status === "aprovado"; const reprovado = status === "reprovado"; return <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/30 p-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="text-xs font-bold">Tripulante {pos}</p><p className="truncate text-xs text-muted-foreground">{nome || "Não informado"}</p>{enviado && <p className="mt-1 text-[10px] text-muted-foreground">Enviado em {dataBr(enviado)}</p>}</div><Badge className={aprovado ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : reprovado ? "border-rose-400/30 bg-rose-400/10 text-rose-300" : "border-border bg-secondary/50 text-muted-foreground"}>{aprovado ? "Conferido como correto" : reprovado ? "Não aprovado" : "Pendente"}</Badge><Button type="button" size="sm" variant="outline" onClick={onEnviar} disabled={disabled} className="gap-1.5"><Send size={13} /> Enviar para aprovação tripulação</Button></div>; }

@@ -167,3 +167,14 @@ select.campo {
 }
 select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreground)); }
 .campo::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
+
+.task-compose {
+  border-color: rgba(148, 163, 184, .16);
+  background: linear-gradient(135deg, rgba(15, 28, 46, .92), rgba(10, 18, 31, .96));
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .16);
+}
+.task-compose--closed > :nth-child(n + 2) { display: none; }
+.task-compose--closed { padding-block: .9rem; }
+.task-compose .bg-background\/50 { background-color: rgba(255, 255, 255, .035); border-color: rgba(255, 255, 255, .08); }
+.task-compose .text-muted-foreground { color: rgb(148 163 184); }
+.task-compose select { color-scheme: dark; }

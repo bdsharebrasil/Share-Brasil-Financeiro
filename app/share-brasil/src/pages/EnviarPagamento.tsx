@@ -111,13 +111,14 @@ function converterValor(valor: string) {
   return Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo) || 0;
 }
 
-export default function EnviarPagamento() {
+export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCaixaShare?: boolean }) {
   const [tipo, setTipo] = useState<TipoEnvio | null>(null);
   const [form, setForm] = useState<Formulario>(inicial);
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [etapa, setEtapa] = useState(0);
+  const opcoesVisiveis = apenasCaixaShare ? opcoes.filter((opcao) => opcao.tipo !== "cliente") : opcoes;
   const [historico, setHistorico] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
@@ -125,8 +126,10 @@ export default function EnviarPagamento() {
   const carregar = async () => {
     setCarregando(true);
     try {
-      const resposta = await buscarEnviosPagamento();
-      setEnvios(resposta.envios);
+      const respostas = apenasCaixaShare
+        ? await Promise.all([buscarEnviosPagamento("share"), buscarEnviosPagamento("reembolso")])
+        : [await buscarEnviosPagamento()];
+      setEnvios(respostas.flatMap((resposta) => resposta.envios).sort((a, b) => b.criado_em.localeCompare(a.criado_em)));
     } catch {
       setErro("Não foi possível carregar os envios de pagamento.");
     } finally {
@@ -252,7 +255,7 @@ export default function EnviarPagamento() {
                 <p className="mt-1 text-[11px] text-muted-foreground">Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.</p>
               </div>
               <div className="space-y-2.5">
-                {opcoes.map((opcao) => {
+                {opcoesVisiveis.map((opcao) => {
                   const ativo = tipo === opcao.tipo;
                   const Icon = opcao.icon;
                   return (

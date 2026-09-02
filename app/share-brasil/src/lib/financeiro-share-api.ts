@@ -34,6 +34,7 @@ export type LancamentoShare = {
   categoria_id: string | null;
   categoria_nome: string | null;
   grupo_categoria: string | null;
+  tipo: string | null;
   valor_total: number | null;
   valor_pago_real: number | null;
   data_emissao: string | null;

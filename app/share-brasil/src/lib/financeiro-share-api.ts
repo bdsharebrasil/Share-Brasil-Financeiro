@@ -1,4 +1,18 @@
-import { apiFetch } from "./api";
+import { API_BASE } from "./api";
+import { supabase } from "./supabase";
+
+async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error("sessao_expirada");
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  headers.set("Authorization", `Bearer ${session.access_token}`);
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
+  const data = await response.json().catch(() => null) as T & { error?: string } | null;
+  if (!response.ok) throw new Error(data?.error || `api_${response.status}`);
+  return data as T;
+}
 
 export type CategoriaCaixaShare = {
   id: string;
@@ -115,7 +129,7 @@ export type OpcoesLancamento = {
 };
 
 export async function buscarOpcoesFinanceiroShare() {
-  return (await apiFetch("/api/interno/financeiro-share/opcoes")) as {
+  return (await financeiroRequest("/api/interno/financeiro-share/opcoes")) as {
     categorias: CategoriaCaixaShare[];
     contas_bancarias: ContaBancaria[];
     empresas: EmpresaShare[];
@@ -126,7 +140,7 @@ export async function buscarLancamentosShare(filtros: FiltrosLancamentos) {
   const parametros = new URLSearchParams();
   Object.entries(filtros).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await apiFetch(`/api/interno/financeiro-share/lancamentos${sufixo}`)) as {
+  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos${sufixo}`)) as {
     lancamentos: LancamentoShare[];
     resumo: ResumoShare;
     grupos: GrupoShare[];
@@ -134,25 +148,25 @@ export async function buscarLancamentosShare(filtros: FiltrosLancamentos) {
 }
 
 export async function criarLancamentoShare(dados: Record<string, unknown>) {
-  return (await apiFetch("/api/interno/financeiro-share/lancamentos", {
+  return (await financeiroRequest("/api/interno/financeiro-share/lancamentos", {
     method: "POST",
     body: JSON.stringify(dados),
   })) as { lancamento: LancamentoShare };
 }
 
 export async function atualizarLancamentoShare(id: string, dados: Record<string, unknown>) {
-  return (await apiFetch(`/api/interno/financeiro-share/lancamentos/${id}`, {
+  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(dados),
   })) as { lancamento: LancamentoShare };
 }
 
 export async function excluirLancamentoShare(id: string) {
-  return (await apiFetch(`/api/interno/financeiro-share/lancamentos/${id}`, { method: "DELETE" })) as { ok: boolean };
+  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos/${id}`, { method: "DELETE" })) as { ok: boolean };
 }
 
 export async function buscarOpcoesLancamento() {
-  return (await apiFetch("/api/lancamentos/opcoes")) as OpcoesLancamento;
+  return (await financeiroRequest("/api/lancamentos/opcoes")) as OpcoesLancamento;
 }
 
 export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
@@ -160,7 +174,7 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await apiFetch(`/api/balanco${sufixo}`)) as BalancoEconomico;
+  return (await financeiroRequest(`/api/balanco${sufixo}`)) as BalancoEconomico;
 }
 
 export async function buscarLancamentosEconomicos(inicio?: string, fim?: string) {
@@ -168,11 +182,11 @@ export async function buscarLancamentosEconomicos(inicio?: string, fim?: string)
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await apiFetch(`/api/lancamentos${sufixo}`)) as { lancamentos: LancamentoEconomico[] };
+  return (await financeiroRequest(`/api/lancamentos${sufixo}`)) as { lancamentos: LancamentoEconomico[] };
 }
 
 export async function criarLancamentoEconomico(dados: Record<string, unknown>) {
-  return (await apiFetch("/api/lancamentos", {
+  return (await financeiroRequest("/api/lancamentos", {
     method: "POST",
     body: JSON.stringify(dados),
   })) as { id: string };

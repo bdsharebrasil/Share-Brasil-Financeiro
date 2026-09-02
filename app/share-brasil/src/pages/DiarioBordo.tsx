@@ -6,6 +6,7 @@ import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import DiarioLancamentoForm from "@/components/diario/DiarioLancamentoForm";
 import DiarioMesEditor from "@/components/diario/DiarioMesEditor";
 import DiarioMesResumo from "@/components/diario/DiarioMesResumo";
+import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
 import { atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
@@ -105,35 +106,85 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     const fuelTotal = (details?.lancamentos || []).reduce((total, entry) => total + Number(entry.litros_combustivel_abastecido || 0), 0);
     return (
       <div className="diario-bordo route-enter space-y-6">
-        <section className="relative overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_20px_60px_rgba(0,0,0,.18)]">
-          <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-cyan-400/[.07] blur-3xl" />
-          <div className="relative p-5 md:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <button type="button" onClick={backToList} className="mb-4 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 transition-colors hover:text-cyan-300"><ArrowLeft size={13} /> Voltar para aeronaves</button>
-                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.18em] text-cyan-300"><BookOpenCheck size={12} /> Diário operacional</div>
-                <h1 className="mt-1 text-2xl font-extrabold tracking-[-.045em] text-white md:text-[30px]">Diário {monthName(period.mes)} {period.ano} <span className="text-slate-500">—</span> {selected.matricula_registro}</h1>
-                <p className="mt-1.5 text-xs text-slate-400">{[selected.fabricante, selected.modelo].filter(Boolean).join(" ") || "Aeronave"} <span className="mx-1.5 text-slate-600">·</span> registro mensal operacional</p>
+        <section className="relative overflow-hidden rounded-2xl border border-[#1d2f41] bg-[#08131f] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+          <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-cyan-400/[.05] blur-3xl" />
+          <div className="relative p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={backToList} className="inline-flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.02] px-2.5 py-1.5 text-[12px] font-medium text-slate-300 transition-colors hover:border-cyan-400/40 hover:text-cyan-200"><ArrowLeft size={13} /> Voltar</button>
+                <h1 className="text-[28px] font-extrabold tracking-[-.045em] text-white md:text-[32px]">Diário {monthName(period.mes)} {period.ano} <span className="text-slate-500">—</span> {selected.matricula_registro}</h1>
               </div>
+
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex h-9 items-center gap-2 rounded-lg border border-white/[.1] bg-white/[.04] px-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400"><CalendarDays size={12} className="text-cyan-300" /><select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="bg-transparent text-[10px] font-bold capitalize text-white outline-none"><option value={`${period.ano}-${period.mes}`}>{monthName(period.mes)} {period.ano}</option>{selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}</select></label>
-                {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-9 gap-1.5 rounded-lg bg-cyan-400 px-3 text-[10px] font-extrabold text-slate-950 hover:bg-cyan-300"><Plus size={13} /> Novo voo</Button>}
-                <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-9 gap-1.5 border-white/[.1] bg-white/[.03] text-[10px] text-slate-300 hover:bg-white/[.08] hover:text-white"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
+                <div className="flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-[#0d1a27] px-2.5 py-2.5">
+                  <span className="h-4 w-[2px] rounded-full bg-cyan-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-[.12em] text-cyan-300">Período</span>
+                  <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="rounded-md border border-white/[.08] bg-[#0d1a27] px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-white outline-none">
+                    <option value={`${period.ano}-${period.mes}`}>{monthName(period.mes)} {period.ano}</option>
+                    {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
+                  </select>
+                </div>
+                {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-9 gap-1.5 rounded-lg bg-cyan-400 px-3 text-[10px] font-extrabold text-slate-950 hover:bg-cyan-300"><Plus size={13} /> Novo Voo</Button>}
+                <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-9 gap-1.5 border-cyan-400/30 bg-cyan-400/5 text-[10px] font-bold text-cyan-200 hover:bg-cyan-400/10 hover:text-cyan-100"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> PDF</Button>
+                <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-9 gap-1.5 border-emerald-400/30 bg-emerald-400/5 text-[10px] font-bold text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-100"><CalendarDays size={12} /> Novo Mês</Button>
               </div>
             </div>
+
             <div className="mt-6 grid gap-3 lg:grid-cols-[1.55fr_1fr]">
-              <div className="rounded-xl border border-white/[.08] bg-[#111b29] p-4"><p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-cyan-300"><PlaneTakeoff size={12} /> Aeronave</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><HeaderValue label="Matrícula" value={selected.matricula_registro} mono /><HeaderValue label="Modelo" value={selected.modelo || "Não informado"} /><HeaderValue label="Fabricante" value={selected.fabricante || "Não informado"} /><HeaderValue label="Base" value={month?.aerodromo_base || "—"} mono /></div></div>
-              <div className="rounded-xl border border-white/[.08] bg-[#111b29] p-4"><p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-amber-300"><Clock3 size={12} /> Horímetro</p><div className="mt-3 grid grid-cols-3 gap-3"><HeaderValue label="Inicial" value={`${decimal(month?.horimetro_inicio)}h`} /><HeaderValue label="Final" value={`${decimal(month?.horimetro_final)}h`} /><HeaderValue label="Ativo" value={`${decimal(month?.horimetro_ativo)}h`} /></div></div>
+              <div className="rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="h-4 w-1 rounded-full bg-cyan-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-[.16em] text-cyan-400">Aeronave</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatTile label="Matrícula" value={selected.matricula_registro} mono />
+                  <StatTile label="Modelo" value={selected.modelo || "Não informado"} />
+                  <StatTile label="Ano" value={selected.fabricante || "—"} />
+                  <StatTile label="Base" value={month?.aerodromo_base || "—"} mono />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="h-4 w-1 rounded-full bg-amber-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-400">Horímetro</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <StatTile label="Inicial" value={`${decimal(month?.horimetro_inicio)}h`} />
+                  <StatTile label="Final" value={`${decimal(month?.horimetro_final)}h`} />
+                  <StatTile label="Ativo" value={`${decimal(month?.horimetro_ativo)}h`} />
+                </div>
+              </div>
             </div>
-            <div className="mt-3 rounded-xl border border-white/[.08] bg-[#111b29] p-4"><p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-violet-300"><Gauge size={12} /> Célula</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><HeaderValue label="Anterior" value={`${decimal(month?.celula_anterior_ttotal)}h`} /><HeaderValue label="Atual" value={`${decimal(month?.celula_atual_ttotal || selected.celula_atual_ttotal)}h`} accent="text-white" /><HeaderValue label="Próx. revisão" value={`${decimal(month?.celula_prox_revisao_ttotal)}h`} /><HeaderValue label="Disponível" value={`${decimal(month?.celula_disponivel_ttotal)}h`} accent="text-emerald-300" /></div></div>
+
+            <div className="mt-3 rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-4 w-1 rounded-full bg-violet-400" />
+                <span className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-400">Célula</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatTile label="Anterior" value={`${decimal(month?.celula_anterior_ttotal)}h`} />
+                <StatTile label="Atual" value={`${decimal(month?.celula_atual_ttotal || selected.celula_atual_ttotal)}h`} accent="text-white" />
+                <StatTile label="Próx. revisão" value={`${decimal(month?.celula_prox_revisao_ttotal)}h`} />
+                <StatTile label="Disponível" value={`${decimal(month?.celula_disponivel_ttotal)}h`} accent="text-emerald-300" />
+              </div>
+            </div>
           </div>
         </section>
         {(error || notice) && <div className={`rounded-xl border p-3 text-[11px] ${error ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"}`}>{error || notice}</div>}
-        {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : month ? <DiarioMesResumo diario={month} lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} onEdit={() => setMonthEditor(true)} onToggleClosed={() => void toggleMonth()} /> : <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
+        {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : !month && <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
         {month && <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[.04] px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-2 text-amber-300"><Fuel size={14} /></span><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-200">Consumo de combustível</p><p className="mt-0.5 truncate text-[10px] text-slate-400">Histórico registrado no mês <span className="mx-1 text-slate-600">·</span> {decimal(fuelTotal)} L abastecidos</p></div></div><ChevronDown size={15} className="shrink-0 text-amber-200/70" /></div>}
         {monthEditor && <DiarioMesEditor aeronaveId={selected.id} initial={month} ano={period.ano} mes={period.mes} onSave={saveMonth} onCancel={() => setMonthEditor(false)} saving={saving} />}
         {entryEditor !== false && month && !closed && options && <DiarioLancamentoForm aeronaveId={selected.id} diarioMesId={month.id} opcoes={options} initialData={entryEditor || null} sugeridaCelula={Number(month.celula_atual_ttotal || 0)} sugestaoTrecho={details?.lancamentos?.length ? details.lancamentos[details.lancamentos.length - 1].trecho || `${details.lancamentos[details.lancamentos.length - 1].aerodromo_partida} X ${details.lancamentos[details.lancamentos.length - 1].aerodromo_chegada}` : undefined} onSubmit={saveEntry} onCancel={() => setEntryEditor(false)} saving={saving} />}
-        {month && <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />}
+        {month && (
+          <div className="space-y-4">
+            <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />
+            <div className="rounded-2xl border border-white/[.08] bg-[#101722] p-5 shadow-[0_18px_55px_rgba(0,0,0,.14)]">
+              <DiarioMesResumo diario={month} lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} onEdit={() => setMonthEditor(true)} onToggleClosed={() => void toggleMonth()} />
+            </div>
+          </div>
+        )}
+        {month && <DiarioBancoHoras lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} />}
       </div>
     );
   }
@@ -150,6 +201,8 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     </div>
   );
 }
+
+function StatTile({ label, value, mono = false, accent = "text-white" }: { label: string; value: string; mono?: boolean; accent?: string }) { return <div className="min-w-0 rounded-lg border border-white/[.06] bg-[#0c1722] p-2.5"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">{label}</p><p className={`mt-2 truncate text-[15px] font-bold ${mono ? "font-mono" : ""} ${accent}`}>{value}</p></div>; }
 
 function HeaderValue({ label, value, mono = false, accent = "text-white" }: { label: string; value: string; mono?: boolean; accent?: string }) { return <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p><p className={`mt-1 truncate text-sm font-bold ${mono ? "font-mono" : ""} ${accent}`}>{value}</p></div>; }
 

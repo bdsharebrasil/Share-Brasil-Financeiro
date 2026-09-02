@@ -15,7 +15,46 @@ export default function HoteisShareBrasil() {
   const [hotels, setHotels] = useState<HotelShare[]>([]); const [search, setSearch] = useState(""); const [order, setOrder] = useState("nome"); const [view, setView] = useState<"grid" | "list">("grid"); const [manager, setManager] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [reservation, setReservation] = useState<HotelShare | null>(null); const [editor, setEditor] = useState<HotelShare | null | false>(false); const [saving, setSaving] = useState(false);
   const load = async () => { setLoading(true); try { const [list, profile] = await Promise.all([buscarHoteisShare(search, order), buscarPerfilColaborador()]); setHotels(list); setManager(isManager(profile.perfil.tipo_user)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar os hotéis."); } finally { setLoading(false); } };
   useEffect(() => { const timer = window.setTimeout(() => void load(), 220); return () => window.clearTimeout(timer); }, [search, order]);
-  const saveHotel = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const payload: Partial<HotelShare> = Object.fromEntries(form.entries()) as Partial<HotelShare>; payload.estrelas = Number(payload.estrelas || 0); payload.preco_single = payload.preco_single === "" ? null : Number(payload.preco_single); payload.preco_duplo = payload.preco_duplo === "" ? null : Number(payload.preco_duplo); payload.convenio = Boolean(form.get("convenio")); setSaving(true); try { if (editor) await atualizarHotelShare(editor.id, payload); else await criarHotelShare(payload); setEditor(false); setNotice("Hotel salvo com sucesso."); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível salvar o hotel."); } finally { setSaving(false); } };
+  const saveHotel = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const raw = Object.fromEntries(form.entries()) as Record<string, FormDataEntryValue>;
+    const valorNumero = (key: string) => {
+      const value = raw[key];
+      if (value == null || String(value).trim() === "") return null;
+      return Number(String(value));
+    };
+
+    const payload: Partial<HotelShare> = {
+      nome: String(raw.nome ?? "").trim(),
+      endereco: String(raw.endereco ?? "").trim() || null,
+      cidade: String(raw.cidade ?? "").trim() || null,
+      uf: String(raw.uf ?? "").trim() || null,
+      telefone: String(raw.telefone ?? "").trim() || null,
+      telefone_reservas: String(raw.telefone_reservas ?? "").trim() || null,
+      email: String(raw.email ?? "").trim() || null,
+      email_comercial: String(raw.email_comercial ?? "").trim() || null,
+      contato_comercial: String(raw.contato_comercial ?? "").trim() || null,
+      telefone_comercial: String(raw.telefone_comercial ?? "").trim() || null,
+      observacoes: String(raw.observacoes ?? "").trim() || null,
+      estrelas: Number(String(raw.estrelas ?? 0) || 0),
+      preco_single: valorNumero("preco_single"),
+      preco_duplo: valorNumero("preco_duplo"),
+      convenio: form.get("convenio") === "on" || form.get("convenio") === "true",
+    };
+
+    setSaving(true);
+    try {
+      if (editor) await atualizarHotelShare(editor.id, payload); else await criarHotelShare(payload);
+      setEditor(false);
+      setNotice("Hotel salvo com sucesso.");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível salvar o hotel.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const deleteHotel = async (hotel: HotelShare) => { if (!window.confirm(`Excluir o hotel “${hotel.nome}”?`)) return; try { await excluirHotelShare(hotel.id); setHotels((current) => current.filter((item) => item.id !== hotel.id)); setNotice("Hotel excluído."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível excluir o hotel."); } };
   const copy = async (value: string | null) => { if (!value) return; await navigator.clipboard?.writeText(value); setNotice("Contato copiado."); };
   return <div className="route-enter space-y-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><IndicadorPagina>Share Brasil / Hotéis</IndicadorPagina><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><Building2 className="text-primary" size={25} /> Hotéis</h1><p className="mt-1.5 text-xs text-muted-foreground">Rede de hospedagem e contatos de reservas.</p></div>{manager && <Button type="button" onClick={() => setEditor(null)} className="h-9 gap-2 text-[11px]"><Plus size={14} /> Novo Hotel</Button>}</div>

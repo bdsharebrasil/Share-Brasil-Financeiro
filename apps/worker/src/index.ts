@@ -2,7 +2,7 @@ import { Hono, Context } from 'hono'
 import { cors } from 'hono/cors'
 import { XMLParser } from 'fast-xml-parser'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { JSONRPCMessageSchema, type JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js'
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { z } from 'zod'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,65 +78,11 @@ app.use('*', async (c, next) => {
   return corsMiddleware(c, next)
 })
 
-// ─── Cloudflare MCP SSE Transport ─────────────────────────────────────────────
-
-class CloudflareSseTransport {
-  readonly sessionId = crypto.randomUUID()
-  private controller: ReadableStreamDefaultController<Uint8Array> | undefined
-  private readonly encoder = new TextEncoder()
-  private closed = false
-  onclose?: () => void
-  onerror?: (error: Error) => void
-  onmessage?: (message: JSONRPCMessage) => void
-
-  constructor(private readonly requestUrl: string) {}
-
-  readonly stream = new ReadableStream<Uint8Array>({
-    start: controller => {
-      this.controller = controller
-      // AJUSTADO: Gera a rota absoluta dinamicamente baseado na origem da requisição
-      const endpointUrl = new URL(`/mcp/messages?sessionId=${this.sessionId}`, this.requestUrl).toString()
-      this.write(`event: endpoint\ndata: ${endpointUrl}\n\n`)
-    },
-    cancel: () => this.close(),
-  })
-
-  async start(): Promise<void> {}
-
-  async send(message: JSONRPCMessage): Promise<void> {
-    this.write(`event: message\ndata: ${JSON.stringify(message)}\n\n`)
-  }
-
-  async handleMessage(message: unknown): Promise<void> {
-    const parsed = JSONRPCMessageSchema.parse(message)
-    this.onmessage?.(parsed)
-  }
-
-  async close(): Promise<void> {
-    if (this.closed) return
-    this.closed = true
-    this.controller?.close()
-    this.controller = undefined
-    this.onclose?.()
-  }
-
-  private write(frame: string): void {
-    if (this.closed || !this.controller) return
-    try {
-      this.controller.enqueue(this.encoder.encode(frame))
-    } catch (error) {
-      this.onerror?.(error instanceof Error ? error : new Error(String(error)))
-    }
-  }
-}
-
-type McpSession = { transport: CloudflareSseTransport; server: McpServer }
-const mcpSessions = new Map<string, McpSession>()
+// ─── MCP transport oficial do SDK (Cloudflare Workers) ───────────────────────
 
 function createMcpServer(db: D1Database): McpServer {
   const server = new McpServer({ name: 'Share Brasil MCP', version: '1.0.0' })
 
-  // AJUSTADO: Tool estruturada enviando as respostas de consulta para o Lovable
   server.tool(
     'executar_query_d1',
     'Executa comandos SQL de leitura e escrita no banco de dados SHARE_DB',
@@ -153,43 +99,32 @@ function createMcpServer(db: D1Database): McpServer {
       }
     },
   )
+
   return server
 }
 
-// ─── MCP Roteamento (CORS Aplicado Corretamente) ──────────────────────────────
+// ─── MCP Roteamento oficial do SDK (web-standard transport) ───────────────────
 
-app.get('/mcp', async c => {
-  const transport = new CloudflareSseTransport(c.req.url)
-  const session: McpSession = { transport, server: createMcpServer(c.env.SHARE_DB) }
-  mcpSessions.set(transport.sessionId, session)
-  transport.onclose = () => mcpSessions.delete(transport.sessionId)
-
-  try {
-    await session.server.connect(transport)
-    return new Response(transport.stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
-      },
-    })
-  } catch (error) {
-    mcpSessions.delete(transport.sessionId)
-    await transport.close()
-    return c.text(`Erro ao iniciar sessão MCP: ${error instanceof Error ? error.message : String(error)}`, 500)
-  }
+app.use('/mcp', async (c, next) => {
+  const allowed = c.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean)
+  const corsMiddleware = cors({
+    origin: allowed && allowed.length > 0 ? allowed : '*',
+    allowHeaders: ['Content-Type', 'Authorization', 'mcp-session-id', 'Last-Event-ID', 'mcp-protocol-version'],
+    exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
+    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  })
+  return corsMiddleware(c, next)
 })
 
-app.post('/mcp/messages', async c => {
-  const sessionId = c.req.query('sessionId')
-  const session = sessionId ? mcpSessions.get(sessionId) : undefined
-  if (!session) return c.text('Sessão MCP não encontrada ou expirada', 404)
+app.all('/mcp', async c => {
+  const transport = new WebStandardStreamableHTTPServerTransport()
+  const server = createMcpServer(c.env.SHARE_DB)
 
   try {
-    await session.transport.handleMessage(await c.req.json())
-    return c.text('OK')
+    await server.connect(transport)
+    return transport.handleRequest(c.req.raw)
   } catch (error) {
-    return c.text(`Erro ao processar mensagem MCP: ${error instanceof Error ? error.message : String(error)}`, 400)
+    return c.text(`Erro ao iniciar sessão MCP: ${error instanceof Error ? error.message : String(error)}`, 500)
   }
 })
 
@@ -1570,9 +1505,9 @@ app.get('/api/weather/:icao', async (c) => {
   try {
     const data = await cachedFetch(c, `metar-${icao}`, 300, () => fetchAisweb(c, 'met', { icaoCode: icao }))
     return c.json(normalizeMet(data, icao))
-    } catch (e: any) {
+  } catch (e: any) {
     log.error(`[weather] ${icao}:`, e.message)
-    return c.json({ loc: icao, metar: 'METAR indisponível no momento.', taf: '', weather_condition: 'cloudy', observed_at: null, source: 'unavailable' })
+    return c.json({ error: e.message }, 500)
   }
 })
 
@@ -2921,23 +2856,19 @@ async function requireShareInternal(c: Context<{ Bindings: Bindings }>): Promise
 app.get('/api/interno/dashboard/operacoes', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const dataReferencia = c.req.query('data') || new Date().toISOString().slice(0, 10)
-  await garantirTabelaJornadas(c)
   const [resumo, solicitacoes] = await Promise.all([
     portalDb(c).prepare(`SELECT
       SUM(CASE WHEN date(data_agendada) = ?1 THEN 1 ELSE 0 END) AS voos_hoje,
       SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END) AS pendencias,
       COUNT(*) AS reservas_abertas
       FROM solicitacoes_reserva_voo
-      WHERE date(data_agendada) >= ?1 AND status IN ('pendente', 'aprovada', 'em_voo')`).bind(dataReferencia).first<Record<string, number>>(),
-    portalDb(c).prepare(`SELECT s.id, s.cliente_id, s.socio_id, s.aeronave_id, s.origem, s.destino, s.data_agendada, s.horario_previsto_agendamento, s.dias_duracao, s.numero_passageiros, s.voo_emprestado, s.motivo_rejeicao, s.numero_voo, s.criado_em, s.atualizado_em, CASE WHEN j.status = 'em_rota' THEN 'em_voo' ELSE s.status END AS status, j.id AS jornada_id, j.status AS jornada_status, p.id AS perna_atual_id, p.numero AS perna_atual_numero, p.origem AS perna_atual_origem, p.destino AS perna_atual_destino, p.horario_ac AS perna_atual_horario_ac, p.horario_dep AS perna_atual_horario_dep, p.horario_pouso AS perna_atual_horario_pouso, p.horario_corte AS perna_atual_horario_corte, p.status AS perna_atual_status, c.razao_social AS cliente_razao_social, hs.nome AS socio_nome, COALESCE((SELECT ca.codigo_cliente FROM cotista_aeronave ca WHERE ca.socio_id = s.socio_id AND ca.codigo_cliente IS NOT NULL AND (ca.aeronave_id = s.aeronave_id OR s.aeronave_id IS NULL) ORDER BY CASE WHEN ca.aeronave_id = s.aeronave_id THEN 0 ELSE 1 END LIMIT 1), c.codigo_cliente) AS codigo_cliente, a.matricula_registro, a.modelo
+      WHERE date(data_agendada) >= ?1 AND status IN ('pendente', 'aprovada')`).bind(dataReferencia).first<Record<string, number>>(),
+    portalDb(c).prepare(`SELECT s.id, s.cliente_id, s.socio_id, s.aeronave_id, s.origem, s.destino, s.data_agendada, s.horario_previsto_agendamento, s.dias_duracao, s.numero_passageiros, s.voo_emprestado, s.status, s.motivo_rejeicao, s.numero_voo, s.criado_em, s.atualizado_em, c.razao_social AS cliente_razao_social, hs.nome AS socio_nome, COALESCE((SELECT ca.codigo_cliente FROM cotista_aeronave ca WHERE ca.socio_id = s.socio_id AND ca.codigo_cliente IS NOT NULL AND (ca.aeronave_id = s.aeronave_id OR s.aeronave_id IS NULL) ORDER BY CASE WHEN ca.aeronave_id = s.aeronave_id THEN 0 ELSE 1 END LIMIT 1), c.codigo_cliente) AS codigo_cliente, a.matricula_registro, a.modelo
       FROM solicitacoes_reserva_voo s
       LEFT JOIN cliente c ON c.id = s.cliente_id
       LEFT JOIN hold_socios hs ON hs.id = s.socio_id
       LEFT JOIN aeronave a ON a.id = s.aeronave_id
-      LEFT JOIN jornadas_voo j ON j.solicitacao_id = s.id AND j.criado_em = (SELECT MAX(j2.criado_em) FROM jornadas_voo j2 WHERE j2.solicitacao_id = s.id)
-      LEFT JOIN pernas_jornada_voo p ON p.jornada_id = j.id AND p.numero = (SELECT MAX(p2.numero) FROM pernas_jornada_voo p2 WHERE p2.jornada_id = j.id)
       WHERE date(s.data_agendada) >= ?1
-        AND (j.status IS NULL OR j.status <> 'encerrada')
       ORDER BY date(s.data_agendada), s.horario_previsto_agendamento, s.criado_em
       LIMIT 50`).bind(dataReferencia).all(),
   ])
@@ -3420,9 +3351,8 @@ app.get('/api/interno/agendamento', async c => {
   const fim = c.req.query('fim') || inicio.slice(0, 7) + '-31'
   const db = portalDb(c)
   await garantirTabelaDisponibilidadeTripulacao(c)
-  await garantirTabelaJornadas(c)
   const [agendamentos, aeronaves, tripulacao, freelancers, disponibilidades] = await Promise.all([
-    db.prepare(`SELECT s.id, s.cliente_id, s.socio_id, s.cliente_emprestimo_id, s.socio_emprestimo_id, s.aeronave_id, s.origem, s.destino, s.data_agendada, date(s.data_agendada, '+' || (COALESCE(s.dias_duracao, 1) - 1) || ' days') AS data_fim, s.horario_previsto_agendamento, s.dias_duracao, s.numero_passageiros, s.voo_emprestado, s.status, s.observacoes, s.motivo_rejeicao, s.numero_voo, s.criado_em, s.atualizado_em, s.piloto_id, s.copiloto_id, j.id AS jornada_id, j.status AS jornada_status, p.id AS perna_atual_id, p.numero AS perna_atual_numero, p.origem AS perna_atual_origem, p.destino AS perna_atual_destino, p.horario_ac AS perna_atual_horario_ac, p.horario_dep AS perna_atual_horario_dep, p.horario_pouso AS perna_atual_horario_pouso, p.horario_corte AS perna_atual_horario_corte, p.status AS perna_atual_status, c.razao_social AS cliente_razao_social, so.nome AS socio_nome, ce.razao_social AS cliente_emprestimo_nome, se.nome AS socio_emprestimo_nome, COALESCE(ce.codigo_cliente, cae.codigo_cliente, c.codigo_cliente, ca.codigo_cliente) AS codigo_cliente, a.matricula_registro, a.modelo, a.status AS status_aeronave, (SELECT cp.status FROM checklists_pre_voo cp WHERE cp.solicitacao_id = s.id ORDER BY cp.criado_em DESC LIMIT 1) AS checklist_status
+    db.prepare(`SELECT s.id, s.cliente_id, s.socio_id, s.cliente_emprestimo_id, s.socio_emprestimo_id, s.aeronave_id, s.origem, s.destino, s.data_agendada, date(s.data_agendada, '+' || (COALESCE(s.dias_duracao, 1) - 1) || ' days') AS data_fim, s.horario_previsto_agendamento, s.dias_duracao, s.numero_passageiros, s.voo_emprestado, s.status, s.observacoes, s.motivo_rejeicao, s.numero_voo, s.criado_em, s.atualizado_em, s.piloto_id, s.copiloto_id, c.razao_social AS cliente_razao_social, so.nome AS socio_nome, ce.razao_social AS cliente_emprestimo_nome, se.nome AS socio_emprestimo_nome, COALESCE(ce.codigo_cliente, cae.codigo_cliente, c.codigo_cliente, ca.codigo_cliente) AS codigo_cliente, a.matricula_registro, a.modelo, a.status AS status_aeronave, (SELECT cp.status FROM checklists_pre_voo cp WHERE cp.solicitacao_id = s.id ORDER BY cp.criado_em DESC LIMIT 1) AS checklist_status
       FROM solicitacoes_reserva_voo s
       LEFT JOIN cliente c ON c.id = s.cliente_id
       LEFT JOIN hold_socios so ON so.id = s.socio_id
@@ -3430,9 +3360,7 @@ app.get('/api/interno/agendamento', async c => {
       LEFT JOIN hold_socios se ON se.id = s.socio_emprestimo_id
       LEFT JOIN cotista_aeronave ca ON (ca.cliente_id = s.cliente_id OR ca.socio_id = s.socio_id) AND ca.aeronave_id = s.aeronave_id
       LEFT JOIN cotista_aeronave cae ON (cae.cliente_id = s.cliente_emprestimo_id OR cae.socio_id = s.socio_emprestimo_id OR (se.cliente_id IS NOT NULL AND cae.cliente_id = se.cliente_id)) AND cae.aeronave_id = s.aeronave_id
-LEFT JOIN aeronave a ON a.id = s.aeronave_id
-      LEFT JOIN jornadas_voo j ON j.solicitacao_id = s.id AND j.criado_em = (SELECT MAX(j2.criado_em) FROM jornadas_voo j2 WHERE j2.solicitacao_id = s.id)
-      LEFT JOIN pernas_jornada_voo p ON p.jornada_id = j.id AND p.numero = (SELECT MAX(p2.numero) FROM pernas_jornada_voo p2 WHERE p2.jornada_id = j.id)
+      LEFT JOIN aeronave a ON a.id = s.aeronave_id
       WHERE date(s.data_agendada) BETWEEN ?1 AND ?2
       ORDER BY date(s.data_agendada), s.horario_previsto_agendamento, s.criado_em`).bind(inicio, fim).all(),
     db.prepare(`SELECT a.id, a.matricula_registro, a.fabricante, a.modelo, a.status, a.ano, a.base, a.url_imagem, a.tipo_aeronave, a.consumo_combustivel, a.velocidade_cruzeiro, p.categoria AS performance_categoria, p.velocidade_cruzeiro_kt AS performance_velocidade_cruzeiro_kt, p.teto_servico_ft AS performance_teto_servico_ft, p.taxa_subida_fpm AS performance_taxa_subida_fpm, p.taxa_descida_fpm AS performance_taxa_descida_fpm
@@ -3448,12 +3376,10 @@ LEFT JOIN aeronave a ON a.id = s.aeronave_id
       WHERE date(e.data_inicio) <= date(?2) AND date(e.data_fim) >= date(?1)
       ORDER BY date(e.data_inicio), e.tripulacao_id`).bind(inicio, fim).all(),
   ])
-  const agendamentosOperacionais = agendamentos.results.map((item: any) => ({ ...item, status: item.jornada_status === 'encerrada' ? 'encerrada' : item.jornada_status === 'em_rota' ? 'em_voo' : item.status }))
   const tripulantes = [...tripulacao.results, ...freelancers.results]
   const nomes = new Map(tripulantes.map((item: any) => [item.id, item.nome_completo]))
-    const escala = agendamentosOperacionais
-
-    .filter((item: any) => ['aprovada', 'em_voo'].includes(item.status) && (item.piloto_id || item.copiloto_id))
+  const escala = agendamentos.results
+    .filter((item: any) => item.status === 'aprovada' && (item.piloto_id || item.copiloto_id))
     .map((item: any) => ({
       id: item.id,
       data_agendada: item.data_agendada,
@@ -3467,7 +3393,7 @@ LEFT JOIN aeronave a ON a.id = s.aeronave_id
       copiloto_nome: item.copiloto_id ? nomes.get(item.copiloto_id) || 'Copiloto não localizado' : null,
       status: item.status,
     }))
-  return c.json({ inicio, fim, agendamentos: agendamentosOperacionais, aeronaves: aeronaves.results, tripulacao: tripulantes, escala, disponibilidades: disponibilidades.results })
+  return c.json({ inicio, fim, agendamentos: agendamentos.results, aeronaves: aeronaves.results, tripulacao: tripulantes, escala, disponibilidades: disponibilidades.results })
 })
 
 app.post('/api/interno/agendamento/disponibilidade', async c => {
@@ -3573,8 +3499,16 @@ async function garantirTabelaChecklist(c: Context<{ Bindings: Bindings }>) {
 
 app.get('/api/interno/agendamento/:id/checklist', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  await garantirTabelaChecklist(c); const row = await portalDb(c).prepare('SELECT id, solicitacao_id, respostas AS itens, observacoes, abastecimento_id, status, executado_por AS usuario_id, executado_por_nome, nivel_oleo, alerta_id, concluido_em FROM checklists_pre_voo WHERE solicitacao_id = ? ORDER BY criado_em DESC LIMIT 1').bind(c.req.param('id')).first<any>()
-  return c.json(row ? { ...row, itens: JSON.parse(row.itens || '{}') } : null)
+  await garantirTabelaChecklist(c)
+  const row = await portalDb(c).prepare('SELECT id, solicitacao_id, respostas AS itens, observacoes, abastecimento_id, status, executado_por AS usuario_id, executado_por_nome, nivel_oleo, alerta_id, concluido_em FROM checklists_pre_voo WHERE solicitacao_id = ? ORDER BY criado_em DESC LIMIT 1').bind(c.req.param('id')).first<any>()
+  if (!row) return c.json(null)
+  const alertas = row.alerta_id ? await portalDb(c).prepare('SELECT alerta1, alerta2, alerta3, alerta4, alerta5, alerta6, alerta7, alerta8, alerta9, alerta10 FROM alerta_checklist WHERE id = ?').bind(row.alerta_id).first<any>() : null
+  const alertasMap = Object.fromEntries(Object.entries(alertas || {}).filter(([key, value]) => key.startsWith('alerta') && String(value || '').trim()).map(([key, value]) => [key.replace(/^alerta/, ''), String(value).trim()]))
+  return c.json({
+    ...row,
+    itens: JSON.parse(row.itens || '{}'),
+    alertas: alertasMap,
+  })
 })
 app.post('/api/interno/agendamento/:id/checklist', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
@@ -3636,7 +3570,7 @@ app.post('/api/interno/agendamento/:id/checklist', async c => {
 
 async function garantirTabelaJornadas(c: Context<{ Bindings: Bindings }>) {
   const db = portalDb(c)
-    await db.prepare(`CREATE TABLE IF NOT EXISTS jornadas_voo (id TEXT PRIMARY KEY NOT NULL, solicitacao_id TEXT NULL, aeronave_id TEXT NOT NULL, tripulante_id TEXT NULL, data TEXT NOT NULL, horario_acionamento TEXT NULL, horario_apresentacao TEXT NULL, horario_corte_inicio TEXT NULL, horario_corte_final TEXT NULL, status TEXT NOT NULL DEFAULT 'em_rota', observacoes TEXT NULL, criado_por TEXT NULL, criado_em TEXT DEFAULT CURRENT_TIMESTAMP, atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP, numero_jornada INTEGER NOT NULL DEFAULT 1, data_jornada TEXT NOT NULL DEFAULT '', apresentacao_em TEXT NOT NULL DEFAULT '', inicio_em TEXT NULL, fim_em TEXT NULL, minutos_pos_corte INTEGER NOT NULL DEFAULT 45, nivel_alerta_jornada TEXT NOT NULL DEFAULT 'normal')`).run()
+  await db.prepare(`CREATE TABLE IF NOT EXISTS jornadas_voo (id TEXT PRIMARY KEY NOT NULL, solicitacao_id TEXT NULL, aeronave_id TEXT NOT NULL, tripulante_id TEXT NULL, data TEXT NOT NULL, horario_acionamento TEXT NULL, horario_apresentacao TEXT NULL, horario_corte_inicio TEXT NULL, horario_corte_final TEXT NULL, status TEXT NOT NULL DEFAULT 'em_rota', observacoes TEXT NULL, criado_por TEXT NULL, criado_em TEXT DEFAULT CURRENT_TIMESTAMP, atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP, numero_jornada INTEGER NOT NULL DEFAULT 1, data_jornada TEXT NOT NULL DEFAULT '', apresentacao_em TEXT NOT NULL DEFAULT '', inicio_em TEXT NULL, fim_em TEXT NULL, minutos_pos_corte INTEGER NOT NULL DEFAULT 45, nivel_alerta_jornada TEXT NOT NULL DEFAULT 'normal')`).run()
   for (const column of ['tripulante_id TEXT NULL', 'data TEXT NULL', 'horario_acionamento TEXT NULL', 'horario_apresentacao TEXT NULL', 'horario_corte_inicio TEXT NULL', 'horario_corte_final TEXT NULL']) await db.prepare(`ALTER TABLE jornadas_voo ADD COLUMN ${column}`).run().catch(() => undefined)
   await db.prepare(`CREATE TABLE IF NOT EXISTS pernas_jornada_voo (id TEXT PRIMARY KEY NOT NULL, jornada_id TEXT NOT NULL, numero INTEGER NOT NULL, origem TEXT NOT NULL, destino TEXT NOT NULL, horario_ac TEXT NULL, horario_dep TEXT NULL, horario_pouso TEXT NULL, horario_corte TEXT NULL, status TEXT NOT NULL DEFAULT 'em_voo', lancamento_diario_id TEXT NULL, criado_em TEXT DEFAULT CURRENT_TIMESTAMP)`).run()
 }
@@ -3655,21 +3589,18 @@ function normalizarHorarioJornada(data: string, valor: unknown): string | null {
 app.get('/api/interno/agendamento/:id/jornada', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401); await garantirTabelaJornadas(c)
   const jornada = await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE solicitacao_id = ? ORDER BY criado_em DESC LIMIT 1').bind(c.req.param('id')).first<any>()
-  if (!jornada) return c.json(null); const pernas = await portalDb(c).prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ? ORDER BY numero').bind(jornada.id).all<any>(); if (!pernas.results.length && jornada.status !== 'encerrada') { const solicitacao = await portalDb(c).prepare('SELECT origem, destino, horario_previsto_agendamento FROM solicitacoes_reserva_voo WHERE id=?').bind(c.req.param('id')).first<any>(); const pernaId=uuid(); await portalDb(c).prepare('INSERT INTO pernas_jornada_voo (id,jornada_id,numero,origem,destino,horario_ac,horario_dep,horario_pouso,horario_corte,status) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(pernaId,jornada.id,1,solicitacao?.origem || '',solicitacao?.destino || '',jornada.horario_acionamento || jornada.inicio_em || null,solicitacao?.horario_previsto_agendamento || null,null,null,'em_voo').run(); pernas.results.push({ id: pernaId, jornada_id: jornada.id, numero: 1, origem: solicitacao?.origem || '', destino: solicitacao?.destino || '', horario_ac: jornada.horario_acionamento || jornada.inicio_em || null, horario_dep: solicitacao?.horario_previsto_agendamento || null, horario_pouso: null, horario_corte: null, status: 'em_voo' }); } return c.json({ ...jornada, pernas: pernas.results })
+  if (!jornada) return c.json(null); const pernas = await portalDb(c).prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ? ORDER BY numero').bind(jornada.id).all<any>(); return c.json({ ...jornada, pernas: pernas.results })
 })
 app.post('/api/interno/agendamento/:id/jornada', async c => {
-  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401); await garantirTabelaJornadas(c); const idSolicitacao=c.req.param('id'); const body=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const voo=await portalDb(c).prepare('SELECT aeronave_id, piloto_id, data_agendada FROM solicitacoes_reserva_voo WHERE id=?').bind(idSolicitacao).first<any>(); if(!voo) return c.notFound(); const jornadaExistente=await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE solicitacao_id=? ORDER BY criado_em DESC LIMIT 1').bind(idSolicitacao).first<any>(); if(jornadaExistente) { const pernasExistentes=await portalDb(c).prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id=? ORDER BY numero').bind(jornadaExistente.id).all<any>(); return c.json({ ...jornadaExistente, pernas: pernasExistentes.results }); }
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401); await garantirTabelaJornadas(c); const idSolicitacao=c.req.param('id'); const body=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const voo=await portalDb(c).prepare('SELECT aeronave_id, piloto_id, data_agendada FROM solicitacoes_reserva_voo WHERE id=?').bind(idSolicitacao).first<any>(); if(!voo) return c.notFound()
   const data=String(body.data||voo.data_agendada||''); const acionamento=normalizarHorarioJornada(data, body.horario_acionamento); if(!/^\d{4}-\d{2}-\d{2}$/.test(data)||!acionamento) return c.json({error:'data_e_acionamento_obrigatorios'},400)
-  const apresentacao=normalizarHorarioJornada(data, body.horario_apresentacao) || new Date(new Date(acionamento).getTime()-30*60000).toISOString(); const corteInicio=normalizarHorarioJornada(data, body.horario_corte_inicio); const origem=String(body.origem || voo.origem || '').trim(); const destino=String(body.destino || voo.destino || '').trim(); const horarioAc=normalizarHorarioJornada(data, body.horario_ac || body.horario_acionamento) || acionamento; const horarioDep=normalizarHorarioJornada(data, body.horario_dep || voo.horario_previsto_agendamento); const id=uuid(); const numero=await portalDb(c).prepare('SELECT COALESCE(MAX(numero_jornada),0)+1 AS proximo FROM jornadas_voo WHERE solicitacao_id=?').bind(idSolicitacao).first<{ proximo: number }>(); await portalDb(c).prepare('INSERT INTO jornadas_voo (id, solicitacao_id, aeronave_id, numero_jornada, data_jornada, apresentacao_em, inicio_em, minutos_pos_corte, status, observacoes, criado_por, tripulante_id, data, horario_acionamento, horario_apresentacao, horario_corte_inicio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id,idSolicitacao,voo.aeronave_id,Number(numero?.proximo||1),data,apresentacao,acionamento,45,'em_rota',body.observacoes||null,extractSupabaseUserId(c),body.tripulante_id||voo.piloto_id||null,data,acionamento,apresentacao,corteInicio).run(); await portalDb(c).prepare('INSERT INTO pernas_jornada_voo (id,jornada_id,numero,origem,destino,horario_ac,horario_dep,horario_pouso,horario_corte,status) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(uuid(),id,1,origem,destino,horarioAc,horarioDep,null,null,'em_voo').run(); await portalDb(c).prepare("UPDATE solicitacoes_reserva_voo SET status='em_voo', atualizado_em=CURRENT_TIMESTAMP WHERE id=?").bind(idSolicitacao).run(); return c.json({id,status:'em_rota',data,horario_acionamento:acionamento,horario_apresentacao:apresentacao,pernas:[]},201)
+  const apresentacao=normalizarHorarioJornada(data, body.horario_apresentacao) || new Date(new Date(acionamento).getTime()-30*60000).toISOString(); const corteInicio=normalizarHorarioJornada(data, body.horario_corte_inicio); const id=uuid(); const numero=await portalDb(c).prepare('SELECT COALESCE(MAX(numero_jornada),0)+1 AS proximo FROM jornadas_voo WHERE solicitacao_id=?').bind(idSolicitacao).first<{ proximo: number }>(); await portalDb(c).prepare('INSERT INTO jornadas_voo (id, solicitacao_id, aeronave_id, numero_jornada, data_jornada, apresentacao_em, inicio_em, minutos_pos_corte, status, observacoes, criado_por, tripulante_id, data, horario_acionamento, horario_apresentacao, horario_corte_inicio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id,idSolicitacao,voo.aeronave_id,Number(numero?.proximo||1),data,apresentacao,acionamento,45,'em_rota',body.observacoes||null,extractSupabaseUserId(c),body.tripulante_id||voo.piloto_id||null,data,acionamento,apresentacao,corteInicio).run(); return c.json({id,status:'em_rota',data,horario_acionamento:acionamento,horario_apresentacao:apresentacao,pernas:[]},201)
 })
 app.patch('/api/interno/jornadas/:id', async c => {
-  if (!(await requireShareInternal(c))) return c.json({error:'internal_auth_required'},401); await garantirTabelaJornadas(c); const id=c.req.param('id'); const body=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const atual=await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first<any>(); if(!atual) return c.notFound(); const fim=body.horario_corte_final||atual.horario_corte_final; if(body.status==='encerrada' && !fim) return c.json({error:'corte_final_obrigatorio'},400); if(body.status==='encerrada') { const ultimaPerna=await portalDb(c).prepare('SELECT horario_corte FROM pernas_jornada_voo WHERE jornada_id=? ORDER BY numero DESC LIMIT 1').bind(id).first<any>(); if(!ultimaPerna?.horario_corte) return c.json({error:'corte_da_ultima_perna_obrigatorio'},400); } if(body.status==='encerrada' && minutosEntre(atual.horario_apresentacao||atual.horario_acionamento,fim)>540) return c.json({error:'limite_jornada_9_horas_excedido',detail:'A jornada ultrapassa o limite de 9 horas.'},409); if (body.status === 'encerrada' && atual.tripulante_id) { const db=portalDb(c); const minutos= minutosEntre(atual.horario_apresentacao||atual.horario_acionamento,fim); const semana=await db.prepare("SELECT COALESCE(SUM((julianday(horario_corte_final)-julianday(horario_apresentacao))*1440),0) minutos FROM jornadas_voo WHERE tripulante_id=? AND status='encerrada' AND date(data)>=date(?,'-6 days') AND date(data)<=date(?)").bind(atual.tripulante_id,atual.data,atual.data).first<any>(); const mes=await db.prepare("SELECT COALESCE(SUM((julianday(horario_corte_final)-julianday(horario_apresentacao))*1440),0) minutos FROM jornadas_voo WHERE tripulante_id=? AND status='encerrada' AND strftime('%Y-%m',data)=strftime('%Y-%m',?)").bind(atual.tripulante_id,atual.data).first<any>(); if(Number(semana?.minutos||0)+minutos>2640) return c.json({error:'limite_jornada_semanal_excedido',detail:'O tripulante ultrapassaria 44 horas na semana.'},409); if(Number(mes?.minutos||0)+minutos>10560) return c.json({error:'limite_jornada_mensal_excedido',detail:'O tripulante ultrapassaria 176 horas no mês.'},409); } await portalDb(c).prepare('UPDATE jornadas_voo SET horario_acionamento=?, horario_apresentacao=?, horario_corte_inicio=?, horario_corte_final=?, data=?, status=?, observacoes=?, atualizado_em=CURRENT_TIMESTAMP WHERE id=?').bind(body.horario_acionamento||atual.horario_acionamento,body.horario_apresentacao||atual.horario_apresentacao,body.horario_corte_inicio||atual.horario_corte_inicio,fim,body.data||atual.data,body.status||atual.status,body.observacoes||atual.observacoes,id).run(); return c.json(await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first())
-})
-app.patch('/api/interno/jornadas/:id/pernas/:pernaId', async c => {
-  if (!(await requireShareInternal(c))) return c.json({error:'internal_auth_required'},401); await garantirTabelaJornadas(c); const jornadaId=c.req.param('id'); const pernaId=c.req.param('pernaId'); const b=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const perna=await portalDb(c).prepare('SELECT * FROM pernas_jornada_voo WHERE id=? AND jornada_id=?').bind(pernaId,jornadaId).first<any>(); if(!perna) return c.notFound(); if(perna.horario_corte) return c.json({error:'perna_ja_cortada'},409); if(!b.horario_pouso || !b.horario_corte) return c.json({error:'pouso_e_corte_obrigatorios'},400); await portalDb(c).prepare("UPDATE pernas_jornada_voo SET horario_pouso=?, horario_corte=?, status='pousado' WHERE id=? AND jornada_id=?").bind(b.horario_pouso,b.horario_corte,pernaId,jornadaId).run(); return c.json({id:pernaId,status:'pousado'});
+  if (!(await requireShareInternal(c))) return c.json({error:'internal_auth_required'},401); await garantirTabelaJornadas(c); const id=c.req.param('id'); const body=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const atual=await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first<any>(); if(!atual) return c.notFound(); const fim=body.horario_corte_final||atual.horario_corte_final; if(body.status==='encerrada' && !fim) return c.json({error:'corte_final_obrigatorio'},400); if(body.status==='encerrada' && minutosEntre(atual.horario_apresentacao||atual.horario_acionamento,fim)>540) return c.json({error:'limite_jornada_9_horas_excedido',detail:'A jornada ultrapassa o limite de 9 horas.'},409); if (body.status === 'encerrada' && atual.tripulante_id) { const db=portalDb(c); const minutos= minutosEntre(atual.horario_apresentacao||atual.horario_acionamento,fim); const semana=await db.prepare("SELECT COALESCE(SUM((julianday(horario_corte_final)-julianday(horario_apresentacao))*1440),0) minutos FROM jornadas_voo WHERE tripulante_id=? AND status='encerrada' AND date(data)>=date(?,'-6 days') AND date(data)<=date(?)").bind(atual.tripulante_id,atual.data,atual.data).first<any>(); const mes=await db.prepare("SELECT COALESCE(SUM((julianday(horario_corte_final)-julianday(horario_apresentacao))*1440),0) minutos FROM jornadas_voo WHERE tripulante_id=? AND status='encerrada' AND strftime('%Y-%m',data)=strftime('%Y-%m',?)").bind(atual.tripulante_id,atual.data).first<any>(); if(Number(semana?.minutos||0)+minutos>2640) return c.json({error:'limite_jornada_semanal_excedido',detail:'O tripulante ultrapassaria 44 horas na semana.'},409); if(Number(mes?.minutos||0)+minutos>10560) return c.json({error:'limite_jornada_mensal_excedido',detail:'O tripulante ultrapassaria 176 horas no mês.'},409); } await portalDb(c).prepare('UPDATE jornadas_voo SET horario_acionamento=?, horario_apresentacao=?, horario_corte_inicio=?, horario_corte_final=?, data=?, status=?, observacoes=?, atualizado_em=CURRENT_TIMESTAMP WHERE id=?').bind(body.horario_acionamento||atual.horario_acionamento,body.horario_apresentacao||atual.horario_apresentacao,body.horario_corte_inicio||atual.horario_corte_inicio,fim,body.data||atual.data,body.status||atual.status,body.observacoes||atual.observacoes,id).run(); return c.json(await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first())
 })
 app.post('/api/interno/jornadas/:id/pernas', async c => {
-  if (!(await requireShareInternal(c))) return c.json({error:'internal_auth_required'},401); await garantirTabelaJornadas(c); const id=c.req.param('id'); const jornada=await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first<any>(); if(!jornada) return c.notFound(); const ultima=await portalDb(c).prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id=? ORDER BY numero DESC LIMIT 1').bind(id).first<any>(); if(ultima && !ultima.horario_corte) return c.json({error:'corte_da_perna_atual_obrigatorio'},409); const b=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const data=String(b.data||jornada.data); if(data!==String(jornada.data) && !b.virada_hora) return c.json({error:'perna_data_diferente_jornada',detail:'Uma nova perna precisa ocorrer no mesmo dia da jornada, salvo virada de hora autorizada.'},409); if(!b.origem||!b.destino||!b.horario_ac||!b.horario_dep) return c.json({error:'origem_destino_ac_dep_obrigatorios'},400); const last=await portalDb(c).prepare('SELECT COALESCE(MAX(numero),0) n FROM pernas_jornada_voo WHERE jornada_id=?').bind(id).first<any>(); const pernaId=uuid(); await portalDb(c).prepare('INSERT INTO pernas_jornada_voo (id,jornada_id,numero,origem,destino,horario_ac,horario_dep,horario_pouso,horario_corte,status) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(pernaId,id,Number(last?.n||0)+1,b.origem,b.destino,b.horario_ac,b.horario_dep,b.horario_pouso||null,b.horario_corte||null,b.horario_corte?'pousado':'em_voo').run(); return c.json({id:pernaId,status:b.horario_corte?'pousado':'em_voo'},201)
+  if (!(await requireShareInternal(c))) return c.json({error:'internal_auth_required'},401); await garantirTabelaJornadas(c); const id=c.req.param('id'); const jornada=await portalDb(c).prepare('SELECT * FROM jornadas_voo WHERE id=?').bind(id).first<any>(); if(!jornada) return c.notFound(); const b=await c.req.json<Record<string,any>>().catch(() => ({} as Record<string, any>)); const data=String(b.data||jornada.data); if(data!==String(jornada.data) && !b.virada_hora) return c.json({error:'perna_data_diferente_jornada',detail:'Uma nova perna precisa ocorrer no mesmo dia da jornada, salvo virada de hora autorizada.'},409); if(!b.origem||!b.destino||!b.horario_ac||!b.horario_dep) return c.json({error:'origem_destino_ac_dep_obrigatorios'},400); const last=await portalDb(c).prepare('SELECT COALESCE(MAX(numero),0) n FROM pernas_jornada_voo WHERE jornada_id=?').bind(id).first<any>(); const pernaId=uuid(); await portalDb(c).prepare('INSERT INTO pernas_jornada_voo (id,jornada_id,numero,origem,destino,horario_ac,horario_dep,horario_pouso,horario_corte,status) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(pernaId,id,Number(last?.n||0)+1,b.origem,b.destino,b.horario_ac,b.horario_dep,b.horario_pouso||null,b.horario_corte||null,b.horario_corte?'pousado':'em_voo').run(); return c.json({id:pernaId,status:b.horario_corte?'pousado':'em_voo'},201)
 })
 app.get('/api/interno/solicitacoes', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
@@ -4967,191 +4898,104 @@ app.post('/api/financeiro/envios-pagamento', async c => {
   return c.json({ ...row, movimentacao_id: movimentacaoId, rateio_id: rateioId }, 201)
 })
 
-// ─── Financeiro: relatório de despesa de viagem ───────────────────────────────
-// As tabelas abaixo já existem no SHARE_DB de produção. O IF NOT EXISTS mantém
-// o Worker inicializável em ambientes novos sem substituir dados existentes.
-async function garantirTabelasRelatorioViagem(c: Context<{ Bindings: Bindings }>) {
+async function garantirTabelaFichaPeso(c: Context<{ Bindings: Bindings }>) {
   const db = portalDb(c)
-  await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS relatorio_despesa_viagem (
-      id TEXT PRIMARY KEY NOT NULL, numero_relatorio TEXT NOT NULL, numero_voo TEXT NULL,
-      cliente_id TEXT NULL, socio_id TEXT NULL, aeronave_id TEXT NULL, rota TEXT NULL,
-      data_inicio TEXT NOT NULL, data_fim TEXT NOT NULL, quantidade_dias INTEGER NOT NULL DEFAULT 1,
-      observacoes TEXT NULL, total_valor REAL NULL DEFAULT 0, total_combustivel REAL NULL DEFAULT 0,
-      total_hospedagem REAL NULL DEFAULT 0, total_alimentacao REAL NULL DEFAULT 0, total_transporte REAL NULL DEFAULT 0,
-      total_outros REAL NULL DEFAULT 0, total_tripulacao REAL NULL DEFAULT 0, total_cliente REAL NULL DEFAULT 0,
-      total_sharebrasil REAL NULL DEFAULT 0, matricula_aeronave TEXT NULL, despesas TEXT NULL,
-      status TEXT NULL DEFAULT 'rascunho', total_tripulante_1 REAL NULL DEFAULT 0, total_tripulante_2 REAL NULL DEFAULT 0,
-      tripulacao_id TEXT NULL, nome_tripulante TEXT NULL, tripulante_id_2 TEXT NULL, nome_tripulante_2 TEXT NULL,
-      criado_por TEXT NULL, token_aprovacao TEXT NULL, requer_aprovacao_cliente INTEGER NULL DEFAULT 0,
-      status_aprovacao_tripulante TEXT NULL DEFAULT 'pendente', observacoes_aprovacao_tripulante TEXT NULL,
-      status_aprovacao_tripulante_2 TEXT NULL, aprovado_tripulante_2_em TEXT NULL, observacoes_aprovacao_tripulante_2 TEXT NULL,
-      gerado_por_usuario_id TEXT NULL, contas_apagar_tripulante_1_id TEXT NULL, contas_apagar_tripulante_2_id TEXT NULL,
-      enviado_para_tripulante_em TEXT NULL, enviado_para_tripulante_2_em TEXT NULL, enviado_para_cliente_em TEXT NULL,
-      criado_em TEXT NULL DEFAULT CURRENT_TIMESTAMP, atualizado_em TEXT NULL DEFAULT CURRENT_TIMESTAMP
-    )`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS relatorio_despesa_viagem_anexos (
-      id TEXT PRIMARY KEY NOT NULL, relatorio_despesa_viagem_id TEXT NULL, indice_despesa INTEGER NOT NULL DEFAULT 0,
-      nome_arquivo TEXT NOT NULL, caminho_arquivo TEXT NOT NULL, url_arquivo TEXT NOT NULL,
-      tipo_arquivo TEXT NULL, tamanho_arquivo INTEGER NULL, criado_em TEXT NULL DEFAULT CURRENT_TIMESTAMP
-    )`),
-  ])
-  // Colunas de arquivo não fazem parte do schema legado original, mas são
-  // adicionadas de modo idempotente para permitir reabrir o PDF no relatório.
-  await Promise.all([
-    db.prepare('ALTER TABLE relatorio_despesa_viagem ADD COLUMN pdf_url TEXT').run().catch(() => undefined),
-    db.prepare('ALTER TABLE relatorio_despesa_viagem ADD COLUMN pdf_path TEXT').run().catch(() => undefined),
-  ])
+  await db.prepare(`CREATE TABLE IF NOT EXISTS ctm_ficha_peso_balanceamento (
+    id TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))),
+    aeronave_id TEXT NOT NULL,
+    peso_balanceamento_id TEXT NOT NULL,
+    data_voo TEXT NOT NULL,
+    numero_voo TEXT,
+    piloto_responsavel TEXT NOT NULL,
+    peso_vazio_kg REAL NOT NULL,
+    braco_vazio REAL,
+    momento_vazio REAL,
+    itens_carregamento TEXT NOT NULL DEFAULT '[]',
+    fuel_litros REAL, fuel_kg REAL, fuel_braco REAL, fuel_momento REAL,
+    peso_total_kg REAL, momento_total REAL, cg_calculado REAL,
+    peso_maximo_decolagem REAL, peso_maximo_pouso REAL, peso_maximo_sem_combustivel REAL,
+    cg_limite_dianteiro REAL, cg_limite_traseiro REAL,
+    dentro_dos_limites INTEGER,
+    status TEXT NOT NULL DEFAULT 'RASCUNHO',
+    snapshot_limites TEXT NOT NULL,
+    observacoes TEXT,
+    solicitacao_id TEXT,
+    assinatura_nome TEXT,
+    criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+    finalizado_em TEXT
+  )`).run()
+  await db.prepare('ALTER TABLE ctm_ficha_peso_balanceamento ADD COLUMN solicitacao_id TEXT').run().catch(() => undefined)
+  await db.prepare('ALTER TABLE ctm_ficha_peso_balanceamento ADD COLUMN assinatura_nome TEXT').run().catch(() => undefined)
 }
-function relatorioNumero(dados: Record<string, unknown>): string {
-  const bruto = String(dados.numero_relatorio || '').trim()
-  return bruto || `RDV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${uuid().slice(0, 6).toUpperCase()}`
+
+const parseJsonOr = (value: unknown, fallback: unknown) => {
+  try { return JSON.parse(String(value ?? '')) } catch { return fallback }
 }
-function relatorioDespesas(value: unknown): Array<Record<string, unknown>> {
-  if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
-  if (typeof value !== 'string' || !value.trim()) return []
-  try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object')) : [] } catch { return [] }
-}
-function relatorioInteiro(value: unknown, fallback = 1): number {
-  const number = Number(value); return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback
-}
-function relatorioValor(value: unknown): number {
-  const number = Number(value); return Number.isFinite(number) && number >= 0 ? Number(number.toFixed(2)) : 0
-}
-async function detalheRelatorioViagem(c: Context<{ Bindings: Bindings }>, id: string): Promise<(Record<string, unknown> & { despesas: Array<Record<string, unknown>>; anexos: Array<Record<string, unknown>> }) | null> {
-  const row = await portalDb(c).prepare(`SELECT r.*, c.razao_social AS cliente_nome, c.codigo_cliente,
-      a.matricula_registro AS aeronave_matricula, a.fabricante AS aeronave_fabricante, a.modelo AS aeronave_modelo,
-      t1.canac AS tripulante_canac, t2.canac AS tripulante_2_canac
-      FROM relatorio_despesa_viagem r LEFT JOIN cliente c ON c.id = r.cliente_id
-      LEFT JOIN aeronave a ON a.id = r.aeronave_id LEFT JOIN tripulacao t1 ON t1.id = r.tripulacao_id
-      LEFT JOIN tripulacao t2 ON t2.id = r.tripulante_id_2 WHERE r.id = ?1`).bind(id).first<Record<string, unknown>>()
-  if (!row) return null
-  const anexos = await portalDb(c).prepare('SELECT * FROM relatorio_despesa_viagem_anexos WHERE relatorio_despesa_viagem_id = ?1 ORDER BY indice_despesa, criado_em').bind(id).all<Record<string, unknown>>()
-  return { ...row, despesas: relatorioDespesas(row.despesas), anexos: anexos.results }
-}
-app.get('/api/financeiro/relatorios-despesa-viagem/opcoes', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+
+app.get('/api/interno/agendamento/:id/peso-balanceamento', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  await garantirTabelaFichaPeso(c)
   const db = portalDb(c)
-  const [clientes, aeronaves, tripulantes, voos, socios] = await Promise.all([
-    db.prepare("SELECT id, razao_social, codigo_cliente FROM cliente WHERE lower(COALESCE(status, 'ativo')) NOT IN ('inativo', 'cancelado') ORDER BY razao_social").all(),
-    db.prepare("SELECT id, matricula_registro, fabricante, modelo, status FROM aeronave WHERE lower(COALESCE(status, 'ativa')) NOT IN ('inativa', 'cancelada') ORDER BY matricula_registro").all(),
-    db.prepare("SELECT id, nome_completo, canac, status, 'tripulacao' AS origem FROM tripulacao WHERE lower(COALESCE(status, 'ativo')) = 'ativo' UNION ALL SELECT id, nome_completo, canac, status, 'freelancer' AS origem FROM tripulacao_freelancer WHERE lower(COALESCE(status, 'ativo')) = 'ativo' ORDER BY nome_completo").all(),
-    db.prepare("SELECT numero_voo, MAX(data_agendada) AS data_agendada FROM solicitacoes_reserva_voo WHERE numero_voo IS NOT NULL AND trim(numero_voo) <> '' GROUP BY numero_voo ORDER BY data_agendada DESC LIMIT 300").all(),
-    db.prepare("SELECT id, nome FROM hold_socios ORDER BY nome").all().catch(() => ({ results: [] })),
+  const id = c.req.param('id')
+  const reserva = await db.prepare(`SELECT s.id, s.aeronave_id, s.numero_voo, s.data_agendada, s.origem, s.destino, s.numero_passageiros, s.piloto_id, s.copiloto_id,
+      a.matricula_registro, a.modelo, a.fabricante
+    FROM solicitacoes_reserva_voo s LEFT JOIN aeronave a ON a.id = s.aeronave_id WHERE s.id = ?1`).bind(id).first<any>()
+  if (!reserva) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
+  const [piloto, copiloto, config, ficha] = await Promise.all([
+    reserva.piloto_id ? buscarTripulante(c, reserva.piloto_id) : null,
+    reserva.copiloto_id ? buscarTripulante(c, reserva.copiloto_id) : null,
+    db.prepare('SELECT * FROM ctm_peso_balanceamento WHERE aeronave_id = ?1').bind(reserva.aeronave_id).first<any>().catch(() => null),
+    db.prepare('SELECT * FROM ctm_ficha_peso_balanceamento WHERE solicitacao_id = ?1 ORDER BY criado_em DESC LIMIT 1').bind(id).first<any>(),
   ])
-  return c.json({ clientes: clientes.results, aeronaves: aeronaves.results, tripulantes: tripulantes.results, voos: voos.results, socios: socios.results })
+  return c.json({
+    solicitacao: reserva,
+    piloto: piloto ? { id: piloto.id, nome: piloto.nome_completo, canac: (piloto as any).canac ?? null } : null,
+    copiloto: copiloto ? { id: copiloto.id, nome: copiloto.nome_completo, canac: (copiloto as any).canac ?? null } : null,
+    configuracao: config || null,
+    ficha: ficha ? { ...ficha, itens_carregamento: parseJsonOr(ficha.itens_carregamento, []), snapshot_limites: parseJsonOr(ficha.snapshot_limites, {}) } : null,
+  })
 })
-app.get('/api/financeiro/relatorios-despesa-viagem', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  await garantirTabelasRelatorioViagem(c); const status = c.req.query('status')
-  const query = `SELECT r.*, c.razao_social AS cliente_nome, a.matricula_registro AS aeronave_matricula
-    FROM relatorio_despesa_viagem r LEFT JOIN cliente c ON c.id = r.cliente_id LEFT JOIN aeronave a ON a.id = r.aeronave_id
-    ${status ? 'WHERE r.status = ?1' : ''} ORDER BY r.atualizado_em DESC, r.criado_em DESC LIMIT 200`
-  const rows = status ? await portalDb(c).prepare(query).bind(status).all() : await portalDb(c).prepare(query).all()
-  return c.json({ relatorios: rows.results.map((row: Record<string, unknown>) => ({ ...row, despesas: relatorioDespesas(row.despesas) })) })
-})
-app.get('/api/financeiro/relatorios-despesa-viagem/:id', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  await garantirTabelasRelatorioViagem(c); const row = await detalheRelatorioViagem(c, c.req.param('id')); return row ? c.json({ relatorio: row }) : c.notFound()
-})
-app.post('/api/financeiro/relatorios-despesa-viagem', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  await garantirTabelasRelatorioViagem(c); const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>))
-  const dataInicio = String(body.data_inicio || '').trim(); const dataFim = String(body.data_fim || '').trim(); const despesas = relatorioDespesas(body.despesas)
-  const total = despesas.reduce((sum, item) => sum + relatorioValor(item.valor), 0)
-  if (!dataInicio || !dataFim || !body.aeronave_id || !body.tripulacao_id) return c.json({ error: 'data_aeronave_e_tripulante_obrigatorios' }, 400)
-  const id = uuid(); const numero = relatorioNumero(body); const db = portalDb(c)
-  await db.prepare(`INSERT INTO relatorio_despesa_viagem
-    (id, numero_relatorio, numero_voo, cliente_id, socio_id, aeronave_id, rota, data_inicio, data_fim, quantidade_dias, observacoes,
-     total_valor, total_combustivel, total_hospedagem, total_alimentacao, total_transporte, total_outros, total_tripulacao,
-     total_cliente, total_sharebrasil, matricula_aeronave, despesas, status, total_tripulante_1, total_tripulante_2,
-     tripulacao_id, nome_tripulante, tripulante_id_2, nome_tripulante_2, criado_por, gerado_por_usuario_id, criado_em, atualizado_em)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rascunho', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
-    .bind(id, numero, body.numero_voo ? String(body.numero_voo) : null, body.cliente_id || null, body.socio_id || null, String(body.aeronave_id), body.rota ? String(body.rota) : null,
-      dataInicio, dataFim, relatorioInteiro(body.quantidade_dias, 1), body.observacoes ? String(body.observacoes) : null, total,
-      relatorioValor(body.total_combustivel), relatorioValor(body.total_hospedagem), relatorioValor(body.total_alimentacao), relatorioValor(body.total_transporte), relatorioValor(body.total_outros), total,
-      relatorioValor(body.total_cliente), relatorioValor(body.total_sharebrasil), body.matricula_aeronave ? String(body.matricula_aeronave) : null, JSON.stringify(despesas), relatorioValor(body.total_tripulante_1), relatorioValor(body.total_tripulante_2),
-      String(body.tripulacao_id), body.nome_tripulante ? String(body.nome_tripulante) : null, body.tripulante_id_2 ? String(body.tripulante_id_2) : null, body.nome_tripulante_2 ? String(body.nome_tripulante_2) : null, user.id, user.id).run()
-  return c.json({ relatorio: await detalheRelatorioViagem(c, id) }, 201)
-})
-app.patch('/api/financeiro/relatorios-despesa-viagem/:id', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  await garantirTabelasRelatorioViagem(c); const id = c.req.param('id'); const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>)); const atual = await detalheRelatorioViagem(c, id)
-  if (!atual) return c.notFound(); if (['aprovado', 'aguardando_aprovacao', 'enviado_cliente'].includes(String(atual.status))) return c.json({ error: 'relatorio_bloqueado_apos_envio' }, 409)
-  const despesas = relatorioDespesas(body.despesas ?? atual.despesas); const total = despesas.reduce((sum, item) => sum + relatorioValor(item.valor), 0)
-  await portalDb(c).prepare(`UPDATE relatorio_despesa_viagem SET numero_voo = ?, cliente_id = ?, socio_id = ?, aeronave_id = ?, rota = ?, data_inicio = ?, data_fim = ?, quantidade_dias = ?, observacoes = ?, total_valor = ?, total_tripulacao = ?, total_cliente = ?, total_sharebrasil = ?, matricula_aeronave = ?, despesas = ?, total_tripulante_1 = ?, total_tripulante_2 = ?, tripulacao_id = ?, nome_tripulante = ?, tripulante_id_2 = ?, nome_tripulante_2 = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`)
-    .bind(body.numero_voo ?? atual.numero_voo ?? null, body.cliente_id ?? atual.cliente_id ?? null, body.socio_id ?? atual.socio_id ?? null, body.aeronave_id ?? atual.aeronave_id ?? null, body.rota ?? atual.rota ?? null,
-      body.data_inicio ?? atual.data_inicio, body.data_fim ?? atual.data_fim, relatorioInteiro(body.quantidade_dias ?? atual.quantidade_dias, 1), body.observacoes ?? atual.observacoes ?? null, total, total,
-      relatorioValor(body.total_cliente ?? atual.total_cliente), relatorioValor(body.total_sharebrasil ?? atual.total_sharebrasil), body.matricula_aeronave ?? atual.matricula_aeronave ?? null, JSON.stringify(despesas), relatorioValor(body.total_tripulante_1 ?? atual.total_tripulante_1), relatorioValor(body.total_tripulante_2 ?? atual.total_tripulante_2),
-      body.tripulacao_id ?? atual.tripulacao_id, body.nome_tripulante ?? atual.nome_tripulante ?? null, body.tripulante_id_2 ?? atual.tripulante_id_2 ?? null, body.nome_tripulante_2 ?? atual.nome_tripulante_2 ?? null, id).run()
-  return c.json({ relatorio: await detalheRelatorioViagem(c, id) })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/finalizar', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const id = c.req.param('id'); const row = await detalheRelatorioViagem(c, id); if (!row) return c.notFound()
-  if (!row.tripulacao_id || !row.data_inicio || !row.data_fim || !row.aeronave_id) return c.json({ error: 'relatorio_incompleto' }, 400)
-  await portalDb(c).prepare("UPDATE relatorio_despesa_viagem SET status = 'finalizado', status_aprovacao_tripulante = COALESCE(status_aprovacao_tripulante, 'pendente'), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?").bind(id).run()
-  return c.json({ relatorio: await detalheRelatorioViagem(c, id) })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/enviar-aprovacao', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const id = c.req.param('id'); const body = await c.req.json<{ tripulante_pos?: number }>().catch(() => ({} as { tripulante_pos?: number })); const pos = Number(body.tripulante_pos); const row = await detalheRelatorioViagem(c, id)
-  if (![1, 2].includes(pos)) return c.json({ error: 'tripulante_pos_invalido' }, 400); if (!row) return c.notFound(); if (row.status === 'aprovado') return c.json({ error: 'relatorio_ja_aprovado' }, 409)
-  if (pos === 2 && !row.tripulante_id_2) return c.json({ error: 'segundo_tripulante_nao_informado' }, 400)
-  const colunaEnviado = pos === 1 ? 'enviado_para_tripulante_em' : 'enviado_para_tripulante_2_em'; const colunaStatus = pos === 1 ? 'status_aprovacao_tripulante' : 'status_aprovacao_tripulante_2'
-  await portalDb(c).prepare(`UPDATE relatorio_despesa_viagem SET ${colunaEnviado} = CURRENT_TIMESTAMP, ${colunaStatus} = 'pendente', status = 'aguardando_aprovacao', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(id).run()
-  return c.json({ relatorio: await detalheRelatorioViagem(c, id), enviado_para: pos })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/aprovacao', async c => {
-  const user = await authenticatedColaborador(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const id = c.req.param('id'); const body = await c.req.json<{ tripulante_pos?: number; aprovado?: boolean; observacoes?: string }>().catch(() => ({} as { tripulante_pos?: number; aprovado?: boolean; observacoes?: string })); const pos = Number(body.tripulante_pos); const row = await detalheRelatorioViagem(c, id)
-  if (![1, 2].includes(pos) || typeof body.aprovado !== 'boolean') return c.json({ error: 'tripulante_pos_e_decisao_obrigatorios' }, 400); if (!row) return c.notFound()
-  const trip = await portalDb(c).prepare('SELECT id FROM tripulacao WHERE user_id = ?1').bind(user.id).first<{ id: string }>(); const idEsperado = pos === 1 ? row.tripulacao_id : row.tripulante_id_2
-  if (!trip || trip.id !== idEsperado) return c.json({ error: 'tripulante_nao_vinculado_ao_relatorio' }, 403)
-  const status = body.aprovado ? 'aprovado' : 'reprovado'; const observacoes = String(body.observacoes || '').trim() || null; const db = portalDb(c)
-  if (pos === 1) await db.prepare("UPDATE relatorio_despesa_viagem SET status_aprovacao_tripulante = ?, observacoes_aprovacao_tripulante = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?").bind(status, observacoes, id).run()
-  else await db.prepare("UPDATE relatorio_despesa_viagem SET status_aprovacao_tripulante_2 = ?, aprovado_tripulante_2_em = CURRENT_TIMESTAMP, observacoes_aprovacao_tripulante_2 = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?").bind(status, observacoes, id).run()
-  const atualizado = await detalheRelatorioViagem(c, id); const a = String(atualizado?.status_aprovacao_tripulante || 'pendente'); const b = atualizado?.tripulante_id_2 ? String(atualizado.status_aprovacao_tripulante_2 || 'pendente') : 'aprovado'
-  const novoStatus = !body.aprovado ? 'ajuste_necessario' : (a === 'aprovado' && b === 'aprovado' ? 'aprovado' : 'aguardando_aprovacao')
-  await db.prepare('UPDATE relatorio_despesa_viagem SET status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(novoStatus, id).run()
-  return c.json({ relatorio: await detalheRelatorioViagem(c, id) })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/anexos', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const id = c.req.param('id'); if (!(await detalheRelatorioViagem(c, id))) return c.notFound(); const form = await c.req.parseBody(); const file = form.arquivo; const indice = relatorioInteiro(form.indice_despesa, 0)
-  if (!(file instanceof File) || !file.size) return c.json({ error: 'arquivo_obrigatorio' }, 400); if (!file.type.startsWith('image/') && file.type !== 'application/pdf') return c.json({ error: 'somente_imagem_ou_pdf' }, 400); if (file.size > 10 * 1024 * 1024) return c.json({ error: 'arquivo_excede_10mb' }, 400)
-  const safeName = shareBrasilFileName(file.name || 'nota-fiscal'); const key = `share/relatorio_despesa_viagem/anexos_notas/${id}/${Date.now()}-${uuid().slice(0, 8)}-${safeName}`
-  await shareBrasilBucket(c).put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type || 'application/octet-stream' } })
-  const url = new URL(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/arquivo`, c.req.url); url.searchParams.set('key', key); const anexoId = uuid()
-  await portalDb(c).prepare('INSERT INTO relatorio_despesa_viagem_anexos (id, relatorio_despesa_viagem_id, indice_despesa, nome_arquivo, caminho_arquivo, url_arquivo, tipo_arquivo, tamanho_arquivo, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(anexoId, id, indice, file.name || safeName, key, url.toString(), file.type || null, file.size).run()
-  return c.json({ anexo: { id: anexoId, relatorio_despesa_viagem_id: id, indice_despesa: indice, nome_arquivo: file.name || safeName, caminho_arquivo: key, url_arquivo: url.toString(), tipo_arquivo: file.type || null, tamanho_arquivo: file.size } }, 201)
-})
-app.get('/api/financeiro/relatorios-despesa-viagem/:id/anexos/arquivo', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401); const key = c.req.query('key')
-  if (!key || !key.startsWith('share/relatorio_despesa_viagem/anexos_notas/')) return c.json({ error: 'arquivo_invalido' }, 400); const object = await shareBrasilBucket(c).get(key); if (!object) return c.notFound()
-  return new Response(object.body, { headers: { 'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream', 'Content-Disposition': `inline; filename="${key.split('/').pop() || 'anexo'}"` } })
-})
-app.delete('/api/financeiro/relatorios-despesa-viagem/:id/anexos/:anexoId', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401); const anexo = await portalDb(c).prepare('SELECT caminho_arquivo FROM relatorio_despesa_viagem_anexos WHERE id = ?1 AND relatorio_despesa_viagem_id = ?2').bind(c.req.param('anexoId'), c.req.param('id')).first<{ caminho_arquivo: string }>()
-  if (!anexo) return c.notFound(); await shareBrasilBucket(c).delete(anexo.caminho_arquivo).catch(() => undefined); await portalDb(c).prepare('DELETE FROM relatorio_despesa_viagem_anexos WHERE id = ?').bind(c.req.param('anexoId')).run(); return c.json({ success: true })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/pdf', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401); const id = c.req.param('id'); if (!(await detalheRelatorioViagem(c, id))) return c.notFound(); const form = await c.req.parseBody(); const file = form.arquivo
-  if (!(file instanceof File) || !file.size || file.type !== 'application/pdf') return c.json({ error: 'pdf_obrigatorio' }, 400); if (file.size > 20 * 1024 * 1024) return c.json({ error: 'pdf_excede_20mb' }, 400)
-  const key = `share/relatorio_despesa_viagem/pdf_relatorios/${id}/relatorio-${Date.now()}.pdf`; await shareBrasilBucket(c).put(key, await file.arrayBuffer(), { httpMetadata: { contentType: 'application/pdf' } })
-  const url = new URL(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf/arquivo`, c.req.url); url.searchParams.set('key', key)
-  await portalDb(c).prepare('UPDATE relatorio_despesa_viagem SET pdf_url = ?, pdf_path = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(url.toString(), key, id).run()
-  return c.json({ pdf_url: url.toString(), pdf_path: key })
-})
-app.get('/api/financeiro/relatorios-despesa-viagem/:id/pdf/arquivo', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401); const key = c.req.query('key')
-  if (!key || !key.startsWith('share/relatorio_despesa_viagem/pdf_relatorios/')) return c.json({ error: 'arquivo_invalido' }, 400); const object = await shareBrasilBucket(c).get(key); if (!object) return c.notFound()
-  return new Response(object.body, { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline; filename="relatorio-viagem.pdf"' } })
-})
-app.post('/api/financeiro/relatorios-despesa-viagem/:id/enviar-cliente', async c => {
-  const user = await shareBrasilUser(c); if (!user) return c.json({ error: 'nao_autorizado' }, 401); const row = await detalheRelatorioViagem(c, c.req.param('id')); if (!row) return c.notFound()
-  if (row.status !== 'aprovado') return c.json({ error: 'aguarde_aprovacao_da_tripulacao' }, 409)
-  return c.json({ success: false, status: 'em_breve', message: 'O envio da despesa ao cliente será concluído na segunda etapa.' })
+
+app.post('/api/interno/agendamento/:id/peso-balanceamento', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  await garantirTabelaFichaPeso(c)
+  const db = portalDb(c)
+  const solicitacaoId = c.req.param('id')
+  const body = await c.req.json<Record<string, any>>().catch(() => null)
+  if (!body) return c.json({ error: 'payload_invalido' }, 400)
+  const reserva = await db.prepare('SELECT id, aeronave_id, numero_voo, data_agendada FROM solicitacoes_reserva_voo WHERE id = ?1').bind(solicitacaoId).first<any>()
+  if (!reserva) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
+  const piloto = String(body.piloto_responsavel || '').trim()
+  if (!piloto) return c.json({ error: 'piloto_responsavel_obrigatorio' }, 400)
+  const itens = Array.isArray(body.itens_carregamento) ? body.itens_carregamento : []
+  const num = (valor: unknown) => (valor === null || valor === undefined || valor === '' ? null : Number(valor))
+  const status = body.status === 'FINALIZADA' ? 'FINALIZADA' : 'RASCUNHO'
+  const existente = await db.prepare('SELECT id, status FROM ctm_ficha_peso_balanceamento WHERE solicitacao_id = ?1 ORDER BY criado_em DESC LIMIT 1').bind(solicitacaoId).first<any>()
+  if (existente?.status === 'FINALIZADA') return c.json({ error: 'ficha_ja_finalizada', id: existente.id }, 409)
+  const id = existente?.id || crypto.randomUUID()
+  const valores = [
+    reserva.aeronave_id, String(body.peso_balanceamento_id || ''), String(body.data_voo || reserva.data_agendada),
+    body.numero_voo ?? reserva.numero_voo ?? null, piloto, Number(body.peso_vazio_kg || 0), num(body.braco_vazio), num(body.momento_vazio),
+    JSON.stringify(itens), num(body.fuel_litros), num(body.fuel_kg), num(body.fuel_braco), num(body.fuel_momento), num(body.peso_total_kg), num(body.momento_total), num(body.cg_calculado),
+    num(body.peso_maximo_decolagem), num(body.peso_maximo_pouso), num(body.peso_maximo_sem_combustivel), num(body.cg_limite_dianteiro), num(body.cg_limite_traseiro),
+    body.dentro_dos_limites ? 1 : 0, status, JSON.stringify(body.snapshot_limites || {}), body.observacoes?.toString().trim() || null,
+    solicitacaoId, body.assinatura_nome?.toString().trim() || piloto, status === 'FINALIZADA' ? new Date().toISOString() : null,
+  ]
+  if (existente) {
+    await db.prepare(`UPDATE ctm_ficha_peso_balanceamento SET aeronave_id = ?, peso_balanceamento_id = ?, data_voo = ?, numero_voo = ?, piloto_responsavel = ?,
+      peso_vazio_kg = ?, braco_vazio = ?, momento_vazio = ?, itens_carregamento = ?, fuel_litros = ?, fuel_kg = ?, fuel_braco = ?, fuel_momento = ?,
+      peso_total_kg = ?, momento_total = ?, cg_calculado = ?, peso_maximo_decolagem = ?, peso_maximo_pouso = ?, peso_maximo_sem_combustivel = ?,
+      cg_limite_dianteiro = ?, cg_limite_traseiro = ?, dentro_dos_limites = ?, status = ?, snapshot_limites = ?, observacoes = ?, solicitacao_id = ?,
+      assinatura_nome = ?, finalizado_em = ? WHERE id = ?`).bind(...valores, id).run()
+  } else {
+    await db.prepare(`INSERT INTO ctm_ficha_peso_balanceamento (aeronave_id, peso_balanceamento_id, data_voo, numero_voo, piloto_responsavel,
+      peso_vazio_kg, braco_vazio, momento_vazio, itens_carregamento, fuel_litros, fuel_kg, fuel_braco, fuel_momento,
+      peso_total_kg, momento_total, cg_calculado, peso_maximo_decolagem, peso_maximo_pouso, peso_maximo_sem_combustivel,
+      cg_limite_dianteiro, cg_limite_traseiro, dentro_dos_limites, status, snapshot_limites, observacoes, solicitacao_id,
+      assinatura_nome, finalizado_em, id) VALUES (${new Array(29).fill('?').join(', ')})`).bind(...valores, id).run()
+  }
+  const ficha = await db.prepare('SELECT * FROM ctm_ficha_peso_balanceamento WHERE id = ?1').bind(id).first<any>()
+  return c.json({ success: true, ficha: { ...ficha, itens_carregamento: parseJsonOr(ficha?.itens_carregamento, []), snapshot_limites: parseJsonOr(ficha?.snapshot_limites, {}) } }, existente ? 200 : 201)
 })
 
 app.notFound((c) => c.json({ error: 'Rota não encontrada', path: c.req.path }, 404))

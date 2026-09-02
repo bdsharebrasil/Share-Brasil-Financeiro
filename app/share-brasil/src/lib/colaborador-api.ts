@@ -246,7 +246,22 @@ export function criarAbastecimento(payload: Record<string, any>) { return colabo
 export function atualizarAbastecimento(id: string, payload: Record<string, any>) { return colaboradorRequest<{ id: string; success: boolean }>(`/api/interno/abastecimentos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirAbastecimento(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/abastecimentos/${id}`, { method: "DELETE" }); }
 export function anexarArquivoAbastecimento(id: string, tipo: "comanda" | "nota" | "boleto", arquivo: File) { const body = new FormData(); body.append("tipo", tipo); body.append("arquivo", arquivo); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body }); }
-export async function baixarArquivoAbastecimento(id: string, tipo: "comanda" | "nota" | "boleto") { const response = await fetch(`${getApiBaseUrl()}/api/interno/abastecimentos/${id}/arquivo/${tipo}`, { headers: authHeaders() }); if (!response.ok) throw new Error("Não foi possível baixar o arquivo do abastecimento."); return response.blob(); }
+export async function baixarArquivoAbastecimento(id: string, tipo: "comanda" | "nota" | "boleto") {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    throw new Error("sessao_expirada");
+  }
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+
+  const response = await fetch(`${API_BASE}/api/interno/abastecimentos/${id}/arquivo/${tipo}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    credentials: "omit",
+  });
+
+  if (!response.ok) throw new Error("Não foi possível baixar o arquivo do abastecimento.");
+  return response.blob();
+}
 
 export function enviarFotoColaborador(foto: File) {
   const body = new FormData();
@@ -475,9 +490,21 @@ export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
   });
 }
 
-export type ChecklistPreVoo = { id: string; solicitacao_id: string; itens: Record<string, unknown>; observacoes: string | null; abastecimento_id: string | null; status: string; executado_por_nome?: string | null; usuario_id?: string | null };
+export type ChecklistPreVoo = {
+  id: string;
+  solicitacao_id: string;
+  itens: Record<string, unknown>;
+  observacoes: string | null;
+  abastecimento_id: string | null;
+  status: string;
+  executado_por_nome?: string | null;
+  usuario_id?: string | null;
+  nivel_oleo?: string | null;
+  alerta_id?: string | null;
+  alertas?: Record<string, string>;
+};
 export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<ChecklistPreVoo | null>(`/api/interno/agendamento/${id}/checklist`); }
-export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
+export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string; alertas?: Record<string, string>; nivel_oleo?: string | null }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
 export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }
 
 export type ItemCarregamento = { id: string; descricao: string; peso: number | null; braco: number | null };

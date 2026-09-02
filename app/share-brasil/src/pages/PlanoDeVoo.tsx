@@ -36,6 +36,7 @@ import {
   buscarClima,
   buscarRotaer,
   calcularPlanoVoo,
+  type AerodromoOption,
   type AirportDetail,
   type ChartResponse,
   type FlightPlanResponse,
@@ -401,7 +402,7 @@ function OperationalResult({ data, form, onSave, saving, saved }: { data: Genera
 export default function PlanoDeVoo() {
   const [form, setForm] = useState<FlightPlanForm>(initialForm);
   const [painel, setPainel] = useState<PainelAgendamentoResponse | null>(null);
-  const [airports, setAirports] = useState(DEFAULT_AIRPORTS);
+  const [airports, setAirports] = useState<AerodromoOption[]>(DEFAULT_AIRPORTS);
   const [savedPlans, setSavedPlans] = useState<PlanoVooSalvo[]>([]);
   const [generated, setGenerated] = useState<GeneratedData | null>(null);
   const [loading, setLoading] = useState(true);

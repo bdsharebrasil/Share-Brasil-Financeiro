@@ -5,6 +5,8 @@ workers_dev = true
 
 [vars]
 EMAIL_FROM = "Financeiro Share Brasil <financeiro@share-brasil.com>"
+# Projeto Supabase usado pelo JWT enviado pelo frontend.
+SUPABASE_URL = "https://jilmlmdgeyzubylncpjy.supabase.co"
 # ALLOWED_ORIGINS pode ser definido como secret para restringir o CORS.
 # CLIENT_SESSION_TTL_SECONDS é opcional e, por padrão, dura 8 horas.
 

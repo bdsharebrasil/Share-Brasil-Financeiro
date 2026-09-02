@@ -4898,6 +4898,77 @@ app.post('/api/financeiro/envios-pagamento', async c => {
   return c.json({ ...row, movimentacao_id: movimentacaoId, rateio_id: rateioId }, 201)
 })
 
+// ─── Financeiro: central de e-mail ───────────────────────────────────────────
+async function garantirTabelaEmails(c: Context<{ Bindings: Bindings }>) {
+  await portalDb(c).prepare(`CREATE TABLE IF NOT EXISTS emails_enviados (
+    id TEXT PRIMARY KEY NOT NULL,
+    destinatarios TEXT NOT NULL,
+    assunto TEXT NOT NULL,
+    mensagem TEXT NOT NULL,
+    anexos TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'enviado',
+    erro TEXT,
+    enviado_por TEXT,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run()
+}
+function emailArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).map((item) => item.trim().toLowerCase()).filter(Boolean)
+  try { const parsed = JSON.parse(String(value || '[]')); return Array.isArray(parsed) ? parsed.map(String).map((item) => item.trim().toLowerCase()).filter(Boolean) : [] } catch { return [] }
+}
+function arrayBufferBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer); let binary = ''
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, Math.min(index + 0x8000, bytes.length)))
+  return btoa(binary)
+}
+app.get('/api/interno/emails', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const db = portalDb(c)
+  await garantirTabelaEmails(c)
+  const [clientes, socios, recibos, relatorios, historico] = await Promise.all([
+    db.prepare("SELECT id, razao_social, email_principal, emails FROM cliente WHERE lower(COALESCE(status,'ativo')) = 'ativo' ORDER BY razao_social").all(),
+    db.prepare("SELECT id, nome, email_principal, cliente_id FROM hold_socios WHERE email_principal IS NOT NULL AND trim(email_principal) <> '' ORDER BY nome").all(),
+    db.prepare("SELECT id, nome_arquivo, tipo_arquivo, tamanho_arquivo, criado_em FROM recibo_anexos ORDER BY criado_em DESC LIMIT 200").all().catch(() => ({ results: [] })),
+    db.prepare("SELECT id, nome_arquivo, tipo_arquivo, tamanho_arquivo, criado_em FROM relatorio_despesa_viagem_anexos ORDER BY criado_em DESC LIMIT 200").all().catch(() => ({ results: [] })),
+    db.prepare("SELECT id, destinatarios, assunto, status, anexos, erro_mensagem AS erro, criado_em FROM emails_enviados ORDER BY criado_em DESC LIMIT 100").all(),
+  ])
+  const contatos: any[] = []
+  for (const row of (clientes.results as any[])) {
+    const emails = [row.email_principal, ...emailArray(row.emails)]
+    for (const email of [...new Set(emails.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean))]) contatos.push({ id: `${row.id}:${email}`, nome: row.razao_social, email, tipo: 'cliente', cliente_id: row.id })
+  }
+  for (const row of (socios.results as any[])) contatos.push({ id: `socio:${row.id}`, nome: row.nome, email: String(row.email_principal).trim().toLowerCase(), tipo: 'socio', cliente_id: row.cliente_id || null })
+  const anexos = [...(recibos.results as any[]).map((row) => ({ id: `recibo:${row.id}`, nome: row.nome_arquivo, origem: 'recibo', tipo_arquivo: row.tipo_arquivo, tamanho_arquivo: row.tamanho_arquivo, arquivo_url: `/api/financeiro/recibos/anexos/${row.id}/arquivo` })), ...(relatorios.results as any[]).map((row) => ({ id: `relatorio:${row.id}`, nome: row.nome_arquivo, origem: 'relatorio_despesa_viagem', tipo_arquivo: row.tipo_arquivo, tamanho_arquivo: row.tamanho_arquivo, arquivo_url: `/api/financeiro/relatorios-despesa-viagem/anexos/${row.id}/arquivo` }))]
+  return c.json({ contatos, anexos, historico: (historico.results as any[]).map((row) => ({ ...row, destinatarios: emailArray(row.destinatarios), quantidade_anexos: emailArray(row.anexos).length })) })
+})
+app.post('/api/interno/emails', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
+  const destinatarios = emailArray(body.destinatarios)
+  const assunto = String(body.assunto || '').trim(); const mensagem = String(body.mensagem || '').trim(); const ids = Array.isArray(body.anexos) ? body.anexos.map(String) : []
+  if (!destinatarios.length || !assunto || !mensagem) return c.json({ error: 'destinatario_assunto_e_mensagem_obrigatorios' }, 400)
+  if (destinatarios.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return c.json({ error: 'destinatario_invalido' }, 400)
+  if (!c.env.RESEND_API_KEY || !c.env.EMAIL_FROM) return c.json({ error: 'email_nao_configurado' }, 503)
+  await garantirTabelaEmails(c)
+  const db = portalDb(c); const anexos: any[] = []
+  for (const id of ids.slice(0, 10)) {
+    const [prefix, rawId] = id.includes(':') ? id.split(':', 2) : ['', id]
+    const table = prefix === 'recibo' ? 'recibo_anexos' : prefix === 'relatorio' ? 'relatorio_despesa_viagem_anexos' : ''
+    if (!table) continue
+    const row = await db.prepare(`SELECT nome_arquivo, caminho_arquivo, tipo_arquivo FROM ${table} WHERE id = ?1`).bind(rawId).first<any>().catch(() => null)
+    if (!row) continue
+    const object = await shareBrasilBucket(c).get(row.caminho_arquivo); if (!object) continue
+    anexos.push({ filename: row.nome_arquivo, content: arrayBufferBase64(await object.arrayBuffer()), content_type: row.tipo_arquivo || 'application/octet-stream' })
+  }
+  const id = uuid(); let status = 'enviado'; let erro: string | null = null
+  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: c.env.EMAIL_FROM, to: destinatarios, subject: assunto, html: `<p>${escapeHtml(mensagem).replace(/\n/g, '<br>')}</p>`, attachments: anexos }) })
+  if (!response.ok) { status = 'erro'; erro = await response.text().catch(() => 'falha_ao_enviar_email') }
+  await db.prepare('INSERT INTO emails_enviados (id, destinatarios, assunto, mensagem, anexos, quantidade_anexos, status, erro_mensagem, enviado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, JSON.stringify(destinatarios), assunto, mensagem, JSON.stringify(ids), ids.length, status, erro, user.id).run()
+  if (status === 'erro') return c.json({ error: 'falha_ao_enviar_email', id }, 502)
+  return c.json({ success: true, id }, 201)
+})
 // ─── Financeiro: emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ──
 // Segue as regras de REGRAS_NEGOCIO_FINANCEIRO.md: toda despesa nasce em `movimentacoes`;
 // despesa de cliente (direta ou reembolsável) sempre gera `rateio_despesas`; `rateio_despesas`
@@ -5341,6 +5412,179 @@ app.post('/api/interno/agendamento/:id/peso-balanceamento', async c => {
 })
 
 app.notFound((c) => c.json({ error: 'Rota não encontrada', path: c.req.path }, 404))
+
+// ─── Financeiro Share (Caixa Share) ───────────────────────────────────────────
+
+type LinhaGenerica = Record<string, unknown>
+
+function textoOuNulo(valor: unknown): string | null {
+  if (valor === undefined || valor === null) return null
+  const texto = String(valor).trim()
+  return texto ? texto : null
+}
+
+function numeroOuZero(valor: unknown): number {
+  const numero = Number(valor)
+  return Number.isFinite(numero) ? numero : 0
+}
+
+function escolherCampo(linha: LinhaGenerica, chaves: string[]): string | null {
+  for (const chave of chaves) {
+    const valor = textoOuNulo(linha[chave])
+    if (valor) return valor
+  }
+  return null
+}
+
+function normalizarCategoriaShare(linha: LinhaGenerica) {
+  return {
+    id: String(linha.id ?? ''),
+    nome: escolherCampo(linha, ['nome', 'categoria', 'descricao', 'categoria_nome', 'titulo']) ?? 'SEM NOME',
+    tipo: escolherCampo(linha, ['tipo', 'fluxo', 'natureza']),
+    grupo: escolherCampo(linha, ['grupo', 'grupo_categoria', 'subcategoria', 'agrupamento']),
+    classificacao: escolherCampo(linha, ['classificacao', 'frequencia', 'tipo_custo', 'periodicidade']),
+    empresa_id: escolherCampo(linha, ['empresa_id', 'id_empresa']),
+    reembolsavel: numeroOuZero(linha.reembolsavel) === 1,
+  }
+}
+
+const CAMPOS_MOVIMENTACAO_SHARE = [
+  'descricao', 'fluxo', 'categoria_id', 'categoria_nome', 'grupo_categoria', 'valor_total',
+  'data_emissao', 'data_pagamento', 'data_vencimento', 'status', 'forma_pagamento', 'conta_bancaria',
+  'fornecedor_nome', 'numero_doc', 'numero_nf', 'numero_recibo', 'numero_boleto', 'observacoes',
+  'periodicidade', 'comprovante_url', 'nf_url', 'boleto_url', 'recibo_url', 'aeronave_registro',
+] as const
+
+app.get('/api/interno/financeiro-share/opcoes', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const db = portalDb(c)
+  const [categorias, contas, empresas] = await Promise.all([
+    db.prepare('SELECT * FROM categorias_caixa_share').all<LinhaGenerica>().catch(() => ({ results: [] as LinhaGenerica[] })),
+    db.prepare('SELECT id, banco, numero_conta, tipo_conta FROM contas_bancarias ORDER BY banco').all().catch(() => ({ results: [] })),
+    db.prepare('SELECT id, razao_social, cnpj FROM empresa ORDER BY razao_social').all().catch(() => ({ results: [] })),
+  ])
+  return c.json({
+    categorias: (categorias.results || []).map(normalizarCategoriaShare).sort((a, b) => `${a.grupo}${a.nome}`.localeCompare(`${b.grupo}${b.nome}`, 'pt-BR')),
+    contas_bancarias: contas.results || [],
+    empresas: empresas.results || [],
+  })
+})
+
+app.get('/api/interno/financeiro-share/movimentacoes', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const db = portalDb(c)
+  const mes = textoOuNulo(c.req.query('mes'))
+  const busca = textoOuNulo(c.req.query('busca'))
+  const categoriaId = textoOuNulo(c.req.query('categoria_id'))
+  const status = textoOuNulo(c.req.query('status'))
+
+  const condicoes: string[] = [`COALESCE(tipo_caixa, 'share') = 'share'`, 'cliente_id IS NULL']
+  const parametros: unknown[] = []
+  if (mes) {
+    parametros.push(mes)
+    condicoes.push(`substr(COALESCE(data_pagamento, data_emissao, data_vencimento, criado_em), 1, 7) = ?${parametros.length}`)
+  }
+  if (categoriaId) { parametros.push(categoriaId); condicoes.push(`categoria_id = ?${parametros.length}`) }
+  if (status) { parametros.push(status.toLowerCase()); condicoes.push(`lower(COALESCE(status, 'pendente')) = ?${parametros.length}`) }
+  if (busca) {
+    parametros.push(`%${busca.toLowerCase()}%`)
+    const indice = parametros.length
+    condicoes.push(`(lower(COALESCE(descricao, '')) LIKE ?${indice} OR lower(COALESCE(categoria_nome, '')) LIKE ?${indice} OR lower(COALESCE(fornecedor_nome, '')) LIKE ?${indice} OR lower(COALESCE(numero_doc, '')) LIKE ?${indice})`)
+  }
+
+  const consulta = `SELECT id, descricao, fluxo, categoria_id, categoria_nome, grupo_categoria, valor_total, valor_pago_real,
+      data_emissao, data_pagamento, data_vencimento, status, forma_pagamento, conta_bancaria, fornecedor_nome,
+      numero_doc, numero_nf, numero_recibo, numero_boleto, observacoes, periodicidade, comprovante_url, nf_url,
+      boleto_url, recibo_url, tipo_caixa, criado_em
+    FROM movimentacoes
+    WHERE ${condicoes.join(' AND ')}
+    ORDER BY COALESCE(data_pagamento, data_emissao, data_vencimento, criado_em) DESC, criado_em DESC
+    LIMIT 500`
+
+  const { results } = await db.prepare(consulta).bind(...parametros).all<LinhaGenerica>()
+  const lancamentos = results || []
+
+  const valorDe = (linha: LinhaGenerica) => numeroOuZero(linha.valor_pago_real ?? linha.valor_total)
+  const ehEntrada = (linha: LinhaGenerica) => String(linha.fluxo || '').toLowerCase() === 'entrada'
+  const ehPago = (linha: LinhaGenerica) => ['pago', 'quitado', 'conciliado'].includes(String(linha.status || '').toLowerCase()) || Boolean(linha.data_pagamento)
+
+  const entradas = lancamentos.filter(ehEntrada).reduce((total, linha) => total + valorDe(linha), 0)
+  const saidas = lancamentos.filter(linha => !ehEntrada(linha)).reduce((total, linha) => total + valorDe(linha), 0)
+  const pendentes = lancamentos.filter(linha => !ehPago(linha))
+
+  const porGrupo = new Map<string, number>()
+  for (const linha of lancamentos) {
+    if (ehEntrada(linha)) continue
+    const grupo = textoOuNulo(linha.grupo_categoria) || 'SEM GRUPO'
+    porGrupo.set(grupo, (porGrupo.get(grupo) || 0) + valorDe(linha))
+  }
+
+  return c.json({
+    lancamentos,
+    resumo: {
+      entradas,
+      saidas,
+      saldo: entradas - saidas,
+      total_lancamentos: lancamentos.length,
+      pendentes: pendentes.length,
+      valor_pendente: pendentes.reduce((total, linha) => total + valorDe(linha), 0),
+    },
+    grupos: [...porGrupo.entries()].map(([grupo, valor]) => ({ grupo, valor })).sort((a, b) => b.valor - a.valor),
+  })
+})
+
+async function corpoMovimentacaoShare(c: Context<{ Bindings: Bindings }>) {
+  const corpo = await c.req.json<LinhaGenerica>().catch(() => ({} as LinhaGenerica))
+  const dados: LinhaGenerica = {}
+  for (const campo of CAMPOS_MOVIMENTACAO_SHARE) {
+    if (!(campo in corpo)) continue
+    dados[campo] = campo === 'valor_total' ? numeroOuZero(corpo[campo]) : textoOuNulo(corpo[campo])
+  }
+  return dados
+}
+
+app.post('/api/interno/financeiro-share/movimentacoes', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const dados = await corpoMovimentacaoShare(c)
+  if (!textoOuNulo(dados.descricao)) return c.json({ error: 'descricao_obrigatoria' }, 400)
+  if (!textoOuNulo(dados.categoria_id)) return c.json({ error: 'categoria_obrigatoria' }, 400)
+  if (numeroOuZero(dados.valor_total) <= 0) return c.json({ error: 'valor_invalido' }, 400)
+
+  const id = crypto.randomUUID()
+  const registro: LinhaGenerica = {
+    id,
+    tipo_caixa: 'share',
+    fluxo: textoOuNulo(dados.fluxo) || 'saida',
+    status: textoOuNulo(dados.status) || (textoOuNulo(dados.data_pagamento) ? 'pago' : 'pendente'),
+    ...dados,
+  }
+  const colunas = Object.keys(registro)
+  await portalDb(c).prepare(
+    `INSERT INTO movimentacoes (${colunas.join(', ')}) VALUES (${colunas.map((_, indice) => `?${indice + 1}`).join(', ')})`,
+  ).bind(...colunas.map(coluna => registro[coluna] ?? null)).run()
+
+  const criado = await portalDb(c).prepare('SELECT * FROM movimentacoes WHERE id = ?1').bind(id).first()
+  return c.json({ lancamento: criado }, 201)
+})
+
+app.patch('/api/interno/financeiro-share/movimentacoes/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const id = c.req.param('id')
+  const dados = await corpoMovimentacaoShare(c)
+  const colunas = Object.keys(dados)
+  if (colunas.length === 0) return c.json({ error: 'nada_para_atualizar' }, 400)
+  await portalDb(c).prepare(
+    `UPDATE movimentacoes SET ${colunas.map((coluna, indice) => `${coluna} = ?${indice + 1}`).join(', ')}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?${colunas.length + 1}`,
+  ).bind(...colunas.map(coluna => dados[coluna] ?? null), id).run()
+  const atualizado = await portalDb(c).prepare('SELECT * FROM movimentacoes WHERE id = ?1').bind(id).first()
+  return c.json({ lancamento: atualizado })
+})
+
+app.delete('/api/interno/financeiro-share/movimentacoes/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  await portalDb(c).prepare('DELETE FROM movimentacoes WHERE id = ?1').bind(c.req.param('id')).run()
+  return c.json({ ok: true })
+})
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 

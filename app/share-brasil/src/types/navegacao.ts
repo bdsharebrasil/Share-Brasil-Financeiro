@@ -89,7 +89,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
-    { id: "contatos-clientes", label: "Contatos e Clientes", icon: ContactRound },
+    { id: "contatos-clientes", label: "Contatos", icon: ContactRound },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [

@@ -576,8 +576,29 @@ export function salvarPlanoVoo(payload: Record<string, unknown>) {
   });
 }
 
-export function buscarPainelFinanceiro() {
-  return colaboradorRequest<PainelFinanceiroResponse>("/api/interno/dashboard/financeiro");
+type PainelFinanceiroPayload = {
+  resumo?: Partial<PainelFinanceiroResponse["resumo"]> | null;
+  movimentacoes?: MovimentacaoFinanceira[] | null;
+  lancamentos?: MovimentacaoFinanceira[] | null;
+};
+
+export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
+  const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/interno/dashboard/financeiro");
+  const movimentacoes = Array.isArray(payload?.movimentacoes)
+    ? payload.movimentacoes
+    : Array.isArray(payload?.lancamentos)
+      ? payload.lancamentos
+      : [];
+
+  return {
+    resumo: {
+      total_a_receber: Number(payload?.resumo?.total_a_receber ?? 0),
+      total_pago: Number(payload?.resumo?.total_pago ?? 0),
+      pendencias: Number(payload?.resumo?.pendencias ?? 0),
+      pagamentos_confirmados: Number(payload?.resumo?.pagamentos_confirmados ?? 0),
+    },
+    movimentacoes,
+  };
 }
 
 export type DiarioAeronaveResumo = {

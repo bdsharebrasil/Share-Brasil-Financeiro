@@ -843,7 +843,8 @@ export type CriarReciboPayload = {
   aeronave_id?: string | null;
   cliente_id?: string | null;
   colaborador_id?: string | null;
-  nome_pagador: string;
+  /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
+  nome_pagador?: string;
   documento_pagador?: string | null;
   endereco_pagador?: string | null;
   cidade_pagador?: string | null;

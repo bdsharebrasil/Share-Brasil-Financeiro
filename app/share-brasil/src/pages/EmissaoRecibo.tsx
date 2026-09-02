@@ -22,11 +22,6 @@ type Formulario = {
   colaborador_id: string;
   aeronave_id: string;
   rateado: boolean;
-  nome_pagador: string;
-  documento_pagador: string;
-  endereco_pagador: string;
-  cidade_pagador: string;
-  uf: string;
   valor: string;
   descricao_servico: string;
   data_emissao: string;
@@ -44,11 +39,6 @@ const inicial = (): Formulario => ({
   colaborador_id: "",
   aeronave_id: "",
   rateado: false,
-  nome_pagador: "",
-  documento_pagador: "",
-  endereco_pagador: "",
-  cidade_pagador: "",
-  uf: "",
   valor: "",
   descricao_servico: "",
   data_emissao: hoje(),
@@ -129,20 +119,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   };
 
   const selecionarCliente = (clienteId: string) => {
-    const cliente = opcoes.clientes.find((item) => item.id === clienteId);
-    setForm((atual) => ({
-      ...atual,
-      cliente_id: clienteId,
-      nome_pagador: cliente?.razao_social || atual.nome_pagador,
-      documento_pagador: cliente?.cnpj || "",
-      endereco_pagador: cliente?.endereco || "",
-      cidade_pagador: cliente?.cidade || "",
-      uf: cliente?.uf || "",
-    }));
+    setForm((atual) => ({ ...atual, cliente_id: clienteId }));
   };
 
   const podeEmitir = Boolean(
-    form.tipo && form.nome_pagador.trim() && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 &&
+    form.tipo && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 &&
     (form.tipo === "colaborador" ? form.colaborador_id : (form.rateado ? form.aeronave_id : form.cliente_id))
   );
 
@@ -164,11 +145,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         aeronave_id: form.aeronave_id || null,
         cliente_id: form.cliente_id || null,
         colaborador_id: form.colaborador_id || null,
-        nome_pagador: form.nome_pagador.trim(),
-        documento_pagador: form.documento_pagador.trim() || null,
-        endereco_pagador: form.endereco_pagador.trim() || null,
-        cidade_pagador: form.cidade_pagador.trim() || null,
-        uf_pagador: form.uf.trim() || null,
         valor: valorNumerico(form.valor),
         descricao_servico: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
@@ -238,12 +214,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </div>
 
         {form.tipo && <div className="border-t border-border px-5 py-5">
-          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong><span className="text-muted-foreground">· {form.tipo === "cliente_reembolsavel" ? "A Share fará o desembolso inicial." : form.tipo === "cliente_direto" ? "O cliente será o pagador direto." : "O pagamento sai do caixa Share."}</span></div>
+          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong><span className="text-muted-foreground">· A Share Brasil é o pagador padrão deste recibo.</span></div>
           <div className="grid gap-4 md:grid-cols-2">
             {form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => selecionarCliente(e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="Colaborador" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
             <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_emissao} onChange={(e) => alterar("data_emissao", e.target.value)} className="campo" /></Campo>
-            <Campo label="Nome do pagador" obrigatorio><input value={form.nome_pagador} onChange={(e) => alterar("nome_pagador", e.target.value)} placeholder="Nome ou razão social" className="campo" /></Campo>
-            <Campo label="CPF ou CNPJ"><input value={form.documento_pagador} onChange={(e) => alterar("documento_pagador", e.target.value)} placeholder="Documento do pagador" className="campo" /></Campo>
+            <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Pagador padrão</p><p className="mt-1 text-[12px] font-extrabold">SHARE BRASIL SERVIÇOS AERONÁUTICOS</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">CNPJ 30.868.504/0001-00 · Av. Presidente Antônio Bernardes, 5457 · Várzea Grande/MT · CEP 78125-100</p><p className="mt-1 text-[10px] text-muted-foreground">Este dado é fixo e não precisa ser preenchido. O beneficiário/cliente continua sendo selecionado abaixo.</p></div>
             <Campo label="Descrição do serviço" obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder="Ex.: Reembolso de despesas operacionais" className="campo" /></Campo>
             <Campo label="Valor" obrigatorio><input inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
             <Campo label="Vencimento"><input type="date" value={form.data_vencimento} onChange={(e) => alterar("data_vencimento", e.target.value)} className="campo" /></Campo>
@@ -251,9 +226,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             <Campo label="Grupo de categoria"><input value={form.grupo_categoria} onChange={(e) => alterar("grupo_categoria", e.target.value)} className="campo" /></Campo>
             {form.tipo === "colaborador" && <Campo label="Tipo da despesa" obrigatorio><select value={form.tipo_despesa} onChange={(e) => alterar("tipo_despesa", e.target.value as "fixo" | "variável")} className="campo"><option value="fixo">Fixo</option><option value="variável">Variável</option></select></Campo>}
             <Campo label="Anexo (boleto ou comprovante)"><input type="file" onChange={(e) => setArquivo(e.target.files?.[0] || null)} className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary" /></Campo>
-            <Campo label="Endereço" className="md:col-span-2"><input value={form.endereco_pagador} onChange={(e) => alterar("endereco_pagador", e.target.value)} className="campo" /></Campo>
-            <Campo label="Cidade"><input value={form.cidade_pagador} onChange={(e) => alterar("cidade_pagador", e.target.value)} className="campo" /></Campo>
-            <Campo label="UF"><input maxLength={2} value={form.uf} onChange={(e) => alterar("uf", e.target.value.toUpperCase())} className="campo" /></Campo>
+
             <Campo label="Observações" className="md:col-span-2"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} className="campo min-h-20 resize-y" placeholder="Informações complementares do recibo" /></Campo>
           </div>
 

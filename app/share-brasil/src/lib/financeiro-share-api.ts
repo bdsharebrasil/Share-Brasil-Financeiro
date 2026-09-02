@@ -165,8 +165,27 @@ export async function excluirLancamentoShare(id: string) {
   return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos/${id}`, { method: "DELETE" })) as { ok: boolean };
 }
 
+function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | undefined): OpcoesLancamento {
+  return {
+    categorias: Array.isArray(payload?.categorias) ? payload.categorias : [],
+    contas_bancarias: Array.isArray(payload?.contas_bancarias) ? payload.contas_bancarias : [],
+    cotistas: Array.isArray(payload?.cotistas) ? payload.cotistas : [],
+    holdings: Array.isArray(payload?.holdings) ? payload.holdings : [],
+    pagadores: Array.isArray(payload?.pagadores) ? payload.pagadores : [],
+  };
+}
+
+function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined): BalancoEconomico {
+  return {
+    lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item) => ({ ...item, rateios: Array.isArray(item.rateios) ? item.rateios : [] })) : [],
+    saldos: Array.isArray(payload?.saldos) ? payload.saldos : [],
+    matrizCompensacao: payload?.matrizCompensacao && typeof payload.matrizCompensacao === "object" ? payload.matrizCompensacao : {},
+    holdings: Array.isArray(payload?.holdings) ? payload.holdings.map((holding) => ({ ...holding, socios: Array.isArray(holding.socios) ? holding.socios : [] })) : [],
+  };
+}
+
 export async function buscarOpcoesLancamento() {
-  return (await financeiroRequest("/api/lancamentos/opcoes")) as OpcoesLancamento;
+  return normalizarOpcoesLancamento(await financeiroRequest<Partial<OpcoesLancamento>>("/api/lancamentos/opcoes"));
 }
 
 export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
@@ -174,7 +193,7 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await financeiroRequest(`/api/balanco${sufixo}`)) as BalancoEconomico;
+  return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/balanco${sufixo}`));
 }
 
 export async function buscarLancamentosEconomicos(inicio?: string, fim?: string) {
@@ -182,7 +201,8 @@ export async function buscarLancamentosEconomicos(inicio?: string, fim?: string)
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await financeiroRequest(`/api/lancamentos${sufixo}`)) as { lancamentos: LancamentoEconomico[] };
+  const resposta = await financeiroRequest<{ lancamentos?: LancamentoEconomico[] }>(`/api/lancamentos${sufixo}`);
+  return { lancamentos: Array.isArray(resposta?.lancamentos) ? resposta.lancamentos : [] };
 }
 
 export async function criarLancamentoEconomico(dados: Record<string, unknown>) {

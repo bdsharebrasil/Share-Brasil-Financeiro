@@ -2937,6 +2937,7 @@ app.get('/api/interno/dashboard/operacoes', async c => {
       LEFT JOIN jornadas_voo j ON j.solicitacao_id = s.id AND j.criado_em = (SELECT MAX(j2.criado_em) FROM jornadas_voo j2 WHERE j2.solicitacao_id = s.id)
       LEFT JOIN pernas_jornada_voo p ON p.jornada_id = j.id AND p.numero = (SELECT MAX(p2.numero) FROM pernas_jornada_voo p2 WHERE p2.jornada_id = j.id)
       WHERE date(s.data_agendada) >= ?1
+        AND (j.status IS NULL OR j.status <> 'encerrada')
       ORDER BY date(s.data_agendada), s.horario_previsto_agendamento, s.criado_em
       LIMIT 50`).bind(dataReferencia).all(),
   ])
@@ -3447,7 +3448,7 @@ LEFT JOIN aeronave a ON a.id = s.aeronave_id
       WHERE date(e.data_inicio) <= date(?2) AND date(e.data_fim) >= date(?1)
       ORDER BY date(e.data_inicio), e.tripulacao_id`).bind(inicio, fim).all(),
   ])
-  const agendamentosOperacionais = agendamentos.results.map((item: any) => ({ ...item, status: item.jornada_status === 'em_rota' ? 'em_voo' : item.status }))
+  const agendamentosOperacionais = agendamentos.results.map((item: any) => ({ ...item, status: item.jornada_status === 'encerrada' ? 'encerrada' : item.jornada_status === 'em_rota' ? 'em_voo' : item.status }))
   const tripulantes = [...tripulacao.results, ...freelancers.results]
   const nomes = new Map(tripulantes.map((item: any) => [item.id, item.nome_completo]))
     const escala = agendamentosOperacionais

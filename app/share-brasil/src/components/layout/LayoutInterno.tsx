@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Perfil from "@/pages/perfil";
 import DashboardGestor from "@/pages/DashboardGestor";
 import DashboardOperacoes from "@/pages/DashboardOperacoes";
 import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
+import EmissaoRecibo from "@/pages/EmissaoRecibo";
 import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
 import PlanoDeVoo from "@/pages/PlanoDeVoo";
@@ -35,14 +36,17 @@ export default function LayoutInterno() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const navegar = useNavigate();
+  const localizacao = useLocation();
+  const rotaRecibo = localizacao.pathname === "/financeiro/emissao-recibo";
 
   useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); }, [tema]);
-  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); setPodeAcessarGestor(permitido); if (permitido) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, []);
+  useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } }, [rotaRecibo]);
+  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); setPodeAcessarGestor(permitido); if (permitido && !rotaRecibo) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo]);
 
   const itens = menusPorAmbiente[ambiente];
   const itemAtivo = useMemo(() => itens.find((item) => item.id === menuAtivo) ?? itens[0], [itens, menuAtivo]);
   const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); setMenuAberto(false); };
-  const selecionarMenu = (menu: string) => setMenuAtivo(menu);
+  const selecionarMenu = (menu: string) => { setMenuAtivo(menu); if (menu === "recibos") navegar("/financeiro/emissao-recibo"); else if (rotaRecibo) navegar("/"); };
   const abrirPerfil = () => setMenuAtivo("perfil");
 
   const renderConteudo = () => {
@@ -55,6 +59,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "financeiro" && menuAtivo === "enviar-pagamento") return <EnviarPagamento />;
+    if (ambiente === "financeiro" && menuAtivo === "recibos") return <EmissaoRecibo aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "despesas") return <RelatorioDespesaViagem aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;

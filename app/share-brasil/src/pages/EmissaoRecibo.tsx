@@ -128,7 +128,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setCarregando(true);
     try {
       const [dadosOpcoes, dadosRecibos] = await Promise.all([buscarOpcoesRecibos(), buscarRecibos()]);
-      setOpcoes(dadosOpcoes);
+      setOpcoes({ ...dadosOpcoes, aeronaves: Array.isArray(dadosOpcoes.aeronaves) ? dadosOpcoes.aeronaves : [] });
       setRecibos(dadosRecibos.recibos);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível carregar os dados de emissão.");

@@ -213,9 +213,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     setMensagem("");
     try {
-      let anexoId: string | undefined;
-      if (arquivo) anexoId = (await enviarAnexoRecibo(arquivo)).id;
-
       const payload: CriarReciboPayload = {
         tipo_recibo: form.tipo,
         beneficiario_tipo: form.tipo === "colaborador" ? "colaborador" : form.tipo === "pagamento" ? "fornecedor" : "cliente",
@@ -236,8 +233,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         categoria_nome_manual: form.tipo === "colaborador" ? form.categoria_nome_manual.trim() || null : null,
         natureza_despesa: form.tipo === "colaborador" ? form.natureza_despesa : null,
         grupo_categoria: form.tipo === "colaborador" ? (form.natureza_despesa === "aeronave" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA") : null,
-        anexo_id: anexoId || null,
-        numero_documento_anexo: anexoId ? form.numero_documento_anexo.trim() || null : null,
+        anexo_id: null,
+        numero_documento_anexo: arquivo ? form.numero_documento_anexo.trim() || null : null,
         observacoes: form.observacoes.trim() || null,
         periodicidade: mostrarMetadadosPagamento ? form.periodicidade || null : null,
         tipo_rateio: mostrarMetadadosPagamento ? form.tipo_rateio || null : null,
@@ -248,6 +245,19 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         rateio_linhas: rateioPagamentoAtivo ? rateioLinhasPagamento : undefined,
       };
       const resposta = await criarRecibo(payload);
+      setRecibos((atual) => [resposta.recibo, ...atual]);
+      setForm(inicial());
+      setArquivo(null);
+      setPreviewAberta(false);
+      let avisoAnexo = "";
+      if (arquivo) {
+        try {
+          const anexo = await enviarAnexoRecibo(arquivo, resposta.recibo.id);
+          resposta.recibo.anexo_id = anexo.id;
+        } catch (anexoError) {
+          avisoAnexo = ` O recibo foi criado, mas o anexo não pôde ser salvo${anexoError instanceof Error ? `: ${anexoError.message}` : "."}`;
+        }
+      }
       let avisoPdf = "";
       try {
         const pdf = await gerarPdfRecibo(resposta.recibo, colaboradorSelecionado);
@@ -257,11 +267,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       } catch (pdfError) {
         avisoPdf = ` O recibo foi criado, mas o PDF não pôde ser salvo${pdfError instanceof Error ? `: ${pdfError.message}` : "."}`;
       }
-      setRecibos((atual) => [resposta.recibo, ...atual]);
-      setMensagem(`Recibo ${resposta.recibo.numero_recibo} emitido com sucesso${resposta.rateio_ids.length ? ` e ${resposta.rateio_ids.length} rateio(s) gerado(s)` : ""}.${avisoPdf}`);
-      setForm(inicial());
-      setArquivo(null);
-      setPreviewAberta(false);
+      setMensagem(`Recibo ${resposta.recibo.numero_recibo} emitido com sucesso${resposta.rateio_ids.length ? ` e ${resposta.rateio_ids.length} rateio(s) gerado(s)` : ""}.${avisoAnexo}${avisoPdf}`);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível emitir o recibo.");
     } finally {

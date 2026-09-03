@@ -927,7 +927,7 @@ export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; 
   return colaboradorRequest<{ ok: boolean; lancamento_reembolso_id: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
 }
 export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
-export function enviarAnexoRecibo(arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
+export function enviarAnexoRecibo(arquivo: File, reciboId?: string) { const body = new FormData(); body.append("arquivo", arquivo); if (reciboId) body.append("recibo_id", reciboId); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
 export function enviarPdfRecibo(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ anexo_id: string; pdf_url: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
 export type ContatoEmail = {
   id: string;

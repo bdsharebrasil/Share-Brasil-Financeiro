@@ -389,20 +389,20 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   return (
-    <div className="route-enter mx-auto max-w-4xl space-y-5">
+    <div className="route-enter mx-auto max-w-[900px] space-y-5">
       <header>
         <IndicadorPagina>Financeiro / Enviar pagamento</IndicadorPagina>
-        <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Send className="text-primary" size={22} /> Enviar pagamento</h1>
+        <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Send className="text-primary" size={22} /> Fluxo de envio</h1>
         <p className="mt-1.5 max-w-2xl overflow-hidden text-[11px] leading-relaxed text-muted-foreground">Um fluxo único e guiado: escolha o modo, informe a despesa e envie. O modo define se o lançamento entra no caixa Share, no caixa Cliente ou no rateio.</p>
       </header>
 
-      <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/20 px-5 py-3.5">
+      <section className="overflow-hidden rounded-xl border border-border/80 bg-card/45 shadow-[0_18px_50px_rgba(0,0,0,.18)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-secondary/10 px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-primary/30 bg-primary/10 text-primary"><ClipboardCheck size={15} /></span>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.16em]">Solicitação de pagamento</p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Modo da solicitação" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[.16em]">Fluxo de envio</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}</p>
             </div>
           </div>
           <div className="flex items-center gap-1" aria-label={`Progresso: etapa ${etapa + 1}`}>
@@ -412,7 +412,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </div>
         </div>
 
-        <div className="px-5 py-5">
+        <div className="px-5 py-6 md:px-6">
           {etapa === 0 && (
             <div className="space-y-4">
               <div>
@@ -429,7 +429,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`flex w-full items-start gap-3.5 rounded-sm border px-4 py-3.5 text-left transition-colors ${ativo ? "border-primary/60 bg-primary/[.08]" : "border-border bg-secondary/[.12] hover:border-primary/35 hover:bg-secondary/25"}`}
+                      className={`flex w-full items-start gap-3.5 rounded-xl border px-4 py-3.5 text-left transition-colors ${ativo ? "border-primary/60 bg-primary/[.08]" : "border-border/80 bg-background/35 hover:border-primary/35 hover:bg-secondary/25"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -532,7 +532,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-secondary/15 px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 bg-secondary/10 px-5 py-3.5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground"><History size={14} /> Histórico de programação</Button>

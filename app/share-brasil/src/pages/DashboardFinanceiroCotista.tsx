@@ -77,21 +77,24 @@ export default function DashboardFinanceiroCotista() {
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [erroAeronaves, setErroAeronaves] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
 
   const carregarOpcoes = useCallback(async () => {
-    try {
-      const [ops, envioOps] = await Promise.all([
-        opcoes ? Promise.resolve(opcoes) : buscarOpcoesLancamento(),
-        opcoesEnvio ? Promise.resolve(opcoesEnvio) : buscarOpcoesEnvioPagamento(),
-      ]);
-      setOpcoes(ops);
-      setOpcoesEnvio(envioOps);
-      if (!aeronaveId && envioOps.aeronaves.length > 0) {
-        setAeronaveId(envioOps.aeronaves[0].id);
+    if (!opcoes) {
+      try { setOpcoes(await buscarOpcoesLancamento()); }
+      catch { setOpcoes({ categorias: [], contas_bancarias: [], cotistas: [], holdings: [], pagadores: [] }); }
+    }
+    if (!opcoesEnvio) {
+      try {
+        const envioOps = await buscarOpcoesEnvioPagamento();
+        setOpcoesEnvio(envioOps);
+        if (!aeronaveId && envioOps.aeronaves.length > 0) {
+          setAeronaveId(envioOps.aeronaves[0].id);
+        }
+      } catch (error) {
+        setErroAeronaves(error instanceof Error ? error.message : "Não foi possível carregar a lista de aeronaves.");
       }
-    } catch {
-      /* ignore */
     }
   }, [opcoes, opcoesEnvio, aeronaveId]);
 
@@ -224,6 +227,13 @@ export default function DashboardFinanceiroCotista() {
           </Button>
         </div>
       </section>
+
+      {erroAeronaves && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">
+          <span>{erroAeronaves}</span>
+          <Button type="button" variant="outline" onClick={() => { setErroAeronaves(null); void carregarOpcoes(); }} className="h-8 border-[#e77b80]/40 bg-transparent text-[10px] text-[#ed8c90]">Tentar novamente</Button>
+        </div>
+      )}
 
       {erro && (
         <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">

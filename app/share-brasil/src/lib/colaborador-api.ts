@@ -907,10 +907,13 @@ export type CriarReciboPayload = {
 };
 
 export function buscarOpcoesRecibos() { return colaboradorRequest<OpcoesRecibos>("/api/financeiro/recibos/opcoes"); }
-export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor" }) {
+export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);
   if (filtro?.beneficiario_tipo) params.set("beneficiario_tipo", filtro.beneficiario_tipo);
+  if (filtro?.q?.trim()) params.set("q", filtro.q.trim());
+  if (filtro?.data_inicial) params.set("data_inicial", filtro.data_inicial);
+  if (filtro?.data_final) params.set("data_final", filtro.data_final);
   const query = params.toString();
   return colaboradorRequest<{ recibos: Recibo[] }>(`/api/financeiro/recibos${query ? `?${query}` : ""}`);
 }

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw, XCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import HistoricoRecibos, { type FiltrosHistoricoRecibos } from "@/components/financeiro-share/HistoricoRecibos";
 import logoShare from "@/assets/share-signature-logo.png";
-import { IndicadorPagina, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 import {
   buscarOpcoesRecibos,
   buscarRecibos,
@@ -97,21 +98,6 @@ function valorNumerico(valor: string) {
   return Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo) || 0;
 }
 
-function dataBr(valor: string | null) {
-  return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
-}
-
-function tomStatus(status: ReciboFinanceiro["status"]) {
-  if (status === "emitido" || status === "reembolsado") return "green" as const;
-  if (status === "aguardando_reembolso") return "amber" as const;
-  if (status === "cancelado") return "red" as const;
-  return "neutral" as const;
-}
-
-function rotuloStatus(status: ReciboFinanceiro["status"]) {
-  return ({ emitido: "Emitido", aguardando_reembolso: "Aguardando reembolso", reembolsado: "Reembolsado", cancelado: "Cancelado" } as Record<string, string>)[status] || status;
-}
-
 export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [form, setForm] = useState<Formulario>(inicial);
   const [opcoes, setOpcoes] = useState<OpcoesRecibos>({ clientes: [], colaboradores: [], aeronaves: [], cotistas: [], categorias: [], categorias_cliente: [] });
@@ -119,7 +105,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const [historico, setHistorico] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState<"emissao" | "historico">("emissao");
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [previewAberta, setPreviewAberta] = useState(false);
@@ -138,6 +124,19 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   };
 
   useEffect(() => { void carregar(); }, []);
+
+  const buscarHistorico = async (filtros: FiltrosHistoricoRecibos) => {
+    setCarregando(true);
+    setErro("");
+    try {
+      const dados = await buscarRecibos(filtros);
+      setRecibos(dados.recibos);
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível buscar os recibos.");
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   const cotistas = useMemo(() => form.aeronave_id ? opcoes.cotistas.filter((item) => item.aeronave_id === form.aeronave_id) : [], [form.aeronave_id, opcoes.cotistas]);
   const totalRateio = cotistas.reduce((total, item) => total + Number(item.percentual_sociedade || 0), 0);
@@ -270,12 +269,17 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         <div>
           <IndicadorPagina>Financeiro / Emissão de recibo</IndicadorPagina>
           <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Receipt className="text-primary" size={22} /> Emissão de recibo</h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Escolha o tipo de recibo. A forma de pagamento só é informada no recibo simples de pagamento.</p>
+          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Emita novos documentos ou consulte o arquivo mensal de recibos já emitidos.</p>
         </div>
         <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar ao financeiro</Button>
       </header>
 
-      <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
+      <nav aria-label="Seção de recibos" className="flex w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
+        <button type="button" onClick={() => setAbaAtiva("emissao")} aria-current={abaAtiva === "emissao" ? "page" : undefined} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-bold transition-all ${abaAtiva === "emissao" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Receipt size={14} /> Emitir recibo</button>
+        <button type="button" onClick={() => setAbaAtiva("historico")} aria-current={abaAtiva === "historico" ? "page" : undefined} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-bold transition-all ${abaAtiva === "historico" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><History size={14} /> Histórico de recibos</button>
+      </nav>
+
+      {abaAtiva === "emissao" && <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
         <div className="border-b border-border bg-secondary/20 px-5 py-3.5">
           <p className="text-[11px] font-bold uppercase tracking-[.16em]">Tipo de emissão <sup className="text-primary">*</sup></p>
         </div>
@@ -315,14 +319,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
           {erro && <div role="alert" className="mt-5 rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-600 dark:text-red-200">{erro}</div>}
           {mensagem && !erro && <div role="status" className="mt-5 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px]"><History size={14} /> {historico ? "Ocultar histórico" : "Histórico de recibos"}</Button><Button type="button" onClick={abrirPreview} disabled={salvando || !podeEmitir} className="h-9 gap-2 rounded-sm px-5 text-[11px]"><FileText size={14} /> Pré-visualizar recibo</Button></div>
+          <div className="mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4"><Button type="button" onClick={abrirPreview} disabled={salvando || !podeEmitir} className="h-9 gap-2 rounded-sm px-5 text-[11px]"><FileText size={14} /> Pré-visualizar recibo</Button></div>
         </div>}
-      </section>
+      </section>}
 
-      {previewAberta && form.tipo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-sm bg-white p-6 text-slate-800 shadow-2xl"><div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4"><img src={logoShare} alt="Share Brasil" className="h-12 w-24 object-contain object-left" /><div className="text-center"><h2 className="text-2xl font-black tracking-wide underline">RECIBO</h2><p className="mt-1 text-[10px] text-slate-500">Pré-visualização antes da finalização</p></div><div className="text-right"><p className="text-[10px] font-bold">Número do recibo</p><p className="font-mono text-sm font-bold">REC-{form.tipo === "colaborador" ? "SHE" : form.pagador_tipo === "cotista" ? (pagadorSelecionado?.codigo_cliente || "COT") : "SHE"}…/26</p><p className="mt-2 border-2 border-slate-800 px-4 py-2 text-lg font-black">{moeda(valorNumerico(form.valor))}</p></div></div><div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2"><div><p className="mb-1 text-[9px] font-bold uppercase text-slate-500">{form.tipo === "colaborador" ? "Pagador" : "Emissor"}</p><strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong><p>CNPJ: 30.898.549/0001-06</p><p>Av. Presidente Arthur Bernardes, 1457</p><p>Várzea Grande - 78125-100</p></div><div><p className="mb-1 text-[9px] font-bold uppercase text-slate-500">{form.tipo === "colaborador" ? "Recebedor" : "Pagador"}</p><strong>{form.tipo === "colaborador" ? (colaboradorSelecionado?.nome_exibicao || colaboradorSelecionado?.nome_completo || "Colaborador") : (pagadorSelecionado?.nome || "SHARE BRASIL")}</strong><p>{form.tipo === "colaborador" ? `PIX: ${colaboradorSelecionado?.pix || "não informado"}` : (pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "CNPJ: 30.898.549/0001-06")}</p><p>{form.tipo === "colaborador" ? "Dados bancários do colaborador cadastrados no perfil" : (pagadorSelecionado?.endereco || "Av. Presidente Arthur Bernardes, 1457")}</p><p>{form.tipo === "colaborador" ? "" : ([pagadorSelecionado?.cidade, pagadorSelecionado?.uf].filter(Boolean).join(" - ") || "Várzea Grande - MT")}</p></div></div><div className="overflow-hidden border border-slate-300 text-xs"><div className="grid grid-cols-[1fr_130px_100px] bg-slate-200 p-2 font-bold"><span>Descrição do Serviço</span><span>Nº Documento</span><span>Valor</span></div><div className="grid grid-cols-[1fr_130px_100px] p-3"><span>{form.descricao_servico}</span><span>{form.numero_documento_anexo || "—"}</span><strong>{moeda(valorNumerico(form.valor))}</strong></div></div><div className="mt-5 border border-slate-200 p-3 text-xs"><p className="mb-2 text-[9px] font-bold uppercase text-slate-500">Dados do recibo</p><p>Categoria: {categoriaClienteSelecionada?.nome || form.categoria_nome || "—"}</p>{form.tipo !== "colaborador" && mostrarMetadadosPagamento && <><p>Periodicidade: {form.periodicidade} · Tipo de rateio: {form.tipo_rateio}</p>{[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].filter(Boolean).length > 0 && <p>{[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].filter(Boolean).join(" · ")}</p>}</>}{form.tipo === "colaborador" && <p>PIX para pagamento: {colaboradorSelecionado?.pix || "não informado"}</p>}</div><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPreviewAberta(false)} className="h-9 text-xs">Voltar e editar</Button><Button type="button" onClick={emitir} disabled={salvando} className="h-9 text-xs">{salvando ? "Salvando..." : "Confirmar e finalizar recibo"}</Button></div></div></div>}
+      {abaAtiva === "emissao" && previewAberta && form.tipo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-sm bg-white p-6 text-slate-800 shadow-2xl"><div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4"><img src={logoShare} alt="Share Brasil" className="h-12 w-24 object-contain object-left" /><div className="text-center"><h2 className="text-2xl font-black tracking-wide underline">RECIBO</h2><p className="mt-1 text-[10px] text-slate-500">Pré-visualização antes da finalização</p></div><div className="text-right"><p className="text-[10px] font-bold">Número do recibo</p><p className="font-mono text-sm font-bold">REC-{form.tipo === "colaborador" ? "SHE" : form.pagador_tipo === "cotista" ? (pagadorSelecionado?.codigo_cliente || "COT") : "SHE"}…/26</p><p className="mt-2 border-2 border-slate-800 px-4 py-2 text-lg font-black">{moeda(valorNumerico(form.valor))}</p></div></div><div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2"><div><p className="mb-1 text-[9px] font-bold uppercase text-slate-500">{form.tipo === "colaborador" ? "Pagador" : "Emissor"}</p><strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong><p>CNPJ: 30.898.549/0001-06</p><p>Av. Presidente Arthur Bernardes, 1457</p><p>Várzea Grande - 78125-100</p></div><div><p className="mb-1 text-[9px] font-bold uppercase text-slate-500">{form.tipo === "colaborador" ? "Recebedor" : "Pagador"}</p><strong>{form.tipo === "colaborador" ? (colaboradorSelecionado?.nome_exibicao || colaboradorSelecionado?.nome_completo || "Colaborador") : (pagadorSelecionado?.nome || "SHARE BRASIL")}</strong><p>{form.tipo === "colaborador" ? `PIX: ${colaboradorSelecionado?.pix || "não informado"}` : (pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "CNPJ: 30.898.549/0001-06")}</p><p>{form.tipo === "colaborador" ? "Dados bancários do colaborador cadastrados no perfil" : (pagadorSelecionado?.endereco || "Av. Presidente Arthur Bernardes, 1457")}</p><p>{form.tipo === "colaborador" ? "" : ([pagadorSelecionado?.cidade, pagadorSelecionado?.uf].filter(Boolean).join(" - ") || "Várzea Grande - MT")}</p></div></div><div className="overflow-hidden border border-slate-300 text-xs"><div className="grid grid-cols-[1fr_130px_100px] bg-slate-200 p-2 font-bold"><span>Descrição do Serviço</span><span>Nº Documento</span><span>Valor</span></div><div className="grid grid-cols-[1fr_130px_100px] p-3"><span>{form.descricao_servico}</span><span>{form.numero_documento_anexo || "—"}</span><strong>{moeda(valorNumerico(form.valor))}</strong></div></div><div className="mt-5 border border-slate-200 p-3 text-xs"><p className="mb-2 text-[9px] font-bold uppercase text-slate-500">Dados do recibo</p><p>Categoria: {categoriaClienteSelecionada?.nome || form.categoria_nome || "—"}</p>{form.tipo !== "colaborador" && mostrarMetadadosPagamento && <><p>Periodicidade: {form.periodicidade} · Tipo de rateio: {form.tipo_rateio}</p>{[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].filter(Boolean).length > 0 && <p>{[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].filter(Boolean).join(" · ")}</p>}</>}{form.tipo === "colaborador" && <p>PIX para pagamento: {colaboradorSelecionado?.pix || "não informado"}</p>}</div><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPreviewAberta(false)} className="h-9 text-xs">Voltar e editar</Button><Button type="button" onClick={emitir} disabled={salvando} className="h-9 text-xs">{salvando ? "Salvando..." : "Confirmar e finalizar recibo"}</Button></div></div></div>}
 
-      {historico && <section className="overflow-hidden rounded-sm border border-border bg-card/60"><div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3"><p className="text-[11px] font-bold uppercase tracking-[.16em]">Recibos recentes</p><span className="text-[10px] text-muted-foreground">{recibos.length} registro(s)</span></div>{carregando ? <div className="space-y-2 p-4"><div className="skeleton h-12 rounded-sm" /><div className="skeleton h-12 rounded-sm" /></div> : recibos.length ? <div className="divide-y divide-border/60">{recibos.map((recibo) => <div key={recibo.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="font-mono text-[11px]">{recibo.numero_recibo}</strong><EtiquetaStatus tone={tomStatus(recibo.status)}>{rotuloStatus(recibo.status)}</EtiquetaStatus></div><p className="mt-1 truncate text-[11px] font-bold">{recibo.nome_pagador} {recibo.recebedor_nome ? `→ ${recibo.recebedor_nome}` : ""} · {recibo.descricao_servico}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{dataBr(recibo.data_emissao)} · {recibo.tipo_recibo.replace(/_/g, " ")}{recibo.forma_pagamento ? ` · ${recibo.forma_pagamento}` : ""}{recibo.numero_documento_anexo ? ` · Doc. ${recibo.numero_documento_anexo}` : ""}</p>{recibo.anexo_id && <a href={`/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.anexo_id)}/arquivo`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"><Paperclip size={12} /> Visualizar anexo</a>}</div><div className="flex items-center gap-3"><strong className="font-mono text-[11px]">{moeda(recibo.valor)}</strong>{recibo.status === "aguardando_reembolso" && <Button type="button" variant="outline" onClick={() => void confirmarReembolso(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px]"><CheckCircle2 size={13} /> Confirmar</Button>}{recibo.status !== "cancelado" && recibo.status !== "reembolsado" && <Button type="button" variant="ghost" onClick={() => void cancelar(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"><XCircle size={13} /> Cancelar</Button>}</div></div>)}</div> : <EstadoVazio label="Nenhum recibo emitido" />}</section>}
-      {carregando && !historico && <p className="sr-only">Carregando dados de emissão</p>}
+      {abaAtiva === "historico" && <HistoricoRecibos recibos={recibos} carregando={carregando} onBuscar={buscarHistorico} onConfirmarReembolso={confirmarReembolso} onCancelar={cancelar} />}
+      {carregando && abaAtiva === "emissao" && <p className="sr-only">Carregando dados de emissão</p>}
     </div>
   );
 }

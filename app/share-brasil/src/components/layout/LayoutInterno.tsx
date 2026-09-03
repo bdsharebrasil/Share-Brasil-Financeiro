@@ -44,10 +44,12 @@ export default function LayoutInterno() {
   const navegar = useNavigate();
   const localizacao = useLocation();
   const rotaRecibo = localizacao.pathname === "/financeiro/emissao-recibo";
+  const salaReuniaoDireta = Boolean(new URLSearchParams(localizacao.search).get("sala_reuniao"));
 
   useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); }, [tema]);
   useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo]);
-  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); setPodeAcessarGestor(permitido); if (permitido && !rotaRecibo) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo]);
+  useEffect(() => { if (salaReuniaoDireta) { setAmbiente("share-brasil"); setMenuAtivo("sala-reuniao"); } }, [salaReuniaoDireta]);
+  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); setPodeAcessarGestor(permitido); if (permitido && !rotaRecibo && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo, salaReuniaoDireta]);
 
   const itens = menusPorAmbiente[ambiente];
   const itemAtivo = useMemo(() => itens.find((item) => item.id === menuAtivo) ?? itens[0], [itens, menuAtivo]);

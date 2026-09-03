@@ -110,7 +110,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
 
   return (
     <>
-      <div className="fixed left-0 top-[68px] z-30 hidden h-[calc(100dvh-68px)] w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex">
+      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />
@@ -127,11 +127,11 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
 
       <Sheet open={aberta} onOpenChange={(open) => !open && aoFechar()}>
         <SheetContent side="left" className="w-80 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
-          <div className="flex h-[68px] items-center border-b border-sidebar-border px-6">
+          <div className="safe-area-header flex items-center border-b border-sidebar-border px-6">
             <LogoShare />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>
           </div>
-          <div className="h-[calc(100dvh-68px)] overflow-y-auto p-4">{renderMenuCompleto(false)}</div>
+          <div className="h-[calc(100dvh-68px-var(--safe-area-top))] overflow-y-auto p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div>
         </SheetContent>
       </Sheet>
       <span className="sr-only"><Mail aria-hidden="true" />Dados do menu carregados do D1</span>

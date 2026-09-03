@@ -4,6 +4,10 @@
 @tailwind utilities;
 
 :root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   --background: 214 36% 96%;
   --foreground: 215 34% 15%;
   --border: 214 24% 86%;
@@ -98,9 +102,16 @@
 
 @layer base {
   * { @apply border-border; }
+  html, body, #root { min-height: 100%; }
+  html { background-color: hsl(var(--background)); }
   body {
     @apply font-sans antialiased bg-background text-foreground;
     min-width: 320px;
+    min-height: 100%;
+    margin: 0;
+    overflow-x: hidden;
+    padding-inline: var(--safe-area-left) var(--safe-area-right);
+    padding-bottom: var(--safe-area-bottom);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
   }
@@ -115,6 +126,10 @@
   }
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
+  .safe-area-header {
+    min-height: calc(68px + var(--safe-area-top));
+    padding-top: var(--safe-area-top);
+  }
 }
 
 .diario-bordo .text-\[8px\] { font-size: 0.625rem; }

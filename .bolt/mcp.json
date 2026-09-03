@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "api_workers": {
+      "enabled": false
+    },
+    "shaders": {
+      "enabled": true
+    }
+  }
+}

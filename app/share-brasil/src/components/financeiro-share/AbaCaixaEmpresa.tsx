@@ -27,10 +27,10 @@ export function AbaCaixaEmpresa() {
     useCaixaEmpresa({ fluxo: fluxo === 'TODOS' ? undefined : fluxo });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="border-b border-border/50 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Saldo do caixa</CardTitle>
           </CardHeader>
           <CardContent>
@@ -40,7 +40,7 @@ export function AbaCaixaEmpresa() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="border-b border-border/50 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total de entradas</CardTitle>
           </CardHeader>
           <CardContent>
@@ -48,7 +48,7 @@ export function AbaCaixaEmpresa() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="border-b border-border/50 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total de saídas</CardTitle>
           </CardHeader>
           <CardContent>
@@ -57,9 +57,9 @@ export function AbaCaixaEmpresa() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Extrato</CardTitle>
+      <Card className="overflow-hidden border-border/70 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 bg-muted/20">
+          <div><CardTitle className="text-sm">Movimentações do caixa</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">Lançamentos próprios da Share Brasil</p></div>
           <Select value={fluxo} onValueChange={(v) => setFluxo(v as FluxoLancamento | 'TODOS')}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Fluxo" />
@@ -77,7 +77,7 @@ export function AbaCaixaEmpresa() {
             <p className="text-sm text-muted-foreground">Carregando lançamentos…</p>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Descrição</TableHead>
@@ -98,8 +98,8 @@ export function AbaCaixaEmpresa() {
                 ) : (
                   lancamentos.map((l) => (
                     <TableRow key={l.id}>
-                      <TableCell>{formatarData(l.data)}</TableCell>
-                      <TableCell>{l.descricao}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell>
+                      <TableCell className="font-medium">{l.descricao}</TableCell>
                       <TableCell>{l.categoria}</TableCell>
                       <TableCell>{l.fornecedor ?? '—'}</TableCell>
                       <TableCell>

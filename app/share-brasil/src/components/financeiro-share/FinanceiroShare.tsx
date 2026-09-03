@@ -1,39 +1,16 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AbaCaixaEmpresa } from './AbaCaixaEmpresa';
-import { AbaContasAPagar } from './AbaContasAPagar';
-import { AbaContasAReceber } from './AbaContasAReceber';
-// Próximas abas a implementar, na ordem combinada:
-// import { AbaFolhaPagamento } from './abas/AbaFolhaPagamento';
-// import { AbaNotasSaida } from './abas/AbaNotasSaida';
-// import { AbaConfiguracoesShare } from './abas/AbaConfiguracoesShare';
+import { BarChart3, Landmark, ReceiptText, WalletCards } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AbaCaixaEmpresa } from "./AbaCaixaEmpresa";
+import { AbaContasAPagar } from "./AbaContasAPagar";
+import { AbaContasAReceber } from "./AbaContasAReceber";
 
 export function PaginaFinanceiroShare() {
-  return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-semibold">Financeiro Share</h1>
-
-      <Tabs defaultValue="caixa-empresa">
-        <TabsList>
-          <TabsTrigger value="caixa-empresa">Caixa Empresa</TabsTrigger>
-          <TabsTrigger value="contas-apagar">Contas a Pagar</TabsTrigger>
-          <TabsTrigger value="contas-areceber">Contas a Receber</TabsTrigger>
-          {/* <TabsTrigger value="folha-pagamento">Folha de Pagamento</TabsTrigger> */}
-          {/* <TabsTrigger value="notas-saida">Notas e Recibos</TabsTrigger> */}
-          {/* <TabsTrigger value="configuracoes">Configurações</TabsTrigger> */}
-        </TabsList>
-
-        <TabsContent value="caixa-empresa">
-          <AbaCaixaEmpresa />
-        </TabsContent>
-
-        <TabsContent value="contas-apagar">
-          <AbaContasAPagar />
-        </TabsContent>
-
-        <TabsContent value="contas-areceber">
-          <AbaContasAReceber />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+  return <div className="route-enter mx-auto max-w-[1480px] space-y-6 pb-10">
+    <header className="flex flex-wrap items-end justify-between gap-5">
+      <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Gestor / Financeiro</p><h1 className="mt-1 flex items-center gap-3 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><WalletCards className="text-primary" size={27} /> Financeiro Share</h1><p className="mt-2 max-w-2xl text-xs text-muted-foreground">Controle centralizado do caixa próprio, compromissos e recebimentos da Share Brasil.</p></div>
+      <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-2 text-[10px] text-muted-foreground shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Operação atualizada em tempo real</div>
+    </header>
+    <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Caixa próprio</span><Landmark size={16} className="text-primary" /></div><p className="mt-3 text-xs text-muted-foreground">Entradas, saídas e saldo consolidado</p></div><div className="rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Compromissos</span><ReceiptText size={16} className="text-amber-400" /></div><p className="mt-3 text-xs text-muted-foreground">Contas a pagar e vencimentos</p></div><div className="rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm"><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Visão gerencial</span><BarChart3 size={16} className="text-emerald-400" /></div><p className="mt-3 text-xs text-muted-foreground">Acompanhe o desempenho financeiro</p></div></div>
+    <Tabs defaultValue="caixa-empresa" className="space-y-5"><TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm"><TabsTrigger value="caixa-empresa" className="gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><WalletCards size={14}/> Caixa Empresa</TabsTrigger><TabsTrigger value="contas-apagar" className="gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14}/> Contas a Pagar</TabsTrigger><TabsTrigger value="contas-areceber" className="gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Landmark size={14}/> Contas a Receber</TabsTrigger></TabsList><TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa /></TabsContent><TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar /></TabsContent><TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber /></TabsContent></Tabs>
+  </div>;
 }

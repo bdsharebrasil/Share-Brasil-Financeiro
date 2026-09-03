@@ -7,12 +7,14 @@ import {
   FileText,
   Folder,
   History,
+  Landmark,
   Mail,
   Paperclip,
   Plus,
   RefreshCw,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Star,
   Trash2,
@@ -28,11 +30,13 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
 import {
   buscarCentralEmail,
+  buscarContasBancariasEmail,
   buscarPerfilColaborador,
   enviarEmailCliente,
   type AnexoEmail,
   type ContatoEmail,
   type EmailEnviado,
+  type ContaBancariaEmail,
 } from "@/lib/colaborador-api";
 
 const dataBr = (valor: string | null) =>
@@ -74,6 +78,8 @@ export default function Emails() {
   const [pastaAtiva, setPastaAtiva] = useState<"inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo">("inbox");
   const [modoCriacao, setModoCriacao] = useState(false);
   const [emailSelecionadoLeitura, setEmailSelecionadoLeitura] = useState<EmailEnviado | null>(null);
+  const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
 
   const carregar = async () => {
     setCarregando(true);
@@ -102,6 +108,11 @@ export default function Emails() {
   useEffect(() => {
     void carregar();
   }, []);
+
+  useEffect(() => {
+    if (configAberta !== "bancarios" && !modoCriacao) return;
+    void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)).catch(() => setErro("Não foi possível carregar as contas bancárias."));
+  }, [configAberta, modoCriacao]);
 
   useEffect(() => {
     if (!erro && !sucesso) return;
@@ -137,6 +148,10 @@ export default function Emails() {
     setSelecionados((atual) =>
       atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id],
     );
+  };
+
+  const inserirDadosBancarios = (conta: ContaBancariaEmail) => {
+    setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
   };
 
   const limparFormulario = () => {
@@ -236,6 +251,7 @@ export default function Emails() {
             type="button"
             onClick={() => {
               setModoCriacao(true);
+              setConfigAberta(null);
               limparFormulario();
             }}
             className="h-9 gap-2 rounded-xl font-semibold shadow-md"
@@ -308,6 +324,17 @@ export default function Emails() {
             >
               <Folder size={15} /> Arquivo
             </button>
+
+            <button
+              onClick={() => { setModoCriacao(false); setConfigAberta((atual) => atual ? null : "assinatura"); }}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-colors ${configAberta ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+            >
+              <span className="flex items-center gap-3"><Settings size={15} /> Configurações</span><ChevronDown size={14} className={`transition-transform ${configAberta ? "rotate-180" : ""}`} />
+            </button>
+            {configAberta && <div className="ml-4 space-y-1 border-l border-border/60 pl-2">
+              <button type="button" onClick={() => setConfigAberta("assinatura")} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs ${configAberta === "assinatura" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><ShieldCheck size={14} /> Assinatura</button>
+              <button type="button" onClick={() => setConfigAberta("bancarios")} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs ${configAberta === "bancarios" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><Landmark size={14} /> Dados bancários</button>
+            </div>}
           </div>
 
           {/* LISTA DE MENSAGENS DA PASTA */}
@@ -339,7 +366,11 @@ export default function Emails() {
 
         {/* PAINEL DIREITO: LEITURA OU COMPOSIÇÃO */}
         <div className="lg:col-span-8">
-          {modoCriacao ? (
+          {configAberta ? (
+            <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
+              {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <div className="space-y-4"><div><h2 className="text-sm font-bold">Dados bancários</h2><p className="mt-1 text-[10px] text-muted-foreground">Selecione uma conta durante a composição para inserir os dados na cobrança.</p></div>{contasBancarias.length === 0 ? <p className="rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">Nenhuma conta bancária cadastrada.</p> : contasBancarias.map((conta) => <div key={conta.id} className="rounded-xl border border-border/60 bg-muted/20 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold">{conta.banco}</p><p className="mt-1 text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</p></div><Landmark size={18} className="text-primary" /></div><pre className="mt-3 whitespace-pre-wrap rounded-lg bg-background/70 p-3 text-[11px] leading-5 text-muted-foreground">{conta.texto}</pre></div>)}</div>}
+            </div>
+          ) : modoCriacao ? (
             /* COMPOSITOR DE NOVA MENSAGEM */
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
               <div className="flex items-center justify-between border-b border-border/50 pb-4">
@@ -386,6 +417,12 @@ export default function Emails() {
                     placeholder="Escreva sua mensagem..."
                     className="mt-1 min-h-[140px] rounded-xl text-xs"
                   />
+                </div>
+
+                <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">
+                  <div className="mb-2 flex items-center gap-2"><Landmark size={15} className="text-primary" /><p className="text-xs font-semibold">Inserir dados bancários</p></div>
+                  <p className="mb-3 text-[11px] text-muted-foreground">Clique em uma conta para adicionar o texto ao final da mensagem.</p>
+                  <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => inserirDadosBancarios(conta)} className="rounded-lg border border-border/60 bg-card/50 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/[.06]"><span className="block text-xs font-semibold">{conta.banco}</span><span className="mt-1 block text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""} · inserir na mensagem</span></button>)}</div>
                 </div>
 
                 <div className="border border-border/50 rounded-xl p-4 bg-muted/20">
@@ -440,15 +477,6 @@ export default function Emails() {
             </div>
           )}
 
-          {!modoCriacao && (
-            <div className="mt-4 rounded-2xl border border-border/60 bg-card/40 p-5">
-              <div className="mb-4 flex items-center gap-2 border-b border-border/50 pb-3">
-                <ShieldCheck size={16} className="text-primary" />
-                <div><h2 className="text-sm font-bold">Minha assinatura</h2><p className="text-[10px] text-muted-foreground">Configuração individual aplicada aos seus e-mails.</p></div>
-              </div>
-              <MinhaAssinaturaEmail embedded />
-            </div>
-          )}
         </div>
       </div>
     </div>

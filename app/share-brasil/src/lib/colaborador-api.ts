@@ -939,6 +939,7 @@ export function enviarEmailCliente(payload: {
   destinatarios: string[];
   assunto: string;
   mensagem: string;
+  dados_bancarios?: string;
   anexos?: string[];
   arquivos?: File[];
   nome_destinatario?: string;
@@ -949,6 +950,7 @@ export function enviarEmailCliente(payload: {
     body.append("destinatarios", JSON.stringify(payload.destinatarios));
     body.append("assunto", payload.assunto);
     body.append("mensagem", payload.mensagem);
+    if (payload.dados_bancarios) body.append("dados_bancarios", payload.dados_bancarios);
     if (payload.anexos?.length) body.append("anexos", JSON.stringify(payload.anexos));
     if (payload.nome_destinatario) body.append("nome_destinatario", payload.nome_destinatario);
     for (const arquivo of payload.arquivos!) body.append("arquivos", arquivo);
@@ -960,7 +962,9 @@ export function enviarEmailCliente(payload: {
   });
 }
 
-export type AssinaturaEmail = { nome: string; cargo?: string | null; telefone?: string | null; endereco?: string | null; email: string; logo_url?: string | null };
+export type ContaBancariaEmail = { id: string; banco: string; agencia: string | null; numero_conta: string | null; tipo_conta: string | null; cnpj: string | null; razao_social: string | null; pix: string | null; texto: string };
+export type AssinaturaEmail = { nome: string; cargo?: string | null; telefone?: string | null; endereco?: string | null; email?: string | null; logo_url?: string | null };
 export function buscarMinhaAssinatura() { return colaboradorRequest<AssinaturaEmail | null>("/api/minha-assinatura"); }
-export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url">) { return colaboradorRequest<AssinaturaEmail>("/api/minha-assinatura", { method: "PATCH", body: JSON.stringify(payload) }); }
+export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url" | "email">) { return colaboradorRequest<AssinaturaEmail>("/api/minha-assinatura", { method: "PATCH", body: JSON.stringify(payload) }); }
+export function buscarContasBancariasEmail() { return colaboradorRequest<{ contas: ContaBancariaEmail[] }>("/api/interno/emails/contas-bancarias"); }
 export function removerLogoAssinatura() { return Promise.resolve({ success: true }); }

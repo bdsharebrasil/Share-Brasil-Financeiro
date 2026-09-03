@@ -206,7 +206,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const valorInformado = converterValor(form.valor);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
-  const totalEtapas = exigeCliente ? 3 : 2;
+  const exigeDadosAeronave = tipo === "share" || exigeCliente;
+  const totalEtapas = exigeDadosAeronave ? 3 : 2;
   const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeCliente ? "Cliente e rateio" : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
 
@@ -254,14 +255,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
     if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : form.data_despesa));
-    if (etapa === 2 && exigeCliente) return Boolean(form.aeronave_id && form.cotista_ids.length);
+    if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length);
     return true;
   };
 
   const proxima = () => {
     setErro("");
     if (!podeAvancar()) {
-      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" ? "Informe descrição, valor e prazo de pagamento." : "Informe descrição, valor e data da despesa.") : "Selecione a aeronave e pelo menos um cotista para gerar o rateio obrigatório.");
+      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" ? "Informe descrição, valor e prazo de pagamento." : "Informe descrição, valor e data da despesa.") : "Selecione a aeronave e pelo menos um cotista.");
       return;
     }
     setEtapa((atual) => Math.min(totalEtapas, atual + 1));
@@ -280,22 +281,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSalvando(true);
     setErro("");
     try {
-      const registro = await criarEnvioPagamento({
-        ...form,
-        tipo,
-        cliente_id: "",
-        socio_id: "",
-        cotista_id: form.cotista_ids[0] || "",
-        valor: valorInformado,
-        tipo_caixa: tipo === "cliente" ? "cliente" : "share",
-        gera_rateio: exigeCliente,
-        pago_diretamente: tipo === "cliente",
-        grupo_categoria: form.grupo_categoria,
-        tipo_despesa: tipo === "share" ? form.tipo_despesa : null,
-        pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"),
-        periodicidade: form.periodicidade,
+      const payload = tipo === "share" ? {
+        tipo, descricao: form.descricao, valor: valorInformado, vencimento: form.vencimento,
+        fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id, categoria_id: form.categoria_id,
+        categoria_nome: form.categoria_nome, grupo_categoria: "DESPESAS EMPRESA", periodicidade: form.periodicidade,
+        aeronave_id: form.aeronave_id, cotista_id: form.cotista_ids[0] || "", cotista_ids: form.cotista_ids,
+        numero_voo: form.numero_voo, observacoes: form.observacoes, pago_por: form.pago_por || "share",
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
-      });
+      } : {
+        ...form, tipo, cliente_id: "", socio_id: "", cotista_id: form.cotista_ids[0] || "", valor: valorInformado,
+        tipo_caixa: "share", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente",
+        grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
+        pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
+      };
+      const registro = await criarEnvioPagamento(payload);
       setEnvios((atual) => [registro, ...atual]);
       if (exigeCliente && !enviarEmailAposCriar) {
         const atualizado = await atualizarStatusEnvioPagamento(registro.id, "email_nao_enviado");
@@ -470,11 +470,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               )}
 
-              {etapa === 2 && exigeCliente && (
+              {etapa === 2 && exigeDadosAeronave && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex items-start gap-3 rounded-sm border border-amber-400/25 bg-amber-400/[.07] p-3.5 text-[11px] leading-5 text-muted-foreground sm:col-span-2">
                     <Info size={15} className="mt-0.5 shrink-0 text-amber-500" />
-                    <span>{tipo === "cliente" ? "O lançamento será CAIXA CLIENTE e marcará pago_diretamente = true." : "A Share desembolsa agora no Caixa Share; o valor ficará pendente para reembolso no rateio."}</span>
+                    <span>{tipo === "share" ? "Vincule a despesa a uma aeronave e selecione um ou todos os cotistas para identificação." : tipo === "cliente" ? "O lançamento será CAIXA CLIENTE e marcará pago_diretamente = true." : "A Share desembolsa agora no Caixa Share; o valor ficará pendente para reembolso no rateio."}</span>
                   </div>
                   <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { alterar("aeronave_id", id); alterar("cotista_ids", "" as never); setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                   <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => setForm((f) => ({ ...f, cotista_ids: id === "__todos__" ? cotistas.map((c) => c.id) : [id] }))} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>

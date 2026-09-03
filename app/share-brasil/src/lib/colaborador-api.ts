@@ -215,7 +215,7 @@ export type CotistaAeronave = { id: string; cliente_id: string | null; socio_id:
 export function buscarOpcoesEnvioPagamento() { return colaboradorRequest<OpcaoEnvioPagamento>("/api/financeiro/envios-pagamento/opcoes"); }
 export function buscarCotistasAeronave(aeronaveId: string) { return colaboradorRequest<{ cotistas: CotistaAeronave[] }>(`/api/financeiro/envios-pagamento/aeronaves/${encodeURIComponent(aeronaveId)}/cotistas`); }
 export function buscarEnviosPagamento(tipo?: EnvioPagamento["tipo"]) { return colaboradorRequest<{ envios: EnvioPagamento[] }>(`/api/financeiro/envios-pagamento${tipo ? `?tipo=${tipo}` : ""}`); }
-export function criarEnvioPagamento(payload: Omit<EnvioPagamento, "id" | "status" | "criado_por" | "criado_em">) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
+export function criarEnvioPagamento(payload: Record<string, unknown>) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarStatusEnvioPagamento(id: string, status: string) { return colaboradorRequest<EnvioPagamento>(`/api/financeiro/envios-pagamento/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); }
 export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
 export function criarCategoriaCalendario(nome: string, cor: string) { return colaboradorRequest<CategoriaCalendario>("/api/sharebrasil/calendario/categorias", { method: "POST", body: JSON.stringify({ nome, cor }) }); }

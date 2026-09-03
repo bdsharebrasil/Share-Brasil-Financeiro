@@ -397,8 +397,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         <p>Escolha o modo, informe a despesa e envie a solicitação de pagamento.</p>
       </header>
 
-      <section className="overflow-hidden rounded-[10px] border border-[hsl(var(--border)/.72)] bg-[#0b101b]/95 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
-        <div className="flex items-center gap-3 border-b border-[hsl(var(--border)/.72)] bg-[#0d1421]/70 px-5 py-3.5 md:gap-5 md:px-6">
+      <section className="overflow-hidden rounded-[10px] border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.48)]">
+        <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-5 py-3.5 md:gap-5 md:px-6">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
@@ -412,7 +412,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             aria-valuemin={0}
             aria-valuemax={100}
           >
-            <span className="block h-[3px] w-full bg-[#101828]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
+            <span className="block h-[3px] w-full bg-[#0d1727]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
           </div>
         </div>
 
@@ -433,7 +433,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`flex w-full items-start gap-3.5 rounded-[10px] border px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow] ${ativo ? "border-primary/65 bg-[#101c33]/80 shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[hsl(var(--border)/.78)] bg-[#080d18]/70 hover:border-primary/35 hover:bg-[#0c1423]"}`}
+                      className={`flex w-full items-start gap-3.5 rounded-[10px] border px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow] ${ativo ? "border-primary/65 bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[#182336] bg-[#070c15] hover:border-primary/35 hover:bg-[#0b1422]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -520,13 +520,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
                   <AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="envio-pagamento-anexos" />
 
-                  {tipo !== "share" && <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-sky-400/30 bg-sky-400/[.06] px-4 py-3.5 transition-colors hover:bg-sky-400/[.1]">
-                    <input type="checkbox" checked={enviarEmailAposCriar} onChange={(e) => {
-                      setEnviarEmailAposCriar(e.target.checked);
-                      if (e.target.checked && contatos.length === 0) void carregarContatosEmail();
-    }} className="h-4 w-4 rounded border-border accent-primary" />
-                    <span className="flex items-center gap-2 text-[12px] font-bold text-foreground"><Mail size={15} className="text-sky-500" /> Enviar solicitação por e-mail ao cliente após criar o lançamento</span>
-                  </label>}
+                  {tipo !== "share" && (
+                    <Button
+                      type="button"
+                      aria-pressed={enviarEmailAposCriar}
+                      onClick={() => {
+                        const proximoValor = !enviarEmailAposCriar;
+                        setEnviarEmailAposCriar(proximoValor);
+                        if (proximoValor && contatos.length === 0) void carregarContatosEmail();
+                      }}
+                      className={`h-10 w-full gap-2 rounded-md border px-4 text-[11px] font-bold transition-colors ${enviarEmailAposCriar ? "border-[#ff7a1a] bg-[#f97316] text-white hover:bg-[#ea6c0c]" : "border-[#713a1b] bg-[#1a100d] text-[#ffb47c] hover:border-[#b95a20] hover:bg-[#26140d]"}`}
+                    >
+                      <Mail size={14} />
+                      {enviarEmailAposCriar ? "E-mail ao cliente será enviado" : "Enviar e-mail ao cliente"}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -536,7 +544,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border)/.72)] bg-[#0d1421]/55 px-5 py-3.5 md:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-5 py-3.5 md:px-6">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>

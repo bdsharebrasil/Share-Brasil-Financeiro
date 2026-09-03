@@ -31,6 +31,12 @@ type Formulario = {
   aeronave_id: string;
   numero_voo: string;
   centro_custo: string;
+  subcategoria_1: string;
+  subcategoria_2: string;
+  subcategoria_3: string;
+  subcategoria_4: string;
+  tipo_rateio: "FIXO" | "VARIAVEL POR VOO" | "VARIAVEL POR HORA" | "EXTRA";
+  rateio_linhas: Array<{ cotista_id: string; percentual: string }>;
   observacoes: string;
   grupo_categoria: Categoria;
   tipo_despesa: "fixo" | "variável";
@@ -68,6 +74,12 @@ const inicial: Formulario = {
   aeronave_id: "",
   numero_voo: "",
   centro_custo: "",
+  subcategoria_1: "",
+  subcategoria_2: "",
+  subcategoria_3: "",
+  subcategoria_4: "",
+  tipo_rateio: "FIXO",
+  rateio_linhas: [],
   observacoes: "",
   grupo_categoria: "DESPESAS EMPRESA",
   tipo_despesa: "variável",
@@ -137,7 +149,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [tipo, setTipo] = useState<TipoEnvio | null>(null);
   const [form, setForm] = useState<Formulario>(inicial);
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
-  const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], voos: [], categorias: [] });
+  const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], voos: [], categorias: [], categorias_cliente: [] });
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -148,6 +160,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const anexos = form.anexos;
+  const [anexosDisponiveis, setAnexosDisponiveis] = useState<AnexoEmail[]>([]);
 
   const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
   const [enviarEmailAposCriar, setEnviarEmailAposCriar] = useState(false);
@@ -166,7 +179,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [sucessoEmail, setSucessoEmail] = useState("");
   const [carregandoEmail, setCarregandoEmail] = useState(false);
 
-  const carregarOpcoes = async () => { try { setDadosOpcoes(await buscarOpcoesEnvioPagamento()); } catch { setErro("Não foi possível carregar as opções financeiras."); } };
+  const carregarOpcoes = async () => { try { const [opcoes, central] = await Promise.all([buscarOpcoesEnvioPagamento(), buscarCentralEmail()]); setDadosOpcoes(opcoes); setAnexosDisponiveis(central.anexos); } catch { setErro("Não foi possível carregar as opções financeiras."); } };
 
   const carregarCotistas = async (aeronaveId: string) => { if (!aeronaveId) { setCotistas([]); return; } try { const dados = await buscarCotistasAeronave(aeronaveId); setCotistas(dados.cotistas); } catch { setErro("Não foi possível carregar os cotistas da aeronave."); } };
 
@@ -207,11 +220,23 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const valorInformado = converterValor(form.valor);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
+  const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
+  const subcategorias = [1, 2, 3, 4].map((numero) => ({ numero, label: categoriaSelecionada?.[`subcategoria_${numero}` as "subcategoria_1"] })).filter((item): item is { numero: number; label: string } => Boolean(item.label));
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
   const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
   const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeDadosAeronave ? (tipo === "share" ? "Aeronave e voo" : "Cliente e rateio") : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
+  const alterarPercentual = (cotistaId: string, bruto: string) => setForm((atual) => {
+    const valor = Math.min(100, Math.max(0, Number(bruto.replace(",", ".")) || 0));
+    const outros = atual.rateio_linhas.filter((linha) => linha.cotista_id !== cotistaId);
+    const somaOutros = outros.reduce((total, linha) => total + (Number(linha.percentual) || 0), 0);
+    const escala = somaOutros > 0 ? (100 - valor) / somaOutros : 0;
+    const linhas = atual.cotista_ids.map((id) => id === cotistaId ? { cotista_id: id, percentual: String(valor) } : { cotista_id: id, percentual: String(+(Number(atual.rateio_linhas.find((linha) => linha.cotista_id === id)?.percentual || 0) * escala).toFixed(2)) });
+    const soma = linhas.reduce((total, linha) => total + Number(linha.percentual), 0);
+    if (linhas.length) linhas[linhas.length - 1].percentual = String(+(Number(linhas[linhas.length - 1].percentual) + (100 - soma)).toFixed(2));
+    return { ...atual, rateio_linhas: linhas };
+  });
 
   const contatosFiltrados = useMemo(() => {
     const termo = buscaContato.trim().toLowerCase();
@@ -258,8 +283,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
-    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : form.data_despesa) && (tipo !== "share" || vincularAeronave !== null));
-    if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length);
+    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : true) && (tipo !== "share" || vincularAeronave !== null));
+    if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || Math.abs(form.rateio_linhas.reduce((s, linha) => s + (Number(linha.percentual) || 0), 0) - 100) < 0.01));
     return true;
   };
 
@@ -298,6 +323,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
+        tipo_rateio: form.tipo_rateio,
+        subcategoria_1: form.subcategoria_1,
+        subcategoria_2: form.subcategoria_2,
+        subcategoria_3: form.subcategoria_3,
+        subcategoria_4: form.subcategoria_4,
+        rateio_linhas: form.rateio_linhas.map((linha) => ({ cotista_id: linha.cotista_id, percentual: Number(linha.percentual) || 0 })),
       };
       const registro = await criarEnvioPagamento(payload);
       setEnvios((atual) => [registro, ...atual]);
@@ -347,6 +378,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
   const adicionarArquivos = (arquivos: File[]) => setArquivosNovos((atual) => [...atual, ...arquivos]);
   const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
+  const vincularAnexoExistente = (anexo: AnexoEmail) => setForm((atual) => atual.anexos.some((item) => item.id === anexo.id) ? atual : { ...atual, anexos: [...atual.anexos, { id: anexo.id, tipo: anexo.origem === "abastecimento" ? "comanda" : anexo.origem === "recibo" ? "recibo" : "outro", numero: "", url: anexo.arquivo_url, file: null }] });
 
   const anexosFiltrados = useMemo(() => {
     if (!envioRecemCriado?.cliente_id) return anexosEmail;
@@ -464,10 +496,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
-                  {tipo !== "share" && <Campo label="Data da despesa" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
+                  {tipo === "share" && <Campo label="Data da despesa"><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
                   <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
                   <Campo label="Fornecedor"><SearchableCombobox items={dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id} onChange={(id, label) => { alterar("fornecedor_id", id); alterar("fornecedor", label); }} placeholder="Selecione ou busque fornecedor favorito" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
-                  {tipo !== "share" && <Campo label="Centro de custo"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("centro_custo", id); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria encontrada." /></Campo>}
+                  {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
+                  {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); }} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
+                  {tipo !== "share" && subcategorias.map((sub) => <Campo key={sub.numero} label={`Subcategoria ${sub.numero}`}><SearchableCombobox items={[{ id: sub.label, label: sub.label }]} value={String(form[`subcategoria_${sub.numero}` as keyof Formulario] || "")} onChange={(id) => alterar(`subcategoria_${sub.numero}` as keyof Formulario, id)} placeholder="Selecione" searchPlaceholder="Buscar subcategoria" /></Campo>)}
                   {tipo === "share" && (
                     <>
                       <Campo label="Grupo categoria · DESPESAS EMPRESA"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("grupo_categoria", "DESPESAS EMPRESA"); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>
@@ -489,10 +523,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <Info size={15} className="mt-0.5 shrink-0 text-amber-500" />
                     <span>{tipo === "share" ? "Vincule a despesa a uma aeronave e selecione um ou todos os cotistas para identificação." : tipo === "cliente" ? "O lançamento será CAIXA CLIENTE e marcará pago_diretamente = true." : "A Share desembolsa agora no Caixa Share; o valor ficará pendente para reembolso no rateio."}</span>
                   </div>
-                  <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { alterar("aeronave_id", id); alterar("cotista_ids", "" as never); setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
-                  <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => setForm((f) => ({ ...f, cotista_ids: id === "__todos__" ? cotistas.map((c) => c.id) : [id] }))} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
-                  {tipo !== "share" && <Campo label="Quem pagou"><input value={form.pago_por} onChange={(e) => alterar("pago_por", e.target.value)} placeholder={tipo === "cliente" ? "Cotista selecionado" : "SHARE"} className="campo" /></Campo>}
-                  <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => alterar("numero_voo", id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
+                  {tipo !== "share" && <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => { const voo = dadosOpcoes.voos.find((item) => item.numero_voo === id); setForm((f) => ({ ...f, numero_voo: id, aeronave_id: voo?.aeronave_id || f.aeronave_id, cotista_ids: voo?.aeronave_id && voo.aeronave_id !== f.aeronave_id ? [] : f.cotista_ids, rateio_linhas: voo?.aeronave_id && voo.aeronave_id !== f.aeronave_id ? [] : f.rateio_linhas })); }} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>}
+                  <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [], rateio_linhas: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
+                  <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => { const ids = id === "__todos__" ? cotistas.map((c) => c.id) : [id]; const soma = ids.reduce((total, item) => total + Number(cotistas.find((c) => c.id === item)?.percentual_sociedade || 0), 0) || ids.length; setForm((f) => ({ ...f, cotista_ids: ids, rateio_linhas: ids.map((cotistaId) => ({ cotista_id: cotistaId, percentual: (Number(cotistas.find((c) => c.id === cotistaId)?.percentual_sociedade || 0) / soma * 100).toFixed(2) })) })); }} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
+                  {tipo === "share" && <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => alterar("numero_voo", id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>}
+                  {tipo !== "share" && <Campo label="Tipo de rateio" obrigatorio><SearchableCombobox items={["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => ({ id: item, label: item }))} value={form.tipo_rateio} onChange={(id) => alterar("tipo_rateio", id)} placeholder="Selecione o tipo de rateio" searchPlaceholder="Buscar tipo de rateio" /></Campo>}
+                  {tipo !== "share" && cotistasSelecionados.length > 0 && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2"><p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Rateio da despesa · {formatarValor(valorInformado)}</p><div className="mt-3 space-y-2">{cotistasSelecionados.map((cotista) => { const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id); return <div key={cotista.id} className="grid grid-cols-[1fr_110px_auto_auto] items-center gap-2"><span className="truncate text-xs">{cotista.nome}</span><Input value={linha?.percentual ?? "0"} inputMode="decimal" onChange={(e) => alterarPercentual(cotista.id, e.target.value)} className="h-9 text-right" placeholder="%" /><span className="text-right text-xs text-muted-foreground">{formatarValor(valorInformado * (Number(linha?.percentual) || 0) / 100)}</span>{cotistasSelecionados.length >= 3 && <button type="button" className="text-xs text-rose-500" onClick={() => setForm((atual) => ({ ...atual, cotista_ids: atual.cotista_ids.filter((id) => id !== cotista.id), rateio_linhas: atual.rateio_linhas.filter((item) => item.cotista_id !== cotista.id) }))}>Retirar</button>}</div>; })}</div><p className={`mt-2 text-right text-[11px] font-bold ${Math.abs(form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0) - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}>Total: {form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0).toFixed(2)}%</p></div>}
                 </div>
               )}
 
@@ -518,7 +554,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="envio-pagamento-anexos" />
+                  <div className="space-y-2 rounded-sm border border-border/70 bg-background/30 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Vincular anexo já existente</p><div className="grid gap-2 sm:grid-cols-2">{anexosDisponiveis.slice(0, 40).map((anexo) => { const vinculado = anexos.some((item) => item.id === anexo.id); const imagem = Boolean(anexo.tipo_arquivo?.startsWith("image/")); return <button key={anexo.id} type="button" disabled={vinculado} onClick={() => vincularAnexoExistente(anexo)} className="flex items-center gap-2 rounded border border-border p-2 text-left text-[11px] hover:border-primary/60 disabled:opacity-50">{imagem ? <img src={anexo.arquivo_url} alt="" className="h-10 w-10 rounded object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded bg-muted text-[9px]">PDF</span>}<span className="min-w-0 flex-1 truncate">{anexo.nome}<span className="block text-[9px] text-muted-foreground">{anexo.origem} · {vinculado ? "vinculado" : "clique para vincular"}</span></span></button>; })}</div>{!anexosDisponiveis.length && <p className="text-[11px] text-muted-foreground">Nenhum anexo existente encontrado.</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="envio-pagamento-anexos" />
 
                   {tipo !== "share" && <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-sky-400/30 bg-sky-400/[.06] px-4 py-3.5 transition-colors hover:bg-sky-400/[.1]">
                     <input type="checkbox" checked={enviarEmailAposCriar} onChange={(e) => {

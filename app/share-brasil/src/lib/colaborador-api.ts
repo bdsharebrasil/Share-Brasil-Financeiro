@@ -808,7 +808,7 @@ export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: strin
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
 export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[] };
 
-export type TipoRecibo = "cliente_direto" | "cliente_reembolsavel" | "colaborador" | "pagamento";
+export type TipoRecibo = "cliente_reembolsavel" | "colaborador" | "pagamento";
 export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
 export type Recibo = {
   id: string;

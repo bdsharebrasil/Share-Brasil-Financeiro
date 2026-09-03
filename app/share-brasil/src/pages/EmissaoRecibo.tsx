@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw, Users, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -16,7 +16,7 @@ import {
   type Recibo as ReciboFinanceiro,
 } from "@/lib/colaborador-api";
 
-type TipoEmissao = "cliente_direto" | "cliente_reembolsavel" | "colaborador" | "pagamento";
+type TipoEmissao = "cliente_reembolsavel" | "colaborador" | "pagamento";
 type Formulario = {
   tipo: TipoEmissao | null;
   natureza_despesa: "aeronave" | "empresa" | "";
@@ -58,11 +58,10 @@ const inicial = (): Formulario => ({
   observacoes: "",
 });
 
-const opcoesTipo: Array<{ id: TipoEmissao; titulo: string; detalhe: string; icon: typeof Receipt; cor: string }> = [
-  { id: "cliente_direto", titulo: "Cliente paga direto", detalhe: "Registra a despesa no caixa do cliente e gera o rateio quando aplicável.", icon: Users, cor: "text-violet-500" },
-  { id: "cliente_reembolsavel", titulo: "Cliente reembolsável", detalhe: "A Share antecipa a despesa e acompanha o reembolso do cliente.", icon: RotateCcw, cor: "text-amber-500" },
-  { id: "colaborador", titulo: "Recibo colaborador", detalhe: "Registra uma despesa da Share paga a um colaborador, sem rateio de cotistas.", icon: Receipt, cor: "text-primary" },
-  { id: "pagamento", titulo: "Recibo de pagamento", detalhe: "Recibo simples para qualquer fornecedor ou recebedor, sem vínculo com cotista.", icon: FileText, cor: "text-sky-500" },
+const opcoesTipo: Array<{ id: TipoEmissao; titulo: string; detalhe: string; icon: typeof Receipt; cor: string; fundo: string }> = [
+  { id: "cliente_reembolsavel", titulo: "Recibo de reembolso", detalhe: "Despesa antecipada pela Share para um cotista.", icon: RotateCcw, cor: "text-amber-500", fundo: "bg-amber-500/[.06]" },
+  { id: "colaborador", titulo: "Recibo colaborador", detalhe: "Despesa da Share vinculada ao colaborador.", icon: Receipt, cor: "text-primary", fundo: "bg-primary/[.06]" },
+  { id: "pagamento", titulo: "Recibo de pagamento", detalhe: "Lançamento simples, sem vínculo com cotista ou colaborador.", icon: FileText, cor: "text-sky-500", fundo: "bg-sky-500/[.06]" },
 ];
 const CATEGORIA_OUTRO_ID = "111124d9-6111-4e11-a1f7-c7477e0fdb89";
 const CATEGORIAS_EMPRESA = new Set([
@@ -172,9 +171,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         tipo_recibo: form.tipo,
         beneficiario_tipo: form.tipo === "colaborador" ? "colaborador" : form.tipo === "pagamento" ? "fornecedor" : "cliente",
         reembolsavel: form.tipo === "cliente_reembolsavel",
-        rateado: form.tipo !== "colaborador" && form.tipo !== "pagamento" && form.rateado,
+        rateado: form.tipo === "cliente_reembolsavel" && form.rateado,
         aeronave_id: form.tipo === "pagamento" ? null : form.aeronave_id || null,
-        cliente_id: form.tipo === "cliente_direto" || form.tipo === "cliente_reembolsavel" ? form.cliente_id || null : null,
+        cliente_id: form.tipo === "cliente_reembolsavel" ? form.cliente_id || null : null,
         colaborador_id: form.tipo === "colaborador" ? form.colaborador_id : null,
         recebedor_nome: form.tipo === "pagamento" ? form.recebedor_nome.trim() : null,
         valor: valorNumerico(form.valor),
@@ -238,13 +237,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
         <div className="border-b border-border bg-secondary/20 px-5 py-3.5">
           <p className="text-[11px] font-bold uppercase tracking-[.16em]">Tipo de emissão <sup className="text-primary">*</sup></p>
-          <p className="mt-1 text-[11px] text-muted-foreground">Recibos de cliente e colaborador não solicitam forma de pagamento no momento da emissão.</p>
         </div>
-        <div className="grid gap-2.5 p-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 p-5 md:grid-cols-3">
           {opcoesTipo.map((opcao) => {
             const ativo = form.tipo === opcao.id;
             const Icon = opcao.icon;
-            return <button key={opcao.id} type="button" onClick={() => selecionarTipo(opcao.id)} aria-pressed={ativo} className={`flex items-start gap-3 rounded-sm border p-4 text-left transition-colors ${ativo ? "border-primary/60 bg-primary/[.08]" : "border-border bg-secondary/[.12] hover:border-primary/35"}`}><span className={`mt-0.5 grid h-5 w-5 place-content-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>{ativo && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}</span><span className="min-w-0 flex-1"><span className="block text-[12px] font-bold">{opcao.titulo}</span><span className="mt-1 block text-[10px] leading-5 text-muted-foreground">{opcao.detalhe}</span></span><Icon className={ativo ? opcao.cor : "text-muted-foreground/60"} size={17} /></button>;
+            return <button key={opcao.id} type="button" onClick={() => selecionarTipo(opcao.id)} aria-pressed={ativo} className={`group flex min-h-[116px] items-start gap-3 rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${ativo ? `border-primary/60 ${opcao.fundo} shadow-md` : "border-border bg-secondary/[.12] hover:border-primary/35"}`}><span className={`mt-0.5 grid h-5 w-5 place-content-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>{ativo && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}</span><span className="min-w-0 flex-1"><span className="block text-[12px] font-bold">{opcao.titulo}</span><span className="mt-1 block text-[10px] leading-5 text-muted-foreground">{opcao.detalhe}</span></span><Icon className={ativo ? opcao.cor : "text-muted-foreground/60"} size={18} /></button>;
           })}
         </div>
 

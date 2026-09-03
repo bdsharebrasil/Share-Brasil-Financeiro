@@ -171,6 +171,7 @@ export function atualizarSenha(id: string, payload: Partial<SenhaEmpresa>) { ret
 export function excluirSenha(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/senhas/${id}`, { method: "DELETE" }); }
 export function buscarContatosShare() { return colaboradorRequest<ContatoAgenda[]>("/api/sharebrasil/contatos"); }
 export function criarContatoShare(payload: Partial<ContatoAgenda>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/contatos", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarContatoShare(id: string, payload: Partial<ContatoAgenda>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/contatos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirContatoShare(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/contatos/${id}`, { method: "DELETE" }); }
 export function buscarClientesShare() { return colaboradorRequest<{ clientes: ClienteShare[]; socios: ClienteShare[]; vinculos: ClienteShare[]; documentos: ClienteShare[]; documentos_socios?: ClienteShare[]; aeronaves: ClienteShare[] }>("/api/sharebrasil/clientes"); }
 export function criarClienteShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/clientes", { method: "POST", body: JSON.stringify(payload) }); }

@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiFetch } from "@/lib/api";
-import type { ContatoAgenda } from "@/lib/colaborador-api";
+import { buscarContatosShare, criarContatoShare, excluirContatoShare, atualizarContatoShare, type ContatoAgenda } from "@/lib/colaborador-api";
 
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
 const emptyForm = { nome: "", email: "", telefone: "", empresa: "", cargo: "", endereco: "", cidade: "", uf: "", categoria: "", observacoes: "" };
@@ -37,7 +36,7 @@ export default function Contatos() {
     try {
       setLoading(true);
       setError(null);
-      setContatos(await apiFetch("/api/sharebrasil/contatos") as ContatoAgenda[]);
+      setContatos(await buscarContatosShare());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Não foi possível carregar os contatos.";
       setError(message);
@@ -65,8 +64,8 @@ export default function Contatos() {
     }
     try {
       setSaving(true);
-      if (editing) await apiFetch(`/api/sharebrasil/contatos/${editing.id}`, { method: "PATCH", body: JSON.stringify(form) });
-      else await apiFetch("/api/sharebrasil/contatos", { method: "POST", body: JSON.stringify(form) });
+      if (editing) await atualizarContatoShare(editing.id, form);
+      else await criarContatoShare(form);
       toast({ title: editing ? "Contato atualizado" : "Contato cadastrado", description: "As informações foram salvas no D1." });
       setDialogOpen(false);
       await load();
@@ -80,7 +79,7 @@ export default function Contatos() {
   async function remove() {
     if (!deleteTarget) return;
     try {
-      await apiFetch(`/api/sharebrasil/contatos/${deleteTarget.id}`, { method: "DELETE" });
+      await excluirContatoShare(deleteTarget.id);
       toast({ title: "Contato excluído", description: `${deleteTarget.nome} foi removido da agenda.` });
       setDeleteTarget(null);
       await load();
@@ -117,4 +116,3 @@ export default function Contatos() {
     <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Excluir contato?</DialogTitle><DialogDescription>Esta ação removerá {deleteTarget?.nome || "este contato"} da agenda permanentemente.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button><Button variant="destructive" onClick={() => void remove()}>Excluir</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }
-

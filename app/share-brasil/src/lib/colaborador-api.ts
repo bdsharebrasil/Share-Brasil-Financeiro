@@ -818,7 +818,7 @@ export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{
 
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
 export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
-export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
+export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
@@ -856,6 +856,8 @@ export type Recibo = {
   status: StatusRecibo;
   boleto_url: string | null;
   nf_url: string | null;
+  pdf_anexo_id?: string | null;
+  pdf_url?: string | null;
   movimentacao_id: string;
   movimentacao_reembolso_id: string | null;
   criado_por: string | null;
@@ -926,6 +928,7 @@ export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; 
 }
 export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
 export function enviarAnexoRecibo(arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
+export function enviarPdfRecibo(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ anexo_id: string; pdf_url: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
 export type ContatoEmail = {
   id: string;
   nome: string;

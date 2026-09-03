@@ -6,6 +6,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VI
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseKey);
 
 export const supabase = createClient(
-  supabaseUrl,
-  supabaseKey,
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseKey || "placeholder-anon-key",
 );

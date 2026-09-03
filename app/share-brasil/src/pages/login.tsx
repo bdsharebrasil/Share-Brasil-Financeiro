@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const flightRoutes = [
   { y: "-18vh", duration: "19s", delay: "-4s", size: 22, opacity: 0.34 },
@@ -75,6 +75,11 @@ export default function Login() {
       setRememberUser(true);
     }
 
+    if (!isSupabaseConfigured) {
+      setIsCheckingSession(false);
+      return;
+    }
+
     void supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) navigate("/", { replace: true });
       else setIsCheckingSession(false);
@@ -110,6 +115,9 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase não configurado");
+      }
       const formattedLogin = /@share-brasil\.com$/i.test(trimmedUsername)
         ? trimmedUsername
         : `${trimmedUsername}@share-brasil.com`;
@@ -131,7 +139,9 @@ export default function Login() {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       toast({
         title: "Acesso negado",
-        description: message.includes("invalid") || message.includes("credential")
+        description: message.includes("supabase não configurado")
+          ? "Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env."
+          : message.includes("invalid") || message.includes("credentials")
           ? "Usuário ou senha incorretos. Tente novamente."
           : "Não foi possível realizar o login. Tente novamente.",
         variant: "destructive",

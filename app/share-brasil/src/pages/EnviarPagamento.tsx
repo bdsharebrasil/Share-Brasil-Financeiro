@@ -132,7 +132,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [tipo, setTipo] = useState<TipoEnvio | null>(null);
   const [form, setForm] = useState<Formulario>(inicial);
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
-  const [opcoes, setOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], categorias: [] });
+  const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], categorias: [] });
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -159,7 +159,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [sucessoEmail, setSucessoEmail] = useState("");
   const [carregandoEmail, setCarregandoEmail] = useState(false);
 
-  const carregarOpcoes = async () => { try { setOpcoes(await buscarOpcoesEnvioPagamento()); } catch { setErro("Não foi possível carregar as opções financeiras."); } };
+  const carregarOpcoes = async () => { try { setDadosOpcoes(await buscarOpcoesEnvioPagamento()); } catch { setErro("Não foi possível carregar as opções financeiras."); } };
 
   const carregarCotistas = async (aeronaveId: string) => { if (!aeronaveId) { setCotistas([]); return; } try { const dados = await buscarCotistasAeronave(aeronaveId); setCotistas(dados.cotistas); } catch { setErro("Não foi possível carregar os cotistas da aeronave."); } };
 
@@ -451,8 +451,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
                   <Campo label="Data da despesa" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
-                  <Campo label="Fornecedor"><SearchableCombobox items={opcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id} onChange={(id, label) => { alterar("fornecedor_id", id); alterar("fornecedor", label); }} placeholder="Selecione ou busque fornecedor favorito" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
-                  <Campo label="Centro de custo"><SearchableCombobox items={opcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("centro_custo", id); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de cliente encontrada." /></Campo>
+                  <Campo label="Fornecedor"><SearchableCombobox items={dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id} onChange={(id, label) => { alterar("fornecedor_id", id); alterar("fornecedor", label); }} placeholder="Selecione ou busque fornecedor favorito" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
+                  <Campo label="Centro de custo"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("centro_custo", id); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de cliente encontrada." /></Campo>
                   {tipo === "share" && (
                     <>
                       <Campo label="Grupo da categoria"><select value={form.grupo_categoria} onChange={(e) => alterar("grupo_categoria", e.target.value)} className="campo">{categoriasShare.map((categoria) => <option key={categoria}>{categoria}</option>)}</select></Campo>
@@ -468,7 +468,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <Info size={15} className="mt-0.5 shrink-0 text-amber-500" />
                     <span>{tipo === "cliente" ? "O lançamento será CAIXA CLIENTE e marcará pago_diretamente = true." : "A Share desembolsa agora no Caixa Share; o valor ficará pendente para reembolso no rateio."}</span>
                   </div>
-                  <Campo label="Aeronave" obrigatorio><SearchableCombobox items={opcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { alterar("aeronave_id", id); alterar("cotista_ids", "" as never); setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
+                  <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { alterar("aeronave_id", id); alterar("cotista_ids", "" as never); setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                   <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => setForm((f) => ({ ...f, cotista_ids: id === "__todos__" ? cotistas.map((c) => c.id) : [id] }))} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
                   <Campo label="Quem pagou"><input value={form.pago_por} onChange={(e) => alterar("pago_por", e.target.value)} placeholder={tipo === "cliente" ? "Cotista selecionado" : "SHARE"} className="campo" /></Campo>
                   <Campo label="Número do voo"><input value={form.numero_voo} onChange={(e) => alterar("numero_voo", e.target.value)} placeholder="Ex.: SB-1234" className="campo" /></Campo>

@@ -146,7 +146,7 @@ export class FinanceiroService {
     const rows = await this.db.prepare(`SELECT * FROM lancamentos ${where} ORDER BY date(COALESCE(data_emissao, data)) DESC, criado_em DESC`).bind(...values).all<Row>()
     const result: LancamentoFinanceiro[] = []
     for (const row of rows.results) {
-      const rateios = await this.db.prepare('SELECT * FROM rateio_despesas WHERE lancamentos_id = ?1 OR lancamento_id = ?1').bind(row.id).all<Row>().catch(() => ({ results: [] as Row[] }))
+      const rateios = await this.db.prepare('SELECT * FROM rateio_despesas WHERE lancamentos_id = ?1').bind(row.id).all<Row>().catch(() => ({ results: [] as Row[] }))
       result.push(normalizarLancamento(row, rateios.results.map(normalizarRateio)))
     }
     return result

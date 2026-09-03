@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, FileText, History, Loader2, Receipt, RotateCcw, Users, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, CheckCircle2, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { IndicadorPagina, EtiquetaStatus, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
 import {
   buscarOpcoesRecibos,
@@ -15,11 +16,12 @@ import {
   type Recibo as ReciboFinanceiro,
 } from "@/lib/colaborador-api";
 
-type TipoEmissao = "cliente_direto" | "cliente_reembolsavel" | "colaborador";
+type TipoEmissao = "cliente_direto" | "cliente_reembolsavel" | "colaborador" | "pagamento";
 type Formulario = {
   tipo: TipoEmissao | null;
   cliente_id: string;
   colaborador_id: string;
+  recebedor_nome: string;
   aeronave_id: string;
   rateado: boolean;
   valor: string;
@@ -27,16 +29,19 @@ type Formulario = {
   data_emissao: string;
   data_vencimento: string;
   forma_pagamento: string;
-  grupo_categoria: string;
-  tipo_despesa: "fixo" | "variável";
+  categoria_id: string;
+  categoria_nome: string;
+  numero_documento_anexo: string;
   observacoes: string;
 };
 
+const PAGADOR_PADRAO = "SHARE BRASIL SERVIÇOS AERONÁUTICOS";
 const hoje = () => new Date().toISOString().slice(0, 10);
 const inicial = (): Formulario => ({
   tipo: null,
   cliente_id: "",
   colaborador_id: "",
+  recebedor_nome: "",
   aeronave_id: "",
   rateado: false,
   valor: "",
@@ -44,15 +49,17 @@ const inicial = (): Formulario => ({
   data_emissao: hoje(),
   data_vencimento: "",
   forma_pagamento: "",
-  grupo_categoria: "",
-  tipo_despesa: "variável",
+  categoria_id: "",
+  categoria_nome: "",
+  numero_documento_anexo: "",
   observacoes: "",
 });
 
 const opcoesTipo: Array<{ id: TipoEmissao; titulo: string; detalhe: string; icon: typeof Receipt; cor: string }> = [
   { id: "cliente_direto", titulo: "Cliente paga direto", detalhe: "Registra a despesa no caixa do cliente e gera o rateio quando aplicável.", icon: Users, cor: "text-violet-500" },
   { id: "cliente_reembolsavel", titulo: "Cliente reembolsável", detalhe: "A Share antecipa a despesa e acompanha o reembolso do cliente.", icon: RotateCcw, cor: "text-amber-500" },
-  { id: "colaborador", titulo: "Colaborador", detalhe: "Registra pagamento da Share para um colaborador, sem rateio de cotistas.", icon: Receipt, cor: "text-primary" },
+  { id: "colaborador", titulo: "Recibo colaborador", detalhe: "Registra uma despesa da Share paga a um colaborador, sem rateio de cotistas.", icon: Receipt, cor: "text-primary" },
+  { id: "pagamento", titulo: "Recibo de pagamento", detalhe: "Recibo simples para qualquer fornecedor ou recebedor, sem vínculo com cotista.", icon: FileText, cor: "text-sky-500" },
 ];
 
 function moeda(valor: number) {
@@ -81,7 +88,7 @@ function rotuloStatus(status: ReciboFinanceiro["status"]) {
 
 export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [form, setForm] = useState<Formulario>(inicial);
-  const [opcoes, setOpcoes] = useState<OpcoesRecibos>({ clientes: [], colaboradores: [], aeronaves: [], cotistas: [] });
+  const [opcoes, setOpcoes] = useState<OpcoesRecibos>({ clientes: [], colaboradores: [], aeronaves: [], cotistas: [], categorias: [] });
   const [recibos, setRecibos] = useState<ReciboFinanceiro[]>([]);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -108,6 +115,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const cotistas = useMemo(() => form.aeronave_id ? opcoes.cotistas.filter((item) => item.aeronave_id === form.aeronave_id) : [], [form.aeronave_id, opcoes.cotistas]);
   const totalRateio = cotistas.reduce((total, item) => total + Number(item.percentual_sociedade || 0), 0);
   const tipoSelecionado = opcoesTipo.find((item) => item.id === form.tipo);
+  const arquivoPreviewUrl = useMemo(() => arquivo ? URL.createObjectURL(arquivo) : "", [arquivo]);
+
+  useEffect(() => () => {
+    if (arquivoPreviewUrl) URL.revokeObjectURL(arquivoPreviewUrl);
+  }, [arquivoPreviewUrl]);
 
   const alterar = <K extends keyof Formulario>(campo: K, valor: Formulario[K]) => setForm((atual) => ({ ...atual, [campo]: valor }));
 
@@ -115,16 +127,18 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     setMensagem("");
     const proximo = tipo === form.tipo ? null : tipo;
-    setForm({ ...inicial(), tipo: proximo, grupo_categoria: proximo === "cliente_reembolsavel" ? "DESPESAS REEMBOLSÁVEIS" : proximo === "cliente_direto" ? "CAIXA CLIENTE" : "DESPESAS EMPRESA" });
+    setForm({ ...inicial(), tipo: proximo });
+    setArquivo(null);
   };
 
-  const selecionarCliente = (clienteId: string) => {
-    setForm((atual) => ({ ...atual, cliente_id: clienteId }));
+  const selecionaCategoria = (id: string, nome: string) => {
+    alterar("categoria_id", id);
+    alterar("categoria_nome", nome);
   };
 
   const podeEmitir = Boolean(
     form.tipo && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 &&
-    (form.tipo === "colaborador" ? form.colaborador_id : (form.rateado ? form.aeronave_id : form.cliente_id))
+    (form.tipo === "colaborador" ? form.colaborador_id && form.categoria_id : form.tipo === "pagamento" ? form.recebedor_nome.trim() : (form.rateado ? form.aeronave_id : form.cliente_id)),
   );
 
   const emitir = async () => {
@@ -136,23 +150,27 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     setMensagem("");
     try {
-      let boletoUrl: string | undefined;
-      if (arquivo) boletoUrl = (await enviarAnexoRecibo(arquivo)).url;
+      let anexoId: string | undefined;
+      if (arquivo) anexoId = (await enviarAnexoRecibo(arquivo)).id;
+
       const payload: CriarReciboPayload = {
-        beneficiario_tipo: form.tipo === "colaborador" ? "colaborador" : "cliente",
+        tipo_recibo: form.tipo,
+        beneficiario_tipo: form.tipo === "colaborador" ? "colaborador" : form.tipo === "pagamento" ? "fornecedor" : "cliente",
         reembolsavel: form.tipo === "cliente_reembolsavel",
-        rateado: form.tipo !== "colaborador" && form.rateado,
-        aeronave_id: form.aeronave_id || null,
-        cliente_id: form.cliente_id || null,
-        colaborador_id: form.colaborador_id || null,
+        rateado: form.tipo !== "colaborador" && form.tipo !== "pagamento" && form.rateado,
+        aeronave_id: form.tipo === "pagamento" ? null : form.aeronave_id || null,
+        cliente_id: form.tipo === "cliente_direto" || form.tipo === "cliente_reembolsavel" ? form.cliente_id || null : null,
+        colaborador_id: form.tipo === "colaborador" ? form.colaborador_id : null,
+        recebedor_nome: form.tipo === "pagamento" ? form.recebedor_nome.trim() : null,
         valor: valorNumerico(form.valor),
         descricao_servico: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
-        data_vencimento: form.data_vencimento || null,
-        forma_pagamento: form.forma_pagamento || null,
-        grupo_categoria: form.grupo_categoria || null,
-        tipo_despesa: form.tipo === "colaborador" ? form.tipo_despesa : null,
-        boleto_url: boletoUrl,
+        data_vencimento: form.tipo === "pagamento" ? null : form.data_vencimento || null,
+        forma_pagamento: form.tipo === "pagamento" ? form.forma_pagamento || null : null,
+        categoria_movimentacao_id: form.tipo === "colaborador" ? form.categoria_id : null,
+        grupo_categoria: form.tipo === "colaborador" ? "DESPESAS EMPRESA" : null,
+        anexo_id: anexoId || null,
+        numero_documento_anexo: anexoId ? form.numero_documento_anexo.trim() || null : null,
         observacoes: form.observacoes.trim() || null,
       };
       const resposta = await criarRecibo(payload);
@@ -195,7 +213,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         <div>
           <IndicadorPagina>Financeiro / Emissão de recibo</IndicadorPagina>
           <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Receipt className="text-primary" size={22} /> Emissão de recibo</h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Emita recibos para clientes ou colaboradores e mantenha o rateio e o reembolso vinculados ao movimento financeiro.</p>
+          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Escolha o tipo de recibo. A forma de pagamento só é informada no recibo simples de pagamento.</p>
         </div>
         <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar ao financeiro</Button>
       </header>
@@ -203,9 +221,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
         <div className="border-b border-border bg-secondary/20 px-5 py-3.5">
           <p className="text-[11px] font-bold uppercase tracking-[.16em]">Tipo de emissão <sup className="text-primary">*</sup></p>
-          <p className="mt-1 text-[11px] text-muted-foreground">Escolha como a despesa será registrada antes de preencher os dados do recibo.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Recibos de cliente e colaborador não solicitam forma de pagamento no momento da emissão.</p>
         </div>
-        <div className="grid gap-2.5 p-5 md:grid-cols-3">
+        <div className="grid gap-2.5 p-5 md:grid-cols-2 xl:grid-cols-4">
           {opcoesTipo.map((opcao) => {
             const ativo = form.tipo === opcao.id;
             const Icon = opcao.icon;
@@ -214,23 +232,21 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </div>
 
         {form.tipo && <div className="border-t border-border px-5 py-5">
-          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong><span className="text-muted-foreground">· A Share Brasil é o pagador padrão deste recibo.</span></div>
+          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong><span className="text-muted-foreground">· A Share Brasil é o pagador padrão.</span></div>
           <div className="grid gap-4 md:grid-cols-2">
-            {form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => selecionarCliente(e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="Colaborador" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
-            <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_emissao} onChange={(e) => alterar("data_emissao", e.target.value)} className="campo" /></Campo>
-            <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Pagador padrão</p><p className="mt-1 text-[12px] font-extrabold">SHARE BRASIL SERVIÇOS AERONÁUTICOS</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">CNPJ 30.868.504/0001-00 · Av. Presidente Antônio Bernardes, 5457 · Várzea Grande/MT · CEP 78125-100</p><p className="mt-1 text-[10px] text-muted-foreground">Este dado é fixo e não precisa ser preenchido. O beneficiário/cliente continua sendo selecionado abaixo.</p></div>
-            <Campo label="Descrição do serviço" obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder="Ex.: Reembolso de despesas operacionais" className="campo" /></Campo>
+            {form.tipo === "pagamento" ? <Campo label="Recebedor" obrigatorio><input value={form.recebedor_nome} onChange={(e) => alterar("recebedor_nome", e.target.value)} placeholder="Nome do fornecedor ou recebedor" className="campo" /></Campo> : form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => alterar("cliente_id", e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="Colaborador" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
+            <Campo label="Data" obrigatorio><input type="date" value={form.data_emissao} onChange={(e) => alterar("data_emissao", e.target.value)} className="campo" /></Campo>
+            <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Pagador fixo</p><p className="mt-1 text-[12px] font-extrabold">{PAGADOR_PADRAO}</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">CNPJ 30.868.504/0001-00 · Av. Presidente Antônio Bernardes, 5457 · Várzea Grande/MT · CEP 78125-100</p></div>
+            <Campo label={form.tipo === "pagamento" ? "Descrição" : "Descrição do serviço"} obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder={form.tipo === "pagamento" ? "Descrição do pagamento" : "Ex.: Reembolso de despesas operacionais"} className="campo" /></Campo>
             <Campo label="Valor" obrigatorio><input inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
-            <Campo label="Vencimento"><input type="date" value={form.data_vencimento} onChange={(e) => alterar("data_vencimento", e.target.value)} className="campo" /></Campo>
-            <Campo label="Forma de pagamento"><select value={form.forma_pagamento} onChange={(e) => alterar("forma_pagamento", e.target.value)} className="campo"><option value="">Não informada</option><option>PIX</option><option>Transferência bancária</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></Campo>
-            <Campo label="Grupo de categoria"><input value={form.grupo_categoria} onChange={(e) => alterar("grupo_categoria", e.target.value)} className="campo" /></Campo>
-            {form.tipo === "colaborador" && <Campo label="Tipo da despesa" obrigatorio><select value={form.tipo_despesa} onChange={(e) => alterar("tipo_despesa", e.target.value as "fixo" | "variável")} className="campo"><option value="fixo">Fixo</option><option value="variável">Variável</option></select></Campo>}
-            <Campo label="Anexo (boleto ou comprovante)"><input type="file" onChange={(e) => setArquivo(e.target.files?.[0] || null)} className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary" /></Campo>
-
+            {form.tipo !== "pagamento" && <Campo label="Vencimento"><input type="date" value={form.data_vencimento} onChange={(e) => alterar("data_vencimento", e.target.value)} className="campo" /></Campo>}
+            {form.tipo === "pagamento" && <Campo label="Forma de pagamento" obrigatorio><select value={form.forma_pagamento} onChange={(e) => alterar("forma_pagamento", e.target.value)} className="campo"><option value="">Selecione</option><option>PIX</option><option>Transferência bancária</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></Campo>}
+            {form.tipo === "colaborador" && <Campo label="Categoria" obrigatorio><SearchableCombobox items={opcoes.categorias.filter((item) => item.grupo_categoria === "DESPESAS EMPRESA").map((item) => ({ id: item.id, label: item.nome }))} value={form.categoria_id} onChange={selecionaCategoria} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria de despesa encontrada." /></Campo>}
+            <div className="md:col-span-2"><Campo label="Anexo (opcional)"><input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary" /></Campo>{arquivo && <div className="mt-2 flex flex-wrap items-center gap-3 rounded-sm border border-border bg-secondary/[.12] p-3 text-[11px]"><Paperclip size={14} className="text-primary" /><span className="max-w-[260px] truncate font-medium">{arquivo.name}</span><a href={arquivoPreviewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><ExternalLink size={13} /> Visualizar</a><Button type="button" variant="ghost" onClick={() => { setArquivo(null); alterar("numero_documento_anexo", ""); }} className="ml-auto h-7 px-2 text-[10px]">Remover</Button></div>}{arquivo && <div className="mt-3 max-w-sm"><Campo label="Número do documento do anexo"><input value={form.numero_documento_anexo} onChange={(e) => alterar("numero_documento_anexo", e.target.value)} placeholder="Ex.: NF 12345, boleto 987..." className="campo" /></Campo></div>}</div>
             <Campo label="Observações" className="md:col-span-2"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} className="campo min-h-20 resize-y" placeholder="Informações complementares do recibo" /></Campo>
           </div>
 
-          {form.tipo !== "colaborador" && <div className="mt-5 rounded-sm border border-border bg-secondary/[.12] p-4">
+          {form.tipo !== "colaborador" && form.tipo !== "pagamento" && <div className="mt-5 rounded-sm border border-border bg-secondary/[.12] p-4">
             <label className="flex cursor-pointer items-start gap-3"><Checkbox checked={form.rateado} onCheckedChange={(checked) => alterar("rateado", checked === true)} /><span><span className="block text-[11px] font-bold">Ratear entre cotistas da aeronave</span><span className="mt-0.5 block text-[10px] leading-5 text-muted-foreground">Cria as linhas de rateio usando os percentuais cadastrados para a aeronave.</span></span></label>
             {form.rateado && <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-2"><Campo label="Aeronave" obrigatorio><select value={form.aeronave_id} onChange={(e) => alterar("aeronave_id", e.target.value)} className="campo"><option value="">Selecione a aeronave</option>{opcoes.aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro}{aeronave.modelo ? ` · ${aeronave.modelo}` : ""}</option>)}</select></Campo><div className="rounded-sm border border-border bg-background/30 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Prévia do rateio</p>{form.aeronave_id ? cotistas.length ? <><div className="mt-2 space-y-1.5">{cotistas.map((cotista) => <p key={cotista.id} className="flex justify-between gap-3 text-[11px]"><span className="truncate">{cotista.nome}</span><strong className="font-mono">{cotista.percentual_sociedade}%</strong></p>)}</div><p className={`mt-2 border-t border-border pt-2 text-[10px] ${totalRateio === 100 ? "text-emerald-600 dark:text-emerald-300" : "text-amber-600 dark:text-amber-300"}`}>Total cadastrado: {totalRateio}%</p></> : <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-300">Não há cotistas cadastrados para esta aeronave.</p> : <p className="mt-2 text-[10px] text-muted-foreground">Selecione uma aeronave para consultar os cotistas.</p>}</div></div>}
           </div>}
@@ -241,12 +257,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </div>}
       </section>
 
-      {historico && <section className="overflow-hidden rounded-sm border border-border bg-card/60"><div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3"><p className="text-[11px] font-bold uppercase tracking-[.16em]">Recibos recentes</p><span className="text-[10px] text-muted-foreground">{recibos.length} registro(s)</span></div>{carregando ? <div className="space-y-2 p-4"><div className="skeleton h-12 rounded-sm" /><div className="skeleton h-12 rounded-sm" /></div> : recibos.length ? <div className="divide-y divide-border/60">{recibos.map((recibo) => <div key={recibo.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="font-mono text-[11px]">{recibo.numero_recibo}</strong><EtiquetaStatus tone={tomStatus(recibo.status)}>{rotuloStatus(recibo.status)}</EtiquetaStatus></div><p className="mt-1 truncate text-[11px] font-bold">{recibo.nome_pagador} · {recibo.descricao_servico}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{dataBr(recibo.data_emissao)} · {recibo.tipo_recibo.replace(/_/g, " ")}</p></div><div className="flex items-center gap-3"><strong className="font-mono text-[11px]">{moeda(recibo.valor)}</strong>{recibo.status === "aguardando_reembolso" && <Button type="button" variant="outline" onClick={() => void confirmarReembolso(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px]"><CheckCircle2 size={13} /> Confirmar</Button>}{recibo.status !== "cancelado" && recibo.status !== "reembolsado" && <Button type="button" variant="ghost" onClick={() => void cancelar(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"><XCircle size={13} /> Cancelar</Button>}</div></div>)}</div> : <EstadoVazio label="Nenhum recibo emitido" />}</section>}
+      {historico && <section className="overflow-hidden rounded-sm border border-border bg-card/60"><div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3"><p className="text-[11px] font-bold uppercase tracking-[.16em]">Recibos recentes</p><span className="text-[10px] text-muted-foreground">{recibos.length} registro(s)</span></div>{carregando ? <div className="space-y-2 p-4"><div className="skeleton h-12 rounded-sm" /><div className="skeleton h-12 rounded-sm" /></div> : recibos.length ? <div className="divide-y divide-border/60">{recibos.map((recibo) => <div key={recibo.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="font-mono text-[11px]">{recibo.numero_recibo}</strong><EtiquetaStatus tone={tomStatus(recibo.status)}>{rotuloStatus(recibo.status)}</EtiquetaStatus></div><p className="mt-1 truncate text-[11px] font-bold">{recibo.nome_pagador} {recibo.recebedor_nome ? `→ ${recibo.recebedor_nome}` : ""} · {recibo.descricao_servico}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{dataBr(recibo.data_emissao)} · {recibo.tipo_recibo.replace(/_/g, " ")}{recibo.forma_pagamento ? ` · ${recibo.forma_pagamento}` : ""}{recibo.numero_documento_anexo ? ` · Doc. ${recibo.numero_documento_anexo}` : ""}</p></div><div className="flex items-center gap-3"><strong className="font-mono text-[11px]">{moeda(recibo.valor)}</strong>{recibo.status === "aguardando_reembolso" && <Button type="button" variant="outline" onClick={() => void confirmarReembolso(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px]"><CheckCircle2 size={13} /> Confirmar</Button>}{recibo.status !== "cancelado" && recibo.status !== "reembolsado" && <Button type="button" variant="ghost" onClick={() => void cancelar(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"><XCircle size={13} /> Cancelar</Button>}</div></div>)}</div> : <EstadoVazio label="Nenhum recibo emitido" />}</section>}
       {carregando && !historico && <p className="sr-only">Carregando dados de emissão</p>}
     </div>
   );
 }
 
-function Campo({ label, obrigatorio, className = "", children }: { label: string; obrigatorio?: boolean; className?: string; children: React.ReactNode }) {
+function Campo({ label, obrigatorio, className = "", children }: { label: string; obrigatorio?: boolean; className?: string; children: ReactNode }) {
   return <label className={`block ${className}`}><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}{obrigatorio && <sup className="ml-1 text-primary">*</sup>}</span>{children}</label>;
 }

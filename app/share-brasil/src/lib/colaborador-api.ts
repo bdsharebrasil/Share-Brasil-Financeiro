@@ -805,17 +805,19 @@ export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | n
 export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
-export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[] };
+export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
+export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[] };
 
-export type TipoRecibo = "cliente_direto" | "cliente_reembolsavel" | "colaborador";
+export type TipoRecibo = "cliente_direto" | "cliente_reembolsavel" | "colaborador" | "pagamento";
 export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
 export type Recibo = {
   id: string;
   numero_recibo: string;
   tipo_recibo: TipoRecibo;
-  beneficiario_tipo: "cliente" | "colaborador";
+  beneficiario_tipo: "cliente" | "colaborador" | "fornecedor";
   cliente_id: string | null;
   colaborador_id: string | null;
+  recebedor_nome: string | null;
   aeronave_id: string | null;
   rateado: number;
   nome_pagador: string;
@@ -828,6 +830,9 @@ export type Recibo = {
   data_emissao: string;
   data_vencimento: string | null;
   forma_pagamento: string | null;
+  numero_documento_anexo: string | null;
+  anexo_id: string | null;
+  observacoes: string | null;
   grupo_categoria: string;
   tipo_caixa: "share" | "cliente";
   status: StatusRecibo;
@@ -842,12 +847,14 @@ export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas
 
 export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; valor?: number; pago_por?: string };
 export type CriarReciboPayload = {
-  beneficiario_tipo: "cliente" | "colaborador";
+  tipo_recibo?: TipoRecibo;
+  beneficiario_tipo: "cliente" | "colaborador" | "fornecedor";
   reembolsavel?: boolean;
   rateado?: boolean;
   aeronave_id?: string | null;
   cliente_id?: string | null;
   colaborador_id?: string | null;
+  recebedor_nome?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
   nome_pagador?: string;
   documento_pagador?: string | null;
@@ -860,16 +867,19 @@ export type CriarReciboPayload = {
   data_vencimento?: string | null;
   forma_pagamento?: string | null;
   categoria_movimentacao_id?: string | null;
+  categoria_lancamento_id?: string | null;
   tipo_despesa?: "fixo" | "variável" | null;
   grupo_categoria?: string | null;
   boleto_url?: string | null;
   nf_url?: string | null;
+  anexo_id?: string | null;
+  numero_documento_anexo?: string | null;
   observacoes?: string | null;
   rateio_linhas?: RateioLinhaEnvio[];
 };
 
 export function buscarOpcoesRecibos() { return colaboradorRequest<OpcoesRecibos>("/api/financeiro/recibos/opcoes"); }
-export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" }) {
+export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor" }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);
   if (filtro?.beneficiario_tipo) params.set("beneficiario_tipo", filtro.beneficiario_tipo);
@@ -878,13 +888,13 @@ export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tip
 }
 export function buscarRecibo(id: string) { return colaboradorRequest<{ recibo: Recibo; rateio: RateioLinhaRecibo[] }>(`/api/financeiro/recibos/${encodeURIComponent(id)}`); }
 export function criarRecibo(payload: CriarReciboPayload) {
-  return colaboradorRequest<{ recibo: Recibo; movimentacao_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
+  return colaboradorRequest<{ recibo: Recibo; lancamento_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
 }
 export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; observacoes?: string }) {
-  return colaboradorRequest<{ ok: boolean; movimentacao_reembolso_id: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
+  return colaboradorRequest<{ ok: boolean; lancamento_reembolso_id: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
 }
 export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
-export function enviarAnexoRecibo(arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<{ id: string; url: string }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
+export function enviarAnexoRecibo(arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
 export type ContatoEmail = {
   id: string;
   nome: string;

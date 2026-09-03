@@ -137,7 +137,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [tipo, setTipo] = useState<TipoEnvio | null>(null);
   const [form, setForm] = useState<Formulario>(inicial);
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
-  const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], categorias: [] });
+  const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], aeronaves: [], voos: [], categorias: [] });
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -208,7 +208,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const exigeDadosAeronave = tipo === "share" || exigeCliente;
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
-  const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeCliente ? "Cliente e rateio" : "Revisão e envio";
+  const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeDadosAeronave ? (tipo === "share" ? "Aeronave e voo" : "Cliente e rateio") : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
 
   const contatosFiltrados = useMemo(() => {
@@ -478,8 +478,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   </div>
                   <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { alterar("aeronave_id", id); alterar("cotista_ids", "" as never); setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                   <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => setForm((f) => ({ ...f, cotista_ids: id === "__todos__" ? cotistas.map((c) => c.id) : [id] }))} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
-                  <Campo label="Quem pagou"><input value={form.pago_por} onChange={(e) => alterar("pago_por", e.target.value)} placeholder={tipo === "cliente" ? "Cotista selecionado" : "SHARE"} className="campo" /></Campo>
-                  <Campo label="Número do voo"><input value={form.numero_voo} onChange={(e) => alterar("numero_voo", e.target.value)} placeholder="Ex.: SB-1234" className="campo" /></Campo>
+                  {tipo !== "share" && <Campo label="Quem pagou"><input value={form.pago_por} onChange={(e) => alterar("pago_por", e.target.value)} placeholder={tipo === "cliente" ? "Cotista selecionado" : "SHARE"} className="campo" /></Campo>}
+                  <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => alterar("numero_voo", id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
                 </div>
               )}
 

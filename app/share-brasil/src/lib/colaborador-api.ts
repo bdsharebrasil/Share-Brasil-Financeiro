@@ -969,3 +969,6 @@ export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url" 
 export function buscarContasBancariasEmail() { return colaboradorRequest<{ contas: ContaBancariaEmail[] }>("/api/interno/emails/contas-bancarias"); }
 export function salvarContaBancariaEmail(id: string, payload: Partial<Omit<ContaBancariaEmail, "id" | "texto">>) { return colaboradorRequest<{ ok: boolean }>(`/api/interno/emails/contas-bancarias/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function removerLogoAssinatura() { return Promise.resolve({ success: true }); }
+export type CtmRegistro = Record<string, any>
+export type CtmDashboard = { aeronaves: CtmRegistro[]; aeronave: CtmRegistro | null; programa: CtmRegistro[]; diretrizes: CtmRegistro[]; componentes: CtmRegistro[]; oas: CtmRegistro[]; orcamentos: CtmRegistro[]; ras: CtmRegistro[]; carregamentos: CtmRegistro[]; resumo: Record<string, number> }
+export function buscarCtmDashboard(aeronaveId?: string) { return colaboradorRequest<{ data: CtmDashboard }>(`/api/ctm/dashboard${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }

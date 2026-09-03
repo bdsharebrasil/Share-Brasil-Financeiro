@@ -25,6 +25,7 @@ import EnviarPagamento from "@/pages/EnviarPagamento";
 import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
 import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
+import CTM from "@/pages/CTM";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
 import Contatos from "@/pages/Contatos";
 import SenhasPastas from "@/pages/SenhasPastas";
@@ -62,6 +63,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "aerodromos") return <Aerodromos aoVoltar={() => setMenuAtivo("diario-de-bordo")} />;
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
+    if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-share") return <PaginaFinanceiroShare />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <DashboardFinanceiroCotista />;

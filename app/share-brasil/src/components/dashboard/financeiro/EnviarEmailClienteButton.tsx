@@ -1,0 +1,1 @@
+export function EnviarEmailClienteButton({ onClick }: { onClick?: () => void; [key: string]: unknown }) { return <button type="button" onClick={onClick} className="rounded border border-border px-2 py-1 text-[10px]">E-mail</button>; }

@@ -142,6 +142,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [etapa, setEtapa] = useState(0);
+  const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
   const opcoesVisiveis = apenasCaixaShare ? opcoes.filter((opcao) => opcao.tipo !== "cliente") : opcoes;
   const [historico, setHistorico] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -206,7 +207,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const valorInformado = converterValor(form.valor);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
-  const exigeDadosAeronave = tipo === "share" || exigeCliente;
+  const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
   const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeDadosAeronave ? (tipo === "share" ? "Aeronave e voo" : "Cliente e rateio") : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
@@ -238,6 +239,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       return;
     }
     setTipo(novoTipo);
+    setVincularAeronave(novoTipo === "share" ? null : true);
     setForm({
       ...inicial,
       data_despesa: hoje(),
@@ -249,12 +251,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const trocarModo = () => {
     setEtapa(0);
     setTipo(null);
+    setVincularAeronave(null);
     setErro("");
   };
 
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
-    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : form.data_despesa));
+    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : form.data_despesa) && (tipo !== "share" || vincularAeronave !== null));
     if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length);
     return true;
   };
@@ -262,7 +265,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const proxima = () => {
     setErro("");
     if (!podeAvancar()) {
-      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" ? "Informe descrição, valor e prazo de pagamento." : "Informe descrição, valor e data da despesa.") : "Selecione a aeronave e pelo menos um cotista.");
+      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" ? (vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : "Informe descrição, valor e prazo de pagamento.") : "Informe descrição, valor e data da despesa.") : "Selecione a aeronave e pelo menos um cotista.");
       return;
     }
     setEtapa((atual) => Math.min(totalEtapas, atual + 1));
@@ -465,6 +468,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <>
                       <Campo label="Grupo categoria · DESPESAS EMPRESA"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("grupo_categoria", "DESPESAS EMPRESA"); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>
                       <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>
+                      <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
+                        <p className="text-[12px] font-bold text-foreground">Deseja vincular uma aeronave nessa despesa?</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {([true, false] as const).map((opcao) => <button key={String(opcao)} type="button" onClick={() => { setVincularAeronave(opcao); if (!opcao) { setForm((atual) => ({ ...atual, aeronave_id: "", cotista_id: "", cotista_ids: [], numero_voo: "" })); setCotistas([]); } }} className={`rounded-sm border px-4 py-2 text-[11px] font-bold transition-colors ${vincularAeronave === opcao ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary/50"}`}>{opcao ? "Sim, vincular" : "Não, seguir sem aeronave"}</button>)}
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>

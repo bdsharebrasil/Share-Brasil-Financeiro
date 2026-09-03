@@ -967,4 +967,5 @@ export type AssinaturaEmail = { nome: string; cargo?: string | null; telefone?: 
 export function buscarMinhaAssinatura() { return colaboradorRequest<AssinaturaEmail | null>("/api/minha-assinatura"); }
 export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url" | "email">) { return colaboradorRequest<AssinaturaEmail>("/api/minha-assinatura", { method: "PATCH", body: JSON.stringify(payload) }); }
 export function buscarContasBancariasEmail() { return colaboradorRequest<{ contas: ContaBancariaEmail[] }>("/api/interno/emails/contas-bancarias"); }
+export function salvarContaBancariaEmail(id: string, payload: Partial<Omit<ContaBancariaEmail, "id" | "texto">>) { return colaboradorRequest<{ ok: boolean }>(`/api/interno/emails/contas-bancarias/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function removerLogoAssinatura() { return Promise.resolve({ success: true }); }

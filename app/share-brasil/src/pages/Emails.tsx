@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
+import ConfiguracaoContasBancarias from "@/components/email/ConfiguracaoContasBancarias";
 import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
 import {
   buscarCentralEmail,
@@ -368,7 +369,7 @@ export default function Emails() {
         <div className="lg:col-span-8">
           {configAberta ? (
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
-              {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <div className="space-y-4"><div><h2 className="text-sm font-bold">Dados bancários</h2><p className="mt-1 text-[10px] text-muted-foreground">Selecione uma conta durante a composição para inserir os dados na cobrança.</p></div>{contasBancarias.length === 0 ? <p className="rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">Nenhuma conta bancária cadastrada.</p> : contasBancarias.map((conta) => <div key={conta.id} className="rounded-xl border border-border/60 bg-muted/20 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold">{conta.banco}</p><p className="mt-1 text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</p></div><Landmark size={18} className="text-primary" /></div><pre className="mt-3 whitespace-pre-wrap rounded-lg bg-background/70 p-3 text-[11px] leading-5 text-muted-foreground">{conta.texto}</pre></div>)}</div>}
+              {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <ConfiguracaoContasBancarias contas={contasBancarias} onSaved={() => { void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)); }} />}
             </div>
           ) : modoCriacao ? (
             /* COMPOSITOR DE NOVA MENSAGEM */

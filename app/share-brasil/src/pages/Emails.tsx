@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
+import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
 import {
   buscarCentralEmail,
   buscarPerfilColaborador,
@@ -125,8 +126,11 @@ export default function Emails() {
   );
 
   const selecionarContato = (contato: ContatoEmail) => {
-    setDestinatario(contato.email);
-    setNomeDestinatario(contato.nome);
+    const atuais = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
+    if (!atuais.some((email) => email.toLowerCase() === contato.email.toLowerCase())) {
+      setDestinatario([...atuais, contato.email].join("; "));
+    }
+    setNomeDestinatario(atuais.length === 0 ? contato.nome : "");
   };
 
   const alternarAnexo = (id: string) => {
@@ -157,15 +161,17 @@ export default function Emails() {
     setSucesso("");
 
     try {
+      const destinatarios = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
       await enviarEmailCliente({
-        destinatarios: [destinatario.trim()],
+        destinatarios,
         assunto: assunto.trim(),
         mensagem: mensagem.trim(),
         anexos: anexosSelecionados.map(({ id }) => id),
+        arquivos: arquivosNovos,
         nome_destinatario: nomeDestinatario || undefined,
       });
 
-      setSucesso(`E-mail enviado com sucesso para ${destinatario.trim()}.`);
+      setSucesso(`E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
       limparFormulario();
       setModoCriacao(false);
       await carregar();
@@ -431,6 +437,16 @@ export default function Emails() {
                   <p className="text-xs text-muted-foreground">Selecione uma mensagem para ler</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {!modoCriacao && (
+            <div className="mt-4 rounded-2xl border border-border/60 bg-card/40 p-5">
+              <div className="mb-4 flex items-center gap-2 border-b border-border/50 pb-3">
+                <ShieldCheck size={16} className="text-primary" />
+                <div><h2 className="text-sm font-bold">Minha assinatura</h2><p className="text-[10px] text-muted-foreground">Configuração individual aplicada aos seus e-mails.</p></div>
+              </div>
+              <MinhaAssinaturaEmail embedded />
             </div>
           )}
         </div>

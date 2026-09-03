@@ -145,7 +145,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
 
   return (
     <div className="route-enter">
-      <HeroDashboard ambiente="gestor" title="Resumo financeiro" subtitle="Visão executiva do que precisa da sua atenção hoje">
+      <HeroDashboard ambiente="gestor" title={`${saudacaoAtual()}, ${nomeCurto}`} subtitle="Resumo financeiro e visão executiva do que precisa da sua atenção hoje">
         <Button type="button" onClick={() => void carregar(true)} disabled={atualizando} variant="outline" className="h-9 gap-2 border-white/20 bg-white/5 text-xs text-white backdrop-blur hover:bg-white/10">
           <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar
         </Button>

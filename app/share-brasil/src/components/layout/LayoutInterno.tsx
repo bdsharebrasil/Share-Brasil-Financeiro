@@ -26,8 +26,7 @@ import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
 import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
 import CTM from "@/pages/CTM";
-import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, TarefasShareBrasil } from "@/pages/ShareBrasil";
-import Contatos from "@/pages/Contatos";
+import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, TarefasShareBrasil, ContatosClientesShareBrasil } from "@/pages/ShareBrasil";
 import SenhasPastas from "@/pages/SenhasPastas";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
@@ -81,7 +80,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasPastas />;
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
-    if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <Contatos />;
+    if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;
     if (ambiente === "share-brasil" && menuAtivo === "sala-reuniao") return <SalaReuniao />;

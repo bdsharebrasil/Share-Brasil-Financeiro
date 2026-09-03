@@ -35,6 +35,7 @@ export default function SalaReuniao() {
   const [error, setError] = useState("");
   const [mediaNotice, setMediaNotice] = useState("");
   const localVideo = useRef<HTMLVideoElement>(null);
+  const localScreenVideo = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const ws = useRef<WebSocket | null>(null);
   const localStream = useRef<MediaStream | null>(null);
@@ -45,6 +46,16 @@ export default function SalaReuniao() {
   const myName = useRef("Participante");
   const myUserId = useRef("");
   const participantMap = useRef<Record<string, Participant>>({});
+
+  const requestLocalMedia = useCallback(async () => {
+    const tracks: MediaStreamTrack[] = [];
+    let cameraError = false;
+    let microphoneError = false;
+    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } })).getVideoTracks()); } catch { cameraError = true; }
+    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })).getAudioTracks()); } catch { microphoneError = true; }
+    setMediaNotice(cameraError && microphoneError ? "Não foi possível acessar câmera e microfone. Libere os dispositivos no cadeado do navegador e tente novamente." : cameraError ? "Câmera indisponível ou bloqueada. O microfone continua disponível; libere a câmera no cadeado do navegador se quiser ativar o vídeo." : microphoneError ? "Microfone indisponível ou bloqueado. A câmera continua disponível; libere o microfone no cadeado do navegador se quiser falar e ouvir a reunião." : "");
+    return tracks.length ? new MediaStream(tracks) : null;
+  }, []);
 
   const loadRooms = useCallback(async () => { try { const [list, profile] = await Promise.all([buscarSalasTreinamento(), buscarPerfilColaborador()]); const perfilPodeGerenciar = managerRole(profile.perfil.tipo_user) || profile.funcoes.some((funcao) => managerRole(funcao.funcao)); setRooms(list); setManager(perfilPodeGerenciar); myName.current = profile.perfil.nome_exibicao || profile.perfil.nome_completo || profile.perfil.email; myUserId.current = profile.perfil.id; } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as salas."); } }, []);
   useEffect(() => { void loadRooms(); }, [loadRooms]);
@@ -57,8 +68,9 @@ export default function SalaReuniao() {
     const peer = new RTCPeerConnection({ iceServers: iceServersRef.current });
     peers.current[remote.id] = peer;
     localStream.current?.getTracks().forEach((track) => peer.addTrack(track, localStream.current!));
+    for (const kind of ["audio", "video"] as const) if (!peer.getSenders().some((sender) => sender.track?.kind === kind)) peer.addTransceiver(kind, { direction: "sendrecv" });
     peer.onicecandidate = (event) => { if (event.candidate) send({ type: "ice", to: remote.id, candidate: event.candidate.toJSON() }); };
-    peer.ontrack = (event) => { const stream = event.streams[0]; if (stream) setRemoteStreams((current) => ({ ...current, [remote.id]: stream })); };
+    peer.ontrack = (event) => { setRemoteStreams((current) => { const stream = event.streams[0] || current[remote.id] || new MediaStream(); if (!stream.getTracks().some((track) => track.id === event.track.id)) stream.addTrack(event.track); return { ...current, [remote.id]: stream }; }); };
     peer.onconnectionstatechange = () => { if (["failed", "closed", "disconnected"].includes(peer.connectionState)) closePeer(remote.id); };
     return peer;
   }, [send]);
@@ -69,17 +81,8 @@ export default function SalaReuniao() {
     try {
       const [{ data: { session } }, ice] = await Promise.all([supabase.auth.getSession(), buscarIceServersCentro()]);
       if (!session?.access_token) throw new Error("sessao_nao_encontrada");
-      let stream: MediaStream | null = null;
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera_microfone_indisponiveis_neste_navegador");
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      } catch (mediaError) {
-        const nome = mediaError instanceof DOMException ? mediaError.name : "";
-        const mensagem = nome === "NotFoundError"
-          ? "Nenhuma câmera ou microfone foi encontrado. Você entrou sem mídia."
-          : "O acesso à câmera/microfone está bloqueado ou indisponível. Você entrou sem mídia; libere os dispositivos no cadeado do navegador e tente novamente.";
-        setMediaNotice(mensagem);
-      }
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera_microfone_indisponiveis_neste_navegador");
+      const stream = await requestLocalMedia();
       localStream.current = stream;
       if (stream) {
         setCamera(stream.getVideoTracks().some((track) => track.enabled)); setMicrophone(stream.getAudioTracks().some((track) => track.enabled));
@@ -109,10 +112,12 @@ export default function SalaReuniao() {
   };
   useEffect(() => { const targetRoomId = new URLSearchParams(window.location.search).get("sala_reuniao"); if (targetRoomId && rooms.length && !room) { const selected = rooms.find((item) => item.id === targetRoomId); if (selected) void join(selected); } }, [rooms, room]);
   useEffect(() => { const video = localVideo.current; const stream = localStream.current; if (!video || !stream) return; video.srcObject = stream; void video.play().catch(() => undefined); }, [room, localReady]);
+  useEffect(() => { const video = localScreenVideo.current; const stream = screenStream.current; if (!video || !stream) return; video.srcObject = stream; void video.play().catch(() => undefined); }, [sharing]);
   const leave = () => { ws.current?.close(); ws.current = null; Object.keys(peers.current).forEach(closePeer); localStream.current?.getTracks().forEach((track) => track.stop()); screenStream.current?.getTracks().forEach((track) => track.stop()); localStream.current = null; setLocalReady(false); setRoom(null); setConnected(false); setParticipants([]); setRemoteStreams({}); setIsHost(false); setSharedScreens([]); void loadRooms(); };
   useEffect(() => () => leave(), []);
   const createRoom = async (event: React.FormEvent) => { event.preventDefault(); setCreating(true); try { const created = await criarSalaTreinamento({ titulo: title, descricao: description }); setTitle(""); setDescription(""); await loadRooms(); await join(created); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível criar a sala."); } finally { setCreating(false); } };
-  const shareScreen = async () => { if (!room) return; if (sharing) { screenStream.current?.getTracks().forEach((track) => track.stop()); const cameraTrack = localStream.current?.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === "video")?.replaceTrack(cameraTrack || null)); send({ type: "screen_state", active: false }); setSharing(false); return; } const stream = await navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => null); if (!stream) return; screenStream.current = stream; const track = stream.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === "video")?.replaceTrack(track)); track.onended = () => { const cameraTrack = localStream.current?.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === "video")?.replaceTrack(cameraTrack || null)); send({ type: "screen_state", active: false }); setSharing(false); }; send({ type: "screen_state", active: true }); setSharing(true); };
+  const replacePeerTrack = (peer: RTCPeerConnection, kind: "audio" | "video", track: MediaStreamTrack | null) => { const sender = peer.getSenders().find((candidate) => candidate.track?.kind === kind) || peer.getTransceivers().find((transceiver) => transceiver.receiver.track.kind === kind)?.sender; if (sender) void sender.replaceTrack(track); };
+  const shareScreen = async () => { if (!room) return; if (sharing) { screenStream.current?.getTracks().forEach((track) => track.stop()); const cameraTrack = localStream.current?.getVideoTracks()[0] || null; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", cameraTrack)); send({ type: "screen_state", active: false }); setSharing(false); return; } const stream = await navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => null); if (!stream) return; screenStream.current = stream; const track = stream.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", track)); track.onended = () => { const cameraTrack = localStream.current?.getVideoTracks()[0] || null; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", cameraTrack)); send({ type: "screen_state", active: false }); setSharing(false); }; send({ type: "screen_state", active: true }); setSharing(true); };
   const toggleTrack = (kind: "audio" | "video") => { const track = localStream.current?.getTracks().find((candidate) => candidate.kind === kind); if (!track) return; track.enabled = !track.enabled; if (kind === "audio") setMicrophone(track.enabled); else setCamera(track.enabled); };
   const sendChat = (event: React.FormEvent) => { event.preventDefault(); if (!message.trim()) return; send({ type: "chat", text: message.trim() }); setMessages((current) => [...current, { name: myName.current, text: message.trim() }]); setMessage(""); };
   const openSeparateTab = () => { if (!room) return; const url = new URL(window.location.href); url.searchParams.set("sala_reuniao", room.id); window.open(url.toString(), "share-reuniao", "noopener,noreferrer"); };
@@ -129,4 +134,4 @@ export default function SalaReuniao() {
   return <div className="route-enter space-y-6"><div><IndicadorPagina>Share Brasil / Centro de Treinamento</IndicadorPagina><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><Video className="text-primary" size={25} /> Sala de reunião</h1><p className="mt-1.5 text-xs text-muted-foreground">Salas virtuais com vídeo, compartilhamento de tela, chat e lousa colaborativa.</p></div>{error && <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-200">{error}</div>}{manager && <form onSubmit={createRoom} className={`${card} flex flex-wrap items-end gap-3 p-4`}><div className="min-w-[220px] flex-1"><label className="mb-1 block text-[10px] font-bold text-muted-foreground">Nome da sala</label><input value={title} onChange={(event) => setTitle(event.target.value)} required placeholder="Ex.: Reunião semanal" className="h-10 w-full rounded-lg border border-border bg-background/50 px-3 text-xs outline-none focus:border-primary/60" /></div><div className="min-w-[260px] flex-[2]"><label className="mb-1 block text-[10px] font-bold text-muted-foreground">Descrição</label><input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Pauta ou objetivo da reunião" className="h-10 w-full rounded-lg border border-border bg-background/50 px-3 text-xs outline-none focus:border-primary/60" /></div><Button type="submit" disabled={creating} className="h-10 gap-2 text-[11px]"><Plus size={14} /> {creating ? "Criando..." : "Criar sala"}</Button></form>}<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rooms.length ? rooms.map((item) => <article key={item.id} className={`${card} flex min-h-44 flex-col p-4`}><div className="flex items-start justify-between"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Video size={17} /></div><span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">AO VIVO</span></div><h2 className="mt-4 text-sm font-bold">{item.titulo}</h2><p className="mt-1 text-[11px] text-muted-foreground">{item.descricao || "Sala colaborativa Share Brasil."}</p><p className="mt-2 text-[10px] text-muted-foreground">Criada por {item.criado_por_nome || "equipe Share Brasil"}</p><div className="mt-auto flex items-center justify-between pt-4"><Button type="button" onClick={() => void join(item)} className="h-8 gap-2 text-[10px]"><Video size={13} /> Entrar na sala</Button>{manager && <Button type="button" variant="ghost" onClick={() => void encerrarSalaTreinamento(item.id).then(loadRooms)} className="h-8 px-2 text-[10px] text-red-300"><PhoneOff size={12} /></Button>}</div></article>) : <div className={`${card} col-span-full p-12 text-center text-xs text-muted-foreground`}>Nenhuma sala ativa no momento.</div>}</div></div>;
 }
 
-function RemoteVideo({ stream, name }: { id: string; stream: MediaStream; name: string }) { const ref = useRef<HTMLVideoElement>(null); useEffect(() => { if (ref.current) { ref.current.srcObject = stream; void ref.current.play().catch(() => undefined); } }, [stream]); return <div className="relative overflow-hidden rounded-lg bg-black"><video ref={ref} playsInline className="aspect-video w-full object-cover" /><span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[10px] font-bold text-white">{name}</span></div>; }
+function RemoteVideo({ stream, name }: { id?: string; stream: MediaStream; name: string }) { const ref = useRef<HTMLVideoElement>(null); useEffect(() => { if (ref.current) { ref.current.srcObject = stream; void ref.current.play().catch(() => undefined); } }, [stream]); return <div className="relative overflow-hidden rounded-lg bg-black"><video ref={ref} playsInline autoPlay className="aspect-video w-full object-cover" /><span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[10px] font-bold text-white">{name}</span></div>; }

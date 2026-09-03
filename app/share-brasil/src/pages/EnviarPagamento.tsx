@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Loader2, Mail, Send, Users, WalletCards, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Send, Smartphone, Users, WalletCards, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,8 @@ import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
-import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarEnviosPagamento, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarEmailCliente, type AnexoEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import logoShare from "@/assets/share-signature-logo.png";
+import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -170,6 +172,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [modalEmail, setModalEmail] = useState(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [anexosEmail, setAnexosEmail] = useState<AnexoEmail[]>([]);
+  const [assinaturaEmail, setAssinaturaEmail] = useState<AssinaturaEmail | null>(null);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
+  const [bancoSelecionado, setBancoSelecionado] = useState<ContaBancariaEmail | null>(null);
   const [buscaContato, setBuscaContato] = useState("");
   const [destinatario, setDestinatario] = useState("");
   const [nomeDestinatario, setNomeDestinatario] = useState("");
@@ -204,9 +209,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setCarregandoEmail(true);
     setErroEmail("");
     try {
-      const dados = await buscarCentralEmail();
+      const [dados, assinatura, bancos] = await Promise.all([buscarCentralEmail(), buscarMinhaAssinatura(), buscarContasBancariasEmail()]);
       setContatos(dados.contatos);
       setAnexosEmail(dados.anexos);
+      setAssinaturaEmail(assinatura);
+      setContasBancarias(bancos.contas);
     } catch {
       setErroEmail("Não foi possível carregar os contatos de e-mail.");
     } finally {
@@ -347,6 +354,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setEnvioRecemCriado(registro);
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
         setCorpoEmail(montarCorpoEmail(registro));
+        setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
+        setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
+        setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
           setDestinatario(contatoInicial.email);
@@ -377,6 +387,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setArquivosNovos([]);
     setErroEmail("");
     setSucessoEmail("");
+    setBancoSelecionado(null);
     setEnvioRecemCriado(null);
   };
 
@@ -387,7 +398,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const novos: AnexoLinha[] = origemAnexo === "recibos"
       ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null }] : [])
       : origemAnexo === "relatorios"
-        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio:${fonte.id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null }] : [])
+        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null }] : [])
         : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: fonte.numero_voo || fonte.numero_comanda || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null }));
     setForm((atual) => ({ ...atual, anexos: [...atual.anexos.filter((anexo) => !novos.some((novo) => novo.id === anexo.id)), ...novos] }));
     setDialogoAnexos(false);
@@ -577,7 +588,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       onClick={() => {
                         const proximoValor = !enviarEmailAposCriar;
                         setEnviarEmailAposCriar(proximoValor);
-                        if (proximoValor && contatos.length === 0) void carregarContatosEmail();
+                        if (proximoValor) void carregarContatosEmail();
                       }}
                       className={`h-10 w-full gap-2 rounded-md border px-4 text-[11px] font-bold transition-colors ${enviarEmailAposCriar ? "border-[#ff7a1a] bg-[#f97316] text-white hover:bg-[#ea6c0c]" : "border-[#713a1b] bg-[#1a100d] text-[#ffb47c] hover:border-[#b95a20] hover:bg-[#26140d]"}`}
                     >
@@ -688,10 +699,29 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 resize-y" />
               </div>
 
+              {assinaturaEmail && <div className="rounded-sm border border-border/60 bg-white p-3 font-[Arial,sans-serif] text-[#333] shadow-sm">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
+                <div className="flex items-center gap-3">
+                  <img src={assinaturaEmail.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
+                  <div className="min-w-0 text-[11px] leading-4">
+                    <strong className="block text-[14px] leading-4 text-black">{assinaturaEmail.nome}</strong>
+                    {assinaturaEmail.cargo && <span className="block text-[10px] leading-3">{assinaturaEmail.cargo}</span>}
+                    {assinaturaEmail.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinaturaEmail.telefone}</span>}
+                    {assinaturaEmail.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinaturaEmail.endereco}</span>}
+                  </div>
+                </div>
+              </div>}
+
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
                 <AnexosEmail anexos={anexosFiltrados} selecionados={anexosSelecionados} onAlternar={alternarAnexo} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
               </div>
+
+              {contasBancarias.length > 0 && <div className="rounded-sm border border-primary/20 bg-primary/[.04] p-3">
+                <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
+                <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded border p-2.5 text-left text-[10px] transition-colors ${bancoSelecionado?.id === conta.id ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/50"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
+                {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
+              </div>}
 
               <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
                 <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px]"><X size={14} /> Cancelar</Button>

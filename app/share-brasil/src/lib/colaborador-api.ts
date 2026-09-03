@@ -90,7 +90,7 @@ export type MensagensNaoLidasResponse = {
   unread: number;
 };
 
-async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");

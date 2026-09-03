@@ -137,11 +137,12 @@ export class FinanceiroService {
     return { lancamento: normalizarLancamento(row) }
   }
 
-  async listarLancamentos(inicio?: string, fim?: string): Promise<LancamentoFinanceiro[]> {
+  async listarLancamentos(inicio?: string, fim?: string, caixa?: string): Promise<LancamentoFinanceiro[]> {
     const conditions: string[] = []
     const values: unknown[] = []
     if (inicio) { conditions.push('date(data_emissao) >= ?'); values.push(inicio) }
     if (fim) { conditions.push('date(data_emissao) <= ?'); values.push(fim) }
+    if (caixa) { conditions.push('upper(COALESCE(tipo_caixa, caixa, \'SHARE\')) = upper(?)'); values.push(caixa) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const rows = await this.db.prepare(`SELECT * FROM lancamentos ${where} ORDER BY date(data_emissao) DESC, criado_em DESC`).bind(...values).all<Row>()
     const result: LancamentoFinanceiro[] = []

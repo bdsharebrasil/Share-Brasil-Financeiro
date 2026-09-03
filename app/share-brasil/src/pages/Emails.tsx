@@ -20,8 +20,8 @@ import {
   Star,
   Trash2,
   UserRound,
-  Phone,
   MapPin,
+  Smartphone,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -428,7 +428,7 @@ export default function Emails() {
                       <div className="min-w-0 text-[11px] leading-4">
                         <strong className="block text-[14px] leading-4 text-black">{assinatura.nome || "Nome do usuário"}</strong>
                         {assinatura.cargo && <span className="block text-[10px] leading-3">{assinatura.cargo}</span>}
-                        {assinatura.telefone && <span className="flex items-center gap-1"><Phone size={11} /> {assinatura.telefone}</span>}
+                        {assinatura.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinatura.telefone}</span>}
                         {assinatura.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinatura.endereco}</span>}
                       </div>
                     </div>

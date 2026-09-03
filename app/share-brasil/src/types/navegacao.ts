@@ -76,6 +76,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "enviar-pagamento", label: "Enviar pagamento", icon: Send },
     { id: "pagamentos", label: "Programação de pagamento", icon: CreditCard, badge: "5" },
     { id: "email", label: "E-mail", icon: Mail },
+    { id: "assinatura", label: "Minha assinatura", icon: Settings2 },
     { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
     { id: "recados", label: "Recados", icon: MessageSquare },
   ],

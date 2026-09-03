@@ -946,3 +946,8 @@ export function enviarEmailCliente(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export type AssinaturaEmail = { nome: string; cargo?: string | null; telefone?: string | null; endereco?: string | null; email: string; logo_url?: string | null };
+export function buscarMinhaAssinatura() { return colaboradorRequest<AssinaturaEmail | null>("/api/minha-assinatura"); }
+export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url">) { return colaboradorRequest<AssinaturaEmail>("/api/minha-assinatura", { method: "PATCH", body: JSON.stringify(payload) }); }
+export function removerLogoAssinatura() { return Promise.resolve({ success: true }); }

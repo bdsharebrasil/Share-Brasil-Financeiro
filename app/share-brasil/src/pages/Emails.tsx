@@ -27,6 +27,7 @@ import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import {
   buscarCentralEmail,
+  buscarPerfilColaborador,
   enviarEmailCliente,
   type AnexoEmail,
   type ContatoEmail,
@@ -54,6 +55,7 @@ export default function Emails() {
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
   const [historico, setHistorico] = useState<EmailEnviado[]>([]);
+  const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
 
   const [busca, setBusca] = useState("");
   const [buscaGeral, setBuscaGeral] = useState("");
@@ -77,7 +79,8 @@ export default function Emails() {
     setErro("");
 
     try {
-      const dados = await buscarCentralEmail();
+      const [dados, perfil] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador()]);
+      setRemetente({ nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo, email: perfil.perfil.email });
       setContatos(dados.contatos);
       setAnexos(dados.anexos);
       setHistorico(dados.historico);
@@ -334,7 +337,7 @@ export default function Emails() {
             /* COMPOSITOR DE NOVA MENSAGEM */
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
               <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                <h2 className="text-sm font-bold">Nova mensagem</h2>
+                <div><h2 className="text-sm font-bold">Nova mensagem</h2><p className="mt-1 text-[10px] text-muted-foreground">Enviando como {remetente?.nome || "seu usuário"} · resposta para {remetente?.email || "seu e-mail de cadastro"}</p></div>
                 <Button variant="ghost" size="sm" onClick={() => setModoCriacao(false)}>Cancelar</Button>
               </div>
 

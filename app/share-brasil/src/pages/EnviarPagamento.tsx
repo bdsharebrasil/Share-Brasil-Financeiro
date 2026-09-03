@@ -9,6 +9,7 @@ import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarEnviosPagamento, buscarOpcoesEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarEmailCliente, type AnexoEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -18,6 +19,7 @@ type Formulario = {
   valor: string;
   data_despesa: string;
   vencimento: string;
+  periodicidade: "ÚNICO" | "EVENTUAL" | "MENSAL" | "BIMESTRAL" | "TRIMESTRAL" | "SEMESTRAL" | "ANUAL";
   fornecedor: string;
   cliente_id: string;
   socio_id: string;
@@ -34,6 +36,7 @@ type Formulario = {
   tipo_despesa: "fixo" | "variável";
   pago_diretamente: boolean;
   pago_por: string;
+  anexos: AnexoLinha[];
 };
 type OpcaoEnvio = {
   tipo: TipoEnvio;
@@ -53,6 +56,7 @@ const inicial: Formulario = {
   valor: "",
   data_despesa: hoje(),
   vencimento: "",
+  periodicidade: "ÚNICO",
   fornecedor: "",
   cliente_id: "",
   socio_id: "",
@@ -69,6 +73,7 @@ const inicial: Formulario = {
   tipo_despesa: "variável",
   pago_diretamente: false,
   pago_por: "",
+  anexos: [],
 };
 
 const opcoes: OpcaoEnvio[] = [
@@ -106,7 +111,7 @@ const opcoes: OpcaoEnvio[] = [
     cor: "text-violet-400",
   },
 ];
-const categoriasShare: Categoria[] = ["FOLHA DE PAGAMENTO", "DESPESAS EMPRESA", "DESPESAS EMPRESA-BANCO", "DESPESAS PARTICULARES", "IMPOSTOS", "RECEITAS OPERACIONAIS"];
+const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
 const statusEnvio: Record<string, { label: string; className: string }> = {
   pendente: { label: "Pendente", className: "bg-amber-400/10 text-amber-600 dark:text-amber-300" },
   pago: { label: "Pago", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
@@ -141,12 +146,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [historico, setHistorico] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
+  const anexos = form.anexos;
 
   const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
   const [enviarEmailAposCriar, setEnviarEmailAposCriar] = useState(false);
   const [modalEmail, setModalEmail] = useState(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
-  const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
+  const [anexosEmail, setAnexosEmail] = useState<AnexoEmail[]>([]);
   const [buscaContato, setBuscaContato] = useState("");
   const [destinatario, setDestinatario] = useState("");
   const [nomeDestinatario, setNomeDestinatario] = useState("");
@@ -183,7 +189,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     try {
       const dados = await buscarCentralEmail();
       setContatos(dados.contatos);
-      setAnexos(dados.anexos);
+      setAnexosEmail(dados.anexos);
     } catch {
       setErroEmail("Não foi possível carregar os contatos de e-mail.");
     } finally {
@@ -247,7 +253,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
-    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && form.data_despesa);
+    if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : form.data_despesa));
     if (etapa === 2 && exigeCliente) return Boolean(form.aeronave_id && form.cotista_ids.length);
     return true;
   };
@@ -255,7 +261,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const proxima = () => {
     setErro("");
     if (!podeAvancar()) {
-      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? "Informe descrição, valor e data da despesa." : "Selecione a aeronave e pelo menos um cotista para gerar o rateio obrigatório.");
+      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" ? "Informe descrição, valor e prazo de pagamento." : "Informe descrição, valor e data da despesa.") : "Selecione a aeronave e pelo menos um cotista para gerar o rateio obrigatório.");
       return;
     }
     setEtapa((atual) => Math.min(totalEtapas, atual + 1));
@@ -287,6 +293,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         grupo_categoria: form.grupo_categoria,
         tipo_despesa: tipo === "share" ? form.tipo_despesa : null,
         pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"),
+        periodicidade: form.periodicidade,
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
       });
       setEnvios((atual) => [registro, ...atual]);
       if (exigeCliente && !enviarEmailAposCriar) {
@@ -337,12 +345,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
 
   const anexosFiltrados = useMemo(() => {
-    if (!envioRecemCriado?.cliente_id) return anexos;
-    return anexos.filter((a) => {
+    if (!envioRecemCriado?.cliente_id) return anexosEmail;
+    return anexosEmail.filter((a) => {
       if (a.origem === "recibo") return true;
       return true;
     });
-  }, [anexos, envioRecemCriado]);
+  }, [anexosEmail, envioRecemCriado]);
 
   const dispararEmail = async () => {
     if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
@@ -449,14 +457,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
-                  <Campo label="Data da despesa" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
+                  {tipo !== "share" && <Campo label="Data da despesa" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
                   <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
                   <Campo label="Fornecedor"><SearchableCombobox items={dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id} onChange={(id, label) => { alterar("fornecedor_id", id); alterar("fornecedor", label); }} placeholder="Selecione ou busque fornecedor favorito" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
-                  <Campo label="Centro de custo"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("centro_custo", id); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de cliente encontrada." /></Campo>
+                  {tipo !== "share" && <Campo label="Centro de custo"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("centro_custo", id); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria encontrada." /></Campo>}
                   {tipo === "share" && (
                     <>
-                      <Campo label="Grupo da categoria"><select value={form.grupo_categoria} onChange={(e) => alterar("grupo_categoria", e.target.value)} className="campo">{categoriasShare.map((categoria) => <option key={categoria}>{categoria}</option>)}</select></Campo>
-                      <Campo label="Tipo da despesa"><select value={form.tipo_despesa} onChange={(e) => alterar("tipo_despesa", e.target.value)} className="campo"><option value="fixo">Fixo</option><option value="variável">Variável</option></select></Campo>
+                      <Campo label="Grupo categoria · DESPESAS EMPRESA"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("grupo_categoria", "DESPESAS EMPRESA"); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>
+                      <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>
                     </>
                   )}
                 </div>
@@ -488,21 +496,24 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       <Resumo label="Pagador" valor={selecionada.pagador} />
                       <Resumo label="Destino" valor={selecionada.destino} />
                       <Resumo label="Categoria" valor={form.grupo_categoria} />
-                      <Resumo label="Data" valor={dataBr(form.data_despesa)} />
+                      {tipo !== "share" && <Resumo label="Data" valor={dataBr(form.data_despesa)} />}
                       <Resumo label="Vencimento" valor={dataBr(form.vencimento)} />
+                      <Resumo label="Periodicidade" valor={form.periodicidade} />
+                      <Resumo label="Anexos" valor={`${anexos.length} documento(s)`} />
                       <Resumo label="Rateio" valor={exigeCliente ? `${cotistasSelecionados.length} cotista(s)${cotistasSelecionados.some((c) => c.eh_holding) ? " · holding identificado" : ""}` : "Não se aplica"} />
                       {exigeCliente && <Resumo label="Pagamento direto" valor={tipo === "cliente" ? "Sim" : "Não — Share antecipou"} />}
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
+                  <AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="envio-pagamento-anexos" />
 
-                  <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-sky-400/30 bg-sky-400/[.06] px-4 py-3.5 transition-colors hover:bg-sky-400/[.1]">
+                  {tipo !== "share" && <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-sky-400/30 bg-sky-400/[.06] px-4 py-3.5 transition-colors hover:bg-sky-400/[.1]">
                     <input type="checkbox" checked={enviarEmailAposCriar} onChange={(e) => {
                       setEnviarEmailAposCriar(e.target.checked);
                       if (e.target.checked && contatos.length === 0) void carregarContatosEmail();
     }} className="h-4 w-4 rounded border-border accent-primary" />
                     <span className="flex items-center gap-2 text-[12px] font-bold text-foreground"><Mail size={15} className="text-sky-500" /> Enviar solicitação por e-mail ao cliente após criar o lançamento</span>
-                  </label>
+                  </label>}
                 </div>
               )}
             </div>

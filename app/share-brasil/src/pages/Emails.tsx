@@ -27,17 +27,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import ConfiguracaoContasBancarias from "@/components/email/ConfiguracaoContasBancarias";
 import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
 import {
   buscarCentralEmail,
   buscarContasBancariasEmail,
   buscarPerfilColaborador,
+  buscarInboxMensagens,
+  buscarUsuariosMensagem,
   enviarEmailCliente,
+  enviarMensagemInterna,
   type AnexoEmail,
   type ContatoEmail,
   type EmailEnviado,
   type ContaBancariaEmail,
+  type MensagemInterna,
+  type UsuarioMensagem,
 } from "@/lib/colaborador-api";
 
 const dataBr = (valor: string | null) =>
@@ -59,6 +65,8 @@ const horaBr = (valor: string | null) =>
 
 export default function Emails() {
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioMensagem[]>([]);
+  const [mensagensInbox, setMensagensInbox] = useState<MensagemInterna[]>([]);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
   const [historico, setHistorico] = useState<EmailEnviado[]>([]);
   const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
@@ -67,6 +75,8 @@ export default function Emails() {
   const [buscaGeral, setBuscaGeral] = useState("");
   const [destinatario, setDestinatario] = useState("");
   const [nomeDestinatario, setNomeDestinatario] = useState("");
+  const [tipoEnvio, setTipoEnvio] = useState<"email" | "interno">("email");
+  const [destinatarioUsuarioId, setDestinatarioUsuarioId] = useState("");
   const [assunto, setAssunto] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [selecionados, setSelecionados] = useState<string[]>([]);
@@ -79,6 +89,7 @@ export default function Emails() {
   const [pastaAtiva, setPastaAtiva] = useState<"inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo">("inbox");
   const [modoCriacao, setModoCriacao] = useState(false);
   const [emailSelecionadoLeitura, setEmailSelecionadoLeitura] = useState<EmailEnviado | null>(null);
+  const [mensagemInternaSelecionada, setMensagemInternaSelecionada] = useState<MensagemInterna | null>(null);
   const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
 
@@ -87,12 +98,14 @@ export default function Emails() {
     setErro("");
 
     try {
-      const [dados, perfil] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador()]);
+      const [dados, perfil, inbox, usuariosResponse] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarInboxMensagens(), buscarUsuariosMensagem()]);
       setRemetente({ nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo, email: perfil.perfil.email });
-      setContatos(dados.contatos);
-      setAnexos(dados.anexos);
-      setHistorico(dados.historico);
-      if (dados.historico.length > 0 && !emailSelecionadoLeitura) {
+      setContatos(Array.isArray(dados?.contatos) ? dados.contatos : []);
+      setAnexos(Array.isArray(dados?.anexos) ? dados.anexos : []);
+      setHistorico(Array.isArray(dados?.historico) ? dados.historico : []);
+      setMensagensInbox(Array.isArray(inbox) ? inbox : []);
+      setUsuarios(Array.isArray(usuariosResponse?.usuarios) ? usuariosResponse.usuarios : []);
+      if (Array.isArray(dados?.historico) && dados.historico.length > 0 && !emailSelecionadoLeitura) {
         setEmailSelecionadoLeitura(dados.historico[0]);
       }
     } catch (cause) {
@@ -160,6 +173,8 @@ export default function Emails() {
     setMensagem("");
     setDestinatario("");
     setNomeDestinatario("");
+    setDestinatarioUsuarioId("");
+    setTipoEnvio("email");
     setSelecionados([]);
     setArquivosNovos([]);
     setBusca("");
@@ -178,16 +193,12 @@ export default function Emails() {
 
     try {
       const destinatarios = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
-      await enviarEmailCliente({
-        destinatarios,
-        assunto: assunto.trim(),
-        mensagem: mensagem.trim(),
-        anexos: anexosSelecionados.map(({ id }) => id),
-        arquivos: arquivosNovos,
-        nome_destinatario: nomeDestinatario || undefined,
-      });
+      if (tipoEnvio === "interno") {
+        if (!destinatarioUsuarioId) { setErro("Selecione um usuário destinatário."); return; }
+        await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim() });
+      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
 
-      setSucesso(`E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
+      setSucesso(tipoEnvio === "interno" ? "Mensagem interna enviada para o inbox do usuário." : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
       limparFormulario();
       setModoCriacao(false);
       await carregar();
@@ -338,7 +349,15 @@ export default function Emails() {
             </div>}
           </div>
 
-          {/* LISTA DE MENSAGENS DA PASTA */}
+            {pastaAtiva === "inbox" && mensagensInbox.length > 0 && <div className="space-y-2">
+              <div className="px-1 text-[10px] font-bold uppercase tracking-wider text-primary">Mensagens internas</div>
+              {mensagensInbox.map((item) => <button type="button" key={item.id} onClick={() => { setMensagemInternaSelecionada(item); setModoCriacao(false); }} className={`w-full rounded-xl border p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-primary/50 bg-primary/10" : "border-border/50 bg-card/30 hover:bg-muted/40"}`}>
+                <div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold">{item.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[10px] text-muted-foreground">{dataBr(item.criado_em)}</span></div>
+                <p className="mt-1 truncate text-[10px] text-muted-foreground">Mensagem interna recebida</p>
+              </button>)}
+            </div>}
+
+            {/* LISTA DE MENSAGENS DA PASTA */}
           <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
             {itensFiltradosPasta.length === 0 ? (
               <div className="p-6 text-center border border-dashed border-border/60 rounded-2xl text-xs text-muted-foreground">
@@ -367,7 +386,12 @@ export default function Emails() {
 
         {/* PAINEL DIREITO: LEITURA OU COMPOSIÇÃO */}
         <div className="lg:col-span-8">
-          {configAberta ? (
+          {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
+            <div className="space-y-5 rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-xl">
+              <div className="flex items-start justify-between border-b border-border/50 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-primary">Mensagem interna</p><h2 className="mt-1 text-lg font-bold">{mensagemInternaSelecionada.assunto || "(Sem assunto)"}</h2><p className="mt-1 text-[10px] text-muted-foreground">Recebida em {dataBr(mensagemInternaSelecionada.criado_em)} às {horaBr(mensagemInternaSelecionada.criado_em)}</p></div><Button variant="ghost" size="sm" onClick={() => setMensagemInternaSelecionada(null)}>Fechar</Button></div>
+              <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{mensagemInternaSelecionada.conteudo}</p>
+            </div>
+          ) : configAberta ? (
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
               {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <ConfiguracaoContasBancarias contas={contasBancarias} onSaved={() => { void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)); }} />}
             </div>
@@ -380,24 +404,13 @@ export default function Emails() {
               </div>
 
               <div className="space-y-4">
+                <div className="flex flex-wrap gap-2 rounded-xl border border-border/60 bg-muted/20 p-1">
+                  <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-lg px-3 py-2 text-[11px] font-semibold ${tipoEnvio === "email" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}><Mail size={13} className="mr-1.5 inline" /> E-mail comum</button>
+                  <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-lg px-3 py-2 text-[11px] font-semibold ${tipoEnvio === "interno" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}><UserRound size={13} className="mr-1.5 inline" /> Mensagem interna</button>
+                </div>
                 <div>
                   <label className="text-xs font-semibold">Destinatário</label>
-                  <SeletorContatoEmail
-                    contatos={contatosFiltrados}
-                    busca={busca}
-                    emailSelecionado={destinatario}
-                    onBusca={setBusca}
-                    onSelecionar={selecionarContato}
-                  />
-                  <Input
-                    value={destinatario}
-                    onChange={(e) => {
-                      setDestinatario(e.target.value);
-                      setNomeDestinatario("");
-                    }}
-                    placeholder="E-mail do destinatário"
-                    className="mt-2 h-10 rounded-xl text-xs"
-                  />
+                  {tipoEnvio === "interno" ? <><SearchableCombobox items={usuarios.map((usuario) => ({ id: usuario.id, label: `${usuario.nome} · ${usuario.email}`, search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}` }))} value={destinatarioUsuarioId} onChange={(id, label) => { const usuario = usuarios.find((item) => item.id === id); setDestinatarioUsuarioId(id); setDestinatario(usuario?.email || label); }} placeholder="Busque pelo nome do usuário" searchPlaceholder="Digite nome ou e-mail" emptyMessage="Nenhum usuário encontrado." /><p className="mt-1.5 text-[10px] text-muted-foreground">A mensagem será entregue diretamente no Inbox / Mensagens do usuário.</p></> : <><SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} /><Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário" className="mt-2 h-10 rounded-xl text-xs" /></>}
                 </div>
 
                 <div>
@@ -420,11 +433,11 @@ export default function Emails() {
                   />
                 </div>
 
-                <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">
+                {tipoEnvio === "email" && <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">
                   <div className="mb-2 flex items-center gap-2"><Landmark size={15} className="text-primary" /><p className="text-xs font-semibold">Inserir dados bancários</p></div>
                   <p className="mb-3 text-[11px] text-muted-foreground">Clique em uma conta para adicionar o texto ao final da mensagem.</p>
                   <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => inserirDadosBancarios(conta)} className="rounded-lg border border-border/60 bg-card/50 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/[.06]"><span className="block text-xs font-semibold">{conta.banco}</span><span className="mt-1 block text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""} · inserir na mensagem</span></button>)}</div>
-                </div>
+                </div>}
 
                 <div className="border border-border/50 rounded-xl p-4 bg-muted/20">
                   <p className="text-xs font-semibold mb-2">Anexos e Documentos</p>

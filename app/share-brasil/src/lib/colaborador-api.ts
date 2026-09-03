@@ -114,6 +114,12 @@ export function buscarContagemMensagensNaoLidas() {
   return colaboradorRequest<MensagensNaoLidasResponse>("/api/mensagens/unread-count");
 }
 
+export type UsuarioMensagem = { id: string; nome: string; email: string; departamento?: string | null };
+export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; assunto: string | null; conteudo: string; lida: number; criado_em: string };
+export function buscarUsuariosMensagem() { return colaboradorRequest<{ usuarios: UsuarioMensagem[] }>("/api/mensagens/usuarios"); }
+export function buscarInboxMensagens() { return colaboradorRequest<MensagemInterna[]>("/api/mensagens/inbox"); }
+export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string }) { return colaboradorRequest<{ success: boolean; id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) }); }
+
 export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {
   return colaboradorRequest<{ perfil: PerfilColaborador }>("/api/colaborador/perfil", {
     method: "PATCH",

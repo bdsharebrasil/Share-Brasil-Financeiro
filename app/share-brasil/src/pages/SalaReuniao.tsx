@@ -51,8 +51,15 @@ export default function SalaReuniao() {
     const tracks: MediaStreamTrack[] = [];
     let cameraError = false;
     let microphoneError = false;
-    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } })).getVideoTracks()); } catch { cameraError = true; }
-    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })).getAudioTracks()); } catch { microphoneError = true; }
+    const policy = (document as Document & { permissionsPolicy?: { allowsFeature: (feature: string) => boolean } }).permissionsPolicy;
+    const cameraAllowed = !policy || policy.allowsFeature("camera");
+    const microphoneAllowed = !policy || policy.allowsFeature("microphone");
+    if (cameraAllowed) {
+      try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } })).getVideoTracks()); } catch { cameraError = true; }
+    } else cameraError = true;
+    if (microphoneAllowed) {
+      try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })).getAudioTracks()); } catch { microphoneError = true; }
+    } else microphoneError = true;
     setMediaNotice(cameraError && microphoneError ? "Não foi possível acessar câmera e microfone. Libere os dispositivos no cadeado do navegador e tente novamente." : cameraError ? "Câmera indisponível ou bloqueada. O microfone continua disponível; libere a câmera no cadeado do navegador se quiser ativar o vídeo." : microphoneError ? "Microfone indisponível ou bloqueado. A câmera continua disponível; libere o microfone no cadeado do navegador se quiser falar e ouvir a reunião." : "");
     return tracks.length ? new MediaStream(tracks) : null;
   }, []);

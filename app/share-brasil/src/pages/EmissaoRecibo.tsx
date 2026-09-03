@@ -19,6 +19,7 @@ import {
 type TipoEmissao = "cliente_direto" | "cliente_reembolsavel" | "colaborador" | "pagamento";
 type Formulario = {
   tipo: TipoEmissao | null;
+  natureza_despesa: "aeronave" | "empresa" | "";
   cliente_id: string;
   colaborador_id: string;
   recebedor_nome: string;
@@ -31,14 +32,15 @@ type Formulario = {
   forma_pagamento: string;
   categoria_id: string;
   categoria_nome: string;
+  categoria_nome_manual: string;
   numero_documento_anexo: string;
   observacoes: string;
 };
 
-const PAGADOR_PADRAO = "SHARE BRASIL SERVIÇOS AERONÁUTICOS";
 const hoje = () => new Date().toISOString().slice(0, 10);
 const inicial = (): Formulario => ({
   tipo: null,
+  natureza_despesa: "",
   cliente_id: "",
   colaborador_id: "",
   recebedor_nome: "",
@@ -51,6 +53,7 @@ const inicial = (): Formulario => ({
   forma_pagamento: "",
   categoria_id: "",
   categoria_nome: "",
+  categoria_nome_manual: "",
   numero_documento_anexo: "",
   observacoes: "",
 });
@@ -61,6 +64,13 @@ const opcoesTipo: Array<{ id: TipoEmissao; titulo: string; detalhe: string; icon
   { id: "colaborador", titulo: "Recibo colaborador", detalhe: "Registra uma despesa da Share paga a um colaborador, sem rateio de cotistas.", icon: Receipt, cor: "text-primary" },
   { id: "pagamento", titulo: "Recibo de pagamento", detalhe: "Recibo simples para qualquer fornecedor ou recebedor, sem vínculo com cotista.", icon: FileText, cor: "text-sky-500" },
 ];
+const CATEGORIA_OUTRO_ID = "111124d9-6111-4e11-a1f7-c7477e0fdb89";
+const CATEGORIAS_EMPRESA = new Set([
+  "88980acf-465f-4a16-8111-d8efaf28365b", "482a2993-28e9-417e-98f5-d00d03ada423",
+  "28a599f4-d8de-4969-98aa-58452d49c92e", "0293e29f-526e-4be0-af2e-0e10e73e8a8f",
+  "a4d8ed56-9bb2-47e1-93fa-2b786ff280b7", "09defc15-dced-408d-a975-092928374907",
+  "82e24a46-a773-4b6e-b2ae-bfd41c04bc5d", CATEGORIA_OUTRO_ID,
+]);
 
 function moeda(valor: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor || 0);
@@ -136,9 +146,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     alterar("categoria_nome", nome);
   };
 
+  const categoriaValida = form.tipo !== "colaborador" || Boolean(
+    form.natureza_despesa && form.categoria_id &&
+    (form.natureza_despesa === "aeronave" ? form.aeronave_id : CATEGORIAS_EMPRESA.has(form.categoria_id)) &&
+    (form.categoria_id !== CATEGORIA_OUTRO_ID || form.categoria_nome_manual.trim()),
+  );
   const podeEmitir = Boolean(
-    form.tipo && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 &&
-    (form.tipo === "colaborador" ? form.colaborador_id && form.categoria_id : form.tipo === "pagamento" ? form.recebedor_nome.trim() : (form.rateado ? form.aeronave_id : form.cliente_id)),
+    form.tipo && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 && categoriaValida &&
+    (form.tipo === "colaborador" ? form.colaborador_id : form.tipo === "pagamento" ? form.recebedor_nome.trim() : (form.rateado ? form.aeronave_id : form.cliente_id)),
   );
 
   const emitir = async () => {
@@ -168,7 +183,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         data_vencimento: form.tipo === "pagamento" ? null : form.data_vencimento || null,
         forma_pagamento: form.tipo === "pagamento" ? form.forma_pagamento || null : null,
         categoria_movimentacao_id: form.tipo === "colaborador" ? form.categoria_id : null,
-        grupo_categoria: form.tipo === "colaborador" ? "DESPESAS EMPRESA" : null,
+        categoria_nome_manual: form.tipo === "colaborador" ? form.categoria_nome_manual.trim() || null : null,
+        natureza_despesa: form.tipo === "colaborador" ? form.natureza_despesa : null,
+        grupo_categoria: form.tipo === "colaborador" ? (form.natureza_despesa === "aeronave" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA") : null,
         anexo_id: anexoId || null,
         numero_documento_anexo: anexoId ? form.numero_documento_anexo.trim() || null : null,
         observacoes: form.observacoes.trim() || null,
@@ -232,16 +249,21 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </div>
 
         {form.tipo && <div className="border-t border-border px-5 py-5">
-          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong><span className="text-muted-foreground">· A Share Brasil é o pagador padrão.</span></div>
+          <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong></div>
           <div className="grid gap-4 md:grid-cols-2">
-            {form.tipo === "pagamento" ? <Campo label="Recebedor" obrigatorio><input value={form.recebedor_nome} onChange={(e) => alterar("recebedor_nome", e.target.value)} placeholder="Nome do fornecedor ou recebedor" className="campo" /></Campo> : form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => alterar("cliente_id", e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="Colaborador" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
+            {form.tipo === "pagamento" ? <Campo label="RECEBEDOR" obrigatorio><input value={form.recebedor_nome} onChange={(e) => alterar("recebedor_nome", e.target.value)} placeholder="Nome do fornecedor ou recebedor" className="campo" /></Campo> : form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => alterar("cliente_id", e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="RECEBEDOR" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
             <Campo label="Data" obrigatorio><input type="date" value={form.data_emissao} onChange={(e) => alterar("data_emissao", e.target.value)} className="campo" /></Campo>
-            <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Pagador fixo</p><p className="mt-1 text-[12px] font-extrabold">{PAGADOR_PADRAO}</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">CNPJ 30.868.504/0001-00 · Av. Presidente Antônio Bernardes, 5457 · Várzea Grande/MT · CEP 78125-100</p></div>
+            <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">PAGADOR</p></div>
             <Campo label={form.tipo === "pagamento" ? "Descrição" : "Descrição do serviço"} obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder={form.tipo === "pagamento" ? "Descrição do pagamento" : "Ex.: Reembolso de despesas operacionais"} className="campo" /></Campo>
             <Campo label="Valor" obrigatorio><input inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
             {form.tipo !== "pagamento" && <Campo label="Vencimento"><input type="date" value={form.data_vencimento} onChange={(e) => alterar("data_vencimento", e.target.value)} className="campo" /></Campo>}
             {form.tipo === "pagamento" && <Campo label="Forma de pagamento" obrigatorio><select value={form.forma_pagamento} onChange={(e) => alterar("forma_pagamento", e.target.value)} className="campo"><option value="">Selecione</option><option>PIX</option><option>Transferência bancária</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></Campo>}
-            {form.tipo === "colaborador" && <Campo label="Categoria" obrigatorio><SearchableCombobox items={opcoes.categorias.filter((item) => item.grupo_categoria === "DESPESAS EMPRESA").map((item) => ({ id: item.id, label: item.nome }))} value={form.categoria_id} onChange={selecionaCategoria} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria de despesa encontrada." /></Campo>}
+            {form.tipo === "colaborador" && <>
+              <Campo label="Tipo de despesa" obrigatorio><select value={form.natureza_despesa} onChange={(e) => { const natureza = e.target.value as Formulario["natureza_despesa"]; alterar("natureza_despesa", natureza); alterar("categoria_id", ""); alterar("categoria_nome", ""); alterar("categoria_nome_manual", ""); alterar("aeronave_id", ""); }} className="campo"><option value="">Selecione o tipo</option><option value="aeronave">Despesa aeronave</option><option value="empresa">Despesa empresa</option></select></Campo>
+              {form.natureza_despesa === "aeronave" && <><Campo label="Categoria" obrigatorio><SearchableCombobox items={opcoes.categorias.filter((item) => item.grupo_categoria.toUpperCase() === "DESPESAS REEMBOLSÁVEIS").map((item) => ({ id: item.id, label: item.nome }))} value={form.categoria_id} onChange={selecionaCategoria} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma despesa reembolsável encontrada." /></Campo><Campo label="Aeronave" obrigatorio><SearchableCombobox items={opcoes.aeronaves.map((aeronave) => ({ id: aeronave.id, label: `${aeronave.matricula_registro}${aeronave.modelo ? ` · ${aeronave.modelo}` : ""}` }))} value={form.aeronave_id} onChange={(id) => alterar("aeronave_id", id)} placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave encontrada." /></Campo></>}
+              {form.natureza_despesa === "empresa" && <Campo label="Categoria" obrigatorio><SearchableCombobox items={opcoes.categorias.filter((item) => CATEGORIAS_EMPRESA.has(item.id)).map((item) => ({ id: item.id, label: item.nome }))} value={form.categoria_id} onChange={selecionaCategoria} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria disponível." /></Campo>}
+              {form.natureza_despesa === "empresa" && form.categoria_id === CATEGORIA_OUTRO_ID && <Campo label="Descrição da categoria" obrigatorio className="md:col-span-2"><input value={form.categoria_nome_manual} onChange={(e) => alterar("categoria_nome_manual", e.target.value)} placeholder="Informe a despesa" className="campo" /></Campo>}
+            </>}
             <div className="md:col-span-2"><Campo label="Anexo (opcional)"><input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary" /></Campo>{arquivo && <div className="mt-2 flex flex-wrap items-center gap-3 rounded-sm border border-border bg-secondary/[.12] p-3 text-[11px]"><Paperclip size={14} className="text-primary" /><span className="max-w-[260px] truncate font-medium">{arquivo.name}</span><a href={arquivoPreviewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><ExternalLink size={13} /> Visualizar</a><Button type="button" variant="ghost" onClick={() => { setArquivo(null); alterar("numero_documento_anexo", ""); }} className="ml-auto h-7 px-2 text-[10px]">Remover</Button></div>}{arquivo && <div className="mt-3 max-w-sm"><Campo label="Número do documento do anexo"><input value={form.numero_documento_anexo} onChange={(e) => alterar("numero_documento_anexo", e.target.value)} placeholder="Ex.: NF 12345, boleto 987..." className="campo" /></Campo></div>}</div>
             <Campo label="Observações" className="md:col-span-2"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} className="campo min-h-20 resize-y" placeholder="Informações complementares do recibo" /></Campo>
           </div>
@@ -257,7 +279,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </div>}
       </section>
 
-      {historico && <section className="overflow-hidden rounded-sm border border-border bg-card/60"><div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3"><p className="text-[11px] font-bold uppercase tracking-[.16em]">Recibos recentes</p><span className="text-[10px] text-muted-foreground">{recibos.length} registro(s)</span></div>{carregando ? <div className="space-y-2 p-4"><div className="skeleton h-12 rounded-sm" /><div className="skeleton h-12 rounded-sm" /></div> : recibos.length ? <div className="divide-y divide-border/60">{recibos.map((recibo) => <div key={recibo.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="font-mono text-[11px]">{recibo.numero_recibo}</strong><EtiquetaStatus tone={tomStatus(recibo.status)}>{rotuloStatus(recibo.status)}</EtiquetaStatus></div><p className="mt-1 truncate text-[11px] font-bold">{recibo.nome_pagador} {recibo.recebedor_nome ? `→ ${recibo.recebedor_nome}` : ""} · {recibo.descricao_servico}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{dataBr(recibo.data_emissao)} · {recibo.tipo_recibo.replace(/_/g, " ")}{recibo.forma_pagamento ? ` · ${recibo.forma_pagamento}` : ""}{recibo.numero_documento_anexo ? ` · Doc. ${recibo.numero_documento_anexo}` : ""}</p></div><div className="flex items-center gap-3"><strong className="font-mono text-[11px]">{moeda(recibo.valor)}</strong>{recibo.status === "aguardando_reembolso" && <Button type="button" variant="outline" onClick={() => void confirmarReembolso(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px]"><CheckCircle2 size={13} /> Confirmar</Button>}{recibo.status !== "cancelado" && recibo.status !== "reembolsado" && <Button type="button" variant="ghost" onClick={() => void cancelar(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"><XCircle size={13} /> Cancelar</Button>}</div></div>)}</div> : <EstadoVazio label="Nenhum recibo emitido" />}</section>}
+      {historico && <section className="overflow-hidden rounded-sm border border-border bg-card/60"><div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3"><p className="text-[11px] font-bold uppercase tracking-[.16em]">Recibos recentes</p><span className="text-[10px] text-muted-foreground">{recibos.length} registro(s)</span></div>{carregando ? <div className="space-y-2 p-4"><div className="skeleton h-12 rounded-sm" /><div className="skeleton h-12 rounded-sm" /></div> : recibos.length ? <div className="divide-y divide-border/60">{recibos.map((recibo) => <div key={recibo.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="font-mono text-[11px]">{recibo.numero_recibo}</strong><EtiquetaStatus tone={tomStatus(recibo.status)}>{rotuloStatus(recibo.status)}</EtiquetaStatus></div><p className="mt-1 truncate text-[11px] font-bold">{recibo.nome_pagador} {recibo.recebedor_nome ? `→ ${recibo.recebedor_nome}` : ""} · {recibo.descricao_servico}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{dataBr(recibo.data_emissao)} · {recibo.tipo_recibo.replace(/_/g, " ")}{recibo.forma_pagamento ? ` · ${recibo.forma_pagamento}` : ""}{recibo.numero_documento_anexo ? ` · Doc. ${recibo.numero_documento_anexo}` : ""}</p>{recibo.anexo_id && <a href={`/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.anexo_id)}/arquivo`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"><Paperclip size={12} /> Visualizar anexo</a>}</div><div className="flex items-center gap-3"><strong className="font-mono text-[11px]">{moeda(recibo.valor)}</strong>{recibo.status === "aguardando_reembolso" && <Button type="button" variant="outline" onClick={() => void confirmarReembolso(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px]"><CheckCircle2 size={13} /> Confirmar</Button>}{recibo.status !== "cancelado" && recibo.status !== "reembolsado" && <Button type="button" variant="ghost" onClick={() => void cancelar(recibo.id)} className="h-8 gap-1.5 rounded-sm px-2.5 text-[10px] text-red-600 hover:text-red-700 dark:text-red-300"><XCircle size={13} /> Cancelar</Button>}</div></div>)}</div> : <EstadoVazio label="Nenhum recibo emitido" />}</section>}
       {carregando && !historico && <p className="sr-only">Carregando dados de emissão</p>}
     </div>
   );

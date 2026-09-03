@@ -834,6 +834,7 @@ export type Recibo = {
   anexo_id: string | null;
   observacoes: string | null;
   grupo_categoria: string;
+  natureza_despesa?: "aeronave" | "empresa" | null;
   tipo_caixa: "share" | "cliente";
   status: StatusRecibo;
   boleto_url: string | null;
@@ -849,6 +850,8 @@ export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio
 export type CriarReciboPayload = {
   tipo_recibo?: TipoRecibo;
   beneficiario_tipo: "cliente" | "colaborador" | "fornecedor";
+  natureza_despesa?: "aeronave" | "empresa" | null;
+  categoria_nome_manual?: string | null;
   reembolsavel?: boolean;
   rateado?: boolean;
   aeronave_id?: string | null;

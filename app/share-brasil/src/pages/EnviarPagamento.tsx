@@ -209,6 +209,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
+  const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
   const tituloEtapa = etapa === 1 ? "Dados da despesa" : etapa === 2 && exigeDadosAeronave ? (tipo === "share" ? "Aeronave e voo" : "Cliente e rateio") : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
 
@@ -389,26 +390,29 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   return (
-    <div className="route-enter mx-auto max-w-[900px] space-y-5">
-      <header>
+    <div className="route-enter mx-auto max-w-[760px]">
+      <header className="sr-only">
         <IndicadorPagina>Financeiro / Enviar pagamento</IndicadorPagina>
-        <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl"><Send className="text-primary" size={22} /> Fluxo de envio</h1>
-        <p className="mt-1.5 max-w-2xl overflow-hidden text-[11px] leading-relaxed text-muted-foreground">Um fluxo único e guiado: escolha o modo, informe a despesa e envie. O modo define se o lançamento entra no caixa Share, no caixa Cliente ou no rateio.</p>
+        <h1>Fluxo de envio</h1>
+        <p>Escolha o modo, informe a despesa e envie a solicitação de pagamento.</p>
       </header>
 
-      <section className="overflow-hidden rounded-xl border border-border/80 bg-card/45 shadow-[0_18px_50px_rgba(0,0,0,.18)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-secondary/10 px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-primary/30 bg-primary/10 text-primary"><ClipboardCheck size={15} /></span>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.16em]">Fluxo de envio</p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}</p>
-            </div>
+      <section className="overflow-hidden rounded-[10px] border border-[hsl(var(--border)/.72)] bg-[#0b101b]/95 shadow-[0_24px_60px_rgba(0,0,0,.3)]">
+        <div className="flex items-center gap-3 border-b border-[hsl(var(--border)/.72)] bg-[#0d1421]/70 px-5 py-3.5 md:gap-5 md:px-6">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}</p>
           </div>
-          <div className="flex items-center gap-1" aria-label={`Progresso: etapa ${etapa + 1}`}>
-            {Array.from({ length: totalEtapas + 1 }, (_, index) => index).map((item) => (
-              <span key={item} className={`h-[3px] w-9 transition-colors ${item <= etapa ? "bg-primary" : "bg-border"}`} aria-current={item === etapa ? "step" : undefined} />
-            ))}
+          <div
+            className="ml-auto flex w-[38%] min-w-[90px] max-w-[440px] items-center"
+            role="progressbar"
+            aria-label={`Progresso: etapa ${etapa + 1}`}
+            aria-valuenow={Math.round(progresso)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <span className="block h-[3px] w-full bg-[#101828]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
           </div>
         </div>
 
@@ -429,7 +433,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`flex w-full items-start gap-3.5 rounded-xl border px-4 py-3.5 text-left transition-colors ${ativo ? "border-primary/60 bg-primary/[.08]" : "border-border/80 bg-background/35 hover:border-primary/35 hover:bg-secondary/25"}`}
+                      className={`flex w-full items-start gap-3.5 rounded-[10px] border px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow] ${ativo ? "border-primary/65 bg-[#101c33]/80 shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[hsl(var(--border)/.78)] bg-[#080d18]/70 hover:border-primary/35 hover:bg-[#0c1423]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -532,10 +536,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 bg-secondary/10 px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[hsl(var(--border)/.72)] bg-[#0d1421]/55 px-5 py-3.5 md:px-6">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
-            <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground"><History size={14} /> Histórico de programação</Button>
+            <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
           </div>
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>

@@ -115,10 +115,14 @@ export function buscarContagemMensagensNaoLidas() {
 }
 
 export type UsuarioMensagem = { id: string; nome: string; email: string; departamento?: string | null };
-export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; assunto: string | null; conteudo: string; lida: number; criado_em: string };
+export type PastaMensagem = "inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo";
+export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; remetente_nome?: string; destinatario_nome?: string; assunto: string | null; conteudo: string; lida: number; favorita?: number; arquivada?: number; excluida?: number; papel?: "remetente" | "destinatario"; criado_em: string };
 export function buscarUsuariosMensagem() { return colaboradorRequest<{ usuarios: UsuarioMensagem[] }>("/api/mensagens/usuarios"); }
 export function buscarInboxMensagens() { return colaboradorRequest<MensagemInterna[]>("/api/mensagens/inbox"); }
-export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string }) { return colaboradorRequest<{ success: boolean; id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) }); }
+export function buscarMensagensPasta(pasta: PastaMensagem) { return colaboradorRequest<MensagemInterna[]>(`/api/mensagens/pasta/${pasta}`); }
+export function buscarOutboxMensagens() { return buscarMensagensPasta("enviadas"); }
+export function alterarEstadoMensagem(id: string, estado: Partial<Pick<MensagemInterna, "lida" | "favorita" | "arquivada" | "excluida">>) { return colaboradorRequest<{ success: boolean; mensagem_id: string }>(`/api/mensagens/${id}/estado`, { method: "PATCH", body: JSON.stringify(estado) }); }
+export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string }) { return colaboradorRequest<{ success: boolean; id: string; destinatario_id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) }); }
 
 export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {
   return colaboradorRequest<{ perfil: PerfilColaborador }>("/api/colaborador/perfil", {

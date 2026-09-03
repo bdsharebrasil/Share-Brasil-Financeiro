@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Archive,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -34,14 +35,16 @@ import {
   buscarCentralEmail,
   buscarContasBancariasEmail,
   buscarPerfilColaborador,
-  buscarInboxMensagens,
+  alterarEstadoMensagem,
+  buscarContagemMensagensNaoLidas,
+  buscarMensagensPasta,
   buscarUsuariosMensagem,
   enviarEmailCliente,
   enviarMensagemInterna,
   type AnexoEmail,
   type ContatoEmail,
-  type EmailEnviado,
   type ContaBancariaEmail,
+  type PastaMensagem,
   type MensagemInterna,
   type UsuarioMensagem,
 } from "@/lib/colaborador-api";
@@ -66,9 +69,9 @@ const horaBr = (valor: string | null) =>
 export default function Emails() {
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioMensagem[]>([]);
-  const [mensagensInbox, setMensagensInbox] = useState<MensagemInterna[]>([]);
+  const [mensagensPasta, setMensagensPasta] = useState<MensagemInterna[]>([]);
+  const [contagemNaoLidas, setContagemNaoLidas] = useState(0);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
-  const [historico, setHistorico] = useState<EmailEnviado[]>([]);
   const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
 
   const [busca, setBusca] = useState("");
@@ -86,34 +89,35 @@ export default function Emails() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
-  const [pastaAtiva, setPastaAtiva] = useState<"inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo">("inbox");
+  const [pastaAtiva, setPastaAtiva] = useState<PastaMensagem>("inbox");
   const [modoCriacao, setModoCriacao] = useState(false);
-  const [emailSelecionadoLeitura, setEmailSelecionadoLeitura] = useState<EmailEnviado | null>(null);
   const [mensagemInternaSelecionada, setMensagemInternaSelecionada] = useState<MensagemInterna | null>(null);
   const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
 
+  const carregarPasta = async (pasta: PastaMensagem = pastaAtiva) => {
+    try {
+      const mensagens = await buscarMensagensPasta(pasta);
+      setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
+      if (mensagemInternaSelecionada && !mensagens.some((item) => item.id === mensagemInternaSelecionada.id)) setMensagemInternaSelecionada(null);
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível carregar as mensagens.");
+    }
+  };
+
   const carregar = async () => {
     setCarregando(true);
     setErro("");
-
     try {
-      const [dados, perfil, inbox, usuariosResponse] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarInboxMensagens(), buscarUsuariosMensagem()]);
+      const [dados, perfil, mensagens, usuariosResponse, naoLidas] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarMensagensPasta(pastaAtiva), buscarUsuariosMensagem(), buscarContagemMensagensNaoLidas()]);
       setRemetente({ nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo, email: perfil.perfil.email });
       setContatos(Array.isArray(dados?.contatos) ? dados.contatos : []);
       setAnexos(Array.isArray(dados?.anexos) ? dados.anexos : []);
-      setHistorico(Array.isArray(dados?.historico) ? dados.historico : []);
-      setMensagensInbox(Array.isArray(inbox) ? inbox : []);
+      setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
       setUsuarios(Array.isArray(usuariosResponse?.usuarios) ? usuariosResponse.usuarios : []);
-      if (Array.isArray(dados?.historico) && dados.historico.length > 0 && !emailSelecionadoLeitura) {
-        setEmailSelecionadoLeitura(dados.historico[0]);
-      }
+      setContagemNaoLidas(Number(naoLidas?.unread || 0));
     } catch (cause) {
-      setErro(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível carregar a central de e-mail.",
-      );
+      setErro(cause instanceof Error ? cause.message : "Não foi possível carregar a central de e-mail.");
     } finally {
       setCarregando(false);
     }
@@ -121,7 +125,7 @@ export default function Emails() {
 
   useEffect(() => {
     void carregar();
-  }, []);
+  }, [pastaAtiva]);
 
   useEffect(() => {
     if (configAberta !== "bancarios" && !modoCriacao) return;
@@ -211,20 +215,22 @@ export default function Emails() {
     }
   };
 
-  const itensFiltradosPasta = useMemo(() => {
-    return historico.filter((item) => {
-      const matchBusca =
-        !buscaGeral ||
-        item.assunto.toLowerCase().includes(buscaGeral.toLowerCase()) ||
-        item.destinatarios.some((d) => d.toLowerCase().includes(buscaGeral.toLowerCase()));
+  const mensagensFiltradas = useMemo(() => {
+    const termo = buscaGeral.trim().toLowerCase();
+    if (!termo) return mensagensPasta;
+    return mensagensPasta.filter((item) => `${item.assunto || ""} ${item.conteudo}`.toLowerCase().includes(termo));
+  }, [mensagensPasta, buscaGeral]);
 
-      if (!matchBusca) return false;
-
-      if (pastaAtiva === "enviadas") return item.status === "enviado";
-      if (pastaAtiva === "nao-lidas") return item.status !== "enviado";
-      return true;
-    });
-  }, [historico, pastaAtiva, buscaGeral]);
+  const atualizarMensagem = async (id: string, estado: Parameters<typeof alterarEstadoMensagem>[1], mensagemSucesso: string) => {
+    try {
+      await alterarEstadoMensagem(id, estado);
+      setMensagemInternaSelecionada((atual) => atual?.id === id ? { ...atual, ...estado } : atual);
+      setSucesso(mensagemSucesso);
+      await Promise.all([carregarPasta(), buscarContagemMensagensNaoLidas().then(({ unread }) => setContagemNaoLidas(unread))]);
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível atualizar a mensagem.");
+    }
+  };
 
   return (
     <div className="route-enter relative mx-auto max-w-7xl pb-10 space-y-6">
@@ -299,39 +305,39 @@ export default function Emails() {
           <div className="rounded-2xl border border-border/60 bg-card/40 p-3 space-y-1">
             <div className="px-3 py-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               <span>Inbox</span>
-              <span className="text-[10px]">0 não lidas</span>
+              <span className="text-[10px]">{contagemNaoLidas} não lidas</span>
             </div>
 
             <button
-              onClick={() => { setPastaAtiva("inbox"); setModoCriacao(false); }}
+              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("inbox"); setModoCriacao(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <Mail size={15} /> Inbox
             </button>
 
             <button
-              onClick={() => { setPastaAtiva("nao-lidas"); setModoCriacao(false); }}
+              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <Clock3 size={15} /> Não lidas
             </button>
 
             <button
-              onClick={() => { setPastaAtiva("favoritas"); setModoCriacao(false); }}
+              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("favoritas"); setModoCriacao(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <Star size={15} /> Favoritas
             </button>
 
             <button
-              onClick={() => { setPastaAtiva("enviadas"); setModoCriacao(false); }}
+              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("enviadas"); setModoCriacao(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <Send size={15} /> Enviadas
             </button>
 
             <button
-              onClick={() => { setPastaAtiva("arquivo"); setModoCriacao(false); }}
+              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("arquivo"); setModoCriacao(false); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
             >
               <Folder size={15} /> Arquivo
@@ -349,47 +355,25 @@ export default function Emails() {
             </div>}
           </div>
 
-            {pastaAtiva === "inbox" && mensagensInbox.length > 0 && <div className="space-y-2">
-              <div className="px-1 text-[10px] font-bold uppercase tracking-wider text-primary">Mensagens internas</div>
-              {mensagensInbox.map((item) => <button type="button" key={item.id} onClick={() => { setMensagemInternaSelecionada(item); setModoCriacao(false); }} className={`w-full rounded-xl border p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-primary/50 bg-primary/10" : "border-border/50 bg-card/30 hover:bg-muted/40"}`}>
-                <div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold">{item.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[10px] text-muted-foreground">{dataBr(item.criado_em)}</span></div>
-                <p className="mt-1 truncate text-[10px] text-muted-foreground">Mensagem interna recebida</p>
-              </button>)}
-            </div>}
-
             {/* LISTA DE MENSAGENS DA PASTA */}
-          <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
-            {itensFiltradosPasta.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-border/60 rounded-2xl text-xs text-muted-foreground">
-                Nenhuma mensagem nesta pasta.
-              </div>
-            ) : (
-              itensFiltradosPasta.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    setEmailSelecionadoLeitura(item);
-                    setModoCriacao(false);
-                  }}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all ${emailSelecionadoLeitura?.id === item.id && !modoCriacao ? "border-primary/50 bg-primary/10" : "border-border/50 bg-card/30 hover:bg-muted/40"}`}
-                >
-                  <div className="flex items-center justify-between text-[11px] font-semibold">
-                    <span className="truncate">{item.destinatarios.join(", ")}</span>
-                    <span className="text-[10px] text-muted-foreground">{dataBr(item.criado_em)}</span>
-                  </div>
-                  <p className="mt-1 text-xs truncate font-medium">{item.assunto || "(Sem assunto)"}</p>
-                </div>
-              ))
-            )}
-          </div>
+            <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
+              {mensagensFiltradas.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">Nenhuma mensagem nesta pasta.</div>
+              ) : mensagensFiltradas.map((item) => (
+                <button type="button" key={item.id} onClick={() => { setMensagemInternaSelecionada(item); setModoCriacao(false); if (!item.lida && item.papel === "destinatario") void atualizarMensagem(item.id, { lida: 1 }, "Mensagem marcada como lida."); }} className={`w-full rounded-xl border p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-primary/50 bg-primary/10" : "border-border/50 bg-card/30 hover:bg-muted/40"}`}>
+                  <div className="flex items-center justify-between gap-2"><span className={`truncate text-[11px] ${item.lida ? "font-medium" : "font-bold text-foreground"}`}>{item.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[10px] text-muted-foreground">{dataBr(item.criado_em)}</span></div>
+                  <p className="mt-1 truncate text-[10px] text-muted-foreground">{item.papel === "remetente" ? `Para: ${item.destinatario_nome || item.destinatario_id}` : `De: ${item.remetente_nome || item.remetente_id}`}{item.favorita ? " · Favorita" : ""}</p>
+                </button>
+              ))}
+            </div>
         </div>
 
         {/* PAINEL DIREITO: LEITURA OU COMPOSIÇÃO */}
         <div className="lg:col-span-8">
           {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
             <div className="space-y-5 rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-xl">
-              <div className="flex items-start justify-between border-b border-border/50 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-primary">Mensagem interna</p><h2 className="mt-1 text-lg font-bold">{mensagemInternaSelecionada.assunto || "(Sem assunto)"}</h2><p className="mt-1 text-[10px] text-muted-foreground">Recebida em {dataBr(mensagemInternaSelecionada.criado_em)} às {horaBr(mensagemInternaSelecionada.criado_em)}</p></div><Button variant="ghost" size="sm" onClick={() => setMensagemInternaSelecionada(null)}>Fechar</Button></div>
-              <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{mensagemInternaSelecionada.conteudo}</p>
+              <div className="flex items-start justify-between gap-4 border-b border-border/50 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-primary">{mensagemInternaSelecionada.papel === "remetente" ? "Mensagem enviada" : "Mensagem recebida"}</p><h2 className="mt-1 text-lg font-bold">{mensagemInternaSelecionada.assunto || "(Sem assunto)"}</h2><p className="mt-1 text-[10px] text-muted-foreground">{mensagemInternaSelecionada.papel === "remetente" ? "Enviada" : "Recebida"} em {dataBr(mensagemInternaSelecionada.criado_em)} às {horaBr(mensagemInternaSelecionada.criado_em)}</p></div><div className="flex items-center gap-1"><Button type="button" variant="ghost" size="sm" title={mensagemInternaSelecionada.favorita ? "Remover favorito" : "Favoritar"} onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { favorita: mensagemInternaSelecionada.favorita ? 0 : 1 }, mensagemInternaSelecionada.favorita ? "Mensagem removida dos favoritos." : "Mensagem favoritada.")}><Star className={mensagemInternaSelecionada.favorita ? "fill-amber-400 text-amber-400" : ""} size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Arquivar" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { arquivada: 1 }, "Mensagem arquivada.")}><Archive size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Excluir" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para a lixeira.")}><Trash2 size={15} /></Button><Button variant="ghost" size="sm" onClick={() => setMensagemInternaSelecionada(null)}>Fechar</Button></div></div>
+              <div className="space-y-1 text-[11px] text-muted-foreground"><p>{mensagemInternaSelecionada.papel === "remetente" ? `Para: ${mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id}` : `De: ${mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}`}</p><p>{mensagemInternaSelecionada.lida ? "Lida" : "Não lida"}</p></div><p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{mensagemInternaSelecionada.conteudo}</p>
             </div>
           ) : configAberta ? (
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
@@ -465,29 +449,9 @@ export default function Emails() {
             </div>
           ) : (
             /* VISUALIZAÇÃO DE LEITURA */
-            <div className="rounded-2xl border border-border/60 bg-card/40 p-6 min-h-[500px] flex flex-col justify-between">
-              {emailSelecionadoLeitura ? (
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                    <div>
-                      <h2 className="text-base font-bold">{emailSelecionadoLeitura.assunto || "Sem assunto"}</h2>
-                      <p className="text-xs text-muted-foreground mt-1">Para: {emailSelecionadoLeitura.destinatarios.join(", ")}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{dataBr(emailSelecionadoLeitura.criado_em)} às {horaBr(emailSelecionadoLeitura.criado_em)}</span>
-                  </div>
-
-                  <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                    {emailSelecionadoLeitura.status} - Mensagem registrada no histórico do sistema.
-                  </div>
-                </div>
-              ) : (
-                <div className="m-auto flex flex-col items-center justify-center p-12 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
-                    <Mail size={22} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Selecione uma mensagem para ler</p>
-                </div>
-              )}
+            <div className="flex min-h-[500px] flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/40 p-6 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Mail size={22} /></div>
+              <p className="text-xs text-muted-foreground">Selecione uma mensagem na pasta {pastaAtiva === "nao-lidas" ? "Não lidas" : pastaAtiva === "favoritas" ? "Favoritas" : pastaAtiva === "enviadas" ? "Enviadas" : pastaAtiva === "arquivo" ? "Arquivo" : "Inbox"} para ler</p>
             </div>
           )}
 

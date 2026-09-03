@@ -42,7 +42,7 @@ type OpcaoEnvio = {
   tipo: TipoEnvio;
   titulo: string;
   resumo: string;
-  detalhe: string;
+  detalhe?: string;
   pagador: string;
   destino: string;
   regra: string;
@@ -103,7 +103,6 @@ const opcoes: OpcaoEnvio[] = [
     tipo: "cliente",
     titulo: "Envio cliente direto",
     resumo: "Cliente paga direto",
-    detalhe: "Despesa paga diretamente pelo cliente. Não passa pelo caixa Share, apenas rateio de despesas.",
     pagador: "Cliente / sócio",
     destino: "Caixa Cliente + rateio",
     regra: "Pago diretamente",
@@ -440,7 +439,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">{opcao.titulo}</span>
-                        <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{opcao.detalhe}</span>
+                        {opcao.detalhe && <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{opcao.detalhe}</span>}
                       </span>
                       <Icon size={16} className={`mt-0.5 shrink-0 ${ativo ? opcao.cor : "text-muted-foreground/60"}`} />
                     </button>

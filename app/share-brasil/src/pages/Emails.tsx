@@ -20,6 +20,8 @@ import {
   Star,
   Trash2,
   UserRound,
+  Phone,
+  MapPin,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,10 +33,12 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import ConfiguracaoContasBancarias from "@/components/email/ConfiguracaoContasBancarias";
 import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
+import logoShare from "@/assets/share-signature-logo.png";
 import {
   buscarCentralEmail,
   buscarContasBancariasEmail,
   buscarPerfilColaborador,
+  buscarMinhaAssinatura,
   alterarEstadoMensagem,
   buscarContagemMensagensNaoLidas,
   buscarMensagensPasta,
@@ -47,6 +51,7 @@ import {
   type PastaMensagem,
   type MensagemInterna,
   type UsuarioMensagem,
+  type AssinaturaEmail,
 } from "@/lib/colaborador-api";
 
 const dataBr = (valor: string | null) =>
@@ -73,6 +78,7 @@ export default function Emails() {
   const [contagemNaoLidas, setContagemNaoLidas] = useState(0);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
   const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
+  const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
 
   const [busca, setBusca] = useState("");
   const [buscaGeral, setBuscaGeral] = useState("");
@@ -109,8 +115,9 @@ export default function Emails() {
     setCarregando(true);
     setErro("");
     try {
-      const [dados, perfil, mensagens, usuariosResponse, naoLidas] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarMensagensPasta(pastaAtiva), buscarUsuariosMensagem(), buscarContagemMensagensNaoLidas()]);
+      const [dados, perfil, assinaturaAtual, mensagens, usuariosResponse, naoLidas] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarMinhaAssinatura(), buscarMensagensPasta(pastaAtiva), buscarUsuariosMensagem(), buscarContagemMensagensNaoLidas()]);
       setRemetente({ nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo, email: perfil.perfil.email });
+      setAssinatura(assinaturaAtual);
       setContatos(Array.isArray(dados?.contatos) ? dados.contatos : []);
       setAnexos(Array.isArray(dados?.anexos) ? dados.anexos : []);
       setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
@@ -415,6 +422,18 @@ export default function Emails() {
                     placeholder="Escreva sua mensagem..."
                     className="mt-1 min-h-[140px] rounded-xl text-xs"
                   />
+                  {tipoEnvio === "email" && assinatura && <div className="mt-2 rounded-xl border border-border/60 bg-white p-3 font-[Arial,sans-serif] text-[#333] shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <img src={assinatura.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
+                      <div className="min-w-0 text-[11px] leading-4">
+                        <strong className="block text-[14px] leading-4 text-black">{assinatura.nome || "Nome do usuário"}</strong>
+                        {assinatura.cargo && <span className="block text-[10px] leading-3">{assinatura.cargo}</span>}
+                        {assinatura.telefone && <span className="flex items-center gap-1"><Phone size={11} /> {assinatura.telefone}</span>}
+                        {assinatura.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinatura.endereco}</span>}
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">Assinatura fixa aplicada automaticamente ao e-mail enviado.</p>
+                  </div>}
                 </div>
 
                 {tipoEnvio === "email" && <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">

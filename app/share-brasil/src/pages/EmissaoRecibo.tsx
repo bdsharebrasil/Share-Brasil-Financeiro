@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, ExternalLink, FileText, History, Loader2, Paperclip, Receipt, RotateCcw } from "lucide-react";
-import { jsPDF } from "jspdf";
+import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -135,23 +135,21 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   }
 }
 
-async function gerarPdfRecibo(recibo: ReciboFinanceiro, colaborador?: OpcoesRecibos["colaboradores"][number]) {
-  const documento = new jsPDF();
-  documento.setFont("helvetica", "bold"); documento.setFontSize(20); documento.text("RECIBO", 105, 22, { align: "center" });
-  documento.setFontSize(10); documento.text(recibo.numero_recibo, 192, 16, { align: "right" }); documento.setFont("helvetica", "normal"); documento.text(`Data: ${recibo.data_emissao}`, 192, 22, { align: "right" });
-  documento.line(18, 30, 192, 30); documento.setFont("helvetica", "bold"); documento.text("PAGADOR", 18, 45); documento.text("RECEBEDOR", 110, 45); documento.setFont("helvetica", "normal");
-  documento.text("SHARE BRASIL SERVIÇOS AERONÁUTICOS", 18, 52); documento.text("CNPJ: 30.898.549/0001-06", 18, 59); documento.text(colaborador?.nome_completo || recibo.recebedor_nome || "Colaborador", 110, 52); documento.text(`CPF: ${colaborador?.cpf || recibo.recebedor_cpf || "Não informado"}`, 110, 59);
-  documento.line(18, 68, 192, 68); documento.setFont("helvetica", "bold"); documento.text("Descrição do serviço", 18, 80); documento.text("Valor", 160, 80); documento.setFont("helvetica", "normal"); documento.text(documento.splitTextToSize(recibo.descricao_servico || "—", 125), 18, 88); documento.text(moeda(recibo.valor), 192, 88, { align: "right" }); documento.line(18, 102, 192, 102); documento.setFont("helvetica", "bold"); documento.text(`TOTAL: ${moeda(recibo.valor)}`, 192, 114, { align: "right" });
-  let assinaturaY = 128;
-  if (recibo.observacoes) { const linhasObservacoes = documento.splitTextToSize(recibo.observacoes, 174); documento.setFont("helvetica", "bold"); documento.text("Observações", 18, 125); documento.setFont("helvetica", "normal"); documento.text(linhasObservacoes, 18, 132); assinaturaY = 138 + linhasObservacoes.length * 5; }
-  const imagemAssinatura = await carregarImagem(assinaturaRecibo);
-  const imagemLogo = await carregarImagem(logoShare);
-  documento.setFontSize(9); documento.text(`Várzea Grande-MT, ${dataExtenso(recibo.data_emissao)}`, 105, assinaturaY, { align: "center" });
-  documento.addImage(imagemAssinatura, "PNG", 78, assinaturaY + 4, 54, 20);
-  documento.setDrawColor(50); documento.line(70, assinaturaY + 25, 140, assinaturaY + 25);
-  documento.setFont("helvetica", "normal"); documento.text("Rolffe de Lima Erbe", 105, assinaturaY + 30, { align: "center" }); documento.text("Gestor Responsável", 105, assinaturaY + 35, { align: "center" });
-  documento.addImage(imagemLogo, "PNG", 88, assinaturaY + 39, 34, 10); documento.setFontSize(8); documento.text("FINANCEIRO - SHARE BRASIL SERVIÇOS AEROPORTUARIOS", 105, assinaturaY + 53, { align: "center" });
-  const blob = documento.output("blob");
+const ehPagamento = recibo.tipo_recibo === "pagamento" || recibo.beneficiario_tipo === "colaborador" || recibo.beneficiario_tipo === "freelancer";
+  const nomeRecebedor = colaborador?.nome_completo || recibo.recebedor_nome || "";
+  const documentoRecebedor = colaborador?.cpf || recibo.recebedor_cpf || "";
+  const blob = await gerarReciboPdf({
+    numero: recibo.numero_recibo,
+    valor: Number(recibo.valor || 0),
+    descricao: [recibo.descricao_servico, recibo.observacoes].filter(Boolean).join("\n\n"),
+    data: recibo.data_emissao,
+    rotuloPagador: ehPagamento ? "RECEBEDOR" : "PAGADOR",
+    pagadorNome: ehPagamento ? nomeRecebedor || "—" : recibo.nome_pagador || "—",
+    pagadorDocumento: ehPagamento
+      ? documentoRecebedor ? `CPF: ${documentoRecebedor}` : null
+      : recibo.documento_pagador ? `CNPJ/CPF: ${recibo.documento_pagador}` : null,
+    pagadorLinhas: ehPagamento ? [] : [recibo.endereco_pagador, [recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(" - ")],
+  });
   return new File([blob], `${recibo.numero_recibo.replace(/[^a-z0-9-]/gi, "-")}.pdf`, { type: "application/pdf" });
 }
 

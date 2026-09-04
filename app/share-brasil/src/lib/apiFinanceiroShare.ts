@@ -76,15 +76,16 @@ export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Pro
 }
 
 export async function criarLancamentoShare(lancamento: Omit<Lancamento, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Lancamento> {
-  const resposta = await requisitar<{ lancamento: unknown }>('/api/lancamentos', { method: 'POST', body: JSON.stringify({
+  const payload = {
     descricao: lancamento.descricao, fluxo: lancamento.fluxo, categoria: lancamento.categoria, categoria_id: lancamento.categoriaId,
-    grupo_categoria: lancamento.grupoCategoria, valor_total: lancamento.valorCentavos / 100, data_emissao: lancamento.data,
-    data_vencimento: lancamento.prazo, aeronave_id: lancamento.aeronaveId, fornecedor: lancamento.fornecedor, fornecedor_id: lancamento.fornecedorId,
-    numero_doc: lancamento.documento, status: lancamento.status, pago_por: lancamento.pagoPor, tipo_caixa: lancamento.caixa,
-    pago_diretamente: lancamento.pagoDiretamente, reembolsavel: lancamento.reembolsavel, reembolso_quitado: lancamento.reembolsoQuitado,
-    observacoes: lancamento.observacoes,
-  }) });
-  return normalizarLancamento(resposta.lancamento);
+    categoria_nome: lancamento.categoria, grupo_categoria: lancamento.grupoCategoria, valorCentavos: lancamento.valorCentavos,
+    data: lancamento.data, data_vencimento: lancamento.prazo, aeronave_id: lancamento.aeronaveId,
+    fornecedor: lancamento.fornecedor, fornecedor_id: lancamento.fornecedorId, documento: lancamento.documento,
+    pago_por: lancamento.pagoPor, tipo_caixa: lancamento.caixa, pago_diretamente: lancamento.pagoDiretamente,
+    observacoes: lancamento.observacoes, idempotencyKey: `ui:${lancamento.data}:${lancamento.descricao}:${lancamento.valorCentavos}`,
+  };
+  const resposta = lancamento.fluxo === 'ENTRADA' ? await emitirReceitaFinanceira(payload) : await criarDespesaFinanceira(payload);
+  return normalizarLancamento({ ...lancamento, id: resposta.id, valor_centavos: resposta.valorCentavos ?? lancamento.valorCentavos, status: resposta.status ?? lancamento.status });
 }
 
 // ---------- Contas a pagar ----------
@@ -107,7 +108,7 @@ export function darBaixaContaAPagar(
   id: string,
   dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }
 ): Promise<ContaAPagar> {
-  return requisitar<ContaAPagar>(`/api/contas-apagar/${id}/dar-baixa`, {
+  return requisitar<ContaAPagar>(`/api/financeiro/v2/contas-pagar/${encodeURIComponent(id)}/baixa`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });
@@ -135,11 +136,42 @@ export async function darBaixaContaAReceber(
   id: string,
   dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }
 ): Promise<ContaAReceber> {
-  const conta = await requisitar<ContaAReceber>(`/api/contas-areceber/${id}/dar-baixa`, {
+  const conta = await requisitar<ContaAReceber>(`/api/financeiro/v2/contas-receber/${encodeURIComponent(id)}/baixa`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });
   return { ...conta, status: conta.status === 'RECEBIDO' ? 'PAGO' : conta.status };
+}
+
+// ---------- Núcleo transacional v2 ----------
+export type FinanceiroV2Result = { id: string; contaPagarId?: string | null; contaReceberId?: string | null; valorCentavos?: number; status?: string; idempotent?: boolean };
+
+export function criarDespesaFinanceira(payload: Record<string, unknown>): Promise<FinanceiroV2Result> {
+  return requisitar<FinanceiroV2Result>('/api/financeiro/v2/despesas', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function baixarContaPagarFinanceira(id: string, dados: { dataPagamento: string; bancoPagamento?: string; comprovantePagamentoUrl?: string; motivo?: string }): Promise<FinanceiroV2Result> {
+  return requisitar<FinanceiroV2Result>(`/api/financeiro/v2/contas-pagar/${encodeURIComponent(id)}/baixa`, { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export function emitirReceitaFinanceira(payload: Record<string, unknown>): Promise<FinanceiroV2Result> {
+  return requisitar<FinanceiroV2Result>('/api/financeiro/v2/receitas', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function baixarContaReceberFinanceira(id: string, dados: { dataRecebimento: string; bancoRecebimento?: string; comprovanteRecebimentoUrl?: string; motivo?: string }): Promise<FinanceiroV2Result> {
+  return requisitar<FinanceiroV2Result>(`/api/financeiro/v2/contas-receber/${encodeURIComponent(id)}/baixa`, { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export function criarReembolsoFinanceiro(payload: Record<string, unknown>): Promise<FinanceiroV2Result> {
+  return requisitar<FinanceiroV2Result>('/api/financeiro/v2/reembolsos', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function enfileirarOperacaoFinanceira(operacao: 'DESPESA' | 'RECEITA' | 'REEMBOLSO', payload: Record<string, unknown>): Promise<{ id: string; status: string }> {
+  return requisitar<{ id: string; status: string }>('/api/financeiro/v2/fila', { method: 'POST', body: JSON.stringify({ operacao, payload }) });
+}
+
+export function processarFilaFinanceira(limite = 20): Promise<{ itens: Array<{ id: string; status: string }> }> {
+  return requisitar<{ itens: Array<{ id: string; status: string }> }>('/api/financeiro/v2/fila/processar', { method: 'POST', body: JSON.stringify({ limite }) });
 }
 
 // ---------- Catálogos (fornecedores e categorias) ----------

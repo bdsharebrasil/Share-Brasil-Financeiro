@@ -25,6 +25,7 @@ import {
   Users,
   WalletCards,
   Wrench,
+  Plane,
   ContactRound,
   type LucideIcon,
 } from "lucide-react";
@@ -91,6 +92,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
     { id: "contatos-clientes", label: "AGENDA-COTISTAS", icon: ContactRound },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
+    { id: "aeronaves", label: "Aeronaves", icon: Plane },
   ],
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },

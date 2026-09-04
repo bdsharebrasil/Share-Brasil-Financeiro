@@ -26,6 +26,7 @@ import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
 import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
 import CTM from "@/pages/CTM";
+import AeronavesShareBrasil from "@/pages/AeronavesShareBrasil";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, TarefasShareBrasil, ContatosClientesShareBrasil } from "@/pages/ShareBrasil";
 import SenhasPastas from "@/pages/SenhasPastas";
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
@@ -82,6 +83,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "aeronaves") return <AeronavesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;
     if (ambiente === "share-brasil" && menuAtivo === "sala-reuniao") return <SalaReuniao />;
     if (ambiente === "share-brasil" && menuAtivo === "tutorial") return <CentroMateriais categoria="TUTORIAL" />;

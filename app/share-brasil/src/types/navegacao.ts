@@ -82,6 +82,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   ],
   "share-brasil": [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "aeronaves", label: "Aeronaves", icon: Plane },
     { id: "centro-treinamento", label: "CENTRO TREINAMENTO", icon: GraduationCap },
     { id: "sala-reuniao", label: "Sala de reunião", icon: Video },
     { id: "tutorial", label: "Tutorial", icon: BookOpen },
@@ -92,7 +93,6 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
     { id: "contatos-clientes", label: "AGENDA-COTISTAS", icon: ContactRound },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
-    { id: "aeronaves", label: "Aeronaves", icon: Plane },
   ],
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },

@@ -824,11 +824,12 @@ export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
 export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
 export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
+export type RecebedorRecibo = { id: string; nome: string; cpf: string | null; email: string | null; telefone: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
 export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
-export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[] };
+export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; recebedores: RecebedorRecibo[] };
 
 export type TipoRecibo = "cliente_reembolsavel" | "colaborador" | "pagamento";
 export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
@@ -840,6 +841,7 @@ export type Recibo = {
   cliente_id: string | null;
   colaborador_id: string | null;
   recebedor_nome: string | null;
+  recebedor_cpf: string | null;
   aeronave_id: string | null;
   rateado: number;
   nome_pagador: string;
@@ -882,6 +884,7 @@ export type CriarReciboPayload = {
   cliente_id?: string | null;
   colaborador_id?: string | null;
   recebedor_nome?: string | null;
+  recebedor_cpf?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
   nome_pagador?: string;
   documento_pagador?: string | null;

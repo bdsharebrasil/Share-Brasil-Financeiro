@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { criarLancamentoShare, type CategoriaCaixaShare, type ContaBancaria, type LancamentoShare } from "@/lib/financeiro-share-api";
+import { type CategoriaCaixaShare, type ContaBancaria, type LancamentoShare } from "@/lib/financeiro-share-api";
+import { criarDespesa, emitirReceita } from "@/lib/apiFinanceiroShare";
 
 type Props = {
   aberto: boolean;
@@ -58,7 +59,8 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
 
     setSalvando(true);
     try {
-      const { lancamento } = await criarLancamentoShare({
+      const criar = fluxo === "entrada" ? emitirReceita : criarDespesa;
+      const lancamento = await criar({
         descricao: descricao.trim(),
         fluxo,
         categoria_id: categoria.id,

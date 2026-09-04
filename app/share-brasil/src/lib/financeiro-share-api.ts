@@ -165,35 +165,6 @@ export async function buscarOpcoesFinanceiroShare() {
   };
 }
 
-export async function buscarLancamentosShare(filtros: FiltrosLancamentos) {
-  const parametros = new URLSearchParams();
-  Object.entries(filtros).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });
-  const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos${sufixo}`)) as {
-    lancamentos: LancamentoShare[];
-    resumo: ResumoShare;
-    grupos: GrupoShare[];
-  };
-}
-
-export async function criarLancamentoShare(dados: Record<string, unknown>) {
-  return (await financeiroRequest("/api/interno/financeiro-share/lancamentos", {
-    method: "POST",
-    body: JSON.stringify(dados),
-  })) as { lancamento: LancamentoShare };
-}
-
-export async function atualizarLancamentoShare(id: string, dados: Record<string, unknown>) {
-  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(dados),
-  })) as { lancamento: LancamentoShare };
-}
-
-export async function excluirLancamentoShare(id: string) {
-  return (await financeiroRequest(`/api/interno/financeiro-share/lancamentos/${id}`, { method: "DELETE" })) as { ok: boolean };
-}
-
 function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | undefined): OpcoesLancamento {
   return {
     categorias: Array.isArray(payload?.categorias) ? payload.categorias : [],

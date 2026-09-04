@@ -75,17 +75,36 @@ export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Pro
     (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
 }
 
-export async function criarLancamentoShare(lancamento: Omit<Lancamento, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Lancamento> {
-  const payload = {
-    descricao: lancamento.descricao, fluxo: lancamento.fluxo, categoria: lancamento.categoria, categoria_id: lancamento.categoriaId,
-    categoria_nome: lancamento.categoria, grupo_categoria: lancamento.grupoCategoria, valorCentavos: lancamento.valorCentavos,
-    data: lancamento.data, data_vencimento: lancamento.prazo, aeronave_id: lancamento.aeronaveId,
-    fornecedor: lancamento.fornecedor, fornecedor_id: lancamento.fornecedorId, documento: lancamento.documento,
-    pago_por: lancamento.pagoPor, tipo_caixa: lancamento.caixa, pago_diretamente: lancamento.pagoDiretamente,
-    observacoes: lancamento.observacoes, idempotencyKey: `ui:${lancamento.data}:${lancamento.descricao}:${lancamento.valorCentavos}`,
-  };
-  const resposta = await requisitar<{ lancamento: unknown }>('/api/lancamentos', { method: 'POST', body: JSON.stringify(payload) });
-  return normalizarLancamento(resposta.lancamento);
+function valorCentavosDoPayload(payload: Record<string, unknown>): number {
+  if (Number.isFinite(Number(payload.valorCentavos))) return Math.round(Number(payload.valorCentavos))
+  const bruto = payload.valor_total ?? payload.valor ?? 0
+  const valor = typeof bruto === 'number' ? bruto : Number(String(bruto).replace(/\./g, '').replace(',', '.'))
+  return Math.round((Number.isFinite(valor) ? valor : 0) * 100)
+}
+
+async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo: 'SAIDA' | 'ENTRADA'): Promise<Lancamento> {
+  const data = String(payload.data ?? payload.data_emissao ?? new Date().toISOString().slice(0, 10))
+  const valorCentavos = valorCentavosDoPayload(payload)
+  const resposta = await requisitar<{ lancamento: unknown }>('/api/lancamentos', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      fluxo,
+      valorCentavos,
+      data,
+      data_emissao: payload.data_emissao ?? data,
+      idempotencyKey: payload.idempotencyKey ?? `ui:${fluxo}:${data}:${payload.descricao ?? ''}:${valorCentavos}`,
+    }),
+  })
+  return normalizarLancamento(resposta.lancamento)
+}
+
+export function criarDespesa(payload: Record<string, unknown>): Promise<Lancamento> {
+  return criarLancamentoPeloKernel(payload, 'SAIDA')
+}
+
+export function emitirReceita(payload: Record<string, unknown>): Promise<Lancamento> {
+  return criarLancamentoPeloKernel(payload, 'ENTRADA')
 }
 
 // ---------- Contas a pagar ----------

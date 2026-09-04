@@ -3,7 +3,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Check,
-  ChevronRight,
   CircleAlert,
   Loader2,
   Plane,
@@ -33,16 +32,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, HeroDashboard } from "@/components/dashboard/PrimitivosDashboard";
+import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus } from "@/components/dashboard/PrimitivosDashboard";
 import {
   buscarBalancoEconomico,
   buscarOpcoesLancamento,
   criarLancamentoEconomico,
   formatarCentavos,
   formatarData,
-  formatarMoeda,
   type BalancoEconomico,
-  type LancamentoEconomico,
   type OpcoesLancamento,
 } from "@/lib/financeiro-share-api";
 import { buscarOpcoesEnvioPagamento, buscarCotistasAeronave, type CotistaAeronave, type OpcaoEnvioPagamento } from "@/lib/colaborador-api";
@@ -66,7 +63,7 @@ function nomeCotista(id: string, opcoes: OpcoesLancamento | null, cotistasAerona
 
 const CORES_GRAFICO = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
-export default function DashboardFinanceiroCotista() {
+export default function FinanceiroCotista() {
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
   const [opcoesEnvio, setOpcoesEnvio] = useState<OpcaoEnvioPagamento | null>(null);
   const [aeronaveId, setAeronaveId] = useState<string>("");
@@ -88,9 +85,10 @@ export default function DashboardFinanceiroCotista() {
     if (!opcoesEnvio) {
       try {
         const envioOps = await buscarOpcoesEnvioPagamento();
-        setOpcoesEnvio(envioOps);
-        if (!aeronaveId && envioOps.aeronaves.length > 0) {
-          setAeronaveId(envioOps.aeronaves[0].id);
+        const aeronaves = Array.isArray(envioOps.aeronaves) ? envioOps.aeronaves : [];
+        setOpcoesEnvio({ ...envioOps, aeronaves });
+        if (!aeronaveId && aeronaves.length > 0) {
+          setAeronaveId(aeronaves[0].id);
         }
       } catch (error) {
         setErroAeronaves(error instanceof Error ? error.message : "Não foi possível carregar a lista de aeronaves.");
@@ -126,7 +124,8 @@ export default function DashboardFinanceiroCotista() {
   useEffect(() => { void carregarCotistas(); }, [carregarCotistas]);
   useEffect(() => { void carregar(); }, [carregar]);
 
-  const aeronaveSelecionada = opcoesEnvio?.aeronaves.find((a) => a.id === aeronaveId);
+  const aeronaves = opcoesEnvio?.aeronaves ?? [];
+  const aeronaveSelecionada = aeronaves.find((a) => a.id === aeronaveId);
   const idsCotistasAeronave = useMemo(() => new Set(cotistasAeronave.map((c) => c.id)), [cotistasAeronave]);
 
   const lancamentosFiltrados = useMemo(() => {
@@ -182,12 +181,15 @@ export default function DashboardFinanceiroCotista() {
   };
 
   return (
-    <div className="route-enter">
-      <HeroDashboard ambiente="gestor" title="Financeiro Cotista" subtitle="Balanço econômico por aeronave e dados individuais dos cotistas">
-        <Button type="button" onClick={() => void abrirNovo()} className="h-10 gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
-          <Plus size={15} /> Novo lançamento cotista
-        </Button>
-      </HeroDashboard>
+    <section className="space-y-5">
+      <section className="overflow-hidden rounded-2xl border border-primary/20 bg-card/75">
+        <CabecalhoSecao
+          icon={<Scale size={16} />}
+          title="Financeiro Cotista"
+          detail="Balanço econômico por aeronave e dados individuais dos cotistas"
+          action={<Button type="button" onClick={() => void abrirNovo()} className="h-8 gap-2 rounded-lg bg-primary px-3 text-[10px] font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"><Plus size={13} /> Novo lançamento</Button>}
+        />
+      </section>
 
       {/* Seletor de aeronave */}
       <section className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-card/70 p-4 md:flex-row md:items-center md:justify-between">
@@ -208,7 +210,7 @@ export default function DashboardFinanceiroCotista() {
             <Select value={aeronaveId} onValueChange={setAeronaveId}>
               <SelectTrigger className="h-9 w-full text-xs sm:w-[220px]"><SelectValue placeholder="Selecionar aeronave" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {opcoesEnvio?.aeronaves.map((a) => (
+                {aeronaves.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.matricula_registro} · {a.fabricante} {a.modelo}</SelectItem>
                 ))}
               </SelectContent>
@@ -389,7 +391,7 @@ export default function DashboardFinanceiroCotista() {
         aeronaveId={aeronaveId}
         aoCriar={async () => { setNovoAberto(false); await carregar(true); }}
       />
-    </div>
+    </section>
   );
 }
 

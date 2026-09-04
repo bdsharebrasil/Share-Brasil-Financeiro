@@ -226,7 +226,12 @@ export function buscarFeriasCorporativas(inicio?: string) { return colaboradorRe
 export type EnvioPagamento = { id: string; tipo: "share" | "reembolso" | "cliente"; descricao: string; valor: number; data_despesa: string | null; vencimento: string | null; fornecedor: string | null; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; aeronave_id: string | null; numero_voo: string | null; centro_custo: string | null; observacoes: string | null; status: string; criado_por: string | null; criado_em: string; grupo_categoria?: string | null; tipo_caixa?: "share" | "cliente" | null; tipo_despesa?: "fixo" | "variável" | null; periodicidade?: string | null; anexos?: Array<{ id: string; tipo: string; numero: string; url: string | null }>; gera_rateio?: boolean; pago_diretamente?: boolean; pago_por?: string | null };
 export type OpcaoEnvioPagamento = { fornecedores: Array<{ id: string; label: string }>; aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string }>; voos: Array<{ numero_voo: string; ultima_data?: string | null; aeronave_id?: string | null }>; categorias: Array<{ id: string; nome: string; grupo_categoria?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null }>; categorias_cliente: Array<{ id: string; nome: string; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null }> };
 export type CotistaAeronave = { id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string; holding_id: string | null; eh_holding: number };
-export function buscarOpcoesEnvioPagamento() { return colaboradorRequest<OpcaoEnvioPagamento>("/api/financeiro/envios-pagamento/opcoes"); }
+type RespostaOpcoesEnvioPagamento = Omit<OpcaoEnvioPagamento, "aeronaves"> & { aeronaves?: OpcaoEnvioPagamento["aeronaves"]; aeronave?: OpcaoEnvioPagamento["aeronaves"] };
+export async function buscarOpcoesEnvioPagamento(): Promise<OpcaoEnvioPagamento> {
+  const resposta = await colaboradorRequest<RespostaOpcoesEnvioPagamento>("/api/financeiro/envios-pagamento/opcoes");
+  const aeronaves = Array.isArray(resposta.aeronaves) ? resposta.aeronaves : resposta.aeronave;
+  return { ...resposta, aeronaves: Array.isArray(aeronaves) ? aeronaves : [] };
+}
 export type OpcoesAnexosEnvioPagamento = { recibos: Array<{ id: string; numero_recibo: string; descricao_servico?: string | null; data_emissao?: string | null; anexo_id?: string | null; nome_arquivo?: string | null; tipo_arquivo?: string | null; arquivo_url?: string | null }>; relatorios: Array<{ id: string; numero_voo?: string | null; numero_relatorio?: string | null; matricula_registro?: string | null; anexo_id?: string | null; nome_arquivo?: string | null; tipo_arquivo?: string | null; arquivo_url?: string | null }>; abastecimentos: Array<{ id: string; numero_voo?: string | null; trecho?: string | null; data?: string | null; numero_comanda?: string | null; numero_nf?: string | null; local?: string | null; matricula_registro?: string | null; cotista_nome?: string | null; comanda_url?: string | null; nota_url?: string | null; boleto_url?: string | null }> };
 export function buscarOpcoesAnexosEnvioPagamento() { return colaboradorRequest<OpcoesAnexosEnvioPagamento>("/api/financeiro/envios-pagamento/anexos-opcoes"); }
 export function buscarCotistasAeronave(aeronaveId: string) { return colaboradorRequest<{ cotistas: CotistaAeronave[] }>(`/api/financeiro/envios-pagamento/aeronave/${encodeURIComponent(aeronaveId)}/cotistas`); }
@@ -819,11 +824,12 @@ export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
 export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
 export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
+export type RecebedorRecibo = { id: string; nome: string; cpf: string | null; email: string | null; telefone: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
 export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
-export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[] };
+export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; recebedores: RecebedorRecibo[] };
 
 export type TipoRecibo = "cliente_reembolsavel" | "colaborador" | "pagamento";
 export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
@@ -835,6 +841,7 @@ export type Recibo = {
   cliente_id: string | null;
   colaborador_id: string | null;
   recebedor_nome: string | null;
+  recebedor_cpf: string | null;
   aeronave_id: string | null;
   rateado: number;
   nome_pagador: string;
@@ -877,6 +884,7 @@ export type CriarReciboPayload = {
   cliente_id?: string | null;
   colaborador_id?: string | null;
   recebedor_nome?: string | null;
+  recebedor_cpf?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
   nome_pagador?: string;
   documento_pagador?: string | null;
@@ -908,7 +916,47 @@ export type CriarReciboPayload = {
   rateio_linhas?: RateioLinhaEnvio[];
 };
 
-export function buscarOpcoesRecibos() { return colaboradorRequest<OpcoesRecibos>("/api/financeiro/recibos/opcoes"); }
+type RespostaOpcoesRecibos = Partial<OpcoesRecibos> & {
+  recebedores?: RecebedorRecibo[];
+  usuarios?: Array<Record<string, unknown>>;
+  freelancers?: Array<Record<string, unknown>>;
+  tripulantes?: Array<Record<string, unknown>>;
+  colaboradores?: ColaboradorRecibo[];
+};
+
+function normalizarRecebedor(item: Record<string, unknown>, origem: RecebedorRecibo["origem"], prefixo: string): RecebedorRecibo {
+  const nome = String(item.nome ?? item.nome_exibicao ?? item.nome_completo ?? item.email ?? "").trim();
+  return {
+    id: `${prefixo}:${String(item.id ?? nome)}`,
+    nome: nome || (origem === "tripulacao_freelancer" ? "Freelancer sem nome" : "Perfil sem nome"),
+    cpf: item.cpf ? String(item.cpf) : null,
+    email: item.email ? String(item.email) : null,
+    telefone: item.telefone ? String(item.telefone) : null,
+    tipo_user: item.tipo_user ? String(item.tipo_user) : origem === "tripulacao_freelancer" ? "freelancer" : null,
+    origem,
+    canac: item.canac ? String(item.canac) : null,
+  };
+}
+
+export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
+  const resposta = await colaboradorRequest<RespostaOpcoesRecibos>("/api/financeiro/recibos/opcoes");
+  const recebedorFallback = [
+    ...(Array.isArray(resposta.usuarios) ? resposta.usuarios.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.colaboradores) ? resposta.colaboradores.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.tripulantes) ? resposta.tripulantes.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+    ...(Array.isArray(resposta.freelancers) ? resposta.freelancers.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+  ];
+  const recebedores = Array.isArray(resposta.recebedores) && resposta.recebedores.length > 0 ? resposta.recebedores : recebedorFallback;
+  return {
+    clientes: Array.isArray(resposta.clientes) ? resposta.clientes : [],
+    colaboradores: Array.isArray(resposta.colaboradores) ? resposta.colaboradores : [],
+    aeronaves: Array.isArray(resposta.aeronaves) ? resposta.aeronaves : [],
+    cotistas: Array.isArray(resposta.cotistas) ? resposta.cotistas : [],
+    categorias: Array.isArray(resposta.categorias) ? resposta.categorias : [],
+    categorias_cliente: Array.isArray(resposta.categorias_cliente) ? resposta.categorias_cliente : [],
+    recebedores,
+  };
+}
 export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);

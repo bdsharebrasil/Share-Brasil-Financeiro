@@ -26,7 +26,9 @@ type Formulario = {
   natureza_despesa: "aeronave" | "empresa" | "";
   cliente_id: string;
   colaborador_id: string;
+  recebedor_id: string;
   recebedor_nome: string;
+  recebedor_cpf: string;
   pagador_tipo: "share" | "cotista";
   pagador_cotista_id: string;
   aeronave_id: string;
@@ -55,7 +57,9 @@ const inicial = (): Formulario => ({
   natureza_despesa: "",
   cliente_id: "",
   colaborador_id: "",
+  recebedor_id: "",
   recebedor_nome: "",
+  recebedor_cpf: "",
   pagador_tipo: "share",
   pagador_cotista_id: "",
   aeronave_id: "",
@@ -105,7 +109,7 @@ async function gerarPdfRecibo(recibo: ReciboFinanceiro, colaborador?: OpcoesReci
   documento.setFont("helvetica", "bold"); documento.setFontSize(20); documento.text("RECIBO", 105, 22, { align: "center" });
   documento.setFontSize(10); documento.text(recibo.numero_recibo, 192, 16, { align: "right" }); documento.setFont("helvetica", "normal"); documento.text(`Data: ${recibo.data_emissao}`, 192, 22, { align: "right" });
   documento.line(18, 30, 192, 30); documento.setFont("helvetica", "bold"); documento.text("PAGADOR", 18, 45); documento.text("RECEBEDOR", 110, 45); documento.setFont("helvetica", "normal");
-  documento.text("SHARE BRASIL SERVIÇOS AERONÁUTICOS", 18, 52); documento.text("CNPJ: 30.898.549/0001-06", 18, 59); documento.text(colaborador?.nome_completo || recibo.recebedor_nome || "Colaborador", 110, 52); documento.text(`CPF: ${colaborador?.cpf || "Não informado"}`, 110, 59);
+  documento.text("SHARE BRASIL SERVIÇOS AERONÁUTICOS", 18, 52); documento.text("CNPJ: 30.898.549/0001-06", 18, 59); documento.text(colaborador?.nome_completo || recibo.recebedor_nome || "Colaborador", 110, 52); documento.text(`CPF: ${colaborador?.cpf || recibo.recebedor_cpf || "Não informado"}`, 110, 59);
   documento.line(18, 68, 192, 68); documento.setFont("helvetica", "bold"); documento.text("Descrição do serviço", 18, 80); documento.text("Valor", 160, 80); documento.setFont("helvetica", "normal"); documento.text(documento.splitTextToSize(recibo.descricao_servico || "—", 125), 18, 88); documento.text(moeda(recibo.valor), 192, 88, { align: "right" }); documento.line(18, 102, 192, 102); documento.setFont("helvetica", "bold"); documento.text(`TOTAL: ${moeda(recibo.valor)}`, 192, 114, { align: "right" });
   const blob = documento.output("blob");
   return new File([blob], `${recibo.numero_recibo.replace(/[^a-z0-9-]/gi, "-")}.pdf`, { type: "application/pdf" });
@@ -113,7 +117,7 @@ async function gerarPdfRecibo(recibo: ReciboFinanceiro, colaborador?: OpcoesReci
 
 export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [form, setForm] = useState<Formulario>(inicial);
-  const [opcoes, setOpcoes] = useState<OpcoesRecibos>({ clientes: [], colaboradores: [], aeronaves: [], cotistas: [], categorias: [], categorias_cliente: [] });
+  const [opcoes, setOpcoes] = useState<OpcoesRecibos>({ clientes: [], colaboradores: [], aeronaves: [], cotistas: [], categorias: [], categorias_cliente: [], recebedores: [] });
   const [recibos, setRecibos] = useState<ReciboFinanceiro[]>([]);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -128,7 +132,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setCarregando(true);
     try {
       const [dadosOpcoes, dadosRecibos] = await Promise.all([buscarOpcoesRecibos(), buscarRecibos()]);
-      setOpcoes({ ...dadosOpcoes, aeronaves: Array.isArray(dadosOpcoes.aeronaves) ? dadosOpcoes.aeronaves : [] });
+      setOpcoes({
+        ...dadosOpcoes,
+        aeronaves: Array.isArray(dadosOpcoes.aeronaves) ? dadosOpcoes.aeronaves : [],
+        recebedores: Array.isArray(dadosOpcoes.recebedores) ? dadosOpcoes.recebedores : [],
+      });
       setRecibos(dadosRecibos.recibos);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível carregar os dados de emissão.");
@@ -161,6 +169,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const pagadorSelecionado = opcoes.cotistas.find((item) => item.id === form.pagador_cotista_id);
   const categoriaClienteSelecionada = opcoes.categorias_cliente.find((item) => item.id === form.categoria_id);
   const colaboradorSelecionado = opcoes.colaboradores.find((item) => item.id === form.colaborador_id);
+  const recebedorItems = useMemo(() => opcoes.recebedores.map((recebedor) => ({
+    id: recebedor.id,
+    label: [recebedor.nome, recebedor.cpf && `CPF: ${recebedor.cpf}`, recebedor.email, recebedor.telefone, recebedor.canac && `CANAC: ${recebedor.canac}`, recebedor.origem === "tripulacao_freelancer" ? "Freelancer" : "Colaborador"].filter(Boolean).join(" · "),
+  })), [opcoes.recebedores]);
   const mostrarMetadadosPagamento = form.tipo === "pagamento" && form.pagador_tipo === "cotista";
   const subcategoriasDisponiveis = categoriaClienteSelecionada ? [categoriaClienteSelecionada.subcategoria_1, categoriaClienteSelecionada.subcategoria_2, categoriaClienteSelecionada.subcategoria_3, categoriaClienteSelecionada.subcategoria_4].flatMap((valor) => String(valor || "").split(",")).map((valor) => valor.trim()).filter(Boolean).filter((valor, indice, lista) => lista.indexOf(valor) === indice) : [];
   const arquivoPreviewUrl = useMemo(() => arquivo ? URL.createObjectURL(arquivo) : "", [arquivo]);
@@ -222,6 +234,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         cliente_id: form.tipo === "cliente_reembolsavel" ? form.cliente_id || null : null,
         colaborador_id: form.tipo === "colaborador" ? form.colaborador_id : null,
         recebedor_nome: form.tipo === "pagamento" ? form.recebedor_nome.trim() : null,
+        recebedor_cpf: form.tipo === "pagamento" ? form.recebedor_cpf.trim() || null : null,
         pagador_tipo: form.tipo === "pagamento" ? form.pagador_tipo : "share",
         pagador_cotista_id: form.tipo === "pagamento" && form.pagador_tipo === "cotista" ? form.pagador_cotista_id : null,
         valor: valorNumerico(form.valor),
@@ -328,7 +341,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         {form.tipo && <div className="border-t border-border px-5 py-5">
           <div className="mb-5 flex items-center gap-2 rounded-sm border border-primary/25 bg-primary/[.06] px-3.5 py-2.5 text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-primary" /><strong>{tipoSelecionado?.titulo}</strong></div>
           <div className="grid gap-4 md:grid-cols-2">
-            {form.tipo === "pagamento" ? <Campo label="RECEBEDOR" obrigatorio><input value={form.recebedor_nome} onChange={(e) => alterar("recebedor_nome", e.target.value)} placeholder="Nome do fornecedor ou recebedor" className="campo" /></Campo> : form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => alterar("cliente_id", e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="RECEBEDOR" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
+            {form.tipo === "pagamento" ? <><Campo label="RECEBEDOR" obrigatorio><SearchableCombobox items={recebedorItems} value={form.recebedor_id} onChange={(id, label) => { const recebedor = opcoes.recebedores.find((item) => item.id === id); alterar("recebedor_id", id); alterar("recebedor_nome", recebedor?.nome || label); alterar("recebedor_cpf", recebedor?.cpf || ""); }} placeholder="Selecione o recebedor" searchPlaceholder="Buscar por nome, CPF, e-mail..." emptyMessage="Nenhum recebedor encontrado." allowFreeText /></Campo><Campo label="CPF do recebedor"><input value={form.recebedor_cpf} onChange={(e) => alterar("recebedor_cpf", e.target.value)} placeholder="000.000.000-00" inputMode="numeric" className="campo" /></Campo></> : form.tipo !== "colaborador" ? <Campo label="Cliente" obrigatorio><select value={form.cliente_id} onChange={(e) => alterar("cliente_id", e.target.value)} className="campo"><option value="">Selecione o cliente</option>{opcoes.clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.razao_social}</option>)}</select></Campo> : <Campo label="RECEBEDOR" obrigatorio><select value={form.colaborador_id} onChange={(e) => alterar("colaborador_id", e.target.value)} className="campo"><option value="">Selecione o colaborador</option>{opcoes.colaboradores.map((colaborador) => <option key={colaborador.id} value={colaborador.id}>{colaborador.nome_exibicao || colaborador.nome_completo}</option>)}</select></Campo>}
             <Campo label="Data" obrigatorio><input type="date" value={form.data_emissao} onChange={(e) => alterar("data_emissao", e.target.value)} className="campo" /></Campo>
             {form.tipo === "pagamento" && <><Campo label="Pagador" obrigatorio><SearchableCombobox items={[{ id: "share", label: "Share Brasil" }, ...opcoes.cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}` }))]} value={form.pagador_tipo === "share" ? "share" : form.pagador_cotista_id} onChange={(id) => { if (id === "share") { alterar("pagador_tipo", "share"); alterar("pagador_cotista_id", ""); } else { const cotista = opcoes.cotistas.find((item) => item.id === id); alterar("pagador_tipo", "cotista"); alterar("pagador_cotista_id", id); alterar("categoria_id", ""); if (cotista) alterar("recebedor_nome", form.recebedor_nome); } }} placeholder="Selecione o pagador" searchPlaceholder="Buscar cotista..." emptyMessage="Nenhum cotista encontrado." /></Campo><div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">DADOS DO PAGADOR</p><p className="mt-1 text-[11px] font-semibold">{form.pagador_tipo === "cotista" ? `${pagadorSelecionado?.nome || "Cotista"} · ${pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "Documento não informado"}` : "Share Brasil"}</p></div></>}
             <Campo label={form.tipo === "pagamento" ? "Descrição" : "Descrição do serviço"} obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder={form.tipo === "pagamento" ? "Descrição do pagamento" : "Ex.: Reembolso de despesas operacionais"} className="campo" /></Campo>

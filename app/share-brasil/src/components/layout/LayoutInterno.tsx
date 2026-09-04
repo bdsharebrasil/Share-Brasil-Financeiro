@@ -5,7 +5,6 @@ import DashboardOperacoes from "@/pages/DashboardOperacoes";
 import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
 import DashboardGestorFinanceiro from "@/pages/DashboardGestorFinanceiro";
 import DashboardGestorResumo from "@/pages/DashboardGestorResumo";
-import DashboardFinanceiroCotista from "@/pages/DashboardFinanceiroCotista";
 import { PaginaFinanceiroShare } from "@/components/financeiro-share/FinanceiroShare";
 import EmissaoRecibo from "@/pages/EmissaoRecibo";
 import ModuloInterno from "@/pages/ModuloInterno";
@@ -69,7 +68,6 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-share") return <PaginaFinanceiroShare />;
-    if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <DashboardFinanceiroCotista />;
 
     if (ambiente === "financeiro" && menuAtivo === "enviar-pagamento") return <EnviarPagamento />;
     if (ambiente === "financeiro" && menuAtivo === "recibos") return <EmissaoRecibo aoVoltar={() => selecionarMenu("overview")} />;

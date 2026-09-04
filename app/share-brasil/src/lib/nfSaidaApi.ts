@@ -1,6 +1,6 @@
 import { colaboradorRequest } from "./colaborador-api";
 
-export interface CotistaOpcao { cotista_aeronave_id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente: string | null; nome: string; cnpj?: string | null; percentual_sociedade?: number; }
+export interface CotistaOpcao { cotista_aeronave_id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente: string | null; nome: string; cnpj?: string | null; cpf?: string | null; documento?: string | null; tipo_cotista?: "cliente" | "socio_hold"; percentual_sociedade?: number; }
 export interface CategoriaOpcao { id: string; nome: string; grupo_categoria?: string | null; tipo?: string | null; }
 export interface CategoriaDespesaOpcao { id: string; nome: string; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; }
 export interface NotaOuReciboSaidaRow { [key: string]: any; id: string; }

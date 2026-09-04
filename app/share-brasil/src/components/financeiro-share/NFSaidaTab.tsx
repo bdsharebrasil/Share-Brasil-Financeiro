@@ -448,7 +448,7 @@ export default function NFSaidaTab() {
       aircraft_id: cotista.aeronave_id,
       aeronave: matriculaPorAeronave.get(cotista.aeronave_id) || "",
       cliente_nome: cotista.nome,
-      cliente_cnpj: cotista.documento || "",
+      cliente_cnpj: cotista.documento ? `${cotista.tipo_cotista === "socio_hold" ? "CPF" : "CNPJ"}: ${cotista.documento}` : "",
     }));
   };
 

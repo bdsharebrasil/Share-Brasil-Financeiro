@@ -463,7 +463,7 @@ export default function NFSaidaTab() {
   };
 
   const save = async () => {
-    if (!form.numero.trim()) { setToast({ type: "err", text: `Informe o número ${documentType === "nota" ? "da nota" : "do recibo"}.` }); return; }
+    if (documentType === "nota" && !form.numero.trim()) { setToast({ type: "err", text: "Informe o número da nota." }); return; }
     if (!form.cotista_aeronave_id) { setToast({ type: "err", text: "Selecione o cotista (cliente ou sócio)." }); return; }
     if (!form.categoria_receita_id && !editingId) { setToast({ type: "err", text: "Selecione a categoria." }); return; }
     if (!form.categoria_despesa_id) { setToast({ type: "err", text: "Selecione a categoria de despesa do cliente (perna 'cliente' do lançamento)." }); return; }
@@ -546,6 +546,7 @@ export default function NFSaidaTab() {
     const base = numeroInformado.trim().replace(/^REC-/i, "");
     const cotista = cotistas.find((c) => c.cotista_aeronave_id === form.cotista_aeronave_id);
     const prefixo = (cotista?.codigo_cliente || "CLI").trim().toUpperCase();
+    if (!base) return `REC-${prefixo}001/${String(form.data_criacao || new Date().toISOString()).slice(2, 4)}`;
     return `REC-${prefixo}${base}`;
   };
 

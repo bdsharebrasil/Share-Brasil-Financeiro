@@ -865,7 +865,10 @@ export type Recibo = {
   nf_url: string | null;
   pdf_anexo_id?: string | null;
   pdf_url?: string | null;
-  movimentacao_id: string;
+  /** Movimento da conta holding; nulo quando o recibo usa somente o caixa Share. */
+  movimentacao_id: string | null;
+  /** Lançamento do caixa Share; nulo quando o recibo é exclusivamente da holding. */
+  lancamento_id?: string | null;
   movimentacao_reembolso_id: string | null;
   criado_por: string | null;
   criado_em: string;

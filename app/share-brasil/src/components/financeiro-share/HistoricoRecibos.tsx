@@ -63,7 +63,7 @@ function rotuloTipo(tipo: ReciboFinanceiro["tipo_recibo"]) {
   return ({ cliente_reembolsavel: "Reembolso", colaborador: "Colaborador", pagamento: "Pagamento", cliente_direto: "Cliente" } as Record<string, string>)[tipo] || tipo.replace(/_/g, " ");
 }
 
-export default function HistoricoRecibos({ recibos, carregando, onBuscar, onConfirmarReembolso, onCancelar, onVisualizarPdf, pdfAbrindoId }: Props) {
+export default function HistoricoRecibos({ recibos, carregando, onBuscar, onConfirmarReembolso, onCancelar, onVisualizarPdf, onVisualizarAnexo, pdfAbrindoId }: Props) {
   const [filtros, setFiltros] = useState<FiltrosHistoricoRecibos>({ q: "", data_inicial: "", data_final: "" });
   const [mesAberto, setMesAberto] = useState<string | null>(null);
 

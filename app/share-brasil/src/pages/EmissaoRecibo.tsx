@@ -285,6 +285,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
+
   const abrirPreview = () => {
     if (!podeEmitir || !form.tipo) {
       setErro("Preencha os campos obrigatórios antes de visualizar o recibo.");

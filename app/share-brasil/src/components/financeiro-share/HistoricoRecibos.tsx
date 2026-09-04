@@ -83,7 +83,6 @@ export default function HistoricoRecibos({ recibos, carregando, onBuscar, onConf
   }, [mesAberto, pastas]);
 
   const pastaSelecionada = pastas.find((pasta) => pasta.chave === mesAberto);
-  const totalValor = recibos.reduce((total, recibo) => total + Number(recibo.valor || 0), 0);
   const temFiltro = Boolean(filtros.q?.trim() || filtros.data_inicial || filtros.data_final);
 
   const aplicarFiltros = async () => {
@@ -129,7 +128,7 @@ export default function HistoricoRecibos({ recibos, carregando, onBuscar, onConf
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-3.5 md:px-7">
-        <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">{temFiltro ? "Resultado da busca" : "Organização mensal"}</p><p className="mt-1 text-[11px] text-muted-foreground">{pastas.length} {pastas.length === 1 ? "pasta" : "pastas"} · <strong className="font-mono text-foreground">{moeda(totalValor)}</strong></p></div>
+        <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">{temFiltro ? "Resultado da busca" : "Organização mensal"}</p><p className="mt-1 text-[11px] text-muted-foreground">{pastas.length} {pastas.length === 1 ? "pasta" : "pastas"}</p></div>
         {pastaSelecionada && <button type="button" onClick={() => setMesAberto(null)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10">Ver todas as pastas <ChevronRight size={13} /></button>}
       </div>
 

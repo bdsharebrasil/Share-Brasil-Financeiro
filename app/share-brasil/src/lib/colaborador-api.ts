@@ -837,9 +837,11 @@ export type Recibo = {
   id: string;
   numero_recibo: string;
   tipo_recibo: TipoRecibo;
-  beneficiario_tipo: "cliente" | "colaborador" | "fornecedor";
+  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
   cliente_id: string | null;
   colaborador_id: string | null;
+  freelancer_id?: string | null;
+  cotista_id?: string | null;
   recebedor_nome: string | null;
   recebedor_cpf: string | null;
   aeronave_id: string | null;
@@ -858,8 +860,9 @@ export type Recibo = {
   anexo_id: string | null;
   observacoes: string | null;
   grupo_categoria: string;
+  categoria_id?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
-  tipo_caixa: "share" | "cliente";
+  tipo_caixa: "share" | "cliente" | "holding" | "SHARE" | "CLIENTE" | "HOLDING";
   status: StatusRecibo;
   boleto_url: string | null;
   nf_url: string | null;
@@ -878,7 +881,8 @@ export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas
 export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; valor?: number; pago_por?: string };
 export type CriarReciboPayload = {
   tipo_recibo?: TipoRecibo;
-  beneficiario_tipo: "cliente" | "colaborador" | "fornecedor";
+  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
+  numero_recibo?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
   categoria_nome_manual?: string | null;
   reembolsavel?: boolean;
@@ -886,6 +890,7 @@ export type CriarReciboPayload = {
   aeronave_id?: string | null;
   cliente_id?: string | null;
   colaborador_id?: string | null;
+  recebedor_id?: string | null;
   recebedor_nome?: string | null;
   recebedor_cpf?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
@@ -960,7 +965,7 @@ export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
     recebedores,
   };
 }
-export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
+export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);
   if (filtro?.beneficiario_tipo) params.set("beneficiario_tipo", filtro.beneficiario_tipo);

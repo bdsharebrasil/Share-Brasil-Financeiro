@@ -74,5 +74,5 @@ export function EstadoVazio({ label = "Nenhum registro encontrado" }: { label?: 
 }
 
 export function formatarMoeda(valor: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(valor);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number.isFinite(valor) ? valor : 0);
 }

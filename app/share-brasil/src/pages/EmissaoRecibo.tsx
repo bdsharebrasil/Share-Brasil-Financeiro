@@ -261,14 +261,17 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   };
 
   const visualizarPdf = async (recibo: ReciboFinanceiro) => {
-    const caminho = caminhoPdfRecibo(recibo);
-    if (!caminho) {
-      setErro("Este recibo ainda não possui um PDF gerado.");
-      return;
-    }
+    let caminho = caminhoPdfRecibo(recibo);
     setErro("");
     setPdfAbrindoId(recibo.id);
     try {
+      if (!caminho) {
+        const colaborador = opcoes.colaboradores.find((item) => item.id === recibo.colaborador_id);
+        const pdf = await gerarPdfRecibo(recibo, colaborador);
+        const salvo = await enviarPdfRecibo(recibo.id, pdf);
+        caminho = `/api/financeiro/recibos/anexos/${encodeURIComponent(salvo.anexo_id)}/arquivo`;
+        setRecibos((atual) => atual.map((item) => item.id === recibo.id ? { ...item, pdf_anexo_id: salvo.anexo_id, pdf_url: salvo.pdf_url } : item));
+      }
       const blob = await carregarArquivoColaborador(caminho);
       const url = URL.createObjectURL(blob);
       setPdfPreviewUrl((atual) => {

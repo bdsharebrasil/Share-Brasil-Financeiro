@@ -88,9 +88,10 @@ export default function DashboardFinanceiroCotista() {
     if (!opcoesEnvio) {
       try {
         const envioOps = await buscarOpcoesEnvioPagamento();
-        setOpcoesEnvio(envioOps);
-        if (!aeronaveId && envioOps.aeronaves.length > 0) {
-          setAeronaveId(envioOps.aeronaves[0].id);
+        const aeronaves = Array.isArray(envioOps.aeronaves) ? envioOps.aeronaves : [];
+        setOpcoesEnvio({ ...envioOps, aeronaves });
+        if (!aeronaveId && aeronaves.length > 0) {
+          setAeronaveId(aeronaves[0].id);
         }
       } catch (error) {
         setErroAeronaves(error instanceof Error ? error.message : "Não foi possível carregar a lista de aeronaves.");
@@ -126,7 +127,8 @@ export default function DashboardFinanceiroCotista() {
   useEffect(() => { void carregarCotistas(); }, [carregarCotistas]);
   useEffect(() => { void carregar(); }, [carregar]);
 
-  const aeronaveSelecionada = opcoesEnvio?.aeronaves.find((a) => a.id === aeronaveId);
+  const aeronaves = opcoesEnvio?.aeronaves ?? [];
+  const aeronaveSelecionada = aeronaves.find((a) => a.id === aeronaveId);
   const idsCotistasAeronave = useMemo(() => new Set(cotistasAeronave.map((c) => c.id)), [cotistasAeronave]);
 
   const lancamentosFiltrados = useMemo(() => {
@@ -208,7 +210,7 @@ export default function DashboardFinanceiroCotista() {
             <Select value={aeronaveId} onValueChange={setAeronaveId}>
               <SelectTrigger className="h-9 w-full text-xs sm:w-[220px]"><SelectValue placeholder="Selecionar aeronave" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {opcoesEnvio?.aeronaves.map((a) => (
+                {aeronaves.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.matricula_registro} · {a.fabricante} {a.modelo}</SelectItem>
                 ))}
               </SelectContent>

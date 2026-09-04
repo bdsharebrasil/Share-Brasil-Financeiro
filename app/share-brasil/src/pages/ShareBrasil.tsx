@@ -42,6 +42,7 @@ export function DashboardShareBrasil({ aoNavegar }: { aoNavegar: (menu: string) 
     { menu: "contatos-clientes", label: "AGENDA\nCOTISTAS", detail: "Relacionamento", icon: Users, tone: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25" },
     { menu: "centro-treinamento", label: "CENTRO\nTREINAMENTO", detail: "Salas e materiais", icon: GraduationCap, tone: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/25" },
     { menu: "hoteis", label: "HOTÉIS", detail: "Reservas e contatos", icon: Building2, tone: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25" },
+    { menu: "aeronaves", label: "AERONAVES", detail: "Frota Share Brasil", icon: Plane, tone: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25" },
   ];
 
   return (

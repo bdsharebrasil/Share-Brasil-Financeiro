@@ -2579,7 +2579,36 @@ const PORTAL_SESSION_TTL = 8 * 60 * 60
 const PORTAL_PBKDF2_ITERATIONS = 100_000
 
 function portalDb(c: Context<{ Bindings: Bindings }>): D1Database {
-  return c.env.SHARE_DB
+  const database = c.env.SHARE_DB
+  const ddl = /^\s*(CREATE|ALTER|DROP|RENAME|VACUUM|REINDEX)\b/i
+  const blockedStatements = new WeakSet<object>()
+  const noopStatement = (): D1PreparedStatement => {
+    const statement = {
+      bind: (..._values: unknown[]) => statement,
+      first: async <T = unknown>() => null as T | null,
+      all: async <T = unknown>() => ({ results: [] as T[], success: true, meta: { changes: 0, duration: 0, last_row_id: 0, rows_read: 0, rows_written: 0 } }),
+      raw: async <T = unknown[]>() => [] as T,
+      run: async () => ({ success: true, meta: { changes: 0, duration: 0, last_row_id: 0, rows_read: 0, rows_written: 0 } }),
+      columnNames: async () => [],
+    } as unknown as D1PreparedStatement
+    blockedStatements.add(statement)
+    return statement
+  }
+  return {
+    ...database,
+    prepare(query: string) {
+      if (ddl.test(query)) return noopStatement()
+      return database.prepare(query)
+    },
+    batch(statements) {
+      if (statements.some((statement) => blockedStatements.has(statement))) return Promise.resolve([])
+      return database.batch(statements)
+    },
+    exec(query: string) {
+      if (ddl.test(query)) return Promise.resolve({ count: 0, duration: 0 })
+      return database.exec(query)
+    },
+  } as D1Database
 }
 
 async function garantirTabelasAuxiliares(c: Context<{ Bindings: Bindings }>): Promise<void> {
@@ -5531,7 +5560,7 @@ app.get('/api/interno/emails/contas-bancarias', async c => {
     const numero = campoDepartamento(row, ['numero_conta', 'conta_numero', 'conta']) || null
     const tipo = campoDepartamento(row, ['tipo_conta', 'tipo']) || null
     const cnpj = campoDepartamento(row, ['cnpj', 'documento']) || '30.898.549/0001-06'
-    const razao = campoDepartamento(row, ['razao_social', 'empresa', 'titular']) || 'Share Brasil Serviços Aeroportuários'
+    const razao = campoDepartamento(row, ['razao_social', 'empresa', 'titular']) || 'Share Brasil Serviços Aeroportuários Ltda'
     const pix = campoDepartamento(row, ['pix', 'chave_pix', 'pix_email']) || null
     const linhas = [`Banco ${banco || 'não informado'}`, agencia ? `Agência: ${agencia}` : '', numero ? `${tipo || 'Conta'}: ${numero}` : '', `CNPJ: ${cnpj}`, `Razão: ${razao}`, pix ? `PIX ${pix}` : ''].filter(Boolean)
     return { id: String(row.id), banco: banco || 'Conta bancária', agencia, numero_conta: numero, tipo_conta: tipo, cnpj, razao_social: razao, pix, texto: `Segue abaixo os dados bancários para pagamento:
@@ -5600,7 +5629,7 @@ app.post('/api/interno/emails', async c => {
 })
 // ─── Financeiro: emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ──
 const PAGADOR_PADRAO_RECIBO = {
-  nome: 'SHARE BRASIL SERVIÇOS AERONÁUTICOS',
+  nome: 'SHARE BRASIL SERVIÇOS AEROPORTUÁRIOS LTDA',
   documento: '30.868.504/0001-00',
   endereco: 'AV. PRESIDENTE ANTÔNIO BERNARDES, 5457',
   cidade: 'VÁRZEA GRANDE',
@@ -5612,6 +5641,12 @@ const PAGADOR_PADRAO_RECIBO = {
 // cotistas usa `cotista_aeronave` (cliente_id OU socio_id, cobrindo também clientes com holding).
 async function garantirTabelasRecibos(c: Context<{ Bindings: Bindings }>) {
   const db = portalDb(c)
+  const tabelas = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('recibos', 'recibo_rateio', 'recibo_anexos')").all<{ name: string }>()
+  const existentes = new Set(tabelas.results.map((item) => item.name))
+  const ausentes = ['recibos', 'recibo_rateio', 'recibo_anexos'].filter((nome) => !existentes.has(nome))
+  if (ausentes.length) throw new Error(`tabelas_de_recibo_ausentes: ${ausentes.join(', ')}`)
+  return
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS recibos (
     id TEXT PRIMARY KEY NOT NULL,
     numero_recibo TEXT NOT NULL,
@@ -5669,9 +5704,10 @@ async function garantirTabelasRecibos(c: Context<{ Bindings: Bindings }>) {
     percentual_sociedade REAL, percentual_uso REAL, valor_total REAL, valor_rateado REAL, status TEXT,
     observacoes TEXT, conferido_por TEXT, anexos_json TEXT DEFAULT '[]'
   )`).run().catch((error) => log.error('[recibos] rateio_hold indisponível:', error?.message || error))
-  for (const coluna of ['recebedor_nome TEXT', 'recebedor_cpf TEXT', 'numero_documento_anexo TEXT', 'anexo_id TEXT', 'pdf_anexo_id TEXT', 'pdf_url TEXT', 'observacoes TEXT', 'natureza_despesa TEXT', 'categoria_lancamento_id TEXT', 'lancamento_id TEXT', 'lancamento_reembolso_id TEXT', 'periodicidade TEXT', 'tipo_rateio TEXT', 'subcategoria_1 TEXT', 'subcategoria_2 TEXT', 'subcategoria_3 TEXT', 'subcategoria_4 TEXT', 'recibo_url TEXT']) await db.prepare(`ALTER TABLE recibos ADD COLUMN ${coluna}`).run().catch(() => undefined)
+  for (const coluna of ['cliente_id TEXT', 'recebedor_nome TEXT', 'recebedor_cpf TEXT', 'numero_documento_anexo TEXT', 'anexo_id TEXT', 'pdf_anexo_id TEXT', 'pdf_url TEXT', 'observacoes TEXT', 'natureza_despesa TEXT', 'categoria_lancamento_id TEXT', 'lancamento_id TEXT', 'lancamento_reembolso_id TEXT', 'periodicidade TEXT', 'tipo_rateio TEXT', 'subcategoria_1 TEXT', 'subcategoria_2 TEXT', 'subcategoria_3 TEXT', 'subcategoria_4 TEXT', 'recibo_url TEXT']) await db.prepare(`ALTER TABLE recibos ADD COLUMN ${coluna}`).run().catch(() => undefined)
   const schema = await db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recibos'").first<{ sql: string }>()
-  if (schema?.sql && !schema.sql.includes("'pagamento'")) {
+  const schemaSql = schema?.sql || ''
+  if (/CHECK\s*\(\s*tipo_recibo/i.test(schemaSql) && !schemaSql.includes("'pagamento'")) {
     await db.prepare('ALTER TABLE recibos RENAME TO recibos_legacy').run()
     await db.prepare(`CREATE TABLE recibos (
       id TEXT PRIMARY KEY NOT NULL, numero_recibo TEXT NOT NULL,
@@ -6365,54 +6401,60 @@ app.post('/api/financeiro/recibos', async c => {
       for (const linha of linhasRateio) {
         const rateioId = uuid()
         if (linha.socio_id) {
-          await db.prepare(`INSERT INTO rateio_hold (
-              id, categoria_nome, cotista_id, cotista_nome, aeronave_id, tipo_rateio, data_emissao_nf,
-              descricao_despesa, pago_por, pago_diretamente, percentual_sociedade, percentual_uso,
-              valor_total, valor_rateado, status, observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`)
-            .bind(rateioId, categoriaNome, linha.socio_id, linha.nome, body.aeronave_id || null, tipoRateio,
-              dataEmissao, descricao, linha.pago_por, ehPagamento ? 1 : regra.pagoDiretamente, linha.percentual, linha.percentual,
-              valor, linha.valor, observacoes).run()
+          await inserirLinhaDinamica(db, 'rateio_hold', {
+            id: rateioId, categoria_nome: categoriaNome, cotista_id: linha.socio_id, cotista_nome: linha.nome,
+            aeronave_id: body.aeronave_id || null, tipo_rateio: tipoRateio, data_emissao_nf: dataEmissao,
+            descricao_despesa: descricao, pago_por: linha.pago_por, pago_diretamente: ehPagamento ? 1 : regra.pagoDiretamente,
+            percentual_sociedade: linha.percentual, percentual_uso: linha.percentual, valor_total: valor,
+            valor_rateado: linha.valor, status: 'pendente', observacoes,
+          })
         } else {
-          await db.prepare(`INSERT INTO rateio_despesas (
-              id, lancamentos_id, tipo_rateio, fluxo, data_vencimento, data_emissao_nf, categoria_nome,
-              cotista_id, pago_por, pago_diretamente, aeronave_id, descricao_despesa,
-              valor_total, valor_rateado, status, observacoes
-            ) VALUES (?, ?, 'cliente', 'saida', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`)
-            .bind(rateioId, lancamentoId, body.data_vencimento || null, dataEmissao, categoriaNome,
-              linha.cotista_id, linha.pago_por, ehPagamento ? 1 : regra.pagoDiretamente, body.aeronave_id || null,
-              descricao, valor, linha.valor, `Rateio ${linha.percentual}% — ${linha.nome}`).run()
+          await inserirLinhaDinamica(db, 'rateio_despesas', {
+            id: rateioId, lancamentos_id: lancamentoId, tipo_rateio: 'cliente', data_vencimento: body.data_vencimento || null,
+            data_emissao_nf: dataEmissao, categoria_nome: categoriaNome, cotista_id: linha.cotista_id, pago_por: linha.pago_por,
+            pago_diretamente: ehPagamento ? 1 : regra.pagoDiretamente, aeronave_id: body.aeronave_id || null,
+            descricao_despesa: descricao, valor_total: valor, valor_rateado: linha.valor, status: 'pendente',
+            observacoes: `Rateio ${linha.percentual}% — ${linha.nome}`,
+          })
         }
-        await db.prepare('INSERT INTO recibo_rateio (id, recibo_id, rateio_despesas_id, cotista_id, nome, percentual, valor) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          .bind(uuid(), reciboId, rateioId, linha.cotista_id, linha.nome, linha.percentual, linha.valor).run()
+        await db.prepare('INSERT INTO recibo_rateio (id, recibo_id, rateio_despesas_id, nome, percentual, valor, cotista_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .bind(uuid(), reciboId, rateioId, linha.nome, linha.percentual, linha.valor, linha.cotista_id).run()
         rateioIdsGerados.push(rateioId)
       }
     } else if (ehPagamento && pagadorCotista) {
       const subcategorias = [body.subcategoria_1, body.subcategoria_2, body.subcategoria_3, body.subcategoria_4].map((item) => item ? String(item) : null)
       if (pagadorCotista.cliente_id) {
         const rateioId = uuid()
-        await db.prepare(`INSERT INTO rateio_despesas (id,lancamentos_id,tipo_rateio,data_emissao_nf,categoria_nome,cotista_id,pago_por,pago_diretamente,aeronave_id,descricao_despesa,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4,valor_total,valor_rateado,status,observacoes,numero_recibo,recibo_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
-          rateioId, lancamentoId, tipoRateio, dataEmissao, categoriaNome, pagadorCotista.cotista_id, pagadorCotista.cliente_id, 1, body.aeronave_id || null, descricao, ...subcategorias, valor, valor, 'pendente', observacoes, numeroRecibo, reciboUrl,
-        ).run()
+        await inserirLinhaDinamica(db, 'rateio_despesas', {
+          id: rateioId, lancamentos_id: lancamentoId, tipo_rateio: tipoRateio, data_emissao_nf: dataEmissao,
+          categoria_nome: categoriaNome, cotista_id: pagadorCotista.cotista_id, pago_por: pagadorCotista.cliente_id,
+          pago_diretamente: 1, aeronave_id: body.aeronave_id || null, descricao_despesa: descricao,
+          subcategoria_1: subcategorias[0], subcategoria_2: subcategorias[1], subcategoria_3: subcategorias[2],
+          subcategoria_4: subcategorias[3], valor_total: valor, valor_rateado: valor, status: 'pendente',
+          observacoes, numero_recibo: numeroRecibo, recibo_url: reciboUrl,
+        })
         rateioIdsGerados.push(rateioId)
       } else if (pagadorCotista.socio_id) {
         const rateioId = uuid()
-        await db.prepare(`INSERT INTO rateio_hold (id,categoria_nome,cotista_id,cotista_nome,aeronave_id,tipo_rateio,data_emissao_nf,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4,descricao_despesa,pago_por,pago_diretamente,percentual_sociedade,percentual_uso,valor_total,valor_rateado,status,observacoes,numero_recibo,recibo_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
-          rateioId, categoriaNome, pagadorCotista.socio_id, pagadorCotista.nome, body.aeronave_id || null, tipoRateio, dataEmissao, ...subcategorias, descricao, pagadorCotista.socio_id, 1, 100, 100, valor, valor, 'pendente', observacoes, numeroRecibo, reciboUrl,
-        ).run()
+        await inserirLinhaDinamica(db, 'rateio_hold', {
+          id: rateioId, categoria_nome: categoriaNome, cotista_id: pagadorCotista.socio_id, cotista_nome: pagadorCotista.nome,
+          aeronave_id: body.aeronave_id || null, tipo_rateio: tipoRateio, data_emissao_nf: dataEmissao,
+          subcategoria_1: subcategorias[0], subcategoria_2: subcategorias[1], subcategoria_3: subcategorias[2],
+          subcategoria_4: subcategorias[3], descricao_despesa: descricao, pago_por: pagadorCotista.socio_id,
+          pago_diretamente: 1, percentual_sociedade: 100, percentual_uso: 100, valor_total: valor,
+          valor_rateado: valor, status: 'pendente', observacoes, numero_recibo: numeroRecibo, recibo_url: reciboUrl,
+        })
         rateioIdsGerados.push(rateioId)
       }
     } else if (regra.rateio) {
         const rateioId = uuid()
         const pagoPor = regra.reembolsavel ? 'share' : body.cotista_id
-        await db.prepare(`INSERT INTO rateio_despesas (
-            id, lancamentos_id, tipo_rateio, fluxo, data_vencimento, data_emissao_nf, categoria_nome,
-            cotista_id, pago_por, pago_diretamente, aeronave_id, descricao_despesa,
-            valor_total, valor_rateado, status, observacoes
-          ) VALUES (?, ?, 'cliente', 'saida', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)`)
-          .bind(rateioId, lancamentoId, body.data_vencimento || null, dataEmissao, regra.grupo,
-            body.cotista_id, pagoPor, regra.pagoDiretamente, body.aeronave_id || null, descricao,
-            valor, valor, body.observacoes || null).run()
+        await inserirLinhaDinamica(db, 'rateio_despesas', {
+          id: rateioId, lancamentos_id: lancamentoId, tipo_rateio: 'cliente', data_vencimento: body.data_vencimento || null,
+          data_emissao_nf: dataEmissao, categoria_nome: regra.grupo, cotista_id: body.cotista_id, pago_por: pagoPor,
+          pago_diretamente: regra.pagoDiretamente, aeronave_id: body.aeronave_id || null, descricao_despesa: descricao,
+          valor_total: valor, valor_rateado: valor, status: 'pendente', observacoes: body.observacoes || null,
+        })
         rateioIdsGerados.push(rateioId)
     }
 
@@ -6420,21 +6462,20 @@ app.post('/api/financeiro/recibos', async c => {
     const tipoRecibo = ehPagamento ? 'pagamento' : beneficiarioTipo === 'colaborador' ? 'colaborador' : (reembolsavel ? 'cliente_reembolsavel' : 'cliente_direto')
     const statusRecibo = reembolsavel ? 'aguardando_reembolso' : 'emitido'
     await db.prepare(`INSERT INTO recibos (
-        id, numero_recibo, tipo_recibo, beneficiario_tipo, cliente_id, colaborador_id, recebedor_nome, recebedor_cpf, aeronave_id, rateado,
+        id, numero_recibo, tipo_recibo, beneficiario_tipo, cotista_id, colaborador_id, recebedor_nome, recebedor_cpf, aeronave_id, rateado,
         nome_pagador, documento_pagador, endereco_pagador, cidade_pagador, uf_pagador,
         valor, descricao_servico, data_emissao, data_vencimento, forma_pagamento,
-        numero_documento_anexo, anexo_id, observacoes, categoria_lancamento_id, tipo_despesa, grupo_categoria, tipo_caixa, status,
-        boleto_url, nf_url, lancamento_id, criado_por
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        numero_documento_anexo, anexo_id, observacoes, categoria_movimentacao_id, tipo_despesa, grupo_categoria, tipo_caixa, status,
+        boleto_url, nf_url, movimentacao_id, criado_por
+      ) VALUES (${new Array(32).fill('?').join(', ')})`)
       .bind(reciboId, numeroRecibo, tipoRecibo, beneficiarioTipo,
-        beneficiarioTipo === 'cliente' && !rateado ? body.cliente_id : null,
+        beneficiarioTipo === 'cliente' && !rateado ? clienteId : null,
         beneficiarioTipo === 'colaborador' ? body.colaborador_id : null,
         (ehPagamento || beneficiarioTipo === 'colaborador') ? recebedorNome : null, (ehPagamento || beneficiarioTipo === 'colaborador') ? recebedorCpf : null, body.aeronave_id || null, rateado ? 1 : 0,
         nomePagador, documentoPagador, enderecoPagador, cidadePagador, ufPagador,
         valor, descricao, dataEmissao, body.data_vencimento || null, ehPagamento ? body.forma_pagamento || null : null,
         body.numero_documento_anexo || null, body.anexo_id || null, observacoes, categoriaId || null, tipoDespesa, regra.grupo, regra.caixa, statusRecibo,
         body.boleto_url || null, body.nf_url || null, lancamentoId, user.id).run()
-    await db.prepare('UPDATE recibos SET natureza_despesa = ?1, periodicidade = ?2, tipo_rateio = ?3, subcategoria_1 = ?4, subcategoria_2 = ?5, subcategoria_3 = ?6, subcategoria_4 = ?7, recibo_url = ?8 WHERE id = ?9').bind(naturezaDespesa || null, body.periodicidade || null, body.tipo_rateio || null, body.subcategoria_1 || null, body.subcategoria_2 || null, body.subcategoria_3 || null, body.subcategoria_4 || null, reciboUrl, reciboId).run()
     for (const rateioId of rateioIdsGerados) {
       await db.prepare('UPDATE rateio_despesas SET numero_recibo = ?1, recibo_url = ?2 WHERE id = ?3').bind(numeroRecibo, reciboUrl, rateioId).run().catch(() => undefined)
       await db.prepare('UPDATE rateio_hold SET numero_recibo = ?1, recibo_url = ?2 WHERE id = ?3').bind(numeroRecibo, reciboUrl, rateioId).run().catch(() => undefined)
@@ -6466,7 +6507,7 @@ app.get('/api/financeiro/recibos/:id/visualizacao', async c => {
   if (!recibo) return c.notFound()
   const dinheiro = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(recibo.valor || 0))
   const esc = (value: unknown) => escapeHtml(String(value || '—'))
-  return c.html(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(recibo.numero_recibo)}</title><style>body{font-family:Arial,sans-serif;color:#263238;margin:36px;max-width:900px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #ccd2d6;padding-bottom:18px}img{width:220px;height:96px;object-fit:contain;object-position:left center}.title{text-align:center}.title h1{font-size:25px;text-decoration:underline}.number{text-align:right;font-size:12px}.value{border:2px solid #263238;font-size:18px;font-weight:700;padding:10px 24px;margin-top:12px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:40px;border-bottom:1px solid #ccd2d6;padding:24px 0;font-size:13px}.label{font-size:10px;font-weight:bold;color:#69757d;text-transform:uppercase}.table{margin-top:22px;border:1px solid #ccd2d6}.row{display:grid;grid-template-columns:1fr 160px 110px;padding:10px}.head{background:#e7eaed;font-weight:bold;font-size:12px}.details{margin-top:22px;border:1px solid #dde2e5;padding:14px;font-size:12px}@media print{body{margin:18mm}}</style></head><body><header><img src="data:image/png;base64,${SIGNATURE_LOGO_BASE64}" alt="Share Brasil"><div class="title"><h1>RECIBO</h1></div><div class="number"><b>Número do recibo:</b><br>${esc(recibo.numero_recibo)}<div class="value">${dinheiro}</div></div></header><section class="parties"><div><p class="label">${recibo.tipo_recibo === 'pagamento' ? 'Recebedor' : 'Pagador'}</p>${recibo.tipo_recibo === 'pagamento' ? `<b>${esc(recibo.recebedor_nome)}</b><br>` : `<b>SHARE BRASIL SERVIÇOS AERONÁUTICOS</b><br>CNPJ: 30.898.549/0001-06`}</div><div><p class="label">${recibo.tipo_recibo === 'pagamento' ? 'Pagador' : 'Recebedor'}</p>${recibo.tipo_recibo === 'pagamento' ? `<b>${esc(recibo.nome_pagador)}</b><br>${esc(recibo.documento_pagador)}<br>${esc(recibo.endereco_pagador)}<br>${esc([recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(' - '))}` : recibo.tipo_recibo === 'colaborador' ? `<b>${esc(recibo.recebedor_nome)}</b><br>CPF: ${esc(recibo.recebedor_cpf)}` : `<b>${esc(recibo.nome_pagador)}</b><br>${esc(recibo.documento_pagador)}<br>${esc(recibo.endereco_pagador)}<br>${esc([recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(' - '))}`}</div></section><div class="table"><div class="row head"><span>Descrição do Serviço</span><span>Nº Documento</span><span>Valor</span></div><div class="row"><span>${esc(recibo.descricao_servico)}</span><span>${esc(recibo.numero_documento_anexo)}</span><b>${dinheiro}</b></div></div>${carimboAssinaturaHtml(recibo.data_emissao)}</body></html>`)
+  return c.html(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(recibo.numero_recibo)}</title><style>body{font-family:Arial,sans-serif;color:#263238;margin:36px;max-width:900px}header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #ccd2d6;padding-bottom:18px}img{width:220px;height:96px;object-fit:contain;object-position:left center}.title{text-align:center}.title h1{font-size:25px;text-decoration:underline}.number{text-align:right;font-size:12px}.value{border:2px solid #263238;font-size:18px;font-weight:700;padding:10px 24px;margin-top:12px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:40px;border-bottom:1px solid #ccd2d6;padding:24px 0;font-size:13px}.label{font-size:10px;font-weight:bold;color:#69757d;text-transform:uppercase}.table{margin-top:22px;border:1px solid #ccd2d6}.row{display:grid;grid-template-columns:1fr 160px 110px;padding:10px}.head{background:#e7eaed;font-weight:bold;font-size:12px}.details{margin-top:22px;border:1px solid #dde2e5;padding:14px;font-size:12px}@media print{body{margin:18mm}}</style></head><body><header><img src="data:image/png;base64,${SIGNATURE_LOGO_BASE64}" alt="Share Brasil"><div class="title"><h1>RECIBO</h1></div><div class="number"><b>Número do recibo:</b><br>${esc(recibo.numero_recibo)}<div class="value">${dinheiro}</div></div></header><section class="parties"><div><p class="label">${recibo.tipo_recibo === 'pagamento' ? 'Recebedor' : 'Pagador'}</p>${recibo.tipo_recibo === 'pagamento' ? `<b>${esc(recibo.recebedor_nome)}</b><br>` : `<b>SHARE BRASIL SERVIÇOS AEROPORTUÁRIOS LTDA</b><br>CNPJ: 30.898.549/0001-06`}</div><div><p class="label">${recibo.tipo_recibo === 'pagamento' ? 'Pagador' : 'Recebedor'}</p>${recibo.tipo_recibo === 'pagamento' ? `<b>${esc(recibo.nome_pagador)}</b><br>${esc(recibo.documento_pagador)}<br>${esc(recibo.endereco_pagador)}<br>${esc([recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(' - '))}` : recibo.tipo_recibo === 'colaborador' ? `<b>${esc(recibo.recebedor_nome)}</b><br>CPF: ${esc(recibo.recebedor_cpf)}` : `<b>${esc(recibo.nome_pagador)}</b><br>${esc(recibo.documento_pagador)}<br>${esc(recibo.endereco_pagador)}<br>${esc([recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(' - '))}`}</div></section><div class="table"><div class="row head"><span>Descrição do Serviço</span><span>Nº Documento</span><span>Valor</span></div><div class="row"><span>${esc(recibo.descricao_servico)}</span><span>${esc(recibo.numero_documento_anexo)}</span><b>${dinheiro}</b></div></div>${carimboAssinaturaHtml(recibo.data_emissao)}</body></html>`)
 })
 
 // Cliente reembolsa a Share pelo valor que ela antecipou: fecha o ciclo de
@@ -6495,10 +6536,10 @@ app.post('/api/financeiro/recibos/:id/reembolso', async c => {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ENTRADA', ?, ?, 'SHARE', 0, 0, 1, 'PAGO', ?, ?)`)
     .bind(reembolsoId, recibo.aeronave_id, dataReembolso, `Reembolso recibo ${recibo.numero_recibo}`, null, null,
       'REEMBOLSOS ENTRADAS', 'REEMBOLSOS ENTRADAS', 'REEMBOLSO', null, valorReembolsoCentavos,
-      recibo.cliente_id || 'SHARE', body.observacoes || null, user.id).run()
+        recibo.cotista_id || 'SHARE', body.observacoes || null, user.id).run()
 
-  await db.prepare('UPDATE lancamentos SET reembolso_quitado = 1 WHERE id = ?1').bind(recibo.lancamento_id).run()
-  await db.prepare("UPDATE recibos SET status = 'reembolsado', lancamento_reembolso_id = ?1 WHERE id = ?2").bind(reembolsoId, recibo.id).run()
+      await db.prepare('UPDATE lancamentos SET reembolso_quitado = 1 WHERE id = ?1').bind(recibo.movimentacao_id).run()
+      await db.prepare("UPDATE recibos SET status = 'reembolsado', movimentacao_reembolso_id = ?1 WHERE id = ?2").bind(reembolsoId, recibo.id).run()
 
   return c.json({ ok: true, lancamento_reembolso_id: reembolsoId })
 })
@@ -6512,8 +6553,8 @@ app.post('/api/financeiro/recibos/:id/cancelar', async c => {
   if (!recibo) return c.notFound()
   if (recibo.status === 'reembolsado') return c.json({ error: 'recibo_ja_reembolsado_nao_pode_cancelar' }, 400)
   if (recibo.status === 'cancelado') return c.json({ ok: true })
-  await db.prepare("UPDATE lancamentos SET status = 'cancelado' WHERE id = ?1").bind(recibo.lancamento_id).run()
-  await db.prepare("UPDATE rateio_despesas SET status = 'cancelado' WHERE lancamentos_id = ?1").bind(recibo.lancamento_id).run()
+  await db.prepare("UPDATE lancamentos SET status = 'cancelado' WHERE id = ?1").bind(recibo.movimentacao_id).run()
+  await db.prepare("UPDATE rateio_despesas SET status = 'cancelado' WHERE lancamentos_id = ?1").bind(recibo.movimentacao_id).run()
   await db.prepare("UPDATE recibos SET status = 'cancelado' WHERE id = ?1").bind(recibo.id).run()
   return c.json({ ok: true })
 })
@@ -6561,7 +6602,6 @@ app.post('/api/financeiro/recibos/:id/pdf', async c => {
     await db.prepare('INSERT OR REPLACE INTO recibo_anexos (id, recibo_id, finalidade, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_arquivo, enviado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(anexoId, reciboId, 'pdf_gerado', file.name, key, file.type, file.size, user.id).run()
     const pdfUrl = new URL(`/api/financeiro/recibos/anexos/${encodeURIComponent(anexoId)}/arquivo`, c.req.url).toString()
-    await db.prepare('UPDATE recibos SET pdf_anexo_id = ?1, pdf_url = ?2 WHERE id = ?3').bind(anexoId, pdfUrl, reciboId).run()
     return c.json({ anexo_id: anexoId, pdf_url: pdfUrl }, 201)
   } catch (error: any) {
     return c.json({ error: error?.message || 'falha_ao_salvar_pdf' }, 400)

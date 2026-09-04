@@ -916,7 +916,47 @@ export type CriarReciboPayload = {
   rateio_linhas?: RateioLinhaEnvio[];
 };
 
-export function buscarOpcoesRecibos() { return colaboradorRequest<OpcoesRecibos>("/api/financeiro/recibos/opcoes"); }
+type RespostaOpcoesRecibos = Partial<OpcoesRecibos> & {
+  recebedores?: RecebedorRecibo[];
+  usuarios?: Array<Record<string, unknown>>;
+  freelancers?: Array<Record<string, unknown>>;
+  tripulantes?: Array<Record<string, unknown>>;
+  colaboradores?: ColaboradorRecibo[];
+};
+
+function normalizarRecebedor(item: Record<string, unknown>, origem: RecebedorRecibo["origem"], prefixo: string): RecebedorRecibo {
+  const nome = String(item.nome ?? item.nome_exibicao ?? item.nome_completo ?? item.email ?? "").trim();
+  return {
+    id: `${prefixo}:${String(item.id ?? nome)}`,
+    nome: nome || (origem === "tripulacao_freelancer" ? "Freelancer sem nome" : "Perfil sem nome"),
+    cpf: item.cpf ? String(item.cpf) : null,
+    email: item.email ? String(item.email) : null,
+    telefone: item.telefone ? String(item.telefone) : null,
+    tipo_user: item.tipo_user ? String(item.tipo_user) : origem === "tripulacao_freelancer" ? "freelancer" : null,
+    origem,
+    canac: item.canac ? String(item.canac) : null,
+  };
+}
+
+export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
+  const resposta = await colaboradorRequest<RespostaOpcoesRecibos>("/api/financeiro/recibos/opcoes");
+  const recebedorFallback = [
+    ...(Array.isArray(resposta.usuarios) ? resposta.usuarios.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.colaboradores) ? resposta.colaboradores.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.tripulantes) ? resposta.tripulantes.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+    ...(Array.isArray(resposta.freelancers) ? resposta.freelancers.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+  ];
+  const recebedores = Array.isArray(resposta.recebedores) && resposta.recebedores.length > 0 ? resposta.recebedores : recebedorFallback;
+  return {
+    clientes: Array.isArray(resposta.clientes) ? resposta.clientes : [],
+    colaboradores: Array.isArray(resposta.colaboradores) ? resposta.colaboradores : [],
+    aeronaves: Array.isArray(resposta.aeronaves) ? resposta.aeronaves : [],
+    cotistas: Array.isArray(resposta.cotistas) ? resposta.cotistas : [],
+    categorias: Array.isArray(resposta.categorias) ? resposta.categorias : [],
+    categorias_cliente: Array.isArray(resposta.categorias_cliente) ? resposta.categorias_cliente : [],
+    recebedores,
+  };
+}
 export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);

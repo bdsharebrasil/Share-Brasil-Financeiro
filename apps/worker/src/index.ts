@@ -6123,14 +6123,35 @@ app.get('/api/financeiro/recibos/opcoes', async c => {
                 ORDER BY ca.aeronave_id, nome`).all().catch(() => ({ results: [] as any[] })),
     buscarCategoriasRecibo(c),
     db.prepare('SELECT id, nome, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4 FROM categoria_movimentacao_cliente ORDER BY nome').all().catch(() => ({ results: [] as any[] })),
-    db.prepare("SELECT id, nome_completo, nome_exibicao, cpf, email, tipo_user, telefone, status FROM user_profiles WHERE status IS NULL OR lower(trim(COALESCE(status, ''))) IN ('', 'ativo', 'active') ORDER BY COALESCE(NULLIF(trim(nome_exibicao), ''), nome_completo, email)").all().catch(() => ({ results: [] as any[] })),
-    db.prepare("SELECT id, nome_completo, cpf, canac, telefone, status FROM tripulacao_freelancer WHERE status IS NULL OR lower(trim(COALESCE(status, ''))) IN ('', 'ativo', 'active') ORDER BY nome_completo").all().catch(() => ({ results: [] as any[] })),
+    db.prepare('SELECT * FROM user_profiles').all().catch(() => ({ results: [] as any[] })),
+    db.prepare('SELECT * FROM tripulacao_freelancer').all().catch(() => ({ results: [] as any[] })),
   ])
+  const ativo = (item: any) => {
+    const status = String(item.status || '').trim().toLowerCase()
+    return !status || status === 'ativo' || status === 'active'
+  }
+  const usuarios = (perfisRecebedores.results as any[]).filter(ativo).map((perfil) => ({
+    id: perfil.id,
+    nome: perfil.nome_exibicao || perfil.nome_completo || perfil.email || 'Perfil sem nome',
+    cpf: perfil.cpf || null,
+    email: perfil.email || null,
+    telefone: perfil.telefone || null,
+    tipo_user: perfil.tipo_user || null,
+  }))
+  const freelancers = (freelancersRecebedores.results as any[]).filter(ativo).map((freelancer) => ({
+    id: freelancer.id,
+    nome: freelancer.nome_completo || 'Freelancer sem nome',
+    cpf: freelancer.cpf || null,
+    email: freelancer.email || null,
+    telefone: freelancer.telefone || null,
+    canac: freelancer.canac || null,
+    tipo_user: 'freelancer',
+  }))
   const recebedores = [
-    ...(perfisRecebedores.results as any[]).map((perfil) => ({ id: `perfil:${perfil.id}`, nome: perfil.nome_exibicao || perfil.nome_completo || perfil.email || 'Perfil sem nome', cpf: perfil.cpf || null, email: perfil.email || null, telefone: perfil.telefone || null, tipo_user: perfil.tipo_user || null, origem: 'user_profiles' })),
-    ...(freelancersRecebedores.results as any[]).map((freelancer) => ({ id: `freelancer:${freelancer.id}`, nome: freelancer.nome_completo || 'Freelancer sem nome', cpf: freelancer.cpf || null, email: null, telefone: freelancer.telefone || null, canac: freelancer.canac || null, tipo_user: 'freelancer', origem: 'tripulacao_freelancer' })),
+    ...usuarios.map((usuario) => ({ ...usuario, id: `perfil:${usuario.id}`, origem: 'user_profiles' as const })),
+    ...freelancers.map((freelancer) => ({ ...freelancer, id: `freelancer:${freelancer.id}`, origem: 'tripulacao_freelancer' as const })),
   ]
-  return c.json({ clientes: clientes.results, colaboradores: colaboradores.results, aeronaves: aeronave.results, cotistas: cotistas.results, categorias, categorias_cliente: categoriasCliente.results, recebedores })
+  return c.json({ clientes: clientes.results, colaboradores: colaboradores.results, aeronaves: aeronave.results, cotistas: cotistas.results, categorias, categorias_cliente: categoriasCliente.results, recebedores, usuarios, freelancers })
 })
 
 app.get('/api/financeiro/recibos', async c => {

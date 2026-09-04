@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -86,8 +86,7 @@ export function SearchableCombobox({
       </PopoverTrigger>
       <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg", popoverClassName)} align="start" side="bottom">
         <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
-          <div className="flex items-center border-b border-border/50 px-3">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <div className="border-b border-border/50">
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}

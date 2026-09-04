@@ -3240,20 +3240,25 @@ app.delete('/api/interno/diario-bordo/lancamentos/:id', async c => {
 
 app.get('/api/interno/dashboard/financeiro', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const db = portalDb(c)
+  const schema = await db.prepare("SELECT name FROM pragma_table_info('lancamentos')").all<{ name: string }>()
+  const colunas = new Set((schema.results || []).map((item) => item.name))
+  const caixaColumn = colunas.has('caixa') ? 'caixa' : 'tipo_caixa'
+  const dataColumn = colunas.has('data') ? 'data' : colunas.has('data_pagamento') ? 'data_pagamento' : 'data_emissao_nf'
   const [resumo, lancamentos] = await Promise.all([
-    portalDb(c).prepare(`SELECT
+    db.prepare(`SELECT
       COALESCE(SUM(CASE WHEN lower(COALESCE(status, '')) NOT IN ('pago', 'cancelado') THEN COALESCE(valor_centavos, 0) ELSE 0 END), 0) / 100.0 AS total_a_receber,
       COALESCE(SUM(CASE WHEN lower(COALESCE(status, '')) IN ('pago', 'quitado', 'conciliado') THEN COALESCE(valor_centavos, 0) ELSE 0 END), 0) / 100.0 AS total_pago,
       SUM(CASE WHEN lower(COALESCE(status, '')) NOT IN ('pago', 'cancelado') THEN 1 ELSE 0 END) AS pendencias,
       SUM(CASE WHEN lower(COALESCE(status, '')) IN ('pago', 'quitado', 'conciliado') THEN 1 ELSE 0 END) AS pagamentos_confirmados
-      FROM lancamentos WHERE lower(COALESCE(caixa, 'share')) = 'share'`).first<Record<string, number>>(),
-    portalDb(c).prepare(`SELECT id, descricao, status, data AS data_pagamento, ROUND(COALESCE(valor_centavos, 0) / 100.0, 2) AS valor, observacoes, criado_em
+      FROM lancamentos WHERE lower(COALESCE(${caixaColumn}, 'share')) = 'share'`).first<Record<string, number>>(),
+    db.prepare(`SELECT id, descricao, status, ${dataColumn} AS data_pagamento, ROUND(COALESCE(valor_centavos, 0) / 100.0, 2) AS valor, observacoes, criado_em
       FROM lancamentos
-      WHERE lower(COALESCE(caixa, 'share')) = 'share'
-      ORDER BY date(data) DESC, criado_em DESC
+      WHERE lower(COALESCE(${caixaColumn}, 'share')) = 'share'
+      ORDER BY date(${dataColumn}) DESC, criado_em DESC
       LIMIT 20`).all(),
   ])
-  return c.json({ resumo: { total_a_receber: Number(resumo?.total_a_receber || 0), total_pago: Number(resumo?.total_pago || 0), pendencias: Number(resumo?.pendencias || 0), pagamentos_confirmados: Number(resumo?.pagamentos_confirmados || 0) }, movimentacoes: lancamentos.results })
+  return c.json({ resumo: { total_a_receber: Number(resumo?.total_a_receber || 0), total_pago: Number(resumo?.total_pago || 0), pendencias: Number(resumo?.pendencias || 0), pagamentos_confirmados: Number(resumo?.pagamentos_confirmados || 0) }, movimentacoes: lancamentos.results || [] })
 })
 
 type TripulanteDisponivel = {
@@ -7001,9 +7006,13 @@ async function garantirTabelaContas(c: Context<{ Bindings: Bindings }>): Promise
     db.prepare(`CREATE TABLE IF NOT EXISTS contas_areceber (id TEXT PRIMARY KEY NOT NULL, data_vencimento TEXT NOT NULL, valor REAL NOT NULL CHECK (valor >= 0), categoria_id TEXT, categoria_nome TEXT, descricao TEXT, criado_por TEXT, aeronave_id TEXT, fornecedor_id TEXT, cotista_id TEXT, boleto_url TEXT, nf_url TEXT, nf_saida_id TEXT, lancamentos_id TEXT, data_recebimento TEXT, banco_recebimento TEXT, comprovante_recebimento_url TEXT, data_pagamento TEXT, status TEXT NOT NULL DEFAULT 'PENDENTE' CHECK (status IN ('PENDENTE','RECEBIDO','CANCELADO','ATRASADO')), criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`),
   ])
   await db.prepare('ALTER TABLE contas_apagar ADD COLUMN colaborador_id TEXT').run().catch(() => undefined)
+  // Bases antigas usavam lancamento_id; o contrato atual usa lancamentos_id.
+  // Mantemos ambos durante a transição e sincronizamos os valores para não perder vínculos.
+  await db.prepare('ALTER TABLE contas_areceber ADD COLUMN lancamento_id TEXT').run().catch(() => undefined)
   await db.prepare('ALTER TABLE contas_areceber ADD COLUMN lancamentos_id TEXT').run().catch(() => undefined)
   await db.prepare('ALTER TABLE contas_areceber ADD COLUMN data_pagamento TEXT').run().catch(() => undefined)
-  await db.prepare('UPDATE contas_areceber SET lancamentos_id = lancamento_id WHERE lancamentos_id IS NULL AND lancamento_id IS NOT NULL').run().catch(() => undefined)
+  await db.prepare('UPDATE contas_areceber SET lancamentos_id = COALESCE(lancamentos_id, lancamento_id) WHERE lancamentos_id IS NULL OR lancamentos_id = \'\'').run().catch(() => undefined)
+  await db.prepare('UPDATE contas_areceber SET lancamento_id = lancamentos_id WHERE lancamento_id IS NULL AND lancamentos_id IS NOT NULL').run().catch(() => undefined)
 }
 
 function mapearContaAPagar(linha: LinhaGenerica): LinhaGenerica {
@@ -7048,7 +7057,7 @@ function mapearContaAReceber(linha: LinhaGenerica): LinhaGenerica {
     dataRecebimento: linha.data_recebimento,
     bancoRecebimento: linha.banco_recebimento,
     comprovanteRecebimentoUrl: linha.comprovante_recebimento_url,
-    lancamentoId: linha.lancamentos_id,
+    lancamentoId: linha.lancamentos_id ?? linha.lancamento_id,
     status: linha.status,
     criadoEm: linha.criado_em,
     atualizadoEm: linha.atualizado_em,
@@ -7086,7 +7095,14 @@ app.post('/api/contas-apagar/:id/dar-baixa', async c => {
   const comprovanteUrl = textoOuNulo(body.comprovantePagamentoUrl)
   if (!dataPagamento) return c.json({ error: 'data_pagamento_obrigatoria' }, 400)
   const db = portalDb(c)
-  await db.prepare(`UPDATE contas_apagar SET status = 'PAGO', data_pagamento = ?, banco_pagamento = ?, comprovante_pagamento_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataPagamento, bancoPagamento, comprovanteUrl, id).run()
+  const existente = await db.prepare('SELECT * FROM contas_apagar WHERE id = ?1').bind(id).first<LinhaGenerica>()
+  if (!existente) return c.json({ error: 'nao_encontrado' }, 404)
+  const lancamentoId = textoOuNulo(existente.lancamento_id)
+  const atualizacoes = [db.prepare(`UPDATE contas_apagar SET status = 'PAGO', data_pagamento = ?, banco_pagamento = ?, comprovante_pagamento_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataPagamento, bancoPagamento, comprovanteUrl, id)]
+  if (lancamentoId) {
+    atualizacoes.push(db.prepare(`UPDATE lancamentos SET status = 'pago', data_pagamento = COALESCE(?, data_pagamento), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataPagamento, lancamentoId))
+  }
+  await db.batch(atualizacoes)
   const row = await db.prepare('SELECT * FROM contas_apagar WHERE id = ?1').bind(id).first<LinhaGenerica>()
   return row ? c.json(mapearContaAPagar(row)) : c.json({ error: 'nao_encontrado' }, 404)
 })
@@ -7122,11 +7138,63 @@ app.post('/api/contas-areceber/:id/dar-baixa', async c => {
   const comprovanteUrl = textoOuNulo(body.comprovanteRecebimentoUrl)
   if (!dataRecebimento) return c.json({ error: 'data_recebimento_obrigatoria' }, 400)
   const db = portalDb(c)
-  await db.prepare(`UPDATE contas_areceber SET status = 'RECEBIDO', data_recebimento = ?, data_pagamento = ?, banco_recebimento = ?, comprovante_recebimento_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataRecebimento, dataRecebimento, bancoRecebimento, comprovanteUrl, id).run()
+  const existente = await db.prepare('SELECT * FROM contas_areceber WHERE id = ?1').bind(id).first<LinhaGenerica>()
+  if (!existente) return c.json({ error: 'nao_encontrado' }, 404)
+  const lancamentoId = textoOuNulo(existente.lancamentos_id ?? existente.lancamento_id)
+  const atualizacoes = [db.prepare(`UPDATE contas_areceber SET status = 'RECEBIDO', data_recebimento = ?, data_pagamento = ?, banco_recebimento = ?, comprovante_recebimento_url = ?, lancamentos_id = COALESCE(lancamentos_id, ?), lancamento_id = COALESCE(lancamento_id, ?), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataRecebimento, dataRecebimento, bancoRecebimento, comprovanteUrl, lancamentoId, lancamentoId, id)]
+  if (lancamentoId) {
+    atualizacoes.push(db.prepare(`UPDATE lancamentos SET status = 'recebido', data_pagamento = COALESCE(?, data_pagamento), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(dataRecebimento, lancamentoId))
+  }
+  await db.batch(atualizacoes)
   const row = await db.prepare('SELECT * FROM contas_areceber WHERE id = ?1').bind(id).first<LinhaGenerica>()
   return row ? c.json(mapearContaAReceber(row)) : c.json({ error: 'nao_encontrado' }, 404)
 })
 
+
+// ─── Aeronaves Share Brasil ───────────────────────────────────────────────────
+app.get('/api/sharebrasil/aeronaves', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const status = String(c.req.query('status') || '').trim().toLowerCase()
+  const filtro = status === 'inativa' ? " WHERE lower(COALESCE(a.status, 'ativa')) IN ('inativa', 'cancelada')" : status === 'todas' ? '' : " WHERE lower(COALESCE(a.status, 'ativa')) NOT IN ('inativa', 'cancelada')"
+  const rows = await portalDb(c).prepare(`SELECT a.*, p.categoria AS performance_categoria, p.teto_servico_ft AS performance_teto_servico_ft, p.nivel_cruzeiro_min_ft AS performance_nivel_cruzeiro_min_ft, p.nivel_cruzeiro_max_ft AS performance_nivel_cruzeiro_max_ft, p.aprovado_rvsm AS performance_aprovado_rvsm, p.velocidade_cruzeiro_kt AS performance_velocidade_cruzeiro_kt, p.taxa_subida_fpm AS performance_taxa_subida_fpm, p.taxa_descida_fpm AS performance_taxa_descida_fpm FROM aeronave a LEFT JOIN performance_aeronave p ON p.id = COALESCE(a.performance_aeronave_id, (SELECT p2.id FROM performance_aeronave p2 WHERE lower(p2.modelo) = lower(a.modelo) ORDER BY p2.atualizado_em DESC LIMIT 1))${filtro} ORDER BY a.matricula_registro`).all()
+  return c.json({ aeronaves: rows.results || [] })
+})
+app.get('/api/sharebrasil/aeronaves/:id', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const row = await portalDb(c).prepare(`SELECT a.*, p.id AS performance_id, p.categoria AS performance_categoria, p.modelo AS performance_modelo, p.teto_servico_ft AS performance_teto_servico_ft, p.nivel_cruzeiro_min_ft AS performance_nivel_cruzeiro_min_ft, p.nivel_cruzeiro_max_ft AS performance_nivel_cruzeiro_max_ft, p.aprovado_rvsm AS performance_aprovado_rvsm, p.velocidade_cruzeiro_kt AS performance_velocidade_cruzeiro_kt, p.taxa_subida_fpm AS performance_taxa_subida_fpm, p.taxa_descida_fpm AS performance_taxa_descida_fpm FROM aeronave a LEFT JOIN performance_aeronave p ON p.id = COALESCE(a.performance_aeronave_id, (SELECT p2.id FROM performance_aeronave p2 WHERE lower(p2.modelo) = lower(a.modelo) ORDER BY p2.atualizado_em DESC LIMIT 1)) WHERE a.id = ?`).bind(c.req.param('id')).first()
+  if (!row) return c.json({ error: 'aeronave_nao_encontrada' }, 404)
+  return c.json({ aeronave: row })
+})
+app.post('/api/sharebrasil/aeronaves', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const body: Record<string, any> = await c.req.json().catch(() => ({} as Record<string, any>))
+  const matricula = String(body.matricula_registro || '').trim().toUpperCase()
+  const fabricante = String(body.fabricante || '').trim()
+  const modelo = String(body.modelo || '').trim()
+  if (!matricula || !fabricante || !modelo) return c.json({ error: 'matricula_fabricante_modelo_obrigatorios' }, 400)
+  const db = portalDb(c)
+  const existente = await db.prepare('SELECT id FROM aeronave WHERE upper(matricula_registro) = ? LIMIT 1').bind(matricula).first()
+  if (existente) return c.json({ error: 'matricula_ja_cadastrada' }, 409)
+  const aeronaveId = uuid()
+  const performanceFields = ['categoria', 'modelo', 'teto_servico_ft', 'nivel_cruzeiro_min_ft', 'nivel_cruzeiro_max_ft', 'aprovado_rvsm', 'velocidade_cruzeiro_kt', 'taxa_subida_fpm', 'taxa_descida_fpm']
+  const performanceData = Object.fromEntries(performanceFields.filter((key) => body[key] !== undefined && body[key] !== '').map((key) => [key, key === 'aprovado_rvsm' ? (body[key] ? 1 : 0) : body[key]]))
+  let performanceId: string | null = null
+  if (Object.keys(performanceData).length) {
+    performanceId = uuid()
+    const cols = ['id', ...Object.keys(performanceData), 'criado_em', 'atualizado_em']
+    await db.prepare(`INSERT INTO performance_aeronave (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).bind(performanceId, ...Object.keys(performanceData).map((key) => performanceData[key]), new Date().toISOString(), new Date().toISOString()).run()
+  }
+  const aircraftData: Record<string, any> = { id: aeronaveId, matricula_registro: matricula, fabricante, modelo, numero_serie: body.numero_serie || null, nome_proprietario: body.nome_proprietario || null, status: body.status === 'inativa' ? 'inativa' : 'ativa', consumo_combustivel: body.consumo_combustivel || null, ano: body.ano || null, base: body.base || null, preco_hora: body.preco_hora || null, url_imagem: body.url_imagem || null, velocidade_cruzeiro: body.velocidade_cruzeiro || null, tipo_aeronave: body.tipo_aeronave || null, numero_motores: body.numero_motores || null, performance_aeronave_id: performanceId }
+  const schema = await db.prepare("SELECT name FROM pragma_table_info('aeronave')").all<{ name: string }>()
+  const existentes = new Set((schema.results || []).map((item) => item.name))
+  const colunas = Object.keys(aircraftData).filter((key) => existentes.has(key))
+  await db.prepare(`INSERT INTO aeronave (${colunas.join(',')}) VALUES (${colunas.map(() => '?').join(',')})`).bind(...colunas.map((key) => aircraftData[key])).run()
+  const criado = await db.prepare('SELECT * FROM aeronave WHERE id = ?').bind(aeronaveId).first()
+  return c.json({ aeronave: criado, performance_id: performanceId }, 201)
+})
 
 // ─── CTM: Controle de Troca e Manutenção ─────────────────────────────────────
 const CTM_READ_TABLES: Record<string, { table: string; order?: string }> = {
@@ -7168,7 +7236,7 @@ app.get('/api/ctm/dashboard', async c => {
     ctmRead(c, 'ctm_carregamentos', `${filtro} ORDER BY data_voo DESC`, id ? [id] : []),
   ])
   const totalOrcamento = (orcamentos.results || []).reduce((total: number, item: any) => total + Number(item.total || item.valor_total || 0), 0)
-  return c.json({ data: { aeronave: selecionada, programa: programa.results, diretrizes: diretrizes.results, componentes: componentes.results, oas: oas.results, orcamentos: orcamentos.results, ras: ras.results, carregamentos: carregamentos.results, resumo: { itens_manutencao: programa.results.length, proximos_vencimentos: programa.results.filter((item: any) => String(item.status || '').toLowerCase() !== 'concluido').length, diretrizes_pendentes: diretrizes.results.filter((item: any) => !['complied', 'concluido', 'conforme'].includes(String(item.status || '').toLowerCase())).length, componentes_atencao: componentes.results.filter((item: any) => !['ok', 'regular'].includes(String(item.status || '').toLowerCase())).length, ordens_abertas: oas.results.filter((item: any) => !['concluido', 'concluida', 'cancelado', 'cancelada'].includes(String(item.status || '').toLowerCase())).length, orcamento_total: totalOrcamento } } })
+  return c.json({ data: { aeronaves: aeronave.results, aeronave: selecionada, programa: programa.results, diretrizes: diretrizes.results, componentes: componentes.results, oas: oas.results, orcamentos: orcamentos.results, ras: ras.results, carregamentos: carregamentos.results, resumo: { itens_manutencao: programa.results.length, proximos_vencimentos: programa.results.filter((item: any) => String(item.status || '').toLowerCase() !== 'concluido').length, diretrizes_pendentes: diretrizes.results.filter((item: any) => !['complied', 'concluido', 'conforme'].includes(String(item.status || '').toLowerCase())).length, componentes_atencao: componentes.results.filter((item: any) => !['ok', 'regular'].includes(String(item.status || '').toLowerCase())).length, ordens_abertas: oas.results.filter((item: any) => !['concluido', 'concluida', 'cancelado', 'cancelada'].includes(String(item.status || '').toLowerCase())).length, orcamento_total: totalOrcamento } } })
 })
 for (const [slug, config] of Object.entries(CTM_READ_TABLES)) {
   app.get(`/api/ctm/${slug}`, async c => {

@@ -108,22 +108,6 @@ function valorNumerico(valor: string) {
   return Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo) || 0;
 }
 
-async function carregarImagem(src: string) {
-  const resposta = await fetch(src);
-  const blob = await resposta.blob();
-  const url = URL.createObjectURL(blob);
-  return await new Promise<HTMLImageElement>((resolve, reject) => {
-    const imagem = new Image();
-    imagem.onload = () => { URL.revokeObjectURL(url); resolve(imagem); };
-    imagem.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Não foi possível carregar a assinatura.")); };
-    imagem.src = url;
-  });
-}
-
-function dataExtenso(data: string) {
-  return new Date(`${data}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-}
-
 function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   if (recibo.pdf_anexo_id) return `/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.pdf_anexo_id)}/arquivo`;
   if (!recibo.pdf_url) return "";
@@ -135,7 +119,8 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   }
 }
 
-const ehPagamento = recibo.tipo_recibo === "pagamento" || recibo.beneficiario_tipo === "colaborador" || recibo.beneficiario_tipo === "freelancer";
+async function gerarPdfRecibo(recibo: ReciboFinanceiro, colaborador?: OpcoesRecibos["colaboradores"][number]) {
+  const ehPagamento = recibo.tipo_recibo === "pagamento" || recibo.beneficiario_tipo === "colaborador" || recibo.beneficiario_tipo === "freelancer";
   const nomeRecebedor = colaborador?.nome_completo || recibo.recebedor_nome || "";
   const documentoRecebedor = colaborador?.cpf || recibo.recebedor_cpf || "";
   const blob = await gerarReciboPdf({

@@ -56,7 +56,7 @@ export async function gerarReciboPdf(dados: DadosReciboPdf): Promise<Blob> {
   const valorTexto = moedaBRL(dados.valor);
 
   // Cabeçalho
-  pdf.addImage(logo, "PNG", margem, 14, 34, 12);
+  pdf.addImage(logo, "PNG", margem, 10, 42, 22);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16);
   pdf.text("RECIBO", 105, 22, { align: "center" });
@@ -151,13 +151,22 @@ export async function gerarReciboPdf(dados: DadosReciboPdf): Promise<Blob> {
   pdf.line(110, y + 1.5, 131, y + 1.5);
   pdf.line(142, y + 1.5, 158, y + 1.5);
 
-  // Rodapé
-  y += 22;
-  pdf.addImage(logo, "PNG", 88, y, 34, 12);
+  // Assinatura e rodapé: a assinatura fica acima da linha, como no recibo oficial.
+  y += 14;
+  pdf.addImage(assinatura, "PNG", 80, y, 50, 18);
+  pdf.setDrawColor(60);
+  pdf.setLineWidth(0.3);
+  pdf.line(75, y + 19, 135, y + 19);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.setTextColor(20);
+  pdf.text("Rolffe de Lima Erbe", 105, y + 25, { align: "center" });
+  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(110);
-  pdf.text("setor financeiro Share Brasil", 105, y + 17, { align: "center" });
-  pdf.addImage(assinatura, "PNG", 80, y + 21, 50, 18);
+  pdf.text("Gestor Responsável", 105, y + 30, { align: "center" });
+  pdf.addImage(logo, "PNG", 88, y + 35, 34, 12);
+  pdf.text("setor financeiro Share Brasil", 105, y + 51, { align: "center" });
 
   return pdf.output("blob");
 }

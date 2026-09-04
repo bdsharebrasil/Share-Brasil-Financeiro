@@ -17,12 +17,14 @@ function formatarData(iso: string): string {
 }
 
 function estaVencida(conta: ContaAReceber): boolean {
-  return conta.status === 'PENDENTE' && new Date(conta.dataVencimento) < new Date();
+  return (conta.status === 'PENDENTE' || conta.status === 'EM_ABERTO') && new Date(conta.dataVencimento) < new Date();
 }
 
 const CORES_STATUS: Record<StatusContaFinanceira, string> = {
+  EM_ABERTO: 'bg-amber-100 text-amber-700',
   PAGO: 'bg-emerald-100 text-emerald-700',
   PENDENTE: 'bg-amber-100 text-amber-700',
+  RECEBIDO: 'bg-emerald-100 text-emerald-700',
   ATRASADO: 'bg-red-100 text-red-700',
   CANCELADO: 'bg-neutral-200 text-neutral-500',
 };
@@ -58,8 +60,8 @@ export function AbaContasAReceber() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="PENDENTE">Pendentes</SelectItem>
-              <SelectItem value="PAGO">Recebidas</SelectItem>
+              <SelectItem value="EM_ABERTO">Pendentes</SelectItem>
+              <SelectItem value="RECEBIDO">Recebidas</SelectItem>
               <SelectItem value="CANCELADO">Canceladas</SelectItem>
             </SelectContent>
           </Select>
@@ -104,7 +106,7 @@ export function AbaContasAReceber() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {c.status === 'PENDENTE' && (
+                          {(c.status === 'PENDENTE' || c.status === 'EM_ABERTO') && (
                             <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>
                               Dar baixa
                             </Button>

@@ -6,7 +6,7 @@
 export type FluxoLancamento = 'ENTRADA' | 'SAIDA';
 export type CaixaLancamento = 'SHARE' | 'CLIENTE';
 export type StatusLancamento = 'PENDENTE' | 'PAGO' | 'CANCELADO';
-export type StatusContaFinanceira = 'PENDENTE' | 'PAGO' | 'CANCELADO' | 'ATRASADO';
+export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO';
 /** @deprecated use StatusContaFinanceira — mantido para não quebrar imports existentes */
 export type StatusContaAPagar = StatusContaFinanceira;
 

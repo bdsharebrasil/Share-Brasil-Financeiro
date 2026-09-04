@@ -159,7 +159,7 @@ export async function darBaixaContaAReceber(
     method: 'POST',
     body: JSON.stringify(dados),
   });
-  return { ...conta, status: conta.status === 'RECEBIDO' ? 'PAGO' : conta.status };
+  return conta;
 }
 
 // ---------- Catálogos (fornecedores e categorias) ----------

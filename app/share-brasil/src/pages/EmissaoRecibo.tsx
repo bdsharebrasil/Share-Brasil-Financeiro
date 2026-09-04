@@ -119,23 +119,69 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   }
 }
 
-async function gerarPdfRecibo(recibo: ReciboFinanceiro, colaborador?: OpcoesRecibos["colaboradores"][number]) {
-  const ehPagamento = recibo.tipo_recibo === "pagamento" || recibo.beneficiario_tipo === "colaborador" || recibo.beneficiario_tipo === "freelancer";
-  const nomeRecebedor = colaborador?.nome_completo || recibo.recebedor_nome || "";
-  const documentoRecebedor = colaborador?.cpf || recibo.recebedor_cpf || "";
+async function gerarPdfRecibo(
+  recibo: ReciboFinanceiro,
+  colaborador?: OpcoesRecibos["colaboradores"][number],
+) {
+  const ehPagamento =
+    recibo.tipo_recibo === "pagamento" ||
+    recibo.beneficiario_tipo === "colaborador" ||
+    recibo.beneficiario_tipo === "freelancer";
+
+  const nomeRecebedor =
+    colaborador?.nome_completo ||
+    recibo.recebedor_nome ||
+    "";
+
+  const documentoRecebedor =
+    colaborador?.cpf ||
+    recibo.recebedor_cpf ||
+    "";
+
   const blob = await gerarReciboPdf({
     numero: recibo.numero_recibo,
     valor: Number(recibo.valor || 0),
-    descricao: [recibo.descricao_servico, recibo.observacoes].filter(Boolean).join("\n\n"),
+    descricao: [
+      recibo.descricao_servico,
+      recibo.observacoes,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     data: recibo.data_emissao,
-    rotuloPagador: ehPagamento ? "RECEBEDOR" : "PAGADOR",
-    pagadorNome: ehPagamento ? nomeRecebedor || "—" : recibo.nome_pagador || "—",
+    rotuloPagador: ehPagamento
+      ? "RECEBEDOR"
+      : "PAGADOR",
+    pagadorNome: ehPagamento
+      ? nomeRecebedor || "—"
+      : recibo.nome_pagador || "—",
     pagadorDocumento: ehPagamento
-      ? documentoRecebedor ? `CPF: ${documentoRecebedor}` : null
-      : recibo.documento_pagador ? `CNPJ/CPF: ${recibo.documento_pagador}` : null,
-    pagadorLinhas: ehPagamento ? [] : [recibo.endereco_pagador, [recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(" - ")],
+      ? documentoRecebedor
+        ? `CPF: ${documentoRecebedor}`
+        : null
+      : recibo.documento_pagador
+        ? `CNPJ/CPF: ${recibo.documento_pagador}`
+        : null,
+    pagadorLinhas: ehPagamento
+      ? []
+      : [
+          recibo.endereco_pagador,
+          [
+            recibo.cidade_pagador,
+            recibo.uf_pagador,
+          ]
+            .filter(Boolean)
+            .join(" - "),
+        ],
   });
-  return new File([blob], `${recibo.numero_recibo.replace(/[^a-z0-9-]/gi, "-")}.pdf`, { type: "application/pdf" });
+
+  return new File(
+    [blob],
+    `${recibo.numero_recibo.replace(
+      /[^a-z0-9-]/gi,
+      "-",
+    )}.pdf`,
+    { type: "application/pdf" },
+  );
 }
 
 export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {

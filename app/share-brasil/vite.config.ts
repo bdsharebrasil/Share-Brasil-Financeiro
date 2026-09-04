@@ -7,7 +7,7 @@ const port = Number(process.env.PORT || 4175);
 const outputDir = path.resolve(import.meta.dirname, 'dist/public');
 const apiProxy = {
   '/api': {
-    target: 'https://api-workers.sharebrasil.workers.dev',
+    target: 'https://api.share-brasil.com',
     changeOrigin: true,
     secure: true,
     ws: true,

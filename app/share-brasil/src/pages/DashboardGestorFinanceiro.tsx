@@ -65,12 +65,17 @@ export default function DashboardGestorFinanceiro() {
     if (silencioso) setAtualizando(true); else setCarregando(true);
     setErro(null);
     try {
-      const [balanco, novasOpcoes] = await Promise.all([
-        buscarBalancoEconomico(inicio, fim),
-        opcoes ? Promise.resolve(opcoes) : buscarOpcoesLancamento(),
-      ]);
+      const balanco = await buscarBalancoEconomico(inicio, fim);
       setDados(balanco);
-      if (!opcoes) setOpcoes(novasOpcoes);
+      if (!opcoes) {
+        try {
+          setOpcoes(await buscarOpcoesLancamento());
+        } catch {
+          // As opções são necessárias apenas para criar lançamentos; não devem
+          // bloquear a visualização do balanço já carregado.
+          setOpcoes({ categorias: [], contas_bancarias: [], cotistas: [], holdings: [], pagadores: [] });
+        }
+      }
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar os dados financeiros reais.");
     } finally {

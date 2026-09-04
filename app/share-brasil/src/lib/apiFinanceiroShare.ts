@@ -16,28 +16,20 @@ import type {
   FornecedorFavorito,
   Lancamento,
 } from '../components/financeiro-share/tipos';
+import { API_BASE } from './api';
 import { supabase } from './supabase';
 
-const BASE_URL = import.meta.env.VITE_API_URL as string;
-
-async function requisitar<T>(caminho: string, opcoes?: RequestInit): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const headers = new Headers(opcoes?.headers);
-  headers.set('Content-Type', 'application/json');
-  if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
-  const resposta = await fetch(`${BASE_URL}${caminho}`, {
-    ...opcoes,
-    headers,
-  });
-
-  if (!resposta.ok) {
-    const corpo = await resposta.text().catch(() => '');
-    throw new Error(
-      `Falha ao chamar ${caminho} (status ${resposta.status}): ${corpo || resposta.statusText}`
-    );
-  }
-
-  return resposta.json() as Promise<T>;
+async function requisitar<T>(caminho: string, opcoes: RequestInit = {}): Promise<T> {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw new Error('sessao_expirada');
+  if (!session?.access_token) throw new Error('sessao_nao_encontrada');
+  const headers = new Headers(opcoes.headers);
+  if (opcoes.body && !headers.has('Content-Type') && !(opcoes.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+  headers.set('Authorization', `Bearer ${session.access_token}`);
+  const resposta = await fetch(`${API_BASE}${caminho}`, { ...opcoes, headers, credentials: 'omit' });
+  const corpo = await resposta.json().catch(() => null) as { error?: string } | null;
+  if (!resposta.ok) throw new Error(corpo?.error || `api_${resposta.status}`);
+  return corpo as T;
 }
 
 function paraQueryString(filtros: Record<string, string | undefined>): string {
@@ -51,25 +43,48 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
 
 // ---------- Caixa da empresa (lancamentos, caixa='SHARE') ----------
 
-export function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Promise<Lancamento[]> {
-  const query = paraQueryString({
-    caixa: 'SHARE',
-    competencia: filtros.competencia,
-    fluxo: filtros.fluxo,
-    status: filtros.status,
-    categoriaId: filtros.categoriaId,
-  });
-  return requisitar<Lancamento[] | { lancamentos?: Lancamento[] }>(`/api/lancamentos${query}`)
-    .then((resposta) => Array.isArray(resposta) ? resposta : resposta.lancamentos ?? []);
+function normalizarLancamento(row: any): Lancamento {
+  return {
+    id: String(row.id ?? ''), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null,
+    data: String(row.data ?? row.data_emissao ?? row.criado_em ?? '').slice(0, 10),
+    descricao: String(row.descricao ?? ''), documento: row.documento ?? row.numero_doc ?? null,
+    fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? null,
+    categoria: String(row.categoria ?? row.categoria_nome ?? 'SEM CATEGORIA'), categoriaId: row.categoriaId ?? row.categoria_id ?? null,
+    grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ''), tipo: row.tipo ?? row.tipo_despesa ?? null,
+    prazo: row.prazo ?? row.data_vencimento ?? null, fluxo: String(row.fluxo ?? 'SAIDA').toUpperCase() === 'ENTRADA' ? 'ENTRADA' : 'SAIDA',
+    valorCentavos: Number(row.valorCentavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
+    pagoPor: String(row.pagoPor ?? row.pago_por ?? ''), caixa: String(row.caixa ?? row.tipo_caixa ?? 'SHARE').toUpperCase() === 'CLIENTE' ? 'CLIENTE' : 'SHARE',
+    pagoDiretamente: Boolean(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel),
+    reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? 'PENDENTE').toUpperCase() as Lancamento['status'],
+    observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
+    criadoEm: String(row.criadoEm ?? row.criado_em ?? ''), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ''),
+  };
 }
 
-export function criarLancamentoShare(
-  lancamento: Omit<Lancamento, 'id' | 'criadoEm' | 'atualizadoEm'>
-): Promise<Lancamento> {
-  return requisitar<Lancamento>('/api/lancamentos', {
-    method: 'POST',
-    body: JSON.stringify(lancamento),
-  });
+function periodoCompetencia(competencia?: string) {
+  if (!competencia) return { inicio: undefined, fim: undefined };
+  const [ano, mes] = competencia.split('-').map(Number);
+  if (!ano || !mes) return { inicio: undefined, fim: undefined };
+  return { inicio: `${competencia}-01`, fim: new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10) };
+}
+
+export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Promise<Lancamento[]> {
+  const periodo = periodoCompetencia(filtros.competencia);
+  const resposta = await requisitar<{ lancamentos?: unknown[] }>(`/api/lancamentos${paraQueryString({ caixa: 'SHARE', inicio: periodo.inicio, fim: periodo.fim })}`);
+  return (resposta.lancamentos ?? []).map(normalizarLancamento).filter((item) =>
+    (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
+}
+
+export async function criarLancamentoShare(lancamento: Omit<Lancamento, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Lancamento> {
+  const resposta = await requisitar<{ lancamento: unknown }>('/api/lancamentos', { method: 'POST', body: JSON.stringify({
+    descricao: lancamento.descricao, fluxo: lancamento.fluxo, categoria: lancamento.categoria, categoria_id: lancamento.categoriaId,
+    grupo_categoria: lancamento.grupoCategoria, valor_total: lancamento.valorCentavos / 100, data_emissao: lancamento.data,
+    data_vencimento: lancamento.prazo, aeronave_id: lancamento.aeronaveId, fornecedor: lancamento.fornecedor, fornecedor_id: lancamento.fornecedorId,
+    numero_doc: lancamento.documento, status: lancamento.status, pago_por: lancamento.pagoPor, tipo_caixa: lancamento.caixa,
+    pago_diretamente: lancamento.pagoDiretamente, reembolsavel: lancamento.reembolsavel, reembolso_quitado: lancamento.reembolsoQuitado,
+    observacoes: lancamento.observacoes,
+  }) });
+  return normalizarLancamento(resposta.lancamento);
 }
 
 // ---------- Contas a pagar ----------
@@ -116,14 +131,15 @@ export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promi
  * bug de "conta virtual sem correspondência" já corrigido no Supabase
  * (ContasReceber.tsx).
  */
-export function darBaixaContaAReceber(
+export async function darBaixaContaAReceber(
   id: string,
   dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }
 ): Promise<ContaAReceber> {
-  return requisitar<ContaAReceber>(`/api/contas-areceber/${id}/dar-baixa`, {
+  const conta = await requisitar<ContaAReceber>(`/api/contas-areceber/${id}/dar-baixa`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });
+  return { ...conta, status: conta.status === 'RECEBIDO' ? 'PAGO' : conta.status };
 }
 
 // ---------- Catálogos (fornecedores e categorias) ----------
@@ -132,6 +148,11 @@ export function buscarFornecedoresFavoritos(): Promise<FornecedorFavorito[]> {
   return requisitar<FornecedorFavorito[]>('/api/fornecedores-favoritos');
 }
 
-export function buscarCategoriasShare(): Promise<CategoriaMovimentacaoShare[]> {
-  return requisitar<CategoriaMovimentacaoShare[]>('/api/categorias-movimentacao-share');
+export async function buscarCategoriasShare(): Promise<CategoriaMovimentacaoShare[]> {
+  const resposta = await requisitar<{ categorias?: any[] }>('/api/lancamentos/opcoes');
+  return (resposta.categorias ?? []).map((categoria) => ({
+    id: String(categoria.id), nome: String(categoria.nome ?? categoria.descricao ?? ''), tipo: categoria.tipo ?? null,
+    reembolsavel: Boolean(categoria.reembolsavel), grupoCategoria: categoria.grupoCategoria ?? categoria.grupo ?? null,
+    tipoDespesa: categoria.tipoDespesa ?? categoria.classificacao ?? null, categoriaClienteId: categoria.categoriaClienteId ?? null,
+  }));
 }

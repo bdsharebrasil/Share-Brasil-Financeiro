@@ -50,6 +50,7 @@ interface NFSaida {
   socio_id: string | null;
   cliente_nome: string | null;
   cliente_cnpj: string | null;
+  cliente_email?: string | null;
   data_criacao: string | null;
   data_vencimento: string | null;
   valor: number | string | null;
@@ -251,6 +252,7 @@ export default function NFSaidaTab() {
     socio_id: n.socio_id,
     cliente_nome: n.cliente_nome,
     cliente_cnpj: n.cliente_cnpj,
+    cliente_email: n.cliente_email ?? null,
     data_criacao: n.data_criacao ?? null,
     data_vencimento: n.data_vencimento,
     valor: n.valor ?? null,
@@ -274,6 +276,7 @@ export default function NFSaidaTab() {
     socio_id: r.socio_id,
     cliente_nome: r.cliente_nome,
     cliente_cnpj: r.cliente_cnpj,
+    cliente_email: r.cliente_email ?? null,
     data_criacao: r.data_emissao ?? null,
     data_vencimento: r.data_vencimento,
     valor: r.valor_total ?? null,
@@ -330,7 +333,7 @@ export default function NFSaidaTab() {
   const summary = useMemo(() => {
     const total = notas.length;
     const totalPendente = notas
-      .filter((n) => (n.status ?? "").toLowerCase() === "pendente")
+      .filter((n) => ["pendente", "em_aberto", "aberto"].includes((n.status ?? "").toLowerCase()))
       .reduce((s, n) => s + num(n.valor), 0);
     const totalRecebido = notas
       .filter((n) => (n.status ?? "").toLowerCase() === "recebido")
@@ -545,7 +548,7 @@ export default function NFSaidaTab() {
       const { recibo } = await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
       const numeroRecibo = String(recibo.numero_recibo || "");
       const pdfData = await normalizeReceiptForPdf({ receipt_number: numeroRecibo, payer_name: form.cliente_nome.trim(), payer_document: form.cliente_cnpj.trim(), service_description: descricaoServico, receipt_type: "pagamento", issue_date: form.data_criacao, max_payment_date: dataVencimentoFinal, nome_categoria: form.categoria, valor: Number(form.valor) || 0 });
-      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfData, `${numeroRecibo}.pdf`);
+      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfData, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
       setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();
@@ -633,7 +636,7 @@ export default function NFSaidaTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
           { label: "Total Notas", value: String(summary.total), icon: FileText, color: "#38bdf8" },
-          { label: "Total Pendente", value: formatBRL(summary.totalPendente), icon: Clock, color: "#fbbf24" },
+          { label: "Total em Aberto", value: formatBRL(summary.totalPendente), icon: Clock, color: "#fbbf24" },
           { label: "Total Recebido", value: formatBRL(summary.totalRecebido), icon: DollarSign, color: "#4ade80" },
         ].map((c) => {
           const Icon = c.icon;
@@ -862,9 +865,9 @@ export default function NFSaidaTab() {
         <section className="rounded-2xl border border-border/70 bg-card/35 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 md:px-7"><div><button type="button" onClick={voltarParaAnos} className="mb-2 inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"><ArrowLeft className="h-4 w-4" /> Voltar para anos</button><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Lançamentos do cotista</p><h2 className="mt-1 text-xl font-black">{clienteSelecionado} <span className="text-muted-foreground">/ {anoSelecionado}</span></h2></div><span className="rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{registrosDoAno.length} lançamento(s)</span></div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] text-xs"><thead><tr className="border-b border-border/70 bg-secondary/30 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3">Número</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Emissão</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Nome categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-center">PDF</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>
+            <table className="w-full min-w-[1120px] text-xs"><thead><tr className="border-b border-border/70 bg-secondary/30 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3">Número</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Emissão</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Nome categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-center">PDF</th><th className="px-4 py-3 text-center">E-mail</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>
               {registrosDoAno.map((n) => { const status = String(n.status || "").toLowerCase(); const isPendente = ["pendente", "em_aberto", "aberto"].includes(status); return <tr key={n.id} className="border-b border-border/50 transition-colors hover:bg-primary/[.035]">
-                <td className="px-4 py-3 font-mono text-[11px] font-bold text-foreground">{n.numero || "—"}</td><td className="px-4 py-3 font-medium text-muted-foreground">{n.cliente_nome || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.aeronave || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td><td className="px-4 py-3 text-right font-bold text-foreground">{formatBRL(num(n.valor))}</td><td className="max-w-[190px] truncate px-4 py-3 text-muted-foreground" title={n.categoria || ""}>{n.categoria || "—"}</td><td className="px-4 py-3"><StatusBadge status={n.status} /></td><td className="px-4 py-3 text-center">{n.arquivo_pdf_url ? <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" title="Abrir PDF" className="inline-flex rounded-lg border border-primary/20 bg-primary/[.07] p-2 text-primary hover:bg-primary/15"><Download className="h-3.5 w-3.5" /></a> : <span className="text-muted-foreground">—</span>}</td><td className="px-4 py-3"><div className="flex justify-end gap-1.5"><button type="button" title="Enviar por e-mail" onClick={() => { setEmailTarget(n); setEmailOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/[.07] px-2.5 py-2 text-[10px] font-bold text-primary hover:bg-primary/15"><Mail className="h-3.5 w-3.5" /> E-mail</button>{isPendente && n.contas_areceber_id && <button type="button" title="Dar baixa" onClick={() => openBaixa(n)} className="rounded-lg border border-emerald-400/25 bg-emerald-400/[.08] p-2 text-emerald-500 hover:bg-emerald-400/15"><Banknote className="h-3.5 w-3.5" /></button>}{n.origem === "nf_saida" && <button type="button" title="Editar" onClick={() => openEdit(n)} className="rounded-lg border border-border bg-card/70 p-2 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}<button type="button" title="Excluir" onClick={() => setDeleteId(n.id)} className="rounded-lg border border-red-400/25 bg-red-400/[.06] p-2 text-red-500 hover:bg-red-400/15"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
+                <td className="px-4 py-3 font-mono text-[11px] font-bold text-foreground">{n.numero || "—"}</td><td className="px-4 py-3 font-medium text-muted-foreground">{n.cliente_nome || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.aeronave || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td><td className="px-4 py-3 text-right font-bold text-foreground">{formatBRL(num(n.valor))}</td><td className="max-w-[190px] truncate px-4 py-3 text-muted-foreground" title={n.categoria || ""}>{n.categoria || "—"}</td><td className="px-4 py-3"><StatusBadge status={n.status} /></td><td className="px-4 py-3 text-center">{n.arquivo_pdf_url ? <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" title="Abrir PDF" className="inline-flex rounded-lg border border-primary/20 bg-primary/[.07] p-2 text-primary hover:bg-primary/15"><Download className="h-3.5 w-3.5" /></a> : <span className="text-muted-foreground">—</span>}</td><td className="px-4 py-3 text-center"><button type="button" title="Enviar por e-mail" onClick={() => { setEmailTarget(n); setEmailOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/[.07] px-2.5 py-2 text-[10px] font-bold text-primary hover:bg-primary/15"><Mail className="h-3.5 w-3.5" /> Enviar</button></td><td className="px-4 py-3"><div className="flex justify-end gap-1.5">{isPendente && n.contas_areceber_id && <button type="button" title="Dar baixa" onClick={() => openBaixa(n)} className="rounded-lg border border-emerald-400/25 bg-emerald-400/[.08] p-2 text-emerald-500 hover:bg-emerald-400/15"><Banknote className="h-3.5 w-3.5" /></button>}{n.origem === "nf_saida" && <button type="button" title="Editar" onClick={() => openEdit(n)} className="rounded-lg border border-border bg-card/70 p-2 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}<button type="button" title="Excluir" onClick={() => setDeleteId(n.id)} className="rounded-lg border border-red-400/25 bg-red-400/[.06] p-2 text-red-500 hover:bg-red-400/15"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
               </tr>; })}
             </tbody></table>
           </div>
@@ -889,13 +892,10 @@ export default function NFSaidaTab() {
         <EnviarEmailClienteDialog
           open={emailOpen}
           onOpenChange={setEmailOpen}
-          clienteId={emailTarget.cliente_id || null}
           assuntoSugerido={`${emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal"} de saída ${emailTarget.numero || "sem número"}${emailTarget.cliente_nome ? ` — ${emailTarget.cliente_nome}` : ""}`}
           mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${emailTarget.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${emailTarget.numero || "—"}\nValor: ${formatBRL(num(emailTarget.valor))}\nData de emissão: ${emailTarget.data_criacao ? formatDate(emailTarget.data_criacao) : "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
-          anexos={emailTarget.arquivo_pdf_url ? [{ url: emailTarget.arquivo_pdf_url, label: emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal", filename: getFileNameFromUrl(emailTarget.arquivo_pdf_url) }] : []}
-          tipo={emailTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}
-          referenceType={emailTarget.origem === "recibo_saida" ? "recibos_saida" : "notas_fiscais_saida"}
-          referenceIds={emailTarget.id ? [emailTarget.id] : []}
+          destinatarioInicial={emailTarget.cliente_email || ""}
+          anexos={emailTarget.arquivo_pdf_url ? [{ id: `${emailTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}:${emailTarget.id}`, url: emailTarget.arquivo_pdf_url, label: emailTarget.origem === "recibo_saida" ? "Recibo de saída" : "Nota fiscal de saída", filename: getFileNameFromUrl(emailTarget.arquivo_pdf_url) }] : []}
         />
       )}
 

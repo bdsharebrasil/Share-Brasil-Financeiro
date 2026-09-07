@@ -1,0 +1,1066 @@
+import { supabase } from "@/lib/supabase";
+import { API_BASE } from "@/lib/api";
+
+export type PerfilColaborador = {
+  id: string;
+  email: string;
+  nome_completo: string;
+  nome_exibicao: string | null;
+  foto_url: string | null;
+  url_avatar?: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  uf: string | null;
+  telefone: string | null;
+  data_criacao: string;
+  data_atualizacao: string;
+  data_nascimento: string | null;
+  data_admissao: string | null;
+  cpf: string | null;
+  rg: string | null;
+  canac: string | null;
+  status: string;
+  nome_banco: string | null;
+  tipo_conta: string | null;
+  conta_numero: string | null;
+  agencia_numero: string | null;
+  tipo_chave_pix: string | null;
+  pix: string | null;
+  tipo_user: string | null;
+  departamento: string | null;
+  cliente_id: string | null;
+  dias_ferias_direito: number;
+};
+
+export type PagamentoColaborador = {
+  id: string;
+  descricao: string;
+  competencia: string | null;
+  data_pagamento: string | null;
+  valor: number;
+  status: "pago" | "pendente" | "cancelado";
+  observacoes: string | null;
+};
+
+export type DocumentoPessoal = {
+  id: string;
+  tipo_documento: string;
+  nome_arquivo: string;
+  mime_type: string;
+  tamanho_bytes: number;
+  status: "em_analise" | "aprovado" | "reprovado";
+  criado_em: string;
+  atualizado_em: string;
+  arquivo_url: string;
+};
+
+export type FuncaoColaborador = {
+  id: string;
+  funcao: string;
+  criado_em: string | null;
+};
+
+export type SolicitacaoFerias = {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  quantidade_dias: number;
+  status: "solicitada" | "aprovada" | "reprovada" | "cancelada";
+  observacoes: string | null;
+  motivo_reprovacao: string | null;
+  aprovado_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+};
+
+export type PerfilColaboradorResponse = {
+  perfil: PerfilColaborador;
+  pagamentos: PagamentoColaborador[];
+  documentos: DocumentoPessoal[];
+  funcoes: FuncaoColaborador[];
+  ferias: SolicitacaoFerias[];
+  resumo_ferias: {
+    dias_direito: number;
+    dias_utilizados: number;
+    dias_disponiveis: number;
+  };
+};
+
+export type MensagensNaoLidasResponse = {
+  unread: number;
+};
+
+export async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  headers.set("Authorization", `Bearer ${session.access_token}`);
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
+  const data = await response.json().catch(() => null) as T & { error?: string; detail?: string; solicitacao_id?: string; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
+  if (!response.ok) {
+    const diagnostico = [data?.detail, data?.solicitacao_id && `solicitacao=${data.solicitacao_id}`, data?.cliente_id && `cliente=${data.cliente_id}`, data?.socio_id && `socio=${data.socio_id}`, data?.aeronave_id && `aeronave=${data.aeronave_id}`].filter(Boolean).join(" | ");
+    throw new Error([data?.error || `api_${response.status}`, diagnostico].filter(Boolean).join(" — "));
+  }
+  return data as T;
+}
+
+export function buscarPerfilColaborador() {
+  return colaboradorRequest<PerfilColaboradorResponse>("/api/colaborador/perfil");
+}
+
+export function buscarContagemMensagensNaoLidas() {
+  return colaboradorRequest<MensagensNaoLidasResponse>("/api/mensagens/unread-count");
+}
+
+export type UsuarioMensagem = { id: string; nome: string; email: string; departamento?: string | null };
+export type PastaMensagem = "inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo";
+export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; remetente_nome?: string; destinatario_nome?: string; assunto: string | null; conteudo: string; lida: number; favorita?: number; arquivada?: number; excluida?: number; papel?: "remetente" | "destinatario"; criado_em: string };
+export function buscarUsuariosMensagem() { return colaboradorRequest<{ usuarios: UsuarioMensagem[] }>("/api/mensagens/usuarios"); }
+export function buscarInboxMensagens() { return colaboradorRequest<MensagemInterna[]>("/api/mensagens/inbox"); }
+export function buscarMensagensPasta(pasta: PastaMensagem) { return colaboradorRequest<MensagemInterna[]>(`/api/mensagens/pasta/${pasta}`); }
+export function buscarOutboxMensagens() { return buscarMensagensPasta("enviadas"); }
+export function alterarEstadoMensagem(id: string, estado: Partial<Pick<MensagemInterna, "lida" | "favorita" | "arquivada" | "excluida">>) { return colaboradorRequest<{ success: boolean; mensagem_id: string }>(`/api/mensagens/${id}/estado`, { method: "PATCH", body: JSON.stringify(estado) }); }
+export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string }) { return colaboradorRequest<{ success: boolean; id: string; destinatario_id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) }); }
+
+export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {
+  return colaboradorRequest<{ perfil: PerfilColaborador }>("/api/colaborador/perfil", {
+    method: "PATCH",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function atualizarSenhaColaborador(novaSenha: string) {
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
+  if (error) throw error;
+}
+
+export async function carregarArquivoColaborador(path: string) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    credentials: "omit",
+  });
+  if (!response.ok) throw new Error(`api_${response.status}`);
+  return response.blob();
+}
+
+export type PontoLancamento = { id: string; user_id: string; data_entrada: string; entrada_hora: string | null; inicio_almoco: string | null; fim_almoco: string | null; saida_hora: string | null; horas_totais: number | null; status: string; motivo_da_ausencia?: string | null };
+export type PontoResponse = { mes: string; lancamentos: PontoLancamento[]; anexos: Array<Record<string, any>>; justificativas: Array<Record<string, any>>; correcoes: Array<Record<string, any>> };
+export type DocumentoInterno = { id: string; pasta_id: string | null; nome: string; caminho_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number; enviado_por: string; criado_em: string; arquivo_url: string };
+export type PastaDocumento = { id: string; nome: string; pasta_pai_id: string | null; criado_por: string; criado_em: string; restrita: number };
+export type SenhaEmpresa = { id: string; titulo: string; site: string; login: string; senha?: string; observacoes: string | null; setor: string | null; criado_em: string };
+export type ContatoAgenda = { id: string; nome: string; telefone: string | null; email: string | null; empresa: string | null; cargo: string | null; observacoes: string | null; endereco: string | null; uf: string | null; cidade: string | null; categoria: string | null };
+export type ClienteShare = Record<string, any>;
+
+export function buscarPonto(mes?: string) { return colaboradorRequest<PontoResponse>(`/api/sharebrasil/ponto${mes ? `?mes=${encodeURIComponent(mes)}` : ""}`); }
+export function marcarPonto(acao: "entrada" | "inicio_almoco" | "fim_almoco" | "pausa" | "saida" | "encerrar", data?: string, hora?: string) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/marcar", { method: "POST", body: JSON.stringify({ acao, data, hora }) }); }
+export function solicitarCorrecaoPonto(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/correcao", { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarJustificativaAusencia(data: string, justificativa: string, arquivo?: File) { const body = new FormData(); body.append("data_registro", data); body.append("justificativa", justificativa); if (arquivo) body.append("arquivo", arquivo); return colaboradorRequest<Record<string, any>>("/api/sharebrasil/ponto/justificativa", { method: "POST", body }); }
+export function buscarPastasDocumentos() { return colaboradorRequest<PastaDocumento[]>("/api/sharebrasil/documentos/pastas"); }
+export function criarPastaDocumento(nome: string, pastaPaiId?: string) { return colaboradorRequest<PastaDocumento>("/api/sharebrasil/documentos/pastas", { method: "POST", body: JSON.stringify({ nome, pasta_pai_id: pastaPaiId || null }) }); }
+export function buscarDocumentosInternos(pastaId?: string) { return colaboradorRequest<DocumentoInterno[]>(`/api/sharebrasil/documentos${pastaId ? `?pasta_id=${encodeURIComponent(pastaId)}` : ""}`); }
+export function enviarDocumentoInterno(arquivo: File, pastaId?: string) { const body = new FormData(); body.append("arquivo", arquivo); if (pastaId) body.append("pasta_id", pastaId); return colaboradorRequest<DocumentoInterno>("/api/sharebrasil/documentos", { method: "POST", body }); }
+export function buscarSenhas() { return colaboradorRequest<SenhaEmpresa[]>("/api/sharebrasil/senhas"); }
+export function revelarSenha(id: string) { return colaboradorRequest<SenhaEmpresa>(`/api/sharebrasil/senhas/${id}`); }
+export function criarSenha(payload: Partial<SenhaEmpresa>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/senhas", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarSenha(id: string, payload: Partial<SenhaEmpresa>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/senhas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirSenha(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/senhas/${id}`, { method: "DELETE" }); }
+export function buscarContatosShare() { return colaboradorRequest<ContatoAgenda[]>("/api/sharebrasil/contatos"); }
+export function criarContatoShare(payload: Partial<ContatoAgenda>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/contatos", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarContatoShare(id: string, payload: Partial<ContatoAgenda>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/contatos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirContatoShare(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/contatos/${id}`, { method: "DELETE" }); }
+export function buscarClientesShare() { return colaboradorRequest<{ clientes: ClienteShare[]; holdings?: ClienteShare[]; socios: ClienteShare[]; vinculos: ClienteShare[]; documentos: ClienteShare[]; documentos_socios?: ClienteShare[]; aeronaves: ClienteShare[] }>("/api/sharebrasil/clientes"); }
+export function criarClienteShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/clientes", { method: "POST", body: JSON.stringify(payload) }); }
+export function criarHoldingShare(payload: { nome: string; conta_bancaria?: string }) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/holdings", { method: "POST", body: JSON.stringify(payload) }); }
+export function criarSocioHoldingShare(holdingId: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/holdings/${holdingId}/socios`, { method: "POST", body: JSON.stringify(payload) }); }
+export function vincularAeronaveSocioShare(socioId: string, payload: { aeronave_id: string; percentual_sociedade: number }) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/socios/${socioId}/aeronave`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarClienteShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function atualizarSocioShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/socios/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function vincularAeronaveCliente(clienteId: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/aeronave`, { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarLogoCliente(clienteId: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/logo`, { method: "POST", body }); }
+export function enviarDocumentoCliente(clienteId: string, arquivo: File, categoria = "geral") { const body = new FormData(); body.append("arquivo", arquivo); body.append("categoria", categoria); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/clientes/${clienteId}/documentos`, { method: "POST", body }); }
+export function enviarDocumentoSocioShare(socioId: string, arquivo: File, categoria = "geral") { const body = new FormData(); body.append("arquivo", arquivo); body.append("categoria", categoria); return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/socios/${socioId}/documentos`, { method: "POST", body }); }
+
+export type TarefaShare = { id: string; titulo: string; descricao: string | null; status: string; prioridade: string; criado_por: string | null; prazo: string | null; criado_em: string; atualizado_em: string | null; publico: number; origem: string; progresso: number; atribuido_para: string[]; comentarios: Array<Record<string, any>> };
+export type NotificacaoTarefa = { id: string; id_da_tarefa: string; user_id: string; mensagem: string; status_alterado_para: string | null; lido: number; criado_em: string; atualizado_em: string | null };
+export type CategoriaCalendario = { id: string; usuario_id: string; nome: string; cor: string; criado_em: string };
+export type LembreteCalendario = { id: string; usuario_id: string; titulo: string; descricao: string | null; data: string; hora: string | null; visibilidade: "PRIVADO" | "TODOS"; cor_categoria_id: string | null; categoria_nome?: string | null; categoria_cor?: string | null };
+export type TarefasResponse = { tarefas: TarefaShare[]; notificacoes: NotificacaoTarefa[] };
+export type UsuariosTarefas = Array<{ id: string; nome_completo: string; nome_exibicao: string | null; email: string; tipo_user: string | null; departamento: string | null }>;
+export function buscarTarefas() { return colaboradorRequest<TarefasResponse>("/api/sharebrasil/tarefas"); }
+export function buscarUsuariosTarefas() { return colaboradorRequest<UsuariosTarefas>("/api/sharebrasil/tarefas/usuarios"); }
+export function criarTarefaShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/tarefas", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarTarefaShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function comentarTarefaShare(id: string, comentario: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}/comentarios`, { method: "POST", body: JSON.stringify({ comentario }) }); }
+export function marcarNotificacaoTarefaLida(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/notificacoes/${id}/lida`, { method: "PATCH" }); }
+export type MaterialTreinamento = { id: string; titulo: string; descricao: string; video_url: string | null; conteudo_html: string | null; categoria: "TUTORIAL" | "TREINAMENTO" | string; tema: string | null; ordem: number; criado_por: string | null; criado_em: string; atualizado_em: string; arquivo_url: string | null; tipo_arquivo: string | null; tamanho_arquivo: number | null; publicado: boolean };
+export type SalaTreinamento = { id: string; titulo: string; descricao: string | null; status: string; criado_por: string; criado_por_nome?: string | null; criado_em: string; encerrado_em?: string | null };
+export function buscarMateriaisCentro(categoria: "TUTORIAL" | "TREINAMENTO") { return colaboradorRequest<MaterialTreinamento[]>(`/api/sharebrasil/centro-treinamento/materiais?categoria=${categoria}`); }
+export function criarMaterialCentro(body: FormData) { return colaboradorRequest<MaterialTreinamento>("/api/sharebrasil/centro-treinamento/materiais", { method: "POST", body }); }
+export function atualizarMaterialCentro(id: string, payload: Record<string, unknown>) { return colaboradorRequest<MaterialTreinamento>(`/api/sharebrasil/centro-treinamento/materiais/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirMaterialCentro(id: string) { return colaboradorRequest<Record<string, unknown>>(`/api/sharebrasil/centro-treinamento/materiais/${id}`, { method: "DELETE" }); }
+export function carregarMaterialCentro(id: string) { return carregarArquivoColaborador(`/api/sharebrasil/centro-treinamento/materiais/${id}/arquivo`); }
+export function buscarSalasTreinamento() { return colaboradorRequest<SalaTreinamento[]>("/api/sharebrasil/centro-treinamento/reunioes"); }
+export function criarSalaTreinamento(payload: { titulo: string; descricao?: string }) { return colaboradorRequest<SalaTreinamento>("/api/sharebrasil/centro-treinamento/reunioes", { method: "POST", body: JSON.stringify(payload) }); }
+export function encerrarSalaTreinamento(id: string) { return colaboradorRequest<Record<string, unknown>>(`/api/sharebrasil/centro-treinamento/reunioes/${id}/encerrar`, { method: "POST" }); }
+export function buscarIceServersCentro() { return colaboradorRequest<{ ice_servers: RTCIceServer[]; turn_configurado: boolean }>("/api/sharebrasil/centro-treinamento/turn"); }
+export type HotelShare = { id: string; nome: string; telefone: string | null; endereco: string | null; uf: string | null; cidade: string | null; preco_single: number | null; preco_duplo: number | null; criado_em: string; atualizado_em: string; estrelas: number; convenio: boolean; email: string | null; telefone_reservas: string | null; contato_comercial: string | null; telefone_comercial: string | null; email_comercial: string | null; observacoes: string | null };
+export type ReservaHotelPayload = { data_checkin: string; data_checkout: string; tipo_quarto: string; quantidade_hospedes: number; hospede_nome: string; hospede_telefone: string; hospede_email?: string; observacoes?: string };
+export function buscarHoteisShare(q = "", ordem = "nome") { const params = new URLSearchParams({ ordem }); if (q) params.set("q", q); return colaboradorRequest<HotelShare[]>(`/api/sharebrasil/hoteis?${params}`); }
+export function criarHotelShare(payload: Partial<HotelShare>) { return colaboradorRequest<HotelShare>("/api/sharebrasil/hoteis", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarHotelShare(id: string, payload: Partial<HotelShare>) { return colaboradorRequest<HotelShare>(`/api/sharebrasil/hoteis/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirHotelShare(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/sharebrasil/hoteis/${id}`, { method: "DELETE" }); }
+export function reservarHotelShare(id: string, payload: ReservaHotelPayload) { return colaboradorRequest<{ success: boolean; id: string; destinatario_email: string }>(`/api/sharebrasil/hoteis/${id}/reservar`, { method: "POST", body: JSON.stringify(payload) }); }
+export type ColaboradorGestao = { id: string; email: string; nome_completo: string; nome_exibicao: string | null; telefone: string | null; cidade: string | null; uf: string | null; data_nascimento: string | null; data_admissao: string | null; cpf: string | null; rg: string | null; canac: string | null; status: string | null; tipo_user: string | null; departamento: string | null; data_criacao: string | null; data_atualizacao: string | null };
+export function buscarGestaoColaboradores() { return colaboradorRequest<ColaboradorGestao[]>("/api/gestor/gestao-colaborador"); }
+export function criarUsuarioColaborador(payload: Record<string, unknown>) { return colaboradorRequest<ColaboradorGestao>("/api/gestor/gestao-colaborador", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarGestaoColaborador(id: string, payload: Record<string, unknown>) { return colaboradorRequest<ColaboradorGestao>(`/api/gestor/gestao-colaborador/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export type FichaColaborador = { perfil: ColaboradorGestao & { endereco: string | null }; documentos: Array<Record<string, any>>; funcoes: Array<{ id: string; funcao: string; criado_em: string | null }>; ferias: Array<SolicitacaoFerias>; recebimentos: Array<Record<string, any>> };
+export function buscarFichaColaborador(id: string) { return colaboradorRequest<FichaColaborador>(`/api/gestor/gestao-colaborador/${encodeURIComponent(id)}/ficha`); }
+export type FeriasCorporativasResponse = { inicio: string; registros: Array<SolicitacaoFerias & { colaborador_id: string; nome_completo: string | null; nome_exibicao: string | null; email: string | null; departamento: string | null; data_admissao: string | null }>; resumo: { ativas: number; solicitadas: number; vencidas: number } };
+export function buscarFeriasCorporativas(inicio?: string) { return colaboradorRequest<FeriasCorporativasResponse>(`/api/gestor/ferias${inicio ? `?inicio=${encodeURIComponent(inicio)}` : ""}`); }
+export type EnvioPagamento = { id: string; tipo: "share" | "reembolso" | "cliente"; descricao: string; valor: number; data_despesa: string | null; vencimento: string | null; fornecedor: string | null; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; aeronave_id: string | null; numero_voo: string | null; centro_custo: string | null; observacoes: string | null; status: string; criado_por: string | null; criado_em: string; grupo_categoria?: string | null; tipo_caixa?: "share" | "cliente" | null; tipo_despesa?: "fixo" | "variável" | null; periodicidade?: string | null; anexos?: Array<{ id: string; tipo: string; numero: string; url: string | null }>; gera_rateio?: boolean; pago_diretamente?: boolean; pago_por?: string | null };
+export type OpcaoEnvioPagamento = { fornecedores: Array<{ id: string; label: string }>; aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string }>; voos: Array<{ numero_voo: string; ultima_data?: string | null; aeronave_id?: string | null }>; categorias: Array<{ id: string; nome: string; grupo_categoria?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null }>; categorias_cliente: Array<{ id: string; nome: string; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null }> };
+export type CotistaAeronave = { id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string; holding_id: string | null; eh_holding: number };
+type RespostaOpcoesEnvioPagamento = Omit<OpcaoEnvioPagamento, "aeronaves"> & { aeronaves?: OpcaoEnvioPagamento["aeronaves"]; aeronave?: OpcaoEnvioPagamento["aeronaves"] };
+export async function buscarOpcoesEnvioPagamento(): Promise<OpcaoEnvioPagamento> {
+  const resposta = await colaboradorRequest<RespostaOpcoesEnvioPagamento>("/api/financeiro/envios-pagamento/opcoes");
+  const aeronaves = Array.isArray(resposta.aeronaves) ? resposta.aeronaves : resposta.aeronave;
+  return { ...resposta, aeronaves: Array.isArray(aeronaves) ? aeronaves : [] };
+}
+export type OpcoesAnexosEnvioPagamento = { recibos: Array<{ id: string; numero_recibo: string; descricao_servico?: string | null; data_emissao?: string | null; anexo_id?: string | null; nome_arquivo?: string | null; tipo_arquivo?: string | null; arquivo_url?: string | null }>; relatorios: Array<{ id: string; numero_voo?: string | null; numero_relatorio?: string | null; matricula_registro?: string | null; anexo_id?: string | null; nome_arquivo?: string | null; tipo_arquivo?: string | null; arquivo_url?: string | null }>; abastecimentos: Array<{ id: string; numero_voo?: string | null; trecho?: string | null; data?: string | null; numero_comanda?: string | null; numero_nf?: string | null; local?: string | null; matricula_registro?: string | null; cotista_nome?: string | null; comanda_url?: string | null; nota_url?: string | null; boleto_url?: string | null }> };
+export function buscarOpcoesAnexosEnvioPagamento() { return colaboradorRequest<OpcoesAnexosEnvioPagamento>("/api/financeiro/envios-pagamento/anexos-opcoes"); }
+export function buscarCotistasAeronave(aeronaveId: string) { return colaboradorRequest<{ cotistas: CotistaAeronave[] }>(`/api/financeiro/envios-pagamento/aeronave/${encodeURIComponent(aeronaveId)}/cotistas`); }
+export function buscarEnviosPagamento(tipo?: EnvioPagamento["tipo"]) { return colaboradorRequest<{ envios: EnvioPagamento[] }>(`/api/financeiro/envios-pagamento${tipo ? `?tipo=${tipo}` : ""}`); }
+export function criarEnvioPagamento(payload: Record<string, unknown>) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarStatusEnvioPagamento(id: string, status: string) { return colaboradorRequest<EnvioPagamento>(`/api/financeiro/envios-pagamento/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); }
+export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
+export function criarCategoriaCalendario(nome: string, cor: string) { return colaboradorRequest<CategoriaCalendario>("/api/sharebrasil/calendario/categorias", { method: "POST", body: JSON.stringify({ nome, cor }) }); }
+export function buscarLembretesCalendario(inicio: string, fim: string) { return colaboradorRequest<LembreteCalendario[]>(`/api/sharebrasil/calendario?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`); }
+export function criarLembreteCalendario(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/calendario", { method: "POST", body: JSON.stringify(payload) }); }
+
+export type RecadoColaborador = { id: string; criado_em: string; atualizado_em: string | null; autor_id: string; autor_nome: string | null; mensagem: string; fixado: boolean; departamento_id: string | null; departamento: string | null; lido: boolean };
+export type DepartamentoRecado = { departamento: string };
+export function buscarRecados() { return colaboradorRequest<RecadoColaborador[]>("/api/colaborador/recados"); }
+export function buscarDepartamentosRecados() { return colaboradorRequest<DepartamentoRecado[]>("/api/colaborador/recados/departamentos"); }
+export function criarRecado(mensagem: string, departamento?: string | null, fixado = false) { return colaboradorRequest<Record<string, any>>("/api/colaborador/recados", { method: "POST", body: JSON.stringify({ mensagem, departamento: departamento || null, fixado }) }); }
+export function marcarRecadoLido(id: string) { return colaboradorRequest<Record<string, any>>(`/api/colaborador/recados/${id}/lido`, { method: "PATCH" }); }
+
+export type HabilitacaoTripulante = { id: string; tripulacao_id: string | null; tipo_habilitacao: string; data_validade: string | null; classe_cma: string | null; validade_cma: string | null; fs_rh: string | null };
+export type TripulanteGestao = { id: string; user_id: string | null; canac: string; nome_completo: string; status: string | null; tipo_licenca: string | null; email?: string | null; telefone?: string | null; url_avatar?: string | null; departamento?: string | null };
+export type FreelancerTripulacao = { id: string; canac: string; nome_completo: string; data_nascimento?: string | null; url_avatar?: string | null; status: string | null; telefone?: string | null; aeronave_id?: string | null; matricula_registro?: string | null; fabricante?: string | null; modelo?: string | null; observacao?: string | null };
+export type AeronaveTripulacao = { id: string; matricula_registro: string; fabricante: string; modelo: string; tipo_aeronave: string | null; numero_motores: number | null; status: string | null };
+export type GestaoTripulacaoResponse = { tripulantes: TripulanteGestao[]; habilitacoes: HabilitacaoTripulante[]; freelancers: FreelancerTripulacao[]; aeronaves: AeronaveTripulacao[] };
+export type HoraTripulacao = { canac: string | null; nome: string; funcao: "PIC" | "SIC"; horas_totais: number; horas_pic: number; horas_sic: number; horas_diurnas: number; horas_noturnas: number; horas_ifr: number; voos: number };
+export type HorasTripulacaoResponse = { inicio: string; fim: string; voos: Array<Record<string, any>>; totais: HoraTripulacao[] };
+export function buscarGestaoTripulacao() { return colaboradorRequest<GestaoTripulacaoResponse>("/api/interno/tripulacao/gestao"); }
+export function atualizarTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function criarHabilitacaoTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/${id}/habilitacoes`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarHabilitacaoTripulante(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao/habilitacoes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function criarTripulanteFreelancer(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/interno/tripulacao-freelancer", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarTripulanteFreelancer(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/interno/tripulacao-freelancer/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function buscarHorasTripulacao(params: { mes?: string; inicio?: string; fim?: string; aeronave_id?: string }) { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>).toString(); return colaboradorRequest<HorasTripulacaoResponse>(`/api/interno/tripulacao/horas${query ? `?${query}` : ""}`); }
+
+export type Abastecimento = { id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; aeronave_id: string | null; data: string; tipo_combustivel: string | null; trecho: string | null; local: string; numero_comanda: string | null; numero_nf: string | null; litros: number; valor_unitario: number; valor_total: number; desconto: number | null; comanda_url: string | null; nota_url: string | null; boleto_url: string | null; status: string | null; observacao: string | null; forma_pagamento: string | null; data_vencimento_boleto: string | null; data_pagamento: string | null; banco: string | null; voo_emprestado: number; numero_voo: string | null; cliente_nome?: string | null; socio_nome?: string | null; matricula_registro?: string | null; fabricante?: string | null; modelo?: string | null; fornecedor_nome?: string | null; fornecedor_apelido?: string | null; criado_por_nome?: string | null };
+export type AbastecimentoOpcoes = { clientes: Array<{ id: string; nome: string | null; codigo_cliente: string | null }>; socios: Array<{ id: string; nome: string; cliente_id: string; cliente_nome: string | null }>; aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string; status: string | null }>; fornecedores: Array<Record<string, any>>; diarios: Array<Record<string, any>> };
+export function buscarAbastecimentoOpcoes(aeronaveId?: string) { return colaboradorRequest<AbastecimentoOpcoes>(`/api/interno/abastecimentos/opcoes${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }
+export function criarFornecedorAbastecimento(payload: Record<string, any>) { return colaboradorRequest<{ id: string; success: boolean }>("/api/interno/abastecimentos/fornecedores", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarFornecedorAbastecimento(id: string, payload: Record<string, any>) { return colaboradorRequest<{ id: string; success: boolean }>(`/api/interno/abastecimentos/fornecedores/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirFornecedorAbastecimento(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/abastecimentos/fornecedores/${id}`, { method: "DELETE" }); }
+export function buscarAbastecimentos(params: Record<string, string> = {}) { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>).toString(); return colaboradorRequest<{ abastecimentos: Abastecimento[] }>(`/api/interno/abastecimentos${query ? `?${query}` : ""}`); }
+export function criarAbastecimento(payload: Record<string, any>) { return colaboradorRequest<{ id: string; success: boolean }>("/api/interno/abastecimentos", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarAbastecimento(id: string, payload: Record<string, any>) { return colaboradorRequest<{ id: string; success: boolean }>(`/api/interno/abastecimentos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirAbastecimento(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/abastecimentos/${id}`, { method: "DELETE" }); }
+export function anexarArquivoAbastecimento(id: string, tipo: "comanda" | "nota" | "boleto", arquivo: File) { const body = new FormData(); body.append("tipo", tipo); body.append("arquivo", arquivo); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body }); }
+export async function baixarArquivoAbastecimento(id: string, tipo: "comanda" | "nota" | "boleto") {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    throw new Error("sessao_expirada");
+  }
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+
+  const response = await fetch(`${API_BASE}/api/interno/abastecimentos/${id}/arquivo/${tipo}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    credentials: "omit",
+  });
+
+  if (!response.ok) throw new Error("Não foi possível baixar o arquivo do abastecimento.");
+  return response.blob();
+}
+
+export function enviarFotoColaborador(foto: File) {
+  const body = new FormData();
+  body.append("foto", foto);
+  return colaboradorRequest<{ foto_url: string }>("/api/colaborador/foto", { method: "POST", body });
+}
+
+export function enviarDocumentoPessoal(tipoDocumento: string, arquivo: File) {
+  const body = new FormData();
+  body.append("tipo_documento", tipoDocumento);
+  body.append("arquivo", arquivo);
+  return colaboradorRequest<{ id: string; tipo_documento: string; nome_arquivo: string; status: string; arquivo_url: string }>("/api/colaborador/documentos", { method: "POST", body });
+}
+
+export function solicitarFerias(dataInicio: string, dataFim: string, observacoes: string) {
+  return colaboradorRequest<SolicitacaoFerias>("/api/colaborador/ferias", {
+    method: "POST",
+    body: JSON.stringify({ data_inicio: dataInicio, data_fim: dataFim, observacoes }),
+  });
+}
+
+export type SolicitacaoVooInterna = {
+  id: string;
+  cliente_id: string | null;
+  socio_id?: string | null;
+  cliente_emprestimo_id?: string | null;
+  socio_emprestimo_id?: string | null;
+  aeronave_id: string | null;
+  origem: string;
+  destino: string;
+  data_agendada: string;
+  data_fim?: string | null;
+  horario_previsto_agendamento: string | null;
+  dias_duracao: number;
+  numero_passageiros: number;
+  voo_emprestado: string;
+  status: "pendente" | "aprovada" | "reprovada" | "cancelada" | string;
+  checklist_status?: string | null;
+  motivo_rejeicao: string | null;
+  numero_voo: string | null;
+  criado_em: string;
+  atualizado_em: string | null;
+  cliente_razao_social: string | null;
+  socio_nome?: string | null;
+  cliente_emprestimo_nome?: string | null;
+  socio_emprestimo_nome?: string | null;
+  codigo_cliente: string | null;
+  matricula_registro: string | null;
+  modelo: string | null;
+  observacoes?: string | null;
+  piloto_id?: string | null;
+  copiloto_id?: string | null;
+  jornada_id?: string | null;
+  jornada_status?: string | null;
+  perna_atual_id?: string | null;
+  perna_atual_numero?: number | null;
+  perna_atual_origem?: string | null;
+  perna_atual_destino?: string | null;
+  perna_atual_horario_ac?: string | null;
+  perna_atual_horario_dep?: string | null;
+  perna_atual_horario_pouso?: string | null;
+  perna_atual_horario_corte?: string | null;
+  perna_atual_status?: string | null;
+};
+
+export type AeronaveAgendamento = {
+  id: string;
+  matricula_registro: string;
+  fabricante: string;
+  modelo: string;
+  status: string;
+  ano: string | null;
+  base: string | null;
+  url_imagem: string | null;
+  tipo_aeronave: string | null;
+  consumo_combustivel?: number | string | null;
+  velocidade_cruzeiro?: number | string | null;
+  performance_categoria?: string | null;
+  performance_velocidade_cruzeiro_kt?: number | null;
+  performance_teto_servico_ft?: number | null;
+  performance_taxa_subida_fpm?: number | null;
+  performance_taxa_descida_fpm?: number | null;
+};
+
+export type TripulanteAgendamento = {
+  id: string;
+  nome_completo: string;
+  canac: string;
+  status: string | null;
+  tipo_licenca: string | null;
+  url_avatar?: string | null;
+  origem: "tripulacao" | "freelancer";
+};
+
+export type EscalaAgendamento = {
+  id: string;
+  data_agendada: string;
+  data_fim: string;
+  numero_voo: string | null;
+  origem: string;
+  destino: string;
+  piloto_id: string | null;
+  piloto_nome: string | null;
+  copiloto_id: string | null;
+  copiloto_nome: string | null;
+  status: string;
+};
+
+export type DisponibilidadeTripulacao = {
+  id: string;
+  tripulante_id: string;
+  tripulante_origem: "tripulacao" | "freelancer";
+  data_inicio: string;
+  data_fim: string;
+  status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel" | string;
+  observacoes: string | null;
+};
+
+export type OpcaoClienteAgendamento = { id: string; nome: string; codigo_cliente: string | null };
+export type OpcaoSocioAgendamento = { id: string; nome: string; cliente_id: string | null };
+export type VinculoCotistaAgendamento = { id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; aeronave_id: string; codigo_cliente: string | null; matricula_registro: string | null; modelo: string | null };
+export type OpcoesAgendamentoResponse = { clientes: OpcaoClienteAgendamento[]; socios: OpcaoSocioAgendamento[]; aeronaves: AeronaveAgendamento[]; vinculos: VinculoCotistaAgendamento[] };
+
+export type PainelAgendamentoResponse = {
+  inicio: string;
+  fim: string;
+  agendamentos: SolicitacaoVooInterna[];
+  aeronaves: AeronaveAgendamento[];
+  tripulacao: TripulanteAgendamento[];
+  escala: EscalaAgendamento[];
+  disponibilidades: DisponibilidadeTripulacao[];
+};
+
+export type PainelOperacoesResponse = {
+  data_referencia: string;
+  resumo: { voos_hoje: number; pendencias: number; reservas_abertas: number; aeronaves_ativas: number };
+  solicitacoes: SolicitacaoVooInterna[];
+};
+
+export type MovimentacaoFinanceira = {
+  id: string;
+  descricao: string;
+  status: string | null;
+  data_pagamento: string | null;
+  valor: number;
+  observacoes: string | null;
+  criado_em: string;
+};
+
+export type PainelFinanceiroResponse = {
+  resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
+  movimentacoes: MovimentacaoFinanceira[];
+};
+
+export function buscarOpcoesAgendamento() {
+  return colaboradorRequest<OpcoesAgendamentoResponse>("/api/interno/agendamento/opcoes");
+}
+
+export function buscarPainelAgendamento(inicio?: string, fim?: string) {
+  const params = new URLSearchParams();
+  if (inicio) params.set("inicio", inicio);
+  if (fim) params.set("fim", fim);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return colaboradorRequest<PainelAgendamentoResponse>(`/api/interno/agendamento${query}`);
+}
+
+export function definirDisponibilidadeTripulacao(dados: { tripulante_id: string; data_inicio: string; data_fim?: string; status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel"; observacoes?: string }) {
+  return colaboradorRequest<{ id: string; tripulante_nome: string }>("/api/interno/agendamento/disponibilidade", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export type NovoAgendamento = {
+  cliente_id?: string;
+  socio_id?: string;
+  aeronave_id: string;
+  origem: string;
+  destino: string;
+  data_agendada: string;
+  data_fim: string;
+  horario_previsto_agendamento?: string;
+  numero_passageiros?: number;
+  cliente_emprestimo_id?: string;
+  socio_emprestimo_id?: string;
+  voo_emprestimo_confirmado?: boolean;
+  piloto_id?: string;
+  copiloto_id?: string;
+  observacoes?: string;
+};
+
+export function criarAgendamento(dados: NovoAgendamento) {
+  return colaboradorRequest<{ id: string; status: string; numero_voo: string | null }>("/api/interno/agendamento", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function excluirAgendamento(id: string) {
+  return colaboradorRequest<{ success: boolean; agendamento_id: string }>(`/api/interno/agendamento/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function buscarPainelOperacoes(data?: string) {
+  const query = data ? `?data=${encodeURIComponent(data)}` : "";
+  return colaboradorRequest<PainelOperacoesResponse>(`/api/interno/dashboard/operacoes${query}`);
+}
+
+export function buscarSolicitacoesInternas(status?: string) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return colaboradorRequest<SolicitacaoVooInterna[]>(`/api/interno/solicitacoes${query}`);
+}
+
+export function aprovarSolicitacaoVoo(id: string, pilotoId: string, copilotoId?: string) {
+  return colaboradorRequest<{ success: boolean; status: string; solicitacao_id: string; numero_voo: string }>(`/api/interno/solicitacoes/${id}/aprovar`, {
+    method: "POST",
+    body: JSON.stringify({ piloto_id: pilotoId, copiloto_id: copilotoId || undefined }),
+  });
+}
+
+export function reprovarSolicitacaoVoo(id: string, motivoRejeicao: string) {
+  return colaboradorRequest<{ success: boolean; status: string; solicitacao_id: string }>(`/api/interno/solicitacoes/${id}/reprovar`, {
+    method: "POST",
+    body: JSON.stringify({ motivo_rejeicao: motivoRejeicao }),
+  });
+}
+
+export type ChecklistPreVoo = {
+  id: string;
+  solicitacao_id: string;
+  itens: Record<string, unknown>;
+  observacoes: string | null;
+  abastecimento_id: string | null;
+  status: string;
+  executado_por_nome?: string | null;
+  usuario_id?: string | null;
+  nivel_oleo?: string | null;
+  alerta_id?: string | null;
+  alertas?: Record<string, string>;
+};
+export function buscarChecklistPreVoo(id: string) { return colaboradorRequest<ChecklistPreVoo | null>(`/api/interno/agendamento/${id}/checklist`); }
+export function salvarChecklistPreVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; abastecimento?: Record<string, unknown>; status?: string; alertas?: Record<string, string>; nivel_oleo?: string | null }) { return colaboradorRequest<{ id: string; abastecimento_id: string | null }>(`/api/interno/agendamento/${id}/checklist`, { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarComandaAbastecimento(id: string, arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); form.append("tipo", "comanda"); return colaboradorRequest<{ success: boolean; caminho_arquivo: string }>(`/api/interno/abastecimentos/${id}/arquivo`, { method: "POST", body: form }); }
+
+export type ItemCarregamento = { id: string; descricao: string; peso: number | null; braco: number | null };
+export type PesoBalanceamentoFicha = {
+  id: string;
+  solicitacao_id: string;
+  aeronave_id: string;
+  peso_balanceamento_id: string;
+  data_voo: string;
+  numero_voo: string | null;
+  piloto_responsavel: string;
+  peso_vazio_kg: number;
+  braco_vazio: number | null;
+  momento_vazio: number | null;
+  itens_carregamento: ItemCarregamento[];
+  fuel_litros: number | null;
+  fuel_kg: number | null;
+  fuel_braco: number | null;
+  fuel_momento: number | null;
+  peso_total_kg: number | null;
+  momento_total: number | null;
+  cg_calculado: number | null;
+  peso_maximo_decolagem: number | null;
+  peso_maximo_pouso: number | null;
+  peso_maximo_sem_combustivel: number | null;
+  cg_limite_dianteiro: number | null;
+  cg_limite_traseiro: number | null;
+  dentro_dos_limites: number | boolean | null;
+  status: string;
+  snapshot_limites: Record<string, unknown>;
+  observacoes: string | null;
+  assinatura_nome: string | null;
+  criado_em: string;
+  finalizado_em: string | null;
+};
+export type PesoBalanceamentoContexto = {
+  solicitacao: SolicitacaoVooInterna & { fabricante?: string | null; matricula_registro?: string | null; modelo?: string | null };
+  piloto: { id: string; nome: string; canac: string | null } | null;
+  copiloto: { id: string; nome: string; canac: string | null } | null;
+  configuracao: Record<string, any> | null;
+  ficha: PesoBalanceamentoFicha | null;
+};
+export function buscarPesoBalanceamentoVoo(id: string) { return colaboradorRequest<PesoBalanceamentoContexto>(`/api/interno/agendamento/${id}/peso-balanceamento`); }
+export function salvarPesoBalanceamentoVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ success: boolean; ficha: PesoBalanceamentoFicha }>(`/api/interno/agendamento/${id}/peso-balanceamento`, { method: "POST", body: JSON.stringify(payload) }); }
+
+export type PlanoVooSalvo = {
+  id: string;
+  numero_voo: string | null;
+  adep: string;
+  ades: string;
+  data_voo: string | null;
+  eobt: string | null;
+  created_at: string;
+  payload: Record<string, any>;
+};
+
+export function buscarPlanosVoo() {
+  return colaboradorRequest<PlanoVooSalvo[]>("/api/interno/planos-voo");
+}
+
+export function salvarPlanoVoo(payload: Record<string, unknown>) {
+  return colaboradorRequest<{ id: string; created_at: string }>("/api/interno/planos-voo", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+type PainelFinanceiroPayload = {
+  resumo?: Partial<PainelFinanceiroResponse["resumo"]> | null;
+  movimentacoes?: MovimentacaoFinanceira[] | null;
+  lancamentos?: MovimentacaoFinanceira[] | null;
+};
+
+export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
+  const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/interno/dashboard/financeiro");
+  const movimentacoes = Array.isArray(payload?.movimentacoes)
+    ? payload.movimentacoes
+    : Array.isArray(payload?.lancamentos)
+      ? payload.lancamentos
+      : [];
+
+  return {
+    resumo: {
+      total_a_receber: Number(payload?.resumo?.total_a_receber ?? 0),
+      total_pago: Number(payload?.resumo?.total_pago ?? 0),
+      pendencias: Number(payload?.resumo?.pendencias ?? 0),
+      pagamentos_confirmados: Number(payload?.resumo?.pagamentos_confirmados ?? 0),
+    },
+    movimentacoes,
+  };
+}
+
+export type DiarioAeronaveResumo = {
+  id: string;
+  matricula_registro: string;
+  fabricante: string | null;
+  modelo: string | null;
+  status: string | null;
+  consumo_combustivel: number | string | null;
+  horas_ano: number;
+  celula_atual_ttotal: number;
+  celula_prox_revisao_ttotal: number;
+  mes_referencia: number;
+  fechado: number;
+};
+
+export type DiarioTripulante = { id: string; canac: string; nome_completo: string; status: string | null; origem: string };
+export type DiarioOpcaoCliente = { id: string; nome: string | null; codigo_cliente: string | null; proprietario?: string | null };
+export type DiarioOpcaoSocio = { id: string; nome: string; cliente_id: string | null };
+export type DiarioOpcaoAerodromo = { id: string; designativo: string; nome: string };
+export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[] };
+export type DiarioMes = {
+  id: string;
+  aeronave_id: string;
+  ano: number;
+  mes: number;
+  celula_anterior_ttotal: number;
+  celula_atual_ttotal: number;
+  celula_prox_revisao_ttotal: number;
+  celula_disponivel_ttotal: number;
+  horimetro_inicio: number;
+  horimetro_final: number;
+  horimetro_ativo: number;
+  fechado: number;
+  aerodromo_base: string | null;
+  tarifa_diaria: number;
+  consumo_combustivel: string | null;
+  tem_tarifa_diaria: number;
+  celula_atual_tvoo: number | null;
+  celula_disponivel_tvoo: number | null;
+  celula_anterior_tvoo: number | null;
+  celula_prox_revisao_tvoo: number | null;
+};
+export type DiarioLancamento = {
+  id: string;
+  numero_sequencial: number;
+  diario_mes_id: string;
+  aeronave_id: string;
+  numero_voo: string | null;
+  data_registro: string;
+  aerodromo_partida: string;
+  aerodromo_chegada: string;
+  aerodromo_partida_icao?: string | null;
+  aerodromo_partida_nome?: string | null;
+  aerodromo_chegada_icao?: string | null;
+  aerodromo_chegada_nome?: string | null;
+  trecho: string | null;
+  pic_canac: string;
+  pic_nome: string | null;
+  pic_nome_exibicao?: string | null;
+  sic_canac: string | null;
+  sic_nome: string | null;
+  sic_nome_exibicao?: string | null;
+  cliente_id: string | null;
+  socio_id: string | null;
+  cliente_tomador_emprestimo_id?: string | null;
+  socio_tomador_emprestimo_id?: string | null;
+  cliente_nome?: string | null;
+  cliente_codigo?: string | null;
+  cliente_proprietario?: string | null;
+  socio_nome?: string | null;
+  cliente_tomador_nome?: string | null;
+  cliente_tomador_codigo?: string | null;
+  socio_tomador_nome?: string | null;
+  voo_emprestado: number;
+  tempo_ac: string | null;
+  tempo_dep: string | null;
+  tempo_pou: string | null;
+  tempo_cor: string | null;
+  tempo_ifr: number;
+  tempo_voo: number;
+  tempo_total: number;
+  horas_diurnas: number;
+  horas_noturnas: number;
+  pousos_total: number;
+  distancia_nm: number;
+  litros_combustivel_inicio_voo: number;
+  litros_combustivel_abastecido: number;
+  local_combustivel: string | null;
+  celula: number;
+  passageiros: number;
+  carga_kg: string | null;
+  natureza_voo: string;
+  ocorrencias: string | null;
+  discrepancias: string | null;
+  acoes_corretivas: string | null;
+  confirmado: number;
+  abastecimento_id?: string | null;
+  abastecimento_litros?: number | null;
+  abastecimento_data?: string | null;
+  abastecimento_pagador_nome?: string | null;
+  abastecimento_comanda?: string | null;
+  abastecimento_nota?: string | null;
+};
+export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal">>; horas_cotistas?: Array<{ cotista_id: string | null; cotista_nome: string; horas_voo: number }>; horas_emprestadas?: { horas_total: number; quantidade: number } };
+
+export function buscarResumoDiario(ano?: number) {
+  return colaboradorRequest<{ ano: number; aeronaves: DiarioAeronaveResumo[] }>(`/api/interno/diario-bordo/resumo${ano ? `?ano=${ano}` : ""}`);
+}
+
+export function buscarOpcoesDiario() {
+  return colaboradorRequest<DiarioOpcoesResponse>("/api/interno/diario-bordo/opcoes");
+}
+
+export function buscarDetalhesDiario(aeronaveId: string, ano: number, mes: number) {
+  const params = new URLSearchParams({ aeronave_id: aeronaveId, ano: String(ano), mes: String(mes) });
+  return colaboradorRequest<DiarioDetalhesResponse>(`/api/interno/diario-bordo/detalhes?${params.toString()}`);
+}
+
+export function criarMesDiario(payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioMes>("/api/interno/diario-bordo/mes", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function atualizarMesDiario(id: string, payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioMes>(`/api/interno/diario-bordo/mes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function criarLancamentoDiario(payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioLancamento>("/api/interno/diario-bordo/lancamentos", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function atualizarLancamentoDiario(id: string, payload: Record<string, unknown>) {
+  return colaboradorRequest<DiarioLancamento>(`/api/interno/diario-bordo/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function excluirLancamentoDiario(id: string) {
+  return colaboradorRequest<{ success: boolean }>(`/api/interno/diario-bordo/lancamentos/${id}`, { method: "DELETE" });
+}
+
+export type AerodromoCadastro = { id: string; nome: string; designativo_icao: string; coordenadas: string | null };
+export function buscarAerodromosCadastro() { return colaboradorRequest<{ aerodromos: AerodromoCadastro[] }>("/api/interno/aerodromos"); }
+export function criarAerodromoCadastro(payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<AerodromoCadastro>("/api/interno/aerodromos", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarAerodromoCadastro(id: string, payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirAerodromoCadastro(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "DELETE" }); }
+
+export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_corte_inicio: string | null; horario_corte_final: string | null; status: string; pernas: Array<{ id: string; numero: number; origem: string; destino: string; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string }> };
+export function buscarJornadaVoo(id: string) { return colaboradorRequest<JornadaVoo | null>(`/api/interno/agendamento/${id}/jornada`); }
+export function iniciarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function adicionarPernaJornada(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarPernaJornada(jornadaId: string, pernaId: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${jornadaId}/pernas/${pernaId}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+
+export type RelatorioDespesaViagem = Record<string, any> & {
+  id: string;
+  numero_relatorio: string;
+  numero_voo: string | null;
+  cliente_id: string | null;
+  cliente_nome?: string | null;
+  socio_id: string | null;
+  aeronave_id: string | null;
+  aeronave_matricula?: string | null;
+  rota: string | null;
+  data_inicio: string;
+  data_fim: string;
+  quantidade_dias: number;
+  despesas: Array<{ id?: string; data: string; categoria: string; descricao: string; valor: number; observacoes?: string }>;
+  total_valor: number;
+  status: string;
+  tripulacao_id: string | null;
+  nome_tripulante: string | null;
+  tripulante_id_2: string | null;
+  nome_tripulante_2: string | null;
+  anexos?: RelatorioDespesaViagemAnexo[];
+  pdf_url?: string | null;
+};
+export type RelatorioDespesaViagemAnexo = { id: string; relatorio_despesa_viagem_id: string; indice_despesa: number; nome_arquivo: string; caminho_arquivo: string; url_arquivo: string; tipo_arquivo: string | null; tamanho_arquivo: number | null };
+export type OpcoesRelatorioViagem = {
+  clientes: Array<{ id: string; razao_social: string | null; codigo_cliente: string | null }>;
+  aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string; status: string | null }>;
+  tripulantes: Array<{ id: string; nome_completo: string; canac: string; status: string | null; origem: string }>;
+  voos: Array<{ numero_voo: string; data_agendada: string | null }>;
+  socios: Array<{ id: string; nome: string }>;
+};
+export function buscarOpcoesRelatorioViagem() { return colaboradorRequest<OpcoesRelatorioViagem>("/api/financeiro/relatorios-despesa-viagem/opcoes"); }
+export function buscarRelatoriosDespesaViagem() { return colaboradorRequest<{ relatorios: RelatorioDespesaViagem[] }>("/api/financeiro/relatorios-despesa-viagem"); }
+export function buscarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`); }
+export function criarRelatorioDespesaViagem(payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>("/api/financeiro/relatorios-despesa-viagem", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarRelatorioDespesaViagem(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function finalizarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/finalizar`, { method: "POST" }); }
+export function enviarRelatorioParaAprovacao(id: string, tripulantePos: 1 | 2) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem; enviado_para: number }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos }) }); }
+export function decidirAprovacaoRelatorio(id: string, tripulantePos: 1 | 2, aprovado: boolean, observacoes: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos, aprovado, observacoes }) }); }
+export function enviarAnexoRelatorio(id: string, arquivo: File, indiceDespesa = 0) { const body = new FormData(); body.append("arquivo", arquivo); body.append("indice_despesa", String(indiceDespesa)); return colaboradorRequest<{ anexo: RelatorioDespesaViagemAnexo }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos`, { method: "POST", body }); }
+export function excluirAnexoRelatorio(id: string, anexoId: string) { return colaboradorRequest<{ success: boolean }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/${encodeURIComponent(anexoId)}`, { method: "DELETE" }); }
+export function enviarPdfRelatorio(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ pdf_url: string; pdf_path: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
+export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{ success: boolean; status: string; message: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-cliente`, { method: "POST" }); }
+
+// ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
+export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
+export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
+export type RecebedorRecibo = { id: string; nome: string; cpf: string | null; email: string | null; telefone: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
+export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
+export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
+export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
+export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
+export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; recebedores: RecebedorRecibo[] };
+
+export type TipoRecibo = "cliente_reembolsavel" | "colaborador" | "pagamento";
+export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
+export type Recibo = {
+  id: string;
+  numero_recibo: string;
+  tipo_recibo: TipoRecibo;
+  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
+  cliente_id: string | null;
+  colaborador_id: string | null;
+  freelancer_id?: string | null;
+  cotista_id?: string | null;
+  recebedor_nome: string | null;
+  recebedor_cpf: string | null;
+  aeronave_id: string | null;
+  rateado: number;
+  nome_pagador: string;
+  documento_pagador: string | null;
+  endereco_pagador: string | null;
+  cidade_pagador: string | null;
+  uf_pagador: string | null;
+  valor: number;
+  descricao_servico: string;
+  data_emissao: string;
+  data_vencimento: string | null;
+  forma_pagamento: string | null;
+  numero_documento_anexo: string | null;
+  anexo_id: string | null;
+  observacoes: string | null;
+  grupo_categoria: string;
+  categoria_id?: string | null;
+  natureza_despesa?: "aeronave" | "empresa" | null;
+  tipo_caixa: "share" | "cliente" | "holding" | "SHARE" | "CLIENTE" | "HOLDING";
+  status: StatusRecibo;
+  boleto_url: string | null;
+  nf_url: string | null;
+  pdf_anexo_id?: string | null;
+  pdf_url?: string | null;
+  /** Movimento da conta holding; nulo quando o recibo usa somente o caixa Share. */
+  movimentacao_id: string | null;
+  /** Lançamento do caixa Share; nulo quando o recibo é exclusivamente da holding. */
+  lancamento_id?: string | null;
+  movimentacao_reembolso_id: string | null;
+  criado_por: string | null;
+  criado_em: string;
+};
+export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas_id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; nome: string | null; percentual: number; valor: number };
+
+export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; valor?: number; pago_por?: string };
+export type CriarReciboPayload = {
+  tipo_recibo?: TipoRecibo;
+  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
+  numero_recibo?: string | null;
+  natureza_despesa?: "aeronave" | "empresa" | null;
+  categoria_nome_manual?: string | null;
+  reembolsavel?: boolean;
+  rateado?: boolean;
+  aeronave_id?: string | null;
+  cliente_id?: string | null;
+  colaborador_id?: string | null;
+  recebedor_id?: string | null;
+  recebedor_nome?: string | null;
+  recebedor_cpf?: string | null;
+  /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
+  nome_pagador?: string;
+  documento_pagador?: string | null;
+  endereco_pagador?: string | null;
+  cidade_pagador?: string | null;
+  uf_pagador?: string | null;
+  valor: number;
+  descricao_servico: string;
+  data_emissao: string;
+  data_vencimento?: string | null;
+  forma_pagamento?: string | null;
+  categoria_movimentacao_id?: string | null;
+  categoria_lancamento_id?: string | null;
+  pagador_tipo?: "share" | "cotista";
+  pagador_cotista_id?: string | null;
+  periodicidade?: string | null;
+  tipo_rateio?: string | null;
+  subcategoria_1?: string | null;
+  subcategoria_2?: string | null;
+  subcategoria_3?: string | null;
+  subcategoria_4?: string | null;
+  tipo_despesa?: "fixo" | "variável" | null;
+  grupo_categoria?: string | null;
+  boleto_url?: string | null;
+  nf_url?: string | null;
+  anexo_id?: string | null;
+  numero_documento_anexo?: string | null;
+  observacoes?: string | null;
+  rateio_linhas?: RateioLinhaEnvio[];
+};
+
+type RespostaOpcoesRecibos = Partial<OpcoesRecibos> & {
+  recebedores?: RecebedorRecibo[];
+  usuarios?: Array<Record<string, unknown>>;
+  freelancers?: Array<Record<string, unknown>>;
+  tripulantes?: Array<Record<string, unknown>>;
+  colaboradores?: ColaboradorRecibo[];
+};
+
+function normalizarRecebedor(item: Record<string, unknown>, origem: RecebedorRecibo["origem"], prefixo: string): RecebedorRecibo {
+  const nome = String(item.nome ?? item.nome_exibicao ?? item.nome_completo ?? item.email ?? "").trim();
+  return {
+    id: `${prefixo}:${String(item.id ?? nome)}`,
+    nome: nome || (origem === "tripulacao_freelancer" ? "Freelancer sem nome" : "Perfil sem nome"),
+    cpf: item.cpf ? String(item.cpf) : null,
+    email: item.email ? String(item.email) : null,
+    telefone: item.telefone ? String(item.telefone) : null,
+    tipo_user: item.tipo_user ? String(item.tipo_user) : origem === "tripulacao_freelancer" ? "freelancer" : null,
+    origem,
+    canac: item.canac ? String(item.canac) : null,
+  };
+}
+
+export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
+  const resposta = await colaboradorRequest<RespostaOpcoesRecibos>("/api/financeiro/recibos/opcoes");
+  const recebedorFallback = [
+    ...(Array.isArray(resposta.usuarios) ? resposta.usuarios.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.colaboradores) ? resposta.colaboradores.map((item) => normalizarRecebedor(item, "user_profiles", "perfil")) : []),
+    ...(Array.isArray(resposta.tripulantes) ? resposta.tripulantes.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+    ...(Array.isArray(resposta.freelancers) ? resposta.freelancers.map((item) => normalizarRecebedor(item, "tripulacao_freelancer", "freelancer")) : []),
+  ];
+  const recebedores = Array.isArray(resposta.recebedores) && resposta.recebedores.length > 0 ? resposta.recebedores : recebedorFallback;
+  return {
+    clientes: Array.isArray(resposta.clientes) ? resposta.clientes : [],
+    colaboradores: Array.isArray(resposta.colaboradores) ? resposta.colaboradores : [],
+    aeronaves: Array.isArray(resposta.aeronaves) ? resposta.aeronaves : [],
+    cotistas: Array.isArray(resposta.cotistas) ? resposta.cotistas : [],
+    categorias: Array.isArray(resposta.categorias) ? resposta.categorias : [],
+    categorias_cliente: Array.isArray(resposta.categorias_cliente) ? resposta.categorias_cliente : [],
+    recebedores,
+  };
+}
+export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
+  const params = new URLSearchParams();
+  if (filtro?.status) params.set("status", filtro.status);
+  if (filtro?.beneficiario_tipo) params.set("beneficiario_tipo", filtro.beneficiario_tipo);
+  if (filtro?.q?.trim()) params.set("q", filtro.q.trim());
+  if (filtro?.data_inicial) params.set("data_inicial", filtro.data_inicial);
+  if (filtro?.data_final) params.set("data_final", filtro.data_final);
+  const query = params.toString();
+  return colaboradorRequest<{ recibos: Recibo[] }>(`/api/financeiro/recibos${query ? `?${query}` : ""}`);
+}
+export function buscarRecibo(id: string) { return colaboradorRequest<{ recibo: Recibo; rateio: RateioLinhaRecibo[] }>(`/api/financeiro/recibos/${encodeURIComponent(id)}`); }
+export function criarRecibo(payload: CriarReciboPayload) {
+  return colaboradorRequest<{ recibo: Recibo; lancamento_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
+}
+export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; observacoes?: string }) {
+  return colaboradorRequest<{ ok: boolean; lancamento_reembolso_id: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
+}
+export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
+export function enviarAnexoRecibo(arquivo: File, reciboId?: string) { const body = new FormData(); body.append("arquivo", arquivo); if (reciboId) body.append("recibo_id", reciboId); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }
+export function enviarPdfRecibo(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ anexo_id: string; pdf_url: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
+export type ContatoEmail = {
+  id: string;
+  nome: string;
+  email: string;
+  tipo: "cliente" | "socio" | string;
+  cliente_id?: string | null;
+};
+
+export type AnexoEmail = {
+  id: string;
+  nome: string;
+  origem: "recibo" | "relatorio_despesa_viagem" | string;
+  tipo_arquivo: string | null;
+  tamanho_arquivo?: number | null;
+  arquivo_url: string;
+};
+
+export type EmailEnviado = {
+  id: string;
+  destinatarios: string[];
+  assunto: string;
+  status: "enviado" | "erro" | string;
+  quantidade_anexos: number;
+  criado_em: string;
+  erro?: string | null;
+};
+
+export type CentralEmailResponse = {
+  contatos: ContatoEmail[];
+  anexos: AnexoEmail[];
+  historico: EmailEnviado[];
+};
+
+export function buscarCentralEmail() {
+  return colaboradorRequest<CentralEmailResponse>("/api/interno/emails");
+}
+
+export function enviarEmailCliente(payload: {
+  destinatarios: string[];
+  assunto: string;
+  mensagem: string;
+  dados_bancarios?: string;
+  anexos?: string[];
+  arquivos?: File[];
+  nome_destinatario?: string;
+}) {
+  const hasFiles = payload.arquivos && payload.arquivos.length > 0;
+  if (hasFiles) {
+    const body = new FormData();
+    body.append("destinatarios", JSON.stringify(payload.destinatarios));
+    body.append("assunto", payload.assunto);
+    body.append("mensagem", payload.mensagem);
+    if (payload.dados_bancarios) body.append("dados_bancarios", payload.dados_bancarios);
+    if (payload.anexos?.length) body.append("anexos", JSON.stringify(payload.anexos));
+    if (payload.nome_destinatario) body.append("nome_destinatario", payload.nome_destinatario);
+    for (const arquivo of payload.arquivos!) body.append("arquivos", arquivo);
+    return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", { method: "POST", body });
+  }
+  return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type ContaBancariaEmail = { id: string; banco: string; agencia: string | null; numero_conta: string | null; tipo_conta: string | null; cnpj: string | null; razao_social: string | null; pix: string | null; texto: string };
+export type AssinaturaEmail = { nome: string; cargo?: string | null; telefone?: string | null; endereco?: string | null; email?: string | null; logo_url?: string | null };
+export function buscarMinhaAssinatura() { return colaboradorRequest<AssinaturaEmail | null>("/api/minha-assinatura"); }
+export function salvarMinhaAssinatura(payload: Omit<AssinaturaEmail, "logo_url" | "email">) { return colaboradorRequest<AssinaturaEmail>("/api/minha-assinatura", { method: "PATCH", body: JSON.stringify(payload) }); }
+export function buscarContasBancariasEmail() { return colaboradorRequest<{ contas: ContaBancariaEmail[] }>("/api/interno/emails/contas-bancarias"); }
+export function salvarContaBancariaEmail(id: string, payload: Partial<Omit<ContaBancariaEmail, "id" | "texto">>) { return colaboradorRequest<{ ok: boolean }>(`/api/interno/emails/contas-bancarias/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function removerLogoAssinatura() { return Promise.resolve({ success: true }); }
+export type CtmRegistro = Record<string, any>
+export type CtmDashboard = { aeronaves: CtmRegistro[]; aeronave: CtmRegistro | null; programa: CtmRegistro[]; diretrizes: CtmRegistro[]; componentes: CtmRegistro[]; oas: CtmRegistro[]; orcamentos: CtmRegistro[]; ras: CtmRegistro[]; carregamentos: CtmRegistro[]; resumo: Record<string, number> }
+export function buscarCtmDashboard(aeronaveId?: string) { return colaboradorRequest<{ data: CtmDashboard }>(`/api/ctm/dashboard${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }
+export type AeronaveShare = { id: string; matricula_registro: string; fabricante: string; modelo: string; numero_serie?: string | null; nome_proprietario?: string | null; status?: string | null; consumo_combustivel?: number | null; ano?: number | null; base?: string | null; preco_hora?: number | null; url_imagem?: string | null; velocidade_cruzeiro?: number | null; tipo_aeronave?: string | null; numero_motores?: number | null; performance_aeronave_id?: string | null; performance_id?: string | null; performance_categoria?: string | null; performance_modelo?: string | null; performance_teto_servico_ft?: number | null; performance_nivel_cruzeiro_min_ft?: number | null; performance_nivel_cruzeiro_max_ft?: number | null; performance_aprovado_rvsm?: number | null; performance_velocidade_cruzeiro_kt?: number | null; performance_taxa_subida_fpm?: number | null; performance_taxa_descida_fpm?: number | null };
+export type AeronavePayload = Partial<Omit<AeronaveShare, "id" | "performance_id">> & { matricula_registro: string; fabricante: string; modelo: string };
+export function buscarAeronavesShare(status: "ativa" | "inativa" = "ativa") { return colaboradorRequest<{ aeronaves: AeronaveShare[] }>(`/api/sharebrasil/aeronaves?status=${status}`); }
+export function buscarAeronaveShare(id: string) { return colaboradorRequest<{ aeronave: AeronaveShare }>(`/api/sharebrasil/aeronaves/${encodeURIComponent(id)}`); }
+export function criarAeronaveShare(payload: AeronavePayload) { return colaboradorRequest<{ aeronave: AeronaveShare; performance_id: string | null }>("/api/sharebrasil/aeronaves", { method: "POST", body: JSON.stringify(payload) }); }

@@ -175,9 +175,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         {month && (
           <div className="space-y-4">
             <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />
-            <div className="rounded-2xl border border-white/[.08] bg-[#101722] p-5 shadow-[0_18px_55px_rgba(0,0,0,.14)]">
-              <DiarioMesResumo diario={month} lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} onEdit={() => setMonthEditor(true)} onToggleClosed={() => void toggleMonth()} />
-            </div>
+            <DiarioMesResumo diario={month} lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} onEdit={() => setMonthEditor(true)} onToggleClosed={() => void toggleMonth()} />
           </div>
         )}
         {month && <DiarioBancoHoras lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} />}

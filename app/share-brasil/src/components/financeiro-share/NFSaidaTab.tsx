@@ -18,15 +18,13 @@ import {
   Filter,
   SlidersHorizontal,
   Mail,
-  FolderOpen,
   ArrowLeft,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
-import { EnviarEmailClienteButton } from "@/components/dashboard/financeiro/EnviarEmailClienteButton";
+import { FolderCard } from "@/components/ui/folder-card";
 import {
   EnviarEmailClienteDialog,
-  type AnexoEmail,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
 import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
@@ -222,7 +220,7 @@ export default function NFSaidaTab() {
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [uploading, setUploading] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
-  const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
+  const [anoSelecionado, setAnoSelecionado] = useState<string | null>(null);
 
   // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -362,18 +360,16 @@ export default function NFSaidaTab() {
 
   const selecionarCliente = (clientName: string) => {
     setClienteSelecionado(clientName);
-    setExpandedYears({});
+    setAnoSelecionado(null);
   };
 
   const voltarParaClientes = () => {
     setClienteSelecionado(null);
-    setExpandedYears({});
+    setAnoSelecionado(null);
   };
 
-  const toggleYearGroup = (clientName: string, year: string) => {
-    const key = `${clientName}|${year}`;
-    setExpandedYears((current) => ({ ...current, [key]: !current[key] }));
-  };
+  const selecionarAno = (year: string) => setAnoSelecionado(year);
+  const voltarParaAnos = () => setAnoSelecionado(null);
 
   // Agrupamento hierárquico: cotista/cliente → ano → notas (nome já vem resolvido do servidor).
   const groupedNotas = useMemo(() => {
@@ -399,10 +395,9 @@ export default function NFSaidaTab() {
 
   const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
 
-  const gruposVisiveis = useMemo(
-    () => Object.entries(groupedNotas).filter(([clienteNome]) => !clienteSelecionado || clienteNome === clienteSelecionado),
-    [groupedNotas, clienteSelecionado],
-  );
+  const gruposVisiveis = useMemo(() => Object.entries(groupedNotas), [groupedNotas]);
+  const anosDoCliente = clienteSelecionado ? groupedNotas[clienteSelecionado] ?? {} : {};
+  const registrosDoAno = clienteSelecionado && anoSelecionado ? anosDoCliente[anoSelecionado] ?? [] : [];
 
   const selectedDespesaOptionId = useMemo(() => {
     if (!form.categoria_despesa_id) return "";
@@ -830,143 +825,46 @@ export default function NFSaidaTab() {
         )}
       </div>
 
-      {clienteSelecionado && !loading && (
-        <div className="animate-in fade-in slide-in-from-right-3 duration-300 rounded-2xl border border-blue-300/15 bg-gradient-to-r from-blue-950/40 via-slate-950/60 to-background/40 px-4 py-4 shadow-lg shadow-blue-950/10 sm:px-6">
-          <button type="button" onClick={voltarParaClientes} className="mb-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-300 transition hover:text-blue-200">
-            <ArrowLeft className="h-4 w-4" /> Voltar para cotistas
-          </button>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-400">Arquivo do cotista</p><h2 className="mt-1 text-2xl font-black text-foreground">{clienteSelecionado}</h2><p className="mt-1 text-sm text-muted-foreground">Notas fiscais e recibos organizados por ano.</p></div>
-            <span className="rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-xs font-bold text-blue-200">{groupedNotas[clienteSelecionado] ? Object.values(groupedNotas[clienteSelecionado]).reduce((total, items) => total + items.length, 0) : 0} documentos</span>
-          </div>
-        </div>
-      )}
-
-      {/* table agrupada */}
+      {/* Navegação hierárquica: cotista → ano → tabela de lançamentos. */}
       {loading ? (
-        <div className="text-sm text-muted-foreground py-10 text-center">Carregando...</div>
+        <div className="rounded-2xl border border-border/70 bg-card/40 px-6 py-14 text-center text-sm text-muted-foreground">Carregando documentos...</div>
       ) : filteredNotas.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-muted-foreground" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
-          {hasActiveFilters ? "Nenhuma nota fiscal encontrada para os filtros aplicados." : "Nenhuma nota fiscal cadastrada."}
+        <div className="rounded-2xl border border-border/70 bg-card/40 p-12 text-center text-sm text-muted-foreground">
+          {hasActiveFilters ? "Nenhum documento encontrado para os filtros aplicados." : "Nenhuma nota fiscal ou recibo cadastrado."}
         </div>
+      ) : !clienteSelecionado ? (
+        <section className="rounded-2xl border border-border/70 bg-card/35 p-5 shadow-sm md:p-7">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Arquivo financeiro</p><h2 className="mt-1 text-xl font-black tracking-tight">Cotistas</h2><p className="mt-1 text-xs text-muted-foreground">Abra uma pasta para consultar os lançamentos por ano.</p></div>
+            <span className="rounded-full border border-primary/20 bg-primary/[.07] px-3 py-1.5 text-[10px] font-bold text-primary">{gruposVisiveis.length} cotista(s)</span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {gruposVisiveis.sort(([a], [b]) => a.localeCompare(b, "pt-BR")).map(([nome, anos]) => (
+              <FolderCard key={nome} name={nome} description="Notas e recibos de saída" count={Object.values(anos).reduce((total, items) => total + items.length, 0)} onClick={() => selecionarCliente(nome)} />
+            ))}
+          </div>
+        </section>
+      ) : !anoSelecionado ? (
+        <section className="rounded-2xl border border-border/70 bg-card/35 p-5 shadow-sm md:p-7">
+          <button type="button" onClick={voltarParaClientes} className="mb-5 inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"><ArrowLeft className="h-4 w-4" /> Voltar para cotistas</button>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Pasta do cotista</p><h2 className="mt-1 text-2xl font-black tracking-tight">{clienteSelecionado}</h2><p className="mt-1 text-xs text-muted-foreground">Selecione o ano para abrir os lançamentos.</p></div><span className="rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{Object.values(anosDoCliente).reduce((total, items) => total + items.length, 0)} documento(s)</span></div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Object.entries(anosDoCliente).sort(([a], [b]) => b.localeCompare(a)).map(([ano, itens]) => (
+              <FolderCard key={ano} name={ano} description="Lançamentos emitidos neste ano" count={itens.length} onClick={() => selecionarAno(ano)} />
+            ))}
+          </div>
+        </section>
       ) : (
-        <div className={`overflow-x-auto rounded-2xl transition-all duration-300 ${clienteSelecionado ? "animate-in fade-in slide-in-from-right-2" : "animate-in fade-in"}`} style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                <th className="px-3 py-2">Número</th>
-                <th className="px-3 py-2">Cliente</th>
-                <th className="px-3 py-2">Aeronave</th>
-                <th className="px-3 py-2">Emissão</th>
-                <th className="px-3 py-2">Vencimento</th>
-                <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2">Categoria</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2 text-center">PDF</th>
-                <th className="px-3 py-2 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gruposVisiveis.map(([clienteNome, notasPorAno]) => {
-                const isExpanded = clienteSelecionado === clienteNome;
-                const totalCliente = Object.values(notasPorAno).reduce((total, items) => total + items.length, 0);
-                return (
-                  <React.Fragment key={clienteNome}>
-                    {!clienteSelecionado && (
-                      <tr className="border-b border-blue-300/15 bg-blue-950/10">
-                        <td colSpan={10} className="px-3 py-3">
-                          <button type="button" onClick={() => selecionarCliente(clienteNome)} className="min-h-[100px] w-full max-w-[280px] rounded-xl border border-blue-300/20 bg-blue-950/20 p-4 text-left shadow-lg shadow-blue-950/20 hover:bg-blue-900/30"><span className="block text-sm font-bold text-foreground">{clienteNome}</span><span className="mt-2 block text-xs text-muted-foreground">{totalCliente} documentos</span></button>
-                        </td>
-                      </tr>
-                    )}
-
-                    {isExpanded && Object.entries(notasPorAno).sort(([a], [b]) => b.localeCompare(a)).map(([ano, notasDoCliente]) => {
-                      const yearKey = `${clienteNome}|${ano}`;
-                      const isYearExpanded = expandedYears[yearKey] ?? false;
-                      return (
-                        <React.Fragment key={yearKey}>
-                          <tr className="border-b border-blue-300/10 bg-blue-900/10">
-                            <td colSpan={10} className="px-3 py-3 pl-8">
-                              <button type="button" onClick={() => toggleYearGroup(clienteNome, ano)} className="min-h-[90px] w-full max-w-[250px] rounded-xl border border-blue-300/15 bg-blue-950/15 p-3 text-left shadow-md shadow-blue-950/20 hover:bg-blue-900/25"><span className="block text-sm font-bold text-foreground">{ano}</span><span className="mt-2 block text-xs text-muted-foreground">{notasDoCliente.length} documentos</span></button>
-                            </td>
-                          </tr>
-
-                    {isYearExpanded && notasDoCliente.map((n) => {
-                      const isRecebido = (n.status ?? "").toLowerCase() === "recebido";
-                      const isPendente = (n.status ?? "").toLowerCase() === "pendente";
-
-                      return (
-                        <tr
-                          key={n.id}
-                          className={`border-b border-border/50 transition-all ${
-                            isRecebido
-                              ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'
-                              : isPendente
-                                ? 'bg-card-secondary/30 border-l-2 border-l-amber-500 hover:bg-card-secondary/60'
-                                : 'hover:bg-card-secondary/30'
-                          }`}
-                        >
-                          <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-muted-foreground' : 'text-foreground'}`}>{n.numero || "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{n.cliente_nome || "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{n.aeronave || "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td>
-                          <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-muted-foreground' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{n.categoria || "—"}</td>
-                          <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
-                          <td className="px-3 py-2 text-center">
-                            {n.arquivo_pdf_url ? (
-                              <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
-                                <Download className="h-3.5 w-3.5" />
-                              </a>
-                            ) : <span className="text-muted-foreground">—</span>}
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex justify-end gap-1">
-                              <div className="flex flex-col gap-1">
-                                <EnviarEmailClienteButton
-                                  stopPropagation
-                                  size="icon"
-                                  variant="outline"
-                                  clienteId={n.cliente_id || null}
-                                  tipo={n.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}
-                                  referenceType={n.origem === "recibo_saida" ? "recibos_saida" : "notas_fiscais_saida"}
-                                  referenceIds={n.id ? [n.id] : []}
-                                  assuntoSugerido={`${n.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal"} de saída ${n.numero || "sem número"}${n.cliente_nome ? ` — ${n.cliente_nome}` : ""}`}
-                                  mensagemSugerida={`Olá${n.cliente_nome ? ` ${n.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${n.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${n.numero || "—"}\nValor: ${formatBRL(num(n.valor))}\nData de emissão: ${n.data_criacao ? formatDate(n.data_criacao) : "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
-                                  anexos={
-                                    n.arquivo_pdf_url
-                                      ? [{ url: n.arquivo_pdf_url, label: n.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal", filename: getFileNameFromUrl(n.arquivo_pdf_url) }]
-                                      : []
-                                  }
-                                  className="bg-cyan-900/10 text-cyan-300 border border-cyan-900/50 hover:bg-cyan-900/20 rounded"
-                                />
-                                {n.status === "pendente" && n.contas_areceber_id && (
-                                  <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
-                                    <Banknote className="h-3 w-3" />
-                                  </button>
-                                )}
-                                <button onClick={() => openEdit(n)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded px-2 py-1 text-[10px]">
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                                <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                        </React.Fragment>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <section className="rounded-2xl border border-border/70 bg-card/35 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 md:px-7"><div><button type="button" onClick={voltarParaAnos} className="mb-2 inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline"><ArrowLeft className="h-4 w-4" /> Voltar para anos</button><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Lançamentos do cotista</p><h2 className="mt-1 text-xl font-black">{clienteSelecionado} <span className="text-muted-foreground">/ {anoSelecionado}</span></h2></div><span className="rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">{registrosDoAno.length} lançamento(s)</span></div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1120px] text-xs"><thead><tr className="border-b border-border/70 bg-secondary/30 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3">Número</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Emissão</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Nome categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-center">PDF</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>
+              {registrosDoAno.map((n) => { const status = String(n.status || "").toLowerCase(); const isPendente = ["pendente", "em_aberto", "aberto"].includes(status); return <tr key={n.id} className="border-b border-border/50 transition-colors hover:bg-primary/[.035]">
+                <td className="px-4 py-3 font-mono text-[11px] font-bold text-foreground">{n.numero || "—"}</td><td className="px-4 py-3 font-medium text-muted-foreground">{n.cliente_nome || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.aeronave || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td><td className="px-4 py-3 text-right font-bold text-foreground">{formatBRL(num(n.valor))}</td><td className="max-w-[190px] truncate px-4 py-3 text-muted-foreground" title={n.categoria || ""}>{n.categoria || "—"}</td><td className="px-4 py-3"><StatusBadge status={n.status} /></td><td className="px-4 py-3 text-center">{n.arquivo_pdf_url ? <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" title="Abrir PDF" className="inline-flex rounded-lg border border-primary/20 bg-primary/[.07] p-2 text-primary hover:bg-primary/15"><Download className="h-3.5 w-3.5" /></a> : <span className="text-muted-foreground">—</span>}</td><td className="px-4 py-3"><div className="flex justify-end gap-1.5"><button type="button" title="Enviar por e-mail" onClick={() => { setEmailTarget(n); setEmailOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/[.07] px-2.5 py-2 text-[10px] font-bold text-primary hover:bg-primary/15"><Mail className="h-3.5 w-3.5" /> E-mail</button>{isPendente && n.contas_areceber_id && <button type="button" title="Dar baixa" onClick={() => openBaixa(n)} className="rounded-lg border border-emerald-400/25 bg-emerald-400/[.08] p-2 text-emerald-500 hover:bg-emerald-400/15"><Banknote className="h-3.5 w-3.5" /></button>}{n.origem === "nf_saida" && <button type="button" title="Editar" onClick={() => openEdit(n)} className="rounded-lg border border-border bg-card/70 p-2 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}<button type="button" title="Excluir" onClick={() => setDeleteId(n.id)} className="rounded-lg border border-red-400/25 bg-red-400/[.06] p-2 text-red-500 hover:bg-red-400/15"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
+              </tr>; })}
+            </tbody></table>
+          </div>
+        </section>
       )}
 
       <ReciboSaidaPreviewModal

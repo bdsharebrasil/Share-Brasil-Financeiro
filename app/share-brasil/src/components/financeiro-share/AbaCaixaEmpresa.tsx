@@ -23,40 +23,12 @@ const CORES_STATUS: Record<StatusLancamento, string> = {
 export function AbaCaixaEmpresa() {
   const [fluxo, setFluxo] = useState<FluxoLancamento | 'TODOS'>('TODOS');
 
-  const { lancamentos, carregando, erro, saldoCentavos, totalEntradasCentavos, totalSaidasCentavos } =
-    useCaixaEmpresa({ fluxo: fluxo === 'TODOS' ? undefined : fluxo });
+  const { lancamentos, carregando, erro } = useCaixaEmpresa({
+    fluxo: fluxo === 'TODOS' ? undefined : fluxo,
+  });
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="border-b border-border/50 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Saldo do caixa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-semibold ${saldoCentavos >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {formatarMoeda(saldoCentavos)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="border-b border-border/50 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total de entradas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold text-emerald-600">{formatarMoeda(totalEntradasCentavos)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="border-b border-border/50 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total de saídas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold text-red-600">{formatarMoeda(totalSaidasCentavos)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="overflow-hidden border-border/70 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 bg-muted/20">
           <div><CardTitle className="text-sm">Movimentações do caixa</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">Lançamentos próprios da Share Brasil</p></div>

@@ -15,7 +15,7 @@ function GlossyFolder({ size = 88 }: { size?: number }) {
       aria-hidden="true"
       style={{
         filter:
-          "drop-shadow(0 6px 18px rgba(30,80,200,0.38)) drop-shadow(0 2px 4px rgba(20,60,160,0.22))",
+          "drop-shadow(0 3px 9px rgba(30,80,200,0.22)) drop-shadow(0 1px 2px rgba(20,60,160,0.14))",
       }}
     >
       <defs>
@@ -29,8 +29,8 @@ function GlossyFolder({ size = 88 }: { size?: number }) {
           <stop offset="100%" stopColor="#1e4ec8" />
         </linearGradient>
         <linearGradient id={gradientId("gloss")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.62)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="0%" stopColor="rgba(255,255,255,0.32)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
         </linearGradient>
         <linearGradient id={gradientId("side")} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="rgba(0,0,0,0.18)" />
@@ -59,7 +59,7 @@ function GlossyFolder({ size = 88 }: { size?: number }) {
         fill={`url(#${gradientId("gloss")})`}
         clipPath={`url(#${gradientId("clip")})`}
       />
-      <rect x="6" y="23" width="88" height="2" rx="1" fill="rgba(255,255,255,0.28)" />
+      <rect x="6" y="23" width="88" height="2" rx="1" fill="rgba(255,255,255,0.16)" />
       <rect x="68" y="66" width="20" height="14" rx="3" fill={`url(#${gradientId("badge")})`} opacity="0.9" />
       <rect x="70" y="68" width="16" height="2" rx="1" fill="rgba(255,255,255,0.7)" />
       <rect x="70" y="72" width="10" height="2" rx="1" fill="rgba(255,255,255,0.45)" />
@@ -88,7 +88,7 @@ export function FolderCard({ name, description, count, selected = false, onClick
         selected && "border-primary/60 bg-primary/[.07] shadow-lg",
       )}
     >
-      <span className="pointer-events-none absolute -right-9 -top-9 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-opacity group-hover:opacity-100" />
+      <span className="pointer-events-none absolute -right-9 -top-9 h-24 w-24 rounded-full bg-primary/[.06] blur-xl transition-opacity group-hover:opacity-100" />
 
       <span className="relative flex items-start justify-between gap-3">
         <span className="transition-transform duration-150 group-hover:scale-105 group-active:scale-95">

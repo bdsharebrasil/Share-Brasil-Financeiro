@@ -243,11 +243,12 @@ export function criarCategoriaCalendario(nome: string, cor: string) { return col
 export function buscarLembretesCalendario(inicio: string, fim: string) { return colaboradorRequest<LembreteCalendario[]>(`/api/sharebrasil/calendario?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`); }
 export function criarLembreteCalendario(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/calendario", { method: "POST", body: JSON.stringify(payload) }); }
 
-export type RecadoColaborador = { id: string; criado_em: string; atualizado_em: string | null; autor_id: string; autor_nome: string | null; mensagem: string; fixado: boolean; departamento_id: string | null; departamento: string | null; lido: boolean };
+export type RecadoColaborador = { id: string; criado_em: string; atualizado_em: string | null; autor_id: string; autor_nome: string | null; mensagem: string; fixado: boolean; departamento_id: string | null; departamento: string | null; lido: boolean; pode_excluir: boolean };
 export type DepartamentoRecado = { departamento: string };
 export function buscarRecados() { return colaboradorRequest<RecadoColaborador[]>("/api/colaborador/recados"); }
 export function buscarDepartamentosRecados() { return colaboradorRequest<DepartamentoRecado[]>("/api/colaborador/recados/departamentos"); }
 export function criarRecado(mensagem: string, departamento?: string | null, fixado = false) { return colaboradorRequest<Record<string, any>>("/api/colaborador/recados", { method: "POST", body: JSON.stringify({ mensagem, departamento: departamento || null, fixado }) }); }
+export function excluirRecado(id: string) { return colaboradorRequest<Record<string, any>>(`/api/colaborador/recados/${id}`, { method: "DELETE" }); }
 export function marcarRecadoLido(id: string) { return colaboradorRequest<Record<string, any>>(`/api/colaborador/recados/${id}/lido`, { method: "PATCH" }); }
 
 export type HabilitacaoTripulante = { id: string; tripulacao_id: string | null; tipo_habilitacao: string; data_validade: string | null; classe_cma: string | null; validade_cma: string | null; fs_rh: string | null };

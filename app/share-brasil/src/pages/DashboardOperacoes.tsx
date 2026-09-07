@@ -46,7 +46,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
     else setCarregando(true);
     setErro(null);
     try {
-      setDados(await buscarPainelOperacoes());
+      const resposta = await buscarPainelOperacoes();
+      setDados({ ...resposta, solicitacoes: Array.isArray(resposta?.solicitacoes) ? resposta.solicitacoes : [] });
     } catch {
       setErro("Não foi possível carregar os dados reais da operação.");
     } finally {

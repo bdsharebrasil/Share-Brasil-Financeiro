@@ -111,8 +111,21 @@ export default function Agendamentos() {
     setErro(null);
     try {
       const [painelAtual, opcoesAtuais] = await Promise.all([buscarPainelAgendamento("2000-01-01", "2099-12-31"), buscarOpcoesAgendamento()]);
-      setPainel({ ...painelAtual, tripulacao: painelAtual.tripulacao.filter((tripulante) => tripulante.origem === "tripulacao") });
-      setOpcoes(opcoesAtuais);
+      setPainel({
+        ...painelAtual,
+        agendamentos: Array.isArray(painelAtual?.agendamentos) ? painelAtual.agendamentos : [],
+        aeronaves: Array.isArray(painelAtual?.aeronaves) ? painelAtual.aeronaves : [],
+        tripulacao: (Array.isArray(painelAtual?.tripulacao) ? painelAtual.tripulacao : []).filter((tripulante) => tripulante.origem === "tripulacao"),
+        escala: Array.isArray(painelAtual?.escala) ? painelAtual.escala : [],
+        disponibilidades: Array.isArray(painelAtual?.disponibilidades) ? painelAtual.disponibilidades : [],
+      });
+      setOpcoes({
+        ...opcoesAtuais,
+        clientes: Array.isArray(opcoesAtuais?.clientes) ? opcoesAtuais.clientes : [],
+        socios: Array.isArray(opcoesAtuais?.socios) ? opcoesAtuais.socios : [],
+        aeronaves: Array.isArray(opcoesAtuais?.aeronaves) ? opcoesAtuais.aeronaves : [],
+        vinculos: Array.isArray(opcoesAtuais?.vinculos) ? opcoesAtuais.vinculos : [],
+      });
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o módulo de agendamento.");
     } finally { setCarregando(false); setAtualizando(false); }

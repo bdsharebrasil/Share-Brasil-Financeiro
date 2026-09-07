@@ -618,7 +618,7 @@ export default function ControleAbastecimento({
                 </div>
 
                 {/* CLIENTES */}
-                <div className="grid mx-[21px] my-[28px] gap-4 overflow-hidden sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <div className="mx-[21px] my-[28px] grid grid-cols-1 auto-rows-fr gap-4 overflow-hidden sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {loading ? (
                     Array.from({ length: 8 }).map((_, index) => (
                       <div
@@ -634,11 +634,11 @@ export default function ControleAbastecimento({
                         onClick={() =>
                           setClienteSelecionado(cliente.id)
                         }
-                        className="group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-[#0c1c2c] to-[#08131f] p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/30 hover:shadow-[0_15px_40px_rgba(14,165,233,.08)]"
+                        className="group relative flex min-h-[132px] w-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-[#0c1c2c] to-[#08131f] p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/30 hover:shadow-[0_15px_40px_rgba(14,165,233,.08)]"
                       >
                         <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-sky-400/[0.04] blur-2xl transition group-hover:bg-sky-400/[0.08]" />
 
-                        <div className="relative">
+                        <div className="relative flex flex-1 flex-col">
                           <div className="mb-6 flex items-start justify-between gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/15 bg-sky-500/[0.07] text-sky-300">
                               <Building2 size={17} />
@@ -654,7 +654,7 @@ export default function ControleAbastecimento({
                             {cliente.nome}
                           </div>
 
-                          <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 transition group-hover:text-sky-400">
+                          <div className="mt-auto flex items-center gap-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 transition group-hover:text-sky-400">
                             Ver histórico
                             <ChevronLeft
                               size={12}

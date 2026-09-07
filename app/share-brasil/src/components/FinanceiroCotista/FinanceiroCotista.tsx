@@ -10,6 +10,11 @@ import {
   Building2,
   User,
   Plane,
+  BarChart3,
+  ReceiptText,
+  ListOrdered,
+  LayoutDashboard,
+  PieChart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   criarLancamentoEconomico,
   parseValorReais,
@@ -431,6 +437,28 @@ export default function FinanceiroCotista() {
   const entradas = dashboard?.resumo?.entradas ?? 0;
   const saidas = dashboard?.resumo?.saidas ?? 0;
   const saldo = dashboard?.resumo?.saldo ?? 0;
+  const [abaAtiva, setAbaAtiva] = useState<"resumo" | "lancamentos" | "graficos" | "ranking">("resumo");
+
+  const despesas = useMemo(
+    () => lancamentosFiltrados.filter((lancamento) => lancamento.fluxo === "SAIDA"),
+    [lancamentosFiltrados],
+  );
+  const custoFixo = despesas
+    .filter((lancamento) => /fix|hangar|seguro|assinatura|mensal/i.test(`${lancamento.grupoCategoria} ${lancamento.categoria} ${lancamento.descricao}`))
+    .reduce((total, lancamento) => total + lancamento.valorCentavos, 0);
+  const custoVariavel = despesas.reduce((total, lancamento) => total + lancamento.valorCentavos, 0) - custoFixo;
+  const dadosCategorias = (dashboard?.ranking_gastos ?? []).map((item) => ({
+    nome: item.categoria,
+    valor: item.valor / 100,
+    quantidade: item.quantidade,
+    grupo: item.grupo,
+  }));
+  const dadosMensais = (dashboard?.fechamento_mensal ?? []).map((item) => ({
+    mes: item.mes.slice(5),
+    entradas: item.entradas / 100,
+    saidas: item.saidas / 100,
+    saldo: item.saldo / 100,
+  }));
 
   const cotistasParaDialog: CotistaAeronave[] = useMemo(() => {
     if (aeronaveSelecionada) return cotistasAeronave;
@@ -445,6 +473,9 @@ export default function FinanceiroCotista() {
     }));
   }, [aeronaveSelecionada, cotistasAeronave, opcoes]);
 
+  const formatarValorGrafico = (valor: number) => formatarMoeda(valor).replace(",00", "");
+  const coresCategorias = ["#22d3ee", "#60a5fa", "#a78bfa", "#fbbf24", "#34d399", "#94a3b8"];
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -452,240 +483,57 @@ export default function FinanceiroCotista() {
           <h2 className="text-lg font-bold tracking-[-.02em]">Financeiro do Cotista</h2>
           <p className="text-xs text-muted-foreground">Visão econômica consolidada de cotistas e holdings.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={aeronaveSelecionada} onValueChange={setAeronaveSelecionada}>
-            <SelectTrigger className="h-9 w-[220px] gap-2 text-xs">
-              <Plane size={14} className="text-muted-foreground" />
-              <SelectValue placeholder="Todas as aeronaves" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Todas as aeronaves</SelectItem>
-              {aeronaves.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.matricula_registro} · {a.modelo}
-                </SelectItem>
-              ))}
-            </SelectContent>
+            <SelectTrigger className="h-9 w-[220px] gap-2 text-xs"><Plane size={14} className="text-muted-foreground" /><SelectValue placeholder="Todas as aeronaves" /></SelectTrigger>
+            <SelectContent><SelectItem value="">Todas as aeronaves</SelectItem>{aeronaves.map((a) => <SelectItem key={a.id} value={a.id}>{a.matricula_registro} · {a.modelo}</SelectItem>)}</SelectContent>
           </Select>
-          <Button onClick={() => setAberto(true)} className="gap-2">
-            <Plus size={15} /> Novo lançamento
-          </Button>
+          <Button onClick={() => { setAbaAtiva("lancamentos"); setAberto(true); }} className="gap-2"><Plus size={15} /> Novo lançamento</Button>
         </div>
       </div>
 
       {aeronaveSelecionada && cotistasAeronave.length > 0 && (
         <div className="rounded-xl border border-border bg-card/60 p-4">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Cotistas desta aeronave</p>
-          <div className="flex flex-wrap gap-2">
-            {cotistasAeronave.map((c) => (
-              <span key={c.id} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
-                {c.eh_holding ? <Building2 size={11} /> : <User size={11} />}
-                {c.nome}
-                <span className="font-mono text-[10px] opacity-60">{c.percentual_sociedade}%</span>
-              </span>
-            ))}
-          </div>
+          <div className="flex flex-wrap gap-2">{cotistasAeronave.map((c) => <span key={c.id} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>{c.eh_holding ? <Building2 size={11} /> : <User size={11} />}{c.nome}<span className="font-mono text-[10px] opacity-60">{c.percentual_sociedade}%</span></span>)}</div>
         </div>
       )}
 
-      {carregando ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 size={20} className="animate-spin" />
-        </div>
-      ) : (
+      <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/30 p-1 sm:grid-cols-4">
+        <button type="button" onClick={() => setAbaAtiva("resumo")} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:text-xs ${abaAtiva === "resumo" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutDashboard size={14} />Resumo geral</button>
+        <button type="button" onClick={() => setAbaAtiva("lancamentos")} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:text-xs ${abaAtiva === "lancamentos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ReceiptText size={14} />Lançamento de despesas</button>
+        <button type="button" onClick={() => setAbaAtiva("graficos")} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:text-xs ${abaAtiva === "graficos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><BarChart3 size={14} />Gráficos</button>
+        <button type="button" onClick={() => setAbaAtiva("ranking")} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:text-xs ${abaAtiva === "ranking" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ListOrdered size={14} />Ranking de gastos</button>
+      </div>
+
+      {carregando ? <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin" /></div> : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Entradas</p>
-              <p className="mt-1 text-lg font-bold text-emerald-400">{formatarMoeda(entradas)}</p>
+          {abaAtiva === "resumo" && <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[["Entradas", entradas, "text-emerald-400"], ["Saídas", saidas, "text-red-400"], ["Saldo", saldo, "text-foreground"], ["Custo rateado", dashboard?.resumo?.custo_rateado ?? 0, "text-amber-400"]].map(([titulo, valor, cor]) => <div key={titulo as string} className="rounded-xl border border-border bg-card p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">{titulo}</p><p className={`mt-1 text-lg font-bold ${cor}`}>{formatarCentavos(valor as number)}</p></div>)}
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Saídas</p>
-              <p className="mt-1 text-lg font-bold text-red-400">{formatarMoeda(saidas)}</p>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card p-5 xl:col-span-2"><div className="mb-5 flex items-center gap-2"><LayoutDashboard size={15} className="text-primary" /><div><p className="text-sm font-bold">Composição dos custos</p><p className="text-[10px] text-muted-foreground">Custos fixos e variáveis das despesas lançadas</p></div></div><div className="grid gap-4 sm:grid-cols-2"><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos fixos</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoFixo)}</p><p className="mt-1 text-[10px] text-muted-foreground">Hangar, seguro e recorrências</p></div><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos variáveis</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoVariavel)}</p><p className="mt-1 text-[10px] text-muted-foreground">Operação, combustível e demais despesas</p></div></div></div>
+              <div className="rounded-xl border border-border bg-card p-5"><p className="text-sm font-bold">Indicadores</p><div className="mt-4 space-y-4"><div><p className="text-[10px] text-muted-foreground">Média mensal</p><p className="font-mono text-sm font-bold">{formatarCentavos(dashboard?.resumo?.media_mensal)}</p></div><div><p className="text-[10px] text-muted-foreground">Média por lançamento</p><p className="font-mono text-sm font-bold">{formatarCentavos(dashboard?.resumo?.media_lancamento)}</p></div><div><p className="text-[10px] text-muted-foreground">Pendências</p><p className="font-mono text-sm font-bold text-amber-400">{dashboard?.resumo?.pendentes ?? 0} lançamento(s)</p></div></div></div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Saldo</p>
-              <p className="mt-1 text-lg font-bold">{formatarMoeda(saldo)}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Custo rateado</p>
-              <p className="mt-1 text-lg font-bold text-amber-400">{formatarMoeda(dashboard?.resumo?.custo_rateado ?? 0)}</p>
-            </div>
-          </div>
+            {dashboard?.saldos.length ? <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="border-b border-border px-4 py-3"><p className="text-xs font-bold">Saldos por cotista</p></div><div className="divide-y divide-border">{dashboard.saldos.map((s, i) => <div key={`${s.cotista}-${i}`} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"><span className="font-medium">{s.cotista}</span><div className="flex gap-4 text-[10px]"><span className="text-muted-foreground">Pago: {formatarCentavos(s.totalPagoCentavos)}</span><span className="text-muted-foreground">Devido: {formatarCentavos(s.totalDevidoCentavos)}</span><span className={s.saldoCentavos >= 0 ? "font-mono font-bold text-emerald-400" : "font-mono font-bold text-red-400"}>{formatarCentavos(s.saldoCentavos)}</span></div></div>)}</div></div> : null}
+          </div>}
 
-          {dashboard && dashboard.fechamento_mensal.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Fechamento mensal</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-left">
-                  <thead>
-                    <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
-                      <th className="px-4 py-3">Mês</th>
-                      <th className="px-4 py-3 text-right">Entradas</th>
-                      <th className="px-4 py-3 text-right">Saídas</th>
-                      <th className="px-4 py-3 text-right">Saldo</th>
-                      <th className="px-4 py-3 text-right">Lançamentos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboard.fechamento_mensal.map((m) => (
-                      <tr key={m.mes} className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
-                        <td className="px-4 py-3 text-[11px] font-semibold">{m.mes}</td>
-                        <td className="px-4 py-3 text-right text-[10px] font-mono text-emerald-400">{formatarMoeda(m.entradas)}</td>
-                        <td className="px-4 py-3 text-right text-[10px] font-mono text-red-400">{formatarMoeda(m.saidas)}</td>
-                        <td className="px-4 py-3 text-right text-[10px] font-mono font-bold">{formatarMoeda(m.saldo)}</td>
-                        <td className="px-4 py-3 text-right text-[10px] text-muted-foreground">{m.lancamentos}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {abaAtiva === "lancamentos" && <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="flex items-center justify-between border-b border-border px-4 py-3"><div><p className="text-sm font-bold">Lançamento de despesas</p><p className="text-[10px] text-muted-foreground">Movimentações, rateios e responsáveis</p></div><Button size="sm" onClick={() => setAberto(true)} className="h-8 gap-1.5 text-[10px]"><Plus size={13} /> Novo lançamento</Button></div>{lancamentosFiltrados.length ? <div className="divide-y divide-border">{lancamentosFiltrados.map((lanc) => <div key={lanc.id} className="flex items-center justify-between gap-4 px-4 py-3 text-xs"><div className="min-w-0 flex-1"><p className="truncate font-medium">{lanc.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{formatarData(lanc.data)} · {lanc.categoria} · {lanc.grupoCategoria}</p>{lanc.rateios.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{lanc.rateios.map((r) => <span key={r.cotista} className="rounded border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground">{r.cotista} · {r.percentual}%</span>)}</div>}</div><span className={`shrink-0 font-mono font-bold ${lanc.fluxo === "ENTRADA" ? "text-emerald-400" : "text-red-400"}`}>{lanc.fluxo === "ENTRADA" ? "+" : "−"}{formatarCentavos(lanc.valorCentavos)}</span></div>)}</div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum lançamento encontrado para esta seleção.</div>}</div>}
 
-          {dashboard && dashboard.ranking_cotistas.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Ranking de cotistas</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-left">
-                  <thead>
-                    <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
-                      <th className="px-4 py-3">Cotista</th>
-                      <th className="px-4 py-3 text-right">Devido</th>
-                      <th className="px-4 py-3 text-right">Pago</th>
-                      <th className="px-4 py-3 text-right">Lançamentos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboard.ranking_cotistas.map((r, i) => (
-                      <tr key={`${r.cotista}-${i}`} className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
-                        <td className="px-4 py-3 text-[11px] font-semibold">{r.cotista}</td>
-                        <td className="px-4 py-3 text-right text-[10px] font-mono text-red-400">{formatarMoeda(r.devido)}</td>
-                        <td className="px-4 py-3 text-right text-[10px] font-mono text-emerald-400">{formatarMoeda(r.pago)}</td>
-                        <td className="px-4 py-3 text-right text-[10px] text-muted-foreground">{r.quantidade}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {abaAtiva === "graficos" && <div className="grid gap-4 xl:grid-cols-2">
+            <div className="rounded-xl border border-border bg-card p-5"><div className="mb-5"><p className="text-sm font-bold">Evolução mensal</p><p className="text-[10px] text-muted-foreground">Entradas e saídas por competência</p></div><div className="h-64">{dadosMensais.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={dadosMensais}><defs><linearGradient id="areaSaidas" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22d3ee" stopOpacity={0.4} /><stop offset="100%" stopColor="#22d3ee" stopOpacity={0} /></linearGradient></defs><XAxis dataKey="mes" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tickFormatter={(v) => formatarValorGrafico(v)} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={60} /><Tooltip formatter={(v: number) => formatarMoeda(v)} /><Area type="monotone" dataKey="saidas" name="Saídas" stroke="#22d3ee" fill="url(#areaSaidas)" strokeWidth={2} /><Area type="monotone" dataKey="entradas" name="Entradas" stroke="#34d399" fill="transparent" strokeWidth={2} /></AreaChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Dados insuficientes para o período.</div>}</div></div>
+            <div className="rounded-xl border border-border bg-card p-5"><div className="mb-5"><p className="text-sm font-bold">Custos por categoria</p><p className="text-[10px] text-muted-foreground">Distribuição das despesas registradas</p></div><div className="h-64">{dadosCategorias.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={dadosCategorias} layout="vertical" margin={{ left: 8 }}><XAxis type="number" hide /><YAxis type="category" dataKey="nome" width={90} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} /><Tooltip formatter={(v: number) => formatarMoeda(v)} /><Bar dataKey="valor" name="Custo" radius={[0, 4, 4, 0]} fill="#22d3ee" /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Dados insuficientes para o período.</div>}</div></div>
+            <div className="rounded-xl border border-border bg-card p-5 xl:col-span-2"><div className="mb-5 flex items-center gap-2"><PieChart size={15} className="text-primary" /><div><p className="text-sm font-bold">Participação por categoria</p><p className="text-[10px] text-muted-foreground">Percentual de cada despesa sobre o total</p></div></div><div className="h-64">{dadosCategorias.length ? <ResponsiveContainer width="100%" height="100%"><RechartsPieChart><Pie data={dadosCategorias} dataKey="valor" nameKey="nome" innerRadius={60} outerRadius={95} paddingAngle={3}>{dadosCategorias.map((item, i) => <Cell key={item.nome} fill={coresCategorias[i % coresCategorias.length]} />)}</Pie><Tooltip formatter={(v: number) => formatarMoeda(v)} /></RechartsPieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Dados insuficientes para o período.</div>}</div></div>
+          </div>}
 
-          {dashboard && dashboard.saldos.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Saldos por cotista</p>
-              </div>
-              <div className="divide-y divide-border">
-                {dashboard.saldos.map((s, i) => (
-                  <div key={`${s.cotista}-${i}`} className="flex items-center justify-between px-4 py-3 text-xs">
-                    <span className="truncate font-medium">{s.cotista}</span>
-                    <div className="flex items-center gap-4 text-[10px]">
-                      <span className="text-muted-foreground">Pago: {formatarCentavos(s.totalPagoCentavos)}</span>
-                      <span className="text-muted-foreground">Devido: {formatarCentavos(s.totalDevidoCentavos)}</span>
-                      <span className={`font-mono font-bold ${s.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatarCentavos(s.saldoCentavos)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {dashboard && dashboard.ranking_gastos.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Ranking de gastos por categoria</p>
-              </div>
-              <div className="divide-y divide-border">
-                {dashboard.ranking_gastos.slice(0, 6).map((g, i) => (
-                  <div key={`${g.categoria}-${i}`} className="flex items-center justify-between px-4 py-3 text-xs">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{g.categoria}</p>
-                      <p className="text-[10px] text-muted-foreground">{g.grupo} · {g.quantidade} lançamento(s)</p>
-                    </div>
-                    <span className="ml-3 shrink-0 font-mono font-bold text-red-400">{formatarMoeda(g.valor)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {lancamentosFiltrados.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Lançamentos</p>
-              </div>
-              <div className="divide-y divide-border">
-                {lancamentosFiltrados.map((lanc) => (
-                  <div key={lanc.id} className="flex items-center justify-between px-4 py-3 text-xs">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{lanc.descricao}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatarData(lanc.data)} · {lanc.categoria}</p>
-                      {lanc.rateios.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {lanc.rateios.map((r) => (
-                            <span key={r.cotista} className="rounded border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground">
-                              {r.cotista} · {r.percentual}%
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <span className={`ml-3 shrink-0 font-bold ${lanc.fluxo === "ENTRADA" ? "text-emerald-400" : "text-red-400"}`}>
-                      {lanc.fluxo === "ENTRADA" ? "+" : "-"}{formatarCentavos(lanc.valorCentavos)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {dashboard && dashboard.holdings.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Holdings</p>
-              </div>
-              <div className="divide-y divide-border">
-                {dashboard.holdings.map((h) => (
-                  <div key={h.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold">{h.nome}</p>
-                        {h.contaBancaria && <p className="text-[10px] text-muted-foreground">{h.contaBancaria}</p>}
-                      </div>
-                    </div>
-                    {h.socios.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {h.socios.map((s) => (
-                          <div key={s.cotistaId} className="flex items-center justify-between text-[10px]">
-                            <span className="text-muted-foreground">{s.cotistaId} · {s.percentual}%</span>
-                            <span className={`font-mono font-bold ${s.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {formatarCentavos(s.saldoCentavos)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {abaAtiva === "ranking" && <div className="grid gap-4 xl:grid-cols-2">
+            <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="border-b border-border px-4 py-3"><p className="text-sm font-bold">Ranking de gastos</p><p className="text-[10px] text-muted-foreground">Categorias com maior impacto financeiro</p></div><div className="divide-y divide-border">{(dashboard?.ranking_gastos ?? []).length ? dashboard!.ranking_gastos.map((g, i) => <div key={`${g.categoria}-${i}`} className="flex items-center gap-3 px-4 py-3"><span className="w-5 font-mono text-xs font-bold text-primary">{i + 1}º</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{g.categoria}</p><p className="text-[10px] text-muted-foreground">{g.grupo} · {g.quantidade} lançamento(s)</p></div><span className="font-mono text-xs font-bold">{formatarCentavos(g.valor)}</span></div>) : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Ainda não há gastos lançados.</div>}</div></div>
+            <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="border-b border-border px-4 py-3"><p className="text-sm font-bold">Ranking de cotistas</p><p className="text-[10px] text-muted-foreground">Valores devidos e pagos por participante</p></div><div className="divide-y divide-border">{(dashboard?.ranking_cotistas ?? []).length ? dashboard!.ranking_cotistas.map((r, i) => <div key={`${r.cotista}-${i}`} className="flex items-center gap-3 px-4 py-3"><span className="w-5 font-mono text-xs font-bold text-primary">{i + 1}º</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{r.cotista}</p><p className="text-[10px] text-muted-foreground">{r.quantidade} lançamento(s)</p></div><div className="text-right text-[10px]"><p className="font-mono text-red-400">Dev.: {formatarCentavos(r.devido)}</p><p className="font-mono text-emerald-400">Pago: {formatarCentavos(r.pago)}</p></div></div>) : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Ainda não há rateios registrados.</div>}</div></div>
+          </div>}
         </>
       )}
-
-      <NovoLancamentoCotistaDialog
-        aberto={aberto}
-        aoFechar={() => setAberto(false)}
-        opcoes={opcoes}
-        cotistasAeronave={cotistasParaDialog}
-        aeronaveId={aeronaveSelecionada}
-        aoCriar={carregar}
-      />
+      <NovoLancamentoCotistaDialog aberto={aberto} aoFechar={() => setAberto(false)} opcoes={opcoes} cotistasAeronave={cotistasParaDialog} aeronaveId={aeronaveSelecionada} aoCriar={carregar} />
     </div>
   );
 }

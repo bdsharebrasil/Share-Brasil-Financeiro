@@ -9,6 +9,7 @@ import {
   X,
   Building2,
   User,
+  Plane,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch"; // Importe o Switch se disponível, ou use checkbox
+import { Switch } from "@/components/ui/switch";
 import {
   criarLancamentoEconomico,
   parseValorReais,
@@ -29,10 +30,13 @@ import {
 } from "@/lib/financeiro-share-api";
 import type { OpcoesLancamento, DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
+import { buscarOpcoesEnvioPagamento, buscarCotistasAeronave } from "@/lib/colaborador-api";
 
 function hoje() { return new Date().toISOString().slice(0, 10); }
 
 type RateioDraft = { cotista: string; percentual: string };
+
+type AeronaveOpcao = { id: string; matricula_registro: string; fabricante: string; modelo: string };
 
 export function NovoLancamentoCotistaDialog({
   aberto,
@@ -49,9 +53,12 @@ export function NovoLancamentoCotistaDialog({
   aeronaveId: string;
   aoCriar: () => Promise<void>;
 }) {
+  const cotistasCliente = useMemo(() => cotistasAeronave.filter((c) => !c.eh_holding), [cotistasAeronave]);
+  const cotistasHolding = useMemo(() => cotistasAeronave.filter((c) => Boolean(c.eh_holding)), [cotistasAeronave]);
+  const possuiCliente = cotistasCliente.length > 0;
+  const possuiHolding = cotistasHolding.length > 0;
   const [modo, setModo] = useState<"CLIENTE" | "HOLDING">("CLIENTE");
-  
-  // Estados gerais
+
   const [salvando, setSalvando] = useState(false);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
   const [descricao, setDescricao] = useState("");
@@ -61,12 +68,10 @@ export function NovoLancamentoCotistaDialog({
   const [observacoes, setObservacoes] = useState("");
   const [rateios, setRateios] = useState<RateioDraft[]>([]);
 
-  // Estados específicos: Cliente
   const [fluxoCliente, setFluxoCliente] = useState<"SAIDA" | "ENTRADA">("SAIDA");
   const [pagoPorCotista, setPagoPorCotista] = useState("");
   const [pagoDiretamenteCliente, setPagoDiretamenteCliente] = useState(false);
 
-  // Estados específicos: Holding
   const [tipoMovimentoHold, setTipoMovimentoHold] = useState<"APORTE" | "DESPESA">("DESPESA");
   const [holdingId, setHoldingId] = useState("");
   const [pagoDiretamenteHold, setPagoDiretamenteHold] = useState(false);
@@ -75,42 +80,46 @@ export function NovoLancamentoCotistaDialog({
     if (!aberto) return;
     setErroLocal(null);
     setData(hoje());
-    setDescricao(""); 
-    setValor(""); 
+    setDescricao("");
+    setValor("");
     setObservacoes("");
     setPagoDiretamenteCliente(false);
     setPagoDiretamenteHold(false);
-    
+
+    // Auto-selecionar modo: se só tem cliente, vai pra CLIENTE; se só tem holding, vai pra HOLDING
+    if (possuiCliente && !possuiHolding) setModo("CLIENTE");
+    else if (!possuiCliente && possuiHolding) setModo("HOLDING");
+
+    const cotistasParaModo = modo === "CLIENTE" ? cotistasCliente : cotistasHolding;
+
     setCategoriaId(opcoes?.categorias[0]?.id || "");
-    setPagoPorCotista(cotistasAeronave[0]?.id || "");
-    
-    // Filtra apenas cotistas que são holdings para o select
+    setPagoPorCotista(cotistasCliente[0]?.id || "");
+
     const holds = opcoes?.holdings || [];
     if (holds.length > 0) setHoldingId(holds[0].id);
 
-    const totalCotistas = cotistasAeronave.length;
+    const totalCotistas = cotistasParaModo.length;
     if (totalCotistas > 0) {
       const pct = (100 / totalCotistas).toFixed(4);
-      setRateios(cotistasAeronave.map((c) => ({ cotista: c.id, percentual: pct })));
+      setRateios(cotistasParaModo.map((c) => ({ cotista: c.id, percentual: pct })));
     } else {
       setRateios([{ cotista: "", percentual: "100" }]);
     }
-  }, [aberto, opcoes, cotistasAeronave]);
+  }, [aberto, opcoes, cotistasAeronave, cotistasCliente, cotistasHolding, possuiCliente, possuiHolding, modo]);
 
   const totalPercentual = rateios.reduce((total, r) => total + (Number(r.percentual) || 0), 0);
 
   const salvar = async () => {
     const categoria = opcoes?.categorias?.find((c) => c.id === categoriaId);
     const valorCentavos = parseValorReais(valor);
-    
+
     setErroLocal(null);
     if (!descricao.trim()) return setErroLocal("Informe a descrição.");
     if (!Number.isInteger(valorCentavos) || valorCentavos <= 0) return setErroLocal("Valor inválido.");
     if (!categoria) return setErroLocal("Selecione uma categoria.");
     if (modo === "CLIENTE" && !pagoPorCotista) return setErroLocal("Informe o pagador.");
     if (modo === "HOLDING" && !holdingId) return setErroLocal("Selecione a Holding.");
-    
-    // Aporte de Holding não exige rateio econômico complexo, mas despesas sim.
+
     if (modo === "CLIENTE" || (modo === "HOLDING" && tipoMovimentoHold === "DESPESA")) {
       if (rateios.some((r) => !r.cotista)) return setErroLocal("Todos os rateios precisam de um cotista/sócio.");
       if (Math.abs(totalPercentual - 100) > 0.0001) return setErroLocal(`Rateio deve somar 100%. Atual: ${totalPercentual.toFixed(4)}%`);
@@ -118,7 +127,6 @@ export function NovoLancamentoCotistaDialog({
 
     setSalvando(true);
     try {
-      // O Payload agora informa o backend exatamente qual arquitetura seguir
       const payload = {
         modo_lancamento: modo,
         data,
@@ -129,8 +137,7 @@ export function NovoLancamentoCotistaDialog({
         valor_centavos: valorCentavos,
         observacoes: observacoes.trim() || undefined,
         aeronave_id: aeronaveId || undefined,
-        
-        // Dados Cliente
+
         ...(modo === "CLIENTE" && {
           fluxo: fluxoCliente,
           pago_por_cotista_id: pagoPorCotista,
@@ -138,12 +145,11 @@ export function NovoLancamentoCotistaDialog({
           rateios: rateios.map((r) => ({ id: r.cotista, percentual: Number(r.percentual) })),
         }),
 
-        // Dados Holding
         ...(modo === "HOLDING" && {
           holding_id: holdingId,
           tipo_movimento_hold: tipoMovimentoHold,
-          pago_diretamente: pagoDiretamenteHold, // Se true, não movimenta saldo da holding
-          rateios: tipoMovimentoHold === "DESPESA" 
+          pago_diretamente: pagoDiretamenteHold,
+          rateios: tipoMovimentoHold === "DESPESA"
             ? rateios.map((r) => ({ id: r.cotista, percentual: Number(r.percentual) }))
             : [],
         }),
@@ -171,27 +177,38 @@ export function NovoLancamentoCotistaDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Seletor de Modo: Cliente vs Holding */}
-        <div className="flex rounded-lg border border-border bg-muted/50 p-1">
-          <button
-            type="button"
-            onClick={() => setModo("CLIENTE")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
-              modo === "CLIENTE" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+        {possuiCliente && possuiHolding && (
+          <div className="flex rounded-lg border border-border bg-muted/50 p-1">
+            <button
+              type="button"
+              onClick={() => setModo("CLIENTE")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
+                modo === "CLIENTE" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User size={14} /> Cliente / Direto
+            </button>
+            <button
+              type="button"
+              onClick={() => setModo("HOLDING")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
+                modo === "HOLDING" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Building2 size={14} /> Holding (Conta Conjunta)
+            </button>
+          </div>
+        )}
+        {possuiCliente && !possuiHolding && (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground">
             <User size={14} /> Cliente / Direto
-          </button>
-          <button
-            type="button"
-            onClick={() => setModo("HOLDING")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold transition-all ${
-              modo === "HOLDING" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+          </div>
+        )}
+        {!possuiCliente && possuiHolding && (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground">
             <Building2 size={14} /> Holding (Conta Conjunta)
-          </button>
-        </div>
+          </div>
+        )}
 
         {erroLocal && (
           <div className="flex items-start gap-2 rounded-lg border border-[#e77b80]/30 bg-[#e77b80]/10 p-3 text-[11px] text-[#ed8c90]">
@@ -210,7 +227,7 @@ export function NovoLancamentoCotistaDialog({
             <Label>Valor (R$)</Label>
             <Input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
           </div>
-          
+
           <div className="space-y-2">
             <Label>Data</Label>
             <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
@@ -226,7 +243,6 @@ export function NovoLancamentoCotistaDialog({
             </Select>
           </div>
 
-          {/* FLUXO CLIENTE */}
           {modo === "CLIENTE" && (
             <>
               <div className="space-y-2">
@@ -245,7 +261,7 @@ export function NovoLancamentoCotistaDialog({
                 <Select value={pagoPorCotista} onValueChange={setPagoPorCotista}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {cotistasAeronave.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    {cotistasCliente.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -262,7 +278,6 @@ export function NovoLancamentoCotistaDialog({
             </>
           )}
 
-          {/* FLUXO HOLDING */}
           {modo === "HOLDING" && (
             <>
               <div className="space-y-2">
@@ -300,7 +315,6 @@ export function NovoLancamentoCotistaDialog({
             </>
           )}
 
-          {/* RATEIO (Visível para Cliente ou Despesas de Holding) */}
           {(modo === "CLIENTE" || (modo === "HOLDING" && tipoMovimentoHold === "DESPESA")) && (
             <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/[.03] p-4 sm:col-span-2">
               <div className="flex items-start justify-between gap-3">
@@ -319,7 +333,7 @@ export function NovoLancamentoCotistaDialog({
                   <Select value={rateio.cotista} onValueChange={(v) => setRateios((atual) => atual.map((linha, li) => li === index ? { ...linha, cotista: v } : linha))}>
                     <SelectTrigger><SelectValue placeholder={modo === "CLIENTE" ? "Cotista" : "Sócio"} /></SelectTrigger>
                     <SelectContent>
-                      {cotistasAeronave.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      {(modo === "CLIENTE" ? cotistasCliente : cotistasHolding).map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Input inputMode="decimal" value={rateio.percentual} onChange={(e) => setRateios((atual) => atual.map((linha, li) => li === index ? { ...linha, percentual: e.target.value } : linha))} placeholder="%" />
@@ -356,6 +370,9 @@ export default function FinanceiroCotista() {
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
   const [dashboard, setDashboard] = useState<DashboardCotista | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [aeronaves, setAeronaves] = useState<AeronaveOpcao[]>([]);
+  const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
+  const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>([]);
 
   const carregar = useCallback(async () => {
     try {
@@ -370,24 +387,106 @@ export default function FinanceiroCotista() {
     }
   }, []);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const carregarAeronaves = useCallback(async () => {
+    try {
+      const resp = await buscarOpcoesEnvioPagamento();
+      setAeronaves(resp.aeronaves || []);
+    } catch {
+      setAeronaves([]);
+    }
+  }, []);
+
+  const carregarCotistas = useCallback(async (aeronaveId: string) => {
+    if (!aeronaveId) {
+      setCotistasAeronave([]);
+      return;
+    }
+    try {
+      const resp = await buscarCotistasAeronave(aeronaveId);
+      setCotistasAeronave(resp.cotistas || []);
+    } catch {
+      setCotistasAeronave([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregar();
+    carregarAeronaves();
+  }, [carregar, carregarAeronaves]);
+
+  useEffect(() => {
+    carregarCotistas(aeronaveSelecionada);
+  }, [aeronaveSelecionada, carregarCotistas]);
+
+  const lancamentosFiltrados = useMemo(() => {
+    if (!dashboard?.lancamentos) return [];
+    if (!aeronaveSelecionada) return dashboard.lancamentos;
+    return dashboard.lancamentos.filter((l) =>
+      l.rateios.some((r) =>
+        cotistasAeronave.some((c) => c.nome === r.cotista),
+      ),
+    );
+  }, [dashboard, aeronaveSelecionada, cotistasAeronave]);
 
   const entradas = dashboard?.resumo?.entradas ?? 0;
   const saidas = dashboard?.resumo?.saidas ?? 0;
   const saldo = dashboard?.resumo?.saldo ?? 0;
-  const pendentes = dashboard?.resumo?.pendentes ?? 0;
+
+  const cotistasParaDialog: CotistaAeronave[] = useMemo(() => {
+    if (aeronaveSelecionada) return cotistasAeronave;
+    return (opcoes?.cotistas ?? []).map((c) => ({
+      id: c.id,
+      nome: c.nome,
+      cliente_id: null,
+      socio_id: null,
+      percentual_sociedade: c.percentual_sociedade ?? 0,
+      holding_id: null,
+      eh_holding: 0,
+    }));
+  }, [aeronaveSelecionada, cotistasAeronave, opcoes]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold tracking-[-.02em]">Financeiro do Cotista</h2>
           <p className="text-xs text-muted-foreground">Visão econômica consolidada de cotistas e holdings.</p>
         </div>
-        <Button onClick={() => setAberto(true)} className="gap-2">
-          <Plus size={15} /> Novo lançamento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={aeronaveSelecionada} onValueChange={setAeronaveSelecionada}>
+            <SelectTrigger className="h-9 w-[220px] gap-2 text-xs">
+              <Plane size={14} className="text-muted-foreground" />
+              <SelectValue placeholder="Todas as aeronaves" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas as aeronaves</SelectItem>
+              {aeronaves.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.matricula_registro} · {a.modelo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setAberto(true)} className="gap-2">
+            <Plus size={15} /> Novo lançamento
+          </Button>
+        </div>
       </div>
+
+      {aeronaveSelecionada && cotistasAeronave.length > 0 && (
+        <div className="rounded-xl border border-border bg-card/60 p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Cotistas desta aeronave</p>
+          <div className="flex flex-wrap gap-2">
+            {cotistasAeronave.map((c) => (
+              <span key={c.id} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+                {c.eh_holding ? <Building2 size={11} /> : <User size={11} />}
+                {c.nome}
+                <span className="font-mono text-[10px] opacity-60">{c.percentual_sociedade}%</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {carregando ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -395,7 +494,7 @@ export default function FinanceiroCotista() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Entradas</p>
               <p className="mt-1 text-lg font-bold text-emerald-400">{formatarMoeda(entradas)}</p>
@@ -409,26 +508,168 @@ export default function FinanceiroCotista() {
               <p className="mt-1 text-lg font-bold">{formatarMoeda(saldo)}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Pendentes</p>
-              <p className="mt-1 text-lg font-bold text-amber-400">{formatarMoeda(pendentes)}</p>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Custo rateado</p>
+              <p className="mt-1 text-lg font-bold text-amber-400">{formatarMoeda(dashboard?.resumo?.custo_rateado ?? 0)}</p>
             </div>
           </div>
 
-          {dashboard && dashboard.lancamentos.length > 0 && (
+          {dashboard && dashboard.fechamento_mensal.length > 0 && (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="border-b border-border px-4 py-3">
-                <p className="text-xs font-bold">Últimos lançamentos</p>
+                <p className="text-xs font-bold">Fechamento mensal</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-left">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+                      <th className="px-4 py-3">Mês</th>
+                      <th className="px-4 py-3 text-right">Entradas</th>
+                      <th className="px-4 py-3 text-right">Saídas</th>
+                      <th className="px-4 py-3 text-right">Saldo</th>
+                      <th className="px-4 py-3 text-right">Lançamentos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.fechamento_mensal.map((m) => (
+                      <tr key={m.mes} className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
+                        <td className="px-4 py-3 text-[11px] font-semibold">{m.mes}</td>
+                        <td className="px-4 py-3 text-right text-[10px] font-mono text-emerald-400">{formatarMoeda(m.entradas)}</td>
+                        <td className="px-4 py-3 text-right text-[10px] font-mono text-red-400">{formatarMoeda(m.saidas)}</td>
+                        <td className="px-4 py-3 text-right text-[10px] font-mono font-bold">{formatarMoeda(m.saldo)}</td>
+                        <td className="px-4 py-3 text-right text-[10px] text-muted-foreground">{m.lancamentos}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {dashboard && dashboard.ranking_cotistas.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Ranking de cotistas</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] text-left">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+                      <th className="px-4 py-3">Cotista</th>
+                      <th className="px-4 py-3 text-right">Devido</th>
+                      <th className="px-4 py-3 text-right">Pago</th>
+                      <th className="px-4 py-3 text-right">Lançamentos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.ranking_cotistas.map((r, i) => (
+                      <tr key={`${r.cotista}-${i}`} className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
+                        <td className="px-4 py-3 text-[11px] font-semibold">{r.cotista}</td>
+                        <td className="px-4 py-3 text-right text-[10px] font-mono text-red-400">{formatarMoeda(r.devido)}</td>
+                        <td className="px-4 py-3 text-right text-[10px] font-mono text-emerald-400">{formatarMoeda(r.pago)}</td>
+                        <td className="px-4 py-3 text-right text-[10px] text-muted-foreground">{r.quantidade}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {dashboard && dashboard.saldos.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Saldos por cotista</p>
               </div>
               <div className="divide-y divide-border">
-                {dashboard.lancamentos.slice(0, 8).map((lanc) => (
+                {dashboard.saldos.map((s, i) => (
+                  <div key={`${s.cotista}-${i}`} className="flex items-center justify-between px-4 py-3 text-xs">
+                    <span className="truncate font-medium">{s.cotista}</span>
+                    <div className="flex items-center gap-4 text-[10px]">
+                      <span className="text-muted-foreground">Pago: {formatarCentavos(s.totalPagoCentavos)}</span>
+                      <span className="text-muted-foreground">Devido: {formatarCentavos(s.totalDevidoCentavos)}</span>
+                      <span className={`font-mono font-bold ${s.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatarCentavos(s.saldoCentavos)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dashboard && dashboard.ranking_gastos.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Ranking de gastos por categoria</p>
+              </div>
+              <div className="divide-y divide-border">
+                {dashboard.ranking_gastos.slice(0, 6).map((g, i) => (
+                  <div key={`${g.categoria}-${i}`} className="flex items-center justify-between px-4 py-3 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{g.categoria}</p>
+                      <p className="text-[10px] text-muted-foreground">{g.grupo} · {g.quantidade} lançamento(s)</p>
+                    </div>
+                    <span className="ml-3 shrink-0 font-mono font-bold text-red-400">{formatarMoeda(g.valor)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lancamentosFiltrados.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Lançamentos</p>
+              </div>
+              <div className="divide-y divide-border">
+                {lancamentosFiltrados.map((lanc) => (
                   <div key={lanc.id} className="flex items-center justify-between px-4 py-3 text-xs">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{lanc.descricao}</p>
                       <p className="text-[10px] text-muted-foreground">{formatarData(lanc.data)} · {lanc.categoria}</p>
+                      {lanc.rateios.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {lanc.rateios.map((r) => (
+                            <span key={r.cotista} className="rounded border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                              {r.cotista} · {r.percentual}%
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <span className={`ml-3 shrink-0 font-bold ${lanc.fluxo === "ENTRADA" ? "text-emerald-400" : "text-red-400"}`}>
                       {lanc.fluxo === "ENTRADA" ? "+" : "-"}{formatarCentavos(lanc.valorCentavos)}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dashboard && dashboard.holdings.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Holdings</p>
+              </div>
+              <div className="divide-y divide-border">
+                {dashboard.holdings.map((h) => (
+                  <div key={h.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold">{h.nome}</p>
+                        {h.contaBancaria && <p className="text-[10px] text-muted-foreground">{h.contaBancaria}</p>}
+                      </div>
+                    </div>
+                    {h.socios.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {h.socios.map((s) => (
+                          <div key={s.cotistaId} className="flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground">{s.cotistaId} · {s.percentual}%</span>
+                            <span className={`font-mono font-bold ${s.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {formatarCentavos(s.saldoCentavos)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -441,8 +682,8 @@ export default function FinanceiroCotista() {
         aberto={aberto}
         aoFechar={() => setAberto(false)}
         opcoes={opcoes}
-        cotistasAeronave={opcoes?.cotistas ?? []}
-        aeronaveId=""
+        cotistasAeronave={cotistasParaDialog}
+        aeronaveId={aeronaveSelecionada}
         aoCriar={carregar}
       />
     </div>

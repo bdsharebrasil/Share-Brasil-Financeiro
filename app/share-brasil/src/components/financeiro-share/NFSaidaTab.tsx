@@ -499,13 +499,13 @@ export default function NFSaidaTab() {
         if (editingId) {
           const { nota } = await nfSaidaApi.atualizarNotaSaida(editingId, {
             numero: form.numero.trim(),
-            cotista_aeronave_id: form.cotista_aeronave_id,
+            cotista_id: form.cotista_aeronave_id,
             aeronave_id: form.aircraft_id,
-            data_criacao: form.data_criacao,
+            data_emissao: form.data_criacao,
             data_vencimento: dataVencimentoFinal,
-            valor: Number(form.valor) || 0,
-            categoria: form.categoria,
-            descricao: form.descricao.trim() || null,
+            valor_total: Number(form.valor) || 0,
+            nome_categoria: form.categoria,
+            descricao_servico: form.descricao.trim() || "Serviços aeronáuticos",
             status: form.status,
             arquivo_pdf_url: form.arquivo_pdf_url.trim() || null,
           });
@@ -513,16 +513,17 @@ export default function NFSaidaTab() {
         } else {
           await nfSaidaApi.criarNotaSaida({
             numero: form.numero.trim(),
-            cotista_aeronave_id: form.cotista_aeronave_id,
+            cotista_id: form.cotista_aeronave_id,
             aeronave_id: form.aircraft_id,
             categoria_receita_id: form.categoria_receita_id,
             categoria_receita_nome: form.categoria,
-            categoria_despesa_id: despesaSelecionada?.categoriaId || form.categoria_despesa_id,
-            categoria_despesa_subcategoria: despesaSelecionada?.subcategoria ?? null,
-            data_criacao: form.data_criacao,
+            categoria_id: despesaSelecionada?.categoriaId || form.categoria_despesa_id || null,
+            subcategoria_1: despesaSelecionada?.subcategoria ?? null,
+            data_emissao: form.data_criacao,
             data_vencimento: dataVencimentoFinal,
-            valor: Number(form.valor) || 0,
-            descricao: form.descricao.trim() || null,
+            valor_total: Number(form.valor) || 0,
+            nome_categoria: form.categoria,
+            descricao_servico: form.descricao.trim() || "Serviços aeronáuticos",
             status: form.status,
             arquivo_pdf_url: form.arquivo_pdf_url.trim() || null,
           });

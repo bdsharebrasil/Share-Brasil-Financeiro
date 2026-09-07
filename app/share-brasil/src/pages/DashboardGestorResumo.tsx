@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, HeroDashboard } from "@/components/dashboard/PrimitivosDashboard";
 import { formatarMoeda, formatarData } from "@/lib/financeiro-share-api";
 import { buscarContasAPagar, buscarContasAReceber } from "@/lib/apiFinanceiroShare";
-import FinanceiroCotista from "@/components/FinanceiroCotista/FinanceiroCotista";
 import type { ContaAPagar, ContaAReceber } from "@/components/financeiro-share/tipos";
 import {
   buscarEnviosPagamento,
@@ -334,8 +333,6 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           ) : <EstadoVazio label="Nenhuma férias programada para os próximos 15 dias" />}
         </SecaoExpansivel>
       </div>
-
-      <FinanceiroCotista />
     </div>
   );
 }

@@ -106,20 +106,16 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     const fuelTotal = (details?.lancamentos || []).reduce((total, entry) => total + Number(entry.litros_combustivel_abastecido || 0), 0);
     return (
       <div className="diario-bordo route-enter space-y-6">
-        <section className="relative overflow-hidden rounded-2xl border border-[#1d2f41] bg-[#08131f] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-          <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-cyan-400/[.05] blur-3xl" />
+        <section className="relative overflow-hidden rounded-2xl border border-[#1b2431] bg-[#0d121b] shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
           <div className="relative p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={backToList} className="inline-flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.02] px-2.5 py-1.5 text-[12px] font-medium text-slate-300 transition-colors hover:border-cyan-400/40 hover:text-cyan-200"><ArrowLeft size={13} /> Voltar</button>
-                <h1 className="text-[28px] font-extrabold tracking-[-.045em] text-white md:text-[32px]">Diário {monthName(period.mes)} {period.ano} <span className="text-slate-500">—</span> {selected.matricula_registro}</h1>
-              </div>
+              <button type="button" onClick={backToList} aria-label="Voltar para os diários" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[.08] bg-white/[.025] text-slate-400 transition-colors hover:border-cyan-400/40 hover:bg-cyan-400/[.06] hover:text-cyan-200"><ArrowLeft size={13} /></button>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-[#0d1a27] px-2.5 py-2.5">
+                <div className="flex items-center gap-2 rounded-lg border border-[#263345] bg-[#121925] px-2.5 py-2.5">
                   <span className="h-4 w-[2px] rounded-full bg-cyan-400" />
                   <span className="text-[10px] font-bold uppercase tracking-[.12em] text-cyan-300">Período</span>
-                  <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="rounded-md border border-white/[.08] bg-[#0d1a27] px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-white outline-none">
+                  <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="rounded-md border border-white/[.08] bg-[#121925] px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-white outline-none">
                     <option value={`${period.ano}-${period.mes}`}>{monthName(period.mes)} {period.ano}</option>
                     {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
                   </select>
@@ -131,7 +127,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
             </div>
 
             <div className="mt-6 grid gap-3 lg:grid-cols-[1.55fr_1fr]">
-              <div className="rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+              <div className="rounded-xl border border-[#202b3a] bg-[#111722] p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <span className="h-4 w-1 rounded-full bg-cyan-400" />
                   <span className="text-[10px] font-bold uppercase tracking-[.16em] text-cyan-400">Aeronave</span>
@@ -144,7 +140,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+              <div className="rounded-xl border border-[#202b3a] bg-[#111722] p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <span className="h-4 w-1 rounded-full bg-amber-400" />
                   <span className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-400">Horímetro</span>
@@ -157,7 +153,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
               </div>
             </div>
 
-            <div className="mt-3 rounded-xl border border-white/[.08] bg-[#0f1a29] p-4">
+            <div className="mt-3 rounded-xl border border-[#202b3a] bg-[#111722] p-4">
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-violet-400" />
                 <span className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-400">Célula</span>
@@ -202,7 +198,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
   );
 }
 
-function StatTile({ label, value, mono = false, accent = "text-white" }: { label: string; value: string; mono?: boolean; accent?: string }) { return <div className="min-w-0 rounded-lg border border-white/[.06] bg-[#0c1722] p-2.5"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">{label}</p><p className={`mt-2 truncate text-[15px] font-bold ${mono ? "font-mono" : ""} ${accent}`}>{value}</p></div>; }
+function StatTile({ label, value, mono = false, accent = "text-white" }: { label: string; value: string; mono?: boolean; accent?: string }) { return <div className="min-w-0 rounded-lg border border-[#202b3a] bg-[#151b26] p-2.5"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">{label}</p><p className={`mt-2 truncate text-[15px] font-bold ${mono ? "font-mono" : ""} ${accent}`}>{value}</p></div>; }
 
 function HeaderValue({ label, value, mono = false, accent = "text-white" }: { label: string; value: string; mono?: boolean; accent?: string }) { return <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p><p className={`mt-1 truncate text-sm font-bold ${mono ? "font-mono" : ""} ${accent}`}>{value}</p></div>; }
 

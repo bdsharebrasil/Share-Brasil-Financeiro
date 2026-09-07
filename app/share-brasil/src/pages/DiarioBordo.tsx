@@ -38,7 +38,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     setError(null);
     try {
       const [summary, opcoes] = await Promise.all([buscarResumoDiario(ano), options ? Promise.resolve(options) : buscarOpcoesDiario()]);
-      setAeronaves(summary.aeronaves);
+      setAeronaves(Array.isArray(summary.aeronaves) ? summary.aeronaves : []);
       setOptions(opcoes);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar os diários de bordo.");

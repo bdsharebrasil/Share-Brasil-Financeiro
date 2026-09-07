@@ -5,7 +5,6 @@ import { EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashb
 import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import DiarioLancamentoForm from "@/components/diario/DiarioLancamentoForm";
 import DiarioMesEditor from "@/components/diario/DiarioMesEditor";
-import DiarioMesResumo from "@/components/diario/DiarioMesResumo";
 import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
 import { atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
@@ -175,7 +174,6 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         {month && (
           <div className="space-y-4">
             <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />
-            <DiarioMesResumo diario={month} lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} onEdit={() => setMonthEditor(true)} onToggleClosed={() => void toggleMonth()} />
           </div>
         )}
         {month && <DiarioBancoHoras lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} />}

@@ -235,6 +235,12 @@ export async function criarLancamentoEconomico(dados: Record<string, unknown>) {
   })) as { id: string };
 }
 
+export function parseValorReais(valor: string): number {
+  const limpo = String(valor || "").replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3},)/g, "").replace(",", ".");
+  const numero = Number(limpo);
+  return Number.isFinite(numero) ? Math.round(numero * 100) : 0;
+}
+
 export function formatarMoeda(valor: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor || 0));
 }

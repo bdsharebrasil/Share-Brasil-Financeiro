@@ -22,7 +22,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
-import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EnviarEmailClienteButton } from "@/components/dashboard/financeiro/EnviarEmailClienteButton";
 import {
   EnviarEmailClienteDialog,

@@ -20,9 +20,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch"; // Importe o Switch se disponível, ou use checkbox
 import {
   criarLancamentoEconomico,
-  parseValorReais, // Assumindo que foi exportada/movida para utilitários
+  parseValorReais,
+  buscarOpcoesLancamento,
+  buscarDashboardCotista,
+  formatarMoeda,
+  formatarCentavos,
+  formatarData,
 } from "@/lib/financeiro-share-api";
-import type { OpcoesLancamento } from "@/lib/financeiro-share-api";
+import type { OpcoesLancamento, DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 
 function hoje() { return new Date().toISOString().slice(0, 10); }
@@ -343,5 +348,103 @@ export function NovoLancamentoCotistaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export default function FinanceiroCotista() {
+  const [aberto, setAberto] = useState(false);
+  const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardCotista | null>(null);
+  const [carregando, setCarregando] = useState(true);
+
+  const carregar = useCallback(async () => {
+    try {
+      const [ops, dash] = await Promise.all([buscarOpcoesLancamento(), buscarDashboardCotista()]);
+      setOpcoes(ops);
+      setDashboard(dash);
+    } catch {
+      setOpcoes(null);
+      setDashboard(null);
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const entradas = dashboard?.resumo?.entradas ?? 0;
+  const saidas = dashboard?.resumo?.saidas ?? 0;
+  const saldo = dashboard?.resumo?.saldo ?? 0;
+  const pendentes = dashboard?.resumo?.pendentes ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold tracking-[-.02em]">Financeiro do Cotista</h2>
+          <p className="text-xs text-muted-foreground">Visão econômica consolidada de cotistas e holdings.</p>
+        </div>
+        <Button onClick={() => setAberto(true)} className="gap-2">
+          <Plus size={15} /> Novo lançamento
+        </Button>
+      </div>
+
+      {carregando ? (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Entradas</p>
+              <p className="mt-1 text-lg font-bold text-emerald-400">{formatarMoeda(entradas)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Saídas</p>
+              <p className="mt-1 text-lg font-bold text-red-400">{formatarMoeda(saidas)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Saldo</p>
+              <p className="mt-1 text-lg font-bold">{formatarMoeda(saldo)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Pendentes</p>
+              <p className="mt-1 text-lg font-bold text-amber-400">{formatarMoeda(pendentes)}</p>
+            </div>
+          </div>
+
+          {dashboard && dashboard.lancamentos.length > 0 && (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-xs font-bold">Últimos lançamentos</p>
+              </div>
+              <div className="divide-y divide-border">
+                {dashboard.lancamentos.slice(0, 8).map((lanc) => (
+                  <div key={lanc.id} className="flex items-center justify-between px-4 py-3 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{lanc.descricao}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatarData(lanc.data)} · {lanc.categoria}</p>
+                    </div>
+                    <span className={`ml-3 shrink-0 font-bold ${lanc.fluxo === "ENTRADA" ? "text-emerald-400" : "text-red-400"}`}>
+                      {lanc.fluxo === "ENTRADA" ? "+" : "-"}{formatarCentavos(lanc.valorCentavos)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <NovoLancamentoCotistaDialog
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        opcoes={opcoes}
+        cotistasAeronave={opcoes?.cotistas ?? []}
+        aeronaveId=""
+        aoCriar={carregar}
+      />
+    </div>
   );
 }

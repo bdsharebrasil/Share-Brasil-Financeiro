@@ -477,7 +477,7 @@ export default function NFSaidaTab() {
         const descricaoServico = form.descricao.trim() || "Serviços aeronáuticos";
 
         const pdfData = await normalizeReceiptForPdf({
-          receipt_number: previaNumeroRecibo(form.numero.trim()),
+          receipt_number: "Será gerado ao finalizar",
           payer_name: form.cliente_nome.trim(),
           payer_document: form.cliente_cnpj.trim(),
           service_description: descricaoServico,
@@ -491,7 +491,7 @@ export default function NFSaidaTab() {
         setReciboPreview({
           pdfData,
           payload: {
-            numero: form.numero.trim(),
+            numero: "",
             descricaoServico,
             dataVencimentoFinal,
             categoriaDespesaId: despesaSelecionada?.categoriaId || form.categoria_despesa_id,
@@ -540,49 +540,22 @@ export default function NFSaidaTab() {
     } finally { setSaving(false); }
   };
 
-  // Prévia do número do recibo, só para exibir no PDF antes de confirmar — o
-  // Worker recalcula e valida o número real (com o codigo_cliente do cotista) na criação.
-  const previaNumeroRecibo = (numeroInformado: string) => {
-    const base = numeroInformado.trim().replace(/^REC-/i, "");
-    const cotista = cotistas.find((c) => c.cotista_aeronave_id === form.cotista_aeronave_id);
-    const prefixo = (cotista?.codigo_cliente || "CLI").trim().toUpperCase();
-    if (!base) return `REC-${prefixo}001/${String(form.data_criacao || new Date().toISOString()).slice(2, 4)}`;
-    return `REC-${prefixo}${base}`;
-  };
-
-  /** Confirma a prévia: sobe o PDF, grava o recibo no D1 e gera as pernas financeiras (Worker). */
-  const confirmReciboSave = async (blob: Blob) => {
+  /** Cria o recibo primeiro para que o Worker atribua a sequência oficial; só depois gera e salva o PDF. */
+  const confirmReciboSave = async (_previewBlob: Blob) => {
     if (!reciboPreview || reciboSavedUrl) return;
-    const { numero, descricaoServico, dataVencimentoFinal, categoriaDespesaId, categoriaDespesaSubcategoria } = reciboPreview.payload;
+    const { descricaoServico, dataVencimentoFinal, categoriaDespesaId, categoriaDespesaSubcategoria } = reciboPreview.payload;
     setSaving(true); setToast(null);
     try {
-      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(blob, `${previaNumeroRecibo(numero)}.pdf`);
-
-      const { recibo } = await nfSaidaApi.criarReciboSaida({
-        numero,
-        cotista_aeronave_id: form.cotista_aeronave_id,
-        aeronave_id: form.aircraft_id,
-        categoria_receita_id: form.categoria_receita_id,
-        categoria_receita_nome: form.categoria,
-        categoria_despesa_id: categoriaDespesaId,
-        categoria_despesa_subcategoria: categoriaDespesaSubcategoria,
-        data_emissao: form.data_criacao,
-        data_vencimento: dataVencimentoFinal,
-        valor: Number(form.valor) || 0,
-        descricao_servico: descricaoServico,
-        status: form.status,
-        pdf_url: reciboUrl,
-      });
-
-      setReciboSavedUrl(reciboUrl);
-      setEmailTarget(mapRecibo(recibo));
-      setToast({ type: "ok", text: "Recibo de saída salvo com PDF e lançamentos financeiros gerados." });
-      fetchNotas();
-    } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao salvar o recibo." });
-    } finally { setSaving(false); }
+      const { recibo } = await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
+      const numeroRecibo = String(recibo.numero_recibo || "");
+      const pdfData = await normalizeReceiptForPdf({ receipt_number: numeroRecibo, payer_name: form.cliente_nome.trim(), payer_document: form.cliente_cnpj.trim(), service_description: descricaoServico, receipt_type: "pagamento", issue_date: form.data_criacao, max_payment_date: dataVencimentoFinal, nome_categoria: form.categoria, valor: Number(form.valor) || 0 });
+      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfData, `${numeroRecibo}.pdf`);
+      const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
+      setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
+      setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();
+    } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao salvar o recibo." }); }
+    finally { setSaving(false); }
   };
-
   const closeReciboPreview = () => {
     setReciboPreview(null);
     if (reciboSavedUrl) { setReciboSavedUrl(null); closeForm(); }
@@ -700,8 +673,8 @@ export default function NFSaidaTab() {
             <button onClick={closeForm} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div><label className={labelCls}>Número *</label>
-              <input className={inputCls} value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
+            <div><label className={labelCls}>{documentType === "recibo" ? "Número do recibo" : "Número *"}</label>
+              {documentType === "recibo" ? <p className={`${inputCls} text-muted-foreground`}>Gerado automaticamente: código do cotista-número/ano</p> : <input className={inputCls} value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />}</div>
             <div className="md:col-span-2"><label className={labelCls}>Cotista (cliente ou sócio) *</label>
               <SearchableCombobox
                 items={cotistas.map((c) => ({

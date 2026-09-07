@@ -449,8 +449,8 @@ export default function ControleAbastecimento({
   );
 
   return (
-    <div className="min-h-screen bg-[#050b14] px-4 pb-10 pt-4 text-white">
-      <div className="mx-auto max-w-[1540px]">
+    <div className="min-h-screen -mx-6 -my-[33px] overflow-hidden rounded-[6px] bg-[#050b14] px-4 pb-10 pt-4 text-white">
+      <div className="mx-auto my-[18px] max-w-[1540px]">
 
         {/* HEADER PRINCIPAL */}
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -618,7 +618,7 @@ export default function ControleAbastecimento({
                 </div>
 
                 {/* CLIENTES */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <div className="grid mx-[21px] my-[28px] gap-4 overflow-hidden sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {loading ? (
                     Array.from({ length: 8 }).map((_, index) => (
                       <div

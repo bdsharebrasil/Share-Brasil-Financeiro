@@ -832,14 +832,16 @@ export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: strin
 export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
 export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; recebedores: RecebedorRecibo[] };
 
-export type TipoRecibo = "cliente_reembolsavel" | "colaborador" | "pagamento";
+export type TipoRecibo = "recibo_reembolso" | "recibo_colaborador" | "recibo_pagamento";
 export type StatusRecibo = "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
 export type Recibo = {
   id: string;
   numero_recibo: string;
   tipo_recibo: TipoRecibo;
-  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
-  cliente_id: string | null;
+  beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor";
+  pagador_tipo: "empresa" | "cotista_aeronave";
+  pagador_id: string;
+  cliente_id?: string | null;
   colaborador_id: string | null;
   freelancer_id?: string | null;
   cotista_id?: string | null;
@@ -853,7 +855,8 @@ export type Recibo = {
   cidade_pagador: string | null;
   uf_pagador: string | null;
   valor: number;
-  descricao_servico: string;
+  descricao_servico?: string;
+  descricao?: string;
   data_emissao: string;
   data_vencimento: string | null;
   forma_pagamento: string | null;
@@ -863,17 +866,14 @@ export type Recibo = {
   grupo_categoria: string;
   categoria_id?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
-  tipo_caixa: "share" | "cliente" | "holding" | "SHARE" | "CLIENTE" | "HOLDING";
+  tipo_caixa: "share" | "cliente" | "hold";
   status: StatusRecibo;
-  boleto_url: string | null;
-  nf_url: string | null;
+  url_recibo: string | null;
   pdf_anexo_id?: string | null;
   pdf_url?: string | null;
   /** Movimento da conta holding; nulo quando o recibo usa somente o caixa Share. */
-  movimentacao_id: string | null;
   /** Lançamento do caixa Share; nulo quando o recibo é exclusivamente da holding. */
   lancamento_id?: string | null;
-  movimentacao_reembolso_id: string | null;
   criado_por: string | null;
   criado_em: string;
 };
@@ -881,9 +881,7 @@ export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas
 
 export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; valor?: number; pago_por?: string };
 export type CriarReciboPayload = {
-  tipo_recibo?: TipoRecibo;
-  beneficiario_tipo: "cliente" | "colaborador" | "freelancer" | "fornecedor";
-  numero_recibo?: string | null;
+  tipo_recibo: TipoRecibo;
   natureza_despesa?: "aeronave" | "empresa" | null;
   categoria_nome_manual?: string | null;
   reembolsavel?: boolean;
@@ -901,7 +899,8 @@ export type CriarReciboPayload = {
   cidade_pagador?: string | null;
   uf_pagador?: string | null;
   valor: number;
-  descricao_servico: string;
+  descricao_servico?: string;
+  descricao?: string;
   data_emissao: string;
   data_vencimento?: string | null;
   forma_pagamento?: string | null;

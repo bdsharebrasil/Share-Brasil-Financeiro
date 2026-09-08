@@ -1084,6 +1084,7 @@ export type CriarReciboPayload = {
   data_vencimento?: string | null;
   forma_pagamento?: string | null;
   categoria_movimentacao_id?: string | null;
+  categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;
   pagador_tipo?: "empresa" | "cotista_aeronave";
   pagador_id?: string | null;

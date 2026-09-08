@@ -147,6 +147,9 @@ async function gerarPdfRecibo(
     valor: Number(recibo.valor || 0),
     descricao: [
       (recibo.descricao ?? recibo.descricao_servico),
+      recibo.numero_documento_anexo
+        ? `Documento anexo: ${recibo.numero_documento_anexo}`
+        : null,
       recibo.observacoes,
     ]
       .filter(Boolean)
@@ -242,13 +245,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const rateioPagamentoAtivo = (form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso") && form.rateado;
   const rateioLinhasPagamento = (() => {
     if (!rateioPagamentoAtivo) return [];
-    const linhas = cotistas.map((item) => ({ cotista_id: item.id, percentual: Number(rateioPercentuais[item.id] || 0) })).filter((item) => item.percentual > 0);
-    const total = linhas.reduce((soma, linha) => soma + linha.percentual, 0);
-    if (linhas.length && Math.abs(total - 100) < 0.01) {
-      const ultima = linhas.length - 1;
-      return linhas.map((linha, index) => index === ultima ? { ...linha, percentual: linha.percentual + (100 - total) } : linha);
-    }
-    return linhas;
+
+    return cotistas
+      .map((item) => ({
+        cotista_id: item.id,
+        percentual: Number(rateioPercentuais[item.id] || 0),
+      }))
+      .filter((item) => item.percentual > 0);
   })();
   const totalPercentualRateio = rateioPagamentoAtivo ? rateioLinhasPagamento.reduce((total, linha) => total + linha.percentual, 0) : totalRateio;
   const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
@@ -386,9 +389,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         valor_centavos: valorReciboCentavos,
         descricao: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
-        data_vencimento: form.tipo === "recibo_pagamento" ? null : form.data_vencimento || null,
+        data_vencimento: form.data_vencimento || null,
         forma_pagamento: form.tipo === "recibo_pagamento" ? form.forma_pagamento || null : null,
         categoria_movimentacao_id: form.categoria_id,
+        categoria_nome: form.categoria_nome || null,
         categoria_nome_manual: form.tipo === "recibo_colaborador" ? form.categoria_nome_manual.trim() || null : null,
         natureza_despesa: form.tipo === "recibo_colaborador" ? (form.natureza_despesa || null) : null,
         grupo_categoria: form.tipo === "recibo_colaborador" ? (form.natureza_despesa === "aeronave" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA") : null,
@@ -404,6 +408,17 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         rateio_linhas: rateioPagamentoAtivo ? rateioLinhasComValores : undefined,
       };
       const resposta = await criarRecibo(payload);
+      const dadosParaPdf = {
+        ...resposta.recibo,
+        recebedor_nome: form.recebedor_nome,
+        recebedor_cpf: form.recebedor_cpf,
+        recebedor_endereco: form.recebedor_endereco,
+        recebedor_cidade: form.recebedor_cidade,
+        recebedor_uf: form.recebedor_uf,
+        observacoes: form.observacoes,
+        data_vencimento: form.data_vencimento || null,
+        numero_documento_anexo: form.numero_documento_anexo || null,
+      };
       setEstadoEmissao("CRIADO");
       setRecibos((atual) => [{ ...resposta.recibo, status: "CRIADO" }, ...atual]);
       setForm(inicial());
@@ -425,7 +440,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       let avisoPdf = "";
       try {
         setEstadoEmissao("PDF_PENDENTE");
-        const pdf = await gerarPdfRecibo(resposta.recibo, colaboradorSelecionado);
+        const pdf = await gerarPdfRecibo(dadosParaPdf, colaboradorSelecionado);
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
@@ -504,11 +519,32 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             <Campo label={form.tipo === "recibo_pagamento" ? "Descrição" : "Descrição do serviço"} obrigatorio className="md:col-span-2"><input value={form.descricao_servico} onChange={(e) => alterar("descricao_servico", e.target.value)} placeholder={form.tipo === "recibo_pagamento" ? "Descrição do pagamento" : "Ex.: Reembolso de despesas operacionais"} className="campo" /></Campo>
             <Campo label="Valor" obrigatorio><input inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
             {form.tipo !== "recibo_pagamento" && <Campo label="Vencimento"><input type="date" value={form.data_vencimento} onChange={(e) => alterar("data_vencimento", e.target.value)} className="campo" /></Campo>}
+            {form.tipo === "recibo_pagamento" && <Campo label="Vencimento" obrigatorio><input type="date" value={form.data_vencimento} onChange={(event) => alterar("data_vencimento", event.target.value)} className="campo" /></Campo>}
             {form.tipo === "recibo_pagamento" && <Campo label="Forma de pagamento" obrigatorio><select value={form.forma_pagamento} onChange={(e) => alterar("forma_pagamento", e.target.value)} className="campo"><option value="">Selecione</option><option>PIX</option><option>Transferência bancária</option><option>Boleto</option><option>Cartão</option><option>Dinheiro</option></select></Campo>}
             {form.tipo === "recibo_pagamento" && mostrarMetadadosPagamento && <><Campo label="Periodicidade" obrigatorio><SearchableCombobox items={["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"].map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade..." emptyMessage="Nenhuma periodicidade encontrada." /></Campo><Campo label="Tipo de rateio" obrigatorio><SearchableCombobox items={["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => ({ id: item, label: item }))} value={form.tipo_rateio} onChange={(id) => alterar("tipo_rateio", id)} placeholder="Buscar tipo..." emptyMessage="Nenhum tipo encontrado." /></Campo><Campo label="Grupo categoria" obrigatorio><SearchableCombobox items={opcoes.categorias_cliente.map((item) => ({ id: item.id, label: item.nome }))} value={form.categoria_id} onChange={(id) => { const categoria = opcoes.categorias_cliente.find((item) => item.id === id); alterar("categoria_id", id); alterar("categoria_nome", categoria?.nome || ""); alterar("subcategoria_1", ""); alterar("subcategoria_2", ""); alterar("subcategoria_3", ""); alterar("subcategoria_4", ""); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria cadastrada." /></Campo>{subcategoriasDisponiveis.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategoriasDisponiveis.map((item) => ({ id: item, label: item }))} value={form.subcategoria_1} onChange={(id) => alterar("subcategoria_1", id)} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria..." emptyMessage="Nenhuma subcategoria encontrada." /></Campo>}</>}
             {form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave" && <div className="md:col-span-2 rounded-xl border border-primary/25 bg-primary/[.05] p-4">
               <div className="flex items-start gap-3"><Checkbox checked={form.rateado} onCheckedChange={(checked) => { const ativo = checked === true; alterar("rateado", ativo); if (!ativo) { alterar("aeronave_id", ""); setRateioPercentuais({}); } }} /><span><span className="block text-[11px] font-bold">Ratear entre os cotistas da aeronave?</span><span className="mt-0.5 block text-[10px] leading-5 text-muted-foreground">Selecione uma aeronave e informe a porcentagem de cada cotista. O total precisa fechar em 100%.</span></span></div>
-              {form.rateado && <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 md:grid-cols-2"><Campo label="Aeronave" obrigatorio><select value={form.aeronave_id} onChange={(event) => { const id = event.target.value; alterar("aeronave_id", id); setRateioPercentuais(Object.fromEntries(opcoes.cotistas.filter((item) => item.aeronave_id === id).map((item) => [item.id, String(item.percentual_sociedade || "")] ))); }} className="campo"><option value="">Selecione a aeronave</option>{opcoes.aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro}{aeronave.modelo ? " · " + aeronave.modelo : ""}</option>)}</select></Campo><div className="rounded-xl border border-border bg-background/30 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Cotistas e percentuais</p>{cotistas.length ? <div className="mt-2 space-y-2">{cotistas.map((cotista) => <label key={cotista.id} className="flex items-center justify-between gap-3 text-[11px]"><span className="min-w-0 truncate">{cotista.nome}</span><span className="flex items-center gap-1"><input inputMode="decimal" value={rateioPercentuais[cotista.id] ?? ""} onChange={(event) => setRateioPercentuais((atual) => ({ ...atual, [cotista.id]: event.target.value }))} className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-right font-mono text-[11px] outline-none focus:border-primary" /><span className="text-[10px] text-muted-foreground">%</span></span></label>)}</div> : <p className="mt-2 text-[10px] text-amber-500">Selecione uma aeronave para carregar os cotistas.</p>}<p className={`mt-3 border-t border-border pt-2 text-[10px] ${Math.abs(totalPercentualRateio - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}>Total informado: {totalPercentualRateio}%</p></div></div>}
+              {form.rateado && <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 md:grid-cols-2"><Campo label="Aeronave" obrigatorio><select value={form.aeronave_id} onChange={(event) => {
+                  const id = event.target.value;
+                  alterar("aeronave_id", id);
+
+                  const cotistasAeronave = opcoes.cotistas.filter(
+                    (item) => item.aeronave_id === id,
+                  );
+
+                  const percentualIgual = cotistasAeronave.length
+                    ? (100 / cotistasAeronave.length).toFixed(3)
+                    : "";
+
+                  setRateioPercentuais(
+                    Object.fromEntries(
+                      cotistasAeronave.map((item) => [
+                        item.id,
+                        percentualIgual,
+                      ]),
+                    ),
+                  );
+                }} className="campo"><option value="">Selecione a aeronave</option>{opcoes.aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro}{aeronave.modelo ? " · " + aeronave.modelo : ""}</option>)}</select></Campo><div className="rounded-xl border border-border bg-background/30 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Cotistas e percentuais</p>{cotistas.length ? <div className="mt-2 space-y-2">{cotistas.map((cotista) => <label key={cotista.id} className="flex items-center justify-between gap-3 text-[11px]"><span className="min-w-0 truncate">{cotista.nome}</span><span className="flex items-center gap-1"><input inputMode="decimal" value={rateioPercentuais[cotista.id] ?? ""} onChange={(event) => setRateioPercentuais((atual) => ({ ...atual, [cotista.id]: event.target.value }))} className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-right font-mono text-[11px] outline-none focus:border-primary" /><span className="text-[10px] text-muted-foreground">%</span></span></label>)}</div> : <p className="mt-2 text-[10px] text-amber-500">Selecione uma aeronave para carregar os cotistas.</p>}<p className={`mt-3 border-t border-border pt-2 text-[10px] ${Math.abs(totalPercentualRateio - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}>Total informado: {totalPercentualRateio}%</p></div></div>}
             </div>}
             {form.tipo === "recibo_colaborador" && <>
               <Campo label="Tipo de despesa" obrigatorio><select value={form.natureza_despesa} onChange={(e) => { const natureza = e.target.value as Formulario["natureza_despesa"]; alterar("natureza_despesa", natureza); alterar("categoria_id", ""); alterar("categoria_nome", ""); alterar("categoria_nome_manual", ""); alterar("aeronave_id", ""); }} className="campo"><option value="">Selecione o tipo</option><option value="aeronave">Despesa aeronave</option><option value="empresa">Despesa empresa</option></select></Campo>

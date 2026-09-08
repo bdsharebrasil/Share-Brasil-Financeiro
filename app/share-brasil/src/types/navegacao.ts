@@ -22,13 +22,23 @@ import {
   Receipt,
   RefreshCw,
   Settings2,
-  Users,
   WalletCards,
   Wrench,
   Plane,
   ContactRound,
+  IdCard,
   type LucideIcon,
 } from "lucide-react";
+import { createElement, type SVGProps } from "react";
+
+const BanknoteArrowUp: LucideIcon = (props: SVGProps<SVGSVGElement>) => createElement(
+  "svg",
+  { ...props, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
+  createElement("rect", { width: 20, height: 12, x: 2, y: 6, rx: 2 }),
+  createElement("circle", { cx: 12, cy: 12, r: 2 }),
+  createElement("path", { d: "M6 12h.01M18 12h.01" }),
+  createElement("path", { d: "M12 2v4M9 5l3-3 3 3" }),
+);
 
 export type Ambiente = "gestor" | "operacoes" | "financeiro" | "share-brasil" | "portal";
 export type Tema = "dark" | "light";
@@ -97,8 +107,8 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
     { id: "financeiro-share", label: "Financeiro Share", icon: WalletCards, badge: "3" },
-    { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Users },
-    { id: "gestao-colaborador", label: "Gestão Colaborador", icon: Users },
+    { id: "financeiro-cotista", label: "Financeiro Cotista", icon: BanknoteArrowUp },
+    { id: "gestao-colaborador", label: "Gestão Colaborador", icon: IdCard },
     { id: "ferias", label: "Férias", icon: CalendarDays },
     { id: "simulador-custos", label: "Simulador de custos", icon: CircleDollarSign },
     { id: "configuracoes", label: "Configurações", icon: Settings2 },

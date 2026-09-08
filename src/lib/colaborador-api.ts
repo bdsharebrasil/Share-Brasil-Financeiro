@@ -899,6 +899,7 @@ export type CriarReciboPayload = {
   cidade_pagador?: string | null;
   uf_pagador?: string | null;
   valor: number;
+  valor_centavos: number;
   descricao_servico?: string;
   descricao?: string;
   data_emissao: string;
@@ -906,8 +907,8 @@ export type CriarReciboPayload = {
   forma_pagamento?: string | null;
   categoria_movimentacao_id?: string | null;
   categoria_lancamento_id?: string | null;
-  pagador_tipo?: "share" | "cotista";
-  pagador_cotista_id?: string | null;
+  pagador_tipo?: "empresa" | "cotista_aeronave";
+  pagador_id?: string | null;
   periodicidade?: string | null;
   tipo_rateio?: string | null;
   subcategoria_1?: string | null;

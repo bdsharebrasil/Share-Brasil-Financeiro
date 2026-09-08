@@ -15,6 +15,7 @@ export function ReciboSaidaPreviewModal({ open, data, saving, savedUrl, onClose,
   const makePdf = async () => gerarReciboPdf({
     numero: String(data.receipt_number || "—"), data: String(data.issue_date || ""),
     pagadorNome: String(data.payer_name || "—"), pagadorDocumento: String(data.payer_document || "Documento não informado"),
+  pagadorEndereco: String(data.payer_address || "Endereço não informado"), pagadorCidade: String(data.payer_city || ""), pagadorUf: String(data.payer_state || ""),
     emissorNome: "SHARE BRASIL SERVIÇOS AEROPORTUÁRIOS", emissorDocumento: "CNPJ: 30.898.549/0001-06",
     descricao: String(data.service_description || "—"), valor: Number(data.valor || 0),
   });

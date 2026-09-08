@@ -169,7 +169,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
               <p className="text-sm font-bold tracking-[-.01em]">{mensagemAtencao}</p>
               {totais.totalAtencao > 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {dados?.contasPagarProximas.length ?? 0} conta(s) a pagar próximas · {dados?.contasReceberAtraso.length ?? 0} em atraso · {dados?.enviosPendentes.length ?? 0} solicitação(ões) de pagamento · {dados?.feriasProximas.length ?? 0} férias próximas
+                  {dados?.contasPagarProximas?.length ?? 0} conta(s) a pagar próximas · {dados?.contasReceberAtraso?.length ?? 0} em atraso · {dados?.enviosPendentes?.length ?? 0} solicitação(ões) de pagamento · {dados?.feriasProximas?.length ?? 0} férias próximas
                 </p>
               )}
             </div>
@@ -187,20 +187,20 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <CartaoKpi
           label="Contas a pagar próximas"
           value={carregando ? "—" : formatarMoeda(totais.pagar)}
-          detail={`${dados?.contasPagarProximas.length ?? 0} conta(s) vencendo nos próximos 7 dias`}
+          detail={`${dados?.contasPagarProximas?.length ?? 0} conta(s) vencendo nos próximos 7 dias`}
           tone="amber"
           icon={<TrendingDown size={16} />}
         />
         <CartaoKpi
           label="Contas a receber em atraso"
           value={carregando ? "—" : formatarMoeda(totais.receber)}
-          detail={`${dados?.contasReceberAtraso.length ?? 0} conta(s) vencidas não recebidas`}
+          detail={`${dados?.contasReceberAtraso?.length ?? 0} conta(s) vencidas não recebidas`}
           tone="red"
           icon={<TrendingUp size={16} />}
         />
         <CartaoKpi
           label="Solicitações de pagamento"
-          value={carregando ? "—" : String(dados?.enviosPendentes.length ?? 0)}
+          value={carregando ? "—" : String(dados?.enviosPendentes?.length ?? 0)}
           detail="Envios recebidos e ainda não verificados"
           tone="violet"
           icon={<Inbox size={16} />}
@@ -220,13 +220,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="pagar"
           titulo="Contas a pagar próximas do vencimento"
-          detalhe={`${dados?.contasPagarProximas.length ?? 0} conta(s) · ${formatarMoeda(totais.pagar)}`}
+          detalhe={`${dados?.contasPagarProximas?.length ?? 0} conta(s) · ${formatarMoeda(totais.pagar)}`}
           icone={<Wallet size={15} />}
           expandida={secaoExpandida === "pagar"}
           aoAlternar={() => expandir("pagar")}
           onVerTodos={() => aoNavegar("financeiro-share")}
         >
-          {carregando ? <SkeletonLinhas /> : (dados?.contasPagarProximas.length ?? 0) > 0 ? (
+          {carregando ? <SkeletonLinhas /> : (dados?.contasPagarProximas?.length ?? 0) > 0 ? (
             <TabelaCompacta
               colunas={["Descrição", "Vencimento", "Valor", "Status"]}
               linhas={dados!.contasPagarProximas.slice(0, 5).map((c) => ({
@@ -247,13 +247,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="receber"
           titulo="Contas a receber em atraso"
-          detalhe={`${dados?.contasReceberAtraso.length ?? 0} conta(s) · ${formatarMoeda(totais.receber)}`}
+          detalhe={`${dados?.contasReceberAtraso?.length ?? 0} conta(s) · ${formatarMoeda(totais.receber)}`}
           icone={<TrendingUp size={15} />}
           expandida={secaoExpandida === "receber"}
           aoAlternar={() => expandir("receber")}
           onVerTodos={() => aoNavegar("financeiro-share")}
         >
-          {carregando ? <SkeletonLinhas /> : (dados?.contasReceberAtraso.length ?? 0) > 0 ? (
+          {carregando ? <SkeletonLinhas /> : (dados?.contasReceberAtraso?.length ?? 0) > 0 ? (
             <TabelaCompacta
               colunas={["Descrição", "Vencimento", "Valor", "Status"]}
               linhas={dados!.contasReceberAtraso.slice(0, 5).map((c) => ({
@@ -274,13 +274,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="envios"
           titulo="Solicitações de pagamento recebidas"
-          detalhe={`${dados?.enviosPendentes.length ?? 0} pendente(s) · ${formatarMoeda(totais.envios)}`}
+          detalhe={`${dados?.enviosPendentes?.length ?? 0} pendente(s) · ${formatarMoeda(totais.envios)}`}
           icone={<Inbox size={15} />}
           expandida={secaoExpandida === "envios"}
           aoAlternar={() => expandir("envios")}
           onVerTodos={() => aoNavegar("enviar-pagamento")}
         >
-          {carregando ? <SkeletonLinhas /> : (dados?.enviosPendentes.length ?? 0) > 0 ? (
+          {carregando ? <SkeletonLinhas /> : (dados?.enviosPendentes?.length ?? 0) > 0 ? (
             <TabelaCompacta
               colunas={["Descrição", "Fornecedor", "Valor", "Status"]}
               linhas={dados!.enviosPendentes.slice(0, 5).map((e) => ({
@@ -301,13 +301,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="ferias"
           titulo="Férias próximas (15 dias)"
-          detalhe={`${dados?.feriasProximas.length ?? 0} colaborador(es)`}
+          detalhe={`${dados?.feriasProximas?.length ?? 0} colaborador(es)`}
           icone={<CalendarClock size={15} />}
           expandida={secaoExpandida === "ferias"}
           aoAlternar={() => expandir("ferias")}
           onVerTodos={() => aoNavegar("ferias")}
         >
-          {carregando ? <SkeletonLinhas /> : (dados?.feriasProximas.length ?? 0) > 0 ? (
+          {carregando ? <SkeletonLinhas /> : (dados?.feriasProximas?.length ?? 0) > 0 ? (
             <div className="divide-y divide-border/60">
               {dados!.feriasProximas.map((f) => {
                 const nome = f.nome_exibicao || f.nome_completo || "Colaborador";

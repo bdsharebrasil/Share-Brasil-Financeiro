@@ -76,7 +76,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
             : "border-transparent text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
-        <Icon size={compacto ? 18 : 16} strokeWidth={selecionado ? 2.3 : 1.8} />
+        <Icon size={item.id === "financeiro-cotista" ? (compacto ? 16 : 14) : (compacto ? 18 : 16)} strokeWidth={selecionado ? 2.3 : 1.8} />
         {!compacto && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
         {compacto && <span className="pointer-events-none absolute left-full z-[60] ml-3 whitespace-nowrap rounded-md border border-sidebar-border bg-sidebar px-2.5 py-1 text-xs text-sidebar-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">{item.label}</span>}
       </button>

@@ -19,6 +19,9 @@ export type DadosReciboPdf = {
   data: string;
   pagadorNome: string;
   pagadorDocumento?: string | null;
+  pagadorEndereco?: string | null;
+  pagadorCidade?: string | null;
+  pagadorUf?: string | null;
   pagadorLinhas?: Array<string | null | undefined>;
   emissorNome?: string;
   emissorDocumento?: string;
@@ -163,6 +166,8 @@ export async function gerarReciboPdf(
 
   for (const linha of [
     dados.pagadorDocumento,
+    dados.pagadorEndereco,
+    [dados.pagadorCidade, dados.pagadorUf].filter(Boolean).join(" - "),
     ...(dados.pagadorLinhas || []),
   ].filter(Boolean)) {
     pdf.text(String(linha), 95, yPagador);

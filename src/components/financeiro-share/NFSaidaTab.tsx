@@ -10,7 +10,6 @@ import {
   Download,
   CheckCircle2,
   Clock,
-  XCircle,
   DollarSign,
   Upload,
   ReceiptText,
@@ -50,6 +49,9 @@ interface NFSaida {
   socio_id: string | null;
   cliente_nome: string | null;
   cliente_cnpj: string | null;
+  cliente_endereco?: string | null;
+  cliente_cidade?: string | null;
+  cliente_uf?: string | null;
   cliente_email?: string | null;
   data_criacao: string | null;
   data_vencimento: string | null;
@@ -71,6 +73,9 @@ interface FormState {
   // preenchidos automaticamente ao selecionar o cotista (uso: exibição e PDF do recibo)
   cliente_nome: string;
   cliente_cnpj: string;
+  cliente_endereco: string;
+  cliente_cidade: string;
+  cliente_uf: string;
   aircraft_id: string;
   aeronave: string;
   categoria_receita_id: string;
@@ -86,11 +91,11 @@ interface FormState {
 }
 
 const emptyForm: FormState = {
-  numero: "", cotista_aeronave_id: "", cliente_nome: "", cliente_cnpj: "",
+  numero: "", cotista_aeronave_id: "", cliente_nome: "", cliente_cnpj: "", cliente_endereco: "", cliente_cidade: "", cliente_uf: "",
   aircraft_id: "", aeronave: "", categoria_receita_id: "", categoria: "",
   categoria_despesa_id: "", categoria_despesa_subcategoria: "",
   data_criacao: new Date().toISOString().slice(0, 10),
-  data_vencimento: "", valor: "", descricao: "", status: "pendente",
+  data_vencimento: "", valor: "", descricao: "", status: "EM_ABERTO",
   arquivo_pdf_url: "",
 };
 
@@ -111,9 +116,8 @@ const emptyBaixaForm: BaixaFormState = {
 const FORMAS_PAGAMENTO = ["PIX", "Transferência (TED/DOC)", "Boleto", "Dinheiro", "Cartão"];
 
 const STATUS_OPCOES = [
-  { value: "pendente", label: "Pendente" },
-  { value: "recebido", label: "Recebido" },
-  { value: "cancelado", label: "Cancelado" },
+  { value: "EM_ABERTO", label: "Em aberto" },
+  { value: "PAGO", label: "Pago" },
 ];
 
 /* ─────────────── categorias de despesa do cliente (categoria_movimentacao_cliente) ─────────────── */
@@ -177,26 +181,18 @@ type SortDir = "asc" | "desc";
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = (status ?? "").toLowerCase();
-  if (s === "recebido") {
+  if (["pago", "recebido"].includes(s)) {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
         style={{ background: "rgba(34,197,94,0.10)", color: "#4ade80", borderColor: "rgba(34,197,94,0.25)" }}>
-        <CheckCircle2 className="h-3 w-3 mr-1" /> Recebido
-      </span>
-    );
-  }
-  if (s === "cancelado") {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
-        style={{ background: "rgba(100,116,139,0.10)", color: "#94a3b8", borderColor: "rgba(100,116,139,0.25)" }}>
-        <XCircle className="h-3 w-3 mr-1" /> Cancelado
+        <CheckCircle2 className="h-3 w-3 mr-1" /> Pago
       </span>
     );
   }
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
       style={{ background: "rgba(245,158,11,0.10)", color: "#fbbf24", borderColor: "rgba(245,158,11,0.25)" }}>
-      <Clock className="h-3 w-3 mr-1" /> Pendente
+      <Clock className="h-3 w-3 mr-1" /> Em aberto
     </span>
   );
 }
@@ -228,7 +224,7 @@ export default function NFSaidaTab() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"" | "pendente" | "recebido" | "cancelado">("");
+  const [statusFilter, setStatusFilter] = useState<"" | "EM_ABERTO" | "PAGO">("");
   const [sortBy, setSortBy] = useState<SortBy>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -252,6 +248,9 @@ export default function NFSaidaTab() {
     socio_id: n.socio_id,
     cliente_nome: n.cliente_nome,
     cliente_cnpj: n.cliente_cnpj,
+    cliente_endereco: n.cliente_endereco ?? null,
+    cliente_cidade: n.cliente_cidade ?? null,
+    cliente_uf: n.cliente_uf ?? null,
     cliente_email: n.cliente_email ?? null,
     data_criacao: n.data_criacao ?? null,
     data_vencimento: n.data_vencimento,
@@ -276,6 +275,9 @@ export default function NFSaidaTab() {
     socio_id: r.socio_id,
     cliente_nome: r.cliente_nome,
     cliente_cnpj: r.cliente_cnpj,
+    cliente_endereco: r.cliente_endereco ?? null,
+    cliente_cidade: r.cliente_cidade ?? null,
+    cliente_uf: r.cliente_uf ?? null,
     cliente_email: r.cliente_email ?? null,
     data_criacao: r.data_emissao ?? null,
     data_vencimento: r.data_vencimento,
@@ -336,7 +338,7 @@ export default function NFSaidaTab() {
       .filter((n) => ["pendente", "em_aberto", "aberto"].includes((n.status ?? "").toLowerCase()))
       .reduce((s, n) => s + num(n.valor), 0);
     const totalRecebido = notas
-      .filter((n) => (n.status ?? "").toLowerCase() === "recebido")
+      .filter((n) => ["pago", "recebido"].includes((n.status ?? "").toLowerCase()))
       .reduce((s, n) => s + num(n.valor), 0);
     return { total, totalPendente, totalRecebido };
   }, [notas]);
@@ -347,7 +349,7 @@ export default function NFSaidaTab() {
     let result = notas;
     if (dateFrom) result = result.filter((n) => (n.data_criacao ?? "") >= dateFrom);
     if (dateTo) result = result.filter((n) => (n.data_criacao ?? "") <= dateTo);
-    if (statusFilter) result = result.filter((n) => (n.status ?? "").toLowerCase() === statusFilter);
+    if (statusFilter) result = result.filter((n) => statusFilter === "PAGO" ? ["pago", "recebido"].includes((n.status ?? "").toLowerCase()) : ["em_aberto", "aberto", "pendente"].includes((n.status ?? "").toLowerCase()));
 
     const sorted = [...result].sort((a, b) => {
       let cmp = 0;
@@ -387,8 +389,8 @@ export default function NFSaidaTab() {
     });
 
     Object.values(groups).forEach((anos) => Object.values(anos).forEach((items) => items.sort((a, b) => {
-      const aPendente = (a.status || "").toLowerCase() === "pendente";
-      const bPendente = (b.status || "").toLowerCase() === "pendente";
+      const aPendente = ["pendente", "em_aberto", "aberto"].includes((a.status || "").toLowerCase());
+      const bPendente = ["pendente", "em_aberto", "aberto"].includes((b.status || "").toLowerCase());
       if (aPendente !== bPendente) return aPendente ? -1 : 1;
       return (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "");
     })));
@@ -421,10 +423,11 @@ export default function NFSaidaTab() {
     setForm({
       numero: n.numero ?? "", cotista_aeronave_id: n.cotista_aeronave_id ?? "",
       cliente_nome: n.cliente_nome ?? "", cliente_cnpj: n.cliente_cnpj ?? "",
+      cliente_endereco: n.cliente_endereco ?? "", cliente_cidade: n.cliente_cidade ?? "", cliente_uf: n.cliente_uf ?? "",
       aircraft_id: n.aircraft_id ?? "", aeronave: n.aeronave ?? "",
       data_criacao: n.data_criacao ?? new Date().toISOString().slice(0, 10),
       data_vencimento: n.data_vencimento ?? "", valor: n.valor != null ? String(n.valor) : "",
-      categoria_receita_id: "", categoria: n.categoria ?? "", descricao: n.descricao ?? "", status: n.status ?? "pendente",
+      categoria_receita_id: "", categoria: n.categoria ?? "", descricao: n.descricao ?? "", status: ["pago", "recebido"].includes((n.status ?? "").toLowerCase()) ? "PAGO" : "EM_ABERTO",
       categoria_despesa_id: "", categoria_despesa_subcategoria: "",
       arquivo_pdf_url: n.arquivo_pdf_url ?? "",
     });
@@ -447,6 +450,9 @@ export default function NFSaidaTab() {
       aeronave: matriculaPorAeronave.get(cotista.aeronave_id) || "",
       cliente_nome: cotista.nome,
       cliente_cnpj: cotista.documento ? `${cotista.tipo_cotista === "socio_hold" ? "CPF" : "CNPJ"}: ${cotista.documento}` : "",
+      cliente_endereco: cotista.endereco || "",
+      cliente_cidade: cotista.cidade || "",
+      cliente_uf: cotista.uf || "",
     }));
   };
 
@@ -478,6 +484,9 @@ export default function NFSaidaTab() {
           receipt_number: "Será gerado ao finalizar",
           payer_name: form.cliente_nome.trim(),
           payer_document: form.cliente_cnpj.trim(),
+          payer_address: form.cliente_endereco.trim(),
+          payer_city: form.cliente_cidade.trim(),
+          payer_state: form.cliente_uf.trim(),
           service_description: descricaoServico,
           receipt_type: "pagamento",
           issue_date: form.data_criacao,
@@ -540,15 +549,18 @@ export default function NFSaidaTab() {
   };
 
   /** Cria o recibo primeiro para que o Worker atribua a sequência oficial; só depois gera e salva o PDF. */
-  const confirmReciboSave = async (_previewBlob: Blob) => {
+  const confirmReciboSave = async (previewBlob: Blob) => {
     if (!reciboPreview || reciboSavedUrl) return;
     const { descricaoServico, dataVencimentoFinal, categoriaDespesaId, categoriaDespesaSubcategoria } = reciboPreview.payload;
     setSaving(true); setToast(null);
     try {
+      if (!(previewBlob instanceof Blob)) {
+        throw new Error("Não foi possível obter o PDF do recibo para salvar.");
+      }
+
       const { recibo } = await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
       const numeroRecibo = String(recibo.numero_recibo || "");
-      const pdfData = await normalizeReceiptForPdf({ receipt_number: numeroRecibo, payer_name: form.cliente_nome.trim(), payer_document: form.cliente_cnpj.trim(), service_description: descricaoServico, receipt_type: "pagamento", issue_date: form.data_criacao, max_payment_date: dataVencimentoFinal, nome_categoria: form.categoria, valor: Number(form.valor) || 0 });
-      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfData, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
+      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(previewBlob, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
       setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();

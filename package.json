@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "cd app/share-brasil && ../../node_modules/.bin/vite",
-    "dev:frontend": "cd app/share-brasil && ../../node_modules/.bin/vite",
+    "dev": "vite",
+    "dev:frontend": "vite",
     "dev:backend": "tsx watch dev-server/server.ts",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 cd app/share-brasil && ../../node_modules/.bin/vite build",
-    "build:dev": "NODE_OPTIONS=--max-old-space-size=4096 cd app/share-brasil && ../../node_modules/.bin/vite build --mode development",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build:dev": "NODE_OPTIONS=--max-old-space-size=4096 vite build --mode development",
     "lint": "eslint .",
-    "preview": "cd app/share-brasil && ../../node_modules/.bin/vite preview",
+    "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "deploy": "wrangler pages deploy dist"
   },

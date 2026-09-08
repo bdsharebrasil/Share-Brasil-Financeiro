@@ -27,6 +27,7 @@ import {
   Plane,
   ContactRound,
   IdCard,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { createElement, type SVGProps } from "react";

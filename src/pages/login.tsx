@@ -140,7 +140,7 @@ export default function Login() {
       toast({
         title: "Acesso negado",
         description: message.includes("supabase não configurado")
-          ? "Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env."
+          ? "Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no arquivo .env."
           : message.includes("invalid") || message.includes("credentials")
           ? "Usuário ou senha incorretos. Tente novamente."
           : "Não foi possível realizar o login. Tente novamente.",

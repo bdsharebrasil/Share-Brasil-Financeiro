@@ -34,7 +34,7 @@ import { createElement, type SVGProps } from "react";
 
 const BanknoteArrowUp: LucideIcon = (props: SVGProps<SVGSVGElement>) => createElement(
   "svg",
-  { ...props, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
+  { ...props, className: `ml-[5px] mr-[5px] pl-[3px] pr-[3px] ${props.className ?? ""}`, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
   createElement("rect", { width: 20, height: 12, x: 2, y: 6, rx: 2 }),
   createElement("circle", { cx: 12, cy: 12, r: 2 }),
   createElement("path", { d: "M6 12h.01M18 12h.01" }),

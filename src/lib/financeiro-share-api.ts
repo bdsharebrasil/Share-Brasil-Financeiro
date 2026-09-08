@@ -158,7 +158,7 @@ export type OpcoesLancamento = {
 };
 
 export async function buscarOpcoesFinanceiroShare() {
-  return (await financeiroRequest("/api/interno/financeiro-share/opcoes")) as {
+  return (await financeiroRequest("/api/financeiro/share/opcoes")) as {
     categorias: CategoriaCaixaShare[];
     contas_bancarias: ContaBancaria[];
     empresas: EmpresaShare[];
@@ -185,7 +185,7 @@ function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined
 }
 
 export async function buscarOpcoesLancamento() {
-  return normalizarOpcoesLancamento(await financeiroRequest<Partial<OpcoesLancamento>>("/api/lancamentos/opcoes"));
+  return normalizarOpcoesLancamento(await financeiroRequest<Partial<OpcoesLancamento>>("/api/financeiro/lancamentos/opcoes"));
 }
 
 export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
@@ -193,7 +193,7 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/balanco${sufixo}`));
+  return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/financeiro/balanco${sufixo}`));
 }
 
 export async function buscarDashboardCotista(inicio?: string, fim?: string) {
@@ -201,7 +201,7 @@ export async function buscarDashboardCotista(inicio?: string, fim?: string) {
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/interno/financeiro-cotista/dashboard${sufixo}`);
+  const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/financeiro/cotista/dashboard${sufixo}`);
   return {
     ...normalizarBalanco(payload),
     resumo: {
@@ -224,12 +224,13 @@ export async function buscarLancamentosEconomicos(inicio?: string, fim?: string)
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
-  const resposta = await financeiroRequest<{ lancamentos?: LancamentoEconomico[] }>(`/api/lancamentos${sufixo}`);
+  const resposta = await financeiroRequest<{ lancamentos?: LancamentoEconomico[] }>(`/api/financeiro/lancamentos${sufixo}`);
   return { lancamentos: Array.isArray(resposta?.lancamentos) ? resposta.lancamentos : [] };
 }
 
 export async function criarLancamentoEconomico(dados: Record<string, unknown>) {
-  return (await financeiroRequest("/api/lancamentos", {
+  const fluxo = String(dados.fluxo || "SAIDA").toUpperCase() === "ENTRADA" ? "receita" : "despesa";
+  return (await financeiroRequest(`/api/financeiro/lancamentos/${fluxo}`, {
     method: "POST",
     body: JSON.stringify(dados),
   })) as { id: string };

@@ -70,7 +70,7 @@ function periodoCompetencia(competencia?: string) {
 
 export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Promise<Lancamento[]> {
   const periodo = periodoCompetencia(filtros.competencia);
-  const resposta = await requisitar<{ lancamentos?: unknown[] }>(`/api/lancamentos${paraQueryString({ caixa: 'SHARE', inicio: periodo.inicio, fim: periodo.fim })}`);
+  const resposta = await requisitar<{ lancamentos?: unknown[] }>(`/api/financeiro/lancamentos${paraQueryString({ caixa: 'SHARE', inicio: periodo.inicio, fim: periodo.fim })}`);
   return (resposta.lancamentos ?? []).map(normalizarLancamento).filter((item) =>
     (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
 }
@@ -85,7 +85,7 @@ function valorCentavosDoPayload(payload: Record<string, unknown>): number {
 async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo: 'SAIDA' | 'ENTRADA'): Promise<Lancamento> {
   const data = String(payload.data ?? payload.data_emissao ?? new Date().toISOString().slice(0, 10))
   const valorCentavos = valorCentavosDoPayload(payload)
-  const resposta = await requisitar<{ lancamento: unknown }>('/api/lancamentos', {
+  const resposta = await requisitar<unknown>('/api/financeiro/lancamentos/despesa', {
     method: 'POST',
     body: JSON.stringify({
       ...payload,
@@ -96,7 +96,7 @@ async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo
       idempotencyKey: payload.idempotencyKey ?? `ui:${fluxo}:${data}:${payload.descricao ?? ''}:${valorCentavos}`,
     }),
   })
-  return normalizarLancamento(resposta.lancamento)
+  return normalizarLancamento(resposta)
 }
 
 export function criarDespesa(payload: Record<string, unknown>): Promise<Lancamento> {
@@ -115,7 +115,7 @@ export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<C
     vencidasAte: filtros.vencidasAte,
     fornecedorId: filtros.fornecedorId,
   });
-  return requisitar<ContaAPagar[]>(`/api/contas-apagar${query}`);
+  return requisitar<ContaAPagar[]>(`/api/financeiro/contas-apagar${query}`);
 }
 
 /**
@@ -127,7 +127,7 @@ export function darBaixaContaAPagar(
   id: string,
   dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }
 ): Promise<ContaAPagar> {
-  return requisitar<ContaAPagar>(`/api/contas-apagar/${encodeURIComponent(id)}/dar-baixa`, {
+  return requisitar<ContaAPagar>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });
@@ -141,7 +141,7 @@ export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promi
     vencidasAte: filtros.vencidasAte,
     cotistaId: filtros.cotistaId,
   });
-  return requisitar<ContaAReceber[]>(`/api/contas-areceber${query}`);
+  return requisitar<ContaAReceber[]>(`/api/financeiro/contas-areceber${query}`);
 }
 
 /**
@@ -155,7 +155,7 @@ export async function darBaixaContaAReceber(
   id: string,
   dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }
 ): Promise<ContaAReceber> {
-  const conta = await requisitar<ContaAReceber>(`/api/contas-areceber/${encodeURIComponent(id)}/dar-baixa`, {
+  const conta = await requisitar<ContaAReceber>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, {
     method: 'POST',
     body: JSON.stringify(dados),
   });

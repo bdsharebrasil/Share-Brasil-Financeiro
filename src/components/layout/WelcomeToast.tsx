@@ -119,20 +119,7 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           padding: "0 22px",
         }}
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(0,200,255,0.2), rgba(0,232,122,0.15))",
-            border: "1px solid rgba(0,200,255,0.25)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 20,
-            flexShrink: 0,
-          }}
-        >
+    
           
        
 

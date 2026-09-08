@@ -240,8 +240,17 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const cotistas = useMemo(() => form.aeronave_id ? opcoes.cotistas.filter((item) => item.aeronave_id === form.aeronave_id) : [], [form.aeronave_id, opcoes.cotistas]);
   const totalRateio = cotistas.reduce((total, item) => total + Number(item.percentual_sociedade || 0), 0);
   const rateioPagamentoAtivo = (form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso") && form.rateado;
-  const totalPercentualRateio = rateioPagamentoAtivo ? cotistas.reduce((total, item) => total + (Number(rateioPercentuais[item.id] || 0) || 0), 0) : totalRateio;
-  const rateioLinhasPagamento = rateioPagamentoAtivo ? cotistas.map((item) => ({ cotista_id: item.id, percentual: Number(rateioPercentuais[item.id] || 0) })).filter((item) => item.percentual > 0) : [];
+  const rateioLinhasPagamento = (() => {
+    if (!rateioPagamentoAtivo) return [];
+    const linhas = cotistas.map((item) => ({ cotista_id: item.id, percentual: Number(rateioPercentuais[item.id] || 0) })).filter((item) => item.percentual > 0);
+    const total = linhas.reduce((soma, linha) => soma + linha.percentual, 0);
+    if (linhas.length && Math.abs(total - 100) < 0.01) {
+      const ultima = linhas.length - 1;
+      return linhas.map((linha, index) => index === ultima ? { ...linha, percentual: linha.percentual + (100 - total) } : linha);
+    }
+    return linhas;
+  })();
+  const totalPercentualRateio = rateioPagamentoAtivo ? rateioLinhasPagamento.reduce((total, linha) => total + linha.percentual, 0) : totalRateio;
   const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
   const rateioLinhasComValores = (() => {
     if (!rateioPagamentoAtivo) return [];

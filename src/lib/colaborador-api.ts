@@ -874,13 +874,14 @@ export type Recibo = {
   url_recibo: string | null;
   pdf_anexo_id?: string | null;
   pdf_url?: string | null;
+  rateio_linhas?: Array<{ id: string; rateio_id: string | null; percentual: number; valor: number; cotista_id: string | null; cotista_nome?: string | null }>;
   /** Movimento da conta holding; nulo quando o recibo usa somente o caixa Share. */
   /** Lançamento do caixa Share; nulo quando o recibo é exclusivamente da holding. */
   lancamento_id?: string | null;
   criado_por: string | null;
   criado_em: string;
 };
-export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas_id: string; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; nome: string | null; percentual: number; valor: number };
+export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas_id: string; cotista_id?: string | null; cotista_nome?: string | null; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; nome: string | null; percentual: number; valor: number };
 
 export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; valor?: number; pago_por?: string };
 export type CriarReciboPayload = {

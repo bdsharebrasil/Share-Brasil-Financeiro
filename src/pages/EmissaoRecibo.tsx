@@ -17,6 +17,7 @@ import {
   criarRecibo,
   enviarAnexoRecibo,
   enviarPdfRecibo,
+  atualizarStatusRecibo,
   type CriarReciboPayload,
   type OpcoesRecibos,
   type Recibo as ReciboFinanceiro,
@@ -393,11 +394,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       let avisoAnexo = "";
       if (arquivo) {
         setEstadoEmissao("ANEXO_PENDENTE");
+        await atualizarStatusRecibo(resposta.recibo.id, "ANEXO_PENDENTE").catch(() => undefined);
         try {
           const anexo = await enviarAnexoRecibo(arquivo, resposta.recibo.id);
           resposta.recibo.anexo_id = anexo.id;
         } catch (anexoError) {
           setEstadoEmissao("ERRO_ANEXO");
+          await atualizarStatusRecibo(resposta.recibo.id, "ERRO_ANEXO").catch(() => undefined);
           avisoAnexo = ` O recibo foi criado, mas o anexo não pôde ser salvo${anexoError instanceof Error ? `: ${anexoError.message}` : "."}`;
         }
       }
@@ -410,6 +413,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
       } catch (pdfError) {
         setEstadoEmissao("ERRO_PDF");
+        await atualizarStatusRecibo(resposta.recibo.id, "ERRO_PDF").catch(() => undefined);
         avisoPdf = ` O recibo foi criado, mas o PDF não pôde ser salvo${pdfError instanceof Error ? `: ${pdfError.message}` : "."}`;
       }
       if (!avisoAnexo && !avisoPdf) setEstadoEmissao("EMITIDO");
@@ -426,7 +430,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     try {
       await confirmarReembolsoRecibo(id);
-      setRecibos((atual) => atual.map((item) => item.id === id ? { ...item, status: "reembolsado" } : item));
+      setRecibos((atual) => atual.map((item) => item.id === id ? { ...item, status: "EMITIDO" } : item));
       setMensagem("Reembolso confirmado e entrada criada no caixa Share.");
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível confirmar o reembolso.");
@@ -437,7 +441,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     try {
       await cancelarRecibo(id);
-      setRecibos((atual) => atual.map((item) => item.id === id ? { ...item, status: "cancelado" } : item));
+      setRecibos((atual) => atual.map((item) => item.id === id ? { ...item, status: "CANCELADO" } : item));
       setMensagem("Recibo cancelado corretamente.");
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível cancelar o recibo.");

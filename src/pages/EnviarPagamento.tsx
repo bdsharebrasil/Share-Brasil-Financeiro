@@ -348,7 +348,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSalvando(true);
     setErro("");
     try {
+      const idempotency_key = crypto.randomUUID();
       const payload = tipo === "share" ? {
+        idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_vencimento: form.vencimento,
         fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id, categoria_id: form.categoria_id,
         categoria_nome: form.categoria_nome, grupo_categoria: "DESPESAS EMPRESA", periodicidade: form.periodicidade,
@@ -356,6 +358,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         numero_voo: form.numero_voo, observacoes: form.observacoes, pago_por: form.pago_por || "share",
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero }) => ({ id, tipo: anexoTipo, numero })),
       } : {
+        idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
         cliente_id: "", socio_id: "", ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
         tipo_caixa: "share", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente",

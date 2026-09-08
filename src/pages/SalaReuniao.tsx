@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Clipboard, Copy, ImagePlus, MessageCircle, Mic, MicOff, MonitorUp, PenTool, PhoneOff, Plus, Send, Trash2, Type, UserRound, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buscarIceServersCentro, buscarPerfilColaborador, buscarSalasTreinamento, criarSalaTreinamento, encerrarSalaTreinamento, type SalaTreinamento } from "@/lib/colaborador-api";
+import { buscarIceServersCentro, buscarPerfilColaborador, buscarSalasTreinamento, buscarSalasTreinamentoEncerradas, criarSalaTreinamento, encerrarSalaTreinamento, excluirSalaTreinamento, type SalaTreinamento } from "@/lib/colaborador-api";
 import { API_ORIGIN } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
@@ -14,6 +14,7 @@ function managerRole(value?: string | null) { return ["admin", "administrador", 
 
 export default function SalaReuniao() {
   const [rooms, setRooms] = useState<SalaTreinamento[]>([]);
+  const [endedRooms, setEndedRooms] = useState<SalaTreinamento[]>([]);
   const [manager, setManager] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [sharedScreens, setSharedScreens] = useState<string[]>([]);
@@ -64,7 +65,7 @@ export default function SalaReuniao() {
     return tracks.length ? new MediaStream(tracks) : null;
   }, []);
 
-  const loadRooms = useCallback(async () => { try { const [list, profile] = await Promise.all([buscarSalasTreinamento(), buscarPerfilColaborador()]); const perfilPodeGerenciar = managerRole(profile.perfil.tipo_user) || profile.funcoes.some((funcao) => managerRole(funcao.funcao)); setRooms(list); setManager(perfilPodeGerenciar); myName.current = profile.perfil.nome_exibicao || profile.perfil.nome_completo || profile.perfil.email; myUserId.current = profile.perfil.id; } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as salas."); } }, []);
+  const loadRooms = useCallback(async () => { try { const [list, profile] = await Promise.all([buscarSalasTreinamento(), buscarPerfilColaborador()]); const perfilPodeGerenciar = managerRole(profile.perfil.tipo_user) || profile.funcoes.some((funcao) => managerRole(funcao.funcao)); setRooms(list); setManager(perfilPodeGerenciar); if (perfilPodeGerenciar) setEndedRooms(await buscarSalasTreinamentoEncerradas()); else setEndedRooms([]); myName.current = profile.perfil.nome_exibicao || profile.perfil.nome_completo || profile.perfil.email; myUserId.current = profile.perfil.id; } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível carregar as salas."); } }, []);
   useEffect(() => { void loadRooms(); }, [loadRooms]);
 
   const send = useCallback((payload: Record<string, unknown>) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(payload)); }, []);
@@ -123,6 +124,7 @@ export default function SalaReuniao() {
   const leave = () => { ws.current?.close(); ws.current = null; Object.keys(peers.current).forEach(closePeer); localStream.current?.getTracks().forEach((track) => track.stop()); screenStream.current?.getTracks().forEach((track) => track.stop()); localStream.current = null; setLocalReady(false); setRoom(null); setConnected(false); setParticipants([]); setRemoteStreams({}); setIsHost(false); setSharedScreens([]); void loadRooms(); };
   useEffect(() => () => leave(), []);
   const createRoom = async (event: React.FormEvent) => { event.preventDefault(); setCreating(true); try { const created = await criarSalaTreinamento({ titulo: title, descricao: description }); setTitle(""); setDescription(""); await loadRooms(); await join(created); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível criar a sala."); } finally { setCreating(false); } };
+  const deleteRoom = async (selected: SalaTreinamento) => { if (selected.status !== "ENCERRADA" || !window.confirm(`Excluir a sala encerrada "${selected.titulo}"?`)) return; try { await excluirSalaTreinamento(selected.id); await loadRooms(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível excluir a sala."); } };
   const replacePeerTrack = (peer: RTCPeerConnection, kind: "audio" | "video", track: MediaStreamTrack | null) => { const sender = peer.getSenders().find((candidate) => candidate.track?.kind === kind) || peer.getTransceivers().find((transceiver) => transceiver.receiver.track.kind === kind)?.sender; if (sender) void sender.replaceTrack(track); };
   const shareScreen = async () => { if (!room) return; if (sharing) { screenStream.current?.getTracks().forEach((track) => track.stop()); const cameraTrack = localStream.current?.getVideoTracks()[0] || null; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", cameraTrack)); send({ type: "screen_state", active: false }); setSharing(false); return; } const stream = await navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => null); if (!stream) return; screenStream.current = stream; const track = stream.getVideoTracks()[0]; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", track)); track.onended = () => { const cameraTrack = localStream.current?.getVideoTracks()[0] || null; Object.values(peers.current).forEach((peer) => replacePeerTrack(peer, "video", cameraTrack)); send({ type: "screen_state", active: false }); setSharing(false); }; send({ type: "screen_state", active: true }); setSharing(true); };
   const toggleTrack = (kind: "audio" | "video") => { const track = localStream.current?.getTracks().find((candidate) => candidate.kind === kind); if (!track) return; track.enabled = !track.enabled; if (kind === "audio") setMicrophone(track.enabled); else setCamera(track.enabled); };

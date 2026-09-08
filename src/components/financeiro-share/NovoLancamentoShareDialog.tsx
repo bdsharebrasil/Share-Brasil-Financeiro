@@ -7,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type CategoriaCaixaShare, type ContaBancaria, type LancamentoShare } from "@/lib/financeiro-share-api";
-import { criarDespesa, emitirReceita } from "@/lib/apiFinanceiroShare";
+import { criarDespesa, emitirReceita, type CategoriaCaixaShare, type ContaBancaria } from "@/lib/financeiro-share-api";
+import type { Lancamento } from "@/components/financeiro-share/tipos";
 
 type Props = {
   aberto: boolean;
   aoFechar: () => void;
   categorias: CategoriaCaixaShare[];
   contas: ContaBancaria[];
-  aoCriar: (lancamento: LancamentoShare) => void;
+  aoCriar: (lancamento: Lancamento) => void;
 };
 
 const FORMAS_PAGAMENTO = ["PIX", "TED", "BOLETO", "CARTÃO DE CRÉDITO", "DÉBITO AUTOMÁTICO", "DINHEIRO"];

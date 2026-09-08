@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { buscarContasAReceber, darBaixaContaAReceber } from '../lib/apiFinanceiroShare';
+import { buscarContasAReceber, darBaixaContaAReceber } from '../lib/financeiro-share-api';
 import type { ContaAReceber, FiltrosContasAReceber } from '../components/financeiro-share/tipos';
 
 interface RetornoUseContasAReceber {

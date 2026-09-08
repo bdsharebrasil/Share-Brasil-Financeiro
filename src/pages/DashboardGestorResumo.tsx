@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, HeroDashboard } from "@/components/dashboard/PrimitivosDashboard";
 import { formatarMoeda, formatarData } from "@/lib/financeiro-share-api";
-import { buscarContasAPagar, buscarContasAReceber } from "@/lib/apiFinanceiroShare";
+import { buscarContasAPagar, buscarContasAReceber } from "@/lib/financeiro-share-api";
 import type { ContaAPagar, ContaAReceber } from "@/components/financeiro-share/tipos";
 import {
   buscarEnviosPagamento,

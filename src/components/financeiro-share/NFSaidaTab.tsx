@@ -1,4 +1,3 @@
-// @ts-nocheck — erros de tipagem pré-existentes (colunas legadas fora dos types gerados)
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -34,39 +33,14 @@ import type {
   CategoriaDespesaOpcao,
   CategoriaOpcao,
   CotistaOpcao,
+  DocumentoSaida,
   NotaOuReciboSaidaRow,
+  StatusDocumentoSaida,
 } from "@/lib/nfSaidaApi";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
-interface NFSaida {
-  id: string;
-  /** origem do registro: nota fiscal de saída ou recibo de saída */
-  origem?: "nf_saida" | "recibo_saida";
-  numero: string | null;
-
-  cotista_aeronave_id: string | null;
-  cliente_id: string | null;
-  socio_id: string | null;
-  cliente_nome: string | null;
-  cliente_cnpj: string | null;
-  cliente_endereco?: string | null;
-  cliente_cidade?: string | null;
-  cliente_uf?: string | null;
-  cliente_email?: string | null;
-  data_criacao: string | null;
-  data_vencimento: string | null;
-  valor: number | string | null;
-  categoria: string | null;
-  descricao: string | null;
-  status: string | null;
-  arquivo_pdf_url: string | null;
-  criado_em: string | null;
-  atualizado_em: string | null;
-  aeronave: string | null;
-  aircraft_id: string | null;
-  contas_areceber_id: string | null;
-}
+type NFSaida = DocumentoSaida;
 
 interface FormState {
   numero: string;
@@ -87,7 +61,7 @@ interface FormState {
   data_vencimento: string;
   valor: string;
   descricao: string;
-  status: string;
+  status: StatusDocumentoSaida;
   arquivo_pdf_url: string;
 }
 
@@ -460,7 +434,7 @@ export default function NFSaidaTab() {
   const uploadDocument = async (file: File) => {
     setUploading(true); setToast(null);
     try {
-      const { url } = await nfSaidaApi.enviarAnexoNotaSaida(file);
+      const { url } = await nfSaidaApi.enviarAnexoDocumentoSaida(file);
       setForm((current) => ({ ...current, arquivo_pdf_url: url }));
       setToast({ type: "ok", text: "Arquivo enviado com sucesso." });
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao enviar arquivo." });
@@ -512,7 +486,7 @@ export default function NFSaidaTab() {
         if (editingId) {
           const { nota } = await nfSaidaApi.atualizarNotaSaida(editingId, {
             numero: form.numero.trim(),
-            cotista_id: form.cotista_aeronave_id,
+            cotista_aeronave_id: form.cotista_aeronave_id,
             aeronave_id: form.aircraft_id,
             data_emissao: form.data_criacao,
             data_vencimento: dataVencimentoFinal,
@@ -526,7 +500,7 @@ export default function NFSaidaTab() {
         } else {
           await nfSaidaApi.criarNotaSaida({
             numero: form.numero.trim(),
-            cotista_id: form.cotista_aeronave_id,
+            cotista_aeronave_id: form.cotista_aeronave_id,
             aeronave_id: form.aircraft_id,
             categoria_receita_id: form.categoria_receita_id,
             categoria_receita_nome: form.categoria,
@@ -576,7 +550,7 @@ export default function NFSaidaTab() {
         emissorNome: "SHARE BRASIL SERVICOS AEROPORTUARIOS",
         emissorDocumento: "CNPJ: 30.898.549/0001-06",
       });
-      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfOficial, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
+      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoDocumentoSaida(pdfOficial, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
       setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();
@@ -613,7 +587,7 @@ export default function NFSaidaTab() {
   const uploadComprovante = async (file: File) => {
     setBaixaUploading(true); setToast(null);
     try {
-      const { url } = await nfSaidaApi.enviarAnexoNotaSaida(file);
+      const { url } = await nfSaidaApi.enviarAnexoDocumentoSaida(file);
       setBaixaForm((current) => ({ ...current, comprovante_url: url }));
       setToast({ type: "ok", text: "Comprovante enviado." });
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao enviar comprovante." });
@@ -745,7 +719,7 @@ export default function NFSaidaTab() {
               />
             </div>
             <div><label className={labelCls}>Status</label>
-              <select className={inputCls + " cursor-pointer"} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <select className={inputCls + " cursor-pointer"} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusDocumentoSaida })}>
                 {STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select></div>
             <div className="md:col-span-3"><label className={labelCls}>Descrição</label>

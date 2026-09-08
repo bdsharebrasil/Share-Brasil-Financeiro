@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { buscarCaixaEmpresa } from '../lib/apiFinanceiroShare';
+import { buscarCaixaEmpresa } from '../lib/financeiro-share-api';
 import type { FiltrosCaixaEmpresa, Lancamento } from '../components/financeiro-share/tipos';
 
 interface RetornoUseCaixaEmpresa {

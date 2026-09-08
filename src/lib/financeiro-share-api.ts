@@ -1,5 +1,15 @@
 import { API_BASE } from "./api";
 import { supabase } from "./supabase";
+import type {
+  CategoriaMovimentacaoShare,
+  ContaAPagar,
+  ContaAReceber,
+  FiltrosCaixaEmpresa,
+  FiltrosContasAPagar,
+  FiltrosContasAReceber,
+  FornecedorFavorito,
+  Lancamento,
+} from "@/components/financeiro-share/tipos";
 
 async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -12,6 +22,90 @@ async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promi
   const data = await response.json().catch(() => null) as T & { error?: string } | null;
   if (!response.ok) throw new Error(data?.error || `api_${response.status}`);
   return data as T;
+}
+
+function paraQueryString(filtros: Record<string, string | undefined>): string {
+  const parametros = new URLSearchParams();
+  Object.entries(filtros).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });
+  const query = parametros.toString();
+  return query ? `?${query}` : "";
+}
+
+function normalizarLancamentoCaixa(row: any): Lancamento {
+  return {
+    id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null,
+    data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
+    descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? null,
+    fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? null,
+    categoria: String(row.categoria ?? row.categoria_nome ?? "SEM CATEGORIA"), categoriaId: row.categoriaId ?? row.categoria_id ?? null,
+    grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""), tipo: row.tipo ?? row.tipo_despesa ?? null,
+    prazo: row.prazo ?? row.data_vencimento ?? null, fluxo: String(row.fluxo ?? "SAIDA").toUpperCase() === "ENTRADA" ? "ENTRADA" : "SAIDA",
+    valorCentavos: Number(row.valorCentavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
+    pagoPor: String(row.pagoPor ?? row.pago_por ?? ""), caixa: String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" ? "CLIENTE" : "SHARE",
+    pagoDiretamente: Boolean(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel),
+    reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
+    observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
+    criadoEm: String(row.criadoEm ?? row.criado_em ?? ""), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ""),
+  };
+}
+
+function periodoCompetencia(competencia?: string) {
+  if (!competencia) return { inicio: undefined, fim: undefined };
+  const [ano, mes] = competencia.split("-").map(Number);
+  if (!ano || !mes) return { inicio: undefined, fim: undefined };
+  return { inicio: `${competencia}-01`, fim: new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10) };
+}
+
+export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Promise<Lancamento[]> {
+  const periodo = periodoCompetencia(filtros.competencia);
+  const resposta = await financeiroRequest<{ lancamentos?: unknown[] }>(`/api/financeiro/lancamentos${paraQueryString({ caixa: "SHARE", inicio: periodo.inicio, fim: periodo.fim })}`);
+  return (resposta.lancamentos ?? []).map(normalizarLancamentoCaixa).filter((item) =>
+    (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
+}
+
+function valorCentavosDoPayload(payload: Record<string, unknown>): number {
+  if (Number.isFinite(Number(payload.valorCentavos))) return Math.round(Number(payload.valorCentavos));
+  const bruto = payload.valor_total ?? payload.valor ?? 0;
+  const valor = typeof bruto === "number" ? bruto : Number(String(bruto).replace(/\./g, "").replace(",", "."));
+  return Math.round((Number.isFinite(valor) ? valor : 0) * 100);
+}
+
+async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo: "SAIDA" | "ENTRADA"): Promise<Lancamento> {
+  const data = String(payload.data ?? payload.data_emissao ?? new Date().toISOString().slice(0, 10));
+  const valorCentavos = valorCentavosDoPayload(payload);
+  const camposPermitidos = new Set(["idempotency_key", "idempotencyKey", "reference_id", "valor_centavos", "valorCentavos", "descricao", "descricao_servico", "fluxo", "data", "data_emissao", "data_vencimento", "vencimento", "aeronave_id", "cotista_aeronave_id", "cotista_id", "socio_id", "holding_id", "categoria_id", "categoria_nome", "categoria", "fornecedor_id", "fornecedor", "tipo_caixa", "forma_pagamento", "conta_bancaria_id", "observacoes", "pago_diretamente", "pagoDiretamente", "pago_por", "rateio_linhas", "rateios", "tipo_rateio", "reembolsavel", "colaborador_id", "motivo", "valor"]);
+  const contrato = Object.fromEntries(Object.entries(payload).filter(([campo]) => camposPermitidos.has(campo)));
+  const resposta = await financeiroRequest<unknown>(fluxo === "ENTRADA" ? "/api/financeiro/lancamentos/receita" : "/api/financeiro/lancamentos/despesa", {
+    method: "POST",
+    body: JSON.stringify({ ...contrato, fluxo, valorCentavos, data, data_emissao: payload.data_emissao ?? data, idempotencyKey: payload.idempotencyKey ?? `ui:${fluxo}:${data}:${payload.descricao ?? ""}:${valorCentavos}` }),
+  });
+  return normalizarLancamentoCaixa(resposta);
+}
+
+export function criarDespesa(payload: Record<string, unknown>): Promise<Lancamento> { return criarLancamentoPeloKernel(payload, "SAIDA"); }
+export function emitirReceita(payload: Record<string, unknown>): Promise<Lancamento> { return criarLancamentoPeloKernel(payload, "ENTRADA"); }
+
+export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<ContaAPagar[]> {
+  return financeiroRequest<ContaAPagar[]>(`/api/financeiro/contas-apagar${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, fornecedorId: filtros.fornecedorId })}`);
+}
+
+export function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }): Promise<ContaAPagar> {
+  return financeiroRequest<ContaAPagar>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
+}
+
+export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
+  return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
+}
+
+export function darBaixaContaAReceber(id: string, dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }): Promise<ContaAReceber> {
+  return financeiroRequest<ContaAReceber>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
+}
+
+export function buscarFornecedoresFavoritos(): Promise<FornecedorFavorito[]> { return financeiroRequest<FornecedorFavorito[]>("/api/financeiro/fornecedores-favoritos"); }
+
+export async function buscarCategoriasShare(): Promise<CategoriaMovimentacaoShare[]> {
+  const resposta = await financeiroRequest<{ categorias?: any[] }>("/api/financeiro/lancamentos/opcoes");
+  return (resposta.categorias ?? []).map((categoria) => ({ id: String(categoria.id), nome: String(categoria.nome ?? categoria.descricao ?? ""), tipo: categoria.tipo ?? null, reembolsavel: Boolean(categoria.reembolsavel), grupoCategoria: categoria.grupoCategoria ?? categoria.grupo ?? null, tipoDespesa: categoria.tipoDespesa ?? categoria.classificacao ?? null, categoriaClienteId: categoria.categoriaClienteId ?? null }));
 }
 
 export type CategoriaCaixaShare = {

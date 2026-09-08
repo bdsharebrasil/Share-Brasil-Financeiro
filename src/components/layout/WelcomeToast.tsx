@@ -28,10 +28,10 @@ const arcs = 2 * Math.PI * OR;
 const PERIMETER = Math.round(straightH + straightV + arcs);
 
 interface WelcomeToastProps {
-  name?: string;
+  name: string;
 }
 
-export default function WelcomeToast({ name = "CAMILLA" }: WelcomeToastProps) {
+export default function WelcomeToast({ name }: WelcomeToastProps) {
   const [phase, setPhase] = useState<"entering" | "visible" | "closing">("entering");
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function WelcomeToast({ name = "CAMILLA" }: WelcomeToastProps) {
   if (phase === "closing") return null;
 
   const entering = phase === "entering";
-  const displayName = name.trim().split(/\s+/)[0]?.toUpperCase() || "CAMILLA";
+  const displayName = name.trim().split(/\s+/)[0].toUpperCase();
 
   return (
     <div

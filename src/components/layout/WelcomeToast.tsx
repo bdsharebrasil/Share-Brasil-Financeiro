@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Plane } from "lucide-react";
 
 const ORBIT_MS = 4200;
 const TW = 340;
@@ -7,25 +8,14 @@ const TR = 22;
 const PAD = 14;
 const OW = TW + PAD * 2;
 const OH = TH + PAD * 2;
-const OR = TR + PAD;
+const ORBIT_SIZE = 64;
+const ORBIT_CENTER = ORBIT_SIZE / 2;
+const ORBIT_RADIUS = 28;
+const ORBIT_LEFT = 24;
+const ORBIT_TOP = 18;
 
-const orbitPath = [
-  `M ${OR} 0`,
-  `H ${OW - OR}`,
-  `A ${OR} ${OR} 0 0 1 ${OW} ${OR}`,
-  `V ${OH - OR}`,
-  `A ${OR} ${OR} 0 0 1 ${OW - OR} ${OH}`,
-  `H ${OR}`,
-  `A ${OR} ${OR} 0 0 1 0 ${OH - OR}`,
-  `V ${OR}`,
-  `A ${OR} ${OR} 0 0 1 ${OR} 0`,
-  `Z`,
-].join(" ");
-
-const straightH = 2 * (TW + PAD * 2 - 2 * OR);
-const straightV = 2 * (TH + PAD * 2 - 2 * OR);
-const arcs = 2 * Math.PI * OR;
-const PERIMETER = Math.round(straightH + straightV + arcs);
+const orbitPath = `M ${ORBIT_CENTER} ${ORBIT_CENTER - ORBIT_RADIUS} A ${ORBIT_RADIUS} ${ORBIT_RADIUS} 0 1 1 ${ORBIT_CENTER} ${ORBIT_CENTER + ORBIT_RADIUS} A ${ORBIT_RADIUS} ${ORBIT_RADIUS} 0 1 1 ${ORBIT_CENTER} ${ORBIT_CENTER - ORBIT_RADIUS} Z`;
+const PERIMETER = Math.round(2 * Math.PI * ORBIT_RADIUS);
 
 interface WelcomeToastProps {
   name: string;
@@ -64,41 +54,44 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
       }}
     >
       <svg width={OW} height={OH} style={{ position: "absolute", inset: 0, overflow: "visible" }} aria-hidden="true">
-        <path d={orbitPath} fill="none" stroke="rgba(0,200,255,0.12)" strokeWidth={1.5} />
-        <path
-          d={orbitPath}
-          fill="none"
-          stroke="url(#welcome-toast-glow)"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeDasharray={PERIMETER}
-          strokeDashoffset={PERIMETER}
-          style={{ animation: `arcFill ${ORBIT_MS}ms linear forwards`, filter: "drop-shadow(0 0 6px #00C8FF)" }}
-        />
+        <g transform={`translate(${ORBIT_LEFT} ${ORBIT_TOP})`}>
+          <path d={orbitPath} fill="none" stroke="rgba(67,190,218,0.22)" strokeWidth={1.5} />
+          <path
+            d={orbitPath}
+            fill="none"
+            stroke="url(#welcome-toast-glow)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray={PERIMETER}
+            strokeDashoffset={PERIMETER}
+            style={{ animation: `arcFill ${ORBIT_MS}ms linear forwards` }}
+          />
+        </g>
         <defs>
-          <linearGradient id="welcome-toast-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#00C8FF" stopOpacity={0.6} />
-            <stop offset="100%" stopColor="#00E87A" stopOpacity={1} />
+          <linearGradient id="welcome-toast-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#49B9D7" stopOpacity={0.7} />
+            <stop offset="100%" stopColor="#1D86AC" stopOpacity={0.95} />
           </linearGradient>
         </defs>
       </svg>
 
-      <div style={{ position: "absolute", top: 0, left: 0, width: OW, height: OH, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", top: ORBIT_TOP, left: ORBIT_LEFT, width: ORBIT_SIZE, height: ORBIT_SIZE, pointerEvents: "none" }}>
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
-            fontSize: 18,
-            lineHeight: 1,
+            width: 18,
+            height: 18,
+            display: "grid",
+            placeItems: "center",
             offsetPath: `path('${orbitPath}')`,
             offsetRotate: "auto",
             animation: `planeOrbit ${ORBIT_MS}ms linear forwards`,
-            filter: "drop-shadow(0 0 8px rgba(29, 150, 184, 0.9))",
             transformOrigin: "center center",
           } as React.CSSProperties}
         >
-          ✈️
+          <Plane size={17} strokeWidth={1.5} fill="#4AB8D4" color="#4AB8D4" aria-hidden="true" />
         </div>
       </div>
 
@@ -110,18 +103,30 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           width: TW,
           height: TH,
           borderRadius: TR,
-          background: "linear-gradient(135deg, #111E38 0%, #34558fff 100%)",
+          background: "linear-gradient(135deg, #111E38 0%, #0D1A30 100%)",
           border: "1px solid rgba(0,200,255,0.2)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,200,255,0.08) inset",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,184,212,0.08) inset",
           display: "flex",
           alignItems: "center",
           gap: 14,
           padding: "0 22px",
         }}
       >
-    
-          
-       
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: "rgba(55,167,198,0.12)",
+            border: "1px solid rgba(74,184,212,0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Plane size={20} strokeWidth={1.5} fill="#4AB8D4" color="#4AB8D4" aria-hidden="true" />
+        </div>
 
         <div style={{ flex: 1 }}>
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(136, 192, 207, 0.8)", textTransform: "uppercase", marginBottom: 2 }}>

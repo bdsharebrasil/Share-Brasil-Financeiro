@@ -310,7 +310,7 @@ export default function NFSaidaTab() {
   const summary = useMemo(() => {
     const total = notas.length;
     const totalPendente = notas
-      .filter((n) => ["pendente", "em_aberto", "aberto"].includes((n.status ?? "").toLowerCase()))
+      .filter((n) => ["pendente", "em_aberto", "aberto", "atrasado", "em_atraso"].includes((n.status ?? "").toLowerCase()))
       .reduce((s, n) => s + num(n.valor), 0);
     const totalRecebido = notas
       .filter((n) => ["pago", "recebido"].includes((n.status ?? "").toLowerCase()))

@@ -134,14 +134,14 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           }}
         >
           
-        </div>
+       
 
         <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(3, 114, 145, 0.8)", textTransform: "uppercase", marginBottom: 2 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(136, 192, 207, 0.8)", textTransform: "uppercase", marginBottom: 2 }}>
             Share Brasil
           </p>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#E8F4FD", fontFamily: "'DM Sans', sans-serif" }}>
-            Bem-vindo de volta, <span style={{ color: "#017899ff" }}>{displayName}</span>
+            Bem-vindo de volta, <span style={{ color: "#81becfff" }}>{displayName}</span>
           </p>
         </div>
 

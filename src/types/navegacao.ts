@@ -22,7 +22,7 @@ import {
   Receipt,
   RefreshCw,
   Settings2,
-  WalletCards,
+  Wallet,
   Wrench,
   Plane,
   ContactRound,

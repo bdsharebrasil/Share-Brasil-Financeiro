@@ -97,7 +97,7 @@ export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promi
   return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
 }
 
-export function darBaixaContaAReceber(id: string, dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }): Promise<ContaAReceber> {
+export function darBaixaContaAReceber(id: string, dados: { dataRecebimento: string; bancoRecebimento: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {
   return financeiroRequest<ContaAReceber>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
 }
 

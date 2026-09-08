@@ -81,6 +81,13 @@ export interface ContaAReceber {
   status: StatusContaFinanceira;
   criadoEm: string;
   atualizadoEm: string;
+  rateios?: Array<{
+    id: string;
+    cotista_id: string | null;
+    valor_rateado_centavos: number;
+    valor_pago_real_centavos: number;
+    status: string;
+  }>;
 }
 
 export interface FornecedorFavorito {

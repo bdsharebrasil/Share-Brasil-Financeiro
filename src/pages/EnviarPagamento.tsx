@@ -38,7 +38,7 @@ type Formulario = {
   subcategoria_3: string;
   subcategoria_4: string;
   tipo_rateio: "FIXO" | "VARIAVEL POR VOO" | "VARIAVEL POR HORA" | "EXTRA";
-  rateio_linhas: Array<{ cotista_id: string; percentual: string }>;
+  rateio_linhas: Array<{ cotista_id: string; percentual: string; valor_centavos?: number }>;
   observacoes: string;
   grupo_categoria: Categoria;
   tipo_despesa: "fixo" | "variável";
@@ -228,6 +228,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const selecionada = opcoes.find((opcao) => opcao.tipo === tipo) ?? null;
   const recentes = useMemo(() => envios.slice(0, 8), [envios]);
   const valorInformado = converterValor(form.valor);
+  const valorCentavos = Math.round(valorInformado * 100);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
@@ -249,6 +250,31 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     if (linhas.length) linhas[linhas.length - 1].percentual = String(+(Number(linhas[linhas.length - 1].percentual) + (100 - soma)).toFixed(2));
     return { ...atual, rateio_linhas: linhas };
   });
+
+  const montarRateioLinhas = () => {
+    const linhas = form.rateio_linhas.map((linha) => ({
+      cotista_id: linha.cotista_id,
+      percentual: Number(linha.percentual) || 0,
+    })).filter((linha) => linha.percentual > 0)
+    let distribuido = 0
+    return linhas.map((linha, index) => {
+      const valor = index === linhas.length - 1
+        ? valorCentavos - distribuido
+        : Math.round(valorCentavos * linha.percentual / 100)
+      distribuido += valor
+      return { ...linha, valor_centavos: valor }
+    })
+  };
+
+  const validarRateio = () => {
+    if (!exigeCliente) return true
+    if (!form.aeronave_id) return false
+    const idsValidos = new Set(cotistas.map((cotista) => cotista.id))
+    const linhas = montarRateioLinhas()
+    const percentual = linhas.reduce((total, linha) => total + linha.percentual, 0)
+    const valor = linhas.reduce((total, linha) => total + linha.valor_centavos, 0)
+    return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos
+  };
 
   const contatosFiltrados = useMemo(() => {
     const termo = buscaContato.trim().toLowerCase();
@@ -296,7 +322,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
     if (etapa === 1) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? form.vencimento : true) && (tipo !== "share" || vincularAeronave !== null));
-    if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || Math.abs(form.rateio_linhas.reduce((s, linha) => s + (Number(linha.percentual) || 0), 0) - 100) < 0.01));
+    if (etapa === 2 && exigeDadosAeronave) return Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || validarRateio()));
     return true;
   };
 
@@ -323,24 +349,25 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setErro("");
     try {
       const payload = tipo === "share" ? {
-        tipo, descricao: form.descricao, valor: valorInformado, vencimento: form.vencimento,
+        tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_vencimento: form.vencimento,
         fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id, categoria_id: form.categoria_id,
         categoria_nome: form.categoria_nome, grupo_categoria: "DESPESAS EMPRESA", periodicidade: form.periodicidade,
-        aeronave_id: form.aeronave_id, cotista_id: form.cotista_ids[0] || "", cotista_ids: form.cotista_ids,
+        aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
         numero_voo: form.numero_voo, observacoes: form.observacoes, pago_por: form.pago_por || "share",
-        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero }) => ({ id, tipo: anexoTipo, numero })),
       } : {
-        ...form, tipo, cliente_id: "", socio_id: "", cotista_id: form.cotista_ids[0] || "", valor: valorInformado,
+        tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
+        cliente_id: "", socio_id: "", ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
         tipo_caixa: "share", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente",
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
-        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url }) => ({ id, tipo: anexoTipo, numero, url })),
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero }) => ({ id, tipo: anexoTipo, numero })),
         tipo_rateio: form.tipo_rateio,
         subcategoria_1: form.subcategoria_1,
         subcategoria_2: form.subcategoria_2,
         subcategoria_3: form.subcategoria_3,
         subcategoria_4: form.subcategoria_4,
-        rateio_linhas: form.rateio_linhas.map((linha) => ({ cotista_id: linha.cotista_id, percentual: Number(linha.percentual) || 0 })),
+        rateio_linhas: montarRateioLinhas(),
       };
       const registro = await criarEnvioPagamento(payload);
       setEnvios((atual) => [registro, ...atual]);

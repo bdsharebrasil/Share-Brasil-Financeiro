@@ -196,6 +196,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [pdfPreviewNumero, setPdfPreviewNumero] = useState("");
   const [pdfAbrindoId, setPdfAbrindoId] = useState<string | null>(null);
+  const [estadoEmissao, setEstadoEmissao] = useState<"CRIADO" | "ANEXO_PENDENTE" | "PDF_PENDENTE" | "EMITIDO" | "ERRO_ANEXO" | "ERRO_PDF" | null>(null);
 
   const carregar = async () => {
     setCarregando(true);
@@ -234,6 +235,18 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const rateioPagamentoAtivo = form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave" && form.rateado;
   const totalPercentualRateio = rateioPagamentoAtivo ? cotistas.reduce((total, item) => total + (Number(rateioPercentuais[item.id] || 0) || 0), 0) : totalRateio;
   const rateioLinhasPagamento = rateioPagamentoAtivo ? cotistas.map((item) => ({ cotista_id: item.id, percentual: Number(rateioPercentuais[item.id] || 0) })).filter((item) => item.percentual > 0) : [];
+  const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
+  const rateioLinhasComValores = (() => {
+    if (!rateioPagamentoAtivo) return [];
+    let distribuido = 0;
+    return rateioLinhasPagamento.map((linha, index) => {
+      const valor_centavos = index === rateioLinhasPagamento.length - 1
+        ? valorReciboCentavos - distribuido
+        : Math.round(valorReciboCentavos * linha.percentual / 100);
+      distribuido += valor_centavos;
+      return { ...linha, valor_centavos };
+    });
+  })();
   const tipoSelecionado = opcoesTipo.find((item) => item.id === form.tipo);
   const pagadorSelecionado = opcoes.cotistas.find((item) => item.id === form.pagador_id);
   const categoriaClienteSelecionada = opcoes.categorias_cliente.find((item) => item.id === form.categoria_id);
@@ -275,8 +288,15 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     : form.tipo === "recibo_colaborador"
       ? Boolean(form.natureza_despesa && form.categoria_id && (form.natureza_despesa === "aeronave" ? form.aeronave_id : CATEGORIAS_EMPRESA.has(form.categoria_id)) && (form.categoria_id !== CATEGORIA_OUTRO_ID || form.categoria_nome_manual.trim()))
       : Boolean(form.categoria_id && form.categoria_nome && !/SEM[_ ]?CATEGORIA/i.test(form.categoria_nome));
+  const rateioValido = !rateioPagamentoAtivo || Boolean(
+    form.aeronave_id &&
+    rateioLinhasComValores.length > 0 &&
+    rateioLinhasComValores.every((linha) => cotistas.some((cotista) => cotista.id === linha.cotista_id)) &&
+    Math.abs(rateioLinhasComValores.reduce((total, linha) => total + linha.percentual, 0) - 100) < 0.01 &&
+    rateioLinhasComValores.reduce((total, linha) => total + linha.valor_centavos, 0) === valorReciboCentavos,
+  );
   const podeEmitir = Boolean(
-    form.tipo && form.descricao_servico.trim() && valorNumerico(form.valor) > 0 && categoriaValida &&
+    form.tipo && form.descricao_servico.trim() && valorReciboCentavos > 0 && categoriaValida && rateioValido &&
     (form.tipo === "recibo_colaborador" ? form.colaborador_id : form.tipo === "recibo_pagamento" ? form.recebedor_nome.trim() && categoriaValida && (form.pagador_tipo === "empresa" || form.pagador_id) && (!rateioPagamentoAtivo || (form.aeronave_id && rateioLinhasPagamento.length > 0 && Math.abs(totalPercentualRateio - 100) < 0.01)) : (form.rateado ? form.aeronave_id : form.cliente_id)),
   );
 
@@ -345,7 +365,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         pagador_tipo: form.tipo === "recibo_pagamento" ? form.pagador_tipo : "empresa",
         pagador_id: form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave" ? form.pagador_id : "empresa",
         valor: valorNumerico(form.valor),
-        valor_centavos: Math.round(valorNumerico(form.valor) * 100),
+        valor_centavos: valorReciboCentavos,
         descricao_servico: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
         data_vencimento: form.tipo === "recibo_pagamento" ? null : form.data_vencimento || null,
@@ -363,32 +383,39 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         subcategoria_2: mostrarMetadadosPagamento ? form.subcategoria_2 || null : null,
         subcategoria_3: mostrarMetadadosPagamento ? form.subcategoria_3 || null : null,
         subcategoria_4: mostrarMetadadosPagamento ? form.subcategoria_4 || null : null,
-        rateio_linhas: rateioPagamentoAtivo ? rateioLinhasPagamento : undefined,
+        rateio_linhas: rateioPagamentoAtivo ? rateioLinhasComValores : undefined,
       };
       const resposta = await criarRecibo(payload);
+      setEstadoEmissao("CRIADO");
+      setRecibos((atual) => [{ ...resposta.recibo, status: "CRIADO" }, ...atual]);
       setForm(inicial());
       setArquivo(null);
       setPreviewAberta(false);
       let avisoAnexo = "";
       if (arquivo) {
+        setEstadoEmissao("ANEXO_PENDENTE");
         try {
           const anexo = await enviarAnexoRecibo(arquivo, resposta.recibo.id);
           resposta.recibo.anexo_id = anexo.id;
         } catch (anexoError) {
+          setEstadoEmissao("ERRO_ANEXO");
           avisoAnexo = ` O recibo foi criado, mas o anexo não pôde ser salvo${anexoError instanceof Error ? `: ${anexoError.message}` : "."}`;
         }
       }
       let avisoPdf = "";
       try {
+        setEstadoEmissao("PDF_PENDENTE");
         const pdf = await gerarPdfRecibo(resposta.recibo, colaboradorSelecionado);
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
       } catch (pdfError) {
+        setEstadoEmissao("ERRO_PDF");
         avisoPdf = ` O recibo foi criado, mas o PDF não pôde ser salvo${pdfError instanceof Error ? `: ${pdfError.message}` : "."}`;
       }
-      setRecibos((atual) => [resposta.recibo, ...atual]);
-      setMensagem(`Recibo ${resposta.recibo.numero_recibo} emitido com sucesso${resposta.rateio_ids.length ? ` e ${resposta.rateio_ids.length} rateio(s) gerado(s)` : ""}.${avisoAnexo}${avisoPdf}`);
+      if (!avisoAnexo && !avisoPdf) setEstadoEmissao("EMITIDO");
+      setRecibos((atual) => atual.map((item) => item.id === resposta.recibo.id ? { ...resposta.recibo, status: avisoAnexo ? "ERRO_ANEXO" : avisoPdf ? "ERRO_PDF" : "EMITIDO" } : item));
+      setMensagem(`Recibo ${resposta.recibo.numero_recibo} — estado ${avisoAnexo ? "ERRO_ANEXO" : avisoPdf ? "ERRO_PDF" : "EMITIDO"}${resposta.rateio_ids.length ? ` e ${resposta.rateio_ids.length} rateio(s) gerado(s)` : ""}.${avisoAnexo}${avisoPdf}`);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível emitir o recibo.");
     } finally {
@@ -478,7 +505,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           </div>}
 
           {erro && <div role="alert" className="mt-5 rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-600 dark:text-red-200">{erro}</div>}
-          {mensagem && !erro && <div role="status" className="mt-5 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
+          {mensagem && !erro && <div role="status" className="mt-5 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}{estadoEmissao ? ` [${estadoEmissao}]` : ""}</div>}
           <div className="mt-5 flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4"><Button type="button" onClick={abrirPreview} disabled={salvando || !podeEmitir} className="h-9 gap-2 rounded-sm px-5 text-[11px]"><FileText size={14} /> Pré-visualizar recibo</Button></div>
         </div>}
       </section>}

@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "deploy": "wrangler pages deploy dist"
+    "deploy": "wrangler pages deploy app/share-brasil/dist/public"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react-swc';
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT || 4175);
-const outputDir = path.resolve(import.meta.dirname, 'dist/public');
+// O Cloudflare Pages usa `app/share-brasil` como root directory do projeto.
+// O artefato precisa existir nesse caminho para a etapa de validação do Pages.
+const outputDir = path.resolve(import.meta.dirname, 'app/share-brasil/dist/public');
 const apiProxy = {
   '/api': {
     target: 'https://api.share-brasil.com',

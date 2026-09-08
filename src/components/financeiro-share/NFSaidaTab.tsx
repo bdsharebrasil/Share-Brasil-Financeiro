@@ -950,9 +950,9 @@ export default function NFSaidaTab() {
           <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center"><Trash2 className="h-5 w-5 text-red-400" /></div>
-              <h3 className="text-base font-bold text-foreground">Excluir nota fiscal</h3>
+              <h3 className="text-base font-bold text-foreground">Excluir documento de saída</h3>
             </div>
-            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita. (Os lançamentos financeiros já gerados não são excluídos automaticamente — cancele-os separadamente se necessário.)</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este documento de saída? O recibo/nota, o PDF e os lançamentos financeiros vinculados serão removidos.</p>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setDeleteId(null)} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-4 py-2 text-sm">Cancelar</button>
               <button onClick={confirmDelete} disabled={deleting} className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "#dc2626" }}>

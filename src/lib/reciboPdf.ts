@@ -208,7 +208,10 @@ export async function gerarReciboPdf(
   pdf.setFont("helvetica", "bolditalic");
   pdf.setFontSize(7.5);
   pdf.text(
-    "Para maior clareza, firmo(amos) o presente recibo para que produza os seus efeitos legais, dando plena e rasa quitação.",
+    pdf.splitTextToSize(
+      "Este recibo é emitido em caráter condicional, sendo sua validade e eficácia jurídica condicionadas à regular compensação do valor total",
+      largura,
+    ),
     margem,
     y,
   );
@@ -219,17 +222,18 @@ export async function gerarReciboPdf(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
 
-  pdf.text("VÁRZEA GRANDE,", 62, y);
+  pdf.text("VÁRZEA GRANDE,", 80, y, { align: "right" });
   pdf.text(dia, 92, y, { align: "center" });
-  pdf.text("de", 104, y);
-  pdf.text(mes, 120, y, { align: "center" });
-  pdf.text("de", 137, y);
-  pdf.text(ano, 150, y, { align: "center" });
+  pdf.text("de", 106, y);
+  pdf.text(mes, 126, y, { align: "center" });
+  pdf.text("de", 148, y);
+  pdf.text(ano, 168, y, { align: "center" });
 
   pdf.setDrawColor(60);
-  pdf.line(85, y + 1.5, 100, y + 1.5);
-  pdf.line(110, y + 1.5, 131, y + 1.5);
-  pdf.line(142, y + 1.5, 158, y + 1.5);
+  pdf.line(43, y + 1.5, 80, y + 1.5);
+  pdf.line(85, y + 1.5, 99, y + 1.5);
+  pdf.line(112, y + 1.5, 140, y + 1.5);
+  pdf.line(156, y + 1.5, 180, y + 1.5);
 
   y += 14;
 

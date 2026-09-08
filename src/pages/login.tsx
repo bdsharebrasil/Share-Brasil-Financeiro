@@ -130,10 +130,6 @@ export default function Login() {
         password,
       });
       if (error) throw error;
-      toast({
-        title: "Acesso autorizado",
-        description: "Bem-vindo(a) ao portal Share Brasil.",
-      });
       navigate("/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";

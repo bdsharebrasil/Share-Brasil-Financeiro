@@ -17,7 +17,11 @@ function formatarData(iso: string): string {
 }
 
 function estaVencida(conta: ContaAReceber): boolean {
-  return (conta.status === 'PENDENTE' || conta.status === 'EM_ABERTO') && new Date(conta.dataVencimento) < new Date();
+  return ['PENDENTE', 'EM_ABERTO', 'ATRASADO', 'EM_ATRASO'].includes(conta.status) && new Date(conta.dataVencimento) < new Date();
+}
+
+function podeDarBaixa(conta: ContaAReceber): boolean {
+  return ['PENDENTE', 'EM_ABERTO', 'ATRASADO', 'EM_ATRASO'].includes(conta.status);
 }
 
 const CORES_STATUS: Record<StatusContaFinanceira, string> = {
@@ -26,6 +30,7 @@ const CORES_STATUS: Record<StatusContaFinanceira, string> = {
   PENDENTE: 'bg-amber-100 text-amber-700',
   RECEBIDO: 'bg-emerald-100 text-emerald-700',
   ATRASADO: 'bg-red-100 text-red-700',
+  EM_ATRASO: 'bg-red-100 text-red-700',
   CANCELADO: 'bg-neutral-200 text-neutral-500',
 };
 
@@ -77,6 +82,7 @@ export function AbaContasAReceber() {
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
+                  <TableHead>Fornecedor</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
@@ -85,7 +91,7 @@ export function AbaContasAReceber() {
               <TableBody>
                 {contas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
                       Nenhuma conta a receber encontrada.
                     </TableCell>
                   </TableRow>
@@ -99,6 +105,7 @@ export function AbaContasAReceber() {
                         </TableCell>
                         <TableCell>{c.descricao ?? '—'}</TableCell>
                         <TableCell>{c.categoriaNome ?? '—'}</TableCell>
+                        <TableCell>{c.fornecedor ?? '—'}</TableCell>
                         <TableCell className="text-right font-medium">{formatarMoeda(c.valor)}</TableCell>
                         <TableCell>
                           <Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>
@@ -106,7 +113,7 @@ export function AbaContasAReceber() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(c.status === 'PENDENTE' || c.status === 'EM_ABERTO') && (
+                          {podeDarBaixa(c) && (
                             <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>
                               Dar baixa
                             </Button>

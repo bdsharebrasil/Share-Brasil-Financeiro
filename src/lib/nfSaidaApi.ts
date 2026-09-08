@@ -90,7 +90,7 @@ export interface ReciboSaidaPayload {
 	categoria_despesa_subcategoria: string | null;
 	data_emissao: string;
 	data_vencimento: string;
-	valor: number;
+  valor_total: number;
 	descricao_servico: string;
 	status: StatusDocumentoSaida;
 }

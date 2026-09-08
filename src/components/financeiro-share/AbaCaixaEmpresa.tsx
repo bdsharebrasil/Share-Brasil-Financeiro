@@ -15,8 +15,12 @@ function formatarData(iso: string): string {
 }
 
 const CORES_STATUS: Record<StatusLancamento, string> = {
+  EM_ABERTO: 'bg-amber-100 text-amber-700',
   PAGO: 'bg-emerald-100 text-emerald-700',
+  RECEBIDO: 'bg-emerald-100 text-emerald-700',
   PENDENTE: 'bg-amber-100 text-amber-700',
+  ATRASADO: 'bg-red-100 text-red-700',
+  EM_ATRASO: 'bg-red-100 text-red-700',
   CANCELADO: 'bg-neutral-200 text-neutral-500',
 };
 

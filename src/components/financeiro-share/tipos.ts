@@ -5,8 +5,8 @@
 
 export type FluxoLancamento = 'ENTRADA' | 'SAIDA';
 export type CaixaLancamento = 'SHARE' | 'CLIENTE';
-export type StatusLancamento = 'PENDENTE' | 'PAGO' | 'CANCELADO';
-export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO';
+export type StatusLancamento = 'EM_ABERTO' | 'PENDENTE' | 'PAGO' | 'RECEBIDO' | 'ATRASADO' | 'EM_ATRASO' | 'CANCELADO';
+export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO' | 'EM_ATRASO';
 /** @deprecated use StatusContaFinanceira — mantido para não quebrar imports existentes */
 export type StatusContaAPagar = StatusContaFinanceira;
 
@@ -68,6 +68,7 @@ export interface ContaAReceber {
   descricao: string | null;
   criadoPor: string | null;
   aeronaveId: string | null;
+  fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;
   boletoUrl: string | null;

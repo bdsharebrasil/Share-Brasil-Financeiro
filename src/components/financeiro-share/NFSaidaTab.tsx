@@ -28,6 +28,7 @@ import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
 import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { formatDate } from "@/lib/receiptUtils";
+import { API_ORIGIN, getAuthToken } from "@/lib/api";
 import * as nfSaidaApi from "@/lib/nfSaidaApi";
 import type {
   CategoriaDespesaOpcao,
@@ -150,6 +151,7 @@ const getFileNameFromUrl = (url: string) => {
     return "arquivo";
   }
 };
+const resolveArquivoUrl = (url: string) => url.startsWith("/") ? `${API_ORIGIN}${url}` : url;
 
 type SortBy = "data" | "nome";
 type SortDir = "asc" | "desc";
@@ -213,6 +215,31 @@ export default function NFSaidaTab() {
   // prévia do recibo de saída (gerar PDF → salvar → enviar por e-mail)
   const [reciboPreview, setReciboPreview] = useState<{ pdfData: any; payload: any } | null>(null);
   const [reciboSavedUrl, setReciboSavedUrl] = useState<string | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
+
+  const downloadPdf = async (url: string, title: string) => {
+    setPdfDownloading(true);
+    try {
+      const headers = new Headers();
+      const token = getAuthToken();
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+      const response = await fetch(resolveArquivoUrl(url), { headers, credentials: "omit" });
+      if (!response.ok) throw new Error(`PDF indisponível (${response.status})`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = getFileNameFromUrl(url) || `${title.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      setToast({ type: "err", text: error instanceof Error ? error.message : "Não foi possível baixar o PDF." });
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
 
   const mapNota = (n: NotaOuReciboSaidaRow): NFSaida => ({
     id: n.id,
@@ -738,7 +765,7 @@ export default function NFSaidaTab() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-foreground">{getFileNameFromUrl(form.arquivo_pdf_url)}</p>
-                      <a href={form.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-xs text-cyan-400 hover:text-cyan-300">Abrir arquivo</a>
+                      <button type="button" onClick={() => setPdfViewer({ url: form.arquivo_pdf_url, title: getFileNameFromUrl(form.arquivo_pdf_url) })} className="text-left text-xs text-cyan-400 hover:text-cyan-300">Abrir arquivo</button>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-card/70 px-2.5 py-1.5 text-xs text-foreground hover:bg-card-secondary">
@@ -869,7 +896,7 @@ export default function NFSaidaTab() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] text-xs"><thead><tr className="border-b border-border/70 bg-secondary/30 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3">Número</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Emissão</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Nome categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-center">PDF</th><th className="px-4 py-3 text-center">E-mail</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>
               {registrosDoAno.map((n) => { const status = String(n.status || "").toLowerCase(); const isPendente = ["pendente", "em_aberto", "aberto", "atrasado", "em_atraso"].includes(status); return <tr key={n.id} className="border-b border-border/50 transition-colors hover:bg-primary/[.035]">
-                <td className="px-4 py-3 font-mono text-[11px] font-bold text-foreground">{n.numero || "—"}</td><td className="px-4 py-3 font-medium text-muted-foreground">{n.cliente_nome || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.aeronave || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td><td className="px-4 py-3 text-right font-bold text-foreground">{formatBRL(num(n.valor))}</td><td className="max-w-[190px] truncate px-4 py-3 text-muted-foreground" title={n.categoria || ""}>{n.categoria || "—"}</td><td className="px-4 py-3"><StatusBadge status={n.status} /></td><td className="px-4 py-3 text-center">{n.arquivo_pdf_url ? <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" title="Abrir PDF" className="inline-flex rounded-lg border border-primary/20 bg-primary/[.07] p-2 text-primary hover:bg-primary/15"><Download className="h-3.5 w-3.5" /></a> : <span className="text-muted-foreground">—</span>}</td><td className="px-4 py-3 text-center"><button type="button" title="Enviar por e-mail" onClick={() => { setEmailTarget(n); setEmailOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/[.07] px-2.5 py-2 text-[10px] font-bold text-primary hover:bg-primary/15"><Mail className="h-3.5 w-3.5" /> Enviar</button></td><td className="px-4 py-3"><div className="flex justify-end gap-1.5">{isPendente && n.contas_areceber_id && <button type="button" title="Dar baixa" onClick={() => openBaixa(n)} className="rounded-lg border border-emerald-400/25 bg-emerald-400/[.08] p-2 text-emerald-500 hover:bg-emerald-400/15"><Banknote className="h-3.5 w-3.5" /></button>}{n.origem === "nf_saida" && <button type="button" title="Editar" onClick={() => openEdit(n)} className="rounded-lg border border-border bg-card/70 p-2 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}<button type="button" title="Excluir" onClick={() => setDeleteId(n.id)} className="rounded-lg border border-red-400/25 bg-red-400/[.06] p-2 text-red-500 hover:bg-red-400/15"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
+                <td className="px-4 py-3 font-mono text-[11px] font-bold text-foreground">{n.numero || "—"}</td><td className="px-4 py-3 font-medium text-muted-foreground">{n.cliente_nome || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.aeronave || "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td><td className="px-4 py-3 text-muted-foreground">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td><td className="px-4 py-3 text-right font-bold text-foreground">{formatBRL(num(n.valor))}</td><td className="max-w-[190px] truncate px-4 py-3 text-muted-foreground" title={n.categoria || ""}>{n.categoria || "—"}</td><td className="px-4 py-3"><StatusBadge status={n.status} /></td><td className="px-4 py-3 text-center">{n.arquivo_pdf_url ? <button type="button" onClick={() => setPdfViewer({ url: n.arquivo_pdf_url!, title: n.numero || "Documento de saída" })} title="Abrir PDF" className="inline-flex rounded-lg border border-primary/20 bg-primary/[.07] p-2 text-primary hover:bg-primary/15"><FileText className="h-3.5 w-3.5" /></button> : <span className="text-muted-foreground">—</span>}</td><td className="px-4 py-3 text-center"><button type="button" title="Enviar por e-mail" onClick={() => { setEmailTarget(n); setEmailOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/[.07] px-2.5 py-2 text-[10px] font-bold text-primary hover:bg-primary/15"><Mail className="h-3.5 w-3.5" /> Enviar</button></td><td className="px-4 py-3"><div className="flex justify-end gap-1.5">{isPendente && n.contas_areceber_id && <button type="button" title="Dar baixa" onClick={() => openBaixa(n)} className="rounded-lg border border-emerald-400/25 bg-emerald-400/[.08] p-2 text-emerald-500 hover:bg-emerald-400/15"><Banknote className="h-3.5 w-3.5" /></button>}{n.origem === "nf_saida" && <button type="button" title="Editar" onClick={() => openEdit(n)} className="rounded-lg border border-border bg-card/70 p-2 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}<button type="button" title="Excluir" onClick={() => setDeleteId(n.id)} className="rounded-lg border border-red-400/25 bg-red-400/[.06] p-2 text-red-500 hover:bg-red-400/15"><Trash2 className="h-3.5 w-3.5" /></button></div></td>
               </tr>; })}
             </tbody></table>
           </div>
@@ -889,6 +916,22 @@ export default function NFSaidaTab() {
           }
         }}
       />
+
+      {pdfViewer && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h3 className="truncate text-sm font-bold">{pdfViewer.title}</h3>
+              <button type="button" onClick={() => setPdfViewer(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Fechar visualização"><X className="h-4 w-4" /></button>
+            </div>
+            <iframe src={resolveArquivoUrl(pdfViewer.url)} title={pdfViewer.title} className="min-h-0 flex-1 bg-white" />
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <button type="button" onClick={() => setPdfViewer(null)} className="rounded-lg border border-border px-4 py-2 text-sm">Fechar</button>
+              <button type="button" onClick={() => void downloadPdf(pdfViewer.url, pdfViewer.title)} disabled={pdfDownloading} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"><Download className="h-4 w-4" /> {pdfDownloading ? "Baixando..." : "Baixar PDF"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {emailTarget && (
         <EnviarEmailClienteDialog

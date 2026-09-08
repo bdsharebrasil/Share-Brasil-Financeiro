@@ -15,14 +15,18 @@ function formatarData(iso: string): string {
 }
 
 const CORES_STATUS: Record<StatusLancamento, string> = {
-  EM_ABERTO: 'bg-amber-100 text-amber-700',
-  PAGO: 'bg-emerald-100 text-emerald-700',
-  RECEBIDO: 'bg-emerald-100 text-emerald-700',
-  PENDENTE: 'bg-amber-100 text-amber-700',
-  ATRASADO: 'bg-red-100 text-red-700',
-  EM_ATRASO: 'bg-red-100 text-red-700',
-  CANCELADO: 'bg-neutral-200 text-neutral-500',
+  EM_ABERTO: 'border border-amber-400/25 bg-amber-500/15 text-amber-300',
+  PAGO: 'border border-emerald-400/25 bg-emerald-500/15 text-emerald-300',
+  RECEBIDO: 'border border-emerald-400/25 bg-emerald-500/15 text-emerald-300',
+  PENDENTE: 'border border-amber-400/25 bg-amber-500/15 text-amber-300',
+  ATRASADO: 'border border-red-400/25 bg-red-500/15 text-red-300',
+  EM_ATRASO: 'border border-red-400/25 bg-red-500/15 text-red-300',
+  CANCELADO: 'border border-slate-400/20 bg-slate-500/15 text-slate-300',
 };
+
+function formatarStatus(status: StatusLancamento) {
+  return status.replace(/_/g, ' ');
+}
 
 export function AbaCaixaEmpresa() {
   const [fluxo, setFluxo] = useState<FluxoLancamento | 'TODOS'>('TODOS');
@@ -57,7 +61,7 @@ export function AbaCaixaEmpresa() {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead>N doc</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>Fluxo</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -76,7 +80,7 @@ export function AbaCaixaEmpresa() {
                     <TableRow key={l.id}>
                       <TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell>
                       <TableCell className="font-medium">{l.descricao}</TableCell>
-                      <TableCell>{l.categoria}</TableCell>
+                      <TableCell>{l.documento ?? '—'}</TableCell>
                       <TableCell>{l.fornecedor ?? '—'}</TableCell>
                       <TableCell>
                         <Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>
@@ -91,7 +95,7 @@ export function AbaCaixaEmpresa() {
                         {formatarMoeda(l.valorCentavos)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={CORES_STATUS[l.status]}>{l.status}</Badge>
+                        <Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge>
                       </TableCell>
                     </TableRow>
                   ))

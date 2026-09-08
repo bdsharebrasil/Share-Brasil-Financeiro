@@ -1,28 +1,341 @@
 import { useCallback, useEffect, useState } from "react";
-import { CircleDollarSign, Clock3, CreditCard, FileBarChart, Mail, Receipt, RefreshCw, Send } from "lucide-react";
+import {
+  CircleDollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  CreditCard,
+  FileBarChart,
+  Mail,
+  Receipt,
+  RefreshCw,
+  Send,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
-import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, HeroDashboard, formatarMoeda } from "@/components/dashboard/PrimitivosDashboard";
-import { buscarPainelFinanceiro, buscarPerfilColaborador, type MovimentacaoFinanceira, type PainelFinanceiroResponse } from "@/lib/colaborador-api";
+import {
+  AcaoRapida,
+  CabecalhoSecao,
+  CartaoKpi,
+  EtiquetaStatus,
+  EstadoVazio,
+  HeroDashboard,
+  formatarMoeda,
+} from "@/components/dashboard/PrimitivosDashboard";
+import {
+  buscarPainelFinanceiro,
+  buscarPerfilColaborador,
+  type MovimentacaoFinanceira,
+  type PainelFinanceiroResponse,
+} from "@/lib/colaborador-api";
 
-function dataBruta(valor: string | null | undefined) { if (!valor) return "—"; const data = new Date(`${valor.slice(0, 10)}T00:00:00`); return Number.isNaN(data.getTime()) ? valor : data.toLocaleDateString("pt-BR"); }
-function tomStatus(status: string | null): "green" | "amber" | "red" | "blue" | "neutral" { const normalizado = status?.toLowerCase(); if (normalizado === "pago" || normalizado === "aprovado") return "green"; if (normalizado === "cancelado" || normalizado === "reprovado") return "red"; if (normalizado === "enviado") return "blue"; if (normalizado === "pendente" || normalizado === "aberto") return "amber"; return "neutral"; }
-function statusLabel(status: string | null) { if (!status) return "Sem status"; return ({ pago: "Pago", pendente: "Pendente", cancelado: "Cancelado", aprovado: "Aprovado", reprovado: "Reprovado", aberto: "Aberto", enviado: "Enviado" } as Record<string, string>)[status.toLowerCase()] || status; }
-function saudacaoAtual() { const hora = new Date().getHours(); if (hora < 12) return "Bom dia"; if (hora < 18) return "Boa tarde"; return "Boa noite"; }
-function primeiroNome(nome: string) { return nome.split(" ").filter(Boolean)[0] || "Colaborador"; }
-function valorMovimentacao(valor: number) { return valor === 78.9 ? 78.91 : valor; }
+function dataBruta(valor: string | null | undefined) {
+  if (!valor) return "—";
+  const data = new Date(`${valor.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(data.getTime())
+    ? valor
+    : data.toLocaleDateString("pt-BR");
+}
+function tomStatus(
+  status: string | null,
+): "green" | "amber" | "red" | "blue" | "neutral" {
+  const normalizado = status?.toLowerCase();
+  if (normalizado === "pago" || normalizado === "aprovado") return "green";
+  if (normalizado === "cancelado" || normalizado === "reprovado") return "red";
+  if (normalizado === "enviado") return "blue";
+  if (
+    normalizado === "pendente" ||
+    normalizado === "aberto" ||
+    normalizado === "em_aberto"
+  )
+    return "amber";
+  return "neutral";
+}
+function statusLabel(status: string | null) {
+  if (!status) return "Sem status";
+  const normalizado = status.toLowerCase().replace(/_/g, " ");
+  return (
+    (
+      {
+        pago: "Pago",
+        pendente: "Pendente",
+        cancelado: "Cancelado",
+        aprovado: "Aprovado",
+        reprovado: "Reprovado",
+        aberto: "Aberto",
+        enviado: "Enviado",
+        "em aberto": "Em aberto",
+      } as Record<string, string>
+    )[normalizado] || status.replace(/_/g, " ")
+  );
+}
+function statusEmail(item: MovimentacaoFinanceira) {
+  if (item.email_enviado === true) return "ENVIADO";
+  if (item.email_enviado === false) return "PENDENTE";
+  const status = (item.email_status || item.status_email || item.status || "")
+    .toLowerCase()
+    .replace(/_/g, " ");
+  return status === "enviado" || status === "email enviado"
+    ? "ENVIADO"
+    : "PENDENTE";
+}
+function saudacaoAtual() {
+  const hora = new Date().getHours();
+  if (hora < 12) return "Bom dia";
+  if (hora < 18) return "Boa tarde";
+  return "Boa noite";
+}
+function primeiroNome(nome: string) {
+  return nome.split(" ").filter(Boolean)[0] || "Colaborador";
+}
+function valorMovimentacao(valor: number) {
+  return valor === 78.9 ? 78.91 : valor;
+}
 
-export default function DashboardFinanceiro({ aoNavegar }: { aoNavegar: (menu: string) => void }) {
+export default function DashboardFinanceiro({
+  aoNavegar,
+}: {
+  aoNavegar: (menu: string) => void;
+}) {
   const [dados, setDados] = useState<PainelFinanceiroResponse | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
-  const carregar = useCallback(async (silencioso = false) => { if (silencioso) setAtualizando(true); else setCarregando(true); setErro(null); try { setDados(await buscarPainelFinanceiro()); } catch { setErro("Não foi possível carregar os dados financeiros reais."); } finally { setCarregando(false); setAtualizando(false); } }, []);
-  useEffect(() => { void carregar(); void buscarPerfilColaborador().then((response) => setNomeColaborador(response.perfil.nome_exibicao || response.perfil.nome_completo)).catch(() => undefined); }, [carregar]);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const carregar = useCallback(async (silencioso = false) => {
+    if (silencioso) setAtualizando(true);
+    else setCarregando(true);
+    setErro(null);
+    try {
+      setDados(await buscarPainelFinanceiro());
+      setPaginaAtual(1);
+    } catch {
+      setErro("Não foi possível carregar os dados financeiros reais.");
+    } finally {
+      setCarregando(false);
+      setAtualizando(false);
+    }
+  }, []);
+  useEffect(() => {
+    void carregar();
+    void buscarPerfilColaborador()
+      .then((response) =>
+        setNomeColaborador(
+          response.perfil.nome_exibicao || response.perfil.nome_completo,
+        ),
+      )
+      .catch(() => undefined);
+  }, [carregar]);
   const resumo = dados?.resumo;
   const movimentacoes = dados?.movimentacoes ?? [];
-  return <div className="route-enter"><HeroDashboard ambiente="financeiro" title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`}></HeroDashboard>{erro && <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}<div className="mx-auto mb-5 flex w-full max-w-4xl flex-row items-center justify-center gap-3 overflow-auto"><CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Itens que exigem acompanhamento" tone="amber" icon={<Clock3 size={16} />} className="min-w-[180px]" /><CartaoKpi label="Pagamentos confirmados" value={carregando ? "—" : String(resumo?.pagamentos_confirmados ?? 0)} detail="Registros pagos no consolidado" tone="violet" icon={<CreditCard size={16} />} className="min-w-[180px]" /></div><section className="mx-auto mb-5 grid max-w-6xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"><AcaoRapida icon={<Receipt size={16} />} label="Recibos" detail="Abrir emissão" onClick={() => aoNavegar("recibos")} /><AcaoRapida icon={<FileBarChart size={16} />} label="Relatório de despesa de viagem" detail="Criar e acompanhar" color="amber" onClick={() => aoNavegar("despesas")} /><AcaoRapida icon={<Send size={16} />} label="Enviar pagamento" detail="Programar despesa" onClick={() => aoNavegar("enviar-pagamento")} /><AcaoRapida icon={<Mail size={16} />} label="E-mail" detail="Caixa de saída" onClick={() => aoNavegar("email")} /><AcaoRapida icon={<RefreshCw size={16} />} label="Ciclo de voo" detail="Consultar" color="amber" onClick={() => aoNavegar("ciclo")} /></section><section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<CreditCard size={15} />} title="Movimentações financeiras" detail="Últimos registros lançados." action={<Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"><RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button>} />{carregando ? <div className="space-y-3 p-5"><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /></div> : movimentacoes.length ? <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Descrição</th><th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3">Data</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Observações</th></tr></thead><tbody>{movimentacoes.map((item) => <LinhaMovimentacao key={item.id} item={item} />)}</tbody></table></div> : <EstadoVazio label="Nenhuma movimentação financeira encontrada" />}</section><div className="mt-5"><RecadosPanel compact aoAbrir={() => aoNavegar("recados")} /></div></div>;
+  const itensPorPagina = 5;
+  const totalPaginas = Math.max(1, Math.ceil(movimentacoes.length / itensPorPagina));
+  const paginaExibida = Math.min(paginaAtual, totalPaginas);
+  const movimentacoesDaPagina = movimentacoes.slice(
+    (paginaExibida - 1) * itensPorPagina,
+    paginaExibida * itensPorPagina,
+  );
+  return (
+    <div className="route-enter">
+      <HeroDashboard
+        ambiente="financeiro"
+        title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`}
+      ></HeroDashboard>
+      {erro && (
+        <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">
+          {erro}
+          <button
+            type="button"
+            onClick={() => void carregar()}
+            className="ml-2 font-bold underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      <div className="mx-auto mb-5 flex w-full max-w-4xl flex-row items-center justify-center gap-3 overflow-auto">
+        <CartaoKpi
+          label="Pendências"
+          value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
+          detail="Itens que exigem acompanhamento"
+          tone="amber"
+          icon={<Clock3 size={16} />}
+          className="min-w-[180px]"
+        />
+        <CartaoKpi
+          label="Pagamentos confirmados"
+          value={carregando ? "—" : String(resumo?.pagamentos_confirmados ?? 0)}
+          detail="Registros pagos no consolidado"
+          tone="violet"
+          icon={<CreditCard size={16} />}
+          className="min-w-[180px]"
+        />
+      </div>
+      <section className="mx-auto mb-5 grid max-w-6xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <AcaoRapida
+          icon={<Receipt size={16} />}
+          label="Recibos"
+          detail="Abrir emissão"
+          onClick={() => aoNavegar("recibos")}
+        />
+        <AcaoRapida
+          icon={<FileBarChart size={16} />}
+          label="Relatório de despesa de viagem"
+          detail="Criar e acompanhar"
+          color="amber"
+          onClick={() => aoNavegar("despesas")}
+        />
+        <AcaoRapida
+          icon={<Send size={16} />}
+          label="Enviar pagamento"
+          detail="Programar despesa"
+          onClick={() => aoNavegar("enviar-pagamento")}
+        />
+        <AcaoRapida
+          icon={<Mail size={16} />}
+          label="E-mail"
+          detail="Caixa de saída"
+          onClick={() => aoNavegar("email")}
+        />
+        <AcaoRapida
+          icon={<RefreshCw size={16} />}
+          label="Ciclo de voo"
+          detail="Consultar"
+          color="amber"
+          onClick={() => aoNavegar("ciclo")}
+        />
+      </section>
+      <section className="overflow-hidden rounded-xl border border-border bg-card/75">
+        <CabecalhoSecao
+          icon={<CreditCard size={15} />}
+          title="Movimentações financeiras"
+          detail="Últimos registros lançados."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void carregar(true)}
+              disabled={atualizando}
+              className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
+            >
+              <RefreshCw
+                size={12}
+                className={atualizando ? "animate-spin" : ""}
+              />{" "}
+              Atualizar
+            </Button>
+          }
+        />
+        {carregando ? (
+          <div className="space-y-3 p-5">
+            <div className="skeleton h-12 rounded-lg" />
+            <div className="skeleton h-12 rounded-lg" />
+            <div className="skeleton h-12 rounded-lg" />
+          </div>
+        ) : movimentacoes.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left">
+              <thead>
+                <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+                  <th className="px-4 py-4">Descrição</th>
+                  <th className="px-4 py-4">Nº doc</th>
+                  <th className="px-4 py-4">Fornecedor</th>
+                  <th className="px-4 py-4">Data</th>
+                  <th className="px-4 py-4 text-right">Valor</th>
+                  <th className="px-4 py-4">Status</th>
+                  <th className="px-4 py-4 text-orange-500">EMAIL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movimentacoesDaPagina.map((item) => (
+                  <LinhaMovimentacao key={item.id} item={item} />
+                ))}
+              </tbody>
+            </table>
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Página {paginaExibida} de {totalPaginas}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+                    disabled={paginaExibida === 1}
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                    disabled={paginaExibida === totalPaginas}
+                  >
+                    Próxima <ChevronRight size={14} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
+        )}
+      </section>
+      <div className="mt-5">
+        <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
+      </div>
+    </div>
+  );
 }
-function CheckIcon() { return <CircleDollarSign size={16} />; }
-function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) { return <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20"><td className="px-4 py-3"><p className="max-w-[270px] truncate text-[10px] font-semibold">{item.descricao || "Movimentação sem descrição"}</p></td><td className="max-w-[220px] truncate px-4 py-3 text-[10px] text-muted-foreground" title={item.fornecedor || undefined}>{item.fornecedor || "—"}</td><td className="px-4 py-3 text-[10px] text-muted-foreground">{dataBruta(item.data_pagamento || item.criado_em)}</td><td className="px-4 py-3 text-right font-mono text-[10px] font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</td><td className="px-4 py-3"><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></td><td className="max-w-[220px] truncate px-4 py-3 text-[10px] text-muted-foreground">{item.observacoes || "—"}</td></tr>; }
+function CheckIcon() {
+  return <CircleDollarSign size={16} />;
+}
+function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
+  return (
+    <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
+      <td className="px-4 py-4 align-top">
+        <p className="min-w-[280px] whitespace-normal text-sm font-semibold leading-6 text-foreground">
+          {item.descricao || "Movimentação sem descrição"}
+        </p>
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 align-top text-sm font-medium text-foreground">
+        {item.numero_doc || "—"}
+      </td>
+      <td
+        className="max-w-[220px] px-4 py-4 align-top text-sm leading-6 text-muted-foreground"
+        title={item.fornecedor || undefined}
+      >
+        {item.fornecedor || "—"}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-muted-foreground">
+        {dataBruta(item.data_pagamento || item.criado_em)}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono text-sm font-semibold tabular-nums text-foreground">
+        {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
+      </td>
+      <td className="px-4 py-4 align-top">
+        <EtiquetaStatus tone={tomStatus(item.status)}>
+          {statusLabel(item.status)}
+        </EtiquetaStatus>
+      </td>
+      <td className="px-4 py-4 align-top">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em] ${
+            statusEmail(item) === "ENVIADO"
+              ? "bg-blue-500/12 text-blue-700 dark:text-blue-300"
+              : "bg-orange-500/12 text-orange-700 dark:text-orange-300"
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+          {statusEmail(item)}
+        </span>
+      </td>
+    </tr>
+  );
+}

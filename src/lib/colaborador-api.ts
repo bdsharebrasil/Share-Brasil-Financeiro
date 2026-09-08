@@ -827,7 +827,7 @@ export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
 export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
 export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
-export type RecebedorRecibo = { id: string; nome: string; cpf: string | null; email: string | null; telefone: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
+export type RecebedorRecibo = { id: string; nome: string; nome_completo?: string | null; cpf: string | null; email: string | null; telefone: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
@@ -894,6 +894,9 @@ export type CriarReciboPayload = {
   recebedor_id?: string | null;
   recebedor_nome?: string | null;
   recebedor_cpf?: string | null;
+  recebedor_endereco?: string | null;
+  recebedor_cidade?: string | null;
+  recebedor_uf?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
   nome_pagador?: string;
   documento_pagador?: string | null;
@@ -942,6 +945,9 @@ function normalizarRecebedor(item: Record<string, unknown>, origem: RecebedorRec
     cpf: item.cpf ? String(item.cpf) : null,
     email: item.email ? String(item.email) : null,
     telefone: item.telefone ? String(item.telefone) : null,
+    endereco: item.endereco ? String(item.endereco) : null,
+    cidade: item.cidade ? String(item.cidade) : null,
+    uf: item.uf ? String(item.uf) : null,
     tipo_user: item.tipo_user ? String(item.tipo_user) : origem === "tripulacao_freelancer" ? "freelancer" : null,
     origem,
     canac: item.canac ? String(item.canac) : null,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { buscarContasAReceber, darBaixaContaAReceber } from '../lib/financeiro-share-api';
 import type { ContaAReceber, FiltrosContasAReceber } from '../components/financeiro-share/tipos';
+import type { DadosBaixaReceber } from '../components/financeiro-share/ModalContaAReceber';
 
 interface RetornoUseContasAReceber {
   contas: ContaAReceber[];
@@ -8,7 +9,7 @@ interface RetornoUseContasAReceber {
   erro: string | null;
   darBaixa: (
     id: string,
-    dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }
+    dados: DadosBaixaReceber
   ) => Promise<void>;
   recarregar: () => void;
 }
@@ -36,7 +37,7 @@ export function useContasAReceber(filtros: FiltrosContasAReceber = {}): RetornoU
   const darBaixa = useCallback(
     async (
       id: string,
-      dados: { dataRecebimento: string; bancoRecebimento: string; comprovanteRecebimentoUrl?: string }
+      dados: DadosBaixaReceber
     ) => {
       const contaAtualizada = await darBaixaContaAReceber(id, dados);
       setContas((atual) => atual.map((c) => (c.id === id ? contaAtualizada : c)));

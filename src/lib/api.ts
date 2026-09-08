@@ -1,7 +1,7 @@
 const DEFAULT_API_ORIGIN = "https://api.share-brasil.com";
 const configuredApiBase = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
 
-export const API_BASE = configuredApiBase || DEFAULT_API_ORIGIN;
+export const API_BASE = configuredApiBase || (import.meta.env.DEV ? "" : DEFAULT_API_ORIGIN);
 export const API_ORIGIN = configuredApiBase || DEFAULT_API_ORIGIN;
 const SESSION_STORAGE_KEY = "share-brasil-session";
 

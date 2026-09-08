@@ -26,6 +26,7 @@ export type DadosReciboPdf = {
   emissorNome?: string;
   emissorDocumento?: string;
   emissorLinhas?: string[];
+  rotuloEmissor?: string;
   rotuloPagador?: string;
 };
 
@@ -113,7 +114,7 @@ export async function gerarReciboPdf(
   pdf.setTextColor(110);
   pdf.setFont("helvetica", "normal");
 
-  pdf.text("RECEBEDOR", margem, y);
+  pdf.text((dados.rotuloEmissor || "RECEBEDOR").toUpperCase(), margem, y);
   pdf.text((dados.rotuloPagador || "PAGADOR").toUpperCase(), 95, y);
   pdf.text("Número do recibo:", 192, y, { align: "right" });
 
@@ -175,17 +176,15 @@ export async function gerarReciboPdf(
 
   pdf.setDrawColor(190);
   pdf.setLineWidth(0.3);
-  pdf.rect(margem, y, 108, 26);
+  const descricaoLinhas = pdf.splitTextToSize(dados.descricao || "—", 100);
+  const alturaDescricao = Math.max(26, descricaoLinhas.length * 4.5 + 8);
+  pdf.rect(margem, y, 108, alturaDescricao);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.setTextColor(35, 55, 100);
 
-  pdf.text(
-    pdf.splitTextToSize(dados.descricao || "—", 100),
-    margem + 4,
-    y + 6,
-  );
+  pdf.text(descricaoLinhas, margem + 4, y + 6, { lineHeightFactor: 1.15 });
 
   pdf.setTextColor(20);
 
@@ -203,7 +202,7 @@ export async function gerarReciboPdf(
   pdf.setFontSize(10);
   pdf.text(valorTexto, margem + 141, y + 6.6);
 
-  y += 34;
+  y += alturaDescricao + 8;
 
   pdf.setFont("helvetica", "bolditalic");
   pdf.setFontSize(7.5);

@@ -144,7 +144,7 @@ async function gerarPdfRecibo(
 
   const blob = await gerarReciboPdf({
     numero: recibo.numero_recibo,
-    valor: Number(recibo.valor || 0),
+    valor: Number(recibo.valor || 0) / 100,
     descricao: [
       (recibo.descricao ?? recibo.descricao_servico),
       recibo.numero_documento_anexo
@@ -155,12 +155,21 @@ async function gerarPdfRecibo(
       .filter(Boolean)
       .join("\n\n"),
     data: recibo.data_emissao,
-    rotuloPagador: ehPagamento
-      ? "RECEBEDOR"
-      : "PAGADOR",
-    pagadorNome: ehPagamento
-      ? nomeRecebedor || "—"
-      : recibo.nome_pagador || "—",
+    rotuloEmissor: ehPagamento ? "PAGADOR" : "RECEBEDOR",
+    emissorNome: ehPagamento ? recibo.nome_pagador || "—" : undefined,
+    emissorDocumento: ehPagamento
+      ? recibo.documento_pagador
+        ? `CNPJ/CPF: ${recibo.documento_pagador}`
+        : undefined
+      : undefined,
+    emissorLinhas: ehPagamento
+      ? [
+          recibo.endereco_pagador,
+          [recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(" - "),
+        ].filter(Boolean) as string[]
+      : undefined,
+    rotuloPagador: ehPagamento ? "RECEBEDOR" : "PAGADOR",
+    pagadorNome: ehPagamento ? nomeRecebedor || "—" : recibo.nome_pagador || "—",
     pagadorDocumento: ehPagamento
       ? documentoRecebedor
         ? `CPF: ${documentoRecebedor}`
@@ -168,17 +177,13 @@ async function gerarPdfRecibo(
       : recibo.documento_pagador
         ? `CNPJ/CPF: ${recibo.documento_pagador}`
         : null,
-    pagadorLinhas: ehPagamento
-      ? []
-      : [
-          recibo.endereco_pagador,
-          [
-            recibo.cidade_pagador,
-            recibo.uf_pagador,
-          ]
-            .filter(Boolean)
-            .join(" - "),
-        ],
+    pagadorEndereco: ehPagamento ? recibo.recebedor_endereco : undefined,
+    pagadorCidade: ehPagamento ? recibo.recebedor_cidade : undefined,
+    pagadorUf: ehPagamento ? recibo.recebedor_uf : undefined,
+    pagadorLinhas: ehPagamento ? [] : [
+      recibo.endereco_pagador,
+      [recibo.cidade_pagador, recibo.uf_pagador].filter(Boolean).join(" - "),
+    ],
   });
 
   return new File(
@@ -415,6 +420,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         recebedor_endereco: form.recebedor_endereco,
         recebedor_cidade: form.recebedor_cidade,
         recebedor_uf: form.recebedor_uf,
+        nome_pagador: form.pagador_tipo === "empresa" ? "Share Brasil" : pagadorSelecionado?.nome || null,
+        documento_pagador: form.pagador_tipo === "empresa"
+          ? "30.898.549/0001-06"
+          : pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || null,
+        endereco_pagador: form.pagador_tipo === "empresa" ? null : pagadorSelecionado?.endereco || null,
+        cidade_pagador: form.pagador_tipo === "empresa" ? null : pagadorSelecionado?.cidade || null,
+        uf_pagador: form.pagador_tipo === "empresa" ? null : pagadorSelecionado?.uf || null,
         observacoes: form.observacoes,
         data_vencimento: form.data_vencimento || null,
         numero_documento_anexo: form.numero_documento_anexo || null,

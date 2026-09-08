@@ -1022,6 +1022,9 @@ export type Recibo = {
   cotista_id?: string | null;
   recebedor_nome: string | null;
   recebedor_cpf: string | null;
+  recebedor_endereco?: string | null;
+  recebedor_cidade?: string | null;
+  recebedor_uf?: string | null;
   aeronave_id: string | null;
   rateado: number;
   nome_pagador: string;

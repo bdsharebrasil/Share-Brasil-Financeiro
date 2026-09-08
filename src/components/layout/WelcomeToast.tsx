@@ -94,7 +94,7 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
             offsetPath: `path('${orbitPath}')`,
             offsetRotate: "auto",
             animation: `planeOrbit ${ORBIT_MS}ms linear forwards`,
-            filter: "drop-shadow(0 0 8px rgba(0,200,255,0.9))",
+            filter: "drop-shadow(0 0 8px rgba(29, 150, 184, 0.9))",
             transformOrigin: "center center",
           } as React.CSSProperties}
         >
@@ -133,15 +133,15 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
             flexShrink: 0,
           }}
         >
-          🛫
+          
         </div>
 
         <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(0,200,255,0.8)", textTransform: "uppercase", marginBottom: 2 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(3, 114, 145, 0.8)", textTransform: "uppercase", marginBottom: 2 }}>
             Share Brasil
           </p>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#E8F4FD", fontFamily: "'DM Sans', sans-serif" }}>
-            Bem-vindo de volta, <span style={{ color: "#00C8FF" }}>{displayName}</span>
+            Bem-vindo de volta, <span style={{ color: "#017899ff" }}>{displayName}</span>
           </p>
         </div>
 
@@ -150,7 +150,7 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
             style={{
               width: "100%",
               borderRadius: 2,
-              background: "linear-gradient(180deg, #00C8FF, #00E87A)",
+              background: "linear-gradient(180deg, #0c82a3b2, #33a771ff)",
               height: "100%",
               transformOrigin: "top",
               animation: `barFill ${ORBIT_MS}ms linear forwards`,

@@ -110,7 +110,7 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           width: TW,
           height: TH,
           borderRadius: TR,
-          background: "linear-gradient(135deg, #111E38 0%, #0D1A30 100%)",
+          background: "linear-gradient(135deg, #111E38 0%, #34558fff 100%)",
           border: "1px solid rgba(0,200,255,0.2)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,200,255,0.08) inset",
           display: "flex",

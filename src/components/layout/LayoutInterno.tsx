@@ -22,6 +22,7 @@ import SalaReuniao from "@/pages/SalaReuniao";
 import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import GestaoColaborador from "@/pages/GestaoColaborador";
 import EnviarPagamento from "@/pages/EnviarPagamento";
+import ConfiguracoesGestor from "@/pages/ConfiguracoesGestor";
 import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
 import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
@@ -92,6 +93,7 @@ export default function LayoutInterno() {
     if (ambiente === "financeiro" && menuAtivo === "despesas") return <RelatorioDespesaViagem aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "email") return <Emails />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
+    if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "configuracoes") return <ConfiguracoesGestor />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;

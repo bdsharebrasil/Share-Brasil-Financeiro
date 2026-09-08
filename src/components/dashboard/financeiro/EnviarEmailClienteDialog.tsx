@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export type AnexoEmail = { id?: string; url?: string; label?: string; filename?: string };
-type Props = { open: boolean; onOpenChange: (open: boolean) => void; destinatarioInicial?: string | null; assuntoSugerido?: string; mensagemSugerida?: string; anexos?: AnexoEmail[] };
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; onSent?: () => void; destinatarioInicial?: string | null; assuntoSugerido?: string; mensagemSugerida?: string; anexos?: AnexoEmail[] };
 
 const normalizarEmails = (valor: string) => valor.split(/[;,\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
 
-export function EnviarEmailClienteDialog({ open, onOpenChange, destinatarioInicial = "", assuntoSugerido = "", mensagemSugerida = "", anexos = [] }: Props) {
+export function EnviarEmailClienteDialog({ open, onOpenChange, onSent, destinatarioInicial = "", assuntoSugerido = "", mensagemSugerida = "", anexos = [] }: Props) {
   const [destinatario, setDestinatario] = useState("");
   const [copias, setCopias] = useState<string[]>([]);
   const [buscaContato, setBuscaContato] = useState("");
@@ -36,7 +36,7 @@ export function EnviarEmailClienteDialog({ open, onOpenChange, destinatarioInici
     const principais = normalizarEmails(destinatario);
     if (!principais.length || !assunto.trim() || !mensagem.trim()) { setErro("Informe o destinatário principal, assunto e mensagem."); return; }
     setEnviando(true); setErro(""); setSucesso("");
-    try { await enviarEmailCliente({ destinatarios: principais, cc: copias.filter((email) => !principais.includes(email)), assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexos.filter((item) => item.id).map((item) => item.id!) }); setSucesso("E-mail enviado com sucesso."); window.setTimeout(() => onOpenChange(false), 900); }
+    try { await enviarEmailCliente({ destinatarios: principais, cc: copias.filter((email) => !principais.includes(email)), assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexos.filter((item) => item.id).map((item) => item.id!) }); onSent?.(); setSucesso("E-mail enviado com sucesso."); window.setTimeout(() => onOpenChange(false), 900); }
     catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail."); } finally { setEnviando(false); }
   };
   if (!open) return null;

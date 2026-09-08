@@ -437,6 +437,7 @@ export type PainelOperacoesResponse = {
 export type MovimentacaoFinanceira = {
   id: string;
   descricao: string;
+  fornecedor: string | null;
   status: string | null;
   data_pagamento: string | null;
   valor: number;

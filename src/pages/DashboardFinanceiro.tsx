@@ -70,14 +70,14 @@ function statusLabel(status: string | null) {
   );
 }
 function statusEmail(item: MovimentacaoFinanceira) {
-  if (item.email_enviado === true) return "Enviado";
-  if (item.email_enviado === false) return "Pendente";
+  if (item.email_enviado === true) return "ENVIADO";
+  if (item.email_enviado === false) return "PENDENTE";
   const status = (item.email_status || item.status_email || item.status || "")
     .toLowerCase()
     .replace(/_/g, " ");
   return status === "enviado" || status === "email enviado"
-    ? "Enviado"
-    : "Pendente";
+    ? "ENVIADO"
+    : "PENDENTE";
 }
 function saudacaoAtual() {
   const hora = new Date().getHours();
@@ -235,15 +235,16 @@ export default function DashboardFinanceiro({
           </div>
         ) : movimentacoes.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left">
+            <table className="w-full min-w-[980px] text-left">
               <thead>
                 <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
                   <th className="px-4 py-4">Descrição</th>
+                  <th className="px-4 py-4">Nº doc</th>
                   <th className="px-4 py-4">Fornecedor</th>
                   <th className="px-4 py-4">Data</th>
                   <th className="px-4 py-4 text-right">Valor</th>
                   <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4">EMAIL</th>
+                  <th className="px-4 py-4 text-orange-500">EMAIL</th>
                 </tr>
               </thead>
               <tbody>
@@ -303,6 +304,9 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
           {item.descricao || "Movimentação sem descrição"}
         </p>
       </td>
+      <td className="whitespace-nowrap px-4 py-4 align-top text-sm font-medium text-foreground">
+        {item.numero_doc || "—"}
+      </td>
       <td
         className="max-w-[220px] px-4 py-4 align-top text-sm leading-6 text-muted-foreground"
         title={item.fornecedor || undefined}
@@ -321,9 +325,16 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
         </EtiquetaStatus>
       </td>
       <td className="px-4 py-4 align-top">
-        <EtiquetaStatus tone={statusEmail(item) === "Enviado" ? "blue" : "amber"}>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em] ${
+            statusEmail(item) === "ENVIADO"
+              ? "bg-blue-500/12 text-blue-700 dark:text-blue-300"
+              : "bg-orange-500/12 text-orange-700 dark:text-orange-300"
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
-        </EtiquetaStatus>
+        </span>
       </td>
     </tr>
   );

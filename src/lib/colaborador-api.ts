@@ -436,11 +436,15 @@ export type PainelOperacoesResponse = {
 
 export type MovimentacaoFinanceira = {
   id: string;
+  origem_tipo: "lancamentos" | "rateio_hold";
+  origem_id: string;
+  referencias: string[];
   descricao: string;
   fornecedor: string | null;
   status: string | null;
   data_pagamento: string | null;
   valor: number;
+  numero_doc: string | null;
   observacoes: string | null;
   email_enviado?: boolean | null;
   email_status?: string | null;
@@ -609,22 +613,169 @@ export function salvarPlanoVoo(payload: Record<string, unknown>) {
   });
 }
 
+type RegistroFinanceiro = Record<string, unknown>;
+
 type PainelFinanceiroPayload = {
   resumo?: Partial<PainelFinanceiroResponse["resumo"]> | null;
-  movimentacoes?: MovimentacaoFinanceira[] | null;
-  lancamentos?: MovimentacaoFinanceira[] | null;
-  movimentos_holding?: MovimentacaoFinanceira[] | null;
+  lancamentos?: RegistroFinanceiro[] | null;
+  rateio_hold?: RegistroFinanceiro[] | null;
+  emails_enviados?: RegistroFinanceiro[] | null;
 };
+
+function registrosFinanceiros(valor: unknown): RegistroFinanceiro[] {
+  return Array.isArray(valor)
+    ? valor.filter(
+        (item): item is RegistroFinanceiro =>
+          Boolean(item) && typeof item === "object",
+      )
+    : [];
+}
+
+function textoFinanceiro(valor: unknown): string | null {
+  return valor === null || valor === undefined || String(valor).trim() === ""
+    ? null
+    : String(valor);
+}
+
+function numeroFinanceiro(valor: unknown): number {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function booleanoFinanceiro(valor: unknown): boolean | null {
+  if (valor === true || valor === 1 || valor === "1" || valor === "true") return true;
+  if (valor === false || valor === 0 || valor === "0" || valor === "false") return false;
+  return null;
+}
+
+function primeiroTexto(...valores: unknown[]) {
+  return valores.map(textoFinanceiro).find(Boolean) || null;
+}
+
+function numeroDocumento(registro: RegistroFinanceiro) {
+  return primeiroTexto(
+    registro.numero_nf,
+    registro.numero_recibo,
+    registro.numero_doc,
+    registro.numero_demonstrativo,
+  );
+}
+
+function normalizarMovimentacao(
+  registro: RegistroFinanceiro,
+  origemTipo: "lancamentos" | "rateio_hold",
+): MovimentacaoFinanceira | null {
+  const origemId = textoFinanceiro(registro.id) || textoFinanceiro(registro.movimento_holding_id);
+  if (!origemId) return null;
+  const valor = registro.valor !== undefined
+    ? numeroFinanceiro(registro.valor)
+    : numeroFinanceiro(
+        registro.valor_reais ?? registro.valor_centavos ?? registro.valor_rateado_centavos,
+      ) / (registro.valor_reais !== undefined ? 1 : 100);
+  const emailEnviado = booleanoFinanceiro(registro.email_enviado);
+
+  return {
+    id: `${origemTipo}:${origemId}`,
+    origem_tipo: origemTipo,
+    origem_id: origemId,
+    referencias: [
+      textoFinanceiro(registro.id),
+      textoFinanceiro(registro.origem_id),
+      textoFinanceiro(registro.origem_tipo) && textoFinanceiro(registro.origem_id)
+        ? `${textoFinanceiro(registro.origem_tipo)}:${textoFinanceiro(registro.origem_id)}`
+        : null,
+    ].filter((valor): valor is string => Boolean(valor)),
+    descricao:
+      primeiroTexto(registro.descricao, registro.descricao_despesa) ||
+      "Movimentação sem descrição",
+    fornecedor: primeiroTexto(registro.fornecedor, registro.fornecedor_nome),
+    status: textoFinanceiro(registro.status),
+    data_pagamento: primeiroTexto(
+      registro.data_pagamento,
+      registro.data_emissao,
+      registro.criado_em,
+    ),
+    valor,
+    numero_doc: numeroDocumento(registro),
+    observacoes: textoFinanceiro(registro.observacoes),
+    email_enviado: emailEnviado,
+    email_status: textoFinanceiro(registro.email_status),
+    status_email: textoFinanceiro(registro.status_email),
+    criado_em: textoFinanceiro(registro.criado_em) || "",
+  };
+}
+
+function consolidarRateioHold(registros: RegistroFinanceiro[]) {
+  const grupos = new Map<string, RegistroFinanceiro>();
+  for (const registro of registros) {
+    const chave =
+      textoFinanceiro(registro.movimento_holding_id) ||
+      textoFinanceiro(registro.id);
+    if (!chave) continue;
+    const existente = grupos.get(chave);
+    if (!existente) {
+      grupos.set(chave, { ...registro, id: chave });
+      continue;
+    }
+    existente.valor_rateado_centavos =
+      numeroFinanceiro(existente.valor_rateado_centavos) +
+      numeroFinanceiro(registro.valor_rateado_centavos);
+  }
+  return [...grupos.values()];
+}
+
+function valoresEmail(registro: RegistroFinanceiro, campo: string) {
+  const valor = registro[campo];
+  if (Array.isArray(valor)) return valor.map(String);
+  if (typeof valor !== "string") return valor ? [String(valor)] : [];
+  try {
+    const convertido: unknown = JSON.parse(valor);
+    return Array.isArray(convertido) ? convertido.map(String) : [valor];
+  } catch {
+    return [valor];
+  }
+}
+
+function emailRelacionaMovimentacao(
+  email: RegistroFinanceiro,
+  movimentacao: MovimentacaoFinanceira,
+) {
+  const referencias = [
+    ...valoresEmail(email, "referencias"),
+    ...valoresEmail(email, "referencias_json"),
+    ...valoresEmail(email, "referencia"),
+  ];
+  const identificadores = [
+    ...movimentacao.referencias,
+    movimentacao.origem_id,
+    movimentacao.id,
+    movimentacao.numero_doc,
+    `${movimentacao.origem_tipo}:${movimentacao.origem_id}`,
+  ].filter(Boolean);
+  return referencias.some((referencia) => identificadores.includes(referencia));
+}
 
 export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
   const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/financeiro/dashboard/financeiro");
-  const movimentacoes = [
-    ...(Array.isArray(payload?.movimentacoes) ? payload.movimentacoes : []),
-    ...(Array.isArray(payload?.lancamentos) ? payload.lancamentos : []),
-    ...(Array.isArray(payload?.movimentos_holding) ? payload.movimentos_holding : []),
-  ].filter((item, indice, lista) =>
-    lista.findIndex((movimentacao) => movimentacao.id === item.id) === indice,
-  );
+  const lancamentos = registrosFinanceiros(payload?.lancamentos)
+    .map((registro) => normalizarMovimentacao(registro, "lancamentos"))
+    .filter((item): item is MovimentacaoFinanceira => Boolean(item));
+  const rateiosHold = consolidarRateioHold(registrosFinanceiros(payload?.rateio_hold))
+    .map((registro) => normalizarMovimentacao(registro, "rateio_hold"))
+    .filter((item): item is MovimentacaoFinanceira => Boolean(item));
+  const emails = registrosFinanceiros(payload?.emails_enviados);
+  const movimentacoes = [...lancamentos, ...rateiosHold].map((movimentacao) => {
+    const email = emails.find((registro) =>
+      emailRelacionaMovimentacao(registro, movimentacao),
+    );
+    if (!email) return movimentacao;
+    const status = textoFinanceiro(email.status);
+    return {
+      ...movimentacao,
+      email_enviado: booleanoFinanceiro(email.enviado ?? email.email_enviado) ?? status?.toLowerCase() === "enviado",
+      email_status: status,
+    };
+  });
 
   return {
     resumo: {

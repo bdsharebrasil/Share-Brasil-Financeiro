@@ -619,6 +619,8 @@ type PainelFinanceiroPayload = {
   resumo?: Partial<PainelFinanceiroResponse["resumo"]> | null;
   lancamentos?: RegistroFinanceiro[] | null;
   rateio_hold?: RegistroFinanceiro[] | null;
+  movimentacoes?: RegistroFinanceiro[] | null;
+  movimentos_holding?: RegistroFinanceiro[] | null;
   emails_enviados?: RegistroFinanceiro[] | null;
 };
 
@@ -629,6 +631,14 @@ function registrosFinanceiros(valor: unknown): RegistroFinanceiro[] {
           Boolean(item) && typeof item === "object",
       )
     : [];
+}
+
+function primeiraFonteFinanceira(...fontes: unknown[]) {
+  for (const fonte of fontes) {
+    const registros = registrosFinanceiros(fonte);
+    if (registros.length > 0) return registros;
+  }
+  return [];
 }
 
 function textoFinanceiro(valor: unknown): string | null {
@@ -757,10 +767,15 @@ function emailRelacionaMovimentacao(
 
 export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
   const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/financeiro/dashboard/financeiro");
-  const lancamentos = registrosFinanceiros(payload?.lancamentos)
+  const lancamentos = primeiraFonteFinanceira(
+    payload?.lancamentos,
+    payload?.movimentacoes,
+  )
     .map((registro) => normalizarMovimentacao(registro, "lancamentos"))
     .filter((item): item is MovimentacaoFinanceira => Boolean(item));
-  const rateiosHold = consolidarRateioHold(registrosFinanceiros(payload?.rateio_hold))
+  const rateiosHold = consolidarRateioHold(
+    primeiraFonteFinanceira(payload?.rateio_hold, payload?.movimentos_holding),
+  )
     .map((registro) => normalizarMovimentacao(registro, "rateio_hold"))
     .filter((item): item is MovimentacaoFinanceira => Boolean(item));
   const emails = registrosFinanceiros(payload?.emails_enviados);

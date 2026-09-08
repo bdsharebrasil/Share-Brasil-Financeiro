@@ -27,8 +27,12 @@ async function requisitar<T>(caminho: string, opcoes: RequestInit = {}): Promise
   if (opcoes.body && !headers.has('Content-Type') && !(opcoes.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${session.access_token}`);
   const resposta = await fetch(`${API_BASE}${caminho}`, { ...opcoes, headers, credentials: 'omit' });
-  const corpo = await resposta.json().catch(() => null) as { error?: string } | null;
-  if (!resposta.ok) throw new Error(corpo?.error || `api_${resposta.status}`);
+  const corpo = await resposta.json().catch(() => null) as { error?: string; code?: string } | null;
+  if (!resposta.ok) {
+    const erro = new Error(corpo?.error || `api_${resposta.status}`);
+    if (corpo?.code) erro.name = corpo.code;
+    throw erro;
+  }
   return corpo as T;
 }
 
@@ -55,7 +59,7 @@ function normalizarLancamento(row: any): Lancamento {
     valorCentavos: Number(row.valorCentavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
     pagoPor: String(row.pagoPor ?? row.pago_por ?? ''), caixa: String(row.caixa ?? row.tipo_caixa ?? 'SHARE').toUpperCase() === 'CLIENTE' ? 'CLIENTE' : 'SHARE',
     pagoDiretamente: Boolean(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel),
-    reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? 'PENDENTE').toUpperCase() as Lancamento['status'],
+    reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? 'EM_ABERTO').toUpperCase() as Lancamento['status'],
     observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
     criadoEm: String(row.criadoEm ?? row.criado_em ?? ''), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ''),
   };
@@ -85,10 +89,20 @@ function valorCentavosDoPayload(payload: Record<string, unknown>): number {
 async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo: 'SAIDA' | 'ENTRADA'): Promise<Lancamento> {
   const data = String(payload.data ?? payload.data_emissao ?? new Date().toISOString().slice(0, 10))
   const valorCentavos = valorCentavosDoPayload(payload)
-  const resposta = await requisitar<unknown>('/api/financeiro/lancamentos/despesa', {
+  const camposPermitidos = new Set([
+    'idempotency_key', 'idempotencyKey', 'reference_id', 'valor_centavos', 'valorCentavos',
+    'descricao', 'descricao_servico', 'fluxo', 'data', 'data_emissao', 'data_vencimento',
+    'vencimento', 'aeronave_id', 'cotista_aeronave_id', 'cotista_id', 'socio_id', 'holding_id',
+    'categoria_id', 'categoria_nome', 'categoria', 'fornecedor_id', 'fornecedor', 'tipo_caixa',
+    'forma_pagamento', 'conta_bancaria_id', 'observacoes', 'pago_diretamente', 'pagoDiretamente',
+    'pago_por', 'rateio_linhas', 'rateios', 'tipo_rateio', 'reembolsavel', 'colaborador_id',
+    'motivo', 'valor',
+  ]);
+  const contrato = Object.fromEntries(Object.entries(payload).filter(([campo]) => camposPermitidos.has(campo)));
+  const resposta = await requisitar<unknown>(fluxo === 'ENTRADA' ? '/api/financeiro/lancamentos/receita' : '/api/financeiro/lancamentos/despesa', {
     method: 'POST',
     body: JSON.stringify({
-      ...payload,
+      ...contrato,
       fluxo,
       valorCentavos,
       data,

@@ -442,6 +442,9 @@ export type MovimentacaoFinanceira = {
   data_pagamento: string | null;
   valor: number;
   observacoes: string | null;
+  email_enviado?: boolean | null;
+  email_status?: string | null;
+  status_email?: string | null;
   criado_em: string;
 };
 
@@ -610,15 +613,18 @@ type PainelFinanceiroPayload = {
   resumo?: Partial<PainelFinanceiroResponse["resumo"]> | null;
   movimentacoes?: MovimentacaoFinanceira[] | null;
   lancamentos?: MovimentacaoFinanceira[] | null;
+  movimentos_holding?: MovimentacaoFinanceira[] | null;
 };
 
 export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
   const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/financeiro/dashboard/financeiro");
-  const movimentacoes = Array.isArray(payload?.movimentacoes)
-    ? payload.movimentacoes
-    : Array.isArray(payload?.lancamentos)
-      ? payload.lancamentos
-      : [];
+  const movimentacoes = [
+    ...(Array.isArray(payload?.movimentacoes) ? payload.movimentacoes : []),
+    ...(Array.isArray(payload?.lancamentos) ? payload.lancamentos : []),
+    ...(Array.isArray(payload?.movimentos_holding) ? payload.movimentos_holding : []),
+  ].filter((item, indice, lista) =>
+    lista.findIndex((movimentacao) => movimentacao.id === item.id) === indice,
+  );
 
   return {
     resumo: {

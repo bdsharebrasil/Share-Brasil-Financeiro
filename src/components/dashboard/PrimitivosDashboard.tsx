@@ -66,7 +66,8 @@ export function BarraProgresso({ value, color = "blue" }: { value: number; color
 
 export function EtiquetaStatus({ children, tone = "neutral" }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "neutral" }) {
   const styles = { green: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300", amber: "bg-amber-500/14 text-amber-700 dark:text-amber-300", red: "bg-red-500/12 text-red-700 dark:text-red-300", blue: "bg-primary/12 text-primary", neutral: "bg-secondary text-muted-foreground" };
-  return <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone])}><span className="h-1.5 w-1.5 rounded-full bg-current" />{children}</span>;
+  const rotulo = typeof children === "string" ? children.replace(/_/g, " ") : children;
+  return <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone])}><span className="h-1.5 w-1.5 rounded-full bg-current" />{rotulo}</span>;
 }
 
 export function EstadoVazio({ label = "Nenhum registro encontrado" }: { label?: string }) {

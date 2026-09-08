@@ -3,7 +3,7 @@ import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
 
 export const EMISSOR_SHARE = {
-  nome: "SHARE BRASIL SERVIÇOS AERONÁUTICOS",
+  nome: "SHARE BRASIL SERVICOS AEROPORTUARIOS",
   documento: "CNPJ: 30.898.549/0001-06",
   linhas: [
     "(65) 93618-0312",
@@ -55,7 +55,7 @@ function partesData(data: string) {
   };
 }
 
-async function carregarImagem(src: string) {
+async function carregarImagem(src: string): Promise<string> {
   const resposta = await fetch(src);
 
   if (!resposta.ok) {
@@ -63,22 +63,14 @@ async function carregarImagem(src: string) {
   }
 
   const blob = await resposta.blob();
-  const url = URL.createObjectURL(blob);
-
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const imagem = new Image();
-
-    imagem.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(imagem);
-    };
-
-    imagem.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Não foi possível carregar a imagem do recibo."));
-    };
-
-    imagem.src = url;
+  // O jsPDF pode tentar ler novamente o src em addImage. Um object URL
+  // revogado após o onload causa ERR_FILE_NOT_FOUND nesse ponto; a data URL
+  // permanece disponível durante toda a geração do documento.
+  return await new Promise<string>((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result));
+    leitor.onerror = () => reject(new Error("Não foi possível carregar a imagem do recibo."));
+    leitor.readAsDataURL(blob);
   });
 }
 
@@ -121,19 +113,15 @@ export async function gerarReciboPdf(
   pdf.setTextColor(110);
   pdf.setFont("helvetica", "normal");
 
-  pdf.text("EMISSOR", margem, y);
-  pdf.text(
-    (dados.rotuloPagador || "PAGADOR").toUpperCase(),
-    95,
-    y,
-  );
+  pdf.text("RECEBEDOR", margem, y);
+  pdf.text((dados.rotuloPagador || "PAGADOR").toUpperCase(), 95, y);
   pdf.text("Número do recibo:", 192, y, { align: "right" });
 
   pdf.setTextColor(20);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9.5);
 
-  const emissorNome = pdf.splitTextToSize(
+  const recebedorNome = pdf.splitTextToSize(
     dados.emissorNome || EMISSOR_SHARE.nome,
     68,
   );
@@ -143,7 +131,7 @@ export async function gerarReciboPdf(
     68,
   );
 
-  pdf.text(emissorNome, margem, y + 5);
+  pdf.text(recebedorNome, margem, y + 5);
   pdf.text(pagadorNome, 95, y + 5);
   pdf.text(dados.numero || "—", 192, y + 5, {
     align: "right",
@@ -152,14 +140,14 @@ export async function gerarReciboPdf(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
 
-  let yEmissor = y + 5 + emissorNome.length * 4.4;
+  let yRecebedor = y + 5 + recebedorNome.length * 4.4;
 
   for (const linha of [
     dados.emissorDocumento || EMISSOR_SHARE.documento,
     ...(dados.emissorLinhas || EMISSOR_SHARE.linhas),
   ]) {
-    pdf.text(String(linha), margem, yEmissor);
-    yEmissor += 4.6;
+    pdf.text(String(linha), margem, yRecebedor);
+    yRecebedor += 4.6;
   }
 
   let yPagador = y + 5 + pagadorNome.length * 4.4;
@@ -174,7 +162,7 @@ export async function gerarReciboPdf(
     yPagador += 4.6;
   }
 
-  y = Math.max(yEmissor, yPagador) + 6;
+  y = Math.max(yRecebedor, yPagador) + 6;
 
   pdf.setFillColor(231, 234, 237);
   pdf.rect(margem, y, largura, 8, "F");

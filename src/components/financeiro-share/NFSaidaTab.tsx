@@ -27,6 +27,7 @@ import {
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
 import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
+import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { formatDate } from "@/lib/receiptUtils";
 import * as nfSaidaApi from "@/lib/nfSaidaApi";
 import type {
@@ -560,7 +561,22 @@ export default function NFSaidaTab() {
 
       const { recibo } = await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
       const numeroRecibo = String(recibo.numero_recibo || "");
-      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(previewBlob, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
+      // O número só é atribuído pelo Worker após a criação. Regerar aqui
+      // evita salvar um PDF com o placeholder "Será gerado ao finalizar".
+      const pdfOficial = await gerarReciboPdf({
+        numero: numeroRecibo,
+        valor: Number(form.valor) || 0,
+        descricao: descricaoServico,
+        data: form.data_criacao,
+        pagadorNome: form.cliente_nome.trim(),
+        pagadorDocumento: form.cliente_cnpj.trim(),
+        pagadorEndereco: form.cliente_endereco.trim(),
+        pagadorCidade: form.cliente_cidade.trim(),
+        pagadorUf: form.cliente_uf.trim(),
+        emissorNome: "SHARE BRASIL SERVICOS AEROPORTUARIOS",
+        emissorDocumento: "CNPJ: 30.898.549/0001-06",
+      });
+      const { url: reciboUrl } = await nfSaidaApi.enviarAnexoNotaSaida(pdfOficial, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
       setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();

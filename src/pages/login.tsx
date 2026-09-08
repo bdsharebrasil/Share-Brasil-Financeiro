@@ -130,19 +130,6 @@ export default function Login() {
         password,
       });
       if (error) throw error;
-      toast({
-        title: "Pronto para decolar",
-        description: (
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-              <Plane className="h-3.5 w-3.5 animate-[spin_1.2s_linear_infinite]" aria-hidden="true" />
-            </span>
-            Bem-vindo(a) ao Portal Share Brasil.
-          </span>
-        ),
-        duration: 3200,
-        className: "border-border bg-card/95 text-card-foreground shadow-2xl shadow-black/30 backdrop-blur",
-      });
       navigate("/", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";

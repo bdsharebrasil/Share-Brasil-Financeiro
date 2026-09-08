@@ -898,9 +898,8 @@ export type CriarReciboPayload = {
   endereco_pagador?: string | null;
   cidade_pagador?: string | null;
   uf_pagador?: string | null;
-  valor: number;
+  valor?: number;
   valor_centavos: number;
-  descricao_servico?: string;
   descricao?: string;
   data_emissao: string;
   data_vencimento?: string | null;

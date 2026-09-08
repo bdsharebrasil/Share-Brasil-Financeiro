@@ -232,7 +232,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
   const cotistas = useMemo(() => form.aeronave_id ? opcoes.cotistas.filter((item) => item.aeronave_id === form.aeronave_id) : [], [form.aeronave_id, opcoes.cotistas]);
   const totalRateio = cotistas.reduce((total, item) => total + Number(item.percentual_sociedade || 0), 0);
-  const rateioPagamentoAtivo = form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave" && form.rateado;
+  const rateioPagamentoAtivo = (form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso") && form.rateado;
   const totalPercentualRateio = rateioPagamentoAtivo ? cotistas.reduce((total, item) => total + (Number(rateioPercentuais[item.id] || 0) || 0), 0) : totalRateio;
   const rateioLinhasPagamento = rateioPagamentoAtivo ? cotistas.map((item) => ({ cotista_id: item.id, percentual: Number(rateioPercentuais[item.id] || 0) })).filter((item) => item.percentual > 0) : [];
   const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
@@ -364,13 +364,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         recebedor_cpf: form.tipo === "recibo_pagamento" ? form.recebedor_cpf.trim() || null : null,
         pagador_tipo: form.tipo === "recibo_pagamento" ? form.pagador_tipo : "empresa",
         pagador_id: form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave" ? form.pagador_id : "empresa",
-        valor: valorNumerico(form.valor),
         valor_centavos: valorReciboCentavos,
-        descricao_servico: form.descricao_servico.trim(),
+        descricao: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
         data_vencimento: form.tipo === "recibo_pagamento" ? null : form.data_vencimento || null,
         forma_pagamento: form.tipo === "recibo_pagamento" ? form.forma_pagamento || null : null,
-        categoria_movimentacao_id: form.tipo === "recibo_colaborador" || form.tipo === "recibo_pagamento" ? form.categoria_id : null,
+        categoria_movimentacao_id: form.categoria_id,
         categoria_nome_manual: form.tipo === "recibo_colaborador" ? form.categoria_nome_manual.trim() || null : null,
         natureza_despesa: form.tipo === "recibo_colaborador" ? (form.natureza_despesa || null) : null,
         grupo_categoria: form.tipo === "recibo_colaborador" ? (form.natureza_despesa === "aeronave" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA") : null,

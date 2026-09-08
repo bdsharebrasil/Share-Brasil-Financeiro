@@ -1024,6 +1024,7 @@ export function buscarCentralEmail() {
 
 export function enviarEmailCliente(payload: {
   destinatarios: string[];
+  cc?: string[];
   assunto: string;
   mensagem: string;
   dados_bancarios?: string;

@@ -2180,7 +2180,15 @@ status TEXT
   aeronave_id TEXT NOT NULL REFERENCES aeronave(id),
   socio_id TEXT NOT NULL REFERENCES hold_socios(id),
   categoria_id TEXT REFERENCES categoria_movimentacao_cliente(id),
+  data_emissao TEXT,
+  data_vencimento TEXT,
+  data_competencia_demonstrativo TEXT,
   categoria_nome TEXT,
+  subcategoria_1 TEXT NULL,
+  subcategoria_2 TEXT NULL,
+  subcategoria_3 TEXT NULL,
+  subcategoria_4 TEXT NULL,
+  fornecedor_id TEXT,
   periodicidade TEXT
     CHECK (periodicidade IN (
       ''ÚNICO'', ''EVENTUAL'', ''MENSAL'', ''BIMESTRAL'', ''TRIMESTRAL'', ''SEMESTRAL'', ''ANUAL''

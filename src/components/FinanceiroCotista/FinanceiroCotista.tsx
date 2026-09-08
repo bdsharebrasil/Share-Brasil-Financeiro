@@ -140,23 +140,29 @@ export function NovoLancamentoCotistaDialog({
         categoria_id: categoria.id,
         categoria_nome: categoria.nome,
         grupo_categoria: categoria.grupo || undefined,
+        tipo_rateio: "EXTRA",
+        periodicidade: "ÚNICO",
         valor_centavos: valorCentavos,
         observacoes: observacoes.trim() || undefined,
         aeronave_id: aeronaveId || undefined,
 
         ...(modo === "CLIENTE" && {
           fluxo: fluxoCliente,
-          pago_por_cotista_id: pagoPorCotista,
+          cotista_aeronave_id: pagoPorCotista,
           pago_diretamente: pagoDiretamenteCliente,
-          rateios: rateios.map((r) => ({ id: r.cotista, percentual: Number(r.percentual) })),
+          rateios: rateios.map((r) => ({ cotista_id: r.cotista, percentual: Number(r.percentual) })),
         }),
 
         ...(modo === "HOLDING" && {
           holding_id: holdingId,
           tipo_movimento_hold: tipoMovimentoHold,
           pago_diretamente: pagoDiretamenteHold,
+          cotista_aeronave_id: rateios[0]?.cotista || undefined,
           rateios: tipoMovimentoHold === "DESPESA"
-            ? rateios.map((r) => ({ id: r.cotista, percentual: Number(r.percentual) }))
+            ? rateios.map((r) => {
+                const cotista = cotistasAeronave.find((item) => item.id === r.cotista);
+                return { cotista_id: r.cotista, socio_id: cotista?.socio_id || undefined, percentual: Number(r.percentual) };
+              })
             : [],
         }),
       };

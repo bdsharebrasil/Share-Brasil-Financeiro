@@ -55,6 +55,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { criarLancamentoEconomico } from "@/lib/financeiro-share-api";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -113,9 +114,18 @@ async function criarLancamentoClienteReembolsavel(payload: {
   rateios: { cotistaAeronaveId: string; percentual: number; valorRateadoCentavos: number }[];
   pagoPorCotistaAeronaveId?: string; // se um só cotista adiantou por todos
 }): Promise<void> {
-  // TODO: POST /api/lancamentos  { fluxo: 'DESPESA', tipo_caixa: 'SHARE', reembolsavel: 1, status: 'ABERTO', ... }
-  // TODO: POST /api/rateio-despesas (bulk)  status: 'PENDENTE' para cada cotista
-  throw new Error("criarLancamentoClienteReembolsavel: implementar chamada ao backend-share");
+  await criarLancamentoEconomico({
+    fluxo: "SAIDA", data: payload.dataEmissao, descricao: payload.descricao,
+    categoria_id: payload.categoriaId, categoria_nome: payload.categoriaNome,
+    grupo_categoria: payload.grupoCategoria, aeronave_id: payload.aeronaveId,
+    valor_centavos: payload.valorTotalCentavos, reembolsavel: true,
+    pago_diretamente: false, cotista_aeronave_id: payload.rateios[0]?.cotistaAeronaveId,
+    rateios: payload.rateios.map((line) => ({
+      cotista_id: line.cotistaAeronaveId, percentual: line.percentual,
+      valor_centavos: line.valorRateadoCentavos,
+      pago_por: payload.pagoPorCotistaAeronaveId,
+    })), observacoes: payload.observacoes,
+  });
 }
 
 async function criarRateioClienteDireto(payload: {
@@ -127,10 +137,15 @@ async function criarRateioClienteDireto(payload: {
   descricaoDespesa: string;
   observacoes?: string;
 }): Promise<void> {
-  // TODO: POST /api/rateio-despesas  { tipo_rateio: 'EXTRA' | 'FIXO', status: 'PAGO_DIRETAMENTE',
-  //   pago_diretamente: 1, pago_por_cotista_id: cotistaAeronaveId,
-  //   valor_rateado_centavos: valorTotalCentavos, valor_pago_real_centavos: valorTotalCentavos }
-  throw new Error("criarRateioClienteDireto: implementar chamada ao backend-share");
+  await criarLancamentoEconomico({
+    fluxo: "SAIDA", data: hoje(), descricao: payload.descricaoDespesa,
+    categoria_id: payload.categoriaId, categoria_nome: payload.categoriaNome,
+    aeronave_id: payload.aeronaveId, cotista_aeronave_id: payload.cotistaAeronaveId,
+    valor_centavos: payload.valorTotalCentavos, pago_diretamente: true,
+    tipo_rateio: "EXTRA", periodicidade: "ÚNICO",
+    rateios: [{ cotista_id: payload.cotistaAeronaveId, percentual: 100, valor_centavos: payload.valorTotalCentavos, pago_por: payload.cotistaAeronaveId }],
+    observacoes: payload.observacoes,
+  });
 }
 
 async function criarMovimentoHoldingAporte(payload: {
@@ -142,8 +157,12 @@ async function criarMovimentoHoldingAporte(payload: {
   contaBancariaId?: string;
   observacoes?: string;
 }): Promise<void> {
-  // TODO: POST /api/movimentos-holding  { fluxo: 'ENTRADA', socio_id, holding_id, ... }
-  throw new Error("criarMovimentoHoldingAporte: implementar chamada ao backend-share");
+  await criarLancamentoEconomico({
+    fluxo: "ENTRADA", data: payload.data, descricao: "Aporte na holding",
+    holding_id: payload.holdingId, socio_id: payload.socioId,
+    aeronave_id: payload.aeronaveId, valor_centavos: payload.valorCentavos,
+    pago_diretamente: true, observacoes: payload.observacoes,
+  });
 }
 
 async function criarDespesaHoldingContaConjunta(payload: {
@@ -158,9 +177,15 @@ async function criarDespesaHoldingContaConjunta(payload: {
   observacoes?: string;
   rateios: { socioId: string; percentual: number; valorRateadoCentavos: number }[];
 }): Promise<void> {
-  // TODO: POST /api/movimentos-holding  { fluxo: 'SAIDA', holding_id, ... }
-  // TODO: POST /api/rateio-hold (bulk)  status: 'PAGO' para cada sócio (já saiu da conta conjunta)
-  throw new Error("criarDespesaHoldingContaConjunta: implementar chamada ao backend-share");
+  await criarLancamentoEconomico({
+    fluxo: "SAIDA", data: payload.data, descricao: payload.descricao,
+    holding_id: payload.holdingId, socio_id: payload.rateios[0]?.socioId,
+    aeronave_id: payload.aeronaveId, categoria_id: payload.categoriaId,
+    categoria_nome: payload.categoriaNome, valor_centavos: payload.valorTotalCentavos,
+    pago_diretamente: false,
+    rateios: payload.rateios.map((line) => ({ socio_id: line.socioId, percentual: line.percentual, valor_centavos: line.valorRateadoCentavos })),
+    observacoes: payload.observacoes,
+  });
 }
 
 async function criarDespesaHoldingPagoDireto(payload: {
@@ -173,9 +198,15 @@ async function criarDespesaHoldingPagoDireto(payload: {
   descricaoDespesa: string;
   observacoes?: string;
 }): Promise<void> {
-  // TODO: POST /api/rateio-hold  { status: 'PAGO', pago_diretamente: 1,
-  //   pago_por_socio_id: socioPagadorId, valor_pago_real_centavos: valorTotalCentavos }
-  throw new Error("criarDespesaHoldingPagoDireto: implementar chamada ao backend-share");
+  await criarLancamentoEconomico({
+    fluxo: "SAIDA", data: hoje(), descricao: payload.descricaoDespesa,
+    holding_id: payload.holdingId, socio_id: payload.socioPagadorId,
+    aeronave_id: payload.aeronaveId, categoria_id: payload.categoriaId,
+    categoria_nome: payload.categoriaNome, valor_centavos: payload.valorTotalCentavos,
+    pago_diretamente: true, tipo_rateio: "EXTRA", periodicidade: "ÚNICO",
+    rateios: [{ socio_id: payload.socioPagadorId, percentual: 100, valor_centavos: payload.valorTotalCentavos }],
+    observacoes: payload.observacoes,
+  });
 }
 
 // ---------------------------------------------------------------------------

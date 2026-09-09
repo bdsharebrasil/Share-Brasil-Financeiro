@@ -539,7 +539,7 @@ financeiroRoutes.get('/dashboard/financeiro', async (c) => {
 financeiroRoutes.get('/cotista/dashboard', async (c) => {
   try {
     const rows = await listar(c.env.SHARE_DB, `
-      SELECT id, aeronave_id, data_emissao AS data, descricao_despesa AS descricao,
+      SELECT id, data_emissao AS data, descricao_despesa AS descricao,
              NULL AS numero_doc, fornecedor_id, categoria_nome, NULL AS grupo_categoria,
              data_vencimento, 'SAIDA' AS fluxo, valor_rateado_centavos AS valor_centavos,
              pago_por_cotista_id AS pago_por, 'CLIENTE' AS tipo_caixa,
@@ -547,7 +547,7 @@ financeiroRoutes.get('/cotista/dashboard', async (c) => {
              status, observacoes, 'rateio_despesas' AS origem_rateio
         FROM rateio_despesas
       UNION ALL
-      SELECT id, aeronave_id, data_emissao AS data, descricao_despesa AS descricao,
+      SELECT id, data_emissao AS data, descricao_despesa AS descricao,
               NULL AS numero_doc, NULL AS fornecedor_id, categoria_nome, NULL AS grupo_categoria,
              data_vencimento, 'SAIDA' AS fluxo, valor_rateado_centavos AS valor_centavos,
              pago_por_socio_id AS pago_por, 'HOLDING' AS tipo_caixa,
@@ -557,7 +557,7 @@ financeiroRoutes.get('/cotista/dashboard', async (c) => {
       ORDER BY data DESC, id DESC
        LIMIT 500
     `)
-    const lancamentos = rows.map((row) => ({ id: row.id, aeronaveId: row.aeronave_id ?? null, data: row.data, descricao: row.descricao, documento: row.numero_doc ?? null, fornecedor: row.fornecedor_id ?? null, categoria: row.categoria_nome ?? 'SEM CATEGORIA', grupoCategoria: row.grupo_categoria ?? '', tipo: row.origem_rateio ?? null, prazo: row.data_vencimento ?? null, fluxo: 'SAIDA', valorCentavos: Number(row.valor_centavos || 0), pagoPor: row.pago_por ?? '', caixa: row.tipo_caixa ?? 'SHARE', pagoDiretamente: Boolean(row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel), reembolsoQuitado: Boolean(row.reembolso_quitado), status: row.status ?? 'EM_ABERTO', observacoes: row.observacoes ?? null, rateios: [] }))
+    const lancamentos = rows.map((row) => ({ id: row.id, data: row.data, descricao: row.descricao, documento: row.numero_doc ?? null, fornecedor: row.fornecedor_id ?? null, categoria: row.categoria_nome ?? 'SEM CATEGORIA', grupoCategoria: row.grupo_categoria ?? '', tipo: row.origem_rateio ?? null, prazo: row.data_vencimento ?? null, fluxo: 'SAIDA', valorCentavos: Number(row.valor_centavos || 0), pagoPor: row.pago_por ?? '', caixa: row.tipo_caixa ?? 'SHARE', pagoDiretamente: Boolean(row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel), reembolsoQuitado: Boolean(row.reembolso_quitado), status: row.status ?? 'EM_ABERTO', observacoes: row.observacoes ?? null, rateios: [] }))
     const entradas = lancamentos.filter((row) => row.fluxo === 'ENTRADA').reduce((total, row) => total + row.valorCentavos / 100, 0)
     const saidas = lancamentos.filter((row) => row.fluxo === 'SAIDA').reduce((total, row) => total + row.valorCentavos / 100, 0)
     return c.json({ lancamentos, saldos: [], matrizCompensacao: {}, holdings: [], resumo: { entradas, saidas, saldo: entradas - saidas, custo_rateado: saidas, pendentes: lancamentos.filter((row) => row.status === 'EM_ABERTO').length, media_mensal: 0, media_lancamento: lancamentos.length ? (entradas + saidas) / lancamentos.length : 0 }, fechamento_mensal: [], ranking_gastos: [], ranking_cotistas: [] })
@@ -747,7 +747,17 @@ financeiroRoutes.get('/envios-pagamento/opcoes', async (c) => {
 financeiroRoutes.get('/envios-pagamento/anexos-opcoes', async (c) => c.json({ recibos: [], relatorios: [], abastecimentos: [] }))
 
 financeiroRoutes.get('/envios-pagamento/aeronave/:id/cotistas', async (c) => {
-  const result = await c.env.SHARE_DB.prepare('SELECT id, aeronave_id, cliente_id, socio_id, codigo_cliente, percentual_sociedade FROM cotista_aeronave WHERE aeronave_id = ? ORDER BY codigo_cliente').bind(c.req.param('id')).all()
+  const result = await c.env.SHARE_DB.prepare(`
+    SELECT ca.id, ca.aeronave_id, ca.cliente_id, ca.socio_id, ca.codigo_cliente,
+           ca.percentual_sociedade,
+           COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente, 'Cotista não identificado') AS nome,
+           CASE WHEN ca.socio_id IS NOT NULL THEN 1 ELSE 0 END AS eh_holding
+      FROM cotista_aeronave ca
+      LEFT JOIN cliente cl ON cl.id = ca.cliente_id
+      LEFT JOIN hold_socios hs ON hs.id = ca.socio_id
+     WHERE ca.aeronave_id = ?
+     ORDER BY COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente)
+  `).bind(c.req.param('id')).all()
   return c.json({ cotistas: result.results ?? [] })
 })
 

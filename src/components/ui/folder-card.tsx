@@ -43,10 +43,10 @@ function GlossyFolder({ size = 88 }: { size?: number }) {
           <stop offset="100%" stopColor="#7aaff5" />
         </linearGradient>
         <clipPath id={gradientId("clip")}>
-          <rect x="4" y="22" width="92" height="64" rx="6" />
+          <rect x="4" y="22" width="92" height="64" rx="6" style={{ backgroundColor: "rgba(9, 13, 29, 1)" }} />
         </clipPath>
       </defs>
-      <rect x="4" y="18" width="92" height="68" rx="7" fill={`url(#${gradientId("back")})`} />
+      <rect x="4" y="18" width="92" height="68" rx="7" fill={`url(#${gradientId("back")})`} style={{ backgroundColor: "rgba(3, 4, 12, 1)" }} />
       <path d="M4 18 Q4 14 8 14 L36 14 Q40 14 42 18 L4 18 Z" fill="#2052bb" />
       <rect x="4" y="22" width="92" height="64" rx="6" fill={`url(#${gradientId("front")})`} />
       <rect x="4" y="22" width="92" height="64" rx="6" fill={`url(#${gradientId("side")})`} />
@@ -82,7 +82,7 @@ export function FolderCard({ name, description, count, selected = false, onClick
       onClick={onClick}
       className={cn(
         "group relative flex min-h-[184px] flex-col justify-between overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200",
-        "border-border bg-card/80",
+        "border-border bg-[rgba(8,9,19,0.8)]",
         "hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70",
         selected && "border-primary/60 bg-primary/[.07] shadow-lg",

@@ -33,8 +33,8 @@ export function AnexosEmail({ anexos, selecionados, onAlternar, arquivosNovos = 
     return acc;
   }, {}), [anexos, buscas]);
 
-  return <div className="space-y-3">
-    <div className="grid gap-2 md:grid-cols-3">
+  return <div className="space-y-3 ml-[-9px] mr-[-9px]">
+    <div className="grid ml-[7px] mr-[7px] gap-[14px] md:grid-cols-3">
       {grupos.map((grupo) => {
         const Icone = grupo.icone;
         const aberto = Boolean(abertos[grupo.chave]);
@@ -54,6 +54,6 @@ export function AnexosEmail({ anexos, selecionados, onAlternar, arquivosNovos = 
     </div>
     {arquivosNovos.length > 0 && <div className="space-y-1.5"><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Novos arquivos</p>{arquivosNovos.map((arquivo, index) => <div key={`${arquivo.name}-${index}`} className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 p-2.5"><FileText size={13} className="text-primary" /><span className="min-w-0 flex-1 truncate text-xs font-semibold">{arquivo.name}</span>{onRemoverArquivo && <button type="button" onClick={() => onRemoverArquivo(index)} className="text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>}</div>)}</div>}
     {onAdicionarArquivos && <button type="button" onClick={() => inputRef.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 p-2.5 text-xs font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary"><Plus size={14} /> Anexar arquivo do computador</button>}
-    <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv,.txt" />
+    <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden mb-[-16px] px-px py-0" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv,.txt" />
   </div>;
 }

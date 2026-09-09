@@ -25,7 +25,10 @@ import {
   AlertCircle,
   FileEdit,
   MoreVertical,
-  Reply
+  Reply,
+  Eye,
+  X,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +106,11 @@ export default function Emails() {
   const [mensagemInternaSelecionada, setMensagemInternaSelecionada] = useState<MensagemInterna | null>(null);
   const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
+  const [categoriaAtiva, setCategoriaAtiva] = useState<string | null>(null);
+  const [categoriasMensagem, setCategoriasMensagem] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("share-email-categorias") || "{}"); } catch { return {}; }
+  });
+  const [anexoVisualizado, setAnexoVisualizado] = useState<{ nome: string; tipo: string; url: string } | null>(null);
 
   const carregarPasta = async (pasta: PastaMensagem = pastaAtiva) => {
     try {
@@ -182,6 +190,17 @@ export default function Emails() {
     setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
   };
 
+  const assinaturaComoTexto = assinatura
+    ? `\n\n--\n${assinatura.nome || ""}${assinatura.cargo ? `\n${assinatura.cargo}` : ""}${assinatura.telefone ? `\n${assinatura.telefone}` : ""}${assinatura.email ? `\n${assinatura.email}` : ""}${assinatura.endereco ? `\n${assinatura.endereco}` : ""}`
+    : "";
+
+  const classificarMensagem = (id: string, categoria: string) => {
+    const atual = { ...categoriasMensagem, [id]: categoria };
+    setCategoriasMensagem(atual);
+    localStorage.setItem("share-email-categorias", JSON.stringify(atual));
+    setSucesso(`Mensagem classificada como ${categoria}.`);
+  };
+
   const limparFormulario = () => {
     setAssunto("");
     setMensagem("");
@@ -210,7 +229,7 @@ export default function Emails() {
       if (tipoEnvio === "interno") {
         if (!destinatarioUsuarioId) { setErro("Selecione um usuário destinatário."); return; }
         await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim(), arquivos: arquivosNovos });
-      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
+      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: `${mensagem.trim()}${assinaturaComoTexto}`, anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
 
       setSucesso(tipoEnvio === "interno" ? "Mensagem interna enviada para o inbox do usuário." : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
       limparFormulario();
@@ -228,6 +247,7 @@ export default function Emails() {
     if (!termo) return mensagensPasta;
     return mensagensPasta.filter((item) => `${item.assunto || ""} ${item.conteudo} ${item.remetente_nome} ${item.destinatario_nome}`.toLowerCase().includes(termo));
   }, [mensagensPasta, buscaGeral]);
+  const mensagensVisiveis = useMemo(() => categoriaAtiva ? mensagensFiltradas.filter((item) => categoriasMensagem[item.id] === categoriaAtiva) : mensagensFiltradas, [mensagensFiltradas, categoriaAtiva, categoriasMensagem]);
 
   const atualizarMensagem = async (id: string, estado: Parameters<typeof alterarEstadoMensagem>[1], mensagemSucesso: string) => {
     try {
@@ -244,12 +264,7 @@ export default function Emails() {
     try {
       const blob = await baixarAnexoMensagem(mensagemId, anexoId);
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = nomeArquivo;
-      link.target = "_blank";
-      link.click();
-      URL.revokeObjectURL(url);
+      setAnexoVisualizado({ nome: nomeArquivo, tipo: blob.type || "application/pdf", url });
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o anexo.");
     }
@@ -257,6 +272,12 @@ export default function Emails() {
 
   return (
     <div className="route-enter relative mx-auto max-w-[1400px] h-[calc(100vh-6rem)] flex flex-col pb-4 space-y-4">
+      {anexoVisualizado && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label={`Visualização de ${anexoVisualizado.nome}`}>
+        <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border/50 px-4 py-3"><div className="flex min-w-0 items-center gap-2"><Eye size={16} className="text-primary" /><span className="truncate text-sm font-bold">{anexoVisualizado.nome}</span></div><Button type="button" variant="ghost" size="icon" onClick={() => { URL.revokeObjectURL(anexoVisualizado.url); setAnexoVisualizado(null); }}><X size={17} /></Button></div>
+          <div className="min-h-0 flex-1 bg-muted/20 p-3">{anexoVisualizado.tipo.includes("pdf") ? <iframe title={anexoVisualizado.nome} src={anexoVisualizado.url} className="h-full w-full rounded-xl bg-white" /> : anexoVisualizado.tipo.startsWith("image/") ? <img src={anexoVisualizado.url} alt={anexoVisualizado.nome} className="mx-auto h-full max-w-full rounded-xl object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Este tipo de arquivo não possui pré-visualização. Use o download para abrir no aplicativo compatível.</div>}</div>
+        </div>
+      </div>}
       {/* HEADER DE AÇÕES GLOBAIS */}
       <header className="flex shrink-0 items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -345,10 +366,14 @@ export default function Emails() {
           <div className="pt-4 border-t border-border/50">
             <h3 className="px-3 mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Categorias</h3>
             <div className="space-y-1">
-              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-emerald-500"></div> Financeiro</button>
-              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Operacional</button>
-              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-destructive"></div> Urgente</button>
+              {[['Financeiro', 'bg-emerald-500'], ['Operacional', 'bg-blue-500'], ['Urgente', 'bg-destructive']].map(([categoria, cor]) => <button key={categoria} onClick={() => setCategoriaAtiva(categoriaAtiva === categoria ? null : categoria)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 ${categoriaAtiva === categoria ? "bg-primary/10 font-bold text-primary" : ""}`}><div className={`h-2 w-2 rounded-full ${cor}`}></div> {categoria}</button>)}
             </div>
+          </div>
+
+          <div className="border-t border-border/50 pt-4 space-y-1">
+            <h3 className="px-3 mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Configurações rápidas</h3>
+            <button onClick={() => { setConfigAberta("assinatura"); setModoCriacao(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><Settings size={17} /> Assinatura fixa</button>
+            <button onClick={() => { setConfigAberta("bancarios"); setModoCriacao(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><Landmark size={17} /> Contas bancárias</button>
           </div>
 
           <div className="pt-4 mt-auto">
@@ -382,7 +407,7 @@ export default function Emails() {
                 <Mail className="h-8 w-8 mb-2 opacity-20" />
                 Nenhuma mensagem encontrada.
               </div>
-            ) : mensagensFiltradas.map((item) => (
+            ) : mensagensVisiveis.map((item) => (
               <button 
                 type="button" 
                 key={item.id} 
@@ -433,9 +458,11 @@ export default function Emails() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
-                      Mais Opções <MoreVertical size={14} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para a lixeira.")} className="h-8 gap-1.5 text-xs font-semibold text-destructive hover:text-destructive"><Trash2 size={14} /> Excluir</Button>
+                      <select value={categoriasMensagem[mensagemInternaSelecionada.id] || ""} onChange={(event) => classificarMensagem(mensagemInternaSelecionada.id, event.target.value)} className="h-8 rounded-lg border border-border/60 bg-background px-2 text-[11px] font-semibold"><option value="">Categoria</option><option value="Financeiro">Financeiro</option><option value="Operacional">Operacional</option><option value="Urgente">Urgente</option></select>
+                      <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">Mais opções <MoreVertical size={14} /></Button>
+                    </div>
                   </div>
                   <div className="text-[11px] text-muted-foreground font-medium">
                     {dataBr(mensagemInternaSelecionada.criado_em)} <span className="mx-1">•</span> {horaBr(mensagemInternaSelecionada.criado_em)}
@@ -467,11 +494,11 @@ export default function Emails() {
                           className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-left hover:border-primary/50 hover:bg-primary/[.02] hover:shadow-sm transition-all"
                         >
                           <div className="h-10 w-10 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center">
-                            <FileText size={20} />
+                            <Eye size={20} />
                           </div>
                           <div>
                             <span className="block text-sm font-semibold text-foreground max-w-[200px] truncate">{anexo.nome_arquivo}</span>
-                            <span className="block text-[10px] text-muted-foreground font-medium uppercase mt-0.5">Documento PDF</span>
+                            <span className="block text-[10px] text-muted-foreground font-medium uppercase mt-0.5">Abrir na tela</span>
                           </div>
                         </button>
                       ))}
@@ -541,6 +568,7 @@ export default function Emails() {
                         </div>
                       </div>
                     )}
+                    {tipoEnvio === "email" && contasBancarias.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-[10px] text-muted-foreground">Inserir banco:</span>{contasBancarias.map((conta) => <Button key={conta.id} type="button" variant="outline" size="sm" onClick={() => inserirDadosBancarios(conta)} className="h-7 gap-1 rounded-lg text-[10px]"><Building2 size={12} /> {conta.banco}</Button>)}</div>}
                   </div>
                 </div>
               </div>

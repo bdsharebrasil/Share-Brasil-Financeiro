@@ -469,6 +469,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           ? form.recebedor_nome.trim() &&
             categoriaValida &&
             (form.pagador_tipo === "empresa" || form.pagador_id)
+          : form.tipo === "recibo_reembolso"
+            ? form.cliente_id && (form.pagador_tipo === "empresa" || form.pagador_id)
           : form.rateado
             ? form.aeronave_id
             : form.cliente_id),
@@ -575,9 +577,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             ? form.recebedor_uf.trim() || null
             : null,
         pagador_tipo:
-          form.tipo === "recibo_pagamento" ? form.pagador_tipo : "empresa",
+          form.tipo !== "recibo_colaborador" ? form.pagador_tipo : "empresa",
         pagador_id:
-          form.tipo === "recibo_pagamento" &&
+          form.tipo !== "recibo_colaborador" &&
           form.pagador_tipo === "cotista_aeronave"
             ? form.pagador_id
             : "empresa",
@@ -956,7 +958,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     className="campo font-mono text-muted-foreground"
                   />
                 </Campo>
-                {form.tipo === "recibo_pagamento" && (
+                {form.tipo !== "recibo_colaborador" && (
                   <>
                     <Campo label="Pagador" obrigatorio>
                       <SearchableCombobox
@@ -1584,7 +1586,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               </div>
             </div>
             <div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2">
-              {form.tipo === "recibo_pagamento" &&
+              {form.tipo !== "recibo_colaborador" &&
               form.pagador_tipo === "cotista_aeronave" ? (
                 <>
                   <div>

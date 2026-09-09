@@ -592,7 +592,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               : null,
         rateado: false as const,
         ...dadosPagador,
-        valor: valorReciboCentavos,
+        valor_centavos: valorReciboCentavos,
         descricao: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
         data_vencimento: form.data_vencimento || null,

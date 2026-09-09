@@ -59,7 +59,6 @@ type Despesa = {
   pago_por: PagoPor;
 };
 type Formulario = {
-  numero_relatorio: string;
   numero_voo: string;
   cliente_id: string;
   socio_id: string;
@@ -82,7 +81,6 @@ const categorias = [
   "Outros",
 ];
 const vazioFormulario = (): Formulario => ({
-  numero_relatorio: "",
   numero_voo: "",
   cliente_id: "",
   socio_id: "",
@@ -302,7 +300,6 @@ export default function RelatorioDespesaViagem({
   const abrirRelatorio = (item: Relatorio) => {
     setRelatorio(item);
     setForm({
-      numero_relatorio: item.numero_relatorio || "",
       numero_voo: item.numero_voo || "",
       cliente_id: item.cliente_id || "",
       socio_id: item.socio_id || "",
@@ -387,7 +384,18 @@ export default function RelatorioDespesaViagem({
     [despesas],
   );
   const payload = () => ({
-    ...form,
+    numero_voo: form.numero_voo,
+    cliente_id: form.cliente_id,
+    socio_id: form.socio_id,
+    aeronave_id: form.aeronave_id,
+    rota: form.rota,
+    data_inicio: form.data_inicio,
+    data_fim: form.data_fim,
+    tripulacao_id: form.tripulacao_id,
+    nome_tripulante: form.nome_tripulante,
+    tripulante_id_2: form.tripulante_id_2,
+    nome_tripulante_2: form.nome_tripulante_2,
+    observacoes: form.observacoes,
     quantidade_dias: quantidadeDiasCalculada,
     despesas: despesas.map(({ id: _id, ...item }) => ({
       ...item,
@@ -755,12 +763,9 @@ export default function RelatorioDespesaViagem({
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Campo label="Número do relatório">
-            <Input
-              value={form.numero_relatorio}
-              onChange={(e) => setCampo("numero_relatorio", e.target.value)}
-              placeholder="Gerado automaticamente se vazio"
-              disabled={bloqueado}
-            />
+            <div className="flex h-10 items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 text-sm font-mono text-primary">
+              {relatorio?.numero_relatorio || "Será gerado automaticamente ao finalizar"}
+            </div>
           </Campo>
           <Campo label="Número do voo">
             <SearchableCombobox

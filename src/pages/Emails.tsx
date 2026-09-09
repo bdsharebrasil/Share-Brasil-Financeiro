@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
-  Check,
   CheckCircle2,
   ChevronDown,
   Clock3,
   FileText,
   Folder,
-  History,
   Landmark,
   Mail,
   Paperclip,
@@ -23,11 +21,15 @@ import {
   MapPin,
   Smartphone,
   XCircle,
+  Inbox,
+  AlertCircle,
+  FileEdit,
+  MoreVertical,
+  Reply
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -59,8 +61,8 @@ const dataBr = (valor: string | null) =>
   valor
     ? new Date(valor).toLocaleDateString("pt-BR", {
         day: "2-digit",
-        month: "2-digit",
-        year: "2-digit",
+        month: "long",
+        year: "numeric",
       })
     : "—";
 
@@ -215,9 +217,7 @@ export default function Emails() {
       setModoCriacao(false);
       await carregar();
     } catch (cause) {
-      setErro(
-        cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.",
-      );
+      setErro(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
     } finally {
       setEnviando(false);
     }
@@ -226,7 +226,7 @@ export default function Emails() {
   const mensagensFiltradas = useMemo(() => {
     const termo = buscaGeral.trim().toLowerCase();
     if (!termo) return mensagensPasta;
-    return mensagensPasta.filter((item) => `${item.assunto || ""} ${item.conteudo}`.toLowerCase().includes(termo));
+    return mensagensPasta.filter((item) => `${item.assunto || ""} ${item.conteudo} ${item.remetente_nome} ${item.destinatario_nome}`.toLowerCase().includes(termo));
   }, [mensagensPasta, buscaGeral]);
 
   const atualizarMensagem = async (id: string, estado: Parameters<typeof alterarEstadoMensagem>[1], mensagemSucesso: string) => {
@@ -256,38 +256,60 @@ export default function Emails() {
   };
 
   return (
-    <div className="route-enter relative mx-auto max-w-7xl pb-10 space-y-6">
-      {/* HEADER */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Mail className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Mensagens
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                Comunicação interna privada entre os usuários do sistema
-              </p>
-            </div>
+    <div className="route-enter relative mx-auto max-w-[1400px] h-[calc(100vh-6rem)] flex flex-col pb-4 space-y-4">
+      {/* HEADER DE AÇÕES GLOBAIS */}
+      <header className="flex shrink-0 items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Mail className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
+              Portal Gestor
+            </h1>
+            <p className="text-xs text-muted-foreground font-medium">
+              Operações & Financeiro
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="sm"
             onClick={() => void carregar()}
             disabled={carregando}
-            className="h-9 gap-2 rounded-xl"
+            className="h-9 gap-2 rounded-xl border-border/60 bg-card/40"
           >
-            <RefreshCw size={14} className={carregando ? "animate-spin text-primary" : ""} />
-            Sincronizar
+            <RefreshCw size={14} className={carregando ? "animate-spin text-primary" : "text-muted-foreground"} />
+            Atualizar
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setConfigAberta((atual) => atual ? null : "assinatura")}
+            className="h-9 w-9 rounded-xl border border-border/60 bg-card/40"
+          >
+            <Settings size={15} className="text-muted-foreground" />
+          </Button>
+        </div>
+      </header>
 
+      {/* STATUS */}
+      {(erro || sucesso) && (
+        <div className={`flex shrink-0 items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium shadow-sm ${erro ? "border-destructive/20 bg-destructive/10 text-destructive" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
+          {erro ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{erro || sucesso}</span>
+        </div>
+      )}
+
+      {/* LAYOUT PRINCIPAL EM 3 COLUNAS */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        
+        {/* COLUNA 1: MENU LATERAL */}
+        <aside className="hidden lg:flex flex-col col-span-2 space-y-6 overflow-y-auto pr-2 pb-4">
           <Button
             type="button"
             onClick={() => {
@@ -295,202 +317,256 @@ export default function Emails() {
               setConfigAberta(null);
               limparFormulario();
             }}
-            className="h-9 gap-2 rounded-xl font-semibold shadow-md"
+            className="w-full h-11 gap-2 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90"
           >
-            <Plus size={15} />
-            Nova mensagem
+            <Plus size={18} />
+            Novo Email
           </Button>
-        </div>
-      </header>
 
-      {/* STATUS */}
-      {(erro || sucesso) && (
-        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium ${erro ? "border-destructive/20 bg-destructive/10 text-destructive" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
-          {erro ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
-          <span>{erro || sucesso}</span>
-        </div>
-      )}
+          <nav className="space-y-1 text-sm font-medium">
+            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+              <span className="flex items-center gap-3"><Inbox size={18} /> Caixa de Entrada</span>
+              {contagemNaoLidas > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{contagemNaoLidas}</span>}
+            </button>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+              <Send size={18} /> Enviados
+            </button>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+              <FileEdit size={18} /> Rascunhos
+            </button>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+              <AlertCircle size={18} /> Spam
+            </button>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+              <Trash2 size={18} /> Lixeira
+            </button>
+          </nav>
 
-      {/* LAYOUT PRINCIPAL EM DUAS COLUNAS */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* SIDEBAR DE PASTAS E LISTA */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={buscaGeral}
-              onChange={(e) => setBuscaGeral(e.target.value)}
-              placeholder="Buscar..."
-              className="h-10 rounded-xl bg-muted/40 pl-9 text-xs border-border/60"
-            />
+          <div className="pt-4 border-t border-border/50">
+            <h3 className="px-3 mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Categorias</h3>
+            <div className="space-y-1">
+              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-emerald-500"></div> Financeiro</button>
+              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Operacional</button>
+              <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><div className="h-2 w-2 rounded-full bg-destructive"></div> Urgente</button>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-3 space-y-1">
-            <div className="px-3 py-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              <span>Inbox</span>
-              <span className="text-[10px]">{contagemNaoLidas} não lidas</span>
+          <div className="pt-4 mt-auto">
+            <div className="flex justify-between items-end px-3 mb-2">
+              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Armazenamento</h3>
+              <span className="text-xs font-bold text-foreground">82%</span>
             </div>
-
-            <button
-              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("inbox"); setModoCriacao(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <Mail size={15} /> Inbox
-            </button>
-
-            <button
-              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <Clock3 size={15} /> Não lidas
-            </button>
-
-            <button
-              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("favoritas"); setModoCriacao(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <Star size={15} /> Favoritas
-            </button>
-
-            <button
-              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("enviadas"); setModoCriacao(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <Send size={15} /> Enviadas
-            </button>
-
-            <button
-              onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("arquivo"); setModoCriacao(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <Folder size={15} /> Arquivo
-            </button>
-
-            <button
-              onClick={() => { setModoCriacao(false); setConfigAberta((atual) => atual ? null : "assinatura"); }}
-              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-colors ${configAberta ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-            >
-              <span className="flex items-center gap-3"><Settings size={15} /> Configurações</span><ChevronDown size={14} className={`transition-transform ${configAberta ? "rotate-180" : ""}`} />
-            </button>
-            {configAberta && <div className="ml-4 space-y-1 border-l border-border/60 pl-2">
-              <button type="button" onClick={() => setConfigAberta("assinatura")} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs ${configAberta === "assinatura" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><ShieldCheck size={14} /> Assinatura</button>
-              <button type="button" onClick={() => setConfigAberta("bancarios")} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs ${configAberta === "bancarios" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}><Landmark size={14} /> Dados bancários</button>
-            </div>}
+            <div className="mx-3 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary/70 w-[82%] rounded-full"></div>
+            </div>
           </div>
+        </aside>
 
-            {/* LISTA DE MENSAGENS DA PASTA */}
-            <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
-              {mensagensFiltradas.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">Nenhuma mensagem nesta pasta.</div>
-              ) : mensagensFiltradas.map((item) => (
-                <button type="button" key={item.id} onClick={() => { setMensagemInternaSelecionada(item); setModoCriacao(false); if (!item.lida && item.papel === "destinatario") void atualizarMensagem(item.id, { lida: 1 }, "Mensagem marcada como lida."); }} className={`w-full rounded-xl border p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-primary/50 bg-primary/10" : "border-border/50 bg-card/30 hover:bg-muted/40"}`}>
-                  <div className="flex items-center justify-between gap-2"><span className={`truncate text-[11px] ${item.lida ? "font-medium" : "font-bold text-foreground"}`}>{item.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[10px] text-muted-foreground">{dataBr(item.criado_em)}</span></div>
-                  <p className="mt-1 truncate text-[10px] text-muted-foreground">{item.papel === "remetente" ? `Para: ${item.destinatario_nome || item.destinatario_id}` : `De: ${item.remetente_nome || item.remetente_id}`}{item.favorita ? " · Favorita" : ""}</p>
-                </button>
-              ))}
+        {/* COLUNA 2: LISTA DE E-MAILS */}
+        <div className="flex flex-col col-span-1 lg:col-span-4 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
+          <div className="p-3 border-b border-border/50 bg-card/50">
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={buscaGeral}
+                onChange={(e) => setBuscaGeral(e.target.value)}
+                placeholder="Buscar mensagens..."
+                className="h-10 rounded-xl bg-background/50 pl-10 text-sm border-border/60 shadow-sm"
+              />
             </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {mensagensFiltradas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center text-xs text-muted-foreground">
+                <Mail className="h-8 w-8 mb-2 opacity-20" />
+                Nenhuma mensagem encontrada.
+              </div>
+            ) : mensagensFiltradas.map((item) => (
+              <button 
+                type="button" 
+                key={item.id} 
+                onClick={() => { 
+                  setMensagemInternaSelecionada(item); 
+                  setModoCriacao(false); 
+                  if (!item.lida && item.papel === "destinatario") void atualizarMensagem(item.id, { lida: 1 }, ""); 
+                }} 
+                className={`w-full flex flex-col gap-1 rounded-xl p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "bg-primary/10 border border-primary/20 shadow-sm" : "border border-transparent hover:bg-muted/60"}`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className={`truncate text-sm ${item.lida ? "font-semibold text-foreground/90" : "font-bold text-foreground"}`}>
+                    {item.papel === "remetente" ? item.destinatario_nome || item.destinatario_id : item.remetente_nome || item.remetente_id}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground font-medium">
+                    {horaBr(item.criado_em)}
+                  </span>
+                </div>
+                <span className={`truncate text-xs ${item.lida ? "text-foreground/70" : "font-semibold text-foreground"}`}>
+                  {item.assunto || "(Sem assunto)"}
+                </span>
+                <p className="truncate text-xs text-muted-foreground">
+                  {item.conteudo?.substring(0, 50)}...
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* PAINEL DIREITO: LEITURA OU COMPOSIÇÃO */}
-        <div className="lg:col-span-8">
+        {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
+        <div className="flex flex-col col-span-1 lg:col-span-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-sm overflow-hidden">
           {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
-            <div className="space-y-5 rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-xl">
-              <div className="flex items-start justify-between gap-4 border-b border-border/50 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-primary">{mensagemInternaSelecionada.papel === "remetente" ? "Mensagem enviada" : "Mensagem recebida"}</p><h2 className="mt-1 text-lg font-bold">{mensagemInternaSelecionada.assunto || "(Sem assunto)"}</h2><p className="mt-1 text-[10px] text-muted-foreground">{mensagemInternaSelecionada.papel === "remetente" ? "Enviada" : "Recebida"} em {dataBr(mensagemInternaSelecionada.criado_em)} às {horaBr(mensagemInternaSelecionada.criado_em)}</p></div><div className="flex items-center gap-1"><Button type="button" variant="ghost" size="sm" title={mensagemInternaSelecionada.favorita ? "Remover favorito" : "Favoritar"} onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { favorita: mensagemInternaSelecionada.favorita ? 0 : 1 }, mensagemInternaSelecionada.favorita ? "Mensagem removida dos favoritos." : "Mensagem favoritada.")}><Star className={mensagemInternaSelecionada.favorita ? "fill-amber-400 text-amber-400" : ""} size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Arquivar" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { arquivada: 1 }, "Mensagem arquivada.")}><Archive size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Excluir" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para a lixeira.")}><Trash2 size={15} /></Button><Button variant="ghost" size="sm" onClick={() => setMensagemInternaSelecionada(null)}>Fechar</Button></div></div>
-              <div className="space-y-1 text-[11px] text-muted-foreground"><p>{mensagemInternaSelecionada.papel === "remetente" ? `Para: ${mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id}` : `De: ${mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}`}</p><p>{mensagemInternaSelecionada.lida ? "Lida" : "Não lida"}</p></div><p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{mensagemInternaSelecionada.conteudo}</p>
-              {!!mensagemInternaSelecionada.anexos?.length && <div className="space-y-2 border-t border-border/50 pt-4"><p className="flex items-center gap-2 text-xs font-semibold text-foreground"><Paperclip size={14} /> Anexos</p>{mensagemInternaSelecionada.anexos.map((anexo) => <button type="button" key={anexo.id} onClick={() => void abrirAnexoMensagem(mensagemInternaSelecionada.id, anexo.id, anexo.nome_arquivo)} className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-left text-xs text-primary hover:bg-primary/10"><FileText size={14} /><span className="truncate">{anexo.nome_arquivo}</span></button>)}</div>}
+            <div className="flex-1 flex flex-col h-full">
+              {/* Cabeçalho da Mensagem */}
+              <div className="p-6 border-b border-border/50 bg-card/40 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/80 to-primary text-primary-foreground flex items-center justify-center text-lg font-bold shadow-sm">
+                    {(item => item.papel === "remetente" ? item.destinatario_nome?.[0] : item.remetente_nome?.[0])(mensagemInternaSelecionada) || <UserRound size={20} />}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground tracking-tight">
+                      {mensagemInternaSelecionada.papel === "remetente" ? mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id : mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}
+                    </h2>
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                      Para: {mensagemInternaSelecionada.papel === "remetente" ? "Você" : mensagemInternaSelecionada.destinatario_id}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                      Mais Opções <MoreVertical size={14} />
+                    </Button>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-medium">
+                    {dataBr(mensagemInternaSelecionada.criado_em)} <span className="mx-1">•</span> {horaBr(mensagemInternaSelecionada.criado_em)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Assunto e Corpo */}
+              <div className="p-8 flex-1 overflow-y-auto">
+                <h1 className="text-2xl font-bold text-foreground mb-6">
+                  {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
+                </h1>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 font-medium">
+                  {mensagemInternaSelecionada.conteudo}
+                </div>
+
+                {/* Anexos */}
+                {!!mensagemInternaSelecionada.anexos?.length && (
+                  <div className="mt-10 pt-6 border-t border-border/40">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-4">
+                      Anexos ({mensagemInternaSelecionada.anexos.length} Arquivo{mensagemInternaSelecionada.anexos.length > 1 ? "s" : ""})
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {mensagemInternaSelecionada.anexos.map((anexo) => (
+                        <button 
+                          type="button" 
+                          key={anexo.id} 
+                          onClick={() => void abrirAnexoMensagem(mensagemInternaSelecionada.id, anexo.id, anexo.nome_arquivo)} 
+                          className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-left hover:border-primary/50 hover:bg-primary/[.02] hover:shadow-sm transition-all"
+                        >
+                          <div className="h-10 w-10 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center">
+                            <FileText size={20} />
+                          </div>
+                          <div>
+                            <span className="block text-sm font-semibold text-foreground max-w-[200px] truncate">{anexo.nome_arquivo}</span>
+                            <span className="block text-[10px] text-muted-foreground font-medium uppercase mt-0.5">Documento PDF</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Rodapé interativo simulando clique rápido */}
+              <div className="p-4 bg-muted/20 border-t border-border/50">
+                <div className="rounded-xl border border-border/50 bg-background/50 p-3 text-sm text-muted-foreground flex items-center gap-2 cursor-pointer hover:bg-muted/40 transition-colors">
+                  <Reply size={16} />
+                  Clique aqui para <strong>Responder</strong> ou <strong>Encaminhar</strong> esta mensagem.
+                </div>
+              </div>
             </div>
           ) : configAberta ? (
-            <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
+            <div className="p-6 overflow-y-auto h-full space-y-5">
               {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <ConfiguracaoContasBancarias contas={contasBancarias} onSaved={() => { void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)); }} />}
             </div>
           ) : modoCriacao ? (
             /* COMPOSITOR DE NOVA MENSAGEM */
-            <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">
-              <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                <div><h2 className="text-sm font-bold">Nova mensagem</h2><p className="mt-1 text-[10px] text-muted-foreground">Enviando como {remetente?.nome || "seu usuário"} · resposta para {remetente?.email || "seu e-mail de cadastro"}</p></div>
-                <Button variant="ghost" size="sm" onClick={() => setModoCriacao(false)}>Cancelar</Button>
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b border-border/50 bg-card/40">
+                <div>
+                  <h2 className="text-lg font-bold">Nova Mensagem</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">De: {remetente?.email || "seu e-mail"}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setModoCriacao(false)} className="rounded-xl">Descartar</Button>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2 rounded-xl border border-border/60 bg-muted/20 p-1">
-                  <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-lg px-3 py-2 text-[11px] font-semibold ${tipoEnvio === "email" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}><Mail size={13} className="mr-1.5 inline" /> E-mail comum</button>
-                  <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-lg px-3 py-2 text-[11px] font-semibold ${tipoEnvio === "interno" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}><UserRound size={13} className="mr-1.5 inline" /> Mensagem interna</button>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold">Destinatário</label>
-                  {tipoEnvio === "interno" ? <><SearchableCombobox items={usuarios.map((usuario) => ({ id: usuario.id, label: `${usuario.nome} · ${usuario.email}`, search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}` }))} value={destinatarioUsuarioId} onChange={(id, label) => { const usuario = usuarios.find((item) => item.id === id); setDestinatarioUsuarioId(id); setDestinatario(usuario?.email || label); }} placeholder="Busque pelo nome do usuário" searchPlaceholder="Digite nome ou e-mail" emptyMessage="Nenhum usuário encontrado." /><p className="mt-1.5 text-[10px] text-muted-foreground">A mensagem será entregue diretamente no Inbox / Mensagens do usuário.</p></> : <><SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} /><Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário" className="mt-2 h-10 rounded-xl text-xs" /></>}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                <div className="flex gap-2 p-1.5 rounded-xl border border-border/60 bg-muted/30 w-fit">
+                  <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${tipoEnvio === "email" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}><Mail size={14} className="mr-2 inline" /> E-mail Externo</button>
+                  <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${tipoEnvio === "interno" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}><UserRound size={14} className="mr-2 inline" /> Interno</button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold">Assunto</label>
-                  <Input
-                    value={assunto}
-                    onChange={(e) => setAssunto(e.target.value)}
-                    placeholder="Assunto da mensagem"
-                    className="mt-1 h-10 rounded-xl text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold">Mensagem</label>
-                  <Textarea
-                    value={mensagem}
-                    onChange={(e) => setMensagem(e.target.value)}
-                    placeholder="Escreva sua mensagem..."
-                    className="mt-1 min-h-[140px] rounded-xl text-xs"
-                  />
-                  {tipoEnvio === "email" && assinatura && <div className="mt-2 rounded-xl border border-border/60 bg-white p-3 font-[Arial,sans-serif] text-[#333] shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <img src={assinatura.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
-                      <div className="min-w-0 text-[11px] leading-4">
-                        <strong className="block text-[14px] leading-4 text-black">{assinatura.nome || "Nome do usuário"}</strong>
-                        {assinatura.cargo && <span className="block text-[10px] leading-3">{assinatura.cargo}</span>}
-                        {assinatura.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinatura.telefone}</span>}
-                        {assinatura.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinatura.endereco}</span>}
+                <div className="space-y-4">
+                  <div className="border-b border-border/40 pb-2">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Para</label>
+                    {tipoEnvio === "interno" ? (
+                      <SearchableCombobox items={usuarios.map((usuario) => ({ id: usuario.id, label: `${usuario.nome} · ${usuario.email}`, search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}` }))} value={destinatarioUsuarioId} onChange={(id, label) => { const usuario = usuarios.find((item) => item.id === id); setDestinatarioUsuarioId(id); setDestinatario(usuario?.email || label); }} placeholder="Busque usuário corporativo..." searchPlaceholder="Digite nome..." emptyMessage="Usuário não encontrado." />
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} />
+                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 rounded-xl text-sm font-medium border-border/60 bg-background" />
                       </div>
-                    </div>
-                    <p className="mt-2 text-[10px] text-muted-foreground">Assinatura fixa aplicada automaticamente ao e-mail enviado.</p>
-                  </div>}
-                </div>
+                    )}
+                  </div>
 
-                {tipoEnvio === "email" && <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">
-                  <div className="mb-2 flex items-center gap-2"><Landmark size={15} className="text-primary" /><p className="text-xs font-semibold">Inserir dados bancários</p></div>
-                  <p className="mb-3 text-[11px] text-muted-foreground">Clique em uma conta para adicionar o texto ao final da mensagem.</p>
-                  <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => inserirDadosBancarios(conta)} className="rounded-lg border border-border/60 bg-card/50 p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/[.06]"><span className="block text-xs font-semibold">{conta.banco}</span><span className="mt-1 block text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""} · inserir na mensagem</span></button>)}</div>
-                </div>}
+                  <div className="border-b border-border/40 pb-2">
+                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} placeholder="Assunto" className="h-10 rounded-none border-0 px-0 text-sm font-bold shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground" />
+                  </div>
 
-                <div className="border border-border/50 rounded-xl p-4 bg-muted/20">
-                  <p className="text-xs font-semibold mb-2">Anexos e Documentos</p>
-                  <AnexosEmail
-                    anexos={anexos}
-                    selecionados={selecionados}
-                    onAlternar={alternarAnexo}
-                    arquivosNovos={arquivosNovos}
-                    onAdicionarArquivos={(novos) => setArquivosNovos((prev) => [...prev, ...novos])}
-                    onRemoverArquivo={(idx) => setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))}
-                  />
+                  <div>
+                    <Textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} placeholder="Escreva sua mensagem aqui..." className="min-h-[250px] resize-none rounded-none border-0 px-0 text-sm font-medium leading-relaxed shadow-none focus-visible:ring-0 bg-transparent" />
+                    
+                    {tipoEnvio === "email" && assinatura && (
+                      <div className="mt-8 pt-4 border-t border-border/20">
+                        <div className="flex items-center gap-4 opacity-80">
+                          <img src={assinatura.logo_url || logoShare} alt="Logo" className="h-10 w-auto object-contain grayscale" />
+                          <div className="text-[11px] leading-tight text-muted-foreground">
+                            <strong className="block text-sm text-foreground">{assinatura.nome || "Nome"}</strong>
+                            {assinatura.cargo && <span className="block mt-0.5">{assinatura.cargo}</span>}
+                            {assinatura.telefone && <span className="block mt-0.5">{assinatura.telefone}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    onClick={() => void enviar()}
-                    disabled={enviando}
-                    className="h-10 px-6 rounded-xl font-semibold gap-2"
-                  >
-                    <Send size={15} />
-                    {enviando ? "Enviando..." : "Enviar mensagem"}
-                  </Button>
+              </div>
+              
+              <div className="p-4 border-t border-border/50 bg-card/40 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AnexosEmail anexos={anexos} selecionados={selecionados} onAlternar={alternarAnexo} arquivosNovos={arquivosNovos} onAdicionarArquivos={(novos) => setArquivosNovos((prev) => [...prev, ...novos])} onRemoverArquivo={(idx) => setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))} />
                 </div>
+                <Button onClick={() => void enviar()} disabled={enviando} className="h-11 px-8 rounded-xl font-bold gap-2 text-sm shadow-md">
+                  <Send size={16} />
+                  {enviando ? "Enviando..." : "Enviar"}
+                </Button>
               </div>
             </div>
           ) : (
-            /* VISUALIZAÇÃO DE LEITURA */
-            <div className="flex min-h-[500px] flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/40 p-6 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Mail size={22} /></div>
-              <p className="text-xs text-muted-foreground">Selecione uma mensagem na pasta {pastaAtiva === "nao-lidas" ? "Não lidas" : pastaAtiva === "favoritas" ? "Favoritas" : pastaAtiva === "enviadas" ? "Enviadas" : pastaAtiva === "arquivo" ? "Arquivo" : "Inbox"} para ler</p>
+            /* TELA VAZIA (NENHUM SELECIONADO) */
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-card/20 h-full">
+              <div className="h-20 w-20 rounded-full bg-primary/5 flex items-center justify-center mb-6 border border-primary/10">
+                <Inbox size={32} className="text-primary/40" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Caixa de Mensagens</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-[250px]">
+                Selecione um e-mail na lista lateral para visualizar o conteúdo completo.
+              </p>
             </div>
           )}
-
         </div>
       </div>
     </div>

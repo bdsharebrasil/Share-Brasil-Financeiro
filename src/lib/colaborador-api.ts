@@ -966,7 +966,7 @@ export type RelatorioDespesaViagem = Record<string, any> & {
   data_inicio: string;
   data_fim: string;
   quantidade_dias: number;
-  despesas: Array<{ id?: string; data: string; categoria: string; descricao: string; valor: number; observacoes?: string }>;
+  despesas: Array<{ id?: string; data: string; categoria: string; descricao: string; valor: number; observacoes?: string; pago_por?: string; paid_by?: string }>;
   total_valor: number;
   status: string;
   tripulacao_id: string | null;
@@ -989,12 +989,20 @@ export function buscarRelatoriosDespesaViagem() { return colaboradorRequest<{ re
 export function buscarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`); }
 export function criarRelatorioDespesaViagem(payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>("/api/financeiro/relatorios-despesa-viagem", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarRelatorioDespesaViagem(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function finalizarRelatorioDespesaViagem(id: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/finalizar`, { method: "POST" }); }
 export function enviarRelatorioParaAprovacao(id: string, tripulantePos: 1 | 2) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem; enviado_para: number }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos }) }); }
 export function decidirAprovacaoRelatorio(id: string, tripulantePos: 1 | 2, aprovado: boolean, observacoes: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos, aprovado, observacoes }) }); }
 export function enviarAnexoRelatorio(id: string, arquivo: File, indiceDespesa = 0) { const body = new FormData(); body.append("arquivo", arquivo); body.append("indice_despesa", String(indiceDespesa)); return colaboradorRequest<{ anexo: RelatorioDespesaViagemAnexo }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos`, { method: "POST", body }); }
 export function excluirAnexoRelatorio(id: string, anexoId: string) { return colaboradorRequest<{ success: boolean }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/${encodeURIComponent(anexoId)}`, { method: "DELETE" }); }
 export function enviarPdfRelatorio(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ pdf_url: string; pdf_path: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
+export async function baixarPdfRelatorio(id: string) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) throw new Error(sessionError ? "sessao_expirada" : "sessao_nao_encontrada");
+  const response = await fetch(`${API_BASE}/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf`, { headers: { Authorization: `Bearer ${session.access_token}` }, credentials: "omit" });
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data?.error || `api_${response.status}`); }
+  return response.blob();
+}
 export function enviarDespesaAoCliente(id: string) { return colaboradorRequest<{ success: boolean; status: string; message: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-cliente`, { method: "POST" }); }
 
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────

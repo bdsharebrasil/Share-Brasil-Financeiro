@@ -161,7 +161,7 @@ function BibliotecaRelatorios({ carregando, clientes, clienteAberto, onAbrirClie
     const pastaPorCliente = new Map(clientes.map((cliente) => [cliente.id, { id: cliente.id, nome: cliente.razao_social || "Cliente sem razão social", codigo: cliente.codigo_cliente || "", relatorios: [] as Relatorio[] }]));
     relatoriosFinalizados.forEach((item) => {
       const id = item.cliente_id || "sem-cliente";
-      const pasta = pastaPorCliente.get(id) || { id, nome: item.cliente_nome || "Cliente não identificado", codigo: "", relatorios: [] as Relatorio[] };
+      const pasta = pastaPorCliente.get(id) || { id, nome: item.cliente_nome || item.socio_nome || "Cliente não identificado", codigo: "", relatorios: [] as Relatorio[] };
       pasta.relatorios.push(item);
       pastaPorCliente.set(id, pasta);
     });

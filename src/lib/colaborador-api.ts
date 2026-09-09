@@ -959,6 +959,7 @@ export type RelatorioDespesaViagem = Record<string, any> & {
   numero_voo: string | null;
   cliente_id: string | null;
   cliente_nome?: string | null;
+  socio_nome?: string | null;
   socio_id: string | null;
   aeronave_id: string | null;
   aeronave_matricula?: string | null;

@@ -21,7 +21,7 @@ import {
   EstadoVazio,
   HeroDashboard,
   formatarMoeda,
-} from "@/components/dashboard/PrimitivosDashboard";
+} from "@/components/dashboard/ComponentesDashboard";
 import {
   buscarPainelFinanceiro,
   buscarPerfilColaborador,

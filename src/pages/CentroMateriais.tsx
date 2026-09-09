@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink, FileText, GraduationCap, Plus, Trash2, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buscarMateriaisCentro, buscarPerfilColaborador, carregarMaterialCentro, criarMaterialCentro, excluirMaterialCentro, type MaterialTreinamento } from "@/lib/colaborador-api";
-import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";
 function managerRole(funcoes: Array<{ funcao: string }> = []) { return funcoes.some(({ funcao }) => ["admin", "financeiro_master", "gestor_master"].includes(funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); }

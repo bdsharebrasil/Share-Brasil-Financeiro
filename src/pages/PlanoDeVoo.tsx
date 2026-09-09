@@ -58,7 +58,7 @@ import {
   EtiquetaStatus,
   EstadoVazio,
   IndicadorPagina,
-} from "@/components/dashboard/PrimitivosDashboard";
+} from "@/components/dashboard/ComponentesDashboard";
 import NotamLeituraAjuda from "@/components/plano/NotamLeituraAjuda";
 
 type FlightPlanForm = {

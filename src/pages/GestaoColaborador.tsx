@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { BriefcaseBusiness, CalendarDays, FileText, Mail, Pencil, Plus, RefreshCw, Search, UserPlus, Users, WalletCards, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { atualizarGestaoColaborador, buscarFichaColaborador, buscarGestaoColaboradores, criarUsuarioColaborador, type ColaboradorGestao, type FichaColaborador } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";

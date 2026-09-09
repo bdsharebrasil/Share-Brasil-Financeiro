@@ -7,7 +7,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, { type FiltrosHistoricoRecibos } from "@/components/financeiro-share/HistoricoRecibos";
 import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
-import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import {
   buscarOpcoesRecibos,
   buscarRecibos,

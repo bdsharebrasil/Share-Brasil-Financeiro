@@ -3,7 +3,7 @@ import { Building2, Check, CreditCard, Landmark, Pencil, Plus, ReceiptText, Refr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { buscarConfiguracoesFinanceiras, excluirConfiguracao, salvarConfiguracao, type ConfiguracoesFinanceiras } from '@/lib/configuracoes-financeiras-api';
-import { IndicadorPagina } from '@/components/dashboard/PrimitivosDashboard';
+import { IndicadorPagina } from '@/components/dashboard/ComponentesDashboard';
 
 const TIPOS = [{ value: 'receita', label: 'RECEITA' }, { value: 'despesa', label: 'DESPESA' }, { value: 'entrada', label: 'ENTRADA' }, { value: 'saida', label: 'SAÍDA' }];
 const FORNECEDOR_CATEGORIAS = [{ value: 'share', label: 'SHARE' }, { value: 'particular', label: 'PARTICULAR' }, { value: 'ambos', label: 'AMBOS' }, { value: 'nenhum', label: 'NENHUM' }];

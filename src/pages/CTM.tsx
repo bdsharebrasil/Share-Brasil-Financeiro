@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, BarChart3, BookOpen, Boxes, CalendarClock, C
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buscarCtmDashboard, type CtmDashboard, type CtmRegistro } from "@/lib/colaborador-api";
-import { BarraProgresso, CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, formatarMoeda } from "@/components/dashboard/PrimitivosDashboard";
+import { BarraProgresso, CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, formatarMoeda } from "@/components/dashboard/ComponentesDashboard";
 
 const tabs = [
   ["overview", "Visão geral", Gauge], ["programa", "Programa", CalendarClock], ["oas", "Ordens de serviço", ClipboardList], ["orcamentos", "Orçamentos", FileText], ["componentes", "Componentes", Boxes], ["diretrizes", "Diretrizes", ShieldAlert], ["ras", "RAS", FileCheck2], ["peso", "Peso e balanceamento", Scale], ["rateio", "Rateio e horas", BarChart3],

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, ChevronRight, FileText, FolderOpen, Loader2, Search, SlidersHorizontal, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EstadoVazio, EtiquetaStatus } from "@/components/dashboard/PrimitivosDashboard";
+import { EstadoVazio, EtiquetaStatus } from "@/components/dashboard/ComponentesDashboard";
 import type { Recibo as ReciboFinanceiro } from "@/lib/colaborador-api";
 
 export type FiltrosHistoricoRecibos = {

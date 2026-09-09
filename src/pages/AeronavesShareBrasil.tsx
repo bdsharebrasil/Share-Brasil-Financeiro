@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buscarAeronavesShare, buscarAeronaveShare, criarAeronaveShare, type AeronavePayload, type AeronaveShare } from "@/lib/colaborador-api";
-import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
+import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/ComponentesDashboard";
 
 const camposCadastro: Array<[keyof AeronavePayload, string, string]> = [
   ["matricula_registro", "Matrícula de registro", "PR-XXX"],

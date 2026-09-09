@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, Check, CheckCircle2, Clock3, RefreshCw, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { atualizarFeriasGestor, buscarFeriasCorporativas, type FeriasCorporativasResponse } from "@/lib/colaborador-api";
 
 const dataHoje = () => new Date().toISOString().slice(0, 10);

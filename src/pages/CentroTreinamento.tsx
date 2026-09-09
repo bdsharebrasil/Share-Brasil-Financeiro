@@ -1,6 +1,6 @@
 import { ArrowUpRight, BookOpen, GraduationCap, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 
 const areas = [
   { id: "sala-reuniao", title: "Sala de reunião", status: "Ao vivo", description: "Reúna a equipe em uma sala virtual com vídeo, compartilhamento de tela, lousa colaborativa e chat.", icon: Video, tone: "border-emerald-400/40 bg-emerald-400/[.06]" },

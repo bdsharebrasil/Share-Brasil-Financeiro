@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { buscarIceServersCentro, buscarPerfilColaborador, buscarSalasTreinamento, buscarSalasTreinamentoEncerradas, criarSalaTreinamento, encerrarSalaTreinamento, excluirSalaTreinamento, type SalaTreinamento } from "@/lib/colaborador-api";
 import { API_ORIGIN } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";
 type Participant = { id: string; userId?: string; name: string };

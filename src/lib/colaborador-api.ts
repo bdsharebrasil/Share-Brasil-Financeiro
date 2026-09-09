@@ -870,6 +870,7 @@ export type DiarioLancamento = {
   cliente_tomador_emprestimo_id?: string | null;
   socio_tomador_emprestimo_id?: string | null;
   cliente_nome?: string | null;
+  holding_nome?: string | null;
   cliente_codigo?: string | null;
   cliente_proprietario?: string | null;
   socio_nome?: string | null;
@@ -980,10 +981,10 @@ export type RelatorioDespesaViagem = Record<string, any> & {
 };
 export type RelatorioDespesaViagemAnexo = { id: string; relatorio_despesa_viagem_id: string; indice_despesa: number; nome_arquivo: string; caminho_arquivo: string; url_arquivo: string; tipo_arquivo: string | null; tamanho_arquivo: number | null };
 export type OpcoesRelatorioViagem = {
-  clientes: Array<{ id: string; razao_social: string | null; codigo_cliente: string | null }>;
+  clientes: Array<{ id: string; razao_social: string | null; codigo_cliente: string | null; holding: number | boolean | null }>;
   aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string; status: string | null }>;
   tripulantes: Array<{ id: string; nome_completo: string; canac: string; status: string | null; origem: string }>;
-  voos: Array<{ numero_voo: string; data_agendada: string | null }>;
+  voos: Array<{ numero_voo: string; cliente_id: string | null; socio_id: string | null; aeronave_id: string | null; origem: string | null; destino: string | null; data_agendada: string | null; dias_duracao: number | null; matricula_registro: string | null }>;
   socios: Array<{ id: string; nome: string }>;
 };
 export function buscarOpcoesRelatorioViagem() { return colaboradorRequest<OpcoesRelatorioViagem>("/api/financeiro/relatorios-despesa-viagem/opcoes"); }

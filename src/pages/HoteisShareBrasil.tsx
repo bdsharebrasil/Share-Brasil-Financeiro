@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Building2, Check, Copy, Grid2X2, List, Mail, MapPin, Pencil, Phone, Plus, Search, Send, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { atualizarHotelShare, buscarHoteisShare, buscarPerfilColaborador, criarHotelShare, excluirHotelShare, reservarHotelShare, type HotelShare } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";

@@ -1,5 +1,5 @@
 import { ArrowRight, CheckCircle2, SlidersHorizontal } from "lucide-react";
-import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { nomesAmbiente, type Ambiente, type ItemMenu } from "@/types/navegacao";
 
 export default function ModuloInterno({ ambiente, menu, aoVoltar }: { ambiente: Ambiente; menu: ItemMenu; aoVoltar: () => void }) {

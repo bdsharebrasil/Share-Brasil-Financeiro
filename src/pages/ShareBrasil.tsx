@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import FolderCard from "@/components/ui/folder-card";
-import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/PrimitivosDashboard";
+import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/ComponentesDashboard";
 import { carregarArquivoColaborador, buscarPonto, buscarPastasDocumentos, buscarDocumentosInternos, criarPastaDocumento, enviarDocumentoInterno, marcarPonto, enviarJustificativaAusencia, buscarSenhas, revelarSenha, criarSenha, excluirSenha, buscarContatosShare, criarContatoShare, excluirContatoShare, buscarClientesShare, criarClienteShare, criarHoldingShare, criarSocioHoldingShare, atualizarClienteShare, atualizarSocioShare, vincularAeronaveCliente, vincularAeronaveSocioShare, enviarLogoCliente, enviarDocumentoCliente, enviarDocumentoSocioShare, buscarTarefas, buscarUsuariosTarefas, criarTarefaShare, atualizarTarefaShare, comentarTarefaShare, marcarNotificacaoTarefaLida, buscarCategoriasCalendario, criarCategoriaCalendario, buscarLembretesCalendario, criarLembreteCalendario, type PontoLancamento, type PastaDocumento, type DocumentoInterno, type SenhaEmpresa, type ContatoAgenda, type ClienteShare } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 

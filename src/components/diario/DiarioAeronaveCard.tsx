@@ -1,6 +1,6 @@
 import { Activity, ChevronRight, Gauge, Plane } from "lucide-react";
 import type { DiarioAeronaveResumo } from "@/lib/colaborador-api";
-import { EtiquetaStatus } from "@/components/dashboard/PrimitivosDashboard";
+import { EtiquetaStatus } from "@/components/dashboard/ComponentesDashboard";
 
 function horas(value: number | string | null | undefined) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });

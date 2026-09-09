@@ -3,7 +3,7 @@ import { Plane, Plus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CabecalhoSecao, EstadoVazio, IndicadorPagina } from "@/components/dashboard/PrimitivosDashboard";
+import { CabecalhoSecao, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { buscarGestaoTripulacao, criarTripulanteFreelancer, type AeronaveTripulacao, type FreelancerTripulacao, type HabilitacaoTripulante, type TripulanteGestao } from "@/lib/colaborador-api";
 import { CrewCard, CrewProfile, situacaoHabilitacoes } from "@/pages/GestaoTripulacaoCards";
 

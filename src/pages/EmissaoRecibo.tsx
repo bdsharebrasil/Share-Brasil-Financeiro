@@ -739,7 +739,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           item.id === id ? { ...item, status: "EMITIDO" } : item,
         ),
       );
-      setMensagem("Reembolso confirmado e entrada criada no caixa Share.");
+      setMensagem("Programação de reembolso criada: lançamento Cliente, conta a receber e rateio esperado.");
     } catch (cause) {
       setErro(
         cause instanceof Error

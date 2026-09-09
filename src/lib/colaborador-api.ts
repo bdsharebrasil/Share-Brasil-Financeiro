@@ -1203,7 +1203,7 @@ export function criarRecibo(payload: CriarReciboPayload) {
   return colaboradorRequest<{ recibo: Recibo; lancamento_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
 }
 export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; observacoes?: string }) {
-  return colaboradorRequest<{ ok: boolean; lancamento_reembolso_id: string }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
+  return colaboradorRequest<{ ok: boolean; id: string; lancamento_share_id: string; lancamento_cliente_id: string; conta_receber_id: string; status: string; idempotent?: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
 }
 export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
 export function atualizarStatusRecibo(id: string, status: StatusRecibo) { return colaboradorRequest<{ ok: boolean; status: StatusRecibo }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); }

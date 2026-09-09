@@ -433,12 +433,10 @@ export default function FinanceiroCotista() {
   const lancamentosFiltrados = useMemo(() => {
     if (!dashboard?.lancamentos) return [];
     if (!aeronaveSelecionada) return dashboard.lancamentos;
-    return dashboard.lancamentos.filter((l) =>
-      l.rateios.some((r) =>
-        cotistasAeronave.some((c) => c.nome === r.cotista),
-      ),
+    return dashboard.lancamentos.filter(
+      (lancamento) => lancamento.aeronaveId === aeronaveSelecionada,
     );
-  }, [dashboard, aeronaveSelecionada, cotistasAeronave]);
+  }, [dashboard, aeronaveSelecionada]);
 
   const entradas = dashboard?.resumo?.entradas ?? 0;
   const saidas = dashboard?.resumo?.saidas ?? 0;
@@ -494,7 +492,6 @@ export default function FinanceiroCotista() {
             <SelectTrigger className="h-9 w-[220px] gap-2 text-xs"><Plane size={14} className="text-muted-foreground" /><SelectValue placeholder="Todas as aeronaves" /></SelectTrigger>
             <SelectContent><SelectItem value="">Todas as aeronaves</SelectItem>{aeronaves.map((a) => <SelectItem key={a.id} value={a.id}>{a.matricula_registro} · {a.modelo}</SelectItem>)}</SelectContent>
           </Select>
-          <Button onClick={() => { setAbaAtiva("lancamentos"); setAberto(true); }} className="gap-2"><Plus size={15} /> Novo lançamento</Button>
         </div>
       </div>
 

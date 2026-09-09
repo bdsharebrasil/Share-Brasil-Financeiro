@@ -165,6 +165,7 @@ export type RateioEconomico = {
 
 export type LancamentoEconomico = {
   id: string;
+  aeronaveId?: string | null;
   data: string;
   descricao: string;
   documento: string | null;

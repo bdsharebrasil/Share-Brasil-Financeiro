@@ -95,3 +95,106 @@ tipo_rateio = 'VARIAVEL_POR_VOO', periodicidade = 'EVENTUAL', status = 'EM ABERT
 Regra pretendida (uso vs. sociedade holding)
 Caso padrão (cotista direto, Modelo 1, ou sócio individual fora de holding): a despesa de viagem é 100% de uso de quem viajou — está correto ter apenas 1 registro de rateio, cobrando integralmente aquele cliente/sócio.
 Caso sócio de holding (Modelo 2 — estrutura SPE/conta conjunta, ex.: DGA): como a viagem é feita em nome/uso de um sócio da holding, mas o custo da aeronave é compartilhado igualmente entre todos os sócios da holding, a despesa deveria ser rateada igualmente entre todos os sócios da holding (não só debitada 100% de quem viajou).
+
+RECIBOS
+eu preciso que retire o rateio da emissão do recibo e seja ajustado para esse rateio acontecer apenas durante o envio da despesa ao cotista em envio de pagamento.
+O recibo pode representar:
+recibo colaborador: que é um recibo onde o colaborador emite para que a empresa Share Brasil faça um ressarcimento a ele, nesse caso não temos lançamento no caixa tipo cliente pois é apenas uma despesa da share com o colaborador, é criado um lançamento tipo share e um contas a pagar com o colaborador id.
+
+Recibo de pagamento: o pagador pode ser a empresa share ou o cotista aeronave, se o pagador for um cotista, o lançamento é apenas caixa cliente em lançamentos ou movimentos holding e não é lançado nada para a share, 
+.
+Recibo de reembolso: é um recibo no qual a empresa Share Brasil emite um recibo antecipado ao cotista referente a uma despesa que foi paga antecipadamente e agora ele está emitindo o recibo para o cotista efetuar o pagamento a empresa. 
+
+Para emitir um recibo, devem ser informados:
+
+Data de emissão;
+Nome do pagador;
+CPF ou CNPJ válido;
+Descrição do serviço ou despesa;
+Valor maior que zero;
+Tipo do recibo;
+Cliente ou beneficiário, quando aplicável;
+Aeronave, quando o lançamento estiver relacionado a uma aeronave.
+Também podem ser informados:
+
+Endereço e cidade do pagador;
+Forma de pagamento;
+Prazo máximo para quitação;
+Boleto;
+Nota fiscal;
+Documento DECEA ou INFRAERO;
+Comprovantes e outros anexos.
+ Numeração
+O número do recibo é gerado de forma sequencial.
+
+O formato principal é:
+
+REC-{código do cliente}{número sequencial}/{ano}
+
+Exemplo:
+
+REC-ABC001/26
+
+Para recibos emitidos para colaboradores, pode ser utilizado o prefixo:
+
+REC-SHE001/26
+segue tabela sequencia_numeros_recibos
+Quando o cliente não possuir um código cadastrado, o sistema utiliza uma identificação derivada do nome do cliente.
+
+Quando o tipo escolhido for reembolso, o sistema pode:
+
+Registrar a despesa a pagar caixa share,
+Registrar o valor a receber do cliente somente quando for feito o envio de pagamento,
+Regra de negócio: Recibo de Saída
+1. Objetivo
+O recibo de saída é um documento emitido pela empresa para registrar uma cobrança ou receita direcionada a um cliente, cotista ou responsável por uma aeronave.
+
+Ele funciona como um documento comercial de saída, semelhante a uma nota fiscal de saída no fluxo financeiro, mas sem ser uma nota fiscal.
+
+exemplos de utilização:
+
+Administração de aeronave;
+Pilotagem;
+Serviços aeronáuticos;
+Serviços administrativos;
+Cobranças mensais relacionadas ao cliente;
+Valores vinculados a uma aeronave ou cotista.
+2. Informações obrigatórias
+Para emitir um recibo de saída, é necessário informar:
+
+Número do recibo;
+Cliente;
+CPF ou CNPJ do cliente;
+Aeronave;
+Categoria da receita;
+Categoria da despesa do cliente;
+Data de emissão;
+Valor maior que zero;
+Status do recebimento.
+A descrição e data vencimento
+
+3. Numeração do recibo de saída, segue tabela sequencia_numeros_recibo_saida
+O número não pode estar repetido. Caso já exista, o sistema bloqueia a emissão.
+
+4. Fluxo financeiro
+Ao confirmar um recibo de saída, o sistema:
+
+Gera a prévia do documento;
+Salva o recibo após a confirmação;
+Gera o arquivo PDF;
+Registra uma conta a receber;
+Registra a receita da empresa;
+Registra a despesa correspondente para o cliente;
+Vincula o lançamento ao cliente, cotista e aeronave;
+Cria o rateio da despesa;
+Mantém o lançamento como pendente até a baixa do recebimento.
+Para recibos de saída, o rateio utiliza a classificação:
+
+ADM SHARE - RECIBO
+
+A periodicidade padrão do rateio é mensal.
+tipo rateio - fixo
+Recibo de saída: gera uma cobrança para o cliente e cria os lançamentos financeiros correspondentes.
+O recibo de saída, portanto, não é apenas uma segunda forma de emitir o mesmo recibo. Ele pertence ao fluxo de receita e cobrança, enquanto a emissão de recibo comum atende principalmente à comprovação de pagamento e ao reembolso.
+percentual_uso = 100
+percentual_sociedade — reflete apenas a participação nominal daquele sócio na aeronave (ex.: 33,33% se ele é 1 de 3 sócios), preenchida automaticamente a partir da participação real na aeronave — mas não determina o rateio da despesa em si.

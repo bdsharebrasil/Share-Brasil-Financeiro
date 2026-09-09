@@ -188,7 +188,7 @@ async function gerarPdfRecibo(
 
   return new File(
     [blob],
-    `${recibo.numero_recibo.replace(
+    `${String(recibo.numero_recibo || recibo.id).replace(
       /[^a-z0-9-]/gi,
       "-",
     )}.pdf`,

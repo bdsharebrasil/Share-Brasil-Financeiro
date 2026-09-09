@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ExternalLink,
   FileText,
   History,
-  Loader2,
   Paperclip,
   Receipt,
   RotateCcw,
 } from "lucide-react";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, {
   type FiltrosHistoricoRecibos,
@@ -29,66 +27,83 @@ import {
   enviarAnexoRecibo,
   enviarPdfRecibo,
   atualizarStatusRecibo,
-  type CriarReciboPayload,
   type OpcoesRecibos,
   type Recibo as ReciboFinanceiro,
 } from "@/lib/colaborador-api";
+
+// ---------------------------------------------------------------------------
+// Dados fixos da Share (usados como emissor/recebedor/pagador conforme o
+// tipo). Mesmos valores já usados no restante do sistema.
+// ---------------------------------------------------------------------------
+const SHARE_NOME = "SHARE BRASIL SERVICOS AEROPORTUARIOS";
+const SHARE_DOCUMENTO = "30.898.549/0001-06";
+const SHARE_ENDERECO = "AV. PRES. ARTHUR BERNARDES, 1457";
+const SHARE_CIDADE = "VÁRZEA GRANDE";
+const SHARE_UF = "MT";
+const PAGADOR_ID_EMPRESA = "empresa"; // placeholder textual: pagador_id é NOT NULL na tabela e não referencia FK.
 
 type TipoEmissao =
   | "recibo_reembolso"
   | "recibo_colaborador"
   | "recibo_pagamento";
+
+// -----------------------------------------------------------------------
+// Formulário: contém SOMENTE os campos que existem na tabela `recibos`,
+// mais alguns campos auxiliares de UI (marcados abaixo) que ajudam a montar
+// o PDF mas NUNCA são enviados no payload de criação do recibo.
+// -----------------------------------------------------------------------
 type Formulario = {
   tipo: TipoEmissao | null;
+
+  // recibo_colaborador
   natureza_despesa: "aeronave" | "empresa" | "";
-  cliente_id: string;
   colaborador_id: string;
-  recebedor_id: string;
-  recebedor_nome: string;
-  recebedor_cpf: string;
-  recebedor_endereco: string;
-  recebedor_cidade: string;
-  recebedor_uf: string;
-  numero_recibo: string;
+
+  // recibo_reembolso / recibo_colaborador(aeronave)
+  aeronave_id: string;
+
+  // pagador (coluna real da tabela)
   pagador_tipo: "empresa" | "cotista_aeronave";
   pagador_id: string;
-  aeronave_id: string;
-  rateado: boolean;
+
+  // recebedor (única coluna real é recebedor_nome)
+  recebedor_nome: string;
+
+  // --- Campos AUXILIARES DE UI, só para montar o PDF impresso.
+  // Não existem na tabela `recibos` e NÃO são enviados no payload.
+  recebedor_cpf_ui: string;
+  recebedor_endereco_ui: string;
+  recebedor_cidade_ui: string;
+  recebedor_uf_ui: string;
+
   valor: string;
   descricao_servico: string;
   data_emissao: string;
   data_vencimento: string;
   forma_pagamento: string;
+
   categoria_id: string;
   categoria_nome: string;
   categoria_nome_manual: string;
+
   numero_documento_anexo: string;
   observacoes: string;
-  periodicidade: string;
-  tipo_rateio: string;
-  subcategoria_1: string;
-  subcategoria_2: string;
-  subcategoria_3: string;
-  subcategoria_4: string;
 };
 
 const hoje = () => new Date().toISOString().slice(0, 10);
+
 const inicial = (): Formulario => ({
   tipo: null,
   natureza_despesa: "",
-  cliente_id: "",
   colaborador_id: "",
-  recebedor_id: "",
-  recebedor_nome: "",
-  recebedor_cpf: "",
-  recebedor_endereco: "",
-  recebedor_cidade: "",
-  recebedor_uf: "",
-  numero_recibo: "",
+  aeronave_id: "",
   pagador_tipo: "empresa",
   pagador_id: "",
-  aeronave_id: "",
-  rateado: false,
+  recebedor_nome: "",
+  recebedor_cpf_ui: "",
+  recebedor_endereco_ui: "",
+  recebedor_cidade_ui: "",
+  recebedor_uf_ui: "",
   valor: "",
   descricao_servico: "",
   data_emissao: hoje(),
@@ -99,12 +114,6 @@ const inicial = (): Formulario => ({
   categoria_nome_manual: "",
   numero_documento_anexo: "",
   observacoes: "",
-  periodicidade: "ÚNICO",
-  tipo_rateio: "FIXO",
-  subcategoria_1: "",
-  subcategoria_2: "",
-  subcategoria_3: "",
-  subcategoria_4: "",
 });
 
 const opcoesTipo: Array<{
@@ -140,6 +149,7 @@ const opcoesTipo: Array<{
     fundo: "bg-sky-500/[.06]",
   },
 ];
+
 const CATEGORIA_OUTRO_ID = "111124d9-6111-4e11-a1f7-c7477e0fdb89";
 const CATEGORIAS_EMPRESA = new Set([
   "88980acf-465f-4a16-8111-d8efaf28365b",
@@ -179,6 +189,15 @@ function dataPorExtenso(valor: string) {
   return `Várzea Grande, ${texto}`;
 }
 
+// Determina tipo_caixa (coluna obrigatória da tabela) a partir da regra de
+// negócio de cada tipo de recibo.
+function tipoCaixaPara(form: Formulario): "share" | "cliente" | "holding" {
+  if (form.tipo === "recibo_colaborador") return "share";
+  if (form.tipo === "recibo_reembolso") return "cliente";
+  // recibo_pagamento: segue quem está pagando
+  return form.pagador_tipo === "cotista_aeronave" ? "cliente" : "share";
+}
+
 function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   if (recibo.pdf_anexo_id)
     return `/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.pdf_anexo_id)}/arquivo`;
@@ -191,22 +210,27 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   }
 }
 
+// Gera o PDF a partir de um recibo já persistido. Usa apenas colunas reais
+// da tabela (nome_pagador, documento_pagador, endereco_pagador,
+// cidade_pagador, uf_pagador, recebedor_nome) — não depende de nenhum campo
+// inexistente no banco.
 async function gerarPdfRecibo(
   recibo: ReciboFinanceiro,
   colaborador?: OpcoesRecibos["colaboradores"][number],
 ) {
+  const ehReembolso = recibo.tipo_recibo === "recibo_reembolso";
+  const ehColaborador = recibo.tipo_recibo === "recibo_colaborador";
   const ehPagamento = recibo.tipo_recibo === "recibo_pagamento";
 
-  const nomeRecebedor =
+  const nomeColaborador =
     colaborador?.nome_completo || recibo.recebedor_nome || "";
-
-  const documentoRecebedor = colaborador?.cpf || recibo.recebedor_cpf || "";
+  const documentoColaborador = colaborador?.cpf || "";
 
   const blob = await gerarReciboPdf({
     numero: recibo.numero_recibo,
     valor: Number(recibo.valor || 0) / 100,
     descricao: [
-      recibo.descricao ?? recibo.descricao_servico,
+      recibo.descricao,
       recibo.numero_documento_anexo
         ? `Documento anexo: ${recibo.numero_documento_anexo}`
         : null,
@@ -215,51 +239,47 @@ async function gerarPdfRecibo(
       .filter(Boolean)
       .join("\n\n"),
     data: recibo.data_emissao,
+
+    // recibo_reembolso: Share é a recebedora, cotista é o pagador.
+    // recibo_colaborador: colaborador é o recebedor, Share é a pagadora.
+    // recibo_pagamento: quem pagou (nome_pagador) é o emissor/pagador,
+    //   quem recebeu (recebedor_nome) fica do outro lado.
     rotuloEmissor: ehPagamento ? "PAGADOR" : "RECEBEDOR",
-    emissorNome: ehPagamento ? recibo.nome_pagador || "—" : undefined,
+    emissorNome: ehPagamento
+      ? recibo.nome_pagador || "—"
+      : ehColaborador
+        ? nomeColaborador || "—"
+        : SHARE_NOME,
     emissorDocumento: ehPagamento
       ? recibo.documento_pagador
         ? `CNPJ/CPF: ${recibo.documento_pagador}`
         : undefined
+      : ehColaborador
+        ? documentoColaborador
+          ? `CPF: ${documentoColaborador}`
+          : undefined
+        : `CNPJ: ${SHARE_DOCUMENTO}`,
+    emissorLinhas: ehReembolso
+      ? [SHARE_ENDERECO, `${SHARE_CIDADE} - ${SHARE_UF}`]
       : undefined,
-    emissorLinhas: ehPagamento
-      ? ([
-          recibo.endereco_pagador,
-          [recibo.cidade_pagador, recibo.uf_pagador]
-            .filter(Boolean)
-            .join(" - "),
-        ].filter(Boolean) as string[])
-      : undefined,
+
     rotuloPagador: ehPagamento ? "RECEBEDOR" : "PAGADOR",
     pagadorNome: ehPagamento
-      ? nomeRecebedor || "—"
+      ? recibo.recebedor_nome || "—"
       : recibo.nome_pagador || "—",
     pagadorDocumento: ehPagamento
-      ? documentoRecebedor
-        ? `CPF: ${documentoRecebedor}`
-        : null
+      ? undefined
       : recibo.documento_pagador
         ? `CNPJ/CPF: ${recibo.documento_pagador}`
         : null,
-    pagadorEndereco: ehPagamento ? recibo.recebedor_endereco : undefined,
-    pagadorCidade: ehPagamento ? recibo.recebedor_cidade : undefined,
-    pagadorUf: ehPagamento ? recibo.recebedor_uf : undefined,
-    pagadorLinhas: ehPagamento
-      ? []
-      : [
-          recibo.endereco_pagador,
-          [recibo.cidade_pagador, recibo.uf_pagador]
-            .filter(Boolean)
-            .join(" - "),
-        ],
+    pagadorEndereco: ehPagamento ? undefined : recibo.endereco_pagador,
+    pagadorCidade: ehPagamento ? undefined : recibo.cidade_pagador,
+    pagadorUf: ehPagamento ? undefined : recibo.uf_pagador,
   });
 
   return new File(
     [blob],
-    `${String(recibo.numero_recibo || recibo.id).replace(
-      /[^a-z0-9-]/gi,
-      "-",
-    )}.pdf`,
+    `${String(recibo.numero_recibo || recibo.id).replace(/[^a-z0-9-]/gi, "-")}.pdf`,
     { type: "application/pdf" },
   );
 }
@@ -284,9 +304,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [mensagem, setMensagem] = useState("");
   const [previewAberta, setPreviewAberta] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
-  const [pdfPreviewNumero, setPdfPreviewNumero] = useState("");
   const [pdfAbrindoId, setPdfAbrindoId] = useState<string | null>(null);
-  const [estadoEmissao, setEstadoEmissao] = useState
+  const [estadoEmissao, setEstadoEmissao] = useState<
     | "CRIADO"
     | "ANEXO_PENDENTE"
     | "PDF_PENDENTE"
@@ -295,9 +314,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     | "ERRO_PDF"
     | null
   >(null);
-  const [rateioPercentuais, setRateioPercentuais] = useState
-    Record<string, string>
-  >({});
 
   const carregar = async () => {
     setCarregando(true);
@@ -348,7 +364,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
-  const cotistas = useMemo(
+  // Cotistas filtrados pela aeronave escolhida. Usado tanto no reembolso
+  // (obrigatório) quanto, opcionalmente, como referência no pagamento.
+  const cotistasDaAeronave = useMemo(
     () =>
       form.aeronave_id
         ? opcoes.cotistas.filter(
@@ -357,11 +375,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         : [],
     [form.aeronave_id, opcoes.cotistas],
   );
-  const totalRateio = cotistas.reduce(
-    (total, item) => total + Number(item.percentual_sociedade || 0),
-    0,
-  );
-  const totalPercentualRateio = totalRateio;
+
   const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
   const tipoSelecionado = opcoesTipo.find((item) => item.id === form.tipo);
   const pagadorSelecionado = opcoes.cotistas.find(
@@ -373,53 +387,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const colaboradorSelecionado = opcoes.colaboradores.find(
     (item) => item.id === form.colaborador_id,
   );
-  const recebedorItems = useMemo(
-    () =>
-      opcoes.recebedores.map((recebedor) => ({
-        id: recebedor.id,
-        label: [
-          recebedor.nome || recebedor.nome_completo,
-          recebedor.cpf && `CPF: ${recebedor.cpf}`,
-          recebedor.endereco,
-          [recebedor.cidade, recebedor.uf].filter(Boolean).join("/"),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      })),
-    [opcoes.recebedores],
-  );
-  const mostrarMetadadosPagamento =
-    form.tipo === "recibo_pagamento" &&
-    form.pagador_tipo === "cotista_aeronave";
-  const subcategoriasDisponiveis = categoriaClienteSelecionada
-    ? [
-        categoriaClienteSelecionada.subcategoria_1,
-        categoriaClienteSelecionada.subcategoria_2,
-        categoriaClienteSelecionada.subcategoria_3,
-        categoriaClienteSelecionada.subcategoria_4,
-      ]
-        .flatMap((valor) => String(valor || "").split(","))
-        .map((valor) => valor.trim())
-        .filter(Boolean)
-        .filter((valor, indice, lista) => lista.indexOf(valor) === indice)
-    : [];
-  const arquivoPreviewUrl = useMemo(
-    () => (arquivo ? URL.createObjectURL(arquivo) : ""),
-    [arquivo],
-  );
 
   useEffect(
     () => () => {
       if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     },
     [pdfPreviewUrl],
-  );
-
-  useEffect(
-    () => () => {
-      if (arquivoPreviewUrl) URL.revokeObjectURL(arquivoPreviewUrl);
-    },
-    [arquivoPreviewUrl],
   );
 
   const alterar = <K extends keyof Formulario>(
@@ -440,6 +413,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     alterar("categoria_nome", nome);
   };
 
+  // Seleciona o cotista devedor no reembolso: preenche pagador_tipo/id e já
+  // deixa os dados denormalizados prontos (nome/documento/endereço), que são
+  // as colunas reais nome_pagador/documento_pagador/endereco_pagador/etc.
+  const selecionarCotistaDevedor = (id: string) => {
+    alterar("pagador_tipo", "cotista_aeronave");
+    alterar("pagador_id", id);
+  };
+
   const categoriaValida =
     form.tipo === "recibo_reembolso"
       ? Boolean(form.categoria_id && form.categoria_nome)
@@ -453,16 +434,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               (form.categoria_id !== CATEGORIA_OUTRO_ID ||
                 form.categoria_nome_manual.trim()),
           )
-        : Boolean(
-            form.categoria_id &&
-              form.categoria_nome &&
-              !/SEM[_ ]?CATEGORIA/i.test(form.categoria_nome),
-          );
+        : Boolean(form.categoria_id && form.categoria_nome);
 
   // Regra fixa por tipo:
-  // - recibo_colaborador: Recebedor = colaborador; pagador é sempre a Share (não existe escolha).
-  // - recibo_pagamento: pagador pode ser Share OU cotista; recebedor é livre (texto).
-  // - recibo_reembolso: recebedor é sempre a Share (emissora); pagador é SEMPRE o cotista devedor.
+  // - recibo_colaborador: recebedor = colaborador; pagador é sempre a Share.
+  // - recibo_pagamento: pagador pode ser Share OU cotista; recebedor é texto livre.
+  // - recibo_reembolso: recebedor é SEMPRE a Share; pagador é SEMPRE o cotista
+  //   devedor, vinculado a uma aeronave (a despesa é da aeronave).
   const podeEmitir = Boolean(
     form.tipo &&
       form.descricao_servico.trim() &&
@@ -474,16 +452,21 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           ? form.recebedor_nome.trim() &&
             (form.pagador_tipo === "empresa" || form.pagador_id)
           : form.tipo === "recibo_reembolso"
-            ? Boolean(form.pagador_id && form.pagador_tipo === "cotista_aeronave")
+            ? Boolean(
+                form.aeronave_id &&
+                  form.pagador_id &&
+                  form.pagador_tipo === "cotista_aeronave",
+              )
             : false),
   );
 
-  const fecharPdfPreview = () => {
-    setPdfPreviewUrl((atual) => {
-      if (atual) URL.revokeObjectURL(atual);
-      return "";
-    });
-    setPdfPreviewNumero("");
+  const abrirPreview = () => {
+    if (!podeEmitir || !form.tipo) {
+      setErro("Preencha os campos obrigatórios antes de visualizar o recibo.");
+      return;
+    }
+    setErro("");
+    setPreviewAberta(true);
   };
 
   const visualizarPdf = async (recibo: ReciboFinanceiro) => {
@@ -501,11 +484,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         setRecibos((atual) =>
           atual.map((item) =>
             item.id === recibo.id
-              ? {
-                  ...item,
-                  pdf_anexo_id: salvo.anexo_id,
-                  pdf_url: salvo.pdf_url,
-                }
+              ? { ...item, pdf_anexo_id: salvo.anexo_id, pdf_url: salvo.pdf_url }
               : item,
           ),
         );
@@ -516,7 +495,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         if (atual) URL.revokeObjectURL(atual);
         return url;
       });
-      setPdfPreviewNumero(recibo.numero_recibo);
     } catch (cause) {
       setErro(
         cause instanceof Error
@@ -528,15 +506,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
-  const abrirPreview = () => {
-    if (!podeEmitir || !form.tipo) {
-      setErro("Preencha os campos obrigatórios antes de visualizar o recibo.");
-      return;
-    }
-    setErro("");
-    setPreviewAberta(true);
-  };
-
   const emitir = async () => {
     if (!podeEmitir || !form.tipo) {
       setErro("Preencha os campos obrigatórios antes de emitir o recibo.");
@@ -546,47 +515,84 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setErro("");
     setMensagem("");
     try {
-      const payload: CriarReciboPayload = {
+      // Dados denormalizados do pagador conforme a regra fixa de cada tipo.
+      // ATENÇÃO: os únicos campos abaixo são os que existem de fato nas
+      // colunas nome_pagador / documento_pagador / endereco_pagador /
+      // cidade_pagador / uf_pagador da tabela `recibos`.
+      const dadosPagador =
+        form.tipo === "recibo_colaborador"
+          ? {
+              pagador_tipo: "empresa" as const,
+              pagador_id: PAGADOR_ID_EMPRESA,
+              nome_pagador: SHARE_NOME,
+              documento_pagador: SHARE_DOCUMENTO,
+              endereco_pagador: SHARE_ENDERECO,
+              cidade_pagador: SHARE_CIDADE,
+              uf_pagador: SHARE_UF,
+            }
+          : form.tipo === "recibo_reembolso"
+            ? {
+                pagador_tipo: "cotista_aeronave" as const,
+                pagador_id: form.pagador_id,
+                nome_pagador: pagadorSelecionado?.nome || "",
+                documento_pagador:
+                  pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
+                endereco_pagador: pagadorSelecionado?.endereco || "",
+                cidade_pagador: pagadorSelecionado?.cidade || "",
+                uf_pagador: pagadorSelecionado?.uf || "",
+              }
+            : form.pagador_tipo === "empresa"
+              ? {
+                  pagador_tipo: "empresa" as const,
+                  pagador_id: PAGADOR_ID_EMPRESA,
+                  nome_pagador: SHARE_NOME,
+                  documento_pagador: SHARE_DOCUMENTO,
+                  endereco_pagador: SHARE_ENDERECO,
+                  cidade_pagador: SHARE_CIDADE,
+                  uf_pagador: SHARE_UF,
+                }
+              : {
+                  pagador_tipo: "cotista_aeronave" as const,
+                  pagador_id: form.pagador_id,
+                  nome_pagador: pagadorSelecionado?.nome || "",
+                  documento_pagador:
+                    pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
+                  endereco_pagador: pagadorSelecionado?.endereco || "",
+                  cidade_pagador: pagadorSelecionado?.cidade || "",
+                  uf_pagador: pagadorSelecionado?.uf || "",
+                };
+
+      // Recebedor conforme a regra fixa de cada tipo. Só existe a coluna
+      // recebedor_nome — CPF/endereço do recebedor, quando coletados no
+      // formulário (recibo_pagamento), servem só para montar o PDF, não são
+      // persistidos.
+      const recebedorNome =
+        form.tipo === "recibo_reembolso"
+          ? SHARE_NOME
+          : form.tipo === "recibo_colaborador"
+            ? colaboradorSelecionado?.nome_completo ||
+              colaboradorSelecionado?.nome_exibicao ||
+              ""
+            : form.recebedor_nome.trim();
+
+      // Payload enviado para criarRecibo — 1:1 com as colunas de `recibos`
+      // que fazem sentido virem do cliente. numero_recibo, status,
+      // lancamento_id, criado_por, criado_em e url_recibo são geridos pelo
+      // backend e não são enviados aqui.
+      const payload = {
         tipo_recibo: form.tipo,
-        rateado: false,
-        aeronave_id: form.rateado
-          ? form.aeronave_id || null
-          : form.tipo === "recibo_pagamento"
-            ? null
-            : form.aeronave_id || null,
-        // O reembolso não usa mais um "cliente_id" separado: o cotista devedor
-        // já é resolvido via pagador_id/pagador_tipo abaixo.
-        cliente_id: null,
         colaborador_id:
           form.tipo === "recibo_colaborador" ? form.colaborador_id : null,
-        recebedor_id:
-          form.tipo === "recibo_pagamento" ? form.recebedor_id || null : null,
-        recebedor_nome:
-          form.tipo === "recibo_pagamento" ? form.recebedor_nome.trim() : null,
-        recebedor_cpf:
-          form.tipo === "recibo_pagamento"
-            ? form.recebedor_cpf.trim() || null
-            : null,
-        recebedor_endereco:
-          form.tipo === "recibo_pagamento"
-            ? form.recebedor_endereco.trim() || null
-            : null,
-        recebedor_cidade:
-          form.tipo === "recibo_pagamento"
-            ? form.recebedor_cidade.trim() || null
-            : null,
-        recebedor_uf:
-          form.tipo === "recibo_pagamento"
-            ? form.recebedor_uf.trim() || null
-            : null,
-        pagador_tipo:
-          form.tipo !== "recibo_colaborador" ? form.pagador_tipo : "empresa",
-        pagador_id:
-          form.tipo !== "recibo_colaborador" &&
-          form.pagador_tipo === "cotista_aeronave"
-            ? form.pagador_id
-            : "empresa",
-        valor_centavos: valorReciboCentavos,
+        aeronave_id:
+          form.tipo === "recibo_reembolso"
+            ? form.aeronave_id
+            : form.tipo === "recibo_colaborador" &&
+                form.natureza_despesa === "aeronave"
+              ? form.aeronave_id
+              : null,
+        rateado: false as const,
+        ...dadosPagador,
+        valor: valorReciboCentavos,
         descricao: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
         data_vencimento: form.data_vencimento || null,
@@ -594,87 +600,30 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento"
             ? form.forma_pagamento || null
             : null,
+        tipo_caixa: tipoCaixaPara(form),
         categoria_movimentacao_id: form.categoria_id,
         categoria_nome: form.categoria_nome || null,
-        categoria_nome_manual:
-          form.tipo === "recibo_colaborador"
-            ? form.categoria_nome_manual.trim() || null
-            : null,
-        natureza_despesa:
-          form.tipo === "recibo_colaborador"
-            ? form.natureza_despesa || null
-            : null,
         grupo_categoria:
           form.tipo === "recibo_colaborador"
             ? form.natureza_despesa === "aeronave"
               ? "DESPESAS REEMBOLSÁVEIS"
               : "DESPESAS EMPRESA"
             : null,
-        anexo_id: null,
+        recebedor_nome: recebedorNome,
         numero_documento_anexo: arquivo
           ? form.numero_documento_anexo.trim() || null
           : null,
         observacoes: form.observacoes.trim() || null,
-        periodicidade: mostrarMetadadosPagamento
-          ? form.periodicidade || null
-          : null,
-        tipo_rateio: mostrarMetadadosPagamento
-          ? form.tipo_rateio || null
-          : null,
-        subcategoria_1: mostrarMetadadosPagamento
-          ? form.subcategoria_1 || null
-          : null,
-        subcategoria_2: mostrarMetadadosPagamento
-          ? form.subcategoria_2 || null
-          : null,
-        subcategoria_3: mostrarMetadadosPagamento
-          ? form.subcategoria_3 || null
-          : null,
-        subcategoria_4: mostrarMetadadosPagamento
-          ? form.subcategoria_4 || null
-          : null,
-        rateio_linhas: undefined,
       };
+
       const resposta = await criarRecibo(payload);
-      const dadosParaPdf = {
-        ...resposta.recibo,
-        recebedor_nome: form.recebedor_nome,
-        recebedor_cpf: form.recebedor_cpf,
-        recebedor_endereco: form.recebedor_endereco,
-        recebedor_cidade: form.recebedor_cidade,
-        recebedor_uf: form.recebedor_uf,
-        nome_pagador:
-          form.pagador_tipo === "empresa"
-            ? "Share Brasil"
-            : pagadorSelecionado?.nome || null,
-        documento_pagador:
-          form.pagador_tipo === "empresa"
-            ? "30.898.549/0001-06"
-            : pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || null,
-        endereco_pagador:
-          form.pagador_tipo === "empresa"
-            ? null
-            : pagadorSelecionado?.endereco || null,
-        cidade_pagador:
-          form.pagador_tipo === "empresa"
-            ? null
-            : pagadorSelecionado?.cidade || null,
-        uf_pagador:
-          form.pagador_tipo === "empresa"
-            ? null
-            : pagadorSelecionado?.uf || null,
-        observacoes: form.observacoes,
-        data_vencimento: form.data_vencimento || null,
-        numero_documento_anexo: form.numero_documento_anexo || null,
-      };
+
       setEstadoEmissao("CRIADO");
       setRecibos((atual) => [
         { ...resposta.recibo, status: "CRIADO" },
         ...atual,
       ]);
-      setForm(inicial());
-      setArquivo(null);
-      setPreviewAberta(false);
+
       let avisoAnexo = "";
       if (arquivo) {
         setEstadoEmissao("ANEXO_PENDENTE");
@@ -682,8 +631,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           () => undefined,
         );
         try {
-          const anexo = await enviarAnexoRecibo(arquivo, resposta.recibo.id);
-          resposta.recibo.anexo_id = anexo.id;
+          await enviarAnexoRecibo(arquivo, resposta.recibo.id);
         } catch (anexoError) {
           setEstadoEmissao("ERRO_ANEXO");
           await atualizarStatusRecibo(resposta.recibo.id, "ERRO_ANEXO").catch(
@@ -692,10 +640,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           avisoAnexo = ` O recibo foi criado, mas o anexo não pôde ser salvo${anexoError instanceof Error ? `: ${anexoError.message}` : "."}`;
         }
       }
+
       let avisoPdf = "";
       try {
         setEstadoEmissao("PDF_PENDENTE");
-        const pdf = await gerarPdfRecibo(dadosParaPdf, colaboradorSelecionado);
+        const pdf = await gerarPdfRecibo(
+          resposta.recibo,
+          colaboradorSelecionado,
+        );
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
@@ -706,6 +658,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         );
         avisoPdf = ` O recibo foi criado, mas o PDF não pôde ser salvo${pdfError instanceof Error ? `: ${pdfError.message}` : "."}`;
       }
+
       if (!avisoAnexo && !avisoPdf) setEstadoEmissao("EMITIDO");
       setRecibos((atual) =>
         atual.map((item) =>
@@ -721,9 +674,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             : item,
         ),
       );
+
       setMensagem(
         `Recibo ${resposta.recibo.numero_recibo} — estado ${avisoAnexo ? "ERRO_ANEXO" : avisoPdf ? "ERRO_PDF" : "EMITIDO"}.${avisoAnexo}${avisoPdf}`,
       );
+
+      setForm(inicial());
+      setArquivo(null);
+      setPreviewAberta(false);
     } catch (cause) {
       setErro(
         cause instanceof Error
@@ -744,7 +702,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           item.id === id ? { ...item, status: "EMITIDO" } : item,
         ),
       );
-      setMensagem("Programação de reembolso criada: lançamento Cliente, conta a receber e rateio esperado.");
+      setMensagem(
+        "Programação de reembolso criada: lançamento Cliente, conta a receber e rateio esperado.",
+      );
     } catch (cause) {
       setErro(
         cause instanceof Error
@@ -818,6 +778,18 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         </button>
       </nav>
 
+      {abaAtiva === "historico" && (
+        <HistoricoRecibos
+          recibos={recibos}
+          carregando={carregando}
+          onBuscar={buscarHistorico}
+          onVisualizarPdf={visualizarPdf}
+          pdfAbrindoId={pdfAbrindoId}
+          onConfirmarReembolso={confirmarReembolso}
+          onCancelar={cancelar}
+        />
+      )}
+
       {abaAtiva === "emissao" && (
         <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
           <div className="border-b border-border bg-secondary/20 px-5 py-3.5">
@@ -868,42 +840,26 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 <strong>{tipoSelecionado?.titulo}</strong>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                {form.tipo === "recibo_pagamento" ? (
+                {form.tipo === "recibo_pagamento" && (
                   <>
-                    <Campo label="RECEBEDOR" obrigatorio>
-                      <SearchableCombobox
-                        items={recebedorItems}
-                        value={form.recebedor_id}
-                        onChange={(id, label) => {
-                          const recebedor = opcoes.recebedores.find(
-                            (item) => item.id === id,
-                          );
-                          alterar("recebedor_id", id);
-                          alterar(
-                            "recebedor_nome",
-                            recebedor?.nome ||
-                              recebedor?.nome_completo ||
-                              label,
-                          );
-                          alterar("recebedor_cpf", recebedor?.cpf || "");
-                          alterar(
-                            "recebedor_endereco",
-                            recebedor?.endereco || "",
-                          );
-                          alterar("recebedor_cidade", recebedor?.cidade || "");
-                          alterar("recebedor_uf", recebedor?.uf || "");
-                        }}
-                        placeholder="Selecione o recebedor"
-                        searchPlaceholder="Buscar por nome, CPF, e-mail..."
-                        emptyMessage="Nenhum recebedor encontrado."
-                        allowFreeText
+                    <Campo label="RECEBEDOR (nome)" obrigatorio>
+                      <input
+                        value={form.recebedor_nome}
+                        onChange={(e) =>
+                          alterar("recebedor_nome", e.target.value)
+                        }
+                        placeholder="Nome de quem vai receber"
+                        className="campo"
                       />
                     </Campo>
-                    <Campo label="CPF do recebedor">
+                    {/* CPF/endereço do recebedor: só usados para o PDF
+                        impresso, não existem como coluna em `recibos` e por
+                        isso não entram no payload de criação. */}
+                    <Campo label="CPF do recebedor (só para o PDF)">
                       <input
-                        value={form.recebedor_cpf}
+                        value={form.recebedor_cpf_ui}
                         onChange={(e) =>
-                          alterar("recebedor_cpf", e.target.value)
+                          alterar("recebedor_cpf_ui", e.target.value)
                         }
                         placeholder="000.000.000-00"
                         inputMode="numeric"
@@ -911,29 +867,61 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       />
                     </Campo>
                   </>
-                ) : form.tipo === "recibo_reembolso" ? (
+                )}
+
+                {form.tipo === "recibo_reembolso" && (
                   <>
+                    <div className="rounded-sm border border-sky-400/30 bg-sky-400/[.06] p-3 md:col-span-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[.14em] text-sky-600">
+                        Recebedor (fixo)
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold">
+                        {SHARE_NOME} · CNPJ: {SHARE_DOCUMENTO}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        No reembolso, quem recebe é sempre a Share — a
+                        despesa foi antecipada por ela.
+                      </p>
+                    </div>
+                    <Campo label="Aeronave da despesa" obrigatorio>
+                      <SearchableCombobox
+                        items={opcoes.aeronaves.map((aeronave) => ({
+                          id: aeronave.id,
+                          label: `${aeronave.matricula_registro}${aeronave.modelo ? ` · ${aeronave.modelo}` : ""}`,
+                        }))}
+                        value={form.aeronave_id}
+                        onChange={(id) => {
+                          alterar("aeronave_id", id);
+                          alterar("pagador_id", "");
+                          alterar("pagador_tipo", "empresa");
+                        }}
+                        placeholder="Selecione a aeronave"
+                        searchPlaceholder="Buscar aeronave..."
+                        emptyMessage="Nenhuma aeronave encontrada."
+                      />
+                    </Campo>
                     <Campo
                       label="Cotista devedor (quem vai pagar o reembolso)"
                       obrigatorio
                     >
                       <SearchableCombobox
-                        items={opcoes.cotistas.map((cotista) => ({
+                        items={cotistasDaAeronave.map((cotista) => ({
                           id: cotista.id,
                           label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
                         }))}
                         value={form.pagador_id}
-                        onChange={(id) => {
-                          alterar("pagador_tipo", "cotista_aeronave");
-                          alterar("pagador_id", id);
-                        }}
-                        placeholder="Selecione o cotista"
+                        onChange={selecionarCotistaDevedor}
+                        placeholder={
+                          form.aeronave_id
+                            ? "Selecione o cotista"
+                            : "Selecione a aeronave primeiro"
+                        }
                         searchPlaceholder="Buscar cotista..."
-                        emptyMessage="Nenhum cotista encontrado."
+                        emptyMessage="Nenhum cotista encontrado para esta aeronave."
                       />
                     </Campo>
                     {form.pagador_id && (
-                      <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3">
+                      <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3 md:col-span-2">
                         <p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">
                           DADOS DO PAGADOR
                         </p>
@@ -946,8 +934,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       </div>
                     )}
                   </>
-                ) : (
-                  <Campo label="RECEBEDOR" obrigatorio>
+                )}
+
+                {form.tipo === "recibo_colaborador" && (
+                  <Campo label="RECEBEDOR (colaborador)" obrigatorio>
                     <select
                       value={form.colaborador_id}
                       onChange={(e) =>
@@ -965,6 +955,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     </select>
                   </Campo>
                 )}
+
                 <Campo label="Data" obrigatorio>
                   <input
                     type="date"
@@ -981,9 +972,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     className="campo font-mono text-muted-foreground"
                   />
                 </Campo>
-                {/* O combobox de "Pagador" (Share x Cotista) só se aplica ao
-                    recibo_pagamento. No reembolso o pagador é sempre o
-                    cotista escolhido acima; no colaborador é sempre a Share. */}
+
                 {form.tipo === "recibo_pagamento" && (
                   <>
                     <Campo label="Pagador" obrigatorio>
@@ -1005,14 +994,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             alterar("pagador_tipo", "empresa");
                             alterar("pagador_id", "");
                           } else {
-                            const cotista = opcoes.cotistas.find(
-                              (item) => item.id === id,
-                            );
                             alterar("pagador_tipo", "cotista_aeronave");
                             alterar("pagador_id", id);
-                            alterar("categoria_id", "");
-                            if (cotista)
-                              alterar("recebedor_nome", form.recebedor_nome);
                           }
                         }}
                         placeholder="Selecione o pagador"
@@ -1032,6 +1015,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     </div>
                   </>
                 )}
+
                 <Campo
                   label={
                     form.tipo === "recibo_pagamento"
@@ -1063,260 +1047,76 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     className="campo font-mono"
                   />
                 </Campo>
-                {form.tipo !== "recibo_pagamento" && (
-                  <Campo label="Vencimento">
-                    <input
-                      type="date"
-                      value={form.data_vencimento}
-                      onChange={(e) =>
-                        alterar("data_vencimento", e.target.value)
-                      }
-                      className="campo"
+                <Campo
+                  label="Vencimento"
+                  obrigatorio={form.tipo === "recibo_pagamento"}
+                >
+                  <input
+                    type="date"
+                    value={form.data_vencimento}
+                    onChange={(e) =>
+                      alterar("data_vencimento", e.target.value)
+                    }
+                    className="campo"
+                  />
+                </Campo>
+
+                {form.tipo === "recibo_reembolso" && (
+                  <Campo label="Categoria cliente" obrigatorio>
+                    <SearchableCombobox
+                      items={opcoes.categorias_cliente.map((item) => ({
+                        id: item.id,
+                        label: item.nome,
+                      }))}
+                      value={form.categoria_id}
+                      onChange={(id) => {
+                        const categoria = opcoes.categorias_cliente.find(
+                          (item) => item.id === id,
+                        );
+                        alterar("categoria_id", id);
+                        alterar("categoria_nome", categoria?.nome || "");
+                      }}
+                      placeholder="Selecione a categoria cliente"
+                      searchPlaceholder="Buscar categoria cliente..."
+                      emptyMessage="Nenhuma categoria cliente cadastrada."
                     />
                   </Campo>
                 )}
+
                 {form.tipo === "recibo_pagamento" && (
-                  <Campo label="Vencimento" obrigatorio>
-                    <input
-                      type="date"
-                      value={form.data_vencimento}
-                      onChange={(event) =>
-                        alterar("data_vencimento", event.target.value)
-                      }
-                      className="campo"
-                    />
-                  </Campo>
-                )}
-                  {form.tipo === "recibo_reembolso" && (
-                    <Campo label="Categoria cliente" obrigatorio>
+                  <>
+                    <Campo label="Forma de pagamento" obrigatorio>
+                      <select
+                        value={form.forma_pagamento}
+                        onChange={(e) =>
+                          alterar("forma_pagamento", e.target.value)
+                        }
+                        className="campo"
+                      >
+                        <option value="">Selecione</option>
+                        <option>PIX</option>
+                        <option>Transferência bancária</option>
+                        <option>Boleto</option>
+                        <option>Cartão</option>
+                        <option>Dinheiro</option>
+                      </select>
+                    </Campo>
+                    <Campo label="Categoria" obrigatorio>
                       <SearchableCombobox
-                        items={opcoes.categorias_cliente.map((item) => ({
+                        items={opcoes.categorias.map((item) => ({
                           id: item.id,
                           label: item.nome,
                         }))}
                         value={form.categoria_id}
-                        onChange={(id) => {
-                          const categoria = opcoes.categorias_cliente.find(
-                            (item) => item.id === id,
-                          );
-                          alterar("categoria_id", id);
-                          alterar("categoria_nome", categoria?.nome || "");
-                        }}
-                        placeholder="Selecione a categoria cliente"
-                        searchPlaceholder="Buscar categoria cliente..."
-                        emptyMessage="Nenhuma categoria cliente cadastrada."
+                        onChange={selecionaCategoria}
+                        placeholder="Selecione a categoria"
+                        searchPlaceholder="Buscar categoria..."
+                        emptyMessage="Nenhuma categoria cadastrada."
                       />
                     </Campo>
-                  )}
-                {form.tipo === "recibo_pagamento" && (
-                  <Campo label="Forma de pagamento" obrigatorio>
-                    <select
-                      value={form.forma_pagamento}
-                      onChange={(e) =>
-                        alterar("forma_pagamento", e.target.value)
-                      }
-                      className="campo"
-                    >
-                      <option value="">Selecione</option>
-                      <option>PIX</option>
-                      <option>Transferência bancária</option>
-                      <option>Boleto</option>
-                      <option>Cartão</option>
-                      <option>Dinheiro</option>
-                    </select>
-                  </Campo>
+                  </>
                 )}
-                {form.tipo === "recibo_pagamento" &&
-                  mostrarMetadadosPagamento && (
-                    <>
-                      <Campo label="Periodicidade" obrigatorio>
-                        <SearchableCombobox
-                          items={[
-                            "ÚNICO",
-                            "EVENTUAL",
-                            "MENSAL",
-                            "BIMESTRAL",
-                            "TRIMESTRAL",
-                            "SEMESTRAL",
-                            "ANUAL",
-                          ].map((item) => ({ id: item, label: item }))}
-                          value={form.periodicidade}
-                          onChange={(id) => alterar("periodicidade", id)}
-                          placeholder="Selecione a periodicidade"
-                          searchPlaceholder="Buscar periodicidade..."
-                          emptyMessage="Nenhuma periodicidade encontrada."
-                        />
-                      </Campo>
-                      <Campo label="Tipo de rateio" obrigatorio>
-                        <SearchableCombobox
-                          items={[
-                            "FIXO",
-                            "VARIAVEL POR VOO",
-                            "VARIAVEL POR HORA",
-                            "EXTRA",
-                          ].map((item) => ({ id: item, label: item }))}
-                          value={form.tipo_rateio}
-                          onChange={(id) => alterar("tipo_rateio", id)}
-                          placeholder="Buscar tipo..."
-                          emptyMessage="Nenhum tipo encontrado."
-                        />
-                      </Campo>
-                      <Campo label="Grupo categoria" obrigatorio>
-                        <SearchableCombobox
-                          items={opcoes.categorias_cliente.map((item) => ({
-                            id: item.id,
-                            label: item.nome,
-                          }))}
-                          value={form.categoria_id}
-                          onChange={(id) => {
-                            const categoria = opcoes.categorias_cliente.find(
-                              (item) => item.id === id,
-                            );
-                            alterar("categoria_id", id);
-                            alterar("categoria_nome", categoria?.nome || "");
-                            alterar("subcategoria_1", "");
-                            alterar("subcategoria_2", "");
-                            alterar("subcategoria_3", "");
-                            alterar("subcategoria_4", "");
-                          }}
-                          placeholder="Selecione a categoria"
-                          searchPlaceholder="Buscar categoria..."
-                          emptyMessage="Nenhuma categoria cadastrada."
-                        />
-                      </Campo>
-                      {subcategoriasDisponiveis.length > 0 && (
-                        <Campo label="Subcategoria">
-                          <SearchableCombobox
-                            items={subcategoriasDisponiveis.map((item) => ({
-                              id: item,
-                              label: item,
-                            }))}
-                            value={form.subcategoria_1}
-                            onChange={(id) => alterar("subcategoria_1", id)}
-                            placeholder="Selecione a subcategoria"
-                            searchPlaceholder="Buscar subcategoria..."
-                            emptyMessage="Nenhuma subcategoria encontrada."
-                          />
-                        </Campo>
-                      )}
-                    </>
-                  )}
-                {false &&
-                  form.tipo === "recibo_pagamento" &&
-                  form.pagador_tipo === "cotista_aeronave" && (
-                    <div className="md:col-span-2 rounded-xl border border-primary/25 bg-primary/[.05] p-4">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={form.rateado}
-                          onCheckedChange={(checked) => {
-                            const ativo = checked === true;
-                            alterar("rateado", ativo);
-                            if (!ativo) {
-                              alterar("aeronave_id", "");
-                              setRateioPercentuais({});
-                            }
-                          }}
-                        />
-                        <span>
-                          <span className="block text-[11px] font-bold">
-                            Ratear entre os cotistas da aeronave?
-                          </span>
-                          <span className="mt-0.5 block text-[10px] leading-5 text-muted-foreground">
-                            Selecione uma aeronave e informe a porcentagem de
-                            cada cotista. O total precisa fechar em 100%.
-                          </span>
-                        </span>
-                      </div>
-                      {form.rateado && (
-                        <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 md:grid-cols-2">
-                          <Campo label="Aeronave" obrigatorio>
-                            <select
-                              value={form.aeronave_id}
-                              onChange={(event) => {
-                                const id = event.target.value;
-                                alterar("aeronave_id", id);
 
-                                const cotistasAeronave = opcoes.cotistas.filter(
-                                  (item) => item.aeronave_id === id,
-                                );
-
-                                const percentualIgual = cotistasAeronave.length
-                                  ? (100 / cotistasAeronave.length).toFixed(3)
-                                  : "";
-
-                                setRateioPercentuais(
-                                  Object.fromEntries(
-                                    cotistasAeronave.map((item) => [
-                                      item.id,
-                                      percentualIgual,
-                                    ]),
-                                  ),
-                                );
-                              }}
-                              className="campo"
-                            >
-                              <option value="">Selecione a aeronave</option>
-                              {opcoes.aeronaves.map((aeronave) => (
-                                <option key={aeronave.id} value={aeronave.id}>
-                                  {aeronave.matricula_registro}
-                                  {aeronave.modelo
-                                    ? " · " + aeronave.modelo
-                                    : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </Campo>
-                          <div className="rounded-xl border border-border bg-background/30 p-3">
-                            <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                              Cotistas e percentuais
-                            </p>
-                            {cotistas.length ? (
-                              <div className="mt-2 space-y-2">
-                                {cotistas.map((cotista) => (
-                                  <label
-                                    key={cotista.id}
-                                    className="flex items-center justify-between gap-3 text-[11px]"
-                                  >
-                                    <span className="min-w-0 truncate">
-                                      {cotista.nome}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <input
-                                        inputMode="decimal"
-                                        value={
-                                          rateioPercentuais[cotista.id] ?? ""
-                                        }
-                                        onChange={(event) =>
-                                          setRateioPercentuais((atual) => ({
-                                            ...atual,
-                                            [cotista.id]: event.target.value,
-                                          }))
-                                        }
-                                        className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-right font-mono text-[11px] outline-none focus:border-primary"
-                                      />
-                                      <span className="text-[10px] text-muted-foreground">
-                                        %
-                                      </span>
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="mt-2 text-[10px] text-amber-500">
-                                Selecione uma aeronave para carregar os
-                                cotistas.
-                              </p>
-                            )}
-                            <p
-                              className={`mt-3 border-t border-border pt-2 text-[10px] ${Math.abs(totalPercentualRateio - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}
-                            >
-                              Total informado: {totalPercentualRateio}%
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 {form.tipo === "recibo_colaborador" && (
                   <>
                     <Campo label="Tipo de despesa" obrigatorio>
@@ -1407,6 +1207,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       )}
                   </>
                 )}
+
                 <div className="md:col-span-2">
                   <Campo label="Anexo (opcional)">
                     <input
@@ -1422,14 +1223,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       <span className="max-w-[260px] truncate font-medium">
                         {arquivo.name}
                       </span>
-                      
-                        href={arquivoPreviewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                      >
-                        <ExternalLink size={13} /> Visualizar
-                      </a>
                       <Button
                         type="button"
                         variant="ghost"
@@ -1520,36 +1313,62 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               <div className="text-right">
                 <p className="text-[10px] font-bold">Número do recibo</p>
                 <p className="font-mono text-[11px] font-bold text-slate-500">
-                  {form.numero_recibo.trim() || "Será gerado ao finalizar"}
+                  Será gerado ao finalizar
                 </p>
                 <p className="mt-2 border-2 border-slate-800 px-4 py-2 text-lg font-black">
                   {moeda(valorNumerico(form.valor))}
                 </p>
               </div>
             </div>
+
             <div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2">
-              {form.tipo === "recibo_pagamento" &&
-              form.pagador_tipo === "cotista_aeronave" ? (
-                <>
-                  <div>
-                    <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                      Recebedor
-                    </p>
+              {/* Lado esquerdo: quem RECEBE */}
+              <div>
+                <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
+                  Recebedor
+                </p>
+                {form.tipo === "recibo_pagamento" ? (
+                  <>
                     <strong>
                       {form.recebedor_nome || "Recebedor não informado"}
                     </strong>
-                    <p>CPF: {form.recebedor_cpf || "Não informado"}</p>
-                    <p>{form.recebedor_endereco}</p>
+                    <p>CPF: {form.recebedor_cpf_ui || "Não informado"}</p>
+                  </>
+                ) : form.tipo === "recibo_colaborador" ? (
+                  <>
+                    <strong>
+                      {colaboradorSelecionado?.nome_completo || "Colaborador"}
+                    </strong>
+                    <p>CPF: {colaboradorSelecionado?.cpf || "não informado"}</p>
+                  </>
+                ) : (
+                  <>
+                    <strong>{SHARE_NOME}</strong>
+                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                    <p>{SHARE_ENDERECO}</p>
                     <p>
-                      {[form.recebedor_cidade, form.recebedor_uf]
-                        .filter(Boolean)
-                        .join(" - ")}
+                      {SHARE_CIDADE} - {SHARE_UF}
                     </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                      Pagador
+                  </>
+                )}
+              </div>
+
+              {/* Lado direito: quem PAGA */}
+              <div>
+                <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
+                  Pagador
+                </p>
+                {form.tipo === "recibo_colaborador" ? (
+                  <>
+                    <strong>{SHARE_NOME}</strong>
+                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                    <p>{SHARE_ENDERECO}</p>
+                    <p>
+                      {SHARE_CIDADE} - {SHARE_UF}
                     </p>
+                  </>
+                ) : form.pagador_tipo === "cotista_aeronave" ? (
+                  <>
                     <strong>{pagadorSelecionado?.nome || "Cotista"}</strong>
                     <p>
                       {pagadorSelecionado?.cnpj ||
@@ -1564,68 +1383,16 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         .filter(Boolean)
                         .join(" - ")}
                     </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                      {form.tipo === "recibo_colaborador"
-                        ? "Pagador"
-                        : "Emissor"}
-                    </p>
-                    <strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong>
-                    <p>CNPJ: 30.898.549/0001-06</p>
-                    <p>Av. Presidente Arthur Bernardes, 1457</p>
-                    <p>Várzea Grande - 78125-100</p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">
-                      {form.tipo === "recibo_colaborador"
-                        ? "Recebedor"
-                        : form.tipo === "recibo_pagamento"
-                          ? "Recebedor"
-                          : "Pagador"}
-                    </p>
-                    <strong>
-                      {form.tipo === "recibo_colaborador"
-                        ? colaboradorSelecionado?.nome_completo || "Colaborador"
-                        : form.tipo === "recibo_pagamento"
-                          ? form.recebedor_nome || "Recebedor"
-                          : pagadorSelecionado?.nome || "Cotista não selecionado"}
-                    </strong>
-                    <p>
-                      {form.tipo === "recibo_colaborador"
-                        ? `CPF: ${colaboradorSelecionado?.cpf || "não informado"}`
-                        : form.tipo === "recibo_pagamento"
-                          ? `CPF: ${form.recebedor_cpf || "não informado"}`
-                          : pagadorSelecionado?.cnpj ||
-                            pagadorSelecionado?.cpf ||
-                            "Documento não informado"}
-                    </p>
-                    <p>
-                      {form.tipo === "recibo_colaborador"
-                        ? ""
-                        : form.tipo === "recibo_pagamento"
-                          ? form.recebedor_endereco
-                          : pagadorSelecionado?.endereco ||
-                            "Endereço não informado"}
-                    </p>
-                    <p>
-                      {form.tipo === "recibo_pagamento"
-                        ? [form.recebedor_cidade, form.recebedor_uf]
-                            .filter(Boolean)
-                            .join(" - ")
-                        : form.tipo === "recibo_colaborador"
-                          ? ""
-                          : [pagadorSelecionado?.cidade, pagadorSelecionado?.uf]
-                              .filter(Boolean)
-                              .join(" - ")}
-                    </p>
-                  </div>
-                </>
-              )}
+                  </>
+                ) : (
+                  <>
+                    <strong>{SHARE_NOME}</strong>
+                    <p>CNPJ: {SHARE_DOCUMENTO}</p>
+                  </>
+                )}
+              </div>
             </div>
+
             {(() => {
               const temDoc = Boolean(form.numero_documento_anexo);
               const cols = temDoc
@@ -1646,33 +1413,34 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 </div>
               );
             })()}
-            <>
-              {form.observacoes && (
-                <div className="mt-5 border border-slate-200 p-3 text-xs">
-                  <p className="mb-2 text-[9px] font-bold uppercase text-slate-500">
-                    Observações
-                  </p>
-                  <p className="whitespace-pre-wrap">{form.observacoes}</p>
-                </div>
-              )}
-              <div className="mt-5 border-t border-slate-200 pt-4 text-center">
-                <p className="mb-4 text-[9px] font-semibold italic leading-relaxed text-slate-600">
-                  Este recibo é emitido em caráter condicional, sendo sua
-                  validade e eficácia jurídica condicionadas à regular
-                  compensação do valor total
+
+            {form.observacoes && (
+              <div className="mt-5 border border-slate-200 p-3 text-xs">
+                <p className="mb-2 text-[9px] font-bold uppercase text-slate-500">
+                  Observações
                 </p>
-                <p className="mb-2 text-[10px] text-slate-600">
-                  {dataPorExtenso(form.data_emissao)}
-                </p>
-                <img
-                  src={assinaturaRecibo}
-                  alt="Assinatura"
-                  className="mx-auto h-12 w-auto"
-                />
-                <p className="text-xs font-semibold">Rolffe de Lima Erbe</p>
-                <p className="text-[10px] text-slate-500">Gestor Responsável</p>
+                <p className="whitespace-pre-wrap">{form.observacoes}</p>
               </div>
-            </>
+            )}
+
+            <div className="mt-5 border-t border-slate-200 pt-4 text-center">
+              <p className="mb-4 text-[9px] font-semibold italic leading-relaxed text-slate-600">
+                Este recibo é emitido em caráter condicional, sendo sua
+                validade e eficácia jurídica condicionadas à regular
+                compensação do valor total
+              </p>
+              <p className="mb-2 text-[10px] text-slate-600">
+                {dataPorExtenso(form.data_emissao)}
+              </p>
+              <img
+                src={assinaturaRecibo}
+                alt="Assinatura"
+                className="mx-auto h-12 w-auto"
+              />
+              <p className="text-xs font-semibold">Rolffe de Lima Erbe</p>
+              <p className="text-[10px] text-slate-500">Gestor Responsável</p>
+            </div>
+
             <div className="mt-5 flex justify-end gap-2">
               <Button
                 type="button"
@@ -1688,4 +1456,73 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 disabled={salvando}
                 className="h-9 text-xs"
               >
-                {salvando ? "Salvando..." :
+                {salvando ? "Salvando..." : "Confirmar e emitir"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdfPreviewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-sm bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+              <p className="text-[11px] font-bold text-slate-700">
+                Recibo — PDF
+              </p>
+              <div className="flex items-center gap-2">
+                <a
+                  href={pdfPreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                >
+                  <ExternalLink size={13} /> Abrir em nova aba
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() =>
+                    setPdfPreviewUrl((atual) => {
+                      if (atual) URL.revokeObjectURL(atual);
+                      return "";
+                    })
+                  }
+                  className="h-7 px-2 text-[10px]"
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+            <iframe
+              src={pdfPreviewUrl}
+              title="Pré-visualização do PDF"
+              className="h-[80vh] w-full"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Campo({
+  label,
+  obrigatorio,
+  className,
+  children,
+}: {
+  label: string;
+  obrigatorio?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block text-[11px] ${className || ""}`}>
+      <span className="mb-1 flex items-center gap-1 font-bold text-muted-foreground">
+        {label} {obrigatorio && <sup className="text-primary">*</sup>}
+      </span>
+      {children}
+    </label>
+  );
+}

@@ -60,6 +60,7 @@ type ResumoGestor = {
   contasReceberAtraso: ContaAReceber[];
   enviosPendentes: EnvioPagamento[];
   feriasProximas: Array<SolicitacaoFerias & { nome_completo: string | null; nome_exibicao: string | null }>;
+  periodosAquisitivos: number;
 };
 
 export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu: string) => void }) {
@@ -106,7 +107,8 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         })
         .sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
 
-      setDados({ contasPagarProximas, contasReceberAtraso, enviosPendentes, feriasProximas });
+      const periodosAquisitivos = (feriasResp?.periodos || []).filter((periodo) => !["CANCELADO", "GOZADO"].includes(String(periodo.status || "").toUpperCase()) && Number(periodo.dias_disponiveis || 0) > 0).length;
+      setDados({ contasPagarProximas, contasReceberAtraso, enviosPendentes, feriasProximas, periodosAquisitivos });
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o resumo financeiro.");
     } finally {
@@ -301,7 +303,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="ferias"
           titulo="Férias próximas (15 dias)"
-          detalhe={`${dados?.feriasProximas?.length ?? 0} colaborador(es)`}
+          detalhe={`${dados?.feriasProximas?.length ?? 0} férias · ${dados?.periodosAquisitivos ?? 0} períodos aquisitivos`}
           icone={<CalendarClock size={15} />}
           expandida={secaoExpandida === "ferias"}
           aoAlternar={() => expandir("ferias")}

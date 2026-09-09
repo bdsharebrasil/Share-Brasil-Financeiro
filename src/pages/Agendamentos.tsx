@@ -325,7 +325,7 @@ function PeriodoAgendamento({ inicio, fim, aoAlterarInicio, aoAlterarFim }: { in
   const inicioSelecionado = inicio ? new Date(`${inicio}T00:00:00`) : undefined;
   const selecionarData = (data: Date) => {
     const selecionada = dataIso(data);
-    if (!inicio || (fim && selecionada < inicio)) {
+    if (!inicio || selecionada < inicio) {
       aoAlterarInicio(selecionada);
       aoAlterarFim(selecionada);
       return;

@@ -2,7 +2,6 @@ import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } f
 import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
-import type { DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -324,20 +323,21 @@ function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aerodromos
 
 function PeriodoAgendamento({ inicio, fim, aoAlterarInicio, aoAlterarFim }: { inicio: string; fim: string; aoAlterarInicio: (valor: string) => void; aoAlterarFim: (valor: string) => void }) {
   const inicioSelecionado = inicio ? new Date(`${inicio}T00:00:00`) : undefined;
-  const fimSelecionado = fim ? new Date(`${fim}T00:00:00`) : undefined;
-  const intervalo: DateRange | undefined = inicioSelecionado ? { from: inicioSelecionado, to: fimSelecionado || inicioSelecionado } : undefined;
-  const selecionarIntervalo = (range: DateRange | undefined) => {
-    const novoInicio = range?.from ? dataIso(range.from) : '';
-    const novoFim = range?.to ? dataIso(range.to) : novoInicio;
-    aoAlterarInicio(novoInicio);
-    aoAlterarFim(novoFim);
+  const selecionarData = (data: Date) => {
+    const selecionada = dataIso(data);
+    if (!inicio || selecionada < inicio) {
+      aoAlterarInicio(selecionada);
+      aoAlterarFim(selecionada);
+      return;
+    }
+    aoAlterarFim(selecionada);
   };
-  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Período do voo</Label><div className="flex items-center gap-2"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar mode="range" selected={intervalo} onSelect={selecionarIntervalo} numberOfMonths={1} initialFocus /></PopoverContent></Popover></div></div>;
+  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Período do voo</Label><div className="flex items-center gap-2"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar value={inicioSelecionado ?? null} onChange={selecionarData} /></PopoverContent></Popover></div></div>;
 }
 
 function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valor: string) => void }) {
   const selecionada = valor ? new Date(`${valor}T00:00:00`) : undefined;
-  return <div className="space-y-1.5"><Label htmlFor="data-agendamento" className="text-[10px]">Data do voo</Label><div className="flex gap-2"><Input id="data-agendamento" type="date" value={valor} onChange={(event) => aoAlterar(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar mode="single" selected={selecionada} onSelect={(data) => data && aoAlterar(dataIso(data))} initialFocus /></PopoverContent></Popover></div></div>;
+  return <div className="space-y-1.5"><Label htmlFor="data-agendamento" className="text-[10px]">Data do voo</Label><div className="flex gap-2"><Input id="data-agendamento" type="date" value={valor} onChange={(event) => aoAlterar(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar value={selecionada ?? null} onChange={(data) => aoAlterar(dataIso(data))} /></PopoverContent></Popover></div></div>;
 }
 
 function formatarHorarioAgendamento(valor: string | null | undefined) {

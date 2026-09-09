@@ -30,16 +30,16 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { createElement, type SVGProps } from "react";
+import { createElement, forwardRef, type SVGProps } from "react";
 
-const BanknoteArrowUp: LucideIcon = (props: SVGProps<SVGSVGElement>) => createElement(
+const BanknoteArrowUp: LucideIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => createElement(
   "svg",
-  { ...props, className: `ml-[5px] mr-[5px] pl-[3px] pr-[3px] ${props.className ?? ""}`, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
+  { ...props, ref, className: `ml-[5px] mr-[5px] pl-[3px] pr-[3px] ${props.className ?? ""}`, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
   createElement("rect", { width: 20, height: 12, x: 2, y: 6, rx: 2 }),
   createElement("circle", { cx: 12, cy: 12, r: 2 }),
   createElement("path", { d: "M6 12h.01M18 12h.01" }),
   createElement("path", { d: "M12 2v4M9 5l3-3 3 3" }),
-);
+));
 
 export type Ambiente = "gestor" | "operacoes" | "financeiro" | "share-brasil" | "portal";
 export type Tema = "dark" | "light";

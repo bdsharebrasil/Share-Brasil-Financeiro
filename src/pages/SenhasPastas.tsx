@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Folder, KeyRound, LockKey
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buscarSenhas, criarSenha, excluirSenha, revelarSenha, type SenhaEmpresa } from "@/lib/colaborador-api";
+import { copyText } from "@/lib/utils";
 
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
 const pastaPadrao = "Sem pasta";
@@ -78,7 +79,7 @@ export default function SenhasPastas() {
     }
   };
 
-  const copy = (value: string) => void navigator.clipboard?.writeText(value);
+  const copy = (value: string) => { copyText(value); };
   const openForm = () => {
     setForm((current) => ({ ...current, setor: selectedFolder || current.setor }));
     setShowForm(true);

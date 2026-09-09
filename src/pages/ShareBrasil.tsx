@@ -1057,6 +1057,8 @@ export function ContatosClientesShareBrasil() {
   );
   const [aircraftId, setAircraftId] = useState("");
   const [aircraftPercent, setAircraftPercent] = useState("100");
+  const [newCotistaAircraftId, setNewCotistaAircraftId] = useState("");
+  const [newCotistaAircraftPercent, setNewCotistaAircraftPercent] = useState("100");
   const [selectedClient, setSelectedClient] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -1175,6 +1177,8 @@ export function ContatosClientesShareBrasil() {
       email_principal: "",
       telefone: "",
     });
+    setNewCotistaAircraftId("");
+    setNewCotistaAircraftPercent("100");
   };
   const addClient = async () => {
     if (!clientForm.razao_social) return;
@@ -1192,13 +1196,22 @@ export function ContatosClientesShareBrasil() {
           "Holding e sócio criados. Agora vincule o sócio às aeronaves no perfil.",
         );
       } else {
-        const result = await criarClienteShare({ ...clientForm, holding: 0 });
+        const percentual = Number(newCotistaAircraftPercent);
+        if (newCotistaAircraftId && (!Number.isFinite(percentual) || percentual < 0 || percentual > 100)) {
+          throw new Error("Informe um percentual entre 0 e 100.");
+        }
+        const result = await criarClienteShare({
+          ...clientForm,
+          holding: 0,
+          aeronave_id: newCotistaAircraftId || null,
+          percentual_sociedade: newCotistaAircraftId ? percentual : null,
+        });
         setSelectedClient(result.id);
         setShowNewCotista(false);
         setProfileTab("visao-geral");
-        setOk(
-          "Cliente cotista criado. Vincule a aeronave e o percentual no perfil.",
-        );
+        setOk(newCotistaAircraftId
+          ? "Cliente cotista criado com a aeronave e o percentual vinculados."
+          : "Cliente cotista criado. Você poderá vincular aeronaves no perfil.");
       }
       refresh();
     } catch (e) {
@@ -1518,7 +1531,10 @@ export function ContatosClientesShareBrasil() {
           </div>
           <Button
             type="button"
-            onClick={() => setShowNewCotista(true)}
+            onClick={() => {
+              emptyClientForm();
+              setShowNewCotista(true);
+            }}
             className="h-9 gap-2 text-xs"
           >
             <Plus size={14} /> Novo cotista
@@ -1580,6 +1596,44 @@ export function ContatosClientesShareBrasil() {
             {input("cidade", "Cidade")}
             {input("uf", "UF")}
           </div>
+          {!clientForm.holding && (
+            <div className="mt-4 rounded-xl border border-cyan-400/20 bg-cyan-400/[.04] p-4">
+              <div className="flex items-start gap-2">
+                <Plane size={16} className="mt-0.5 shrink-0 text-cyan-300" />
+                <div>
+                  <p className="text-xs font-bold text-white">Vincular aeronave</p>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Opcional. O vínculo será salvo em <code>cotista_aeronave</code> junto com o percentual.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px]">
+                <select
+                  value={newCotistaAircraftId}
+                  onChange={(e) => setNewCotistaAircraftId(e.target.value)}
+                  className={`${field} w-full px-3 text-sm`}
+                >
+                  <option value="">Não vincular agora</option>
+                  {aircraft.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.matricula_registro || "Aeronave"} · {[item.fabricante, item.modelo].filter(Boolean).join(" ")}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={newCotistaAircraftPercent}
+                  onChange={(e) => setNewCotistaAircraftPercent(e.target.value)}
+                  placeholder="Percentual (%)"
+                  disabled={!newCotistaAircraftId}
+                  className={field}
+                />
+              </div>
+            </div>
+          )}
           <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"

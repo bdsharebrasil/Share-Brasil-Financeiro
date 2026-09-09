@@ -54,6 +54,11 @@ export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar }: Mod
         dataRecebimento, bancoRecebimento, formaPagamento,
         comprovanteRecebimentoUrl: comprovanteUrl || undefined,
         pagamentos: [{
+          idempotency_key: `recebimento-${conta.id}-${dataRecebimento}`,
+          data_pagamento: dataRecebimento,
+          conta_bancaria_id: bancoRecebimento || undefined,
+          comprovante_url: comprovanteUrl || null,
+          forma_pagamento: formaPagamento || null,
           tipo_pagador: tipoPagador,
           ...(tipoPagador === 'COTISTA' ? { pagador_cotista_id: pagadorId } : {}),
           ...(tipoPagador === 'HOLDING' ? { pagador_holding_id: pagadorId } : {}),

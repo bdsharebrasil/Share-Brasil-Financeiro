@@ -16,7 +16,6 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
+import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
 import {
   atualizarRelatorioDespesaViagem,
   baixarPdfRelatorio,
@@ -469,47 +469,15 @@ export default function RelatorioDespesaViagem({
     }
   };
   const gerarPdf = async (item: Relatorio) => {
-    const documento = new jsPDF();
-    documento.setFont("helvetica", "bold");
-    documento.setFontSize(16);
-    documento.text("RELATÓRIO DE DESPESA DE VIAGEM", 18, 20);
-    documento.setFontSize(10);
-    documento.setFont("helvetica", "normal");
-    const linhas = [
-      `Número: ${item.numero_relatorio}`,
-      `Voo: ${item.numero_voo || "Não informado"}`,
-      `Cliente: ${item.cliente_nome || clienteSelecionado?.razao_social || "Não informado"}`,
-      `Aeronave: ${item.aeronave_matricula || aeronaveSelecionada?.matricula_registro || "Não informado"}`,
-      `Período: ${dataBr(item.data_inicio)} a ${dataBr(item.data_fim)}`,
-      `Tripulante 1: ${item.nome_tripulante || form.nome_tripulante}`,
-      `Tripulante 2: ${item.nome_tripulante_2 || form.nome_tripulante_2 || "Não informado"}`,
-    ];
-    linhas.forEach((linha, index) => documento.text(linha, 18, 34 + index * 7));
-    let y = 94;
-    documento.setFont("helvetica", "bold");
-    documento.text("Despesas", 18, y);
-    y += 8;
-    documento.setFont("helvetica", "normal");
-    despesas.forEach((despesa) => {
-      const texto = `${dataBr(despesa.data)} · ${despesa.categoria} · ${despesa.descricao || "Sem descrição"} — ${moeda(despesa.valor)}`;
-      documento.text(texto.slice(0, 115), 18, y);
-      y += 6;
-      if (y > 275) {
-        documento.addPage();
-        y = 20;
-      }
+    const blob = await gerarPdfRelatorioViagem({
+      ...item,
+      cliente_nome: item.cliente_nome || clienteSelecionado?.razao_social,
+      aeronave_matricula: item.aeronave_matricula || aeronaveSelecionada?.matricula_registro,
+      nome_tripulante: item.nome_tripulante || form.nome_tripulante,
+      nome_tripulante_2: item.nome_tripulante_2 || form.nome_tripulante_2,
+      despesas,
+      total_valor: total,
     });
-    documento.setFont("helvetica", "bold");
-    documento.text(`Total: ${moeda(total)}`, 18, Math.min(y + 6, 285));
-    if (item.observacoes) {
-      documento.setFont("helvetica", "normal");
-      documento.text(
-        `Observações: ${item.observacoes}`.slice(0, 115),
-        18,
-        Math.min(y + 14, 292),
-      );
-    }
-    const blob = documento.output("blob");
     const arquivo = new File([blob], `relatorio-${item.numero_relatorio}.pdf`, {
       type: "application/pdf",
     });

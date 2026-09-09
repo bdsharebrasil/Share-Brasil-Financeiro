@@ -2975,3 +2975,12 @@ SELECT
     p.comprovante_url
 FROM pagamentos_folha p
 JOIN user_profiles u ON u.id = p.user_id');
+
+CREATE TABLE IF NOT EXISTS sequencia_numeros_relatorio_viagem (
+  id TEXT PRIMARY KEY NOT NULL,
+  codigo_cliente TEXT NOT NULL,
+  aeronave_id TEXT NOT NULL,
+  ano INTEGER NOT NULL,
+  proximo_numero INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (codigo_cliente, aeronave_id, ano)
+);

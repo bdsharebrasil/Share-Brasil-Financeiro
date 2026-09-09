@@ -286,7 +286,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [pdfPreviewNumero, setPdfPreviewNumero] = useState("");
   const [pdfAbrindoId, setPdfAbrindoId] = useState<string | null>(null);
-  const [estadoEmissao, setEstadoEmissao] = useState<
+  const [estadoEmissao, setEstadoEmissao] = useState
     | "CRIADO"
     | "ANEXO_PENDENTE"
     | "PDF_PENDENTE"
@@ -295,7 +295,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     | "ERRO_PDF"
     | null
   >(null);
-  const [rateioPercentuais, setRateioPercentuais] = useState<
+  const [rateioPercentuais, setRateioPercentuais] = useState
     Record<string, string>
   >({});
 
@@ -458,6 +458,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               form.categoria_nome &&
               !/SEM[_ ]?CATEGORIA/i.test(form.categoria_nome),
           );
+
+  // Regra fixa por tipo:
+  // - recibo_colaborador: Recebedor = colaborador; pagador é sempre a Share (não existe escolha).
+  // - recibo_pagamento: pagador pode ser Share OU cotista; recebedor é livre (texto).
+  // - recibo_reembolso: recebedor é sempre a Share (emissora); pagador é SEMPRE o cotista devedor.
   const podeEmitir = Boolean(
     form.tipo &&
       form.descricao_servico.trim() &&
@@ -467,13 +472,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         ? form.colaborador_id
         : form.tipo === "recibo_pagamento"
           ? form.recebedor_nome.trim() &&
-            categoriaValida &&
             (form.pagador_tipo === "empresa" || form.pagador_id)
           : form.tipo === "recibo_reembolso"
-            ? form.cliente_id && (form.pagador_tipo === "empresa" || form.pagador_id)
-          : form.rateado
-            ? form.aeronave_id
-            : form.cliente_id),
+            ? Boolean(form.pagador_id && form.pagador_tipo === "cotista_aeronave")
+            : false),
   );
 
   const fecharPdfPreview = () => {
@@ -552,8 +554,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           : form.tipo === "recibo_pagamento"
             ? null
             : form.aeronave_id || null,
-        cliente_id:
-          form.tipo === "recibo_reembolso" ? form.cliente_id || null : null,
+        // O reembolso não usa mais um "cliente_id" separado: o cotista devedor
+        // já é resolvido via pagador_id/pagador_tipo abaixo.
+        cliente_id: null,
         colaborador_id:
           form.tipo === "recibo_colaborador" ? form.colaborador_id : null,
         recebedor_id:
@@ -908,21 +911,41 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       />
                     </Campo>
                   </>
-                ) : form.tipo !== "recibo_colaborador" ? (
-                  <Campo label="Cliente" obrigatorio>
-                    <select
-                      value={form.cliente_id}
-                      onChange={(e) => alterar("cliente_id", e.target.value)}
-                      className="campo"
+                ) : form.tipo === "recibo_reembolso" ? (
+                  <>
+                    <Campo
+                      label="Cotista devedor (quem vai pagar o reembolso)"
+                      obrigatorio
                     >
-                      <option value="">Selecione o cliente</option>
-                      {opcoes.clientes.map((cliente) => (
-                        <option key={cliente.id} value={cliente.id}>
-                          {cliente.razao_social}
-                        </option>
-                      ))}
-                    </select>
-                  </Campo>
+                      <SearchableCombobox
+                        items={opcoes.cotistas.map((cotista) => ({
+                          id: cotista.id,
+                          label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
+                        }))}
+                        value={form.pagador_id}
+                        onChange={(id) => {
+                          alterar("pagador_tipo", "cotista_aeronave");
+                          alterar("pagador_id", id);
+                        }}
+                        placeholder="Selecione o cotista"
+                        searchPlaceholder="Buscar cotista..."
+                        emptyMessage="Nenhum cotista encontrado."
+                      />
+                    </Campo>
+                    {form.pagador_id && (
+                      <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+                          DADOS DO PAGADOR
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold">
+                          {pagadorSelecionado?.nome || "Cotista"} ·{" "}
+                          {pagadorSelecionado?.cnpj ||
+                            pagadorSelecionado?.cpf ||
+                            "Documento não informado"}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <Campo label="RECEBEDOR" obrigatorio>
                     <select
@@ -958,7 +981,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                     className="campo font-mono text-muted-foreground"
                   />
                 </Campo>
-                {form.tipo !== "recibo_colaborador" && (
+                {/* O combobox de "Pagador" (Share x Cotista) só se aplica ao
+                    recibo_pagamento. No reembolso o pagador é sempre o
+                    cotista escolhido acima; no colaborador é sempre a Share. */}
+                {form.tipo === "recibo_pagamento" && (
                   <>
                     <Campo label="Pagador" obrigatorio>
                       <SearchableCombobox
@@ -1396,7 +1422,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       <span className="max-w-[260px] truncate font-medium">
                         {arquivo.name}
                       </span>
-                      <a
+                      
                         href={arquivoPreviewUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -1441,90 +1467,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   />
                 </Campo>
               </div>
-
-              {false &&
-                form.tipo !== "recibo_colaborador" &&
-                form.tipo !== "recibo_pagamento" && (
-                  <div className="mt-5 rounded-sm border border-border bg-secondary/[.12] p-4">
-                    <label className="flex cursor-pointer items-start gap-3">
-                      <Checkbox
-                        checked={form.rateado}
-                        onCheckedChange={(checked) =>
-                          alterar("rateado", checked === true)
-                        }
-                      />
-                      <span>
-                        <span className="block text-[11px] font-bold">
-                          Ratear entre cotistas da aeronave
-                        </span>
-                        <span className="mt-0.5 block text-[10px] leading-5 text-muted-foreground">
-                          Cria as linhas de rateio usando os percentuais
-                          cadastrados para a aeronave.
-                        </span>
-                      </span>
-                    </label>
-                    {form.rateado && (
-                      <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-2">
-                        <Campo label="Aeronave" obrigatorio>
-                          <select
-                            value={form.aeronave_id}
-                            onChange={(e) =>
-                              alterar("aeronave_id", e.target.value)
-                            }
-                            className="campo"
-                          >
-                            <option value="">Selecione a aeronave</option>
-                            {opcoes.aeronaves.map((aeronave) => (
-                              <option key={aeronave.id} value={aeronave.id}>
-                                {aeronave.matricula_registro}
-                                {aeronave.modelo ? ` · ${aeronave.modelo}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </Campo>
-                        <div className="rounded-sm border border-border bg-background/30 p-3">
-                          <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                            Prévia do rateio
-                          </p>
-                          {form.aeronave_id ? (
-                            cotistas.length ? (
-                              <>
-                                <div className="mt-2 space-y-1.5">
-                                  {cotistas.map((cotista) => (
-                                    <p
-                                      key={cotista.id}
-                                      className="flex justify-between gap-3 text-[11px]"
-                                    >
-                                      <span className="truncate">
-                                        {cotista.nome}
-                                      </span>
-                                      <strong className="font-mono">
-                                        {cotista.percentual_sociedade}%
-                                      </strong>
-                                    </p>
-                                  ))}
-                                </div>
-                                <p
-                                  className={`mt-2 border-t border-border pt-2 text-[10px] ${totalRateio === 100 ? "text-emerald-600 dark:text-emerald-300" : "text-amber-600 dark:text-amber-300"}`}
-                                >
-                                  Total cadastrado: {totalRateio}%
-                                </p>
-                              </>
-                            ) : (
-                              <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-300">
-                                Não há cotistas cadastrados para esta aeronave.
-                              </p>
-                            )
-                          ) : (
-                            <p className="mt-2 text-[10px] text-muted-foreground">
-                              Selecione uma aeronave para consultar os cotistas.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
               {erro && (
                 <div
@@ -1586,7 +1528,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               </div>
             </div>
             <div className="grid gap-6 border-b border-slate-300 py-6 text-xs md:grid-cols-2">
-              {form.tipo !== "recibo_colaborador" &&
+              {form.tipo === "recibo_pagamento" &&
               form.pagador_tipo === "cotista_aeronave" ? (
                 <>
                   <div>
@@ -1650,7 +1592,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         ? colaboradorSelecionado?.nome_completo || "Colaborador"
                         : form.tipo === "recibo_pagamento"
                           ? form.recebedor_nome || "Recebedor"
-                          : pagadorSelecionado?.nome || "SHARE BRASIL"}
+                          : pagadorSelecionado?.nome || "Cotista não selecionado"}
                     </strong>
                     <p>
                       {form.tipo === "recibo_colaborador"
@@ -1659,7 +1601,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                           ? `CPF: ${form.recebedor_cpf || "não informado"}`
                           : pagadorSelecionado?.cnpj ||
                             pagadorSelecionado?.cpf ||
-                            "CNPJ: 30.898.549/0001-06"}
+                            "Documento não informado"}
                     </p>
                     <p>
                       {form.tipo === "recibo_colaborador"
@@ -1667,7 +1609,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         : form.tipo === "recibo_pagamento"
                           ? form.recebedor_endereco
                           : pagadorSelecionado?.endereco ||
-                            "Av. Presidente Arthur Bernardes, 1457"}
+                            "Endereço não informado"}
                     </p>
                     <p>
                       {form.tipo === "recibo_pagamento"
@@ -1678,7 +1620,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                           ? ""
                           : [pagadorSelecionado?.cidade, pagadorSelecionado?.uf]
                               .filter(Boolean)
-                              .join(" - ") || "Várzea Grande - MT"}
+                              .join(" - ")}
                     </p>
                   </div>
                 </>
@@ -1746,78 +1688,4 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 disabled={salvando}
                 className="h-9 text-xs"
               >
-                {salvando ? "Salvando..." : "Confirmar e finalizar recibo"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {abaAtiva === "historico" && (
-        <HistoricoRecibos
-          recibos={recibos}
-          carregando={carregando}
-          onBuscar={buscarHistorico}
-          onConfirmarReembolso={confirmarReembolso}
-          onCancelar={cancelar}
-          onVisualizarPdf={visualizarPdf}
-          pdfAbrindoId={pdfAbrindoId}
-        />
-      )}
-      {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm md:p-6">
-          <div className="flex h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-[.16em] text-primary">
-                  PDF do recibo
-                </p>
-                <h2 className="truncate font-mono text-sm font-bold">
-                  {pdfPreviewNumero}
-                </h2>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={fecharPdfPreview}
-                className="h-8 gap-1.5 rounded-lg px-3 text-[10px]"
-              >
-                <ArrowLeft size={13} /> Fechar
-              </Button>
-            </div>
-            <iframe
-              title={`PDF do recibo ${pdfPreviewNumero}`}
-              src={pdfPreviewUrl}
-              className="min-h-0 flex-1 bg-slate-100"
-            />
-          </div>
-        </div>
-      )}
-      {carregando && abaAtiva === "emissao" && (
-        <p className="sr-only">Carregando dados de emissão</p>
-      )}
-    </div>
-  );
-}
-
-function Campo({
-  label,
-  obrigatorio,
-  className = "",
-  children,
-}: {
-  label: string;
-  obrigatorio?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className={`block ${className}`}>
-      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-        {label}
-        {obrigatorio && <sup className="ml-1 text-primary">*</sup>}
-      </span>
-      {children}
-    </label>
-  );
-}
+                {salvando ? "Salvando..." :

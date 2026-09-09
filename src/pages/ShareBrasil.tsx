@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { ptBR } from "date-fns/locale";
 import { Bell, Building2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clipboard, Clock3, Columns3, Copy, FilePlus2, FileText, Folder, FolderOpen, FolderPlus, GraduationCap, Grid2X2, KeyRound, List, ListTodo, LogIn, LogOut, Mail, MapPin, MessageSquare, Pause, Pencil, Phone, Plane, Play, Plus, Search, ShieldCheck, SlidersHorizontal, Upload, UserRound, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

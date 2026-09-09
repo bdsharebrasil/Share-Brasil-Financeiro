@@ -675,7 +675,7 @@ export function DocumentosShareBrasil() {
       <Feedback error={error} ok={ok} />
       {isOverview ? (
         <div className="space-y-5">
-          <section className="rounded-2xl border border-white/[.08] bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5">
+          <section className="rounded-2xl border border-white/[.08] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5" style={{ backgroundColor: "rgba(16, 26, 40, 0.54)" }}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm font-bold text-white">Todas as pastas</p>
@@ -738,14 +738,11 @@ export function DocumentosShareBrasil() {
               <FolderOpen size={13} /> {selectedFolder?.nome || "Pasta"}
             </span>
           </div>
-          <section className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.18)]">
+          <section className="overflow-hidden rounded-2xl border border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]" style={{ backgroundColor: "rgba(16, 26, 40, 0.76)" }}>
             <div className="relative overflow-hidden border-b border-white/[.08] bg-gradient-to-br from-[#18233a] via-[#111b2c] to-[#0d1522] p-5 md:p-7">
               <div className="absolute -right-10 -top-14 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
               <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-300 via-violet-500 to-indigo-700 text-white shadow-[0_12px_22px_rgba(91,54,220,.25)]">
-                    <FolderOpen size={30} strokeWidth={1.7} />
-                  </span>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-200">
                       Conteúdo da pasta
@@ -772,6 +769,7 @@ export function DocumentosShareBrasil() {
                     onClick={() => void addDoc()}
                     disabled={!file}
                     className="h-8 gap-1.5 text-[10px]"
+                    style={{ color: "rgba(0, 0, 0, 1)", backgroundColor: "rgba(205, 230, 243, 0.93)" }}
                   >
                     <Upload size={12} /> Anexar arquivo
                   </Button>

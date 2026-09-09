@@ -284,14 +284,6 @@ export default function Emails() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Mail className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">
-              Portal Gestor
-            </h1>
-            <p className="text-xs text-muted-foreground font-medium">
-              Operações & Financeiro
-            </p>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -327,10 +319,10 @@ export default function Emails() {
       )}
 
       {/* LAYOUT PRINCIPAL EM 3 COLUNAS */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <div className="flex-1 min-h-0 grid grid-cols-1 gap-4 lg:grid-cols-12 ml-[-19px]">
         
         {/* COLUNA 1: MENU LATERAL */}
-        <aside className="hidden lg:flex flex-col col-span-2 space-y-6 overflow-y-auto pr-2 pb-4">
+        <aside className="hidden lg:flex flex-col col-span-2 space-y-6 overflow-y-auto ml-2 mr-2 pl-[2px] pr-4 pb-4">
           <Button
             type="button"
             onClick={() => {
@@ -338,7 +330,7 @@ export default function Emails() {
               setConfigAberta(null);
               limparFormulario();
             }}
-            className="w-full h-11 gap-2 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90"
+            className="w-full h-11 min-h-5 mx-[3px] px-2 gap-2 rounded-xl font-normal leading-4 text-[17px] text-[rgba(1,10,20,1)] shadow-md bg-[rgba(110,191,228,0.9)] hover:bg-[rgba(110,191,228,0.9)]"
           >
             <Plus size={18} />
             Novo Email
@@ -388,7 +380,7 @@ export default function Emails() {
         </aside>
 
         {/* COLUNA 2: LISTA DE E-MAILS */}
-        <div className="flex flex-col col-span-1 lg:col-span-4 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
+        <div className="flex flex-col col-span-1 lg:col-span-4 ml-[-15px] mr-[-15px] pl-[3px] pr-[3px] rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
           <div className="p-3 border-b border-border/50 bg-card/50">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -438,7 +430,7 @@ export default function Emails() {
         </div>
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className="flex flex-col col-span-1 lg:col-span-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-sm overflow-hidden">
+        <div className="flex flex-col col-span-1 lg:col-span-6 ml-[13px] mr-[13px] rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-sm overflow-hidden">
           {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
             <div className="flex-1 flex flex-col h-full">
               {/* Cabeçalho da Mensagem */}
@@ -574,10 +566,10 @@ export default function Emails() {
               </div>
               
               <div className="p-4 border-t border-border/50 bg-card/40 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center ml-[-7px] mr-[-7px] gap-[-2px] pl-0 pr-0">
                   <AnexosEmail anexos={anexos} selecionados={selecionados} onAlternar={alternarAnexo} arquivosNovos={arquivosNovos} onAdicionarArquivos={(novos) => setArquivosNovos((prev) => [...prev, ...novos])} onRemoverArquivo={(idx) => setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))} />
                 </div>
-                <Button onClick={() => void enviar()} disabled={enviando} className="h-11 px-8 rounded-xl font-bold gap-2 text-sm shadow-md">
+                <Button onClick={() => void enviar()} disabled={enviando} className="h-11 mx-[-4px] my-[3px] px-[17px] py-[11px] rounded-xl font-bold gap-[3px] text-sm text-[rgba(205,219,248,1)] shadow-md bg-[rgba(15,162,230,0.2)]">
                   <Send size={16} />
                   {enviando ? "Enviando..." : "Enviar"}
                 </Button>

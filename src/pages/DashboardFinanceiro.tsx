@@ -38,13 +38,13 @@ function dataBruta(valor: string | null | undefined) {
 }
 function tomStatus(
   status: string | null,
-): "green" | "amber" | "red" | "blue" | "neutral" {
+): "green" | "amber" | "red" | "blue" | "violet" | "neutral" {
   const normalizado = status?.toLowerCase();
   if (normalizado === "pago" || normalizado === "aprovado") return "green";
-  if (normalizado === "cancelado" || normalizado === "reprovado") return "red";
+  if (["cancelado", "reprovado", "atrasado", "atrasada", "em atraso", "em_atraso", "overdue"].includes(normalizado || "")) return "red";
   if (normalizado === "enviado") return "blue";
+  if (["pendente", "pending"].includes(normalizado || "")) return "violet";
   if (
-    normalizado === "pendente" ||
     normalizado === "aberto" ||
     normalizado === "em_aberto"
   )
@@ -244,7 +244,7 @@ export default function DashboardFinanceiro({
                   <th className="px-4 py-4">Data</th>
                   <th className="px-4 py-4 text-right">Valor</th>
                   <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4 text-orange-500">EMAIL</th>
+                  <th className="px-4 py-4 text-muted-foreground">EMAIL</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,13 +325,7 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
         </EtiquetaStatus>
       </td>
       <td className="px-4 py-4 align-top">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em] ${
-            statusEmail(item) === "ENVIADO"
-              ? "bg-blue-500/12 text-blue-700 dark:text-blue-300"
-              : "bg-orange-500/12 text-orange-700 dark:text-orange-300"
-          }`}
-        >
+        <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
         </span>

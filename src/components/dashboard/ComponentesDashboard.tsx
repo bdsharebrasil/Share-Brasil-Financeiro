@@ -64,8 +64,8 @@ export function BarraProgresso({ value, color = "blue" }: { value: number; color
   return <div className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className={cn("h-full rounded-full transition-all", colors[color])} style={{ width: `${value}%` }} /></div>;
 }
 
-export function EtiquetaStatus({ children, tone = "neutral" }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "neutral" }) {
-  const styles = { green: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300", amber: "bg-amber-500/14 text-amber-700 dark:text-amber-300", red: "bg-red-500/12 text-red-700 dark:text-red-300", blue: "bg-primary/12 text-primary", neutral: "bg-secondary text-muted-foreground" };
+export function EtiquetaStatus({ children, tone = "neutral" }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "violet" | "neutral" }) {
+  const styles = { green: "text-emerald-500 dark:text-emerald-300", amber: "text-amber-500 dark:text-amber-300", red: "text-red-500 dark:text-red-300", blue: "text-sky-500 dark:text-sky-300", violet: "text-violet-500 dark:text-violet-300", neutral: "text-muted-foreground" };
   const rotulo = typeof children === "string" ? children.replace(/_/g, " ") : children;
   return <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone])}><span className="h-1.5 w-1.5 rounded-full bg-current" />{rotulo}</span>;
 }

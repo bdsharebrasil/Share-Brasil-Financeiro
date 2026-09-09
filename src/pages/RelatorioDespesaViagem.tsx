@@ -501,6 +501,14 @@ export default function RelatorioDespesaViagem({
     }
   };
   const gerarPdf = async (item: Relatorio) => {
+    const anexos = await Promise.all(
+      (item.anexos || []).map(async (anexo) => ({
+        nome_arquivo: anexo.nome_arquivo,
+        tipo_arquivo: anexo.tipo_arquivo,
+        indice_despesa: anexo.indice_despesa,
+        arquivo: await baixarAnexoRelatorio(item.id, anexo.id),
+      })),
+    );
     const blob = await gerarPdfRelatorioViagem({
       ...item,
       cliente_nome: item.cliente_nome || clienteSelecionado?.razao_social,
@@ -509,6 +517,7 @@ export default function RelatorioDespesaViagem({
       nome_tripulante_2: item.nome_tripulante_2 || form.nome_tripulante_2,
       despesas,
       total_valor: total,
+      anexos,
     });
     const arquivo = new File([blob], `relatorio-${item.numero_relatorio}.pdf`, {
       type: "application/pdf",

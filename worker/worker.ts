@@ -3879,7 +3879,7 @@ async function gerarNumeroRelatorioViagem(
   relatorioIdExcluir: string | null = null,
 ): Promise<string> {
   const codigoRow = socioId
-    ? await db.prepare(`SELECT ca.codigo_cliente AS codigo_cliente FROM hold_socios hs LEFT JOIN cotista_aeronave ca ON ca.id = hs.cotista_id AND ca.aeronave_id = ?1 WHERE hs.id = ?2 LIMIT 1`).bind(aeronaveId, socioId).first<{ codigo_cliente: string | null }>()
+    ? await db.prepare(`SELECT ca.codigo_cliente AS codigo_cliente FROM hold_socios hs LEFT JOIN cotista_aeronave ca ON ca.id = hs.cotista_id WHERE hs.id = ?1 LIMIT 1`).bind(socioId).first<{ codigo_cliente: string | null }>()
     : await db.prepare(`SELECT COALESCE(NULLIF(c.codigo_cliente, ''), NULLIF(ca.codigo_cliente, '')) AS codigo_cliente FROM cliente c LEFT JOIN cotista_aeronave ca ON ca.aeronave_id = ?2 AND (ca.cliente_id = c.id OR ca.id = ?1) WHERE c.id = ?1 LIMIT 1`).bind(clienteId, aeronaveId).first<{ codigo_cliente: string | null }>()
   const aeronave = await db.prepare('SELECT matricula_registro FROM aeronave WHERE id = ?1').bind(aeronaveId).first<{ matricula_registro: string | null }>()
   const codigo = normalizarCodigoRelatorio(codigoRow?.codigo_cliente)

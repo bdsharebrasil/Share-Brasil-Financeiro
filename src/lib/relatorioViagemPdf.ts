@@ -1,5 +1,6 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 
 type DespesaPdf = {
   data?: string;
@@ -22,6 +23,14 @@ export type RelatorioPdf = {
   observacoes?: string;
   despesas?: DespesaPdf[];
   total_valor?: number;
+  anexos?: AnexoPdf[];
+};
+
+export type AnexoPdf = {
+  nome_arquivo: string;
+  tipo_arquivo?: string | null;
+  indice_despesa?: number | null;
+  arquivo: Blob;
 };
 
 const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -38,6 +47,95 @@ const money = (value: unknown) => new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "BRL",
 }).format(Number(value) || 0);
 
+const payerLabel = (value?: string) => {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return ({
+    tripulante_1: "Tripulante 1",
+    tripulante_2: "Tripulante 2",
+    cliente: "Cliente",
+    sharebrasil: "Share Brasil",
+    share_brasil: "Share Brasil",
+  } as Record<string, string>)[normalized] || String(value || "—").replace(/_/g, " ");
+};
+
+const canvasDataUrl = (canvas: HTMLCanvasElement) => canvas.toDataURL("image/jpeg", 0.96);
+
+function carregarImagem(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Não foi possível carregar o comprovante.")); };
+    image.src = url;
+  });
+}
+
+function canvasA4(titulo: string, subtitulo: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 794;
+  canvas.height = 1123;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Não foi possível preparar a página do comprovante.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#1e3a8a";
+  context.font = "bold 22px Arial";
+  context.fillText(titulo, 38, 48);
+  context.fillStyle = "#444444";
+  context.font = "14px Arial";
+  context.fillText(subtitulo, 38, 74);
+  return { canvas, context };
+}
+
+async function paginaImagem(anexo: AnexoPdf, indice: number, despesa?: DespesaPdf) {
+  const { canvas, context } = canvasA4("Comprovantes Anexados", `Item Nº: ${indice + 1} · ${anexo.nome_arquivo}`);
+  const image = await carregarImagem(anexo.arquivo);
+  const margem = 38;
+  const topo = 96;
+  const larguraMaxima = canvas.width - margem * 2;
+  const alturaMaxima = canvas.height - topo - margem;
+  const escala = Math.min(larguraMaxima / image.naturalWidth, alturaMaxima / image.naturalHeight);
+  const largura = image.naturalWidth * escala;
+  const altura = image.naturalHeight * escala;
+  context.drawImage(image, (canvas.width - largura) / 2, topo + (alturaMaxima - altura) / 2, largura, altura);
+  if (despesa?.descricao) {
+    context.fillStyle = "#333333";
+    context.font = "bold 13px Arial";
+    context.fillText(`Descrição: ${despesa.descricao}`, margem, canvas.height - 18);
+  }
+  return canvas;
+}
+
+async function paginasPdf(anexo: AnexoPdf, indice: number, despesa?: DespesaPdf) {
+  GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
+  const documento = await getDocument({ data: await anexo.arquivo.arrayBuffer() }).promise;
+  const paginas: HTMLCanvasElement[] = [];
+  for (let numeroPagina = 1; numeroPagina <= documento.numPages; numeroPagina += 1) {
+    const pagina = await documento.getPage(numeroPagina);
+    const viewport = pagina.getViewport({ scale: 1.5 });
+    const origem = document.createElement("canvas");
+    origem.width = Math.ceil(viewport.width);
+    origem.height = Math.ceil(viewport.height);
+    await pagina.render({ canvas: origem, canvasContext: origem.getContext("2d")!, viewport }).promise;
+    const { canvas, context } = canvasA4("Comprovantes Anexados", `Item Nº: ${indice + 1} · ${anexo.nome_arquivo} · Página ${numeroPagina} de ${documento.numPages}`);
+    const margem = 38;
+    const topo = 96;
+    const larguraMaxima = canvas.width - margem * 2;
+    const alturaMaxima = canvas.height - topo - margem;
+    const escala = Math.min(larguraMaxima / origem.width, alturaMaxima / origem.height);
+    const largura = origem.width * escala;
+    const altura = origem.height * escala;
+    context.drawImage(origem, (canvas.width - largura) / 2, topo + (alturaMaxima - altura) / 2, largura, altura);
+    if (despesa?.descricao) {
+      context.fillStyle = "#333333";
+      context.font = "bold 13px Arial";
+      context.fillText(`Descrição: ${despesa.descricao}`, margem, canvas.height - 18);
+    }
+    paginas.push(canvas);
+  }
+  return paginas;
+}
+
 export async function gerarPdfRelatorioViagem(report: RelatorioPdf): Promise<Blob> {
   const despesas = Array.isArray(report.despesas) ? report.despesas : [];
   const rows = despesas.map((item) => `
@@ -46,7 +144,7 @@ export async function gerarPdfRelatorioViagem(report: RelatorioPdf): Promise<Blo
       <td>${escapeHtml(dateBr(item.data))}</td>
       <td>${escapeHtml(item.descricao || "Sem descrição")}</td>
       <td class="right">${escapeHtml(money(item.valor))}</td>
-      <td>${escapeHtml(item.pago_por || "—")}</td>
+      <td>${escapeHtml(payerLabel(item.pago_por))}</td>
     </tr>`).join("");
   const days = report.data_inicio && report.data_fim
     ? Math.max(1, Math.floor((Date.parse(`${report.data_fim}T00:00:00Z`) - Date.parse(`${report.data_inicio}T00:00:00Z`)) / 86400000) + 1)
@@ -58,7 +156,7 @@ export async function gerarPdfRelatorioViagem(report: RelatorioPdf): Promise<Blo
       *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif}
       .page{width:794px;min-height:1123px;border:3px solid #22c55e;padding:38px;background:#fff}
       .header{text-align:center;border-bottom:3px solid #22c55e;padding-bottom:20px;margin-bottom:26px}
-      .logo{width:76px;height:76px;object-fit:contain;margin-bottom:8px}.title{color:#1e3a8a;font-size:23px;font-weight:700;margin:0 0 8px}
+      .header{position:relative;padding-top:12px}.logo{position:absolute;left:0;top:-4px;width:105px;height:76px;object-fit:contain;object-position:left center}.title{color:#1e3a8a;font-size:23px;font-weight:700;margin:18px 0 8px}
       .number{font-size:15px;font-weight:700}.info{margin:18px 0 25px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 24px}
       .field{font-size:12px;line-height:1.45}.field b{color:#1e3a8a}.section{color:#1e3a8a;font-size:16px;font-weight:700;margin:18px 0 10px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #999;padding:7px;text-align:left;vertical-align:top}th{background:#e8e8e8;color:#1e3a8a}.right{text-align:right}
@@ -98,6 +196,18 @@ export async function gerarPdfRelatorioViagem(report: RelatorioPdf): Promise<Blo
       if (offset) pdf.addPage();
       pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, -offset, pageWidth, imageHeight);
       offset += pageHeight;
+    }
+    for (const anexo of report.anexos || []) {
+      const indice = Number(anexo.indice_despesa) || 0;
+      const despesa = despesas[indice];
+      const ehPdf = anexo.tipo_arquivo?.toLowerCase().includes("pdf") || anexo.nome_arquivo.toLowerCase().endsWith(".pdf");
+      const paginas = ehPdf
+        ? await paginasPdf(anexo, indice, despesa)
+        : [await paginaImagem(anexo, indice, despesa)];
+      paginas.forEach((pagina) => {
+        pdf.addPage();
+        pdf.addImage(canvasDataUrl(pagina), "JPEG", 0, 0, pageWidth, pageHeight);
+      });
     }
     return pdf.output("blob");
   } finally {

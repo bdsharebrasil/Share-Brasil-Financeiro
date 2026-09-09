@@ -736,7 +736,7 @@ financeiroRoutes.get('/envios-pagamento/opcoes', async (c) => {
   const db = c.env.SHARE_DB
   const read = async (sql: string) => (await db.prepare(sql).all().catch(() => ({ results: [] }))).results ?? []
   const [fornecedores, aeronaves, categorias, categoriasCliente] = await Promise.all([
-    read('SELECT id, COALESCE(apelido, razao_social, nome) AS label FROM fornecedores_favoritos ORDER BY label'),
+    read("SELECT id, COALESCE(NULLIF(apelido, ''), nome_completo) AS label FROM fornecedores_favoritos ORDER BY label"),
     read('SELECT id, matricula_registro, fabricante, modelo FROM aeronave ORDER BY matricula_registro'),
     read('SELECT id, nome, grupo_categoria, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4 FROM categoria_movimentacao_share ORDER BY nome'),
     read('SELECT id, nome, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4 FROM categoria_movimentacao_cliente ORDER BY nome'),

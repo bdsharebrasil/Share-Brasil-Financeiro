@@ -529,7 +529,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         <span className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">{opcao.titulo}</span>
                         {opcao.detalhe && <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{opcao.detalhe}</span>}
                       </span>
-                      <Icon size={16} className={`mt-0.5 shrink-0 ${ativo ? opcao.cor : opcao.tipo === "share" ? "text-[#3423f5]" : "text-muted-foreground/60"}`} />
+                      <Icon size={16} className={`mt-0.5 shrink-0 ${ativo ? opcao.cor : "text-muted-foreground"}`} />
                     </button>
                   );
                 })}

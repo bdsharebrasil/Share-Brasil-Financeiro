@@ -84,14 +84,14 @@ export default function RelatorioFolder({ carregando, clientes, relatorios, visa
     const nomesClientes = new Map(clientes.map((cliente) => [cliente.id, cliente.razao_social || "Cliente sem razão social"]));
     const grupos = new Map<string, CotistaFolder>();
     relatoriosFinalizados.forEach((relatorio) => {
-      const id = relatorio.holding_nome
-        ? `holding:${relatorio.cliente_id || relatorio.holding_nome}`
-        : relatorio.socio_id
-          ? `socio:${relatorio.socio_id}`
+      const id = relatorio.socio_id
+        ? `socio:${relatorio.socio_id}`
+        : relatorio.holding_nome
+          ? `holding:${relatorio.cliente_id || relatorio.holding_nome}`
           : `cliente:${relatorio.cliente_id || "sem-cliente"}`;
-      const nome = relatorio.holding_nome || (relatorio.socio_id
+      const nome = relatorio.socio_id
         ? relatorio.socio_nome || "Sócio não identificado"
-        : relatorio.cliente_nome || nomesClientes.get(relatorio.cliente_id || "") || "Cliente não identificado");
+        : relatorio.holding_nome || relatorio.cliente_nome || nomesClientes.get(relatorio.cliente_id || "") || "Cliente não identificado";
       const atual = grupos.get(id) || { id, nome, relatorios: [] };
       atual.relatorios.push(relatorio);
       grupos.set(id, atual);

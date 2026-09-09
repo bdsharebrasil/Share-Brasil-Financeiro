@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   CircleAlert,
+  Eye,
   FileDown,
   FilePlus2,
   FileText,
@@ -14,6 +15,7 @@ import {
   Send,
   Trash2,
   Upload,
+  X,
   Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +35,10 @@ import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
 import {
   atualizarRelatorioDespesaViagem,
+  baixarAnexoRelatorio,
   baixarPdfRelatorio,
   buscarOpcoesRelatorioViagem,
+  buscarRelatorioDespesaViagem,
   buscarRelatoriosDespesaViagem,
   criarRelatorioDespesaViagem,
   decidirAprovacaoRelatorio,
@@ -45,6 +49,7 @@ import {
   excluirRelatorioDespesaViagem,
   finalizarRelatorioDespesaViagem,
   type OpcoesRelatorioViagem,
+  type RelatorioDespesaViagemAnexo,
   type RelatorioDespesaViagem as Relatorio,
 } from "@/lib/colaborador-api";
 
@@ -194,11 +199,26 @@ export default function RelatorioDespesaViagem({
     texto: string;
   } | null>(null);
   const [anexando, setAnexando] = useState(false);
+  const [anexoVisualizado, setAnexoVisualizado] = useState<{
+    anexo: RelatorioDespesaViagemAnexo;
+    url: string;
+  } | null>(null);
+  const [carregandoAnexo, setCarregandoAnexo] = useState(false);
+  const comprovanteInputRefs = useRef<Record<string, HTMLInputElement | null>>(
+    {},
+  );
   const [aba, setAba] = useState<"lista" | "editor">("lista");
   const [visaoLista, setVisaoLista] = useState<"finalizados" | "rascunhos">(
     "finalizados",
   );
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
+
+  useEffect(
+    () => () => {
+      if (anexoVisualizado) URL.revokeObjectURL(anexoVisualizado.url);
+    },
+    [anexoVisualizado],
+  );
 
   const carregar = async () => {
     setCarregando(true);
@@ -297,7 +317,19 @@ export default function RelatorioDespesaViagem({
     setMensagem(null);
     setAba("editor");
   };
-  const abrirRelatorio = (item: Relatorio) => {
+  const abrirRelatorio = async (item: Relatorio) => {
+    try {
+      const resposta = await buscarRelatorioDespesaViagem(item.id);
+      item = resposta.relatorio;
+    } catch (error) {
+      setMensagem({
+        tipo: "erro",
+        texto:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os anexos do relatório.",
+      });
+    }
     setRelatorio(item);
     setForm({
       numero_voo: item.numero_voo || "",
@@ -581,11 +613,13 @@ export default function RelatorioDespesaViagem({
     indiceDespesa = 0,
   ) => {
     const arquivo = event.target.files?.[0];
-    if (!arquivo || !relatorio) return;
+    if (!arquivo) return;
     setAnexando(true);
     try {
+      const relatorioAtual = relatorio || (await salvar(true));
+      if (!relatorioAtual) return;
       const resposta = await enviarAnexoRelatorio(
-        relatorio.id,
+        relatorioAtual.id,
         arquivo,
         indiceDespesa,
       );
@@ -593,6 +627,13 @@ export default function RelatorioDespesaViagem({
         atual
           ? { ...atual, anexos: [...(atual.anexos || []), resposta.anexo] }
           : atual,
+      );
+      setRelatorios((atuais) =>
+        atuais.map((item) =>
+          item.id === relatorioAtual.id
+            ? { ...item, anexos: [...(item.anexos || []), resposta.anexo] }
+            : item,
+        ),
       );
       setMensagem({ tipo: "ok", texto: "Comprovante anexado." });
     } catch (error) {
@@ -608,6 +649,39 @@ export default function RelatorioDespesaViagem({
       event.target.value = "";
     }
   };
+  const visualizarAnexo = async (anexo: RelatorioDespesaViagemAnexo) => {
+    if (!relatorio) return;
+    setCarregandoAnexo(true);
+    try {
+      const url = URL.createObjectURL(
+        await baixarAnexoRelatorio(relatorio.id, anexo.id),
+      );
+      setAnexoVisualizado((atual) => {
+        if (atual) URL.revokeObjectURL(atual.url);
+        return { anexo, url };
+      });
+    } catch (error) {
+      setMensagem({
+        tipo: "erro",
+        texto:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível visualizar o comprovante.",
+      });
+    } finally {
+      setCarregandoAnexo(false);
+    }
+  };
+  const fecharVisualizacaoAnexo = () => {
+    setAnexoVisualizado((atual) => {
+      if (atual) URL.revokeObjectURL(atual.url);
+      return null;
+    });
+  };
+  const anexoDaDespesa = (indice: number) =>
+    [...(relatorio?.anexos || [])]
+      .reverse()
+      .find((anexo) => anexo.indice_despesa === indice);
   const atualizarDespesa = (
     id: string,
     campo: keyof Despesa,
@@ -889,13 +963,16 @@ export default function RelatorioDespesaViagem({
             <Plus size={14} /> Adicionar despesa
           </Button>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {despesas.map((despesa, index) => (
+        <CardContent className="flex flex-col gap-3">
+          {despesas
+            .map((despesa, index) => ({ despesa, index }))
+            .reverse()
+            .map(({ despesa, index }) => (
             <div
               key={despesa.id}
               className="grid gap-3 rounded-xl border border-border/70 bg-background/30 p-3 md:grid-cols-4"
             >
-              <Campo label={index === 0 ? "Categoria *" : undefined}>
+              <Campo label={index === despesas.length - 1 ? "Categoria *" : undefined}>
                 <SearchableCombobox
                   items={categorias.map((item) => ({ id: item, label: item }))}
                   value={despesa.categoria}
@@ -907,7 +984,7 @@ export default function RelatorioDespesaViagem({
                   disabled={bloqueado}
                 />
               </Campo>
-              <Campo label={index === 0 ? "Data da Despesa" : undefined}>
+              <Campo label={index === despesas.length - 1 ? "Data da Despesa" : undefined}>
                 <Input
                   type="date"
                   value={despesa.data}
@@ -917,7 +994,7 @@ export default function RelatorioDespesaViagem({
                   disabled={bloqueado}
                 />
               </Campo>
-              <Campo label={index === 0 ? "Valor (R$) *" : undefined}>
+              <Campo label={index === despesas.length - 1 ? "Valor (R$) *" : undefined}>
                 <Input
                   type="number"
                   min={0}
@@ -929,7 +1006,7 @@ export default function RelatorioDespesaViagem({
                   disabled={bloqueado}
                 />
               </Campo>
-              <Campo label={index === 0 ? "Pago Por *" : undefined}>
+              <Campo label={index === despesas.length - 1 ? "Pago Por *" : undefined}>
                 <select
                   value={despesa.pago_por}
                   onChange={(e) =>
@@ -950,7 +1027,7 @@ export default function RelatorioDespesaViagem({
                   </option>
                 </select>
               </Campo>
-              <Campo label={index === 0 ? "Descrição" : undefined}>
+              <Campo label={index === despesas.length - 1 ? "Descrição" : undefined}>
                 <Input
                   value={despesa.descricao}
                   onChange={(e) =>
@@ -960,22 +1037,53 @@ export default function RelatorioDespesaViagem({
                   disabled={bloqueado}
                 />
               </Campo>
-              <Campo label={index === 0 ? "Comprovante" : undefined}>
-                <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent/50">
-                  <Upload size={14} className="text-muted-foreground" />
-                  <span className="truncate">
-                    {(relatorio?.anexos || []).find(
-                      (anexo) => anexo.indice_despesa === index,
-                    )?.nome_arquivo || "Enviar"}
-                  </span>
+              <Campo label={index === despesas.length - 1 ? "Comprovante" : undefined}>
+                <div className="flex w-full items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-10 min-w-0 flex-1 justify-start border-primary/40 bg-primary/5 text-primary hover:border-primary hover:bg-primary/10"
+                    onClick={() =>
+                      comprovanteInputRefs.current[despesa.id]?.click()
+                    }
+                    disabled={bloqueado || anexando}
+                  >
+                    <Upload size={14} />
+                    <span className="truncate">
+                      {(relatorio?.anexos || []).find(
+                        (anexo) => anexo === anexoDaDespesa(index),
+                      )?.nome_arquivo || "Enviar comprovante"}
+                    </span>
+                  </Button>
+                  {anexoDaDespesa(index) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="Visualizar comprovante"
+                      title="Visualizar comprovante"
+                      className="size-10 shrink-0 border-primary/40 text-primary hover:border-primary hover:bg-primary/10"
+                      onClick={() => {
+                        const anexo = anexoDaDespesa(index);
+                        if (anexo) void visualizarAnexo(anexo);
+                      }}
+                      disabled={carregandoAnexo}
+                    >
+                      <Eye size={16} />
+                    </Button>
+                  )}
                   <input
+                    ref={(element) => {
+                      comprovanteInputRefs.current[despesa.id] = element;
+                    }}
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
                     onChange={(event) => void uploadAnexo(event, index)}
-                    disabled={!relatorio || bloqueado || anexando}
+                    disabled={bloqueado || anexando}
                   />
-                </label>
+                </div>
               </Campo>
               <div className="flex items-end justify-end">
                 <Button
@@ -996,7 +1104,7 @@ export default function RelatorioDespesaViagem({
                 </Button>
               </div>
             </div>
-          ))}
+            ))}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>
@@ -1110,6 +1218,50 @@ export default function RelatorioDespesaViagem({
             )}
           </CardContent>
         </Card>
+        {anexoVisualizado && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Visualização de ${anexoVisualizado.anexo.nome_arquivo}`}
+            onClick={fecharVisualizacaoAnexo}
+          >
+            <div
+              className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <p className="min-w-0 truncate text-sm font-semibold">
+                  {anexoVisualizado.anexo.nome_arquivo}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Fechar visualização"
+                  onClick={fecharVisualizacaoAnexo}
+                >
+                  <X size={18} />
+                </Button>
+              </div>
+              <div className="flex min-h-[50vh] items-center justify-center overflow-auto bg-black/20 p-4">
+                {anexoVisualizado.anexo.tipo_arquivo?.startsWith("image/") ? (
+                  <img
+                    src={anexoVisualizado.url}
+                    alt={anexoVisualizado.anexo.nome_arquivo}
+                    className="max-h-[72vh] max-w-full object-contain"
+                  />
+                ) : (
+                  <iframe
+                    src={anexoVisualizado.url}
+                    title={anexoVisualizado.anexo.nome_arquivo}
+                    className="h-[72vh] w-full rounded-md bg-background"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

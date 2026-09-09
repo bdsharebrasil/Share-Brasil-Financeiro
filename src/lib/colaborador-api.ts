@@ -1017,6 +1017,13 @@ export function enviarRelatorioParaAprovacao(id: string, tripulantePos: 1 | 2) {
 export function decidirAprovacaoRelatorio(id: string, tripulantePos: 1 | 2, aprovado: boolean, observacoes: string) { return colaboradorRequest<{ relatorio: RelatorioDespesaViagem }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/aprovacao`, { method: "POST", body: JSON.stringify({ tripulante_pos: tripulantePos, aprovado, observacoes }) }); }
 export function enviarAnexoRelatorio(id: string, arquivo: File, indiceDespesa = 0) { const body = new FormData(); body.append("arquivo", arquivo); body.append("indice_despesa", String(indiceDespesa)); return colaboradorRequest<{ anexo: RelatorioDespesaViagemAnexo }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos`, { method: "POST", body }); }
 export function excluirAnexoRelatorio(id: string, anexoId: string) { return colaboradorRequest<{ success: boolean }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/${encodeURIComponent(anexoId)}`, { method: "DELETE" }); }
+export async function baixarAnexoRelatorio(id: string, anexoId: string) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) throw new Error(sessionError ? "sessao_expirada" : "sessao_nao_encontrada");
+  const response = await fetch(`${API_BASE}/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/anexos/${encodeURIComponent(anexoId)}/arquivo`, { headers: { Authorization: `Bearer ${session.access_token}` }, credentials: "omit" });
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data?.error || `api_${response.status}`); }
+  return response.blob();
+}
 export function enviarPdfRelatorio(id: string, arquivo: File) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); return colaboradorRequest<{ pdf_url: string; pdf_path: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/pdf`, { method: "POST", body }); }
 export async function baixarPdfRelatorio(id: string) {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();

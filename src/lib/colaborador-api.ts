@@ -116,13 +116,31 @@ export function buscarContagemMensagensNaoLidas() {
 
 export type UsuarioMensagem = { id: string; nome: string; email: string; departamento?: string | null };
 export type PastaMensagem = "inbox" | "nao-lidas" | "favoritas" | "enviadas" | "arquivo";
-export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; remetente_nome?: string; destinatario_nome?: string; assunto: string | null; conteudo: string; lida: number; favorita?: number; arquivada?: number; excluida?: number; papel?: "remetente" | "destinatario"; criado_em: string };
+export type AnexoMensagemInterna = { id: string; nome_arquivo: string; tipo_arquivo: string | null; tamanho_arquivo?: number | null; criado_em?: string };
+export type MensagemInterna = { id: string; remetente_id: string; destinatario_id: string; remetente_nome?: string; destinatario_nome?: string; assunto: string | null; conteudo: string; lida: number; favorita?: number; arquivada?: number; excluida?: number; papel?: "remetente" | "destinatario"; criado_em: string; anexos?: AnexoMensagemInterna[] };
 export function buscarUsuariosMensagem() { return colaboradorRequest<{ usuarios: UsuarioMensagem[] }>("/api/mensagens/usuarios"); }
 export function buscarInboxMensagens() { return colaboradorRequest<MensagemInterna[]>("/api/mensagens/inbox"); }
 export function buscarMensagensPasta(pasta: PastaMensagem) { return colaboradorRequest<MensagemInterna[]>(`/api/mensagens/pasta/${pasta}`); }
 export function buscarOutboxMensagens() { return buscarMensagensPasta("enviadas"); }
 export function alterarEstadoMensagem(id: string, estado: Partial<Pick<MensagemInterna, "lida" | "favorita" | "arquivada" | "excluida">>) { return colaboradorRequest<{ success: boolean; mensagem_id: string }>(`/api/mensagens/${id}/estado`, { method: "PATCH", body: JSON.stringify(estado) }); }
-export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string }) { return colaboradorRequest<{ success: boolean; id: string; destinatario_id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) }); }
+export function enviarMensagemInterna(payload: { destinatario_id: string; assunto: string; conteudo: string; arquivos?: File[] }) {
+  if (payload.arquivos?.length) {
+    const body = new FormData();
+    body.append("destinatario_id", payload.destinatario_id);
+    body.append("assunto", payload.assunto);
+    body.append("conteudo", payload.conteudo);
+    payload.arquivos.forEach((arquivo) => body.append("arquivos", arquivo, arquivo.name));
+    return colaboradorRequest<{ success: boolean; id: string; destinatario_id: string }>("/api/mensagens", { method: "POST", body });
+  }
+  return colaboradorRequest<{ success: boolean; id: string; destinatario_id: string }>("/api/mensagens", { method: "POST", body: JSON.stringify(payload) });
+}
+export async function baixarAnexoMensagem(mensagemId: string, anexoId: string) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+  const response = await fetch(`${API_BASE}/api/mensagens/${encodeURIComponent(mensagemId)}/anexos/${encodeURIComponent(anexoId)}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+  if (!response.ok) throw new Error(`api_${response.status}`);
+  return response.blob();
+}
 
 export function atualizarPerfilColaborador(dados: Partial<Pick<PerfilColaborador, "nome_completo" | "cpf" | "telefone">>) {
   return colaboradorRequest<{ perfil: PerfilColaborador }>("/api/colaborador/perfil", {

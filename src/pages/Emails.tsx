@@ -45,6 +45,7 @@ import {
   buscarUsuariosMensagem,
   enviarEmailCliente,
   enviarMensagemInterna,
+  baixarAnexoMensagem,
   type AnexoEmail,
   type ContatoEmail,
   type ContaBancariaEmail,
@@ -206,7 +207,7 @@ export default function Emails() {
       const destinatarios = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
       if (tipoEnvio === "interno") {
         if (!destinatarioUsuarioId) { setErro("Selecione um usuário destinatário."); return; }
-        await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim() });
+        await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim(), arquivos: arquivosNovos });
       } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
 
       setSucesso(tipoEnvio === "interno" ? "Mensagem interna enviada para o inbox do usuário." : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
@@ -236,6 +237,21 @@ export default function Emails() {
       await Promise.all([carregarPasta(), buscarContagemMensagensNaoLidas().then(({ unread }) => setContagemNaoLidas(unread))]);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível atualizar a mensagem.");
+    }
+  };
+
+  const abrirAnexoMensagem = async (mensagemId: string, anexoId: string, nomeArquivo: string) => {
+    try {
+      const blob = await baixarAnexoMensagem(mensagemId, anexoId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nomeArquivo;
+      link.target = "_blank";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o anexo.");
     }
   };
 
@@ -381,6 +397,7 @@ export default function Emails() {
             <div className="space-y-5 rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4 border-b border-border/50 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-primary">{mensagemInternaSelecionada.papel === "remetente" ? "Mensagem enviada" : "Mensagem recebida"}</p><h2 className="mt-1 text-lg font-bold">{mensagemInternaSelecionada.assunto || "(Sem assunto)"}</h2><p className="mt-1 text-[10px] text-muted-foreground">{mensagemInternaSelecionada.papel === "remetente" ? "Enviada" : "Recebida"} em {dataBr(mensagemInternaSelecionada.criado_em)} às {horaBr(mensagemInternaSelecionada.criado_em)}</p></div><div className="flex items-center gap-1"><Button type="button" variant="ghost" size="sm" title={mensagemInternaSelecionada.favorita ? "Remover favorito" : "Favoritar"} onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { favorita: mensagemInternaSelecionada.favorita ? 0 : 1 }, mensagemInternaSelecionada.favorita ? "Mensagem removida dos favoritos." : "Mensagem favoritada.")}><Star className={mensagemInternaSelecionada.favorita ? "fill-amber-400 text-amber-400" : ""} size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Arquivar" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { arquivada: 1 }, "Mensagem arquivada.")}><Archive size={15} /></Button><Button type="button" variant="ghost" size="sm" title="Excluir" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para a lixeira.")}><Trash2 size={15} /></Button><Button variant="ghost" size="sm" onClick={() => setMensagemInternaSelecionada(null)}>Fechar</Button></div></div>
               <div className="space-y-1 text-[11px] text-muted-foreground"><p>{mensagemInternaSelecionada.papel === "remetente" ? `Para: ${mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id}` : `De: ${mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}`}</p><p>{mensagemInternaSelecionada.lida ? "Lida" : "Não lida"}</p></div><p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">{mensagemInternaSelecionada.conteudo}</p>
+              {!!mensagemInternaSelecionada.anexos?.length && <div className="space-y-2 border-t border-border/50 pt-4"><p className="flex items-center gap-2 text-xs font-semibold text-foreground"><Paperclip size={14} /> Anexos</p>{mensagemInternaSelecionada.anexos.map((anexo) => <button type="button" key={anexo.id} onClick={() => void abrirAnexoMensagem(mensagemInternaSelecionada.id, anexo.id, anexo.nome_arquivo)} className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-left text-xs text-primary hover:bg-primary/10"><FileText size={14} /><span className="truncate">{anexo.nome_arquivo}</span></button>)}</div>}
             </div>
           ) : configAberta ? (
             <div className="rounded-2xl border border-border/60 bg-card/60 p-6 space-y-5 backdrop-blur-xl">

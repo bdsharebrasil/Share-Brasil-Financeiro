@@ -1,44 +1,302 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Landmark, Mail, Paperclip, Plus, Search, Send, X } from "lucide-react";
-import { buscarCentralEmail, buscarContasBancariasEmail, buscarMinhaAssinatura, enviarEmailCliente, type ContaBancariaEmail, type AssinaturaEmail, type ContatoEmail } from "@/lib/colaborador-api";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Building2, Check, Loader2, Mail, Paperclip, Search, Send, X } from "lucide-react";
+import { buscarCentralEmail, buscarContasBancariasEmail, buscarMinhaAssinatura, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail } from "@/lib/colaborador-api";
 
 export type AnexoEmail = { id?: string; url?: string; label?: string; filename?: string };
-type Props = { open: boolean; onOpenChange: (open: boolean) => void; onSent?: () => void; destinatarioInicial?: string | null; assuntoSugerido?: string; mensagemSugerida?: string; anexos?: AnexoEmail[] };
 
-const normalizarEmails = (valor: string) => valor.split(/[;,\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+type SendStatus = "idle" | "sending" | "sent";
 
-export function EnviarEmailClienteDialog({ open, onOpenChange, onSent, destinatarioInicial = "", assuntoSugerido = "", mensagemSugerida = "", anexos = [] }: Props) {
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSent?: () => void;
+  destinatarioInicial?: string | null;
+  assuntoSugerido?: string;
+  mensagemSugerida?: string;
+  anexos?: AnexoEmail[];
+};
+
+const normalizarEmails = (valor: string) =>
+  valor
+    .split(/[;,\s]+/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+const montarMensagemComRodape = (mensagem: string, assinatura: string, dadosBancarios: string) =>
+  [mensagem.trim(), dadosBancarios.trim(), assinatura.trim()].filter(Boolean).join("\n\n");
+
+export function EnviarEmailClienteDialog({
+  open,
+  onOpenChange,
+  onSent,
+  destinatarioInicial = "",
+  assuntoSugerido = "",
+  mensagemSugerida = "",
+  anexos = [],
+}: Props) {
   const [destinatario, setDestinatario] = useState("");
-  const [copias, setCopias] = useState<string[]>([]);
   const [buscaContato, setBuscaContato] = useState("");
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
-  const [assunto, setAssunto] = useState(""); const [mensagem, setMensagem] = useState("");
-  const [contas, setContas] = useState<ContaBancariaEmail[]>([]); const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
-  const [enviando, setEnviando] = useState(false); const [erro, setErro] = useState(""); const [sucesso, setSucesso] = useState("");
+  const [contas, setContas] = useState<ContaBancariaEmail[]>([]);
+  const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
+  const [assunto, setAssunto] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [status, setStatus] = useState<SendStatus>("idle");
+  const [erro, setErro] = useState("");
+  const [toast, setToast] = useState<{ status: "sending" | "sent"; message: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setDestinatario(destinatarioInicial || ""); setCopias([]); setBuscaContato(""); setAssunto(assuntoSugerido); setMensagem(mensagemSugerida); setErro(""); setSucesso("");
-    void Promise.all([buscarContasBancariasEmail(), buscarMinhaAssinatura(), buscarCentralEmail()]).then(([bancos, assinaturaAtual, central]) => { setContas(bancos.contas || []); setAssinatura(assinaturaAtual); setContatos(central.contatos || []); }).catch(() => setErro("Não foi possível carregar os dados do formulário de e-mail."));
+    setDestinatario(destinatarioInicial || "");
+    setBuscaContato("");
+    setAssunto(assuntoSugerido);
+    setMensagem(mensagemSugerida);
+    setStatus("idle");
+    setErro("");
+    setToast(null);
+    void Promise.all([buscarCentralEmail(), buscarContasBancariasEmail(), buscarMinhaAssinatura()])
+      .then(([central, bancos, assinaturaAtual]) => {
+        setContatos(central.contatos || []);
+        setContas(bancos.contas || []);
+        setAssinatura(assinaturaAtual);
+      })
+      .catch(() => setErro("Não foi possível carregar contatos e dados bancários."));
   }, [open, destinatarioInicial, assuntoSugerido, mensagemSugerida]);
 
   const contatosFiltrados = useMemo(() => {
     const termo = buscaContato.trim().toLowerCase();
-    return contatos.filter((contato) => !termo || `${contato.nome} ${contato.email} ${contato.tipo}`.toLowerCase().includes(termo)).slice(0, 30);
-  }, [contatos, buscaContato]);
-  const emailsPrincipal = normalizarEmails(destinatario);
-  const adicionarCopia = (email: string) => { const valor = email.trim().toLowerCase(); if (!valor || emailsPrincipal.includes(valor) || copias.includes(valor)) return; setCopias((atual) => [...atual, valor]); };
-  const selecionarPrincipal = (email: string) => { if (!email.trim()) return; setDestinatario(email.trim()); setCopias((atual) => atual.filter((item) => item !== email.trim().toLowerCase())); };
-  const inserirBanco = (conta: ContaBancariaEmail) => setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
-  const enviar = async () => {
-    const principais = normalizarEmails(destinatario);
-    if (!principais.length || !assunto.trim() || !mensagem.trim()) { setErro("Informe o destinatário principal, assunto e mensagem."); return; }
-    setEnviando(true); setErro(""); setSucesso("");
-    try { await enviarEmailCliente({ destinatarios: principais, cc: copias.filter((email) => !principais.includes(email)), assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexos.filter((item) => item.id).map((item) => item.id!) }); onSent?.(); setSucesso("E-mail enviado com sucesso."); window.setTimeout(() => onOpenChange(false), 900); }
-    catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail."); } finally { setEnviando(false); }
+    if (!termo) return [];
+    return contatos
+      .filter((contato) => `${contato.nome} ${contato.email} ${contato.tipo}`.toLowerCase().includes(termo))
+      .slice(0, 8);
+  }, [buscaContato, contatos]);
+
+  const selecionarContato = (contato: ContatoEmail) => {
+    const atuais = destinatario.split(/[;,\s]+/).map((item) => item.trim()).filter(Boolean);
+    if (!atuais.some((email) => email.toLowerCase() === contato.email.toLowerCase())) {
+      setDestinatario([...atuais, contato.email].join("; "));
+    }
+    setBuscaContato("");
   };
+
+  const inserirBanco = (conta: ContaBancariaEmail) => {
+    setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
+  };
+
+  const assinaturaTexto = assinatura
+    ? ["--", assinatura.nome, assinatura.cargo, assinatura.telefone, assinatura.email, assinatura.endereco].filter(Boolean).join("\n")
+    : "";
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && status === "idle") onOpenChange(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, status, onOpenChange]);
+
+  const handleSend = async () => {
+    if (status !== "idle") return;
+    const destinatarios = normalizarEmails(destinatario);
+    if (!destinatarios.length || !assunto.trim() || !mensagem.trim()) {
+      setErro("Informe o destinatário, o assunto e a mensagem.");
+      return;
+    }
+    setErro("");
+    setStatus("sending");
+    setToast({ status: "sending", message: "Enviando e-mail..." });
+    try {
+      await enviarEmailCliente({
+        destinatarios,
+        cc: [],
+        assunto: assunto.trim(),
+        mensagem: montarMensagemComRodape(mensagem, assinaturaTexto, ""),
+        anexos: anexos.filter((item) => item.id).map((item) => item.id!),
+      });
+      setStatus("sent");
+      setToast({ status: "sent", message: "Enviado" });
+      onSent?.();
+      window.setTimeout(() => {
+        setToast(null);
+        setStatus("idle");
+        onOpenChange(false);
+      }, 1400);
+    } catch (cause) {
+      setStatus("idle");
+      setToast(null);
+      setErro(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
+    }
+  };
+
   if (!open) return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-2xl md:p-7"><div className="mb-5 flex items-start justify-between gap-4 border-b border-border/60 pb-4"><div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-primary"><Mail className="h-4 w-4" /> Nova mensagem</p><h2 className="mt-1 text-lg font-bold">Enviar documento por e-mail</h2></div><button type="button" onClick={() => onOpenChange(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button></div><div className="space-y-4"><div><label className="text-xs font-semibold">Destinatário principal</label><Input value={destinatario} onChange={(event) => setDestinatario(event.target.value)} placeholder="E-mail principal do cotista" className="mt-1 h-10 rounded-xl text-xs" /></div><div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4"><div className="mb-2 flex items-center gap-2"><Search size={15} className="text-primary" /><p className="text-xs font-semibold">Pesquisar e-mails cadastrados</p></div><Input value={buscaContato} onChange={(event) => setBuscaContato(event.target.value)} placeholder="Buscar por nome ou e-mail..." className="h-9 rounded-lg text-xs" />{buscaContato && <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">{contatosFiltrados.length ? contatosFiltrados.map((contato) => <div key={`${contato.id}:${contato.email}`} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-xs"><div className="min-w-0 flex-1"><span className="block truncate font-semibold">{contato.nome}</span><span className="block truncate text-[10px] text-muted-foreground">{contato.email}</span></div><button type="button" onClick={() => adicionarCopia(contato.email)} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/30 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/10"><Plus size={12} /> Cópia</button><button type="button" onClick={() => selecionarPrincipal(contato.email)} className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground">Principal</button></div>) : <p className="py-2 text-[11px] text-muted-foreground">Nenhum e-mail cadastrado encontrado.</p>}</div>}</div><div><label className="text-xs font-semibold">E-mails em cópia</label><div className="mt-1 flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl border border-border bg-background/70 p-2">{copias.length ? copias.map((email) => <span key={email} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] text-primary">{email}<button type="button" onClick={() => setCopias((atual) => atual.filter((item) => item !== email))} aria-label={`Remover ${email}`}><X size={11} /></button></span>) : <span className="text-[11px] text-muted-foreground">Pesquise e adicione contatos em cópia.</span>}</div><p className="mt-1 text-[10px] text-muted-foreground">Você pode adicionar vários contatos cadastrados.</p></div><div><label className="text-xs font-semibold">Assunto</label><Input value={assunto} onChange={(event) => setAssunto(event.target.value)} placeholder="Assunto da mensagem" className="mt-1 h-10 rounded-xl text-xs" /></div><div><label className="text-xs font-semibold">Mensagem</label><Textarea value={mensagem} onChange={(event) => setMensagem(event.target.value)} placeholder="Escreva sua mensagem..." className="mt-1 min-h-[150px] rounded-xl text-xs" />{assinatura && <div className="mt-2 rounded-xl border border-border/60 bg-white p-3 text-[#333] shadow-sm"><strong className="block text-sm">{assinatura.nome}</strong>{assinatura.cargo && <span className="block text-[10px]">{assinatura.cargo}</span>}{assinatura.telefone && <span className="block text-[10px]">{assinatura.telefone}</span>}{assinatura.endereco && <span className="block text-[10px]">{assinatura.endereco}</span>}<span className="mt-1 block text-[10px] text-muted-foreground">Assinatura fixa aplicada automaticamente ao e-mail enviado.</span></div>}</div><div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4"><div className="mb-2 flex items-center gap-2"><Landmark size={15} className="text-primary" /><p className="text-xs font-semibold">Inserir dados bancários</p></div><p className="mb-3 text-[11px] text-muted-foreground">Clique em uma conta para adicionar os dados ao final da mensagem.</p><div className="grid gap-2 sm:grid-cols-2">{contas.map((conta) => <button type="button" key={conta.id} onClick={() => inserirBanco(conta)} className="rounded-lg border border-border/60 bg-card/50 p-3 text-left text-xs hover:border-primary/50 hover:bg-primary/[.06]"><span className="block font-semibold">{conta.banco}</span><span className="mt-1 block text-[10px] text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div></div><div className="rounded-xl border border-border/50 bg-muted/20 p-4"><p className="mb-2 text-xs font-semibold">Anexos e Documentos</p>{anexos.length ? anexos.map((anexo) => <div key={anexo.id || anexo.url} className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs"><Paperclip className="h-3.5 w-3.5 text-primary" /><span>{anexo.label || anexo.filename || "Documento"}</span><span className="ml-auto text-[10px] text-emerald-500">Anexo automático</span></div>) : <p className="text-[11px] text-muted-foreground">Nenhum documento disponível para anexar.</p>}</div>{erro && <p className="rounded-lg border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-400">{erro}</p>}{sucesso && <p className="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-500">{sucesso}</p>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => onOpenChange(false)} className="rounded-xl border border-border px-4 py-2 text-xs font-semibold">Cancelar</button><button type="button" onClick={() => void enviar()} disabled={enviando} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"><Send className="h-3.5 w-3.5" />{enviando ? "Enviando..." : "Enviar mensagem"}</button></div></div></div></div>;
+
+  const canSend = destinatario.trim() && assunto.trim() && mensagem.trim() && status === "idle";
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+        <div className="modal-enter w-full max-w-lg overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d1625] shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/[.06] px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400">
+                <Mail size={15} />
+              </span>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[.16em] text-sky-400">Nova mensagem</p>
+                <h2 className="text-sm font-bold text-white">Enviar por e-mail</h2>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => status === "idle" && onOpenChange(false)}
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
+              aria-label="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="space-y-3 px-5 py-4">
+            <div>
+              <label className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">Para</label>
+              <input
+                value={destinatario}
+                onChange={(e) => setDestinatario(e.target.value)}
+                placeholder="nome@empresa.com"
+                disabled={status !== "idle"}
+                className="h-10 w-full rounded-lg border border-white/[.06] bg-[#080f1d] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50"
+              />
+              <div className="relative mt-2">
+                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+                <input
+                  value={buscaContato}
+                  onChange={(e) => setBuscaContato(e.target.value)}
+                  placeholder="Buscar cliente ou sócio holding..."
+                  disabled={status !== "idle"}
+                  className="h-8 w-full rounded-lg border border-white/[.06] bg-[#080f1d] pl-8 pr-3 text-[10px] text-slate-300 outline-none placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50"
+                />
+                {contatosFiltrados.length > 0 && <div className="absolute inset-x-0 top-9 z-10 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-white/[.08] bg-[#0d1625] p-1.5 shadow-xl">
+                  {contatosFiltrados.map((contato) => <button key={`${contato.id}:${contato.email}`} type="button" onClick={() => selecionarContato(contato)} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left hover:bg-sky-500/10">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-400"><Mail size={12} /></span>
+                    <span className="min-w-0 flex-1"><strong className="block truncate text-[10px] text-slate-200">{contato.nome}</strong><span className="block truncate text-[9px] text-slate-500">{contato.email}</span></span>
+                    <span className="shrink-0 text-[8px] uppercase text-slate-600">{contato.tipo === "socio" ? "Sócio holding" : "Cliente"}</span>
+                  </button>)}
+                </div>}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">Assunto</label>
+              <input
+                value={assunto}
+                onChange={(e) => setAssunto(e.target.value)}
+                placeholder="Assunto da mensagem"
+                disabled={status !== "idle"}
+                className="h-10 w-full rounded-lg border border-white/[.06] bg-[#080f1d] px-3 text-xs text-white outline-none transition-colors placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">Mensagem</label>
+              <textarea
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Escreva sua mensagem..."
+                disabled={status !== "idle"}
+                className="min-h-[220px] w-full resize-none rounded-lg border border-white/[.06] bg-[#080f1d] px-3 py-2.5 text-xs leading-relaxed text-slate-300 outline-none transition-colors placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50"
+              />
+              <p className="mt-1 text-[10px] text-slate-600">A assinatura é adicionada no envio. Use os bancos abaixo para inserir os dados na mensagem.</p>
+            </div>
+
+            {contas.length > 0 && <div className="border-t border-white/[.06] pt-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.12em] text-slate-500"><Building2 size={12} className="text-sky-400" /> Inserir banco</p>
+              <div className="flex flex-wrap gap-2">
+                {contas.map((conta) => <button key={conta.id} type="button" onClick={() => inserirBanco(conta)} disabled={status !== "idle"} className="inline-flex items-center gap-1.5 rounded-lg border border-white/[.1] bg-[#0b1422] px-3 py-2 text-[10px] font-bold text-slate-300 transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-white disabled:opacity-50"><Building2 size={12} className="text-sky-400" /> {conta.banco}</button>)}
+              </div>
+            </div>}
+
+            {anexos.length > 0 && (
+              <div className="space-y-1.5">
+                {anexos.map((anexo) => (
+                  <div
+                    key={anexo.id || anexo.url}
+                    className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[.06] px-3 py-2.5"
+                  >
+                    <Paperclip size={14} className="shrink-0 text-sky-400" />
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-300">
+                      {anexo.label || anexo.filename || "Documento"}
+                    </span>
+                    <span className="shrink-0 text-[9px] font-bold text-emerald-400">Anexo automático</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {erro && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/[.08] px-3 py-2.5 text-[11px] text-red-300">
+                <AlertCircle size={14} className="mt-px shrink-0" />
+                {erro}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-white/[.06] px-5 py-4">
+            <button
+              type="button"
+              onClick={() => status === "idle" && onOpenChange(false)}
+              disabled={status !== "idle"}
+              className="rounded-lg border border-white/[.08] px-4 py-2 text-[11px] font-semibold text-slate-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={!canSend}
+              className={`flex items-center gap-2 rounded-lg px-5 py-2 text-[11px] font-bold text-white transition-all ${
+                status === "sent"
+                  ? "bg-emerald-600"
+                  : status === "sending"
+                  ? "bg-slate-600"
+                  : canSend
+                  ? "bg-[#22629d] hover:bg-[#2d79bb]"
+                  : "cursor-not-allowed bg-slate-700 opacity-50"
+              }`}
+            >
+              {status === "sending" ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : status === "sent" ? (
+                <Check size={13} />
+              ) : (
+                <Send size={13} />
+              )}
+              {status === "sending" ? "Enviando..." : status === "sent" ? "Enviado" : "Enviar"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {toast && (
+        <div
+          className={`toast-enter fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-2xl ${
+            toast.status === "sent"
+              ? "toast-flash border-emerald-400/30 bg-emerald-500/15 text-emerald-300"
+              : "border-sky-400/20 bg-sky-500/15 text-sky-300"
+          }`}
+          role="status"
+          onAnimationEnd={() => {
+            if (toast.status === "sent") setToast(null);
+          }}
+        >
+          <span
+            className={`flex h-5 w-5 items-center justify-center rounded-full ${
+              toast.status === "sent" ? "bg-emerald-500 text-white" : "bg-sky-500 text-white"
+            }`}
+          >
+            {toast.status === "sent" ? <Check size={12} /> : <Loader2 size={11} className="animate-spin" />}
+          </span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+    </>
+  );
 }

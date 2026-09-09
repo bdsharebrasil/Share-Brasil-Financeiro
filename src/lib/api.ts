@@ -1,7 +1,10 @@
 const DEFAULT_API_ORIGIN = "https://api.share-brasil.com";
 const configuredApiBase = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
 
-export const API_BASE = import.meta.env.DEV ? "" : configuredApiBase || DEFAULT_API_ORIGIN;
+// Em Codespaces, chamadas relativas passam pelo túnel protegido da porta do
+// Vite e podem ser redirecionadas para github.dev/pf-signin antes de chegar ao
+// Worker. Quando VITE_API_URL existe, use a API diretamente também em DEV.
+export const API_BASE = configuredApiBase || (import.meta.env.DEV ? "" : DEFAULT_API_ORIGIN);
 export const API_ORIGIN = configuredApiBase || DEFAULT_API_ORIGIN;
 const SESSION_STORAGE_KEY = "share-brasil-session";
 

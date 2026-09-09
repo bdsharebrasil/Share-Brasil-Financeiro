@@ -129,7 +129,7 @@ export async function gerarReciboPdf(
 
   const pagadorNome = pdf.splitTextToSize(
     dados.pagadorNome || "—",
-    68,
+    62,
   );
 
   pdf.text(recebedorNome, margem, y + 5);
@@ -153,13 +153,17 @@ export async function gerarReciboPdf(
 
   let yPagador = y + 5 + pagadorNome.length * 4.4;
 
-  for (const linha of [
+  const linhasPagador = [
     dados.pagadorDocumento,
     dados.pagadorEndereco,
     [dados.pagadorCidade, dados.pagadorUf].filter(Boolean).join(" - "),
     ...(dados.pagadorLinhas || []),
-  ].filter(Boolean)) {
-    pdf.text(String(linha), 95, yPagador);
+  ]
+    .filter(Boolean)
+    .flatMap((linha) => pdf.splitTextToSize(String(linha), 62));
+
+  for (const linha of linhasPagador) {
+    pdf.text(linha, 95, yPagador);
     yPagador += 4.6;
   }
 

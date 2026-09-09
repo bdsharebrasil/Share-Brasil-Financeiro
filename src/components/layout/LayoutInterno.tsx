@@ -36,6 +36,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { buscarPerfilColaborador } from "@/lib/colaborador-api";
 import { supabase } from "@/lib/supabase";
 import WelcomeToast from "@/components/layout/WelcomeToast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function LayoutInterno() {
   const [ambiente, setAmbiente] = useState<Ambiente>("share-brasil");
@@ -123,5 +124,5 @@ export default function LayoutInterno() {
     return podeAcessarGestor ? <DashboardGestorResumo aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
-  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirMensagens={abrirMensagens} aoSair={sair} /><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderConteudo()}</main></div>{nomeColaborador && <WelcomeToast name={nomeColaborador} />}</div>;
+  return <div className="app-noise flex min-h-[100dvh] bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirMensagens={abrirMensagens} aoSair={sair} /><ScrollArea className="h-[calc(100dvh-68px)]"><main className="mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">{renderConteudo()}</main></ScrollArea></div>{nomeColaborador && <WelcomeToast name={nomeColaborador} />}</div>;
 }

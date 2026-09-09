@@ -14,6 +14,9 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, {
   type FiltrosHistoricoRecibos,
 } from "@/components/financeiro-share/HistoricoRecibos";
+import ProgramarContaAPagarDialog from "@/components/financeiro-share/ProgramarContaAPagarDialog";
+import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import { useToast } from "@/hooks/use-toast";
 import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
 import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
@@ -201,12 +204,13 @@ function tipoCaixaPara(form: Formulario): "share" | "cliente" | "holding" {
 function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   if (recibo.pdf_anexo_id)
     return `/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.pdf_anexo_id)}/arquivo`;
-  if (!recibo.pdf_url) return "";
+  const pdfPersistido = recibo.pdf_url || recibo.url_recibo;
+  if (!pdfPersistido) return "";
   try {
-    const url = new URL(recibo.pdf_url, window.location.origin);
+    const url = new URL(pdfPersistido, window.location.origin);
     return `${url.pathname}${url.search}`;
   } catch {
-    return recibo.pdf_url;
+    return pdfPersistido;
   }
 }
 
@@ -314,6 +318,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     | "ERRO_PDF"
     | null
   >(null);
+  const [reciboEmail, setReciboEmail] = useState<ReciboFinanceiro | null>(null);
+  const [reciboProgramacao, setReciboProgramacao] = useState<ReciboFinanceiro | null>(null);
+  const [modalEmail, setModalEmail] = useState(false);
+  const { toast } = useToast();
 
   const carregar = async () => {
     setCarregando(true);
@@ -733,6 +741,26 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
+  const programarEmail = (recibo: ReciboFinanceiro) => {
+    setReciboEmail(recibo);
+    if (String(recibo.status).toUpperCase() === "EMAIL_ENVIADO") setReciboProgramacao(recibo);
+    else setModalEmail(true);
+  };
+
+  const emailEnviado = async () => {
+    if (!reciboEmail) return;
+    try {
+      await atualizarStatusRecibo(reciboEmail.id, "EMAIL_ENVIADO");
+      const atualizado = { ...reciboEmail, status: "EMAIL_ENVIADO" as const };
+      setRecibos((atual) => atual.map((item) => item.id === reciboEmail.id ? atualizado : item));
+      setModalEmail(false);
+      setReciboProgramacao(atualizado);
+      toast({ title: "E-mail enviado", description: "O recibo foi marcado como enviado. Agora informe o rateio para programar as contas a pagar." });
+    } catch (cause) {
+      toast({ title: "E-mail enviado, mas status não atualizado", description: cause instanceof Error ? cause.message : "Tente novamente.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="route-enter mx-auto max-w-6xl space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -786,9 +814,27 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           onVisualizarPdf={visualizarPdf}
           pdfAbrindoId={pdfAbrindoId}
           onConfirmarReembolso={confirmarReembolso}
+          onProgramarEmail={programarEmail}
           onCancelar={cancelar}
         />
       )}
+
+      <EnviarEmailClienteDialog
+        open={modalEmail}
+        onOpenChange={setModalEmail}
+        onSent={() => void emailEnviado()}
+        assuntoSugerido={reciboEmail ? `Recibo ${reciboEmail.numero_recibo}` : ""}
+        mensagemSugerida={reciboEmail ? `Olá,\n\nSegue o recibo ${reciboEmail.numero_recibo} em anexo.` : ""}
+        anexos={reciboEmail?.pdf_anexo_id ? [{ id: reciboEmail.pdf_anexo_id, label: `Recibo ${reciboEmail.numero_recibo}.pdf` }] : []}
+      />
+      <ProgramarContaAPagarDialog
+        open={Boolean(reciboProgramacao)}
+        recibo={reciboProgramacao}
+        aeronaves={opcoes.aeronaves}
+        categorias={opcoes.categorias_cliente}
+        onOpenChange={(aberto) => { if (!aberto) setReciboProgramacao(null); }}
+        onSaved={() => toast({ title: "Contas a pagar programadas", description: "O lançamento do recibo continua vinculado e o rateio foi gravado." })}
+      />
 
       {abaAtiva === "emissao" && (
         <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">

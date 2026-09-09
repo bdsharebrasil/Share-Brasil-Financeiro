@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { buscarPerfilColaborador, type PerfilColaboradorResponse } from "@/lib/colaborador-api";
 import { menusPorAmbiente, nomesAmbiente, type Ambiente, type ItemMenu } from "@/types/navegacao";
 import { LogoShare } from "@/components/layout/TopBar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const gruposFixos = ["Navegação principal", "Rotinas do departamento"];
 
@@ -131,7 +132,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
             <LogoShare />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>
           </div>
-          <div className="h-[calc(100dvh-68px-var(--safe-area-top))] overflow-y-auto p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div>
+          <ScrollArea className="h-[calc(100dvh-68px-var(--safe-area-top))]"><div className="p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div></ScrollArea>
         </SheetContent>
       </Sheet>
       <span className="sr-only"><Mail aria-hidden="true" />Dados do menu carregados do D1</span>

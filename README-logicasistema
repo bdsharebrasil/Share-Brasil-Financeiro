@@ -15,5 +15,83 @@ movimentos holding equivale a lançamentos mas ela tem o aporte do hold socio qu
 )se for uma despesa rateada entre os cotistas o lançamento é apenas 1 para o caixa share pois a share irá pagar o valor total porém esse valor será rateado entre os cotista ai no rateio despesas é gerado as linhas em quantidade de cotista dessa aeronave uma linha para cada cotista com status pendente, quando o caixa share receber, sera dado a baixa informando como foi pago essa despesa , se o cotista pagou sozinho ou se cada um pagou correto é por isso que temos o pago_por, pois se um rateio que era para todos e só um pagou, em cada linha do rateio despesa do cotista o pago por é o cotista que pagou e para ele o valor pago real é o valor total da despesa para quem não pagou o valor pago real é 0, se cada um pagou conforme devido o pago por fica seu proprio nome e o valor pago real é o valor que corresponde ao seu rateio, 
 se for no caso um holding não é nessa tabela ai vai para 
  TABLE movimentos_holding 
+- relatorio
+ — Relatório de Despesa de Viagem
 
--
+## 1. Objetivo
+
+O Relatório de Despesa de Viagem registra as despesas de uma viagem operacional (voo) — combustível, hospedagem, alimentação, transporte e outros — vinculando a viagem a um cliente/sócio, uma aeronave e um ou dois tripulantes, e distribuindo os valores entre quem efetivamente pagou cada despesa (cliente, empresa ou tripulante do próprio bolso).
+
+## 2. Entidades e tabelas envolvidas
+
+| Tabela | Papel |
+|---|---|
+| `relatórios de despesa de viagem` (relatório principal) | Cabeçalho do relatório + despesas em formato de lista |
+| `anexos de relatório de viagem` | Comprovantes vinculados a cada despesa do relatório |
+
+## 3. Ciclo de vida (status)
+
+- **Rascunho** — estado inicial, editável livremente, salvo automaticamente a cada 30s enquanto está em edição (e sempre que não está em modo "editar rascunho existente").
+- **Ag. Conferência** — status intermediário previsto no domínio, mas não usado atualmente na tela principal.
+- **Enviado** — relatório enviado ao cliente por e-mail (ou marcado como enviado após confirmação do envio).
+- **Assinado** — status previsto no domínio (aguarda uso pleno no fluxo de aprovação).
+- **Finalizado** — relatório fechado, dispara toda a cadeia de efeitos financeiros (seção 6).
+
+## 4. Validações obrigatórias para salvar
+
+Antes de gravar (rascunho ou finalização), são obrigatórios:
+- Cotista selecionado
+- Aeronave selecionada
+- Matrícula da aeronave preenchida
+- Tripulante (Tripulante 1) selecionado
+
+O Tripulante 2 é opcional.
+
+## 5. Numeração do relatório
+
+- Gerada automaticamente apenas na **criação** (não muda em edições subsequentes de um relatório já existente).
+- A sequência é por **combinação cotista + aeronave**, não apenas por cliente — ou seja, cada par cliente/aeronave tem sua própria contagem.
+- Em caso de colisão de número (violação de unicidade), o sistema tenta gerar um novo número e regravar, em até 10 tentativas, com pequeno atraso crescente entre elas.
+
+## 6. Efeitos disparados ao Finalizar ou Enviar
+
+Quando o status muda para :
+
+1. **Aprovação da tripulação**: status de aprovação do(s) tripulante(s) é marcado como pendente (um campo por tripulante, se houver dois).
+   - **Cliente**: valor = soma do que foi pago pela empresa (Share Brasil) + pago do bolso pelo Tripulante 1 + pago do bolso pelo Tripulante 2 (ou seja, tudo que não foi pago diretamente pelo próprio cliente).
+   - **Tripulante 1** (se pagou algo do próprio bolso): valor do reembolso devido a ele.
+   - **Tripulante 2** (se pagou algo do próprio bolso): valor do reembolso devido a ele.
+4. **Sincronização financeira** (idempotente, usando tipo+id de referência do relatório para evitar duplicação):
+   - 1 lançamento em **contas a receber**, no nome do cliente, no valor total que ele deve à empresa (soma acima), com vencimento em N dias (padrão 10) a partir da data de referência.
+   - 1 lançamento em **contas a pagar** para cada tripulante que pagou do próprio bolso, no valor que a empresa deve reembolsar a ele.
+   - 1 lançamento  (despesa reembolsável, ainda sem data de pagamento) para cada um desses tripulantes, vinculado à respectiva conta a pagar.
+5. **Geração e upload do PDF** do relatório, salvo em pasta por cliente/matrícula da aeronave; a URL pública é gravada de volta no relatório.
+6. **Link de aprovação**: um token de aprovação (gerado pelo banco) é usado para montar um link público de aprovação, exibido ao usuário e disponível também no perfil do tripulante ("Aprovações Pendentes"). 
+7. **Notificação** ao tripulante responsável avisando que há um relatório aguardando aprovação.
+
+Se qualquer uma dessas etapas falhar (ex.: erro ao gerar PDF ou ao sincronizar financeiro), o relatório **não deixa de ser salvo** — o erro é reportado ao usuário, mas o fluxo principal de salvamento não é revertido.
+
+## 7. Quem pagou cada despesa ("pago por")
+
+Cada despesa dentro do relatório tem um campo "pago por", usado para separar os totais em:
+- **Combustível, hospedagem, alimentação, transporte, outros** — por categoria.
+- **Totais por pagador**: total pago pela empresa (Share Brasil), total pago pelo Tripulante 1, total pago pelo Tripulante 2, total pago diretamente pelo cliente.
+
+A regra central é: **o cliente deve à empresa tudo que não foi pago diretamente por ele** — ou seja, o que a empresa adiantou mais o que cada tripulante adiantou do próprio bolso. O que o próprio cliente já pagou diretamente **não entra** na cobrança dele.
+
+## 8. Envio ao cliente por e-mail
+
+- Antes de enviar, o sistema garante que o relatório tem PDF gerado.
+- Após confirmação de envio bem-sucedido por email ao cotista, o status do relatório é atualizado para **Enviado**.
+
+
+o relatório de viagem finalizado também gera 1 registro na tabela de rateio de despesas;
+vinculado ao cliente/sócio da viagem, com os seguintes valores nesse registro:
+
+percentual_uso = 100 — a despesa da viagem é considerada 100% de uso daquele cliente/sócio específico, não da sociedade como um todo.
+percentual_sociedade — reflete apenas a participação nominal daquele sócio na aeronave (ex.: 33,33% se ele é 1 de 3 sócios), preenchida automaticamente a partir da participação real na aeronave — mas não determina o rateio da despesa em si.
+valor_rateado = valor_total — como o uso é 100% daquele cliente, o valor rateado é igual ao valor total da despesa.
+tipo_rateio = 'VARIAVEL_POR_VOO', periodicidade = 'EVENTUAL', status = 'EM ABERTO'.
+Regra pretendida (uso vs. sociedade holding)
+Caso padrão (cotista direto, Modelo 1, ou sócio individual fora de holding): a despesa de viagem é 100% de uso de quem viajou — está correto ter apenas 1 registro de rateio, cobrando integralmente aquele cliente/sócio.
+Caso sócio de holding (Modelo 2 — estrutura SPE/conta conjunta, ex.: DGA): como a viagem é feita em nome/uso de um sócio da holding, mas o custo da aeronave é compartilhado igualmente entre todos os sócios da holding, a despesa deveria ser rateada igualmente entre todos os sócios da holding (não só debitada 100% de quem viajou).

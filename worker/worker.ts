@@ -4132,12 +4132,7 @@ app.patch('/api/financeiro/relatorios-despesa-viagem/:id', async c => {
     ).run()
     if (['finalizado', 'enviado_cliente'].includes(novoStatus)) {
       const salvo = await buscarRelatorioViagemComNomes(c, id)
-      try {
-        if (salvo) await sincronizarRelatorioViagemFinanceiro(db, salvo, user.id)
-      } catch (error) {
-        await db.prepare("UPDATE relatorio_despesa_viagem SET status = 'rascunho', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?1").bind(id).run()
-        throw error
-      }
+      if (salvo) await sincronizarRelatorioViagemFinanceiro(db, salvo, user.id)
     }
     return c.json({ relatorio: await buscarRelatorioViagemComNomes(c, id) })
   } catch (error: any) {
@@ -4166,12 +4161,7 @@ app.post('/api/financeiro/relatorios-despesa-viagem/:id/finalizar', async c => {
       id,
     )
     await db.prepare("UPDATE relatorio_despesa_viagem SET numero_relatorio = ?1, status = 'finalizado', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?2 AND lower(COALESCE(status, 'rascunho')) = 'rascunho'").bind(numero, id).run()
-    try {
-      await sincronizarRelatorioViagemFinanceiro(db, { ...relatorio, numero_relatorio: numero, status: 'finalizado' }, user.id)
-    } catch (error) {
-      await db.prepare("UPDATE relatorio_despesa_viagem SET status = 'rascunho', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?1").bind(id).run()
-      throw error
-    }
+    await sincronizarRelatorioViagemFinanceiro(db, { ...relatorio, numero_relatorio: numero, status: 'finalizado' }, user.id)
     return c.json({ relatorio: await buscarRelatorioViagemComNomes(c, id) })
   } catch (error: any) {
     log.error('[relatorio-despesa-viagem:finalizar]', error?.message || error)

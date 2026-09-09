@@ -24,7 +24,6 @@ import {
   Inbox,
   AlertCircle,
   FileEdit,
-  MoreVertical,
   Reply,
   Eye,
   X,
@@ -298,15 +297,6 @@ export default function Emails() {
             <RefreshCw size={14} className={carregando ? "animate-spin text-primary" : "text-muted-foreground"} />
             Atualizar
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setConfigAberta((atual) => atual ? null : "assinatura")}
-            className="h-9 w-9 rounded-xl border border-border/60 bg-card/40"
-          >
-            <Settings size={15} className="text-muted-foreground" />
-          </Button>
         </div>
       </header>
 
@@ -328,6 +318,7 @@ export default function Emails() {
             onClick={() => {
               setModoCriacao(true);
               setConfigAberta(null);
+              setMensagemInternaSelecionada(null);
               limparFormulario();
             }}
             className="w-full h-11 min-h-5 mx-[3px] px-2 gap-2 rounded-xl font-normal leading-4 text-[17px] text-[rgba(1,10,20,1)] shadow-md bg-[rgba(110,191,228,0.9)] hover:bg-[rgba(110,191,228,0.9)]"
@@ -337,20 +328,20 @@ export default function Emails() {
           </Button>
 
           <nav className="space-y-1 text-sm font-medium">
-            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
               <span className="flex items-center gap-3"><Inbox size={18} /> Caixa de Entrada</span>
               {contagemNaoLidas > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{contagemNaoLidas}</span>}
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
               <Send size={18} /> Enviados
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
               <FileEdit size={18} /> Rascunhos
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
               <AlertCircle size={18} /> Spam
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-primary/10 text-primary font-bold" : "text-foreground/80 hover:bg-muted/50"}`}>
               <Trash2 size={18} /> Lixeira
             </button>
           </nav>
@@ -380,7 +371,7 @@ export default function Emails() {
         </aside>
 
         {/* COLUNA 2: LISTA DE E-MAILS */}
-        <div className="flex flex-col col-span-1 lg:col-span-4 ml-[-15px] mr-[-15px] pl-[3px] pr-[3px] rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
+        {!modoCriacao && <div className="flex flex-col col-span-1 lg:col-span-4 ml-[-15px] mr-[-15px] pl-[3px] pr-[3px] rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
           <div className="p-3 border-b border-border/50 bg-card/50">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -427,7 +418,7 @@ export default function Emails() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
         <div className="flex flex-col col-span-1 lg:col-span-6 ml-[13px] mr-[13px] rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-sm overflow-hidden">
@@ -435,25 +426,19 @@ export default function Emails() {
             <div className="flex-1 flex flex-col h-full">
               {/* Cabeçalho da Mensagem */}
               <div className="p-6 border-b border-border/50 bg-card/40 flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/80 to-primary text-primary-foreground flex items-center justify-center text-lg font-bold shadow-sm">
-                    {(item => item.papel === "remetente" ? item.destinatario_nome?.[0] : item.remetente_nome?.[0])(mensagemInternaSelecionada) || <UserRound size={20} />}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground tracking-tight">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground tracking-tight">
                       {mensagemInternaSelecionada.papel === "remetente" ? mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id : mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}
                     </h2>
                     <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
                       Para: {mensagemInternaSelecionada.papel === "remetente" ? "Você" : mensagemInternaSelecionada.destinatario_id}
                     </p>
-                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
                       <Button type="button" variant="ghost" size="sm" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para a lixeira.")} className="h-8 gap-1.5 text-xs font-semibold text-destructive hover:text-destructive"><Trash2 size={14} /> Excluir</Button>
                       <select value={categoriasMensagem[mensagemInternaSelecionada.id] || ""} onChange={(event) => classificarMensagem(mensagemInternaSelecionada.id, event.target.value)} className="h-8 rounded-lg border border-border/60 bg-background px-2 text-[11px] font-semibold"><option value="">Categoria</option><option value="Financeiro">Financeiro</option><option value="Operacional">Operacional</option><option value="Urgente">Urgente</option></select>
-                      <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">Mais opções <MoreVertical size={14} /></Button>
                     </div>
                   </div>
                   <div className="text-[11px] text-muted-foreground font-medium">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Building2, Check, Loader2, Mail, Paperclip, Search, Send, X } from "lucide-react";
-import { buscarCentralEmail, buscarContasBancariasEmail, buscarMinhaAssinatura, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail } from "@/lib/colaborador-api";
+import { buscarCentralEmail, buscarContasBancariasEmail, enviarEmailCliente, type ContaBancariaEmail, type ContatoEmail } from "@/lib/colaborador-api";
 
 export type AnexoEmail = { id?: string; url?: string; label?: string; filename?: string };
 
@@ -22,9 +22,6 @@ const normalizarEmails = (valor: string) =>
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-const montarMensagemComRodape = (mensagem: string, assinatura: string, dadosBancarios: string) =>
-  [mensagem.trim(), dadosBancarios.trim(), assinatura.trim()].filter(Boolean).join("\n\n");
-
 export function EnviarEmailClienteDialog({
   open,
   onOpenChange,
@@ -38,7 +35,6 @@ export function EnviarEmailClienteDialog({
   const [buscaContato, setBuscaContato] = useState("");
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [contas, setContas] = useState<ContaBancariaEmail[]>([]);
-  const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
   const [assunto, setAssunto] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [status, setStatus] = useState<SendStatus>("idle");
@@ -54,11 +50,10 @@ export function EnviarEmailClienteDialog({
     setStatus("idle");
     setErro("");
     setToast(null);
-    void Promise.all([buscarCentralEmail(), buscarContasBancariasEmail(), buscarMinhaAssinatura()])
-      .then(([central, bancos, assinaturaAtual]) => {
+    void Promise.all([buscarCentralEmail(), buscarContasBancariasEmail()])
+      .then(([central, bancos]) => {
         setContatos(central.contatos || []);
         setContas(bancos.contas || []);
-        setAssinatura(assinaturaAtual);
       })
       .catch(() => setErro("Não foi possível carregar contatos e dados bancários."));
   }, [open, destinatarioInicial, assuntoSugerido, mensagemSugerida]);
@@ -82,10 +77,6 @@ export function EnviarEmailClienteDialog({
   const inserirBanco = (conta: ContaBancariaEmail) => {
     setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
   };
-
-  const assinaturaTexto = assinatura
-    ? ["--", assinatura.nome, assinatura.cargo, assinatura.telefone, assinatura.email, assinatura.endereco].filter(Boolean).join("\n")
-    : "";
 
   useEffect(() => {
     if (!open) return;
@@ -111,7 +102,7 @@ export function EnviarEmailClienteDialog({
         destinatarios,
         cc: [],
         assunto: assunto.trim(),
-        mensagem: montarMensagemComRodape(mensagem, assinaturaTexto, ""),
+        mensagem: mensagem.trim(),
         anexos: anexos.filter((item) => item.id).map((item) => item.id!),
       });
       setStatus("sent");

@@ -57,10 +57,10 @@ export function AbaContasAReceber() {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Contas a receber</CardTitle>
           <Select value={status} onValueChange={(v) => setStatus(v as StatusContaFinanceira | 'TODOS')}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -76,55 +76,10 @@ export function AbaContasAReceber() {
           {carregando ? (
             <p className="text-sm text-muted-foreground">Carregando contas…</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contas.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
-                      Nenhuma conta a receber encontrada.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  contas.map((c) => {
-                    const vencida = estaVencida(c);
-                    return (
-                      <TableRow key={c.id}>
-                        <TableCell className={vencida ? 'font-medium text-red-600' : undefined}>
-                          {formatarData(c.dataVencimento)}
-                        </TableCell>
-                        <TableCell>{c.descricao ?? '—'}</TableCell>
-                        <TableCell>{c.categoriaNome ?? '—'}</TableCell>
-                        <TableCell>{c.fornecedor ?? '—'}</TableCell>
-                        <TableCell className="text-right font-medium">{formatarMoeda(c.valor)}</TableCell>
-                        <TableCell>
-                          <Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>
-                            {vencida ? 'ATRASADO' : c.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {podeDarBaixa(c) && (
-                            <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>
-                              Dar baixa
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+            <>
+              <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vencimento</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Fornecedor</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader><TableBody>{contas.length === 0 ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a receber encontrada.</TableCell></TableRow> : contas.map((c) => { const vencida = estaVencida(c); return <TableRow key={c.id}><TableCell className={vencida ? 'font-medium text-red-600' : undefined}>{formatarData(c.dataVencimento)}</TableCell><TableCell>{c.descricao ?? '—'}</TableCell><TableCell>{c.categoriaNome ?? '—'}</TableCell><TableCell>{c.fornecedor ?? '—'}</TableCell><TableCell className="text-right font-medium">{formatarMoeda(c.valor)}</TableCell><TableCell><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge></TableCell><TableCell className="text-right">{podeDarBaixa(c) && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</TableCell></TableRow>; })}</TableBody></Table></div>
+              <div className="space-y-2 md:hidden">{contas.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a receber encontrada.</p> : contas.map((c) => { const vencida = estaVencida(c); return <article key={c.id} className="rounded-xl border border-border/70 bg-muted/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{c.descricao ?? 'Conta a receber'}</p><p className={`mt-1 text-[11px] ${vencida ? 'text-red-600' : 'text-muted-foreground'}`}>Venc. {formatarData(c.dataVencimento)} · {c.fornecedor ?? 'Sem pagador'}</p></div><span className="shrink-0 text-sm font-bold">{formatarMoeda(c.valor)}</span></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge>{podeDarBaixa(c) && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</div></article>; })}</div>
+            </>
           )}
         </CardContent>
       </Card>

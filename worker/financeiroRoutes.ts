@@ -433,7 +433,7 @@ financeiroRoutes.get('/lancamentos/opcoes', async (c) => {
     const opcional = async (sql: string) => (await db.prepare(sql).all().catch(() => ({ results: [] }))).results ?? []
     const [categorias, contas, cotistas, holdings] = await Promise.all([
       opcional('SELECT id, nome, grupo_categoria, tipo_despesa FROM categoria_movimentacao_share ORDER BY nome'),
-      opcional('SELECT id, banco, numero_conta, tipo_conta FROM contas_bancarias ORDER BY banco'),
+      opcional('SELECT id, banco, numero_conta, tipo_caixa AS tipo_conta FROM contas_bancarias ORDER BY banco'),
       opcional("SELECT ca.id, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente) AS nome, ca.aeronave_id, ca.percentual_sociedade FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id ORDER BY nome"),
       opcional('SELECT id, nome, conta_bancaria FROM holdings ORDER BY nome'),
     ])
@@ -446,7 +446,7 @@ financeiroRoutes.get('/share/opcoes', async (c) => {
     const db = c.env.SHARE_DB
     const [categorias, contas, empresas] = await Promise.all([
       listar(db, 'SELECT id, nome, tipo, grupo_categoria AS grupo, tipo_despesa AS classificacao, empresa_id, 0 AS reembolsavel FROM categoria_movimentacao_share ORDER BY nome'),
-      listar(db, 'SELECT id, banco, numero_conta, tipo_conta FROM contas_bancarias ORDER BY banco'),
+      listar(db, 'SELECT id, banco, numero_conta, tipo_caixa AS tipo_conta FROM contas_bancarias ORDER BY banco'),
       listar(db, 'SELECT id, razao_social, cnpj FROM empresa ORDER BY razao_social'),
     ])
     return c.json({ categorias, contas_bancarias: contas, empresas })

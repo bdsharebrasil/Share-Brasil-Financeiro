@@ -62,7 +62,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
       const criar = fluxo === "entrada" ? emitirReceita : criarDespesa;
       const lancamento = await criar({
         descricao: descricao.trim(),
-        fluxo,
+        fluxo: fluxo === "entrada" ? "ENTRADA" : "SAIDA",
         categoria_id: categoria.id,
         categoria_nome: categoria.nome,
         grupo_categoria: categoria.grupo,
@@ -72,7 +72,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
         data_pagamento: dataPagamento || null,
         status: dataPagamento ? "pago" : "pendente",
         forma_pagamento: formaPagamento || null,
-        conta_bancaria: contaBancaria || null,
+        conta_bancaria_id: contaBancaria || null,
         fornecedor_nome: fornecedor.trim() || null,
         numero_doc: numeroDoc.trim() || null,
         periodicidade: categoria.classificacao,
@@ -169,7 +169,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {contas.map((conta) => (
-                  <SelectItem key={conta.id} value={conta.banco}>
+                  <SelectItem key={conta.id} value={conta.id}>
                     {conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}
                   </SelectItem>
                 ))}

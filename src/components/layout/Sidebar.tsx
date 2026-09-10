@@ -127,7 +127,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, aoFechar, aoAl
       </div>
 
       <Sheet open={aberta} onOpenChange={(open) => !open && aoFechar()}>
-        <SheetContent side="left" className="w-80 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent side="left" className="w-[min(20rem,calc(100vw-1rem))] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
           <div className="safe-area-header flex items-center border-b border-sidebar-border px-6">
             <LogoShare />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>

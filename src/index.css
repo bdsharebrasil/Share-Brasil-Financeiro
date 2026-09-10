@@ -104,32 +104,15 @@
   * { @apply border-border; }
   html, body, #root { min-height: 100%; }
   html { background-color: hsl(var(--background)); }
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-    min-width: 320px;
-    min-height: 100%;
-    margin: 0;
-    overflow-x: hidden;
-    padding-inline: var(--safe-area-left) var(--safe-area-right);
-    padding-bottom: var(--safe-area-bottom);
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-  }
+  body { @apply font-sans antialiased bg-background text-foreground; min-width: 320px; min-height: 100%; margin: 0; overflow-x: hidden; padding-inline: var(--safe-area-left) var(--safe-area-right); padding-bottom: var(--safe-area-bottom); font-synthesis: none; text-rendering: optimizeLegibility; }
   button, a, input, select { -webkit-tap-highlight-color: transparent; }
 }
 
 @layer utilities {
-  .command-grid {
-    background-image: linear-gradient(to right, hsl(var(--border) / .18) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / .18) 1px, transparent 1px);
-    background-size: 32px 32px;
-  }
+  .command-grid { background-image: linear-gradient(to right, hsl(var(--border) / .18) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border) / .18) 1px, transparent 1px); background-size: 32px 32px; }
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
-  .safe-area-header {
-    min-height: calc(68px + var(--safe-area-top));
-    padding-top: var(--safe-area-top);
-  }
+  .safe-area-header { min-height: calc(68px + var(--safe-area-top)); padding-top: var(--safe-area-top); }
 }
 
 .diario-bordo .text-\[8px\] { font-size: 0.625rem; }
@@ -139,7 +122,6 @@
 .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
-
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse-dot 2.6s ease-in-out infinite; }
@@ -147,40 +129,37 @@
 .skeleton { background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 75%); background-size: 200% 100%; animation: skeleton 1.5s ease-in-out infinite; }
 @keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* Campos de formulário: superfície escura, cantos retos, sem fundo branco nativo */
-.campo {
-  width: 100%;
-  border: 1px solid hsl(var(--border));
-  border-radius: 9px;
-  background-color: hsl(var(--secondary) / .3);
-  color: hsl(var(--foreground));
-  padding: .6rem .75rem;
-  font-size: 12px;
-  line-height: 1.2rem;
-  outline: none;
-  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
-  appearance: none;
-}
+.campo { width: 100%; border: 1px solid hsl(var(--border)); border-radius: 9px; background-color: hsl(var(--secondary) / .3); color: hsl(var(--foreground)); padding: .6rem .75rem; font-size: 12px; line-height: 1.2rem; outline: none; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; appearance: none; }
 .campo::placeholder { color: hsl(var(--muted-foreground)); }
 .campo:hover { border-color: hsl(var(--primary) / .45); }
-.campo:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary) / .18);   background-color: hsl(var(--secondary) / .48); }
-select.campo {
-  background-image: linear-gradient(45deg, transparent 50%, hsl(var(--muted-foreground)) 50%), linear-gradient(135deg, hsl(var(--muted-foreground)) 50%, transparent 50%);
-  background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-  padding-right: 2rem;
-}
+.campo:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary) / .18); background-color: hsl(var(--secondary) / .48); }
+select.campo { background-image: linear-gradient(45deg, transparent 50%, hsl(var(--muted-foreground)) 50%), linear-gradient(135deg, hsl(var(--muted-foreground)) 50%, transparent 50%); background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 2rem; }
 select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreground)); }
 .campo::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
 
-.task-compose {
-  border-color: rgba(148, 163, 184, .16);
-  background: linear-gradient(135deg, rgba(11, 18, 31, .95), rgba(6, 10, 20, .98));
-  box-shadow: 0 18px 55px rgba(0, 0, 0, .16);
-}
+.task-compose { border-color: rgba(148, 163, 184, .16); background: linear-gradient(135deg, rgba(11, 18, 31, .95), rgba(6, 10, 20, .98)); box-shadow: 0 18px 55px rgba(0, 0, 0, .16); }
 .task-compose--closed > :nth-child(n + 2) { display: none; }
 .task-compose--closed { padding-block: .9rem; }
 .task-compose .bg-background\/50 { background-color: rgba(255, 255, 255, .035); border-color: rgba(255, 255, 255, .08); }
 .task-compose .text-muted-foreground { color: rgb(148 163 184); }
 .task-compose select { color-scheme: dark; }
+
+/* Financeiro — visual premium inspirado no dashboard de referência */
+.financeiro-shell { --financeiro-glow: hsl(var(--primary) / .12); }
+.financeiro-eyebrow { color: hsl(var(--primary)); font-size: 9px; line-height: 1; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.financeiro-title-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid hsl(var(--primary) / .25); border-radius: 10px; color: hsl(var(--primary)); background: hsl(var(--primary) / .08); box-shadow: 0 0 28px hsl(var(--primary) / .08); }
+.financeiro-primary-action { min-height: 38px; border-radius: 10px; box-shadow: 0 8px 24px hsl(var(--primary) / .15); }
+.financeiro-kpi { position: relative; overflow: hidden; min-width: 0; padding: 16px; border: 1px solid hsl(var(--border)); border-radius: 13px; background: radial-gradient(circle at 100% 0%, hsl(var(--primary) / .055), transparent 42%), hsl(var(--card)); box-shadow: 0 10px 30px hsl(var(--foreground) / .035); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.financeiro-kpi:hover { transform: translateY(-1px); border-color: hsl(var(--primary) / .24); box-shadow: 0 14px 34px hsl(var(--foreground) / .06); }
+.financeiro-kpi--primary { border-color: hsl(var(--primary) / .22); box-shadow: 0 0 0 1px hsl(var(--primary) / .035), 0 14px 36px hsl(var(--primary) / .06); }
+.financeiro-kpi-label { font-size: 9px; line-height: 1.1; font-weight: 800; letter-spacing: .12em; color: hsl(var(--muted-foreground)); text-transform: uppercase; }
+.financeiro-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 8px; background: hsl(var(--muted) / .65); }
+.financeiro-panel { overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 14px; background: hsl(var(--card)); box-shadow: 0 10px 30px hsl(var(--foreground) / .035); }
+.financeiro-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 16px; border-bottom: 1px solid hsl(var(--border)); }
+.financeiro-live-dot { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: hsl(var(--muted-foreground)); font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.financeiro-live-dot i { width: 6px; height: 6px; border-radius: 999px; background: hsl(var(--chart-2)); box-shadow: 0 0 0 4px hsl(var(--chart-2) / .08); }
+.financeiro-tabs { scrollbar-width: thin; }
+.financeiro-shell .recharts-cartesian-axis-tick-value { fill: hsl(var(--muted-foreground)); }
+.financeiro-shell .recharts-tooltip-wrapper { outline: none; }
+.financeiro-shell .recharts-default-tooltip { border: 1px solid hsl(var(--border)) !important; border-radius: 10px !important; background: hsl(var(--popover)) !important; box-shadow: 0 14px 35px hsl(var(--foreground) / .12); }
+@media (max-width: 640px) { .financeiro-kpi { padding: 13px; border-radius: 11px; } .financeiro-panel-header { padding: 13px 14px; } .financeiro-live-dot { display: none; } }

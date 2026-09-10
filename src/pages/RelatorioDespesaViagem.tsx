@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
 import { copyText } from "@/lib/utils";
@@ -56,6 +57,7 @@ import {
   type RelatorioDespesaViagemAnexo,
   type RelatorioDespesaViagem as Relatorio,
 } from "@/lib/colaborador-api";
+import { toast } from "sonner";
 
 type PagoPor = "tripulante_1" | "tripulante_2" | "cliente" | "sharebrasil";
 type Despesa = {
@@ -219,6 +221,8 @@ export default function RelatorioDespesaViagem({
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [linksAprovacao, setLinksAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
+  const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
+  const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
 
   useEffect(
     () => () => {
@@ -658,14 +662,29 @@ export default function RelatorioDespesaViagem({
   };
   const confirmarReembolso = async () => {
     if (!relatorio || !reembolsoForm.vencimento) return;
+    if (!reembolsoForm.prefill?.pdf_url) {
+      setMensagem({ tipo: "erro", texto: "Gere o PDF do relatório antes de enviar por e-mail." });
+      return;
+    }
+    setReembolsoForm((atual) => ({ ...atual, aberto: false }));
+    setEmailReembolsoConcluido(false);
+    setEmailReembolsoAberto(true);
+  };
+  const programarDepoisDoEmail = async () => {
+    if (!relatorio || !reembolsoForm.vencimento) return;
+    setEmailReembolsoConcluido(true);
+    setEmailReembolsoAberto(false);
     setSalvando(true);
     try {
       await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio });
       setRelatorio((atual) => atual ? { ...atual, status: "enviado_cliente" } : atual);
       setReembolsoForm((atual) => ({ ...atual, aberto: false }));
+      toast.success("Programação concluída", { description: "O reembolso foi enviado para Contas a Receber e os lançamentos financeiros foram gerados." });
       setMensagem({ tipo: "ok", texto: "Reembolso programado e enviado para o cliente." });
-    } catch (error) { setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível programar o reembolso." }); }
-    finally { setSalvando(false); }
+    } catch (error) {
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível programar o reembolso." });
+      setReembolsoForm((atual) => ({ ...atual, aberto: true }));
+    } finally { setSalvando(false); }
   };
   const uploadAnexo = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -1350,9 +1369,20 @@ export default function RelatorioDespesaViagem({
             <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value }))}>{["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"].map((item) => <option key={item}>{item}</option>)}</select></div>
             <div><Label htmlFor="reembolso-rateio">Tipo de rateio</Label><select id="reembolso-rateio" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.tipoRateio} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, tipoRateio: e.target.value }))}>{["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => <option key={item}>{item}</option>)}</select></div>
           </div>}
-          <DialogFooter><Button type="button" variant="outline" onClick={() => setReembolsoForm((atual) => ({ ...atual, aberto: false }))}>Cancelar</Button><Button type="button" onClick={() => void confirmarReembolso()} disabled={salvando || !reembolsoForm.vencimento}><Send size={15} /> Enviar ao cliente</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={() => setReembolsoForm((atual) => ({ ...atual, aberto: false }))}>Cancelar</Button><Button type="button" onClick={() => void confirmarReembolso()} disabled={salvando || !reembolsoForm.vencimento}><Send size={15} /> Enviar por e-mail</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {reembolsoForm.prefill && relatorio && <EnviarEmailClienteDialog
+        open={emailReembolsoAberto}
+        onOpenChange={(open) => {
+          setEmailReembolsoAberto(open);
+          if (!open && !emailReembolsoConcluido && !salvando) setReembolsoForm((atual) => ({ ...atual, aberto: true }));
+        }}
+        onSent={() => void programarDepoisDoEmail()}
+        assuntoSugerido={`Relatório de despesa de viagem ${relatorio.numero_relatorio}`}
+        mensagemSugerida={`Olá,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio} para conferência.\n\nValor a reembolsar: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${reembolsoForm.vencimento.split("-").reverse().join("/")}\n\nApós o envio deste e-mail, o reembolso será programado no Contas a Receber.\n\nAtenciosamente,\nEquipe Share Brasil`}
+        anexos={[{ id: `relatorio_pdf:${relatorio.id}`, url: reembolsoForm.prefill.pdf_url, label: `Relatório ${relatorio.numero_relatorio}.pdf`, filename: `relatorio-${relatorio.numero_relatorio}.pdf` }]}
+      />}
     </div>
   );
 }

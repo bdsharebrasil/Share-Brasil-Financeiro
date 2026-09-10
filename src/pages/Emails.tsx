@@ -275,7 +275,7 @@ export default function Emails() {
   };
 
   return (
-    <div className="route-enter relative mx-auto flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 bg-[#070d1b] pb-3 text-slate-100">
+    <div className="route-enter relative mx-auto -m-[22px] flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 overflow-hidden rounded-[9px] border border-[#0e141f] bg-[#060e16] pb-3 text-slate-100">
       {toast && <EmailToast toast={toast} onDone={() => setToast(null)} />}
       {anexoVisualizado && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label={`Visualização de ${anexoVisualizado.nome}`}>
         <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
@@ -284,12 +284,11 @@ export default function Emails() {
         </div>
       </div>}
       {/* HEADER DE AÇÕES GLOBAIS */}
-      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-white/[.06] bg-[#080e1a] px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-white/[.06] bg-[#080b16] px-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#1e5b94] text-sky-300 shadow-lg shadow-sky-950/30">
             <Mail className="h-4 w-4" />
           </div>
-          <div><p className="text-[10px] font-bold tracking-[.14em] text-sky-400">PORTAL GESTOR</p><p className="text-[10px] text-slate-500">Central de e-mails · D1</p></div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -319,7 +318,7 @@ export default function Emails() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12">
 
         {/* COLUNA 1: MENU LATERAL */}
-        <aside className="hidden min-h-0 flex-col gap-6 overflow-y-auto border-r border-white/[.06] bg-[#09111f] px-3 pb-4 lg:col-span-2 lg:flex">
+        <aside className="hidden min-h-0 flex-col gap-6 overflow-y-auto -my-[6px] rounded-[12px] border-r border-white/[.06] bg-[#080b16] px-3 pb-4 lg:col-span-2 lg:flex">
           <Button
             type="button"
             onClick={() => {
@@ -328,7 +327,7 @@ export default function Emails() {
               setMensagemInternaSelecionada(null);
               limparFormulario();
             }}
-            className="mt-3 h-10 w-full gap-2 rounded-md bg-[#22629d] px-2 text-[12px] font-semibold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]"
+            className="mt-3 h-10 w-full gap-2 overflow-hidden rounded-[31px] border-[#058dcc] bg-[#075461] px-2 text-[12px] font-semibold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]"
           >
             <Plus size={18} />
             Novo Email
@@ -428,7 +427,7 @@ export default function Emails() {
         </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#080f1d] shadow-sm ${modoCriacao ? "lg:col-span-10" : "lg:col-span-6"}`}>
+        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#080f1d] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
           {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
               {/* Cabeçalho da Mensagem */}
@@ -503,8 +502,8 @@ export default function Emails() {
             </div>
           ) : modoCriacao ? (
             /* COMPOSITOR DE NOVA MENSAGEM */
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="flex shrink-0 items-center justify-between border-b border-white/[.06] bg-[#080e1a] p-4">
+            <div className="flex h-full min-h-0 -mx-px flex-col overflow-hidden rounded-[31px]">
+              <div className="flex shrink-0 items-center justify-between -my-[11px] overflow-hidden rounded-[26px] border-b border-white/[.06] bg-[#080e1a] p-4">
                 <div>
                   <h2 className="text-sm font-bold text-white">Nova Mensagem</h2>
                   <p className="mt-0.5 text-[9px] font-medium text-slate-600">De: {remetente?.email || "seu e-mail"}</p>
@@ -513,9 +512,9 @@ export default function Emails() {
               </div>
 
               {/* Campos + corpo da mensagem: rola junto, mas o textarea tem prioridade de espaço */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6">
-                <div className="shrink-0 space-y-4">
-                  <div className="flex w-fit gap-1.5 rounded-md border border-white/[.08] bg-[#0d1525] p-1">
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[17px] bg-[#040a16] p-4 sm:p-6">
+                <div className="shrink-0 space-y-4 py-[10px]">
+                  <div className="flex w-fit -mx-[8px] gap-[15px] rounded-md border border-white/[.08] bg-[#0d1525] px-[13px] py-1">
                     <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "email" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><Mail size={12} className="mr-1.5 inline" /> E-mail externo</button>
                     <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "interno" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><UserRound size={12} className="mr-1.5 inline" /> Interno</button>
                   </div>
@@ -527,7 +526,7 @@ export default function Emails() {
                     ) : (
                       <div className="flex flex-col gap-2">
                         <SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} />
-                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 rounded-xl border-white/[.08] bg-[#0d1525] text-sm font-medium text-slate-200" />
+                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 -mx-[3px] rounded-xl border-white/[.08] bg-[#0d1525] px-[22px] py-[2px] text-sm font-medium text-slate-200" />
                       </div>
                     )}
                   </div>
@@ -572,7 +571,7 @@ export default function Emails() {
               </div>
 
               {/* Rodapé: anexos agora abrem em um Command (⌘K) por cima do conteúdo, não ocupam espaço fixo */}
-              <div className="flex shrink-0 flex-col gap-3 border-t border-white/[.06] bg-[#080e1a] p-3 sm:p-4">
+              <div className="flex shrink-0 flex-col gap-3 -my-[43px] border-t border-white/[.06] bg-[#080e1a] px-3 py-[39px] sm:px-4 sm:py-[39px]">
                 <AnexosEmail
                   anexos={anexos}
                   selecionados={selecionados}
@@ -581,8 +580,8 @@ export default function Emails() {
                   onAdicionarArquivos={(novos) => setArquivosNovos((prev) => [...prev, ...novos])}
                   onRemoverArquivo={(idx) => setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))}
                 />
-                <div className="flex items-center justify-end">
-                  <Button onClick={() => void enviar()} disabled={enviando} className="h-9 gap-2 rounded-md bg-[#22629d] px-4 text-[10px] font-bold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]">
+                <div className="flex -my-[7px] items-center justify-end py-0">
+                  <Button onClick={() => void enviar()} disabled={enviando} className="m-[32px] h-9 justify-end gap-2 rounded-md bg-[#22629d] px-4 py-0 text-[10px] font-bold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]">
                     <Send size={16} />
                     {enviando ? "Enviando..." : "Enviar"}
                   </Button>

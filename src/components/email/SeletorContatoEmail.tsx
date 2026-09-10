@@ -18,8 +18,8 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
   const mostrarResultados = aberto && busca.trim().length > 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
+    <div className="my-[5px] space-y-2">
+      <div className="my-[10px] flex items-center gap-2 py-[5px]">
         <div className="relative flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -27,7 +27,7 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
             onFocus={() => setAberto(true)}
             onChange={(event) => { onBusca(event.target.value); setAberto(true); }}
             placeholder="Buscar contato por nome ou e-mail"
-            className="h-9 rounded-xl pl-9 text-xs"
+            className="mx-[40px] h-9 rounded-xl pl-9 pr-[10px] text-xs"
             aria-label="Buscar destinatário"
           />
         </div>

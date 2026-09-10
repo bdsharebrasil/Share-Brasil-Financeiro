@@ -113,6 +113,7 @@
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: calc(68px + var(--safe-area-top)); padding-top: var(--safe-area-top); }
+  [aria-label="Notifications (F8)"] { margin-block: -20px; }
 }
 
 .diario-bordo .text-\[8px\] { font-size: 0.625rem; }

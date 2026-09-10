@@ -75,9 +75,9 @@ export function SearchableCombobox({
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
           )}
         >
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
-            <span className="truncate text-base tracking-tight lg:text-sm">
+            <span className="min-w-0 truncate text-base tracking-tight lg:text-sm">
               {selectedItem ? selectedItem.label : (value ? value : placeholder)}
             </span>
           </div>

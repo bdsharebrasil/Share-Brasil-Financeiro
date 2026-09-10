@@ -794,7 +794,7 @@ export default function RelatorioDespesaViagem({
   return (
     <div className="route-enter space-y-5">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="flex items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <Button
             type="button"
             variant="ghost"
@@ -807,11 +807,11 @@ export default function RelatorioDespesaViagem({
           >
             <ArrowLeft size={18} />
           </Button>
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">
               Financeiro · Relatório de viagem
             </p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight">
+            <h1 className="mt-1 break-words text-2xl font-extrabold tracking-tight">
               {relatorio?.numero_relatorio || "Novo relatório de despesa"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -820,7 +820,7 @@ export default function RelatorioDespesaViagem({
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {relatorio?.status === "rascunho" && (
             <Button
               type="button"
@@ -859,14 +859,14 @@ export default function RelatorioDespesaViagem({
           <Badge className={statusClass(relatorio.status)}>
             {statusLabel(relatorio.status)}
           </Badge>
-          <span className="text-xs text-muted-foreground">
+          <span className="min-w-0 text-xs text-muted-foreground">
             Última atualização: {dataBr(relatorio.atualizado_em)}
           </span>
           {relatorio.pdf_url && (
             <button
               type="button"
               onClick={() => void abrirPdf(relatorio.id)}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              className="inline-flex w-full shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline sm:ml-auto sm:w-auto"
             >
               <FileDown size={14} /> Abrir PDF
             </button>
@@ -881,7 +881,7 @@ export default function RelatorioDespesaViagem({
             os cadastros.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
           <Campo label="Número do relatório">
             <div className="flex h-10 items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 text-sm font-mono text-primary">
               {relatorio?.numero_relatorio || "Será gerado automaticamente ao finalizar"}
@@ -1009,7 +1009,7 @@ export default function RelatorioDespesaViagem({
               disabled={bloqueado}
             />
           </Campo>
-          <div className="md:col-span-2">
+          <div className="min-w-0 md:col-span-2">
             <Campo label="Observações">
               <Textarea
                 value={form.observacoes}
@@ -1022,8 +1022,8 @@ export default function RelatorioDespesaViagem({
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <div>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
             <CardTitle className="text-base">Despesas lançadas</CardTitle>
             <CardDescription>
               Registre cada comprovante separadamente. O campo “Pago por” define
@@ -1036,7 +1036,7 @@ export default function RelatorioDespesaViagem({
             size="sm"
             onClick={() => setDespesas((atuais) => [...atuais, novaDespesa()])}
             disabled={bloqueado}
-            className="gap-1.5"
+            className="w-full shrink-0 gap-1.5 sm:w-auto"
           >
             <Plus size={14} /> Adicionar despesa
           </Button>
@@ -1048,7 +1048,7 @@ export default function RelatorioDespesaViagem({
             .map(({ despesa, index }) => (
             <div
               key={despesa.id}
-              className="grid gap-3 rounded-xl border border-border/70 bg-background/30 p-3 md:grid-cols-4"
+              className="grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-background/30 p-3 md:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0"
             >
               <Campo label={index === despesas.length - 1 ? "Categoria *" : undefined}>
                 <SearchableCombobox
@@ -1199,7 +1199,7 @@ export default function RelatorioDespesaViagem({
                 <strong>{moeda(totaisPorPagador.sharebrasil)}</strong>
               </span>
             </div>
-            <div className="text-right">
+            <div className="w-full text-left sm:w-auto sm:text-right">
               <span className="block text-sm font-semibold text-muted-foreground">
                 Total do relatório
               </span>
@@ -1309,7 +1309,7 @@ export default function RelatorioDespesaViagem({
             onClick={fecharVisualizacaoAnexo}
           >
             <div
-              className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+              className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -1326,7 +1326,7 @@ export default function RelatorioDespesaViagem({
                   <X size={18} />
                 </Button>
               </div>
-              <div className="flex min-h-[50vh] items-center justify-center overflow-auto bg-black/20 p-4">
+              <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-black/20 p-3 sm:p-4">
                 {anexoVisualizado.anexo.tipo_arquivo?.startsWith("image/") ? (
                   <img
                     src={anexoVisualizado.url}
@@ -1337,7 +1337,7 @@ export default function RelatorioDespesaViagem({
                   <iframe
                     src={anexoVisualizado.url}
                     title={anexoVisualizado.anexo.nome_arquivo}
-                    className="h-[72vh] w-full rounded-md bg-background"
+                    className="h-[min(72dvh,720px)] min-h-[320px] w-full rounded-md bg-background"
                   />
                 )}
               </div>
@@ -1345,13 +1345,13 @@ export default function RelatorioDespesaViagem({
           </div>
         )}
       <Dialog open={Boolean(pdfPreview)} onOpenChange={(open) => { if (!open && pdfPreview) { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); } }}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-5xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Prévia do relatório em PDF</DialogTitle>
             <DialogDescription>Revise o documento antes de salvá-lo. O arquivo só será anexado ao relatório após clicar em Gerar PDF.</DialogDescription>
           </DialogHeader>
-          {pdfPreview && <iframe src={pdfPreview.url} title="Prévia do relatório" className="h-[70vh] w-full rounded-md border bg-white" />}
-          <DialogFooter>
+          {pdfPreview && <iframe src={pdfPreview.url} title="Prévia do relatório" className="h-[min(70dvh,720px)] min-h-[320px] w-full min-w-0 flex-1 rounded-md border bg-white" />}
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => { if (pdfPreview) URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}>Voltar</Button>
             <Button type="button" onClick={() => void confirmarGeracaoPdf()} disabled={salvando}><FileDown size={15} /> Gerar PDF</Button>
           </DialogFooter>
@@ -1364,7 +1364,7 @@ export default function RelatorioDespesaViagem({
             <DialogDescription>Confira os dados antes de enviar a despesa e gerar os lançamentos financeiros.</DialogDescription>
           </DialogHeader>
           {reembolsoForm.prefill && <div className="space-y-4">
-            <div className="rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>Valor a reembolsar:</strong> {moeda(reembolsoForm.prefill.valor)}</p><p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p><p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_matricula || "—"}</p></div>
+            <div className="break-words rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>Valor a reembolsar:</strong> {moeda(reembolsoForm.prefill.valor)}</p><p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p><p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_matricula || "—"}</p></div>
             <div><Label htmlFor="reembolso-vencimento">Vencimento</Label><Input id="reembolso-vencimento" type="date" value={reembolsoForm.vencimento} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, vencimento: e.target.value }))} /></div>
             <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value }))}>{["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"].map((item) => <option key={item}>{item}</option>)}</select></div>
             <div><Label htmlFor="reembolso-rateio">Tipo de rateio</Label><select id="reembolso-rateio" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.tipoRateio} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, tipoRateio: e.target.value }))}>{["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => <option key={item}>{item}</option>)}</select></div>
@@ -1798,7 +1798,7 @@ function AprovacaoLinha({
   const aprovado = status === "aprovado";
   const reprovado = status === "reprovado";
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/30 p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/30 p-3 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold">Tripulante {pos}</p>
         <p className="truncate text-xs text-muted-foreground">
@@ -1831,7 +1831,7 @@ function AprovacaoLinha({
         variant="outline"
         onClick={onEnviar}
         disabled={disabled}
-        className="gap-1.5"
+        className="w-full justify-center gap-1.5 whitespace-normal text-center sm:w-auto sm:whitespace-nowrap"
       >
         <Send size={13} /> Enviar para aprovação tripulação
       </Button>
@@ -1842,7 +1842,7 @@ function AprovacaoLinha({
           variant="outline"
           title="Copiar link de aprovação"
           onClick={() => onCopiar(link)}
-          className="gap-1.5"
+          className="w-full justify-center gap-1.5 sm:w-auto"
         >
           <Copy size={14} /> Copiar link
         </Button>

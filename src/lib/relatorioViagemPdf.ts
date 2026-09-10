@@ -523,6 +523,8 @@ function montarHtmlRelatorio(
       }
 
       .info-item {
+        min-width: 0;
+        overflow-wrap: anywhere;
         font-size: 11px;
         line-height: 1.45;
       }
@@ -542,12 +544,16 @@ function montarHtmlRelatorio(
 
       table {
         width: 100%;
+        max-width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 10px;
       }
 
       th,
       td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
         border: 1px solid #b9b9b9;
         padding: 6px;
         vertical-align: top;
@@ -599,6 +605,11 @@ function montarHtmlRelatorio(
         font-size: 10px;
       }
 
+      .summary-row span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
       .summary-row strong {
         color: #111827;
         white-space: nowrap;
@@ -627,6 +638,7 @@ function montarHtmlRelatorio(
       }
 
       .observacoes-box {
+        overflow-wrap: anywhere;
         border: 1px solid #c5c5c5;
         border-left: 4px solid #22c55e;
         border-radius: 5px;

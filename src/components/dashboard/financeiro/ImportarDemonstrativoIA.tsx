@@ -3,14 +3,16 @@ import { AlertCircle, CheckCircle2, FileText, Loader2, Receipt, Upload, X } from
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
-  colaboradorRequest,
   criarRecibo,
   enviarAnexoRecibo,
   enviarPdfRecibo,
+  buscarDetalhesDiario,
   type CotistaRecibo,
+  type DiarioLancamento,
   type OpcoesRecibos,
   type Recibo,
 } from "@/lib/colaborador-api";
+import { supabase } from "@/lib/supabase";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 
 type TipoDemonstrativo = "INFRAERO" | "DECEA";
@@ -40,6 +42,7 @@ type DemonstrativoLido = {
 
 type LinhaRateio = ItemDemonstrativo & {
   cotistaId: string;
+  nomeCotista: string;
   responsavelSugerido: string | null;
 };
 
@@ -91,6 +94,40 @@ function descricaoLinha(linha: LinhaRateio) {
   return [linha.data, linha.hora, trecho].filter(Boolean).join(" · ");
 }
 
+function dataDiario(data: string) {
+  const brasileira = data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (brasileira) return `${brasileira[3]}-${brasileira[2]}-${brasileira[1]}`;
+  return data.slice(0, 10);
+}
+
+function codigoTrecho(valor: string | null | undefined) {
+  return String(valor || "").trim().toUpperCase();
+}
+
+function responsavelDoLancamento(lancamento: DiarioLancamento) {
+  return lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
+}
+
+function encontrarResponsavel(item: ItemDemonstrativo, lancamentos: DiarioLancamento[]) {
+  const mesmaData = lancamentos.filter((lancamento) => dataDiario(lancamento.data_registro) === dataDiario(item.data));
+  const origem = codigoTrecho(item.origem);
+  const destino = codigoTrecho(item.destino);
+  const operacao = codigoTrecho(item.operacao);
+  const porTrecho = origem && destino
+    ? mesmaData.filter((lancamento) =>
+        [lancamento.aerodromo_partida, lancamento.aerodromo_partida_icao].some((valor) => codigoTrecho(valor) === origem) &&
+        [lancamento.aerodromo_chegada, lancamento.aerodromo_chegada_icao].some((valor) => codigoTrecho(valor) === destino),
+      )
+    : operacao
+      ? mesmaData.filter((lancamento) =>
+          [lancamento.aerodromo_partida, lancamento.aerodromo_partida_icao, lancamento.aerodromo_chegada, lancamento.aerodromo_chegada_icao]
+            .some((valor) => codigoTrecho(valor) === operacao),
+        )
+      : [];
+  const candidatos = porTrecho.length ? porTrecho : mesmaData.length === 1 ? mesmaData : [];
+  return candidatos.length === 1 ? responsavelDoLancamento(candidatos[0]) : null;
+}
+
 export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }: Props) {
   const [tipo, setTipo] = useState<TipoDemonstrativo>("INFRAERO");
   const [aeronaveId, setAeronaveId] = useState("");
@@ -119,11 +156,17 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     [categoriaId, opcoes.categorias],
   );
   const consolidado = useMemo(() => {
-    const grupos = new Map<string, { cotista: CotistaRecibo; valor: number; operacoes: number }>();
+    const grupos = new Map<string, { cotista: CotistaRecibo; nome: string; valor: number; operacoes: number }>();
     for (const linha of linhas) {
       const cotista = cotistas.find((item) => item.id === linha.cotistaId);
       if (!cotista) continue;
-      const grupo = grupos.get(cotista.id) || { cotista, valor: 0, operacoes: 0 };
+      const grupo = grupos.get(cotista.id) || {
+        cotista,
+        nome: linha.nomeCotista.trim() || cotista.nome,
+        valor: 0,
+        operacoes: 0,
+      };
+      if (linha.nomeCotista.trim()) grupo.nome = linha.nomeCotista.trim();
       grupo.valor += Number(linha.valor) || 0;
       grupo.operacoes += 1;
       grupos.set(cotista.id, grupo);
@@ -159,18 +202,34 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     setRecibosGerados([]);
     try {
       const body = await arquivoParaBase64(arquivo);
-      const resultado = await colaboradorRequest<DemonstrativoLido>("/api/demonstrativo-rateio", {
-        method: "POST",
-        body: JSON.stringify({ ...body, tipo }),
+      const { data: resultado, error: leituraError } = await supabase.functions.invoke<DemonstrativoLido>("demonstrativo-ocr", {
+        body: { ...body, tipo },
       });
+      if (leituraError) throw new Error(leituraError.message || "Não foi possível ler o demonstrativo por IA.");
+      if (!resultado) throw new Error("A função de leitura não retornou dados.");
+
+      const meses = [...new Set(resultado.itens.map((item) => {
+        const iso = dataDiario(item.data);
+        return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.slice(0, 7) : "";
+      }).filter(Boolean))];
+      const detalhes = await Promise.all(meses.map(async (mes) => {
+        try {
+          const [ano, numeroMes] = mes.split("-").map(Number);
+          return await buscarDetalhesDiario(aeronaveId, ano, numeroMes);
+        } catch {
+          return null;
+        }
+      }));
+      const lancamentos = detalhes.flatMap((detalhe) => detalhe?.lancamentos || []);
       const cotistasDaAeronave = opcoes.cotistas.filter((cotista) => cotista.aeronave_id === aeronaveId);
-      const itensComResponsavel = resultado.rateio_por_perna || resultado.itens.map((item) => ({ ...item, responsavel: "" }));
-      const novasLinhas = itensComResponsavel.map((item) => {
-        const cotista = cotistaPorNome(cotistasDaAeronave, item.responsavel);
+      const novasLinhas = resultado.itens.map((item) => {
+        const responsavel = encontrarResponsavel(item, lancamentos);
+        const cotista = cotistaPorNome(cotistasDaAeronave, responsavel);
         return {
           ...item,
           cotistaId: cotista?.id || "",
-          responsavelSugerido: item.responsavel || null,
+          nomeCotista: cotista?.nome || responsavel || "",
+          responsavelSugerido: responsavel,
         };
       });
       setDemonstrativo(resultado);
@@ -193,13 +252,13 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     setLinhas((atuais) => atuais.map((linha, index) => index === indice ? { ...linha, ...atualizacao } : linha));
   };
 
-  const gerarPdf = async (recibo: Recibo, cotista: CotistaRecibo) => {
+  const gerarPdf = async (recibo: Recibo, cotista: CotistaRecibo, nomePagador: string) => {
     const pdf = await gerarReciboPdf({
       numero: recibo.numero_recibo,
       valor: Number(recibo.valor || 0) / 100,
       descricao: recibo.descricao || "Tarifa aeronáutica rateada por voo",
       data: recibo.data_emissao,
-      pagadorNome: cotista.nome,
+      pagadorNome: nomePagador,
       pagadorDocumento: cotista.cnpj || cotista.cpf,
       pagadorEndereco: cotista.endereco,
       pagadorCidade: cotista.cidade,
@@ -225,14 +284,14 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           `Tarifa ${tipo}`,
           demonstrativo.numero_documento ? `documento ${demonstrativo.numero_documento}` : null,
           demonstrativo.competencia ? `competência ${demonstrativo.competencia}` : null,
-          `${grupo.operacoes} voo(s) atribuído(s) a ${grupo.cotista.nome}`,
+          `${grupo.operacoes} voo(s) atribuído(s) a ${grupo.nome}`,
         ].filter(Boolean).join(" · ");
         const resposta = await criarRecibo({
           tipo_recibo: "recibo_reembolso",
           aeronave_id: aeronaveId,
           pagador_tipo: "cotista_aeronave",
           pagador_id: grupo.cotista.id,
-          nome_pagador: grupo.cotista.nome,
+          nome_pagador: grupo.nome,
           documento_pagador: grupo.cotista.cnpj || grupo.cotista.cpf,
           endereco_pagador: grupo.cotista.endereco,
           cidade_pagador: grupo.cotista.cidade,
@@ -252,7 +311,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
             .join("\n"),
         });
         if (arquivo) await enviarAnexoRecibo(arquivo, resposta.recibo.id);
-        const pdf = await gerarPdf(resposta.recibo, grupo.cotista);
+        const pdf = await gerarPdf(resposta.recibo, grupo.cotista, grupo.nome);
         await enviarPdfRecibo(resposta.recibo.id, pdf);
         criados.push(resposta.recibo);
       }
@@ -366,6 +425,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
                     <th className="px-3 py-2.5">Data / hora</th>
                     <th className="px-3 py-2.5">Operação</th>
                     <th className="px-3 py-2.5">Cotista responsável</th>
+                    <th className="px-3 py-2.5">Nome no recibo</th>
                     <th className="px-3 py-2.5 text-right">Valor rateado</th>
                   </tr>
                 </thead>
@@ -381,10 +441,22 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
                         <SearchableCombobox
                           items={itensCotistas}
                           value={linha.cotistaId}
-                          onChange={(cotistaId) => atualizarLinha(indice, { cotistaId })}
+                          onChange={(cotistaId) => {
+                            const cotista = cotistas.find((item) => item.id === cotistaId);
+                            atualizarLinha(indice, { cotistaId, nomeCotista: cotista?.nome || linha.nomeCotista });
+                          }}
                           placeholder="Selecione o cotista"
                           searchPlaceholder="Buscar cotista..."
                           emptyMessage="Nenhum cotista para esta aeronave."
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={linha.nomeCotista}
+                          onChange={(event) => atualizarLinha(indice, { nomeCotista: event.target.value })}
+                          placeholder="Nome no recibo"
+                          className="campo min-w-44"
+                          aria-label={`Nome do cotista no recibo ${indice + 1}`}
                         />
                       </td>
                       <td className="px-3 py-2 text-right">
@@ -417,7 +489,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
               <div className="divide-y divide-border">
                 {consolidado.map((grupo) => (
                   <div key={grupo.cotista.id} className="flex items-center justify-between gap-4 px-4 py-3 text-[11px]">
-                    <span className="font-semibold">{grupo.cotista.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s)</span></span>
+                    <span className="font-semibold">{grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s)</span></span>
                     <span className="font-mono font-bold">{moeda(grupo.valor)}</span>
                   </div>
                 ))}

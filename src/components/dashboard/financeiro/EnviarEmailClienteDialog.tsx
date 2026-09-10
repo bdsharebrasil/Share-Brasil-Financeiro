@@ -135,9 +135,9 @@ export function EnviarEmailClienteDialog({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-        <div className="modal-enter w-full max-w-lg overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d1625] shadow-2xl">
-          <div className="flex items-center justify-between border-b border-white/[.06] px-5 py-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4" role="dialog" aria-modal="true">
+        <div className="modal-enter flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d1625] shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/[.06] px-4 py-4 sm:px-5">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400">
                 <Mail size={15} />
@@ -157,7 +157,7 @@ export function EnviarEmailClienteDialog({
             </button>
           </div>
 
-          <div className="space-y-3 px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
             <div>
               <label className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-slate-500">Para</label>
               <input
@@ -202,7 +202,7 @@ export function EnviarEmailClienteDialog({
                 onChange={(e) => setMensagem(e.target.value)}
                 placeholder="Escreva sua mensagem..."
                 disabled={status !== "idle"}
-                className="min-h-[220px] w-full resize-none rounded-lg border border-white/[.06] bg-[#080f1d] px-3 py-2.5 text-xs leading-relaxed text-slate-300 outline-none transition-colors placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50"
+                className="min-h-[160px] w-full resize-y rounded-lg border border-white/[.06] bg-[#080f1d] px-3 py-2.5 text-xs leading-relaxed text-slate-300 outline-none transition-colors placeholder:text-slate-700 focus:border-sky-500/40 disabled:opacity-50 sm:min-h-[220px]"
               />
               <p className="mt-1 text-[10px] text-slate-600">A assinatura é adicionada no envio. Use os bancos abaixo para inserir os dados na mensagem.</p>
             </div>
@@ -239,7 +239,7 @@ export function EnviarEmailClienteDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-white/[.06] px-5 py-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-white/[.06] px-4 py-4 sm:px-5">
             <button
               type="button"
               onClick={() => status === "idle" && onOpenChange(false)}
@@ -277,7 +277,7 @@ export function EnviarEmailClienteDialog({
 
       {toast && (
         <div
-          className={`toast-enter fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-2xl ${
+          className={`toast-enter fixed bottom-4 left-4 right-4 z-[60] flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-2xl sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-md ${
             toast.status === "sent"
               ? "toast-flash border-emerald-400/30 bg-emerald-500/15 text-emerald-300"
               : "border-sky-400/20 bg-sky-500/15 text-sky-300"
@@ -294,7 +294,7 @@ export function EnviarEmailClienteDialog({
           >
             {toast.status === "sent" ? <Check size={12} /> : <Loader2 size={11} className="animate-spin" />}
           </span>
-          <span>{toast.message}</span>
+          <span className="min-w-0 break-words">{toast.message}</span>
         </div>
       )}
     </>

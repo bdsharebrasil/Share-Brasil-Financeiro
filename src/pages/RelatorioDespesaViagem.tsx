@@ -217,6 +217,7 @@ export default function RelatorioDespesaViagem({
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [linksAprovacao, setLinksAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
+  const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
 
   useEffect(
     () => () => {
@@ -629,22 +630,21 @@ export default function RelatorioDespesaViagem({
     if (!relatorio) return;
     try {
       const prefill = await buscarProgramacaoReembolsoRelatorio(relatorio.id);
-      const vencimento = window.prompt(`Valor a reembolsar: ${moeda(prefill.valor)}\nInforme o vencimento (AAAA-MM-DD):`, new Date().toISOString().slice(0, 10));
-      if (!vencimento) return;
-      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: vencimento, periodicidade: prefill.periodicidade, tipo_rateio: prefill.tipo_rateio });
-      setMensagem({
-        tipo: "ok",
-        texto: "Reembolso programado e enviado para o cliente.",
-      });
+      setReembolsoForm({ aberto: true, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill });
     } catch (error) {
-      setMensagem({
-        tipo: "erro",
-        texto:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível iniciar o envio.",
-      });
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível iniciar o envio." });
     }
+  };
+  const confirmarReembolso = async () => {
+    if (!relatorio || !reembolsoForm.vencimento) return;
+    setSalvando(true);
+    try {
+      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio });
+      setRelatorio((atual) => atual ? { ...atual, status: "enviado_cliente" } : atual);
+      setReembolsoForm((atual) => ({ ...atual, aberto: false }));
+      setMensagem({ tipo: "ok", texto: "Reembolso programado e enviado para o cliente." });
+    } catch (error) { setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível programar o reembolso." }); }
+    finally { setSalvando(false); }
   };
   const uploadAnexo = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -1313,6 +1313,21 @@ export default function RelatorioDespesaViagem({
             <Button type="button" variant="outline" onClick={() => { if (pdfPreview) URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}>Voltar</Button>
             <Button type="button" onClick={() => void confirmarGeracaoPdf()} disabled={salvando}><FileDown size={15} /> Gerar PDF</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={reembolsoForm.aberto} onOpenChange={(open) => setReembolsoForm((atual) => ({ ...atual, aberto: open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Programar reembolso ao cotista</DialogTitle>
+            <DialogDescription>Confira os dados antes de enviar a despesa e gerar os lançamentos financeiros.</DialogDescription>
+          </DialogHeader>
+          {reembolsoForm.prefill && <div className="space-y-4">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>Valor a reembolsar:</strong> {moeda(reembolsoForm.prefill.valor)}</p><p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p><p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_id || "—"}</p></div>
+            <div><Label htmlFor="reembolso-vencimento">Vencimento</Label><Input id="reembolso-vencimento" type="date" value={reembolsoForm.vencimento} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, vencimento: e.target.value }))} /></div>
+            <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value }))}>{["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"].map((item) => <option key={item}>{item}</option>)}</select></div>
+            <div><Label htmlFor="reembolso-rateio">Tipo de rateio</Label><select id="reembolso-rateio" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.tipoRateio} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, tipoRateio: e.target.value }))}>{["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => <option key={item}>{item}</option>)}</select></div>
+          </div>}
+          <DialogFooter><Button type="button" variant="outline" onClick={() => setReembolsoForm((atual) => ({ ...atual, aberto: false }))}>Cancelar</Button><Button type="button" onClick={() => void confirmarReembolso()} disabled={salvando || !reembolsoForm.vencimento}><Send size={15} /> Enviar ao cliente</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

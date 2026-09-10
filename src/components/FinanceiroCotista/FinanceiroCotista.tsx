@@ -387,17 +387,21 @@ export default function FinanceiroCotista() {
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>([]);
 
   const carregar = useCallback(async () => {
+    if (!aeronaveSelecionada) {
+      setDashboard(null);
+      setCarregando(false);
+      return;
+    }
+
+    setCarregando(true);
     try {
-      const [ops, dash] = await Promise.all([buscarOpcoesLancamento(), buscarDashboardCotista()]);
-      setOpcoes(ops);
-      setDashboard(dash);
+      setDashboard(await buscarDashboardCotista());
     } catch {
-      setOpcoes(null);
       setDashboard(null);
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [aeronaveSelecionada]);
 
   const carregarAeronaves = useCallback(async () => {
     try {
@@ -422,17 +426,17 @@ export default function FinanceiroCotista() {
   }, []);
 
   useEffect(() => {
-    carregar();
+    void buscarOpcoesLancamento().then(setOpcoes).catch(() => setOpcoes(null));
     carregarAeronaves();
-  }, [carregar, carregarAeronaves]);
+  }, [carregarAeronaves]);
 
   useEffect(() => {
+    carregar();
     carregarCotistas(aeronaveSelecionada);
-  }, [aeronaveSelecionada, carregarCotistas]);
+  }, [aeronaveSelecionada, carregar, carregarCotistas]);
 
   const lancamentosFiltrados = useMemo(() => {
-    if (!dashboard?.lancamentos) return [];
-    if (!aeronaveSelecionada) return dashboard.lancamentos;
+    if (!aeronaveSelecionada || !dashboard?.lancamentos) return [];
     return dashboard.lancamentos.filter(
       (lancamento) => lancamento.aeronaveId === aeronaveSelecionada,
     );
@@ -464,18 +468,10 @@ export default function FinanceiroCotista() {
     saldo: item.saldo / 100,
   }));
 
-  const cotistasParaDialog: CotistaAeronave[] = useMemo(() => {
-    if (aeronaveSelecionada) return cotistasAeronave;
-    return (opcoes?.cotistas ?? []).map((c) => ({
-      id: c.id,
-      nome: c.nome,
-      cliente_id: null,
-      socio_id: null,
-      percentual_sociedade: c.percentual_sociedade ?? 0,
-      holding_id: null,
-      eh_holding: 0,
-    }));
-  }, [aeronaveSelecionada, cotistasAeronave, opcoes]);
+  const cotistasParaDialog: CotistaAeronave[] = useMemo(
+    () => (aeronaveSelecionada ? cotistasAeronave : []),
+    [aeronaveSelecionada, cotistasAeronave],
+  );
 
   const formatarValorGrafico = (valor: number) => formatarMoeda(valor).replace(",00", "");
   const coresCategorias = ["#22d3ee", "#60a5fa", "#a78bfa", "#fbbf24", "#34d399", "#94a3b8"];
@@ -495,6 +491,13 @@ export default function FinanceiroCotista() {
         </div>
       </div>
 
+      {!aeronaveSelecionada ? (
+        <div className="rounded-xl border border-dashed border-border bg-card/40 px-5 py-14 text-center">
+          <Plane className="mx-auto h-8 w-8 text-muted-foreground/60" />
+          <p className="mt-3 text-sm font-semibold">Selecione uma aeronave</p>
+          <p className="mt-1 text-xs text-muted-foreground">Os dados financeiros do cotista serão exibidos depois da seleção.</p>
+        </div>
+      ) : <>
       {aeronaveSelecionada && cotistasAeronave.length > 0 && (
         <div className="rounded-xl border border-border bg-card/60 p-4">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Cotistas desta aeronave</p>
@@ -536,7 +539,8 @@ export default function FinanceiroCotista() {
           </div>}
         </>
       )}
-      <NovoLancamentoCotistaDialog aberto={aberto} aoFechar={() => setAberto(false)} opcoes={opcoes} cotistasAeronave={cotistasParaDialog} aeronaveId={aeronaveSelecionada} aoCriar={carregar} />
+      </>}
+      {aeronaveSelecionada && <NovoLancamentoCotistaDialog aberto={aberto} aoFechar={() => setAberto(false)} opcoes={opcoes} cotistasAeronave={cotistasParaDialog} aeronaveId={aeronaveSelecionada} aoCriar={carregar} />}
     </div>
   );
 }

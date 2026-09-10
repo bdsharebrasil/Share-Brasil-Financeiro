@@ -151,6 +151,19 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     () => cotistas.map((cotista) => ({ id: cotista.id, label: cotista.nome })),
     [cotistas],
   );
+  const categoriasDemonstrativo = useMemo(() => {
+    const permitidas = [
+      { rotulo: "TARIFA INFRAERO", padrao: /infraero/i },
+      { rotulo: "TARIFA DE NAVEGAÇÃO AÉREA - DECEA", padrao: /decea|navega/i },
+      { rotulo: "TARIFAS DE POUSO", padrao: /pouso/i },
+    ];
+    return permitidas
+      .map(({ rotulo, padrao }) => {
+        const categoria = opcoes.categorias.find((item) => padrao.test(item.nome));
+        return categoria ? { ...categoria, rotulo } : null;
+      })
+      .filter((categoria): categoria is NonNullable<typeof categoria> => Boolean(categoria));
+  }, [opcoes.categorias]);
   const categoriaSelecionada = useMemo(
     () => opcoes.categorias.find((categoria) => categoria.id === categoriaId) || null,
     [categoriaId, opcoes.categorias],
@@ -233,9 +246,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
       setDemonstrativo(resultado);
       setLinhas(novasLinhas);
       if (!categoriaId) {
-        const categoriaTarifa = opcoes.categorias.find((categoria) =>
-          /tarifa|infraero|decea|navega/i.test(categoria.nome),
-        );
+        const categoriaTarifa = categoriasDemonstrativo[0];
         setCategoriaId(categoriaTarifa?.id || "");
       }
       setSucesso(`${novasLinhas.length} operação(ões) lida(s). Revise as atribuições antes de gerar os recibos.`);
@@ -365,12 +376,12 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           <div>
             <span className="mb-1 block text-[11px] font-bold text-muted-foreground">CATEGORIA DO RECIBO</span>
             <SearchableCombobox
-              items={opcoes.categorias.map((categoria) => ({ id: categoria.id, label: categoria.nome }))}
+              items={categoriasDemonstrativo.map((categoria) => ({ id: categoria.id, label: categoria.rotulo }))}
               value={categoriaId}
               onChange={setCategoriaId}
               placeholder="Selecione a categoria"
-              searchPlaceholder="Buscar categoria..."
-              emptyMessage="Nenhuma categoria encontrada."
+              searchPlaceholder="Buscar categoria"
+              emptyMessage="Nenhuma das três categorias de tarifa foi encontrada."
             />
           </div>
         </div>

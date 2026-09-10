@@ -6,7 +6,7 @@ import { nomesAmbiente, type Ambiente } from "@/types/navegacao";
 
 export function IndicadorPagina({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-primary">
+    <div className="mb-3 flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[.16em] text-primary">
       <span className="h-1.5 w-1.5 rounded-full bg-primary" />
       {children}
     </div>

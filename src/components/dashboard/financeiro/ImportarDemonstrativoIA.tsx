@@ -3,7 +3,8 @@ import { AlertCircle, CheckCircle2, FileText, Loader2, Receipt, Upload, X } from
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
-  criarRecibo,
+  gerarRecibosDemonstrativo,
+  lerDemonstrativoRecibo,
   enviarAnexoRecibo,
   enviarPdfRecibo,
   buscarDetalhesDiario,
@@ -12,7 +13,6 @@ import {
   type OpcoesRecibos,
   type Recibo,
 } from "@/lib/colaborador-api";
-import { supabase } from "@/lib/supabase";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 
 type TipoDemonstrativo = "INFRAERO" | "DECEA";
@@ -202,11 +202,9 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     setRecibosGerados([]);
     try {
       const body = await arquivoParaBase64(arquivo);
-      const { data: resultado, error: leituraError } = await supabase.functions.invoke<DemonstrativoLido>("demonstrativo-ocr", {
-        body: { ...body, tipo },
-      });
-      if (leituraError) throw new Error(leituraError.message || "Não foi possível ler o demonstrativo por IA.");
-      if (!resultado) throw new Error("A função de leitura não retornou dados.");
+      const resposta = await lerDemonstrativoRecibo({ ...body, tipo });
+      const resultado = resposta.dados_extraidos as DemonstrativoLido;
+      if (!resultado) throw new Error("A rota de leitura não retornou dados.");
 
       const meses = [...new Set(resultado.itens.map((item) => {
         const iso = dataDiario(item.data);
@@ -277,26 +275,21 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     setSucesso("");
     const criados: ReciboGerado[] = [];
     try {
-      for (let index = 0; index < consolidado.length; index += 1) {
-        const grupo = consolidado[index];
-        setProgresso(`Gerando recibo ${index + 1} de ${consolidado.length}...`);
+      const grupos = consolidado.map((grupo) => {
         const descricao = [
           `Tarifa ${tipo}`,
           demonstrativo.numero_documento ? `documento ${demonstrativo.numero_documento}` : null,
           demonstrativo.competencia ? `competência ${demonstrativo.competencia}` : null,
           `${grupo.operacoes} voo(s) atribuído(s) a ${grupo.nome}`,
         ].filter(Boolean).join(" · ");
-        const resposta = await criarRecibo({
-          tipo_recibo: "recibo_reembolso",
+        return {
+          cotista_id: grupo.cotista.id,
           aeronave_id: aeronaveId,
-          pagador_tipo: "cotista_aeronave",
-          pagador_id: grupo.cotista.id,
           nome_pagador: grupo.nome,
           documento_pagador: grupo.cotista.cnpj || grupo.cotista.cpf,
           endereco_pagador: grupo.cotista.endereco,
           cidade_pagador: grupo.cotista.cidade,
           uf_pagador: grupo.cotista.uf,
-          recebedor_nome: "SHARE BRASIL SERVICOS AEROPORTUARIOS",
           valor_centavos: Math.round(grupo.valor * 100),
           descricao,
           data_emissao: hoje(),
@@ -305,15 +298,20 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           categoria_nome: categoriaSelecionada.nome,
           grupo_categoria: categoriaSelecionada.grupo_categoria || "DESPESAS REEMBOLSÁVEIS",
           numero_documento_anexo: demonstrativo.numero_documento,
-          observacoes: linhas
-            .filter((linha) => linha.cotistaId === grupo.cotista.id)
-            .map(descricaoLinha)
-            .join("\n"),
-        });
-        if (arquivo) await enviarAnexoRecibo(arquivo, resposta.recibo.id);
-        const pdf = await gerarPdf(resposta.recibo, grupo.cotista, grupo.nome);
-        await enviarPdfRecibo(resposta.recibo.id, pdf);
-        criados.push(resposta.recibo);
+          observacoes: linhas.filter((linha) => linha.cotistaId === grupo.cotista.id).map(descricaoLinha).join("\n"),
+          idempotency_key: `demonstrativo:${demonstrativo.numero_documento || "sem-documento"}:${grupo.cotista.id}:${demonstrativo.competencia || hoje()}`,
+        };
+      });
+      setProgresso("Gravando recibos revisados no Worker...");
+      const resposta = await gerarRecibosDemonstrativo(grupos);
+      for (let index = 0; index < resposta.recibos.length; index += 1) {
+        const grupo = consolidado[index];
+        const recibo = resposta.recibos[index];
+        setProgresso(`Gerando PDF do recibo ${index + 1} de ${resposta.recibos.length}...`);
+        if (arquivo) await enviarAnexoRecibo(arquivo, recibo.id);
+        const pdf = await gerarPdf(recibo, grupo.cotista, grupo.nome);
+        await enviarPdfRecibo(recibo.id, pdf);
+        criados.push(recibo);
       }
       setRecibosGerados(criados);
       await onCreated();

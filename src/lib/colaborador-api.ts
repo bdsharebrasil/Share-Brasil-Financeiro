@@ -1209,6 +1209,32 @@ export function buscarRecibo(id: string) { return colaboradorRequest<{ recibo: R
 export function criarRecibo(payload: CriarReciboPayload) {
   return colaboradorRequest<{ recibo: Recibo; lancamento_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
 }
+export type LeituraDemonstrativoResponse = { sucesso: boolean; persistido: false; tipo: string; dados_extraidos: Record<string, any> };
+export function lerDemonstrativoRecibo(payload: { imageBase64: string; mimeType: string; tipo: string }) {
+  return colaboradorRequest<LeituraDemonstrativoResponse>("/api/financeiro/recibos/leitura-demonstrativo", { method: "POST", body: JSON.stringify(payload) });
+}
+export type GrupoReciboDemonstrativo = {
+  cotista_id: string;
+  aeronave_id: string;
+  nome_pagador: string;
+  documento_pagador?: string | null;
+  endereco_pagador?: string | null;
+  cidade_pagador?: string | null;
+  uf_pagador?: string | null;
+  valor_centavos: number;
+  descricao: string;
+  data_emissao: string;
+  data_vencimento: string;
+  categoria_movimentacao_id: string;
+  categoria_nome: string;
+  grupo_categoria?: string | null;
+  numero_documento_anexo?: string | null;
+  observacoes?: string | null;
+  idempotency_key?: string | null;
+};
+export function gerarRecibosDemonstrativo(grupos: GrupoReciboDemonstrativo[]) {
+  return colaboradorRequest<{ recibos: Recibo[] }>("/api/financeiro/recibos/gerar-demonstrativo", { method: "POST", body: JSON.stringify({ grupos }) });
+}
 export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; observacoes?: string }) {
   return colaboradorRequest<{ ok: boolean; id: string; lancamento_share_id: string; lancamento_cliente_id: string; conta_receber_id: string; status: string; idempotent?: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
 }

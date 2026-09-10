@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   CircleAlert,
+  Copy,
   Eye,
   FileDown,
   FilePlus2,
@@ -30,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
@@ -44,6 +46,7 @@ import {
   decidirAprovacaoRelatorio,
   enviarAnexoRelatorio,
   enviarDespesaAoCliente,
+  buscarProgramacaoReembolsoRelatorio,
   enviarPdfRelatorio,
   enviarRelatorioParaAprovacao,
   excluirRelatorioDespesaViagem,
@@ -212,6 +215,8 @@ export default function RelatorioDespesaViagem({
     "finalizados",
   );
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
+  const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
+  const [linksAprovacao, setLinksAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
 
   useEffect(
     () => () => {
@@ -500,7 +505,7 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
-  const gerarPdf = async (item: Relatorio) => {
+  const prepararPdf = async (item: Relatorio) => {
     const anexos = await Promise.all(
       (item.anexos || []).map(async (anexo) => ({
         nome_arquivo: anexo.nome_arquivo,
@@ -519,7 +524,11 @@ export default function RelatorioDespesaViagem({
       total_valor: total,
       anexos,
     });
-    const arquivo = new File([blob], `relatorio-${item.numero_relatorio}.pdf`, {
+    return blob;
+  };
+  const gerarPdf = async (item: Relatorio, blob?: Blob) => {
+    const pdfBlob = blob || await prepararPdf(item);
+    const arquivo = new File([pdfBlob], `relatorio-${item.numero_relatorio}.pdf`, {
       type: "application/pdf",
     });
     const resposta = await enviarPdfRelatorio(item.id, arquivo);
@@ -555,10 +564,12 @@ export default function RelatorioDespesaViagem({
           item.id === salvo.id ? resposta.relatorio : item,
         ),
       );
-      await gerarPdf(resposta.relatorio);
+      const blob = await prepararPdf(resposta.relatorio);
+      const url = URL.createObjectURL(blob);
+      setPdfPreview({ item: resposta.relatorio, blob, url });
       setMensagem({
         tipo: "ok",
-        texto: "Relatório finalizado e PDF salvo no armazenamento.",
+        texto: "Relatório finalizado. Confira a prévia e clique em Gerar PDF para salvar.",
       });
     } catch (error) {
       setMensagem({
@@ -572,6 +583,20 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
+  const confirmarGeracaoPdf = async () => {
+    if (!pdfPreview) return;
+    setSalvando(true);
+    try {
+      const resposta = await gerarPdf(pdfPreview.item, pdfPreview.blob);
+      setRelatorio((atual) => atual ? { ...atual, pdf_url: resposta.pdf_url } : atual);
+      setRelatorios((atuais) => atuais.map((item) => item.id === pdfPreview.item.id ? { ...item, pdf_url: resposta.pdf_url } : item));
+      URL.revokeObjectURL(pdfPreview.url);
+      setPdfPreview(null);
+      setMensagem({ tipo: "ok", texto: "PDF gerado e salvo com sucesso." });
+    } catch (error) {
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível gerar o PDF." });
+    } finally { setSalvando(false); }
+  };
   const enviarAprovacao = async (pos: 1 | 2) => {
     if (!relatorio) return;
     setSalvando(true);
@@ -583,6 +608,7 @@ export default function RelatorioDespesaViagem({
           item.id === relatorio.id ? resposta.relatorio : item,
         ),
       );
+      setLinksAprovacao((atuais) => ({ ...atuais, [pos]: resposta.link }));
       setMensagem({
         tipo: "ok",
         texto: `Relatório enviado para aprovação do tripulante ${pos}.`,
@@ -602,10 +628,13 @@ export default function RelatorioDespesaViagem({
   const enviarCliente = async () => {
     if (!relatorio) return;
     try {
-      await enviarDespesaAoCliente(relatorio.id);
+      const prefill = await buscarProgramacaoReembolsoRelatorio(relatorio.id);
+      const vencimento = window.prompt(`Valor a reembolsar: ${moeda(prefill.valor)}\nInforme o vencimento (AAAA-MM-DD):`, new Date().toISOString().slice(0, 10));
+      if (!vencimento) return;
+      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: vencimento, periodicidade: prefill.periodicidade, tipo_rateio: prefill.tipo_rateio });
       setMensagem({
         tipo: "ok",
-        texto: "O envio ao cliente será habilitado na segunda etapa do fluxo.",
+        texto: "Reembolso programado e enviado para o cliente.",
       });
     } catch (error) {
       setMensagem({
@@ -1158,6 +1187,7 @@ export default function RelatorioDespesaViagem({
               status={relatorio?.status_aprovacao_tripulante}
               enviado={relatorio?.enviado_para_tripulante_em}
               onEnviar={() => void enviarAprovacao(1)}
+              link={linksAprovacao[1]}
               disabled={
                 !relatorio ||
                 ![
@@ -1175,6 +1205,7 @@ export default function RelatorioDespesaViagem({
               status={relatorio?.status_aprovacao_tripulante_2}
               enviado={relatorio?.enviado_para_tripulante_2_em}
               onEnviar={() => void enviarAprovacao(2)}
+              link={linksAprovacao[2]}
               disabled={
                 !relatorio?.tripulante_id_2 ||
                 ![
@@ -1217,11 +1248,11 @@ export default function RelatorioDespesaViagem({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled
+                  disabled={salvando || relatorio.status === "enviado_cliente"}
                   onClick={() => void enviarCliente()}
                   className="gap-2"
                 >
-                  <Send size={15} /> Enviar despesa ao cliente
+                  <Send size={15} /> {relatorio.status === "enviado_cliente" ? "Reembolso enviado ao cliente" : "Programar para pagamento"}
                 </Button>
               </div>
             )}
@@ -1271,6 +1302,19 @@ export default function RelatorioDespesaViagem({
             </div>
           </div>
         )}
+      <Dialog open={Boolean(pdfPreview)} onOpenChange={(open) => { if (!open && pdfPreview) { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); } }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Prévia do relatório em PDF</DialogTitle>
+            <DialogDescription>Revise o documento antes de salvá-lo. O arquivo só será anexado ao relatório após clicar em Gerar PDF.</DialogDescription>
+          </DialogHeader>
+          {pdfPreview && <iframe src={pdfPreview.url} title="Prévia do relatório" className="h-[70vh] w-full rounded-md border bg-white" />}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { if (pdfPreview) URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}>Voltar</Button>
+            <Button type="button" onClick={() => void confirmarGeracaoPdf()} disabled={salvando}><FileDown size={15} /> Gerar PDF</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1669,6 +1713,7 @@ function AprovacaoLinha({
   nome,
   status,
   enviado,
+  link,
   onEnviar,
   disabled,
 }: {
@@ -1676,6 +1721,7 @@ function AprovacaoLinha({
   nome?: string | null;
   status?: string | null;
   enviado?: string | null;
+  link?: string;
   onEnviar: () => void;
   disabled: boolean;
 }) {
@@ -1719,6 +1765,11 @@ function AprovacaoLinha({
       >
         <Send size={13} /> Enviar para aprovação tripulação
       </Button>
+      {link && (
+        <Button type="button" size="icon" variant="outline" title="Copiar link de aprovação" onClick={() => void navigator.clipboard.writeText(link)}>
+          <Copy size={14} />
+        </Button>
+      )}
     </div>
   );
 }

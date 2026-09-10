@@ -5,7 +5,7 @@ import type { DiarioLancamento, DiarioOpcoesResponse } from "@/lib/colaborador-a
 
 const inputClass = "h-10 w-full rounded-xl border border-white/[.1] bg-white/[.04] px-3 text-xs text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/[.07] focus:ring-2 focus:ring-cyan-300/15";
 const selectClass = `${inputClass} appearance-none [&>option]:bg-[#101722] [&>option]:text-slate-100`;
-const naturezas = ["AE - Aérea/Regular", "CQ - Cheque", "EX - Executivo", "NR - Não remunerado", "RE - Retorno/Reposição", "PV - Privado", "SA - Serviço aéreo", "TN - Táxi aéreo", "TR - Traslado", "VOO_TESTE"];
+const naturezas = ["AE - Aérea/Regular", "CQ - Cheque", "EX - Executivo", "NR - Não remunerado", "RE - Retorno/Reposição", "PV - Privado", "SA - Serviço aéreo", "TN - Táxi aéreo", "TR - Traslado", "VT - Voo Teste"];
 
 type FormValues = Record<string, string | boolean>;
 

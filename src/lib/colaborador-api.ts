@@ -843,9 +843,10 @@ export type DiarioAeronaveResumo = {
 
 export type DiarioTripulante = { id: string; canac: string; nome_completo: string; status: string | null; origem: string };
 export type DiarioOpcaoCliente = { id: string; nome: string | null; codigo_cliente: string | null; proprietario?: string | null };
-export type DiarioOpcaoSocio = { id: string; nome: string; cliente_id: string | null };
+export type DiarioOpcaoHolding = { id: string; nome: string; proprietario?: string | null };
+export type DiarioOpcaoSocio = { id: string; nome: string; cliente_id: string | null; holding_id?: string | null };
 export type DiarioOpcaoAerodromo = { id: string; designativo: string; nome: string };
-export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[] };
+export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; holdings: DiarioOpcaoHolding[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[] };
 export type DiarioMes = {
   id: string;
   aeronave_id: string;
@@ -890,6 +891,7 @@ export type DiarioLancamento = {
   sic_nome: string | null;
   sic_nome_exibicao?: string | null;
   cliente_id: string | null;
+  holding_id: string | null;
   socio_id: string | null;
   cliente_tomador_emprestimo_id?: string | null;
   socio_tomador_emprestimo_id?: string | null;

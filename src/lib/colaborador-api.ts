@@ -909,6 +909,7 @@ export type DiarioLancamento = {
   horas_noturnas: number;
   pousos_total: number;
   distancia_nm: number;
+  diarias?: string | null;
   litros_combustivel_inicio_voo: number;
   litros_combustivel_abastecido: number;
   local_combustivel: string | null;

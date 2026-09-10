@@ -16,6 +16,7 @@ import HistoricoRecibos, {
 } from "@/components/financeiro-share/HistoricoRecibos";
 import ProgramarContaAPagarDialog from "@/components/financeiro-share/ProgramarContaAPagarDialog";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import ImportarDemonstrativoIA from "@/components/dashboard/financeiro/ImportarDemonstrativoIA";
 import { useToast } from "@/hooks/use-toast";
 import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
@@ -304,6 +305,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState<"emissao" | "historico">("emissao");
+  const [leitorDemonstrativoAberto, setLeitorDemonstrativoAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [previewAberta, setPreviewAberta] = useState(false);
@@ -836,14 +838,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         onSaved={() => toast({ title: "Contas a pagar programadas", description: "O lançamento do recibo continua vinculado e o rateio foi gravado." })}
       />
 
-      {abaAtiva === "emissao" && (
+      {abaAtiva === "emissao" && !leitorDemonstrativoAberto && (
         <section className="overflow-hidden rounded-sm border border-border bg-card/60 shadow-lg">
           <div className="border-b border-border bg-secondary/20 px-5 py-3.5">
             <p className="text-[11px] font-bold uppercase tracking-[.16em]">
               Tipo de emissão <sup className="text-primary">*</sup>
             </p>
           </div>
-          <div className="grid gap-3 p-5 md:grid-cols-3">
+          <div className="grid gap-3 p-5 md:grid-cols-4">
             {opcoesTipo.map((opcao) => {
               const ativo = form.tipo === opcao.id;
               const Icon = opcao.icon;
@@ -877,6 +879,24 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => {
+                setLeitorDemonstrativoAberto(true);
+                setErro("");
+                setMensagem("");
+              }}
+              className="group flex min-h-[116px] items-start gap-3 rounded-xl border border-primary/35 bg-primary/[.045] p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md"
+            >
+              <span className="mt-0.5 grid h-5 w-5 place-content-center rounded-full border border-primary/50">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary/75" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-bold">Ler Demonstrativo</span>
+                <span className="mt-1 block text-[10px] leading-5 text-muted-foreground">Importe INFRAERO ou DECEA, confira os voos e gere os recibos por cotista.</span>
+              </span>
+              <FileText className="text-primary" size={18} />
+            </button>
           </div>
 
           {form.tipo && (
@@ -1337,6 +1357,18 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             </div>
           )}
         </section>
+      )}
+
+      {abaAtiva === "emissao" && leitorDemonstrativoAberto && (
+        <ImportarDemonstrativoIA
+          opcoes={opcoes}
+          onCancel={() => setLeitorDemonstrativoAberto(false)}
+          onCreated={async () => {
+            await carregar();
+            setLeitorDemonstrativoAberto(false);
+            setAbaAtiva("historico");
+          }}
+        />
       )}
 
       {abaAtiva === "emissao" && previewAberta && form.tipo && (

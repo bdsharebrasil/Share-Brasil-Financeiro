@@ -1,4 +1,3 @@
-
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import {
@@ -1227,6 +1226,8 @@ async function gerarPaginasPdf(
       }
 
       await pagina.render({
+        canvas:
+          origem,
         canvasContext:
           origemContext,
         viewport,
@@ -1621,4 +1622,3 @@ function adicionarCanvasPrincipal(
       pageHeight;
   }
 }
-

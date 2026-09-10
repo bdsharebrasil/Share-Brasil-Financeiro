@@ -863,6 +863,7 @@ export type DiarioMes = {
   celula_disponivel_tvoo: number | null;
   celula_anterior_tvoo: number | null;
   celula_prox_revisao_tvoo: number | null;
+  modo_celula?: "tvoo" | "tempo_total" | null;
 };
 export type DiarioLancamento = {
   id: string;

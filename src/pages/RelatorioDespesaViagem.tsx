@@ -35,6 +35,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
+import { copyText } from "@/lib/utils";
 import {
   atualizarRelatorioDespesaViagem,
   baixarAnexoRelatorio,
@@ -626,6 +627,26 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
+  const copiarLinkAprovacao = async (link: string) => {
+    try {
+      const copiado = navigator.clipboard?.writeText
+        ? await navigator.clipboard.writeText(link).then(
+            () => true,
+            () => copyText(link),
+          )
+        : copyText(link);
+      if (!copiado) throw new Error("copia_indisponivel");
+      setMensagem({
+        tipo: "ok",
+        texto: "Link copiado! Agora você pode enviá-lo pelo WhatsApp.",
+      });
+    } catch {
+      setMensagem({
+        tipo: "erro",
+        texto: "Não foi possível copiar o link. Copie-o manualmente.",
+      });
+    }
+  };
   const enviarCliente = async () => {
     if (!relatorio) return;
     try {
@@ -1188,6 +1209,7 @@ export default function RelatorioDespesaViagem({
               enviado={relatorio?.enviado_para_tripulante_em}
               onEnviar={() => void enviarAprovacao(1)}
               link={linksAprovacao[1]}
+              onCopiar={copiarLinkAprovacao}
               disabled={
                 !relatorio ||
                 ![
@@ -1206,6 +1228,7 @@ export default function RelatorioDespesaViagem({
               enviado={relatorio?.enviado_para_tripulante_2_em}
               onEnviar={() => void enviarAprovacao(2)}
               link={linksAprovacao[2]}
+              onCopiar={copiarLinkAprovacao}
               disabled={
                 !relatorio?.tripulante_id_2 ||
                 ![
@@ -1730,6 +1753,7 @@ function AprovacaoLinha({
   enviado,
   link,
   onEnviar,
+  onCopiar,
   disabled,
 }: {
   pos: 1 | 2;
@@ -1738,6 +1762,7 @@ function AprovacaoLinha({
   enviado?: string | null;
   link?: string;
   onEnviar: () => void;
+  onCopiar: (link: string) => void;
   disabled: boolean;
 }) {
   const aprovado = status === "aprovado";
@@ -1781,8 +1806,15 @@ function AprovacaoLinha({
         <Send size={13} /> Enviar para aprovação tripulação
       </Button>
       {link && (
-        <Button type="button" size="icon" variant="outline" title="Copiar link de aprovação" onClick={() => void navigator.clipboard.writeText(link)}>
-          <Copy size={14} />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          title="Copiar link de aprovação"
+          onClick={() => onCopiar(link)}
+          className="gap-1.5"
+        >
+          <Copy size={14} /> Copiar link
         </Button>
       )}
     </div>

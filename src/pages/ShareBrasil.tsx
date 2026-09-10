@@ -106,6 +106,23 @@ const categoriasDocumentos = [
   { value: "inscricao-estadual", label: "Inscrição estadual" },
 ];
 
+function emailsCadastrados(registro?: Record<string, any> | null) {
+  if (!registro) return [];
+  const adicionais = Array.isArray(registro.emails)
+    ? registro.emails
+    : (() => {
+        try {
+          const parsed = JSON.parse(String(registro.emails || "[]"));
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return String(registro.emails || "").split(/[;,\s]+/).filter(Boolean);
+        }
+      })();
+  return [...new Set([registro.email_principal, ...adicionais]
+    .map((email) => String(email || "").trim().toLowerCase())
+    .filter(Boolean))];
+}
+
 function Shell({
   title,
   detail,
@@ -1380,6 +1397,27 @@ export function ContatosClientesShareBrasil() {
       </p>
     </div>
   );
+  const profileEmails = (registro?: Record<string, any> | null, violet = false) => {
+    const emails = emailsCadastrados(registro);
+    return (
+      <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-4 sm:col-span-2">
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
+          <Mail size={13} className={violet ? "text-violet-300" : "text-primary"} />
+          E-mails cadastrados
+          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-400">{emails.length}</span>
+        </div>
+        {emails.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {emails.map((email) => (
+              <a key={email} href={`mailto:${email}`} className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/[.08] ${violet ? "border-violet-300/20 bg-violet-300/5 text-violet-100" : "border-primary/20 bg-primary/5 text-slate-100"}`}>
+                {email}
+              </a>
+            ))}
+          </div>
+        ) : <p className="mt-2 text-sm font-semibold text-slate-100">Não informado</p>}
+      </div>
+    );
+  };
   const categorySelect = (
     value: string,
     onChange: (value: string) => void,
@@ -2029,23 +2067,25 @@ export function ContatosClientesShareBrasil() {
         </div>
         <div className="p-5 md:p-8">
           {profileTab === "visao-geral" && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {profileField(
                 "Razão social",
                 selected.razao_social,
                 <Building2 size={13} />,
               )}
               {profileField("CNPJ", selected.cnpj, <FileText size={13} />)}
+              {profileField("Código do cliente", selected.codigo_cliente, <Clipboard size={13} />)}
+              {profileField("Inscrição estadual", selected.inscricao_estadual, <FileText size={13} />)}
+              {selected.holding ? profileField("Conta bancária", selected.conta_bancaria, <Building2 size={13} />) : null}
+              {profileEmails(selected)}
               {profileField(
-                "E-mail principal",
-                selected.email_principal,
-                <Mail size={13} />,
-              )}
-              {profileField(
-                "Telefone",
+                "Telefone principal",
                 selected.telefone_cliente,
                 <Phone size={13} />,
               )}
+              {profileField("Telefone financeiro", selected.telefone_financeiro, <Phone size={13} />)}
+              {profileField("Telefone alternativo", selected.telefone_outro, <Phone size={13} />)}
+              {profileField("Contato financeiro", selected.contato_financeiro, <UserRound size={13} />)}
               {profileField(
                 "Endereço",
                 [selected.endereco, selected.cidade, selected.uf]
@@ -2058,7 +2098,7 @@ export function ContatosClientesShareBrasil() {
                 selected.proprietario,
                 <UserRound size={13} />,
               )}
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2 lg:col-span-3">
                 {profileField(
                   "Observações",
                   selected.observacoes,
@@ -2238,6 +2278,18 @@ export function ContatosClientesShareBrasil() {
                     Sócio da holding · dados e documentos individuais
                   </p>
                 </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {profileField("Nome completo", currentSocio.nome, <UserRound size={13} />)}
+                {profileField("CPF", currentSocio.cpf, <FileText size={13} />)}
+                {profileField("Telefone", currentSocio.telefone, <Phone size={13} />)}
+                {profileField("Contato financeiro", currentSocio.contato_financeiro, <UserRound size={13} />)}
+                {profileField("Telefone financeiro", currentSocio.telefone_financeiro, <Phone size={13} />)}
+                {profileField("Endereço", [currentSocio.endereco, currentSocio.cidade, currentSocio.uf].filter(Boolean).join(" · "), <MapPin size={13} />)}
+                {profileEmails(currentSocio, true)}
+              </div>
+              <div className="border-t border-white/[.07] pt-5">
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-slate-500">Editar cadastro do sócio</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {socioInput("nome", "Nome completo")}

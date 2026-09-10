@@ -102,6 +102,33 @@ function dataBr(value?: string | null): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+function ordenarDespesasPorData(
+  despesas: DespesaPdf[],
+): DespesaPdf[] {
+  return despesas
+    .map((despesa, indice) => ({
+      despesa,
+      indice,
+      data: Date.parse(
+        `${despesa.data?.slice(0, 10) ?? ""}T00:00:00Z`,
+      ),
+    }))
+    .sort((a, b) => {
+      const dataAValida = Number.isFinite(a.data);
+      const dataBValida = Number.isFinite(b.data);
+
+      if (dataAValida && dataBValida) {
+        return a.data - b.data || a.indice - b.indice;
+      }
+
+      if (dataAValida) return -1;
+      if (dataBValida) return 1;
+
+      return a.indice - b.indice;
+    })
+    .map(({ despesa }) => despesa);
+}
+
 function calcularDias(
   inicio?: string | null,
   fim?: string | null,
@@ -1385,7 +1412,7 @@ export async function gerarPdfRelatorioViagem(
   const node =
     montarHtmlRelatorio(
       report,
-      despesas,
+      ordenarDespesasPorData(despesas),
     );
 
   document.body.appendChild(

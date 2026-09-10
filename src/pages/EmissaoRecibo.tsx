@@ -765,13 +765,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
   return (
     <div className="route-enter mx-auto max-w-6xl space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <header className="flex flex-wrap items-start justify-between gap-5 md:gap-6">
+        <div className="min-w-0">
           <IndicadorPagina>Financeiro / Emissão de recibo</IndicadorPagina>
-          <h1 className="flex items-center gap-2 text-xl font-extrabold tracking-[-.04em] md:text-2xl">
-            <Receipt className="text-primary" size={22} /> Emissão de recibo
+          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold leading-tight tracking-[-.035em] sm:text-3xl md:text-4xl">
+            <Receipt className="h-6 w-6 shrink-0 text-primary md:h-7 md:w-7" size={26} /> Emissão de recibo
           </h1>
-          <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
             Emita novos documentos ou consulte o arquivo mensal de recibos já
             emitidos.
           </p>

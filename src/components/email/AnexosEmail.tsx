@@ -56,7 +56,7 @@ export function AnexosEmail({
   const nomeAnexo = (id: string) => anexos.find((item) => item.id === id)?.nome || id;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="-my-[41px] flex flex-col gap-2 py-[14px]">
       {/* Chips compactos — não empurram mais o corpo da mensagem para baixo */}
       {totalSelecionado > 0 && (
         <div className="flex max-h-16 flex-wrap items-center gap-1.5 overflow-y-auto pr-1">
@@ -157,7 +157,7 @@ export function AnexosEmail({
         type="file"
         multiple
         onChange={handleFileChange}
-        className="hidden"
+        className="hidden py-[6px]"
         accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv,.txt"
       />
     </div>

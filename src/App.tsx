@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import LayoutInterno from "@/components/layout/LayoutInterno";
 import Login from "@/pages/login";
+import AprovacaoRelatorioViagem from "@/pages/AprovacaoRelatorioViagem";
 
 function ProtecaoColaborador() {
   const [verificando, setVerificando] = useState(true);
@@ -34,5 +35,5 @@ function ProtecaoColaborador() {
 }
 
 export default function App() {
-  return <><Routes><Route path="/login" element={<Login />} /><Route path="*" element={<ProtecaoColaborador />} /></Routes><Toaster /></>;
+  return <><Routes><Route path="/login" element={<Login />} /><Route path="/aprovar-relatorio" element={<AprovacaoRelatorioViagem />} /><Route path="*" element={<ProtecaoColaborador />} /></Routes><Toaster /></>;
 }

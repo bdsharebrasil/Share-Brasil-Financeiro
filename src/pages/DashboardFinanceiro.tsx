@@ -71,13 +71,33 @@ function statusLabel(status: string | null) {
 }
 function statusEmail(item: MovimentacaoFinanceira) {
   if (item.email_enviado === true) return "ENVIADO";
-  if (item.email_enviado === false) return "PENDENTE";
   const status = (item.email_status || item.status_email || item.status || "")
     .toLowerCase()
     .replace(/_/g, " ");
-  return status === "enviado" || status === "email enviado"
-    ? "ENVIADO"
-    : "PENDENTE";
+  if (status === "enviado" || status === "email enviado") return "ENVIADO";
+  if (status === "erro" || status === "falha") return "ERRO";
+  if (item.email_enviado === false) return "PENDENTE";
+  return "NÃO ENVIADO";
+}
+function tomStatusEmail(status: string) {
+  if (status === "ENVIADO") return "text-emerald-600";
+  if (status === "ERRO") return "text-red-600";
+  if (status === "PENDENTE") return "text-amber-600";
+  return "text-muted-foreground";
+}
+function tipoCaixaLabel(tipo: string | null) {
+  const normalizado = tipo?.trim().toLowerCase().replace(/[_-]/g, " ");
+  if (normalizado === "cliente") return "Cliente";
+  if (normalizado === "share" || normalizado === "share brasil" || normalizado === "sharebrasil") return "Share";
+  if (normalizado === "hold" || normalizado === "holding") return "Holding";
+  return "Não informado";
+}
+function tipoCaixaClass(tipo: string | null) {
+  const normalizado = tipo?.trim().toLowerCase().replace(/[_-]/g, " ");
+  if (normalizado === "cliente") return "border-sky-500/25 bg-sky-500/10 text-sky-700";
+  if (normalizado === "share" || normalizado === "share brasil" || normalizado === "sharebrasil") return "border-violet-500/25 bg-violet-500/10 text-violet-700";
+  if (normalizado === "hold" || normalizado === "holding") return "border-amber-500/25 bg-amber-500/10 text-amber-700";
+  return "border-border bg-muted/40 text-muted-foreground";
 }
 function saudacaoAtual() {
   const hora = new Date().getHours();
@@ -235,13 +255,14 @@ export default function DashboardFinanceiro({
           </div>
         ) : movimentacoes.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left">
+            <table className="w-full min-w-[1080px] text-left">
               <thead>
                 <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
                   <th className="px-4 py-4">Descrição</th>
                   <th className="px-4 py-4">Nº doc</th>
                   <th className="px-4 py-4">Fornecedor</th>
                   <th className="px-4 py-4">Data</th>
+                  <th className="px-4 py-4">Caixa</th>
                   <th className="px-4 py-4 text-right">Valor</th>
                   <th className="px-4 py-4">Status</th>
                   <th className="px-4 py-4 text-muted-foreground">EMAIL</th>
@@ -316,6 +337,11 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
       <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-muted-foreground">
         {dataBruta(item.data_pagamento || item.criado_em)}
       </td>
+      <td className="px-4 py-4 align-top">
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
+          {tipoCaixaLabel(item.tipo_caixa)}
+        </span>
+      </td>
       <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono text-sm font-semibold tabular-nums text-foreground">
         {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
       </td>
@@ -325,7 +351,7 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
         </EtiquetaStatus>
       </td>
       <td className="px-4 py-4 align-top">
-        <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] text-muted-foreground">
+        <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] ${tomStatusEmail(statusEmail(item))}`}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
         </span>

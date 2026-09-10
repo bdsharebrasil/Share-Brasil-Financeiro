@@ -459,6 +459,7 @@ export type MovimentacaoFinanceira = {
   origem_tipo: "lancamentos" | "rateio_hold";
   origem_id: string;
   referencias: string[];
+  tipo_caixa: "cliente" | "share" | "hold" | string | null;
   descricao: string;
   fornecedor: string | null;
   status: string | null;
@@ -475,6 +476,7 @@ export type MovimentacaoFinanceira = {
 export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
   movimentacoes: MovimentacaoFinanceira[];
+  emails_enviados?: RegistroFinanceiro[];
 };
 
 export function buscarOpcoesAgendamento() {
@@ -715,6 +717,7 @@ function normalizarMovimentacao(
         ? `${textoFinanceiro(registro.origem_tipo)}:${textoFinanceiro(registro.origem_id)}`
         : null,
     ].filter((valor): valor is string => Boolean(valor)),
+    tipo_caixa: textoFinanceiro(registro.tipo_caixa),
     descricao:
       primeiroTexto(registro.descricao, registro.descricao_despesa) ||
       "Movimentação sem descrição",
@@ -774,6 +777,7 @@ function emailRelacionaMovimentacao(
     ...valoresEmail(email, "referencias"),
     ...valoresEmail(email, "referencias_json"),
     ...valoresEmail(email, "referencia"),
+    ...valoresEmail(email, "anexos"),
   ];
   const identificadores = [
     ...movimentacao.referencias,

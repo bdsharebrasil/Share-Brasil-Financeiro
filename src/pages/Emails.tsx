@@ -194,10 +194,6 @@ export default function Emails() {
     setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
   };
 
-  const assinaturaComoTexto = assinatura
-    ? `\n\n--\n${assinatura.nome || ""}${assinatura.cargo ? `\n${assinatura.cargo}` : ""}${assinatura.telefone ? `\n${assinatura.telefone}` : ""}${assinatura.email ? `\n${assinatura.email}` : ""}${assinatura.endereco ? `\n${assinatura.endereco}` : ""}`
-    : "";
-
   const classificarMensagem = (id: string, categoria: string) => {
     const atual = { ...categoriasMensagem, [id]: categoria };
     setCategoriasMensagem(atual);
@@ -234,7 +230,7 @@ export default function Emails() {
       if (tipoEnvio === "interno") {
         if (!destinatarioUsuarioId) { setToast(null); setErro("Selecione um usuário destinatário."); return; }
         await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim(), arquivos: arquivosNovos });
-      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: `${mensagem.trim()}${assinaturaComoTexto}`, anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
+      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
 
       setSucesso(tipoEnvio === "interno" ? "Mensagem interna enviada para o inbox do usuário." : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
       setToast({ status: "sent", message: tipoEnvio === "email" ? "Enviado" : "Mensagem enviada" });

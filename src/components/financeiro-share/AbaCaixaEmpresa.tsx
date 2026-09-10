@@ -38,10 +38,10 @@ export function AbaCaixaEmpresa() {
   return (
     <div className="space-y-5">
       <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 bg-muted/20">
+        <CardHeader className="flex flex-col items-stretch gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between">
           <div><CardTitle className="text-sm">Movimentações do caixa</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">Lançamentos próprios da Share Brasil</p></div>
           <Select value={fluxo} onValueChange={(v) => setFluxo(v as FluxoLancamento | 'TODOS')}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Fluxo" />
             </SelectTrigger>
             <SelectContent>
@@ -56,52 +56,27 @@ export function AbaCaixaEmpresa() {
           {carregando ? (
             <p className="text-sm text-muted-foreground">Carregando lançamentos…</p>
           ) : (
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>N doc</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead>Fluxo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lancamentos.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
-                      Nenhum lançamento encontrado.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  lancamentos.map((l) => (
-                    <TableRow key={l.id}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell>
-                      <TableCell className="font-medium">{l.descricao}</TableCell>
-                      <TableCell>{l.documento ?? '—'}</TableCell>
-                      <TableCell>{l.fornecedor ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>
-                          {l.fluxo === 'ENTRADA' ? 'Entrada' : 'Saída'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          l.fluxo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'
-                        }`}
-                      >
-                        {formatarMoeda(l.valorCentavos)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge>
-                      </TableCell>
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>N doc</TableHead><TableHead>Fornecedor</TableHead><TableHead>Fluxo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {lancamentos.length === 0 ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</TableCell></TableRow> : lancamentos.map((l) => (
+                      <TableRow key={l.id}><TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell><TableCell className="font-medium">{l.descricao}</TableCell><TableCell>{l.documento ?? '—'}</TableCell><TableCell>{l.fornecedor ?? '—'}</TableCell><TableCell><Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>{l.fluxo === 'ENTRADA' ? 'Entrada' : 'Saída'}</Badge></TableCell><TableCell className={`text-right font-medium ${l.fluxo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}`}>{formatarMoeda(l.valorCentavos)}</TableCell><TableCell><Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge></TableCell></TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="space-y-2 md:hidden">
+                {lancamentos.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</p> : lancamentos.map((l) => (
+                  <article key={l.id} className="rounded-xl border border-border/70 bg-muted/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{l.descricao}</p><p className="mt-1 text-[11px] text-muted-foreground">{formatarData(l.data)} · {l.fornecedor ?? 'Sem fornecedor'}</p></div><span className={`shrink-0 text-sm font-bold ${l.fluxo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}`}>{formatarMoeda(l.valorCentavos)}</span></div><div className="mt-3 flex flex-wrap items-center gap-2"><Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>{l.fluxo === 'ENTRADA' ? 'Entrada' : 'Saída'}</Badge><Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge>{l.documento && <span className="text-[10px] text-muted-foreground">Doc. {l.documento}</span>}</div></article>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

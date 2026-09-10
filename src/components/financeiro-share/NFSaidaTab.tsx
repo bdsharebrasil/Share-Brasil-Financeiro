@@ -919,16 +919,16 @@ export default function NFSaidaTab() {
       />
 
       {pdfViewer && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm sm:p-4">
+          <div className="flex h-[min(92dvh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-5 py-3">
               <h3 className="truncate text-sm font-bold">{pdfViewer.title}</h3>
               <button type="button" onClick={() => setPdfViewer(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Fechar visualização"><X className="h-4 w-4" /></button>
             </div>
             <iframe src={resolveArquivoUrl(pdfViewer.url)} title={pdfViewer.title} className="min-h-0 flex-1 bg-white" />
-            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
-              <button type="button" onClick={() => setPdfViewer(null)} className="rounded-lg border border-border px-4 py-2 text-sm">Fechar</button>
-              <button type="button" onClick={() => void downloadPdf(pdfViewer.url, pdfViewer.title)} disabled={pdfDownloading} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"><Download className="h-4 w-4" /> {pdfDownloading ? "Baixando..." : "Baixar PDF"}</button>
+            <div className="flex flex-col-reverse gap-2 border-t border-border px-3 py-3 sm:flex-row sm:justify-end sm:px-5">
+              <button type="button" onClick={() => setPdfViewer(null)} className="w-full rounded-lg border border-border px-4 py-2 text-sm sm:w-auto">Fechar</button>
+              <button type="button" onClick={() => void downloadPdf(pdfViewer.url, pdfViewer.title)} disabled={pdfDownloading} className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60 sm:w-auto"><Download className="h-4 w-4" /> {pdfDownloading ? "Baixando..." : "Baixar PDF"}</button>
             </div>
           </div>
         </div>
@@ -949,7 +949,7 @@ export default function NFSaidaTab() {
       {/* delete modal */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center"><Trash2 className="h-5 w-5 text-red-400" /></div>
               <h3 className="text-base font-bold text-foreground">Excluir documento de saída</h3>
@@ -968,7 +968,7 @@ export default function NFSaidaTab() {
       {/* dar baixa modal */}
       {baixaTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-lg w-full mx-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-emerald-950/50 flex items-center justify-center"><Banknote className="h-5 w-5 text-emerald-400" /></div>

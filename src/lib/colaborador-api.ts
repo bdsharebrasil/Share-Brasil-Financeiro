@@ -261,6 +261,7 @@ export function enviarAnexoEnvioPagamento(arquivo: File, anexoId: string) { cons
 export function buscarEnviosPagamento(tipo?: EnvioPagamento["tipo"]) { return colaboradorRequest<{ envios: EnvioPagamento[] }>(`/api/financeiro/envios-pagamento${tipo ? `?tipo=${tipo}` : ""}`); }
 export function criarEnvioPagamento(payload: Record<string, unknown>) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarStatusEnvioPagamento(id: string, status: string) { return colaboradorRequest<EnvioPagamento>(`/api/financeiro/envios-pagamento/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); }
+export function converterEnvioPagamento(id: string) { return colaboradorRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${id}/converter`, { method: "POST" }); }
 export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
 export function criarCategoriaCalendario(nome: string, cor: string) { return colaboradorRequest<CategoriaCalendario>("/api/sharebrasil/calendario/categorias", { method: "POST", body: JSON.stringify({ nome, cor }) }); }
 export function buscarLembretesCalendario(inicio: string, fim: string) { return colaboradorRequest<LembreteCalendario[]>(`/api/sharebrasil/calendario?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`); }

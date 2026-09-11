@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -168,7 +168,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [buscaAnexo, setBuscaAnexo] = useState("");
 
   const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
-  const [enviarEmailAposCriar, setEnviarEmailAposCriar] = useState(false);
   const [modalEmail, setModalEmail] = useState(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [anexosEmail, setAnexosEmail] = useState<AnexoEmail[]>([]);
@@ -183,6 +182,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
   const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
   const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
+  const [cotistasEmail, setCotistasEmail] = useState<CotistaAeronave[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
@@ -377,19 +377,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       };
       const registro = await criarEnvioPagamento(payload);
       setEnvios((atual) => [registro, ...atual]);
-      if (exigeCliente && !enviarEmailAposCriar) {
-        const atualizado = await atualizarStatusEnvioPagamento(registro.id, "email_nao_enviado");
-        setEnvios((atual) => atual.map((e) => e.id === registro.id ? { ...e, ...atualizado } : e));
-      }
-      setMensagem(exigeCliente && !enviarEmailAposCriar ? "Lançamento criado. E-mail marcado como não enviado; a programação está liberada." : "Lançamento criado corretamente em movimentações.");
+      setMensagem(exigeCliente ? "Lançamento criado. Revise e envie os e-mails por cotista." : "Lançamento criado corretamente em movimentações.");
 
-      if (enviarEmailAposCriar) {
+      if (exigeCliente) {
         setEnvioRecemCriado(registro);
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
         setCorpoEmail(montarCorpoEmail(registro));
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
+        setCotistasEmail(cotistas);
         setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
@@ -403,7 +400,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setForm({ ...inicial, data_despesa: hoje() });
       setTipo(null);
       setEtapa(0);
-      setEnviarEmailAposCriar(false);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível criar o lançamento.");
     } finally {
@@ -420,6 +416,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setAnexosSelecionados([]);
     setArquivosNovos([]);
     setAnexosEnvioEmail([]);
+    setCotistasEmail([]);
     setErroEmail("");
     setSucessoEmail("");
     setBancoSelecionado(null);
@@ -458,7 +455,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSucessoEmail("");
     try {
       const grupos = envioRecemCriado?.tipo === "cliente"
-        ? cotistas.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => ({
+        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => ({
           cotista,
           anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id),
         }))
@@ -477,12 +474,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         });
       }
       if (envioRecemCriado) {
-        try {
-          await atualizarStatusEnvioPagamento(envioRecemCriado.id, "email_enviado");
-          setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "enviado" } : e));
-        } catch { /* status update is best-effort */ }
+        await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
+        if (envioRecemCriado.tipo === "cliente") {
+          await converterEnvioPagamento(envioRecemCriado.id);
+          setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "CONVERTIDO" } : e));
+        }
       }
-      setSucessoEmail(`E-mail enviado com sucesso para ${grupos.length} cotista(s).`);
+      setSucessoEmail(envioRecemCriado?.tipo === "cliente"
+        ? `E-mail enviado com sucesso para ${grupos.length} cotista(s). Rateio criado por cotista.`
+        : `E-mail enviado com sucesso para ${grupos.length} cotista(s).`);
       setMensagem("Lançamento criado e e-mail enviado ao cliente.");
       setTimeout(() => fecharModalEmail(), 1800);
     } catch (cause) {
@@ -627,21 +627,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
                   <div className="rounded-sm border border-border/70 bg-background/30 p-3"><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} />
 
-                  {tipo !== "share" && (
-                    <Button
-                      type="button"
-                      aria-pressed={enviarEmailAposCriar}
-                      onClick={() => {
-                        const proximoValor = !enviarEmailAposCriar;
-                        setEnviarEmailAposCriar(proximoValor);
-                        if (proximoValor) void carregarContatosEmail();
-                      }}
-                      className={`h-10 w-full gap-2 rounded-md border px-4 text-[11px] font-bold transition-colors ${enviarEmailAposCriar ? "border-[#ff7a1a] bg-[#f97316] text-white hover:bg-[#ea6c0c]" : "border-[#713a1b] bg-[#1a100d] text-[#ffb47c] hover:border-[#b95a20] hover:bg-[#26140d]"}`}
-                    >
-                      <Mail size={14} />
-                      {enviarEmailAposCriar ? "E-mail ao cliente será enviado" : "Enviar e-mail ao cliente"}
-                    </Button>
-                  )}
+
                 </div>
               )}
             </div>
@@ -659,7 +645,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : (
-            <Button type="button" onClick={enviar} disabled={salvando} className="h-9 gap-2 rounded-sm px-5 text-[11px]">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Criar lançamento</Button>
+            <Button type="button" onClick={enviar} disabled={salvando} className="h-9 gap-2 rounded-sm px-5 text-[11px]">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {tipo === "share" ? "Criar lançamento" : "Programar"}</Button>
           )}
         </div>
       </section>
@@ -699,7 +685,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
       <Dialog open={dialogoAnexos} onOpenChange={setDialogoAnexos}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle className="text-base font-bold">Vincular anexo dos arquivos</DialogTitle><DialogDescription className="text-[11px]">Escolha a origem, pesquise o documento e selecione o registro. Os anexos existentes serão incluídos automaticamente.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle className="text-base font-bold">Vincular anexo dos arquivos</DialogTitle><DialogDescription className="text-[11px]">Escolha a origem, pesquise o documento e selecione o registro. Somente os documentos selecionados serão vinculados ao lançamento.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <SearchableCombobox items={[{ id: "recibos", label: "RECIBOS" }, { id: "relatorios", label: "RELATORIO DE VIAGEM" }, { id: "abastecimentos", label: "ABASTECIMENTOS" }]} value={origemAnexo} onChange={(id) => { setOrigemAnexo(id as typeof origemAnexo); setBuscaAnexo(""); }} placeholder="Escolha a origem do arquivo" searchPlaceholder="Buscar origem" />
             <Input value={buscaAnexo} onChange={(event) => setBuscaAnexo(event.target.value)} placeholder={origemAnexo === "abastecimentos" ? "Buscar por voo, trecho, cotista, data ou documento" : origemAnexo === "relatorios" ? "Buscar por número do voo ou número do relatório" : "Buscar por número do recibo"} className="campo" />

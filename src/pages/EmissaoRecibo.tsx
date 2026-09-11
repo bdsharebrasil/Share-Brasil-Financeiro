@@ -861,7 +861,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         aeronaves={opcoes.aeronaves}
         categorias={opcoes.categorias_cliente}
         onOpenChange={(aberto) => { if (!aberto) setReciboProgramacao(null); }}
-        onSaved={() => mostrarFeedback("sucesso", "SUA PROGRAMAÇÃO FOI CONCLUIDA")}
+        onSaved={() => {
+          if (reciboProgramacao) {
+            setRecibos((atual) => atual.map((item) => item.id === reciboProgramacao.id ? { ...item, despesa_programada: true } : item));
+          }
+          mostrarFeedback("sucesso", "SUA PROGRAMAÇÃO FOI CONCLUIDA");
+        }}
       />
 
       {abaAtiva === "emissao" && !leitorDemonstrativoAberto && (

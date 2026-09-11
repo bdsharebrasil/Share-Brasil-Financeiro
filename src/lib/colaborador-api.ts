@@ -1102,6 +1102,8 @@ export type Recibo = {
   url_recibo: string | null;
   pdf_anexo_id?: string | null;
   pdf_url?: string | null;
+  conta_pagar_id?: string | null;
+  despesa_programada?: boolean;
   rateio_linhas?: Array<{ id: string; rateio_id: string | null; percentual: number; valor: number; cotista_id: string | null; cotista_nome?: string | null }>;
   /** Movimento da conta holding; nulo quando o recibo usa somente o caixa Share. */
   /** Lançamento do caixa Share; nulo quando o recibo é exclusivamente da holding. */

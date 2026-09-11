@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   FileText,
   FolderOpen,
@@ -473,7 +474,11 @@ export default function HistoricoRecibos({
                     {moeda(Number(recibo.valor || 0) / 100)}
                   </strong>
                   <div className="flex items-center gap-1.5">
-                    {![
+                    {recibo.despesa_programada ? (
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
+                        <CheckCircle2 size={13} /> Despesa programada
+                      </span>
+                    ) : ![
                       "CANCELADO",
                       "cancelado",
                       "REEMBOLSADO",

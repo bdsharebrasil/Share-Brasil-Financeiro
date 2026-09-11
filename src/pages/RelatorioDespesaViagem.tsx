@@ -214,7 +214,7 @@ export default function RelatorioDespesaViagem({
     {},
   );
   const [aba, setAba] = useState<"lista" | "editor">("lista");
-  const [visaoLista, setVisaoLista] = useState<"finalizados" | "rascunhos">(
+  const [visaoLista, setVisaoLista] = useState<"finalizados" | "rascunhos" | "revisao">(
     "finalizados",
   );
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");

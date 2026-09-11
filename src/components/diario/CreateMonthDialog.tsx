@@ -1,14 +1,35 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calendar, Gauge, Fuel, MapPin, DollarSign, Plane } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Calendar,
+  Gauge,
+  Fuel,
+  MapPin,
+  DollarSign,
+  Plane,
+  Settings2,
+  Info,
+} from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
-// Antes: import { supabase } from "@/integrations/supabase/client";
-// Agora usamos o cliente de API que fala com o Worker (Cloudflare) ligado ao banco D1.
 import { buscarOpcoesDiario } from "@/lib/colaborador-api";
 
 interface CreateMonthDialogProps {
@@ -31,11 +52,6 @@ interface CreateMonthDialogProps {
   onCreate: (data: any) => Promise<void>;
 }
 
-// Formato retornado por /api/interno/diario-bordo/opcoes (tabela D1 "aerodromo").
-// Esse endpoint interno é o correto para telas de diário de bordo — usa
-// requireShareInternal (colaborador Supabase ou token interno), diferente de
-// /api/portal/aerodromos, que exige sessão de cliente (portalSession) e serve
-// o Portal do Cliente, não as telas internas.
 interface AerodromeRow {
   id: string;
   designativo: string;
@@ -43,8 +59,18 @@ interface AerodromeRow {
 }
 
 const MONTHS = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 export function CreateMonthDialog({
@@ -56,7 +82,7 @@ export function CreateMonthDialog({
   year: initialYear,
   currentModoCelula,
   previousMonthData,
-  onCreate
+  onCreate,
 }: CreateMonthDialogProps) {
   const [loading, setLoading] = useState(false);
   const [aerodromes, setAerodromes] = useState<{ id: string; designativo: string; name: string }[]>([]);
@@ -70,7 +96,7 @@ export function CreateMonthDialog({
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
 
-  // Form state - inicializa vazio para permitir entrada manual
+  // Form state
   const [formData, setFormData] = useState({
     celula_anterior: 0,
     celula_prox_revisao: 0,
@@ -81,7 +107,6 @@ export function CreateMonthDialog({
     tarifa_diaria: 0,
   });
 
-  // Gerar anos (5 anos para trás e 2 para frente)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear - 4 + i);
 
@@ -91,16 +116,14 @@ export function CreateMonthDialog({
       setSelectedMonth(initialMonth);
       setSelectedYear(initialYear);
 
-      // Inicializar modoCelula
       if (currentModoCelula) {
         setModoCelula(currentModoCelula);
-        setModoConfirmed(false); // Pedir confirmação se já existe modo
+        setModoConfirmed(false);
       } else {
         setModoCelula("tempo_total");
-        setModoConfirmed(false); // Pedir confirmação mesmo na primeira vez
+        setModoConfirmed(false);
       }
 
-      // Se há dados anteriores, usa como sugestão inicial
       if (previousMonthData?.celula_atual_ttotal) {
         setFormData({
           celula_anterior: previousMonthData.celula_atual_ttotal || 0,
@@ -112,7 +135,6 @@ export function CreateMonthDialog({
           tarifa_diaria: previousMonthData.tarifa_diaria || 0,
         });
       } else {
-        // Caso contrário, inicia vazio
         setFormData({
           celula_anterior: 0,
           celula_prox_revisao: 0,
@@ -126,11 +148,6 @@ export function CreateMonthDialog({
     }
   }, [open, previousMonthData, initialMonth, initialYear, currentModoCelula]);
 
-  // Busca a lista de aeródromos no Worker (Cloudflare) que consulta o D1.
-  // Reaproveita /api/interno/diario-bordo/opcoes, que já retorna a lista de
-  // aeródromos no formato { id, designativo, nome } esperado aqui, e usa a
-  // mesma autenticação interna (colaborador Supabase ou token interno) das
-  // demais rotas do diário de bordo.
   const fetchAerodromes = async () => {
     setAerodromesError(null);
     try {
@@ -156,28 +173,23 @@ export function CreateMonthDialog({
   };
 
   const handleSubmit = async () => {
-    // Validações
-    if (formData.celula_anterior <= 0) {
-      return;
-    }
+    if (formData.celula_anterior <= 0) return;
 
     setLoading(true);
     try {
-      // onCreate deve chamar o endpoint do Worker (ex.: POST /api/interno/diario-bordo/mes)
-      // que grava o registro na tabela D1 "diario_mes".
       await onCreate({
         aeronave_id: aircraftId,
         mes: selectedMonth,
         ano: selectedYear,
         modo_celula: modoCelula,
         celula_anterior_ttotal: formData.celula_anterior,
-        celula_atual_ttotal: formData.celula_anterior, // Começa igual à anterior
+        celula_atual_ttotal: formData.celula_anterior,
         celula_prox_revisao_ttotal: formData.celula_prox_revisao || null,
         celula_disponivel_ttotal: formData.celula_prox_revisao
           ? formData.celula_prox_revisao - formData.celula_anterior
           : null,
         horimetro_inicio: formData.horimetro_inicio || null,
-        horimetro_final: formData.horimetro_inicio || null, // Começa igual ao início
+        horimetro_final: formData.horimetro_inicio || null,
         aerodromo_base: formData.aerodromo_base || null,
         consumo_combustivel: formData.consumo_combustivel || null,
         tem_tarifa_diaria: formData.tem_tarifa_diaria,
@@ -189,353 +201,50 @@ export function CreateMonthDialog({
     }
   };
 
+  const horasDisponiveis = formData.celula_prox_revisao - formData.celula_anterior;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] bg-popover border-border text-popover-foreground text-white max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-black flex items-center gap-3">
-            <Plane className="w-6 h-6 text-sky-500" />
-            Iniciar Novo Diário de Bordo
+      <DialogContent className="max-w-2xl">
+        <DialogHeader className="pr-8">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Calendar size={16} /></span>
+            Abrir diário mensal
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Configure os dados iniciais do diário para <span className="text-white font-semibold">{aircraftRegistration}</span>
-          </DialogDescription>
+          <DialogDescription className="text-xs">Configure os parâmetros da aeronave {aircraftRegistration} para o período selecionado.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* SELEÇÃO DO MODO DE CÁLCULO DE CÉLULA */}
-          {!modoConfirmed && (
-            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="text-2xl">⚙️</div>
-                <div>
-                  <p className="font-bold text-white mb-1">Como esta aeronave calcula as horas de CÉLULA?</p>
-                  <p className="text-xs text-muted-foreground">
-                    Esta configuração será salva para a aeronave e usada em todos os meses seguintes.
-                  </p>
-                </div>
-              </div>
+        <div className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="diario-month">Mês</Label><Select value={String(selectedMonth)} onValueChange={(value) => setSelectedMonth(Number(value))}><SelectTrigger id="diario-month"><SelectValue placeholder="Selecione o mês" /></SelectTrigger><SelectContent>{MONTHS.map((name, index) => <SelectItem key={name} value={String(index + 1)}>{name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label htmlFor="diario-year">Ano</Label><Select value={String(selectedYear)} onValueChange={(value) => setSelectedYear(Number(value))}><SelectTrigger id="diario-year"><SelectValue placeholder="Selecione o ano" /></SelectTrigger><SelectContent>{years.map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectContent></Select></div>
+          </div>
 
-              <div className="space-y-3 mb-4">
-                {currentModoCelula && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mb-3">
-                    <p className="text-xs text-emerald-400 font-semibold">
-                      ⚡ Esta aeronave já está configurada como <span className="uppercase">{currentModoCelula === "tvoo" ? "TEMPO DE VOO" : "TEMPO TOTAL"}</span>
-                    </p>
-                  </div>
-                )}
-
-                {/* Opção: Tempo Total */}
-                <label className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-card-secondary/50 transition-colors"
-                  style={{
-                    borderColor: modoCelula === "tempo_total" ? "#06b6d4" : "inherit",
-                    backgroundColor: modoCelula === "tempo_total" ? "rgb(8, 47, 73)" : "inherit"
-                  }}>
-                  <div className="flex items-center mt-1">
-                    <input
-                      type="radio"
-                      name="modoCelula"
-                      value="tempo_total"
-                      checked={modoCelula === "tempo_total"}
-                      onChange={() => setModoCelula("tempo_total")}
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">TEMPO TOTAL</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">do acionamento ao corte (AC → COR)</p>
-                    <p className="text-xs text-muted-foreground mt-1">Campo: <span className="font-mono">tempo_total</span> | Coluna: <span className="font-mono">celula</span></p>
-                  </div>
-                </label>
-
-                {/* Opção: Tempo de Voo */}
-                <label className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-card-secondary/50 transition-colors"
-                  style={{
-                    borderColor: modoCelula === "tvoo" ? "#06b6d4" : "inherit",
-                    backgroundColor: modoCelula === "tvoo" ? "rgb(8, 47, 73)" : "inherit"
-                  }}>
-                  <div className="flex items-center mt-1">
-                    <input
-                      type="radio"
-                      name="modoCelula"
-                      value="tvoo"
-                      checked={modoCelula === "tvoo"}
-                      onChange={() => setModoCelula("tvoo")}
-                      className="w-4 h-4"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">TEMPO DE VOO</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">da decolagem ao pouso (DEP → POU)</p>
-                    <p className="text-xs text-muted-foreground mt-1">Campo: <span className="font-mono">tempo_voo</span> | Coluna: <span className="font-mono">celula_tvoo</span></p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="flex gap-2">
-                {currentModoCelula && (
-                  <button
-                    onClick={() => {
-                      setModoCelula(currentModoCelula);
-                      setModoConfirmed(true);
-                    }}
-                    className="flex-1 px-4 py-2 rounded-lg bg-card-secondary text-white hover:bg-secondary transition-colors text-sm font-medium">
-                    Manter
-                  </button>
-                )}
-                <button
-                  onClick={() => setModoConfirmed(true)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors text-sm font-semibold">
-                  {currentModoCelula ? "Alterar" : "Confirmar"}
-                </button>
-              </div>
+          <div className="rounded-xl border border-primary/20 bg-primary/[.04] p-4">
+            <div className="mb-3 flex items-start gap-3"><Settings2 size={16} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-semibold">Modo de cálculo da célula</p><p className="mt-1 text-[11px] text-muted-foreground">Escolha qual referência será usada para controlar a disponibilidade.</p></div></div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([["tempo_total", "Tempo total", "Usa o horímetro total da aeronave."], ["tvoo", "Tempo de voo", "Usa somente as horas em voo."]] as const).map(([value, label, description]) => <button key={value} type="button" onClick={() => { setModoCelula(value); setModoConfirmed(true); }} className={`rounded-lg border p-3 text-left transition-colors ${modoCelula === value ? "border-primary bg-primary/10 text-primary" : "border-border bg-background/50 hover:border-primary/40"}`}><span className="flex items-center gap-2 text-xs font-semibold"><Gauge size={14} /> {label}</span><span className="mt-1 block text-[10px] text-muted-foreground">{description}</span></button>)}
             </div>
-          )}
-
-          {modoConfirmed && (
-            <div className="p-3 bg-card-secondary/50 rounded-lg border border-border">
-              <p className="text-xs text-muted-foreground">
-                Modo de cálculo: <span className="text-cyan-400 font-semibold">{modoCelula === "tvoo" ? "TEMPO DE VOO (DEP→POU)" : "TEMPO TOTAL (AC→COR)"}</span>
-              </p>
-            </div>
-          )}
-
-          {/* SELEÇÃO DE MÊS E ANO */}
-          <div className="p-4 bg-sky-500/10 border border-sky-500/30 rounded-xl space-y-4">
-            <Label className="text-sm font-bold text-sky-400 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Selecione o Mês de Início
-            </Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Mês</Label>
-                <Select
-                  value={selectedMonth.toString()}
-                  onValueChange={(v) => setSelectedMonth(parseInt(v))}
-                >
-                  <SelectTrigger className="bg-background border-border text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border text-popover-foreground">
-                    {MONTHS.map((m, idx) => (
-                      <SelectItem key={idx} value={(idx + 1).toString()} className="text-popover-foreground">
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Ano</Label>
-                <Select
-                  value={selectedYear.toString()}
-                  onValueChange={(v) => setSelectedYear(parseInt(v))}
-                >
-                  <SelectTrigger className="bg-background border-border text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border text-popover-foreground">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={y.toString()} className="text-popover-foreground">
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              O diário começará a partir de <span className="text-sky-400 font-semibold">{MONTHS[selectedMonth - 1]}/{selectedYear}</span>. Não é necessário ter registros de meses anteriores.
-            </p>
+            {modoConfirmed && <p className="mt-2 flex items-center gap-1.5 text-[10px] text-primary"><Info size={12} /> Modo selecionado: {modoCelula === "tvoo" ? "tempo de voo" : "tempo total"}.</p>}
           </div>
 
-          {/* Célula Anterior */}
-          <div className="space-y-2 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-            <Label className="text-sm font-bold text-emerald-400 flex items-center gap-2">
-              <Gauge className="w-4 h-4" />
-              Célula Anterior (horas) *
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.celula_anterior || ""}
-              onChange={(e) => setFormData({ ...formData, celula_anterior: parseFloat(e.target.value) || 0 })}
-              className="bg-card border-emerald-500/50 text-white text-lg font-semibold focus:ring-emerald-500"
-              placeholder="Ex: 3250.50"
-            />
-            <p className="text-xs text-muted-foreground">
-              {previousMonthData?.celula_atual_ttotal
-                ? `Preenchido automaticamente com o valor de "Célula Atual" do mês anterior: ${previousMonthData.celula_atual_ttotal.toFixed(2)}h`
-                : 'Total de horas de célula da aeronave no início deste mês'}
-            </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="celula-anterior">Célula anterior (h)</Label><Input id="celula-anterior" type="number" min="0" step="0.1" value={formData.celula_anterior || ""} onChange={(event) => setFormData((current) => ({ ...current, celula_anterior: Number(event.target.value) || 0 }))} placeholder="0,0" /></div>
+            <div className="space-y-2"><Label htmlFor="celula-revisao">Próxima revisão (h)</Label><Input id="celula-revisao" type="number" min="0" step="0.1" value={formData.celula_prox_revisao || ""} onChange={(event) => setFormData((current) => ({ ...current, celula_prox_revisao: Number(event.target.value) || 0 }))} placeholder="0,0" /><p className="text-[10px] text-muted-foreground">Disponível: {Math.max(0, horasDisponiveis).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h</p></div>
+            <div className="space-y-2"><Label htmlFor="horimetro-inicio">Horímetro inicial</Label><Input id="horimetro-inicio" type="number" min="0" step="0.1" value={formData.horimetro_inicio || ""} onChange={(event) => setFormData((current) => ({ ...current, horimetro_inicio: Number(event.target.value) || 0 }))} placeholder="0,0" /></div>
+            <div className="space-y-2"><Label htmlFor="aerodromo-base">Aeródromo base</Label><SearchableCombobox items={aerodromes.map((aerodrome) => ({ id: aerodrome.id, label: `${aerodrome.designativo} · ${aerodrome.name}` }))} value={formData.aerodromo_base} onChange={(value, label) => setFormData((current) => ({ ...current, aerodromo_base: value || label.split(" · ")[0] }))} placeholder="Selecione o aeródromo" searchPlaceholder="Buscar aeródromo..." emptyMessage="Nenhum aeródromo encontrado." icon={<MapPin size={14} />} />{aerodromesError && <p className="text-[10px] text-destructive">{aerodromesError}</p>}</div>
           </div>
 
-          {/* Próxima Revisão */}
-          <div className="space-y-2 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-            <Label className="text-sm font-bold text-orange-400 flex items-center gap-2">
-              <Gauge className="w-4 h-4" />
-              Próxima Revisão (horas) *
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.celula_prox_revisao || ""}
-              onChange={(e) => setFormData({ ...formData, celula_prox_revisao: parseFloat(e.target.value) || 0 })}
-              className="bg-card border-orange-500/50 text-white text-lg font-semibold focus:ring-orange-500"
-              placeholder="Ex: 3500.00"
-            />
-            <p className="text-xs text-muted-foreground">
-              {previousMonthData?.celula_prox_revisao_ttotal
-                ? `Valor anterior sugerido: ${previousMonthData.celula_prox_revisao_ttotal.toFixed(2)}h - Altere se necessário`
-                : 'Horas de célula previstas para a próxima revisão da aeronave'}
-            </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="consumo-combustivel">Consumo de combustível</Label><div className="relative"><Fuel size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input id="consumo-combustivel" className="pl-9" value={formData.consumo_combustivel} onChange={(event) => setFormData((current) => ({ ...current, consumo_combustivel: event.target.value }))} placeholder="Ex.: 180 L/H" /></div></div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2.5"><div><p className="flex items-center gap-1.5 text-xs font-medium"><DollarSign size={14} className="text-primary" /> Tarifa diária</p><p className="mt-1 text-[10px] text-muted-foreground">Aplicar tarifa aos lançamentos.</p></div><Switch checked={formData.tem_tarifa_diaria} onCheckedChange={(checked) => setFormData((current) => ({ ...current, tem_tarifa_diaria: checked }))} aria-label="Ativar tarifa diária" /></div>
+            {formData.tem_tarifa_diaria && <div className="space-y-2 sm:col-start-2"><Label htmlFor="tarifa-diaria">Valor da diária</Label><Input id="tarifa-diaria" type="number" min="0" step="0.01" value={formData.tarifa_diaria || ""} onChange={(event) => setFormData((current) => ({ ...current, tarifa_diaria: Number(event.target.value) || 0 }))} placeholder="0,00" /></div>}
           </div>
 
-          {/* Horímetro Início */}
-          <div className="space-y-2">
-            <Label className="text-sm font-bold text-blue-400 flex items-center gap-2">
-              <Gauge className="w-4 h-4" />
-              Horímetro Início
-            </Label>
-            <Input
-              type="number"
-              step="0.1"
-              value={formData.horimetro_inicio || ""}
-              onChange={(e) => setFormData({ ...formData, horimetro_inicio: parseFloat(e.target.value) || 0 })}
-              className="bg-background border-border text-white"
-              placeholder="0.0"
-            />
-          </div>
-
-          {/* Base Aeródromo */}
-          <div className="space-y-2 p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl">
-            <Label className="text-sm font-bold text-violet-400 flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Base Aeródromo
-            </Label>
-            <SearchableCombobox
-              items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))}
-              value={formData.aerodromo_base}
-              onChange={(value) => setFormData({ ...formData, aerodromo_base: value })}
-              placeholder="Selecione o aeródromo base"
-              searchPlaceholder="Buscar aeródromo..."
-            />
-            {aerodromesError && (
-              <p className="text-xs text-red-400">{aerodromesError}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {previousMonthData?.aerodromo_base
-                ? ` ${previousMonthData.aerodromo_base} - Editar se necessário`
-                : 'Selecione o aeródromo base da aeronave'}
-            </p>
-          </div>
-
-          {/* Consumo de Combustível */}
-          <div className="space-y-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-            <Label className="text-sm font-bold text-amber-400 flex items-center gap-2">
-              <Fuel className="w-4 h-4" />
-              Consumo de Combustível (L/H)
-            </Label>
-            <Input
-              type="text"
-              value={formData.consumo_combustivel}
-              onChange={(e) => setFormData({ ...formData, consumo_combustivel: e.target.value })}
-              className="bg-card border-amber-500/50 text-white focus:ring-amber-500"
-              placeholder="Ex: 45"
-            />
-            <p className="text-xs text-muted-foreground">
-              {previousMonthData?.consumo_combustivel
-                ? ` ${previousMonthData.consumo_combustivel} L/H - Editar se necessário`
-                : 'Consumo de combustível médio da aeronave (litros por hora)'}
-            </p>
-          </div>
-
-          {/* Sistema de Diária */}
-          <div className="space-y-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label className="text-sm font-bold text-green-400 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Esta aeronave possui sistema de diárias?
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {previousMonthData?.tem_tarifa_diaria !== undefined
-                    ? ` ${previousMonthData.tem_tarifa_diaria ? 'Ativado' : 'Desativado'} - Alterar se necessário`
-                    : 'Ative se deseja calcular diárias para voos fora da base'}
-                </p>
-              </div>
-              <Switch
-                checked={formData.tem_tarifa_diaria}
-                onCheckedChange={(checked) => setFormData({ ...formData, tem_tarifa_diaria: checked })}
-              />
-            </div>
-
-            {formData.tem_tarifa_diaria && (
-              <div className="space-y-2 pt-2 border-t border-green-500/30">
-                <Label className="text-xs text-muted-foreground">Valor da Diária (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.tarifa_diaria || ""}
-                  onChange={(e) => setFormData({ ...formData, tarifa_diaria: parseFloat(e.target.value) || 0 })}
-                  className="bg-card border-green-500/50 text-white focus:ring-green-500"
-                  placeholder="0.00"
-                />
-                {previousMonthData?.tarifa_diaria && (
-                  <p className="text-xs text-muted-foreground">
-                    Valor anterior: R$ {previousMonthData.tarifa_diaria.toFixed(2)}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Preview das Horas Disponíveis */}
-          {formData.celula_anterior > 0 && formData.celula_prox_revisao > 0 && (
-            <div className="p-4 bg-background rounded-xl border border-border">
-              <p className="text-xs text-muted-foreground uppercase font-bold mb-2">Horas Disponíveis para Voo</p>
-              <p className={`text-3xl font-black ${
-                (formData.celula_prox_revisao - formData.celula_anterior) < 0
-                  ? 'text-red-400'
-                  : (formData.celula_prox_revisao - formData.celula_anterior) < 50
-                    ? 'text-orange-400'
-                    : 'text-emerald-400'
-              }`}>
-                {(formData.celula_prox_revisao - formData.celula_anterior).toFixed(2)}h
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                = Próxima Revisão ({formData.celula_prox_revisao.toFixed(2)}) - Célula Anterior ({formData.celula_anterior.toFixed(2)})
-              </p>
-            </div>
-          )}
+          <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-secondary/20 p-3 text-[10px] text-muted-foreground"><Plane size={14} className="mt-0.5 shrink-0 text-primary" /><span>O diário será aberto para a aeronave selecionada e poderá receber os lançamentos de voo deste período.</span></div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="border-border text-muted-foreground hover:bg-card-secondary"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || formData.celula_anterior <= 0}
-            className="bg-sky-600 hover:bg-sky-700 text-white"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Criando...
-              </>
-            ) : (
-              <>
-                <Plane className="mr-2 h-4 w-4" />
-                Iniciar Diário
-              </>
-            )}
-          </Button>
-        </div>
+        <DialogFooter className="gap-2 sm:gap-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button><Button type="button" onClick={() => void handleSubmit()} disabled={loading || formData.celula_anterior <= 0} className="gap-2">{loading ? <Loader2 size={15} className="animate-spin" /> : <Calendar size={15} />}{loading ? "Salvando..." : "Abrir diário"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

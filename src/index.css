@@ -101,7 +101,12 @@
 }
 
 @layer base {
-  * { @apply border-border; }
+  * { @apply border-border; scrollbar-width: thin; scrollbar-color: hsl(var(--primary) / .72) hsl(var(--muted) / .55); }
+  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  *::-webkit-scrollbar-track { background: hsl(var(--muted) / .55); border-radius: 999px; }
+  *::-webkit-scrollbar-thumb { background: hsl(var(--primary) / .72); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--primary)); }
+  *::-webkit-scrollbar-corner { background: transparent; }
   html, body, #root { min-height: 100%; min-width: 0; }
   html { background-color: hsl(var(--background)); overflow-x: hidden; }
   body { @apply font-sans antialiased bg-background text-foreground; min-width: 320px; min-height: 100%; margin: 0; overflow-x: hidden; padding-inline: var(--safe-area-left) var(--safe-area-right); padding-bottom: var(--safe-area-bottom); font-synthesis: none; text-rendering: optimizeLegibility; }

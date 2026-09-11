@@ -88,6 +88,7 @@ type Formulario = {
 
   categoria_id: string;
   categoria_nome: string;
+  categoria_despesa_subcategoria: string;
   categoria_nome_manual: string;
 
   numero_documento_anexo: string;
@@ -115,6 +116,7 @@ const inicial = (): Formulario => ({
   forma_pagamento: "",
   categoria_id: "",
   categoria_nome: "",
+  categoria_despesa_subcategoria: "",
   categoria_nome_manual: "",
   numero_documento_anexo: "",
   observacoes: "",
@@ -394,6 +396,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const categoriaClienteSelecionada = opcoes.categorias_cliente.find(
     (item) => item.id === form.categoria_id,
   );
+  const subcategoriasCliente = [
+    categoriaClienteSelecionada?.subcategoria_1,
+    categoriaClienteSelecionada?.subcategoria_2,
+    categoriaClienteSelecionada?.subcategoria_3,
+    categoriaClienteSelecionada?.subcategoria_4,
+  ].filter((item): item is string => Boolean(item?.trim()));
   const colaboradorSelecionado = opcoes.colaboradores.find(
     (item) => item.id === form.colaborador_id,
   );
@@ -613,6 +621,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         tipo_caixa: tipoCaixaPara(form),
         categoria_movimentacao_id: form.categoria_id,
         categoria_nome: form.categoria_nome || null,
+        categoria_despesa_subcategoria:
+          form.tipo === "recibo_reembolso"
+            ? form.categoria_despesa_subcategoria || null
+            : null,
         grupo_categoria:
           form.tipo === "recibo_colaborador"
             ? form.natureza_despesa === "aeronave"
@@ -1141,11 +1153,27 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         );
                         alterar("categoria_id", id);
                         alterar("categoria_nome", categoria?.nome || "");
+                        alterar("categoria_despesa_subcategoria", "");
                       }}
                       placeholder="Selecione a categoria cliente"
                       searchPlaceholder="Buscar categoria cliente..."
                       emptyMessage="Nenhuma categoria cliente cadastrada."
                     />
+                  </Campo>
+                )}
+
+                {form.tipo === "recibo_reembolso" && subcategoriasCliente.length > 0 && (
+                  <Campo label="Subcategoria cliente">
+                    <select
+                      value={form.categoria_despesa_subcategoria}
+                      onChange={(e) => alterar("categoria_despesa_subcategoria", e.target.value)}
+                      className="campo"
+                    >
+                      <option value="">Selecione a subcategoria</option>
+                      {subcategoriasCliente.map((subcategoria) => (
+                        <option key={subcategoria} value={subcategoria}>{subcategoria}</option>
+                      ))}
+                    </select>
                   </Campo>
                 )}
 

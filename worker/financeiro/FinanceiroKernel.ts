@@ -1920,14 +1920,40 @@ export async function programarReciboReembolso(db: Database, receiptId: string, 
   // A emissão inicial grava somente em recibos. A partir daqui, na ação de
   // programação após o envio, materializamos o lançamento Share e o restante
   // do fluxo financeiro.
-  if (!text(receiptInicial.lancamento_id)) await finalizarRecibo(db, receiptId, userId)
+  if (!text(receiptInicial.lancamento_id)) {
+    await finalizarRecibo(db, receiptId, userId)
+  }
+  // O e-mail pode ter sido enviado antes ou depois da criação dos lançamentos.
+  // O histórico é opcional e não pode interromper a programação financeira.
+  const emailInfo = await db.prepare(
+      `SELECT e.id FROM emails_enviados e
+       LEFT JOIN recibo_anexos a
+         ON a.id = e.referencia_id
+        AND e.referencia_tipo = 'recibo'
+       WHERE e.status = 'enviado'
+         AND e.referencia_tipo = 'recibo'
+         AND (e.referencia_id = ?1 OR a.recibo_id = ?1)
+       ORDER BY e.criado_em DESC LIMIT 1`,
+  ).bind(receiptId).first<{ id: string }>().catch(() => null)
   const receipt = await db.prepare(`SELECT r.*, l.id AS share_lancamento_id, l.aeronave_id, l.cotista_aeronave_id,
       l.categoria_id AS share_categoria_id, l.categoria_nome AS share_categoria_nome
     FROM recibos r LEFT JOIN lancamentos l ON l.id = r.lancamento_id
     WHERE r.id = ? AND r.tipo_recibo = 'recibo_reembolso' LIMIT 1`).bind(receiptId).first<Row>()
   if (!receipt || !text(receipt.share_lancamento_id)) throw new FinanceError('Recibo de reembolso não encontrado', 'recibo_reembolso_nao_encontrado', 404)
-  const existing = await db.prepare('SELECT id, conta_receber_id FROM reembolsos WHERE lancamento_origem_id = ? LIMIT 1').bind(receipt.share_lancamento_id).first<Row>()
-  if (existing) return { ...existing, idempotent: true }
+  const existing = await db.prepare('SELECT id, conta_receber_id, lancamento_origem_id, lancamento_cliente_id FROM reembolsos WHERE lancamento_origem_id = ? LIMIT 1').bind(receipt.share_lancamento_id).first<Row>()
+  if (existing) {
+    if (emailInfo?.id) {
+      await db.prepare(`UPDATE lancamentos
+        SET email_enviado_em = COALESCE(email_enviado_em, CURRENT_TIMESTAMP),
+            email_enviado_id = COALESCE(email_enviado_id, ?1)
+        WHERE id IN (?2, ?3)`).bind(
+        emailInfo.id,
+        existing.lancamento_origem_id,
+        existing.lancamento_cliente_id,
+      ).run()
+    }
+    return { ...existing, idempotent: true }
+  }
 
   const amount = asPositiveCents(receipt.valor)
   const reimbursementId = id()
@@ -1944,7 +1970,7 @@ export async function programarReciboReembolso(db: Database, receiptId: string, 
     }, ['id', 'lancamento_origem_id', 'valor_centavos']),
     insertStatement(db, schema, 'lancamentos', {
       id: clientLancamentoId, aeronave_id: receipt.aeronave_id, cotista_aeronave_id: cotistaId,
-      descricao: receipt.descricao || 'Reembolso de despesa', categoria_nome: 'REEMBOLSO', grupo_categoria: 'REEMBOLSO',
+      descricao: receipt.descricao || 'Reembolso de despesa', grupo_categoria: 'REEMBOLSO',
       fluxo: 'SAIDA', natureza: 'DESPESA', tipo_caixa: 'CLIENTE', valor_centavos: amount, valor_total: amount / 100,
       valor: amount / 100, status: 'AGUARDANDO_REEMBOLSO', data_lancamento: data, data_emissao: data,
       data_vencimento: vencimento, pago_diretamente: 0, reembolsavel: 0, reembolso_quitado: 0,
@@ -1961,17 +1987,17 @@ export async function programarReciboReembolso(db: Database, receiptId: string, 
       lancamentos_id: clientLancamentoId, origem_tipo: 'RECIBO_REEMBOLSO', origem_id: receiptId,
       status: 'EM_ABERTO', criado_por: userId,
     }, ['id', 'valor_centavos']),
-    insertStatement(db, schema, 'contas_apagar', {
-      id: id(), data_vencimento: vencimento, valor_centavos: amount, descricao: receipt.descricao || 'Reembolso de despesa',
-      categoria_id: nullableText(receipt.share_categoria_id), categoria_nome: nullableText(receipt.share_categoria_nome ?? 'REEMBOLSO'),
-      aeronave_id: receipt.aeronave_id, cotista_id: cotistaId, lancamentos_id: receipt.share_lancamento_id,
-      boleto_url: nullableText(body.boleto_url), nf_url: nullableText(body.nf_url), origem_tipo: 'RECIBO_REEMBOLSO',
-      idempotency_key: `conta-pagar-recibo-reembolso:${receiptId}`, status: 'EM_ABERTO', criado_por: userId,
-    }, ['id', 'data_vencimento', 'valor_centavos', 'lancamentos_id']),
     linkStatement(db, schema, 'RECIBO', receiptId, 'LANCAMENTO', clientLancamentoId, 'RECIBO_LANCAMENTO_CLIENTE', userId),
     linkStatement(db, schema, 'LANCAMENTO', text(receipt.share_lancamento_id), 'CONTA_A_RECEBER', contaReceberId, 'REEMBOLSO_CONTA_RECEBER', userId),
     db.prepare('UPDATE lancamentos SET periodicidade = ?, numero_recibo = COALESCE(numero_recibo, ?), url_recibo = COALESCE(url_recibo, ?) WHERE id = ?')
       .bind(nullableText(body.periodicidade), nullableText(receipt.numero_recibo), nullableText(receipt.url_recibo), receipt.share_lancamento_id),
+    ...(emailInfo?.id ? [
+      db.prepare(`UPDATE lancamentos
+        SET email_enviado_em = COALESCE(email_enviado_em, CURRENT_TIMESTAMP),
+            email_enviado_id = COALESCE(email_enviado_id, ?1)
+        WHERE id IN (?2, ?3)`)
+        .bind(emailInfo.id, receipt.share_lancamento_id, clientLancamentoId),
+    ] : []),
     auditStatement(db, schema, 'reembolsos', reimbursementId, 'PROGRAMACAO_REEMBOLSO', userId, null, amount, nullableText(body.observacoes), `programar-recibo-reembolso:${receiptId}`),
   ]
   await db.batch(statements)
@@ -2100,7 +2126,13 @@ async function issueReceiptInternal(
     ...rateios.map((rateio) => linkStatement(db, schema, 'RECIBO', reciboId, 'RATEIO', String(rateio.id), 'RECIBO_RATEIO', userId)),
     auditStatement(db, schema, 'recibos', reciboId, 'CRIACAO_RECIBO', userId, null, input.valor_centavos, null, null),
   ])
-  await updateReceiptStatus(db, reciboId, 'PDF_PENDENTE')
+  const statusAtual = await db.prepare('SELECT status FROM recibos WHERE id = ?').bind(reciboId).first<{ status: string }>()
+  const statusFinal = String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO'
+    ? 'PDF_PENDENTE'
+    : String(statusAtual?.status ?? 'PDF_PENDENTE')
+  if (statusFinal === 'PDF_PENDENTE' && String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO') {
+    await updateReceiptStatus(db, reciboId, 'PDF_PENDENTE')
+  }
   const recibo = {
     id: reciboId,
     numero_recibo: numero,
@@ -2115,10 +2147,10 @@ async function issueReceiptInternal(
     data_emissao: input.data_emissao,
     categoria_id: input.categoria_movimentacao_id,
     categoria_movimentacao_id: input.categoria_movimentacao_id,
-    status: 'PDF_PENDENTE',
+    status: statusFinal,
     lancamento_id: lancamentoId,
   }
-  return { recibo, recibo_id: reciboId, numero_recibo: numero, lancamento_id: lancamentoId, lancamento_cliente_id: rateioLancamentoId, rateio_ids: rateios.map((rateio) => rateio.id), rateio_linhas: rateios, status: 'PDF_PENDENTE', valor_centavos: input.valor_centavos }
+  return { recibo, recibo_id: reciboId, numero_recibo: numero, lancamento_id: lancamentoId, lancamento_cliente_id: rateioLancamentoId, rateio_ids: rateios.map((rateio) => rateio.id), rateio_linhas: rateios, status: statusFinal, valor_centavos: input.valor_centavos }
   } catch (error) {
     const created = await db.prepare('SELECT lancamento_id FROM recibos WHERE id = ?').bind(reciboId).first<{ lancamento_id: string | null }>()
     const lancamentoIds = [...new Set([

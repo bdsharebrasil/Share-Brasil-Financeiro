@@ -47,7 +47,11 @@ function errorResponse(c: any, error: unknown) {
     )
   }
 
-  console.error('[financeiro]', error)
+  console.error(
+    '[financeiro]',
+    error instanceof Error ? error.message : String(error),
+    error,
+  )
   return c.json(
     {
       error: 'falha_ao_processar_financeiro',
@@ -831,7 +835,13 @@ financeiroRoutes.post('/recibos/:id/programar-contas-apagar', async (c) => {
     if (!lancamento || String(lancamento.tipo_caixa).toUpperCase() !== 'SHARE' || String(lancamento.status).toUpperCase() !== 'EM_ABERTO') return c.json({ error: 'lancamento_share_em_aberto_nao_encontrado' }, 409)
     const existing = await c.env.SHARE_DB.prepare(`SELECT id FROM contas_apagar WHERE lancamentos_id = ? AND status <> 'CANCELADO' LIMIT 1`).bind(lancamentoId).first<{ id: string }>()
     const existingRateio = await c.env.SHARE_DB.prepare(`SELECT id FROM rateio_despesas WHERE origem_id = ? AND origem_tipo = 'RECIBO' LIMIT 1`).bind(reciboId).first<{ id: string }>().catch(() => null)
-    if (existingRateio) return c.json({ ok: true, conta_pagar_id: existing?.id ?? null, rateio_ids: [existingRateio.id], idempotent: true })
+    const existingRateioHold = existingRateio
+      ? null
+      : await c.env.SHARE_DB.prepare(`SELECT id FROM rateio_hold WHERE origem_id = ? AND origem_tipo = 'RECIBO' LIMIT 1`).bind(reciboId).first<{ id: string }>().catch(() => null)
+    if (existingRateio || existingRateioHold) {
+      if (existing?.id && body.boleto_url) await c.env.SHARE_DB.prepare('UPDATE contas_apagar SET boleto_url = ? WHERE id = ?').bind(String(body.boleto_url), existing.id).run()
+      return c.json({ ok: true, conta_pagar_id: existing?.id ?? null, rateio_ids: [existingRateio?.id ?? existingRateioHold!.id], idempotent: true })
+    }
     const aeronaveId = String(body.aeronave_id ?? lancamento.aeronave_id ?? receipt.aeronave_id ?? '').trim()
     const dataVencimento = String(body.data_vencimento ?? lancamento.data_vencimento ?? receipt.data_vencimento ?? lancamento.data_emissao ?? receipt.data_emissao ?? '').trim()
     const tipoRateio = String(body.tipo_rateio ?? 'FIXO').toUpperCase()
@@ -855,7 +865,7 @@ financeiroRoutes.post('/recibos/:id/programar-contas-apagar', async (c) => {
     const descricao = lancamento.descricao ?? receipt.descricao ?? 'Recibo'
     const dataEmissao = lancamento.data_emissao ?? receipt.data_emissao ?? null
     const documentoUrl = receipt.url_recibo ?? null
-    const statements = existing ? [] : [c.env.SHARE_DB.prepare(`INSERT INTO contas_apagar (id, data_vencimento, valor_centavos, categoria_id, categoria_nome, descricao, aeronave_id, lancamentos_id, nf_url, criado_por, origem_tipo, idempotency_key, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECIBO', ?, 'EM_ABERTO')`).bind(contaId, dataVencimento, valorCentavos, categoriaIdConta, categoriaNomeConta, descricao, aeronaveId, lancamentoId, documentoUrl, c.get('userId') || null, `recibo:${reciboId}`)]
+    const statements = existing ? [] : [c.env.SHARE_DB.prepare(`INSERT INTO contas_apagar (id, data_vencimento, valor_centavos, categoria_id, categoria_nome, descricao, aeronave_id, lancamentos_id, boleto_url, nf_url, criado_por, origem_tipo, idempotency_key, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECIBO', ?, 'EM_ABERTO')`).bind(contaId, dataVencimento, valorCentavos, categoriaIdConta, categoriaNomeConta, descricao, aeronaveId, lancamentoId, body.boleto_url ?? null, documentoUrl, c.get('userId') || null, `recibo:${reciboId}`)]
     linhas.forEach((linha, index) => {
       const cotista = cotistas.find((item) => String(item.id) === String(linha.cotista_id))!
       const percentual = Number(linha.percentual_uso)
@@ -893,7 +903,12 @@ financeiroRoutes.post('/recibos/:id/reembolso', async (c) => {
 
 financeiroRoutes.post('/envios-pagamento', async (c) => {
   try {
-    const input = validatePaymentRequest(await c.req.json())
+    let input
+    try {
+      input = validatePaymentRequest(await c.req.json())
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : 'dados_de_envio_invalidos', code: 'dados_de_envio_invalidos' }, 400)
+    }
     return c.json(await createPaymentRequest(c.env.SHARE_DB, input, c.get('userId') || null), 201)
   } catch (error) { return errorResponse(c, error) }
 })
@@ -984,7 +999,7 @@ financeiroRoutes.post('/envios-pagamento/:id/converter', async (c) => {
   try {
     const request = await c.env.SHARE_DB.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(c.req.param('id')).first<Record<string, unknown>>()
     if (!request) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
-    if (request.status !== 'APROVADO' && request.status !== 'CONVERTIDO') return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
+    if (!['PENDENTE', 'APROVADO', 'EMAIL_ENVIADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
     return c.json(await convertPaymentRequest(c.env.SHARE_DB, request, createExpense, c.get('userId') || null))
   } catch (error) { return errorResponse(c, error) }
 })

@@ -14,6 +14,7 @@ type Props = {
   assuntoSugerido?: string;
   mensagemSugerida?: string;
   anexos?: AnexoEmail[];
+  referencias?: string[];
 };
 
 const normalizarEmails = (valor: string) =>
@@ -30,6 +31,7 @@ export function EnviarEmailClienteDialog({
   assuntoSugerido = "",
   mensagemSugerida = "",
   anexos = [],
+  referencias = [],
 }: Props) {
   const [destinatario, setDestinatario] = useState("");
   const [buscaContato, setBuscaContato] = useState("");
@@ -104,6 +106,7 @@ export function EnviarEmailClienteDialog({
         assunto: assunto.trim(),
         mensagem: mensagem.trim(),
         anexos: anexos.filter((item) => item.id).map((item) => item.id!),
+        referencias,
       });
       setStatus("sent");
       setToast({ status: "sent", message: "Enviado" });

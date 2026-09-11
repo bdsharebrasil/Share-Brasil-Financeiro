@@ -1300,6 +1300,7 @@ export function enviarEmailCliente(payload: {
   mensagem: string;
   dados_bancarios?: string;
   anexos?: string[];
+  referencias?: string[];
   arquivos?: File[];
   nome_destinatario?: string;
 }) {
@@ -1311,6 +1312,7 @@ export function enviarEmailCliente(payload: {
     body.append("mensagem", payload.mensagem);
     if (payload.dados_bancarios) body.append("dados_bancarios", payload.dados_bancarios);
     if (payload.anexos?.length) body.append("anexos", JSON.stringify(payload.anexos));
+    if (payload.referencias?.length) body.append("referencias", JSON.stringify(payload.referencias));
     if (payload.nome_destinatario) body.append("nome_destinatario", payload.nome_destinatario);
     for (const arquivo of payload.arquivos!) body.append("arquivos", arquivo);
     return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", { method: "POST", body });

@@ -381,8 +381,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
-  // Cotistas filtrados pela aeronave escolhida. Usado tanto no reembolso
-  // (obrigatório) quanto, opcionalmente, como referência no pagamento.
+  // Cotistas filtrados pela aeronave. No reembolso, a aeronave é a origem da
+  // despesa, mas o devedor pode ser qualquer cotista cadastrado quando houve
+  // uso emprestado da aeronave.
   const cotistasDaAeronave = useMemo(
     () =>
       form.aeronave_id
@@ -1002,19 +1003,26 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       obrigatorio
                     >
                       <SearchableCombobox
-                        items={cotistasDaAeronave.map((cotista) => ({
+                        items={(form.tipo === "recibo_reembolso"
+                          ? opcoes.cotistas
+                          : cotistasDaAeronave
+                        ).map((cotista) => ({
                           id: cotista.id,
                           label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
                         }))}
                         value={form.pagador_id}
                         onChange={selecionarCotistaDevedor}
                         placeholder={
-                          form.aeronave_id
+                          form.tipo === "recibo_reembolso" || form.aeronave_id
                             ? "Selecione o cotista"
                             : "Selecione a aeronave primeiro"
                         }
                         searchPlaceholder="Buscar cotista..."
-                        emptyMessage="Nenhum cotista encontrado para esta aeronave."
+                        emptyMessage={
+                          form.tipo === "recibo_reembolso"
+                            ? "Nenhum cotista encontrado."
+                            : "Nenhum cotista encontrado para esta aeronave."
+                        }
                       />
                     </Campo>
                     {form.pagador_id && (

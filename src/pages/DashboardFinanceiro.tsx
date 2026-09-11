@@ -70,7 +70,7 @@ function statusLabel(status: string | null) {
   );
 }
 function statusEmail(item: MovimentacaoFinanceira) {
-  if (item.email_enviado === true) return "ENVIADO";
+  if (item.email_enviado === true || Boolean(item.email_enviado_id) || Boolean(item.email_enviado_em)) return "ENVIADO";
   const status = (item.email_status || item.status_email || item.status || "")
     .toLowerCase()
     .replace(/_/g, " ");

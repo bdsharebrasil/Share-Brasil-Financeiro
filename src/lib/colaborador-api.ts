@@ -469,6 +469,8 @@ export type MovimentacaoFinanceira = {
   numero_doc: string | null;
   observacoes: string | null;
   email_enviado?: boolean | null;
+  email_enviado_em?: string | null;
+  email_enviado_id?: string | null;
   email_status?: string | null;
   status_email?: string | null;
   criado_em: string;
@@ -733,6 +735,8 @@ function normalizarMovimentacao(
     numero_doc: numeroDocumento(registro),
     observacoes: textoFinanceiro(registro.observacoes),
     email_enviado: emailEnviado,
+    email_enviado_em: textoFinanceiro(registro.email_enviado_em),
+    email_enviado_id: textoFinanceiro(registro.email_enviado_id),
     email_status: textoFinanceiro(registro.email_status),
     status_email: textoFinanceiro(registro.status_email),
     criado_em: textoFinanceiro(registro.criado_em) || "",

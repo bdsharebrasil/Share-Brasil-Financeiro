@@ -227,7 +227,10 @@ function LancamentosTableConfigurada({ lancamentos, closed, onEdit, onDelete }: 
     drag.current.moved = false;
   };
   const exibidos = aba === "emprestimos" ? lancamentos.filter((entry) => Boolean(entry.voo_emprestado)) : lancamentos;
-  const nomeDestino = (entry: DiarioLancamento) => entry.voo_emprestado ? (entry.socio_tomador_nome || entry.cliente_tomador_nome || entry.socio_nome || entry.cliente_nome || "Não informado") : (entry.socio_nome || entry.cliente_nome || "Não informado");
+  const nomeDestino = (entry: DiarioLancamento) => {
+    if (entry.natureza_voo === "TR - Traslado" || entry.natureza_voo === "VT - Voo Teste") return entry.natureza_voo;
+    return entry.voo_emprestado ? (entry.socio_tomador_nome || entry.cliente_tomador_nome || entry.socio_nome || entry.cliente_nome || "Não informado") : (entry.socio_nome || entry.cliente_nome || "Não informado");
+  };
   const colunas = [
     { key: "ref", label: "", width: 52, className: "text-center text-primary", render: (entry: DiarioLancamento) => `#${entry.numero_sequencial}` },
     { key: "data", label: "DATA", width: 76, render: (entry: DiarioLancamento) => date(entry.data_registro) },

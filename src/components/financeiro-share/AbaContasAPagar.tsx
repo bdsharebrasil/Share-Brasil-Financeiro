@@ -1,98 +1,115 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useContasAPagar } from '@/hooks/useContasAPagar';
-import type { ContaAPagar, StatusContaAPagar } from './tipos';
-import { ModalContaAPagar } from './ModalContaAPagar';
+import { useMemo, useState } from "react";
+import { Wallet } from "lucide-react";
+import { useContasAPagar } from "@/hooks/useContasAPagar";
+import type { ContaAPagar } from "./tipos";
+import { KpiCard } from "@/components/financeiro-design/KpiCard";
+import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
+import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
+import {
+  type FiltrosTabela,
+  type LancamentoTabela,
+  FILTROS_VAZIOS,
+  mapearContaAPagar,
+  formatarBRL,
+} from "@/components/financeiro-design/lancamento-tabela";
 
-function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+function formatarBRLLocal(valor: number): string {
+  return formatarBRL(valor);
 }
-
-function formatarData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
-
-function estaVencida(conta: ContaAPagar): boolean {
-  return conta.status === 'PENDENTE' && new Date(conta.dataVencimento) < new Date();
-}
-
-const CORES_STATUS: Record<StatusContaAPagar, string> = {
-  EM_ABERTO: 'bg-amber-100 text-amber-700',
-  PAGO: 'bg-emerald-100 text-emerald-700',
-  RECEBIDO: 'bg-emerald-100 text-emerald-700',
-  PENDENTE: 'bg-amber-100 text-amber-700',
-  ATRASADO: 'bg-red-100 text-red-700',
-  EM_ATRASO: 'bg-red-100 text-red-700',
-  CANCELADO: 'bg-neutral-200 text-neutral-500',
-};
 
 export function AbaContasAPagar() {
-  const [status, setStatus] = useState<StatusContaAPagar | 'TODOS'>('TODOS');
-  const [contaSelecionada, setContaSelecionada] = useState<ContaAPagar | null>(null);
+  const { contas, carregando, erro, darBaixa } = useContasAPagar({});
+  const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
+  const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
 
-  const { contas, carregando, erro, darBaixa } = useContasAPagar({
-    status: status === 'TODOS' ? undefined : status,
-  });
+  const itens = useMemo(() => contas.map(mapearContaAPagar), [contas]);
 
-  const totalPendenteVencido = contas
-    .filter(estaVencida)
-    .reduce((soma, c) => soma + c.valor, 0);
+  const filtrados = useMemo(() => {
+    return itens.filter((l) => {
+      if (filtros.busca) {
+        const busca = filtros.busca.toLowerCase();
+        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca)) return false;
+      }
+      if (filtros.status !== "TODOS" && l.status !== filtros.status) return false;
+      if (filtros.grupo !== "TODOS" && l.grupoCategoria !== filtros.grupo) return false;
+      return true;
+    });
+  }, [itens, filtros]);
+
+  const emAberto = useMemo(
+    () => contas.filter((c) => c.status === "PENDENTE" || c.status === "EM_ABERTO").reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+  const atrasado = useMemo(
+    () => contas.filter((c) => c.status === "PENDENTE" && new Date(c.dataVencimento) < new Date()).reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+  const totalPago = useMemo(
+    () => contas.filter((c) => c.status === "PAGO").reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+
+  async function confirmarBaixa(id: string, dados: DadosBaixaSaida) {
+    await darBaixa(id, {
+      dataPagamento: dados.dataPagamento,
+      bancoPagamento: dados.contaBancaria,
+      comprovantePagamentoUrl: undefined,
+      valorPago: dados.valorPago,
+      formaPagamento: dados.formaPagamento,
+      observacoes: dados.observacoes,
+    });
+  }
 
   return (
     <div className="space-y-4">
-      {totalPendenteVencido > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="py-4">
-            <p className="text-sm font-medium text-red-700">
-              {formatarMoeda(totalPendenteVencido)} em contas vencidas aguardando pagamento
-            </p>
-          </CardContent>
-        </Card>
+      {erro && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {erro}
+        </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Contas a pagar</CardTitle>
-          <Select value={status} onValueChange={(v) => setStatus(v as StatusContaAPagar | 'TODOS')}>
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="PENDENTE">Pendentes</SelectItem>
-              <SelectItem value="PAGO">Pagas</SelectItem>
-              <SelectItem value="CANCELADO">Canceladas</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-          {carregando ? (
-            <p className="text-sm text-muted-foreground">Carregando contas…</p>
-          ) : (
-            <>
-              <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vencimento</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader><TableBody>{contas.length === 0 ? <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a pagar encontrada.</TableCell></TableRow> : contas.map((c) => { const vencida = estaVencida(c); return <TableRow key={c.id}><TableCell className={vencida ? 'font-medium text-red-600' : undefined}>{formatarData(c.dataVencimento)}</TableCell><TableCell>{c.descricao ?? '—'}</TableCell><TableCell>{c.categoriaNome ?? '—'}</TableCell><TableCell className="text-right font-medium">{formatarMoeda(c.valor)}</TableCell><TableCell><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge></TableCell><TableCell className="text-right">{c.status === 'PENDENTE' && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</TableCell></TableRow>; })}</TableBody></Table></div>
-              <div className="space-y-2 md:hidden">{contas.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a pagar encontrada.</p> : contas.map((c) => { const vencida = estaVencida(c); return <article key={c.id} className="rounded-xl border border-border/70 bg-muted/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{c.descricao ?? 'Conta a pagar'}</p><p className={`mt-1 text-[11px] ${vencida ? 'text-red-600' : 'text-muted-foreground'}`}>Venc. {formatarData(c.dataVencimento)} · {c.categoriaNome ?? 'Sem categoria'}</p></div><span className="shrink-0 text-sm font-bold">{formatarMoeda(c.valor)}</span></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge>{c.status === 'PENDENTE' && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</div></article>; })}</div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {contaSelecionada && (
-        <ModalContaAPagar
-          conta={contaSelecionada}
-          aberto
-          onFechar={() => setContaSelecionada(null)}
-          onConfirmar={async (dados) => {
-            await darBaixa(contaSelecionada.id, dados);
-            setContaSelecionada(null);
-          }}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Total a Pagar"
+          valor={formatarBRLLocal(contas.reduce((s, c) => s + c.valor, 0))}
+          detalhe={`${contas.length} registros`}
+          Icon={Wallet}
+          destaque
         />
-      )}
+        <KpiCard
+          label="Em Aberto"
+          valor={formatarBRLLocal(emAberto)}
+          detalhe="Pendentes de pagamento"
+          Icon={Wallet}
+        />
+        <KpiCard
+          label="Atrasado"
+          valor={formatarBRLLocal(atrasado)}
+          detalhe={atrasado > 0 ? "Títulos vencidos" : "Nenhum título em atraso"}
+          Icon={Wallet}
+        />
+        <KpiCard
+          label="Pago"
+          valor={formatarBRLLocal(totalPago)}
+          detalhe="Já liquidados"
+          Icon={Wallet}
+        />
+      </div>
+
+      <TabelaLancamentos
+        titulo="Contas a pagar"
+        itens={filtrados}
+        filtros={filtros}
+        onFiltrar={setFiltros}
+        onDarBaixa={setBaixaAlvo}
+        carregando={carregando}
+      />
+
+      <DarBaixaDialog
+        lancamento={baixaAlvo}
+        onFechar={() => setBaixaAlvo(null)}
+        onConfirmar={confirmarBaixa}
+      />
     </div>
   );
 }

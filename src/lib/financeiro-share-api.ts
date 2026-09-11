@@ -89,7 +89,7 @@ export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<C
   return financeiroRequest<ContaAPagar[]>(`/api/financeiro/contas-apagar${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, fornecedorId: filtros.fornecedorId })}`);
 }
 
-export function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }): Promise<ContaAPagar> {
+export function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string; valorPago?: number; formaPagamento?: string; observacoes?: string }): Promise<ContaAPagar> {
   return financeiroRequest<ContaAPagar>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
 }
 

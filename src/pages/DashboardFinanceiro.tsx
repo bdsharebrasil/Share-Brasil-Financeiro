@@ -10,6 +10,8 @@ import {
   Receipt,
   RefreshCw,
   Send,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
@@ -174,7 +176,7 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-5 grid w-full max-w-4xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mx-auto mb-5 grid w-full max-w-4xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
@@ -191,8 +193,24 @@ export default function DashboardFinanceiro({
           icon={<CreditCard size={16} />}
           className="min-w-0"
         />
+        <CartaoKpi
+          label="Total a receber"
+          value={carregando ? "—" : formatarMoeda(Number(resumo?.total_a_receber ?? 0))}
+          detail="Valores pendentes de recebimento"
+          tone="green"
+          icon={<TrendingUp size={16} />}
+          className="min-w-0"
+        />
+        <CartaoKpi
+          label="Total pago"
+          value={carregando ? "—" : formatarMoeda(Number(resumo?.total_pago ?? 0))}
+          detail="Valores liquidados no período"
+          tone="blue"
+          icon={<Wallet size={16} />}
+          className="min-w-0"
+        />
       </div>
-      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="Recibos"
@@ -254,7 +272,8 @@ export default function DashboardFinanceiro({
             <div className="skeleton h-12 rounded-lg" />
           </div>
         ) : movimentacoes.length ? (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1080px] text-left">
               <thead>
                 <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
@@ -304,6 +323,41 @@ export default function DashboardFinanceiro({
               </div>
             )}
           </div>
+          <div className="space-y-3 p-4 md:hidden">
+            {movimentacoesDaPagina.map((item) => (
+              <CartaoMovimentacao key={item.id} item={item} />
+            ))}
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Página {paginaExibida} de {totalPaginas}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+                    disabled={paginaExibida === 1}
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                    disabled={paginaExibida === totalPaginas}
+                  >
+                    Próxima <ChevronRight size={14} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          </>
         ) : (
           <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
         )}
@@ -317,6 +371,41 @@ export default function DashboardFinanceiro({
 function CheckIcon() {
   return <CircleDollarSign size={16} />;
 }
+function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
+  return (
+    <article className="rounded-xl border border-border/70 bg-card/60 p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {item.descricao || "Movimentação sem descrição"}
+          </p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {item.fornecedor || "Sem fornecedor"} · {item.numero_doc || "Sem doc"}
+          </p>
+        </div>
+        <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-foreground">
+          {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
+        </p>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
+          {tipoCaixaLabel(item.tipo_caixa)}
+        </span>
+        <EtiquetaStatus tone={tomStatus(item.status)}>
+          {statusLabel(item.status)}
+        </EtiquetaStatus>
+        <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] ${tomStatusEmail(statusEmail(item))}`}>
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+          {statusEmail(item)}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {dataBruta(item.data_pagamento || item.criado_em)}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20">

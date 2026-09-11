@@ -2,14 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import { buscarContasAPagar, darBaixaContaAPagar } from '../lib/financeiro-share-api';
 import type { ContaAPagar, FiltrosContasAPagar } from '../components/financeiro-share/tipos';
 
+export interface DadosBaixaAPagar {
+  dataPagamento: string;
+  bancoPagamento: string;
+  comprovantePagamentoUrl?: string;
+  valorPago?: number;
+  formaPagamento?: string;
+  observacoes?: string;
+}
+
 interface RetornoUseContasAPagar {
   contas: ContaAPagar[];
   carregando: boolean;
   erro: string | null;
-  darBaixa: (
-    id: string,
-    dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }
-  ) => Promise<void>;
+  darBaixa: (id: string, dados: DadosBaixaAPagar) => Promise<void>;
   recarregar: () => void;
 }
 
@@ -34,10 +40,7 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
   }, [carregar]);
 
   const darBaixa = useCallback(
-    async (
-      id: string,
-      dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string }
-    ) => {
+    async (id: string, dados: DadosBaixaAPagar) => {
       const contaAtualizada = await darBaixaContaAPagar(id, dados);
       setContas((atual) => atual.map((c) => (c.id === id ? contaAtualizada : c)));
     },

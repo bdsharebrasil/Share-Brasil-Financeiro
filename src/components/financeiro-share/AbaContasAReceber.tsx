@@ -1,88 +1,99 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useContasAReceber } from '@/hooks/useContasAReceber';
-import type { ContaAReceber, StatusContaFinanceira } from './tipos';
-import { ModalContaAReceber } from './ModalContaAReceber';
-
-function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatarData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
-
-function estaVencida(conta: ContaAReceber): boolean {
-  return ['PENDENTE', 'EM_ABERTO', 'ATRASADO', 'EM_ATRASO'].includes(conta.status) && new Date(conta.dataVencimento) < new Date();
-}
-
-function podeDarBaixa(conta: ContaAReceber): boolean {
-  return ['PENDENTE', 'EM_ABERTO', 'ATRASADO', 'EM_ATRASO'].includes(conta.status);
-}
-
-const CORES_STATUS: Record<StatusContaFinanceira, string> = {
-  EM_ABERTO: 'bg-amber-100 text-amber-700',
-  PAGO: 'bg-emerald-100 text-emerald-700',
-  PENDENTE: 'bg-amber-100 text-amber-700',
-  RECEBIDO: 'bg-emerald-100 text-emerald-700',
-  ATRASADO: 'bg-red-100 text-red-700',
-  EM_ATRASO: 'bg-red-100 text-red-700',
-  CANCELADO: 'bg-neutral-200 text-neutral-500',
-};
+import { useMemo, useState } from "react";
+import { HandCoins } from "lucide-react";
+import { useContasAReceber } from "@/hooks/useContasAReceber";
+import type { ContaAReceber } from "./tipos";
+import { ModalContaAReceber } from "./ModalContaAReceber";
+import { KpiCard } from "@/components/financeiro-design/KpiCard";
+import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
+import {
+  type FiltrosTabela,
+  type LancamentoTabela,
+  FILTROS_VAZIOS,
+  mapearContaAReceber,
+  formatarBRL,
+} from "@/components/financeiro-design/lancamento-tabela";
 
 export function AbaContasAReceber() {
-  const [status, setStatus] = useState<StatusContaFinanceira | 'TODOS'>('TODOS');
+  const { contas, carregando, erro, darBaixa } = useContasAReceber({});
+  const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
   const [contaSelecionada, setContaSelecionada] = useState<ContaAReceber | null>(null);
 
-  const { contas, carregando, erro, darBaixa } = useContasAReceber({
-    status: status === 'TODOS' ? undefined : status,
-  });
+  const itens = useMemo(() => contas.map(mapearContaAReceber), [contas]);
 
-  const totalPendenteVencido = contas.filter(estaVencida).reduce((soma, c) => soma + c.valor, 0);
+  const filtrados = useMemo(() => {
+    return itens.filter((l) => {
+      if (filtros.busca) {
+        const busca = filtros.busca.toLowerCase();
+        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca)) return false;
+      }
+      if (filtros.status !== "TODOS" && l.status !== filtros.status) return false;
+      if (filtros.grupo !== "TODOS" && l.grupoCategoria !== filtros.grupo) return false;
+      return true;
+    });
+  }, [itens, filtros]);
+
+  const aReceber = useMemo(
+    () => contas.filter((c) => ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(c.status)).reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+  const atrasado = useMemo(
+    () => contas.filter((c) => ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(c.status) && new Date(c.dataVencimento) < new Date()).reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+  const recebido = useMemo(
+    () => contas.filter((c) => c.status === "RECEBIDO").reduce((s, c) => s + c.valor, 0),
+    [contas],
+  );
+
+  function onDarBaixa(lancamento: LancamentoTabela) {
+    const conta = contas.find((c) => c.id === lancamento.id);
+    if (conta) setContaSelecionada(conta);
+  }
 
   return (
     <div className="space-y-4">
-      {totalPendenteVencido > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="py-4">
-            <p className="text-sm font-medium text-red-700">
-              {formatarMoeda(totalPendenteVencido)} em contas vencidas aguardando recebimento
-            </p>
-          </CardContent>
-        </Card>
+      {erro && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {erro}
+        </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Contas a receber</CardTitle>
-          <Select value={status} onValueChange={(v) => setStatus(v as StatusContaFinanceira | 'TODOS')}>
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="EM_ABERTO">Pendentes</SelectItem>
-              <SelectItem value="RECEBIDO">Recebidas</SelectItem>
-              <SelectItem value="CANCELADO">Canceladas</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-          {carregando ? (
-            <p className="text-sm text-muted-foreground">Carregando contas…</p>
-          ) : (
-            <>
-              <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vencimento</TableHead><TableHead>Descrição</TableHead><TableHead>Categoria</TableHead><TableHead>Fornecedor</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader><TableBody>{contas.length === 0 ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a receber encontrada.</TableCell></TableRow> : contas.map((c) => { const vencida = estaVencida(c); return <TableRow key={c.id}><TableCell className={vencida ? 'font-medium text-red-600' : undefined}>{formatarData(c.dataVencimento)}</TableCell><TableCell>{c.descricao ?? '—'}</TableCell><TableCell>{c.categoriaNome ?? '—'}</TableCell><TableCell>{c.fornecedor ?? '—'}</TableCell><TableCell className="text-right font-medium">{formatarMoeda(c.valor)}</TableCell><TableCell><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge></TableCell><TableCell className="text-right">{podeDarBaixa(c) && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</TableCell></TableRow>; })}</TableBody></Table></div>
-              <div className="space-y-2 md:hidden">{contas.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma conta a receber encontrada.</p> : contas.map((c) => { const vencida = estaVencida(c); return <article key={c.id} className="rounded-xl border border-border/70 bg-muted/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{c.descricao ?? 'Conta a receber'}</p><p className={`mt-1 text-[11px] ${vencida ? 'text-red-600' : 'text-muted-foreground'}`}>Venc. {formatarData(c.dataVencimento)} · {c.fornecedor ?? 'Sem pagador'}</p></div><span className="shrink-0 text-sm font-bold">{formatarMoeda(c.valor)}</span></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><Badge className={CORES_STATUS[vencida ? 'ATRASADO' : c.status]}>{vencida ? 'ATRASADO' : c.status}</Badge>{podeDarBaixa(c) && <Button size="sm" variant="outline" onClick={() => setContaSelecionada(c)}>Dar baixa</Button>}</div></article>; })}</div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Total a Receber"
+          valor={formatarBRL(contas.reduce((s, c) => s + c.valor, 0))}
+          detalhe={`${contas.length} registros`}
+          Icon={HandCoins}
+          destaque
+        />
+        <KpiCard
+          label="Em Aberto"
+          valor={formatarBRL(aReceber)}
+          detalhe="Pendentes de recebimento"
+          Icon={HandCoins}
+        />
+        <KpiCard
+          label="Atrasado"
+          valor={formatarBRL(atrasado)}
+          detalhe={atrasado > 0 ? "Títulos vencidos" : "Nenhum título em atraso"}
+          Icon={HandCoins}
+        />
+        <KpiCard
+          label="Recebido"
+          valor={formatarBRL(recebido)}
+          detalhe="Já recebidos"
+          Icon={HandCoins}
+        />
+      </div>
+
+      <TabelaLancamentos
+        titulo="Contas a receber"
+        itens={filtrados}
+        filtros={filtros}
+        onFiltrar={setFiltros}
+        onDarBaixa={onDarBaixa}
+        carregando={carregando}
+      />
 
       {contaSelecionada && (
         <ModalContaAReceber

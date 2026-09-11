@@ -174,14 +174,14 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-5 flex w-full max-w-4xl flex-row items-center justify-center gap-3 overflow-auto">
+      <div className="mx-auto mb-5 grid w-full max-w-4xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
           detail="Itens que exigem acompanhamento"
           tone="amber"
           icon={<Clock3 size={16} />}
-          className="min-w-[180px]"
+          className="min-w-0"
         />
         <CartaoKpi
           label="Pagamentos confirmados"
@@ -189,10 +189,10 @@ export default function DashboardFinanceiro({
           detail="Registros pagos no consolidado"
           tone="violet"
           icon={<CreditCard size={16} />}
-          className="min-w-[180px]"
+          className="min-w-0"
         />
       </div>
-      <section className="mx-auto mb-5 grid max-w-6xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="Recibos"

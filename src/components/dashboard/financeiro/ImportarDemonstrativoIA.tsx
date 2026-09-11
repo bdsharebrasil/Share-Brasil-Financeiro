@@ -44,6 +44,8 @@ type LinhaRateio = ItemDemonstrativo & {
   cotistaId: string;
   nomeCotista: string;
   responsavelSugerido: string | null;
+  naturezaEspecial?: "TRASLADO" | "VOO_TESTE";
+  percentuaisCotistas?: Record<string, number>;
 };
 
 type ReciboGerado = Pick<Recibo, "id" | "numero_recibo" | "nome_pagador" | "valor">;
@@ -108,7 +110,7 @@ function responsavelDoLancamento(lancamento: DiarioLancamento) {
   return lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
 }
 
-function encontrarResponsavel(item: ItemDemonstrativo, lancamentos: DiarioLancamento[]) {
+function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancamento[]) {
   const mesmaData = lancamentos.filter((lancamento) => dataDiario(lancamento.data_registro) === dataDiario(item.data));
   const origem = codigoTrecho(item.origem);
   const destino = codigoTrecho(item.destino);
@@ -125,7 +127,15 @@ function encontrarResponsavel(item: ItemDemonstrativo, lancamentos: DiarioLancam
         )
       : [];
   const candidatos = porTrecho.length ? porTrecho : mesmaData.length === 1 ? mesmaData : [];
-  return candidatos.length === 1 ? responsavelDoLancamento(candidatos[0]) : null;
+  return candidatos;
+}
+
+function naturezaEspecialDoLancamento(lancamento: DiarioLancamento | null) {
+  if (!lancamento || !(lancamento.cliente_id || lancamento.holding_id || lancamento.socio_id)) return undefined;
+  const natureza = normalizar(lancamento.natureza_voo);
+  if (natureza.includes("TR - TRASLADO") || natureza.includes("TRASLADO")) return "TRASLADO" as const;
+  if (natureza.includes("VT - VOO TESTE") || natureza.includes("VOO TESTE")) return "VOO_TESTE" as const;
+  return undefined;
 }
 
 export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }: Props) {
@@ -171,18 +181,17 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
   const consolidado = useMemo(() => {
     const grupos = new Map<string, { cotista: CotistaRecibo; nome: string; valor: number; operacoes: number }>();
     for (const linha of linhas) {
-      const cotista = cotistas.find((item) => item.id === linha.cotistaId);
-      if (!cotista) continue;
-      const grupo = grupos.get(cotista.id) || {
-        cotista,
-        nome: linha.nomeCotista.trim() || cotista.nome,
-        valor: 0,
-        operacoes: 0,
-      };
-      if (linha.nomeCotista.trim()) grupo.nome = linha.nomeCotista.trim();
-      grupo.valor += Number(linha.valor) || 0;
-      grupo.operacoes += 1;
-      grupos.set(cotista.id, grupo);
+      const rateios = linha.percentuaisCotistas
+        ? Object.entries(linha.percentuaisCotistas).map(([cotistaId, percentual]) => ({ cotistaId, percentual }))
+        : [{ cotistaId: linha.cotistaId, percentual: 100 }];
+      for (const rateio of rateios) {
+        const cotista = cotistas.find((item) => item.id === rateio.cotistaId);
+        if (!cotista || rateio.percentual <= 0) continue;
+        const grupo = grupos.get(cotista.id) || { cotista, nome: cotista.nome, valor: 0, operacoes: 0 };
+        grupo.valor += (Number(linha.valor) || 0) * rateio.percentual / 100;
+        grupo.operacoes += 1;
+        grupos.set(cotista.id, grupo);
+      }
     }
     return [...grupos.values()].map((grupo) => ({
       ...grupo,
@@ -194,6 +203,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     [linhas],
   );
   const linhasSemCotista = linhas.filter((linha) => !linha.cotistaId).length;
+  const linhasComRateioInvalido = linhas.filter((linha) => linha.percentuaisCotistas && Math.abs(Object.values(linha.percentuaisCotistas).reduce((soma, valor) => soma + valor, 0) - 100) > 0.01).length;
 
   const selecionarAeronave = (id: string) => {
     setAeronaveId(id);
@@ -234,13 +244,21 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
       const lancamentos = detalhes.flatMap((detalhe) => detalhe?.lancamentos || []);
       const cotistasDaAeronave = opcoes.cotistas.filter((cotista) => cotista.aeronave_id === aeronaveId);
       const novasLinhas = resultado.itens.map((item) => {
-        const responsavel = encontrarResponsavel(item, lancamentos);
+        const candidatos = encontrarLancamentos(item, lancamentos);
+        const lancamento = candidatos.find((candidato) => naturezaEspecialDoLancamento(candidato)) || (candidatos.length === 1 ? candidatos[0] : null);
+        const responsavel = lancamento ? responsavelDoLancamento(lancamento) : null;
         const cotista = cotistaPorNome(cotistasDaAeronave, responsavel);
+        const naturezaEspecial = naturezaEspecialDoLancamento(lancamento);
+        const percentuaisCotistas = naturezaEspecial && cotistasDaAeronave.length
+          ? Object.fromEntries(cotistasDaAeronave.map((itemCotista) => [itemCotista.id, 100 / cotistasDaAeronave.length]))
+          : undefined;
         return {
           ...item,
-          cotistaId: cotista?.id || "",
-          nomeCotista: cotista?.nome || responsavel || "",
+          cotistaId: cotista?.id || cotistasDaAeronave[0]?.id || "",
+          nomeCotista: naturezaEspecial ? "Rateio entre cotistas" : cotista?.nome || responsavel || "",
           responsavelSugerido: responsavel,
+          naturezaEspecial,
+          percentuaisCotistas,
         };
       });
       setDemonstrativo(resultado);
@@ -261,6 +279,12 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     setLinhas((atuais) => atuais.map((linha, index) => index === indice ? { ...linha, ...atualizacao } : linha));
   };
 
+  const atualizarPercentualCotista = (indice: number, cotistaId: string, percentual: number) => {
+    const linha = linhas[indice];
+    if (!linha.percentuaisCotistas) return;
+    atualizarLinha(indice, { percentuaisCotistas: { ...linha.percentuaisCotistas, [cotistaId]: Math.max(0, percentual) } });
+  };
+
   const gerarPdf = async (recibo: Recibo, cotista: CotistaRecibo, nomePagador: string) => {
     const pdf = await gerarReciboPdf({
       numero: recibo.numero_recibo,
@@ -277,8 +301,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
   };
 
   const gerarRecibos = async () => {
-    if (!demonstrativo || !aeronaveId || !categoriaSelecionada || !consolidado.length || linhasSemCotista) {
-      setErro("Informe a categoria e atribua todas as linhas a um cotista antes de gerar os recibos.");
+    if (!demonstrativo || !aeronaveId || !categoriaSelecionada || !consolidado.length || linhasSemCotista || linhasComRateioInvalido) {
+      setErro("Informe a categoria, atribua os cotistas e confira se cada rateio de traslado ou voo teste soma 100%.");
       return;
     }
     setGerando(true);
@@ -445,19 +469,44 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
                       <td className="px-3 py-3">
                         <p>{linha.origem && linha.destino ? `${linha.origem} → ${linha.destino}` : linha.operacao || "—"}</p>
                         {linha.responsavelSugerido && <p className="mt-1 text-[10px] text-primary">Diário: {linha.responsavelSugerido}</p>}
+                        {linha.naturezaEspecial && <p className="mt-1 text-[10px] font-bold text-amber-700">{linha.naturezaEspecial === "VOO_TESTE" ? "VT - Voo Teste" : "TR - Traslado"}</p>}
                       </td>
                       <td className="px-3 py-2">
-                        <SearchableCombobox
-                          items={itensCotistas}
-                          value={linha.cotistaId}
-                          onChange={(cotistaId) => {
-                            const cotista = cotistas.find((item) => item.id === cotistaId);
-                            atualizarLinha(indice, { cotistaId, nomeCotista: cotista?.nome || linha.nomeCotista });
-                          }}
-                          placeholder="Selecione o cotista"
-                          searchPlaceholder="Buscar cotista..."
-                          emptyMessage="Nenhum cotista para esta aeronave."
-                        />
+                        {linha.percentuaisCotistas ? (
+                          <div className="min-w-72 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/50 p-2">
+                            {cotistas.map((cotista) => (
+                              <label key={cotista.id} className="flex items-center gap-2">
+                                <span className="min-w-0 flex-1 truncate text-[10px] font-medium">{cotista.nome}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={Number(linha.percentuaisCotistas[cotista.id] || 0).toFixed(2)}
+                                  onChange={(event) => atualizarPercentualCotista(indice, cotista.id, Number(event.target.value) || 0)}
+                                  className="campo w-20 text-right font-mono"
+                                  aria-label={`Percentual de uso de ${cotista.nome}`}
+                                />
+                                <span className="text-[10px]">%</span>
+                              </label>
+                            ))}
+                            <p className={`pt-1 text-right text-[10px] font-bold ${Math.abs(Object.values(linha.percentuaisCotistas).reduce((soma, valor) => soma + valor, 0) - 100) < 0.01 ? "text-emerald-700" : "text-red-600"}`}>
+                              Total: {Object.values(linha.percentuaisCotistas).reduce((soma, valor) => soma + valor, 0).toFixed(2)}%
+                            </p>
+                          </div>
+                        ) : (
+                          <SearchableCombobox
+                            items={itensCotistas}
+                            value={linha.cotistaId}
+                            onChange={(cotistaId) => {
+                              const cotista = cotistas.find((item) => item.id === cotistaId);
+                              atualizarLinha(indice, { cotistaId, nomeCotista: cotista?.nome || linha.nomeCotista });
+                            }}
+                            placeholder="Selecione o cotista"
+                            searchPlaceholder="Buscar cotista..."
+                            emptyMessage="Nenhum cotista para esta aeronave."
+                          />
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <input
@@ -515,7 +564,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
             <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
               {progresso && <span className="mr-auto self-center text-[11px] text-muted-foreground">{progresso}</span>}
               <Button type="button" variant="outline" onClick={onCancel} disabled={gerando} className="h-9 text-[11px]">Cancelar</Button>
-              <Button type="button" onClick={() => void gerarRecibos()} disabled={gerando || !categoriaId || !consolidado.length || linhasSemCotista > 0} className="h-9 gap-2 text-[11px]">
+              <Button type="button" onClick={() => void gerarRecibos()} disabled={gerando || !categoriaId || !consolidado.length || linhasSemCotista > 0 || linhasComRateioInvalido > 0} className="h-9 gap-2 text-[11px]">
                 {gerando ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
                 {gerando ? "Gerando recibos..." : "Gerar recibos"}
               </Button>

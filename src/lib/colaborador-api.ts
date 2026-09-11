@@ -465,6 +465,7 @@ export type MovimentacaoFinanceira = {
   descricao: string;
   fornecedor: string | null;
   status: string | null;
+  pendencia?: boolean;
   data_pagamento: string | null;
   valor: number;
   numero_doc: string | null;

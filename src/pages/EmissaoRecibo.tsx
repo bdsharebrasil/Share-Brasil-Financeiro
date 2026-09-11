@@ -7,6 +7,8 @@ import {
   Paperclip,
   Receipt,
   RotateCcw,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,6 @@ import HistoricoRecibos, {
 import ProgramarContaAPagarDialog from "@/components/financeiro-share/ProgramarContaAPagarDialog";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import ImportarDemonstrativoIA from "@/components/dashboard/financeiro/ImportarDemonstrativoIA";
-import { useToast } from "@/hooks/use-toast";
 import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
 import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
@@ -325,7 +326,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [reciboEmail, setReciboEmail] = useState<ReciboFinanceiro | null>(null);
   const [reciboProgramacao, setReciboProgramacao] = useState<ReciboFinanceiro | null>(null);
   const [modalEmail, setModalEmail] = useState(false);
-  const { toast } = useToast();
+  const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
+  const mostrarFeedback = (tipo: "sucesso" | "erro", texto: string) => {
+    setFeedback({ tipo, texto });
+    window.setTimeout(() => setFeedback(null), 2600);
+  };
 
   const carregar = async () => {
     setCarregando(true);
@@ -769,14 +774,22 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       setRecibos((atual) => atual.map((item) => item.id === reciboEmail.id ? atualizado : item));
       setModalEmail(false);
       setReciboProgramacao(atualizado);
-      toast({ title: "E-mail enviado", description: "O recibo foi marcado como enviado. Agora informe o rateio para programar as contas a pagar." });
+      mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
     } catch (cause) {
-      toast({ title: "E-mail enviado, mas status não atualizado", description: cause instanceof Error ? cause.message : "Tente novamente.", variant: "destructive" });
+      mostrarFeedback("erro", cause instanceof Error ? cause.message : "Não foi possível atualizar o status do e-mail.");
     }
   };
 
   return (
     <div className="route-enter mx-auto max-w-6xl space-y-5">
+      {feedback && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-[2px]" role="status" aria-live="polite">
+          <div className={`flex w-full max-w-md items-center gap-4 rounded-2xl border px-6 py-5 text-center shadow-2xl animate-in zoom-in-95 duration-200 ${feedback.tipo === "sucesso" ? "border-emerald-400/40 bg-emerald-950/95 text-emerald-50" : "border-red-400/40 bg-red-950/95 text-red-50"}`}>
+            {feedback.tipo === "sucesso" ? <CheckCircle2 className="h-8 w-8 shrink-0 text-emerald-300" /> : <XCircle className="h-8 w-8 shrink-0 text-red-300" />}
+            <p className="flex-1 text-sm font-extrabold tracking-[.08em]">{feedback.texto}</p>
+          </div>
+        </div>
+      )}
       <header className="flex flex-wrap items-start justify-between gap-5 md:gap-6">
         <div className="min-w-0">
           <IndicadorPagina>Financeiro / Emissão de recibo</IndicadorPagina>
@@ -848,7 +861,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         aeronaves={opcoes.aeronaves}
         categorias={opcoes.categorias_cliente}
         onOpenChange={(aberto) => { if (!aberto) setReciboProgramacao(null); }}
-        onSaved={() => toast({ title: "Contas a pagar programadas", description: "O lançamento do recibo continua vinculado e o rateio foi gravado." })}
+        onSaved={() => mostrarFeedback("sucesso", "SUA PROGRAMAÇÃO FOI CONCLUIDA")}
       />
 
       {abaAtiva === "emissao" && !leitorDemonstrativoAberto && (

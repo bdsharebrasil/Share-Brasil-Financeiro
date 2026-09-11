@@ -125,6 +125,7 @@ export default function DashboardFinanceiro({
   const [erro, setErro] = useState<string | null>(null);
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [mostrarPendencias, setMostrarPendencias] = useState(false);
   const carregar = useCallback(async (silencioso = false) => {
     if (silencioso) setAtualizando(true);
     else setCarregando(true);
@@ -151,10 +152,13 @@ export default function DashboardFinanceiro({
   }, [carregar]);
   const resumo = dados?.resumo;
   const movimentacoes = dados?.movimentacoes ?? [];
+  const movimentacoesVisiveis = mostrarPendencias
+    ? movimentacoes.filter((item) => item.pendencia)
+    : movimentacoes;
   const itensPorPagina = 5;
-  const totalPaginas = Math.max(1, Math.ceil(movimentacoes.length / itensPorPagina));
+  const totalPaginas = Math.max(1, Math.ceil(movimentacoesVisiveis.length / itensPorPagina));
   const paginaExibida = Math.min(paginaAtual, totalPaginas);
-  const movimentacoesDaPagina = movimentacoes.slice(
+  const movimentacoesDaPagina = movimentacoesVisiveis.slice(
     (paginaExibida - 1) * itensPorPagina,
     paginaExibida * itensPorPagina,
   );
@@ -184,6 +188,10 @@ export default function DashboardFinanceiro({
           tone="amber"
           icon={<Clock3 size={16} />}
           className="min-w-0"
+          onClick={() => {
+            setMostrarPendencias((atual) => !atual);
+            setPaginaAtual(1);
+          }}
         />
         <CartaoKpi
           label="Pagamentos confirmados"
@@ -248,7 +256,7 @@ export default function DashboardFinanceiro({
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
-          detail="Últimos registros lançados."
+          detail={mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
           action={
             <Button
               type="button"
@@ -265,13 +273,19 @@ export default function DashboardFinanceiro({
             </Button>
           }
         />
+        {mostrarPendencias && (
+          <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
+            <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo as movimentações das pendências em aberto.</span>
+            <button type="button" onClick={() => { setMostrarPendencias(false); setPaginaAtual(1); }} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
+          </div>
+        )}
         {carregando ? (
           <div className="space-y-3 p-5">
             <div className="skeleton h-12 rounded-lg" />
             <div className="skeleton h-12 rounded-lg" />
             <div className="skeleton h-12 rounded-lg" />
           </div>
-        ) : movimentacoes.length ? (
+        ) : movimentacoesVisiveis.length ? (
           <>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1080px] text-left">

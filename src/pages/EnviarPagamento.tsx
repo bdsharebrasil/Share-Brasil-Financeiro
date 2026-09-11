@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -182,6 +182,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [corpoEmail, setCorpoEmail] = useState("");
   const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
   const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
+  const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
@@ -255,6 +256,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const linhas = form.rateio_linhas.map((linha) => ({
       cotista_id: linha.cotista_id,
       percentual: Number(linha.percentual) || 0,
+      percentual_sociedade: Number(cotistas.find((cotista) => cotista.id === linha.cotista_id)?.percentual_sociedade || 0),
     })).filter((linha) => linha.percentual > 0)
     let distribuido = 0
     return linhas.map((linha, index) => {
@@ -273,7 +275,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const linhas = montarRateioLinhas()
     const percentual = linhas.reduce((total, linha) => total + linha.percentual, 0)
     const valor = linhas.reduce((total, linha) => total + linha.valor_centavos, 0)
-    return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos
+    const anexosValidos = tipo !== "cliente" || form.anexos.every((anexo) => Boolean(anexo.cotista_id) && idsValidos.has(anexo.cotista_id!));
+    return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && anexosValidos && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos
   };
 
   const contatosFiltrados = useMemo(() => {
@@ -356,7 +359,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         categoria_nome: form.categoria_nome, grupo_categoria: "DESPESAS EMPRESA", periodicidade: form.periodicidade,
         aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
         numero_voo: form.numero_voo, observacoes: form.observacoes, pago_por: form.pago_por || "share",
-        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero }) => ({ id, tipo: anexoTipo, numero })),
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url, cotista_id }) => ({ id, tipo: anexoTipo, numero, url, cotista_id })),
       } : {
         idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
@@ -364,7 +367,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         tipo_caixa: "share", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente",
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
-        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero }) => ({ id, tipo: anexoTipo, numero })),
+        anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url, cotista_id }) => ({ id, tipo: anexoTipo, numero, url, cotista_id })),
         tipo_rateio: form.tipo_rateio,
         subcategoria_1: form.subcategoria_1,
         subcategoria_2: form.subcategoria_2,
@@ -386,6 +389,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setCorpoEmail(montarCorpoEmail(registro));
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
+        setAnexosEnvioEmail(form.anexos);
         setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
@@ -415,6 +419,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setCorpoEmail("");
     setAnexosSelecionados([]);
     setArquivosNovos([]);
+    setAnexosEnvioEmail([]);
     setErroEmail("");
     setSucessoEmail("");
     setBancoSelecionado(null);
@@ -452,21 +457,32 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setErroEmail("");
     setSucessoEmail("");
     try {
-      const emailResult = await enviarEmailCliente({
-        destinatarios: [destinatario.trim()],
-        assunto: assunto.trim(),
-        mensagem: corpoEmail.trim(),
-        anexos: anexosSelecionados,
-        arquivos: arquivosNovos,
-        nome_destinatario: nomeDestinatario || undefined,
-      });
+      const grupos = envioRecemCriado?.tipo === "cliente"
+        ? cotistas.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => ({
+          cotista,
+          anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id),
+        }))
+        : [{ cotista: null, anexos: anexosEnvioEmail }];
+      if (!grupos.length) throw new Error("Atribua pelo menos um anexo a um cotista.");
+      for (const grupo of grupos) {
+        const email = grupo.cotista?.email?.trim() || destinatario.trim();
+        if (!email) throw new Error(`Cotista ${grupo.cotista?.nome || "selecionado"} sem e-mail.`);
+        await enviarEmailCliente({
+          destinatarios: [email],
+          assunto: assunto.trim(),
+          mensagem: corpoEmail.trim(),
+          anexos: grupo.anexos.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
+          arquivos: grupo.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)),
+          nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
+        });
+      }
       if (envioRecemCriado) {
         try {
           await atualizarStatusEnvioPagamento(envioRecemCriado.id, "email_enviado");
           setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "enviado" } : e));
         } catch { /* status update is best-effort */ }
       }
-      setSucessoEmail(`E-mail enviado com sucesso para ${destinatario.trim()}.`);
+      setSucessoEmail(`E-mail enviado com sucesso para ${grupos.length} cotista(s).`);
       setMensagem("Lançamento criado e e-mail enviado ao cliente.");
       setTimeout(() => fecharModalEmail(), 1800);
     } catch (cause) {
@@ -609,7 +625,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="rounded-sm border border-border/70 bg-background/30 p-3"><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="envio-pagamento-anexos" />
+                  <div className="rounded-sm border border-border/70 bg-background/30 p-3"><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} />
 
                   {tipo !== "share" && (
                     <Button

@@ -367,7 +367,7 @@ export default function HistoricoRecibos({
               aria-label={`Abrir pasta ${pasta.titulo}`}
               className="group rounded-2xl p-2 text-center transition-all hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
-              <div className="relative mx-auto ml-[83.2px] h-[130px] w-[174px] px-[6px] transition-transform duration-300 group-hover:scale-[1.04]">
+              <div className="relative mx-auto h-[130px] w-[174px] max-w-full px-[6px] transition-transform duration-300 group-hover:scale-[1.04]">
                 <span className="absolute left-2 top-0 z-0 h-6 w-20 rounded-t-[16px] bg-gradient-to-r from-orange-600 to-amber-500" />
                 <span className="absolute left-3 top-4 z-10 h-4 w-[154px] rounded-t-lg border border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
                 <span className="absolute inset-x-0 top-5 bottom-0 z-20 overflow-hidden rounded-[15px] border border-amber-300/[.88] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-400">

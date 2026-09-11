@@ -102,10 +102,15 @@
 
 @layer base {
   * { @apply border-border; }
-  html, body, #root { min-height: 100%; }
-  html { background-color: hsl(var(--background)); }
+  html, body, #root { min-height: 100%; min-width: 0; }
+  html { background-color: hsl(var(--background)); overflow-x: hidden; }
   body { @apply font-sans antialiased bg-background text-foreground; min-width: 320px; min-height: 100%; margin: 0; overflow-x: hidden; padding-inline: var(--safe-area-left) var(--safe-area-right); padding-bottom: var(--safe-area-bottom); font-synthesis: none; text-rendering: optimizeLegibility; }
-  button, a, input, select { -webkit-tap-highlight-color: transparent; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  img, video, canvas, svg { max-width: 100%; }
+  input, select, textarea, button { max-width: 100%; }
+  textarea { resize: vertical; }
+  :where([role="dialog"], [data-radix-dialog-content]) { max-width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); }
+  :where(table) { max-width: 100%; }
 }
 
 @layer utilities {
@@ -114,6 +119,9 @@
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: calc(68px + var(--safe-area-top)); padding-top: var(--safe-area-top); }
   [aria-label="Notifications (F8)"] { margin-block: -20px; }
+  .responsive-table { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .responsive-table > table { min-width: 680px; }
+  .page-grid { min-width: 0; }
 }
 
 .diario-bordo .text-\[8px\] { font-size: 0.625rem; }
@@ -164,3 +172,10 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
 .financeiro-shell .recharts-tooltip-wrapper { outline: none; }
 .financeiro-shell .recharts-default-tooltip { border: 1px solid hsl(var(--border)) !important; border-radius: 10px !important; background: hsl(var(--popover)) !important; box-shadow: 0 14px 35px hsl(var(--foreground) / .12); }
 @media (max-width: 640px) { .financeiro-kpi { padding: 13px; border-radius: 11px; } .financeiro-panel-header { padding: 13px 14px; } .financeiro-live-dot { display: none; } }
+
+@media (max-width: 640px) {
+  .financeiro-panel-header { flex-wrap: wrap; }
+  .financeiro-panel-header > :last-child { width: 100%; }
+  .campo { min-height: 42px; font-size: 13px; }
+  [data-radix-dialog-content] { padding: 1rem; }
+}

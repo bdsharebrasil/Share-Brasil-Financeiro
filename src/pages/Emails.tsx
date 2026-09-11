@@ -59,6 +59,7 @@ import {
   type MensagemInterna,
   type UsuarioMensagem,
   type AssinaturaEmail,
+  type EmailEnviado,
 } from "@/lib/colaborador-api";
 
 const dataBr = (valor: string | null) =>
@@ -78,6 +79,31 @@ const horaBr = (valor: string | null) =>
       })
     : "—";
 
+const rotuloReferenciaEmail = (tipo?: string | null) => ({
+  recibo: "Recibo",
+  recibo_saida: "Recibo de saída",
+  nf_saida: "NF de saída",
+  relatorio: "Relatório de viagem",
+  relatorio_pdf: "Relatório de viagem",
+  envio_despesa: "Envio de despesa",
+}[String(tipo || "").toLowerCase()] || (tipo ? String(tipo).replace(/_/g, " ") : "Sem vínculo"));
+
+const rotuloStatusEmail = (status?: string | null) => ({
+  enviado: "Enviado",
+  erro: "Erro",
+  pendente: "Pendente",
+  processando: "Processando",
+  enviado_parcial: "Enviado parcialmente",
+  cancelado: "Cancelado",
+}[String(status || "").toLowerCase()] || status || "Desconhecido");
+
+const normalizarEmailEnviado = (item: EmailEnviado): EmailEnviado => ({
+  ...item,
+  destinatarios: Array.isArray(item.destinatarios)
+    ? item.destinatarios
+    : (() => { try { const parsed = JSON.parse(String(item.destinatarios || "[]")); return Array.isArray(parsed) ? parsed.map(String) : []; } catch { return []; } })(),
+});
+
   type ToastData = { status: "sending" | "sent"; message: string };
 
 export default function Emails() {
@@ -86,6 +112,7 @@ export default function Emails() {
   const [mensagensPasta, setMensagensPasta] = useState<MensagemInterna[]>([]);
   const [contagemNaoLidas, setContagemNaoLidas] = useState(0);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
+  const [historicoEmails, setHistoricoEmails] = useState<EmailEnviado[]>([]);
   const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
   const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
 
@@ -135,6 +162,7 @@ export default function Emails() {
       setAssinatura(assinaturaAtual);
       setContatos(Array.isArray(dados?.contatos) ? dados.contatos : []);
       setAnexos(Array.isArray(dados?.anexos) ? dados.anexos : []);
+      setHistoricoEmails(Array.isArray(dados?.historico) ? dados.historico.map(normalizarEmailEnviado) : []);
       setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
       setUsuarios(Array.isArray(usuariosResponse?.usuarios) ? usuariosResponse.usuarios : []);
       setContagemNaoLidas(Number(naoLidas?.unread || 0));
@@ -423,6 +451,40 @@ export default function Emails() {
                 </p>
               </button>
             ))}
+            <div className="mt-3 border-t border-white/[.08] pt-3">
+              <div className="flex items-center justify-between px-2 pb-2">
+                <h3 className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Histórico de e-mails</h3>
+                <span className="text-[9px] font-semibold text-slate-600">{historicoEmails.length}</span>
+              </div>
+              {historicoEmails.length === 0 ? (
+                <p className="px-2 py-3 text-[10px] text-slate-600">Nenhum e-mail enviado por esta conta.</p>
+              ) : historicoEmails.map((email) => {
+                const status = String(email.status || "").toLowerCase();
+                const sucessoEnvio = status === "enviado";
+                const falhaEnvio = status === "erro" || status === "cancelado";
+                return (
+                  <div key={email.id} className="rounded-md border border-white/[.06] bg-[#0b1525] p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-semibold text-slate-200" title={email.assunto}>{email.assunto || "(Sem assunto)"}</p>
+                        <p className="mt-0.5 truncate text-[9px] text-slate-500" title={email.destinatarios.join(", ")}>{email.destinatarios.join(", ") || "Destinatário não informado"}</p>
+                      </div>
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-bold ${sucessoEnvio ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : falhaEnvio ? "border-red-400/25 bg-red-400/10 text-red-300" : "border-amber-400/25 bg-amber-400/10 text-amber-300"}`}>
+                        {sucessoEnvio ? <CheckCircle2 size={10} /> : falhaEnvio ? <XCircle size={10} /> : <Clock3 size={10} />}
+                        {rotuloStatusEmail(email.status)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] text-slate-600">
+                      <span>{dataBr(email.criado_em)}</span>
+                      <span>•</span>
+                      <span>{email.quantidade_anexos || 0} anexo{email.quantidade_anexos === 1 ? "" : "s"}</span>
+                      {email.referencia_tipo && <><span>•</span><span className="text-sky-400/80">{rotuloReferenciaEmail(email.referencia_tipo)}: {email.referencia_id || "—"}</span></>}
+                    </div>
+                    {email.erro && <p className="mt-1 truncate text-[9px] text-red-300/80" title={email.erro}>Erro: {email.erro}</p>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>}
 

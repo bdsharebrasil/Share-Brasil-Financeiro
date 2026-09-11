@@ -1258,7 +1258,7 @@ export type ContatoEmail = {
 export type AnexoEmail = {
   id: string;
   nome: string;
-  origem: "recibo" | "relatorio_despesa_viagem" | string;
+  origem: "recibo" | "relatorio_despesa_viagem" | "nf_saida" | "recibo_saida" | string;
   tipo_arquivo: string | null;
   tamanho_arquivo?: number | null;
   arquivo_url: string;
@@ -1268,10 +1268,13 @@ export type EmailEnviado = {
   id: string;
   destinatarios: string[];
   assunto: string;
-  status: "enviado" | "erro" | string;
+  status: "enviado" | "erro" | "pendente" | "processando" | "enviado_parcial" | "cancelado" | string;
   quantidade_anexos: number;
   criado_em: string;
   erro?: string | null;
+  enviado_por?: string | null;
+  referencia_tipo?: string | null;
+  referencia_id?: string | null;
 };
 
 export type CentralEmailResponse = {

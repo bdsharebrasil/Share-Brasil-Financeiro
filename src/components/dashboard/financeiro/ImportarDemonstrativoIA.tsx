@@ -421,7 +421,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
             />
             <Button type="button" onClick={() => void lerDemonstrativo()} disabled={!arquivo || !aeronaveId || carregandoLeitura || gerando} className="h-9 gap-2 text-[11px]">
               {carregandoLeitura ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              {carregandoLeitura ? "Lendo demonstrativo..." : "Ler com IA"}
+              {carregandoLeitura ? "Lendo demonstrativo..." : "Ler demonstrativo"}
             </Button>
           </div>
           {arquivo && (

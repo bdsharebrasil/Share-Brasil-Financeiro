@@ -853,7 +853,15 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         onSent={() => void emailEnviado()}
         assuntoSugerido={reciboEmail ? `Recibo ${reciboEmail.numero_recibo}` : ""}
         mensagemSugerida={reciboEmail ? `Olá,\n\nSegue o recibo ${reciboEmail.numero_recibo} em anexo.` : ""}
-        anexos={reciboEmail?.pdf_anexo_id ? [{ id: `recibo:${reciboEmail.pdf_anexo_id}`, label: `Recibo ${reciboEmail.numero_recibo}.pdf` }] : []}
+        anexos={reciboEmail && (reciboEmail.pdf_anexo_id || reciboEmail.pdf_url || reciboEmail.url_recibo)
+          ? [{
+              // Recibos legados/gerados pela IA podem não trazer pdf_anexo_id
+              // na resposta, embora o PDF esteja disponível em url_recibo.
+              // O backend resolve recibo:<id> para o anexo PDF relacionado.
+              id: `recibo:${reciboEmail.pdf_anexo_id || reciboEmail.id}`,
+              label: `Recibo ${reciboEmail.numero_recibo}.pdf`,
+            }]
+          : []}
         referencias={reciboEmail ? [`recibo:${reciboEmail.id}`] : []}
       />
       <ProgramarContaAPagarDialog

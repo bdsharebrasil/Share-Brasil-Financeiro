@@ -827,7 +827,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         onSent={() => void emailEnviado()}
         assuntoSugerido={reciboEmail ? `Recibo ${reciboEmail.numero_recibo}` : ""}
         mensagemSugerida={reciboEmail ? `Olá,\n\nSegue o recibo ${reciboEmail.numero_recibo} em anexo.` : ""}
-        anexos={reciboEmail?.pdf_anexo_id ? [{ id: reciboEmail.pdf_anexo_id, label: `Recibo ${reciboEmail.numero_recibo}.pdf` }] : []}
+        anexos={reciboEmail?.pdf_anexo_id ? [{ id: `recibo:${reciboEmail.pdf_anexo_id}`, label: `Recibo ${reciboEmail.numero_recibo}.pdf` }] : []}
       />
       <ProgramarContaAPagarDialog
         open={Boolean(reciboProgramacao)}

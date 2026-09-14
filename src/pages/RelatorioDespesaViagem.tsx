@@ -1432,7 +1432,11 @@ function BibliotecaRelatorios({
   onMudarVisao,
 }: BibliotecaRelatoriosProps) {
   const relatoriosFinalizados = relatorios.filter(
-    (item) => item.status !== "rascunho",
+    // "finalizado" é somente o estado local antes do envio ao tripulante.
+    // O relatório só entra na biblioteca depois que a aprovação foi
+    // enviada, quando passa para aguardando_aprovacao (ou para um estado
+    // posterior do fluxo).
+    (item) => item.status !== "rascunho" && item.status !== "finalizado",
   );
   const rascunhos = relatorios.filter((item) => item.status === "rascunho");
   const pastas = useMemo(() => {

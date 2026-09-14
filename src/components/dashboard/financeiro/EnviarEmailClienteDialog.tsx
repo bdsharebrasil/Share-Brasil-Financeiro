@@ -9,7 +9,7 @@ type SendStatus = "idle" | "sending" | "sent";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSent?: () => void;
+  onSent?: (emailId: string) => void;
   destinatarioInicial?: string | null;
   assuntoSugerido?: string;
   mensagemSugerida?: string;
@@ -100,7 +100,7 @@ export function EnviarEmailClienteDialog({
     setStatus("sending");
     setToast({ status: "sending", message: "Enviando e-mail..." });
     try {
-      await enviarEmailCliente({
+      const enviado = await enviarEmailCliente({
         destinatarios,
         cc: [],
         assunto: assunto.trim(),
@@ -110,7 +110,7 @@ export function EnviarEmailClienteDialog({
       });
       setStatus("sent");
       setToast({ status: "sent", message: "Enviado" });
-      onSent?.();
+      onSent?.(enviado.id);
       window.setTimeout(() => {
         setToast(null);
         setStatus("idle");

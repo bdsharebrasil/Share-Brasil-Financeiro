@@ -220,6 +220,7 @@ export default function RelatorioDespesaViagem({
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [linksAprovacao, setLinksAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
+  const [mensagensAprovacao, setMensagensAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
   const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
@@ -615,6 +616,7 @@ export default function RelatorioDespesaViagem({
         ),
       );
       setLinksAprovacao((atuais) => ({ ...atuais, [pos]: resposta.link }));
+      setMensagensAprovacao((atuais) => ({ ...atuais, [pos]: resposta.mensagem }));
       setMensagem({
         tipo: "ok",
         texto: `Relatório enviado para aprovação do tripulante ${pos}.`,
@@ -651,6 +653,17 @@ export default function RelatorioDespesaViagem({
       });
     }
   };
+  const copiarMensagemAprovacao = async (mensagem: string) => {
+    try {
+      const copiado = navigator.clipboard?.writeText
+        ? await navigator.clipboard.writeText(mensagem).then(() => true, () => copyText(mensagem))
+        : copyText(mensagem);
+      if (!copiado) throw new Error("copia_indisponivel");
+      setMensagem({ tipo: "ok", texto: "Mensagem pronta copiada para envio ao tripulante." });
+    } catch {
+      setMensagem({ tipo: "erro", texto: "Não foi possível copiar a mensagem." });
+    }
+  };
   const enviarCliente = async () => {
     if (!relatorio) return;
     try {
@@ -670,13 +683,13 @@ export default function RelatorioDespesaViagem({
     setEmailReembolsoConcluido(false);
     setEmailReembolsoAberto(true);
   };
-  const programarDepoisDoEmail = async () => {
+  const programarDepoisDoEmail = async (emailId: string) => {
     if (!relatorio || !reembolsoForm.vencimento) return;
     setEmailReembolsoConcluido(true);
     setEmailReembolsoAberto(false);
     setSalvando(true);
     try {
-      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio });
+      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio, email_enviado_id: emailId });
       setRelatorio((atual) => atual ? { ...atual, status: "enviado_cliente" } : atual);
       setReembolsoForm((atual) => ({ ...atual, aberto: false }));
       toast.success("Programação concluída", { description: "O reembolso foi enviado para Contas a Receber e os lançamentos financeiros foram gerados." });
@@ -1229,6 +1242,8 @@ export default function RelatorioDespesaViagem({
               onEnviar={() => void enviarAprovacao(1)}
               link={linksAprovacao[1]}
               onCopiar={copiarLinkAprovacao}
+              mensagem={mensagensAprovacao[1]}
+              onCopiarMensagem={copiarMensagemAprovacao}
               disabled={
                 !relatorio ||
                 ![
@@ -1248,6 +1263,8 @@ export default function RelatorioDespesaViagem({
               onEnviar={() => void enviarAprovacao(2)}
               link={linksAprovacao[2]}
               onCopiar={copiarLinkAprovacao}
+              mensagem={mensagensAprovacao[2]}
+              onCopiarMensagem={copiarMensagemAprovacao}
               disabled={
                 !relatorio?.tripulante_id_2 ||
                 ![
@@ -1259,22 +1276,24 @@ export default function RelatorioDespesaViagem({
                 aprovado
               }
             />
-            {(relatorio?.observacoes_aprovacao_tripulante ||
+            {(relatorio?.motivo_reprovacao_tripulante_1 ||
+              relatorio?.motivo_reprovacao_tripulante_2 ||
+              relatorio?.observacoes_aprovacao_tripulante ||
               relatorio?.observacoes_aprovacao_tripulante_2) && (
               <div className="rounded-lg border border-rose-400/25 bg-rose-400/5 p-3 text-xs">
                 <p className="font-bold text-rose-300">
                   Ajustes solicitados pela tripulação
                 </p>
-                {relatorio.observacoes_aprovacao_tripulante && (
+                {(relatorio.motivo_reprovacao_tripulante_1 || relatorio.observacoes_aprovacao_tripulante) && (
                   <p className="mt-2 text-muted-foreground">
                     <strong>Tripulante 1:</strong>{" "}
-                    {relatorio.observacoes_aprovacao_tripulante}
+                    {relatorio.motivo_reprovacao_tripulante_1 || relatorio.observacoes_aprovacao_tripulante}
                   </p>
                 )}
-                {relatorio.observacoes_aprovacao_tripulante_2 && (
+                {(relatorio.motivo_reprovacao_tripulante_2 || relatorio.observacoes_aprovacao_tripulante_2) && (
                   <p className="mt-2 text-muted-foreground">
                     <strong>Tripulante 2:</strong>{" "}
-                    {relatorio.observacoes_aprovacao_tripulante_2}
+                    {relatorio.motivo_reprovacao_tripulante_2 || relatorio.observacoes_aprovacao_tripulante_2}
                   </p>
                 )}
               </div>
@@ -1378,7 +1397,7 @@ export default function RelatorioDespesaViagem({
           setEmailReembolsoAberto(open);
           if (!open && !emailReembolsoConcluido && !salvando) setReembolsoForm((atual) => ({ ...atual, aberto: true }));
         }}
-        onSent={() => void programarDepoisDoEmail()}
+        onSent={(emailId) => void programarDepoisDoEmail(emailId)}
         assuntoSugerido={`Relatório de despesa de viagem ${relatorio.numero_relatorio}`}
         mensagemSugerida={`Olá,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio} para conferência.\n\nValor a reembolsar: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${reembolsoForm.vencimento.split("-").reverse().join("/")}\n\nApós o envio deste e-mail, o reembolso será programado no Contas a Receber.\n\nAtenciosamente,\nEquipe Share Brasil`}
         anexos={[{ id: `relatorio_pdf:${relatorio.id}`, url: reembolsoForm.prefill.pdf_url, label: `Relatório ${relatorio.numero_relatorio}.pdf`, filename: `relatorio-${relatorio.numero_relatorio}.pdf` }]}
@@ -1784,6 +1803,8 @@ function AprovacaoLinha({
   link,
   onEnviar,
   onCopiar,
+  mensagem,
+  onCopiarMensagem,
   disabled,
 }: {
   pos: 1 | 2;
@@ -1793,6 +1814,8 @@ function AprovacaoLinha({
   link?: string;
   onEnviar: () => void;
   onCopiar: (link: string) => void;
+  mensagem?: string;
+  onCopiarMensagem: (mensagem: string) => void;
   disabled: boolean;
 }) {
   const aprovado = status === "aprovado";
@@ -1846,6 +1869,15 @@ function AprovacaoLinha({
         >
           <Copy size={14} /> Copiar link
         </Button>
+      )}
+      {mensagem && (
+        <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs sm:basis-full">
+          <p className="font-semibold text-primary">Mensagem automática para envio</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{mensagem}</p>
+          <Button type="button" size="sm" variant="ghost" onClick={() => onCopiarMensagem(mensagem)} className="mt-1 h-8 gap-1 px-2 text-xs">
+            <Copy size={13} /> Copiar mensagem
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -41,8 +41,8 @@ function ListaRelatorios({ relatorios, onAbrir }: { relatorios: Relatorio[]; onA
 export default function RelatorioFolder({ carregando, clientes, relatorios, visao, onMudarVisao, onAbrirRelatorio, onNovoRelatorio }: RelatorioFolderProps) {
   const [cotistaAberto, setCotistaAberto] = useState<string | null>(null);
   const [aeronaveAberta, setAeronaveAberta] = useState<string | null>(null);
-  const relatoriosFinalizados = relatorios.filter((item) => item.status !== "rascunho" && !["aprovado", "ajuste_necessario"].includes(item.status));
-  const relatoriosRevisao = relatorios.filter((item) => ["aprovado", "ajuste_necessario"].includes(item.status));
+  const relatoriosFinalizados = relatorios.filter((item) => item.status === "enviado_cliente");
+  const relatoriosRevisao = relatorios.filter((item) => ["finalizado", "aguardando_aprovacao", "aprovado", "ajuste_necessario"].includes(item.status));
   const rascunhos = relatorios.filter((item) => item.status === "rascunho");
   const cotistas = useMemo<CotistaFolder[]>(() => {
     const nomesClientes = new Map(clientes.map((cliente) => [cliente.id, cliente.razao_social || "Cliente sem razão social"]));

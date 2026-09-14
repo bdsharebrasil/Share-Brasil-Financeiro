@@ -495,10 +495,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
   const visualizarPdf = async (recibo: ReciboFinanceiro) => {
     let caminho = caminhoPdfRecibo(recibo);
+    // Reembolsos antigos podem ter sido salvos sem o recebedor no PDF.
+    // Regenerar no clique garante que o arquivo exibido tenha a Share Brasil.
+    const deveRegenerar = recibo.tipo_recibo === "recibo_reembolso";
     setErro("");
     setPdfAbrindoId(recibo.id);
     try {
-      if (!caminho) {
+      if (!caminho || deveRegenerar) {
         const colaborador = opcoes.colaboradores.find(
           (item) => item.id === recibo.colaborador_id,
         );

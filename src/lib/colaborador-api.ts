@@ -484,6 +484,21 @@ export type PainelFinanceiroResponse = {
   emails_enviados?: RegistroFinanceiro[];
 };
 
+export type PastaMovimentacoesFinanceiras = {
+  id: string;
+  nome: string;
+  quantidade: number;
+  voos: Array<{
+    numero_voo: string;
+    quantidade: number;
+    despesas: Array<Record<string, unknown> & { id: string; data: string | null; descricao: string | null; numero_doc: string | null; tipo_caixa: string | null; valor: number; status: string | null; email: string }>;
+  }>;
+};
+
+export function buscarMovimentacoesFinanceiras() {
+  return colaboradorRequest<{ pastas: PastaMovimentacoesFinanceiras[] }>('/api/financeiro/dashboard/financeiro/movimentacoes');
+}
+
 export function buscarOpcoesAgendamento() {
   return colaboradorRequest<OpcoesAgendamentoResponse>("/api/interno/agendamento/opcoes");
 }

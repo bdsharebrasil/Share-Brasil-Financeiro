@@ -6,6 +6,7 @@ import {
   Clock3,
   CreditCard,
   FileBarChart,
+  FolderOpen,
   Mail,
   Receipt,
   RefreshCw,
@@ -258,19 +259,25 @@ export default function DashboardFinanceiro({
           title="Movimentações financeiras"
           detail={mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
           action={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void carregar(true)}
-              disabled={atualizando}
-              className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
-            >
-              <RefreshCw
-                size={12}
-                className={atualizando ? "animate-spin" : ""}
-              />{" "}
-              Atualizar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => aoNavegar("movimentacoes")}
+                className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
+              >
+                <FolderOpen size={12} /> Ver todas
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void carregar(true)}
+                disabled={atualizando}
+                className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
+              >
+                <RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar
+              </Button>
+            </div>
           }
         />
         {mostrarPendencias && (

@@ -162,8 +162,8 @@ function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancam
       if (minutosItem !== null) {
         return candidatosPouso
           .sort((a, b) => {
-            const minA = converterHoraParaMinutos(a.hora_pouso || a.hora_chegada || a.hora_bloco_ligado);
-            const minB = converterHoraParaMinutos(b.hora_pouso || b.hora_chegada || b.hora_bloco_ligado);
+            const minA = converterHoraParaMinutos(a.tempo_pou || a.tempo_cor);
+            const minB = converterHoraParaMinutos(b.tempo_pou || b.tempo_cor);
             if (minA === null) return 1;
             if (minB === null) return -1;
             return Math.abs(minA - minutosItem) - Math.abs(minB - minutosItem);

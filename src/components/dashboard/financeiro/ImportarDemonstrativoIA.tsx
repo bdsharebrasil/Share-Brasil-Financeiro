@@ -88,7 +88,22 @@ const arquivoParaBase64 = (arquivo: File) =>
 
 function cotistaPorNome(cotistas: CotistaRecibo[], nome: string | null | undefined) {
   const nomeNormalizado = normalizar(nome);
-  return cotistas.find((cotista) => normalizar(cotista.nome) === nomeNormalizado) || null;
+  if (!nomeNormalizado) return null;
+  const exato = cotistas.find((cotista) => [cotista.nome, cotista.codigo_cliente].some((valor) => normalizar(valor) === nomeNormalizado));
+  if (exato) return exato;
+  const tokensNome = nomeNormalizado.split(/[^A-Z0-9]+/).filter((token) => token.length >= 3 && !["LTDA", "SA", "S", "CIA", "LIMITADA", "EIRELI", "ME"].includes(token));
+  if (!tokensNome.length) return null;
+  const candidatos = cotistas.map((cotista) => {
+    const referencias = [cotista.nome, cotista.codigo_cliente].map(normalizar).filter(Boolean);
+    const pontuacao = referencias.reduce((maior, referencia) => {
+      const tokensReferencia = referencia.split(/[^A-Z0-9]+/).filter((token) => token.length >= 3);
+      const compartilhados = tokensNome.filter((token) => tokensReferencia.includes(token)).length;
+      const contem = referencia.includes(nomeNormalizado) || nomeNormalizado.includes(referencia) ? 1 : 0;
+      return Math.max(maior, compartilhados * 10 + contem);
+    }, 0);
+    return { cotista, pontuacao };
+  }).filter((item) => item.pontuacao > 0).sort((a, b) => b.pontuacao - a.pontuacao);
+  return candidatos.length === 1 || candidatos[0].pontuacao > (candidatos[1]?.pontuacao || 0) ? candidatos[0].cotista : null;
 }
 
 function descricaoLinha(linha: LinhaRateio) {
@@ -259,7 +274,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           : undefined;
         return {
           ...item,
-          cotistaId: cotista?.id || cotistasDaAeronave[0]?.id || "",
+          cotistaId: cotista?.id || "",
           nomeCotista: naturezaEspecial ? "Rateio entre cotistas" : cotista?.nome || responsavel || "",
           responsavelSugerido: responsavel,
           naturezaEspecial,

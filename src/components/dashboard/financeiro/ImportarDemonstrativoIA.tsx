@@ -7,6 +7,7 @@ import {
   lerDemonstrativoRecibo,
   enviarAnexoRecibo,
   enviarPdfRecibo,
+  enviarDemonstrativoRecibo,
   buscarDetalhesDiario,
   type CotistaRecibo,
   type DiarioLancamento,
@@ -14,6 +15,7 @@ import {
   type Recibo,
 } from "@/lib/colaborador-api";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
+import { demonstrativoPdfFile } from "@/lib/demonstrativoPdf";
 
 type TipoDemonstrativo = "INFRAERO" | "DECEA";
 
@@ -303,11 +305,48 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     return new File([pdf], `recibo-${recibo.numero_recibo}.pdf`, { type: "application/pdf" });
   };
 
+  const gerarPdfDemonstrativo = () => {
+    const aeronave = opcoes.aeronaves.find((item) => item.id === aeronaveId);
+    return demonstrativoPdfFile({
+      tipo,
+      numeroDocumento: demonstrativo?.numero_documento,
+      competencia: demonstrativo?.competencia,
+      aeronave: aeronave?.matricula_registro,
+      linhas,
+      cotistas,
+    }, `demonstrativo-${demonstrativo?.numero_documento || hoje()}.pdf`);
+  };
+
+  const validarDemonstrativo = () => {
+    if (!demonstrativo || !aeronaveId || !consolidado.length || linhasSemCotista || linhasComRateioInvalido) {
+      setErro("Leia o demonstrativo, atribua os cotistas e confira se cada rateio soma 100% antes de salvar.");
+      return false;
+    }
+    return true;
+  };
+
+  const salvarDemonstrativo = async () => {
+    if (!validarDemonstrativo()) return;
+    setGerando(true);
+    setErro("");
+    setProgresso("Gerando demonstrativo rateado...");
+    try {
+      await enviarDemonstrativoRecibo(gerarPdfDemonstrativo());
+      setSucesso("Demonstrativo salvo em recibos e no R2.");
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível salvar o demonstrativo.");
+    } finally {
+      setProgresso("");
+      setGerando(false);
+    }
+  };
+
   const gerarRecibos = async () => {
     if (!demonstrativo || !aeronaveId || !categoriaSelecionada || !consolidado.length || linhasSemCotista || linhasComRateioInvalido) {
       setErro("Informe a categoria, atribua os cotistas e confira se cada rateio de traslado ou voo teste soma 100%.");
       return;
     }
+    const anexarDemonstrativo = window.confirm("Deseja criar o recibo junto com o demonstrativo?");
     setGerando(true);
     setErro("");
     setSucesso("");
@@ -349,6 +388,10 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
         if (arquivo) await enviarAnexoRecibo(arquivo, recibo.id);
         const pdf = await gerarPdf(recibo, grupo.cotista, grupo.nome);
         await enviarPdfRecibo(recibo.id, pdf);
+        if (anexarDemonstrativo) {
+          setProgresso(`Anexando demonstrativo ao recibo ${index + 1} de ${resposta.recibos.length}...`);
+          await enviarDemonstrativoRecibo(gerarPdfDemonstrativo(), recibo.id);
+        }
         criados.push(recibo);
       }
       setRecibosGerados(criados);
@@ -567,6 +610,9 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
             <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
               {progresso && <span className="mr-auto self-center text-[11px] text-muted-foreground">{progresso}</span>}
               <Button type="button" variant="outline" onClick={onCancel} disabled={gerando} className="h-9 text-[11px]">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => void salvarDemonstrativo()} disabled={gerando || !demonstrativo} className="h-9 gap-2 text-[11px]">
+                <FileText size={14} /> Salvar demonstrativo
+              </Button>
               <Button type="button" onClick={() => void gerarRecibos()} disabled={gerando || !categoriaId || !consolidado.length || linhasSemCotista > 0 || linhasComRateioInvalido > 0} className="h-9 gap-2 text-[11px]">
                 {gerando ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
                 {gerando ? "Gerando recibos..." : "Gerar recibos"}

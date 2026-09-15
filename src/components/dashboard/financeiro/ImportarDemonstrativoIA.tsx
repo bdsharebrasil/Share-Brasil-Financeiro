@@ -290,6 +290,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
       const resposta = await lerDemonstrativoRecibo({ ...body, tipo });
       const resultado = resposta.dados_extraidos as DemonstrativoLido;
       if (!resultado) throw new Error("A rota de leitura não retornou dados.");
+      resultado.itens = Array.isArray(resultado.itens) ? resultado.itens : [];
 
       const meses = [...new Set(resultado.itens.map((item) => {
         const iso = dataDiario(item.data);

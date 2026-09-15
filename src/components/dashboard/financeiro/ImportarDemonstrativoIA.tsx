@@ -123,6 +123,15 @@ function codigoTrecho(valor: string | null | undefined) {
   return String(valor || "").trim().toUpperCase();
 }
 
+function converterHoraParaMinutos(horaStr: string | null | undefined): number | null {
+  if (!horaStr) return null;
+  const partes = horaStr.trim().split(":");
+  if (partes.length < 2) return null;
+  const horas = parseInt(partes[0], 10);
+  const minutos = parseInt(partes[1], 10);
+  return isNaN(horas) || isNaN(minutos) ? null : horas * 60 + minutos;
+}
+
 function responsavelDoLancamento(lancamento: DiarioLancamento) {
   if (lancamento.voo_emprestado) {
     return lancamento.socio_tomador_nome || lancamento.cliente_tomador_nome || lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
@@ -130,11 +139,43 @@ function responsavelDoLancamento(lancamento: DiarioLancamento) {
   return lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
 }
 
-function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancamento[]) {
+/**
+ * Localiza o(s) lançamento(s) do diário de bordo correspondentes a um item do demonstrativo.
+ * Para INFRAERO (tarifa de pouso), o cruzamento é feito pelo aeródromo de CHEGADA, já que a
+ * tarifa é cobrada por pouso — em caso de mais de um pouso no mesmo aeródromo no mesmo dia,
+ * desempata pelo horário mais próximo do registrado no demonstrativo.
+ * Para os demais tipos (ex.: DECEA), mantém o cruzamento por trecho completo (origem + destino).
+ */
+function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancamento[], tipoDemonstrativo: TipoDemonstrativo) {
   const mesmaData = lancamentos.filter((lancamento) => dataDiario(lancamento.data_registro) === dataDiario(item.data));
+  const operacao = codigoTrecho(item.operacao);
+
+  if (tipoDemonstrativo === "INFRAERO") {
+    const candidatosPouso = mesmaData.filter((lancamento) =>
+      [lancamento.aerodromo_chegada, lancamento.aerodromo_chegada_icao].some((valor) => codigoTrecho(valor) === operacao),
+    );
+
+    if (candidatosPouso.length === 1) return candidatosPouso;
+
+    if (candidatosPouso.length > 1 && item.hora) {
+      const minutosItem = converterHoraParaMinutos(item.hora);
+      if (minutosItem !== null) {
+        return candidatosPouso
+          .sort((a, b) => {
+            const minA = converterHoraParaMinutos(a.hora_pouso || a.hora_chegada || a.hora_bloco_ligado);
+            const minB = converterHoraParaMinutos(b.hora_pouso || b.hora_chegada || b.hora_bloco_ligado);
+            if (minA === null) return 1;
+            if (minB === null) return -1;
+            return Math.abs(minA - minutosItem) - Math.abs(minB - minutosItem);
+          })
+          .slice(0, 1);
+      }
+    }
+    return candidatosPouso;
+  }
+
   const origem = codigoTrecho(item.origem);
   const destino = codigoTrecho(item.destino);
-  const operacao = codigoTrecho(item.operacao);
   const porTrecho = origem && destino
     ? mesmaData.filter((lancamento) =>
         [lancamento.aerodromo_partida, lancamento.aerodromo_partida_icao].some((valor) => codigoTrecho(valor) === origem) &&
@@ -264,7 +305,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
       const lancamentos = detalhes.flatMap((detalhe) => detalhe?.lancamentos || []);
       const cotistasDaAeronave = opcoes.cotistas.filter((cotista) => cotista.aeronave_id === aeronaveId);
       const novasLinhas = resultado.itens.map((item) => {
-        const candidatos = encontrarLancamentos(item, lancamentos);
+        const candidatos = encontrarLancamentos(item, lancamentos, tipo);
         const lancamento = candidatos.find((candidato) => naturezaEspecialDoLancamento(candidato)) || (candidatos.length === 1 ? candidatos[0] : null);
         const responsavel = lancamento ? responsavelDoLancamento(lancamento) : null;
         const cotista = cotistaPorNome(cotistasDaAeronave, responsavel);

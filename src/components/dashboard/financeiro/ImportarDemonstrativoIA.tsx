@@ -107,6 +107,9 @@ function codigoTrecho(valor: string | null | undefined) {
 }
 
 function responsavelDoLancamento(lancamento: DiarioLancamento) {
+  if (lancamento.voo_emprestado) {
+    return lancamento.socio_tomador_nome || lancamento.cliente_tomador_nome || lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
+  }
   return lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
 }
 

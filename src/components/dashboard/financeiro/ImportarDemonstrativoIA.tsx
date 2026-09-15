@@ -26,6 +26,7 @@ type ItemDemonstrativo = {
   origem?: string | null;
   destino?: string | null;
   matricula?: string | null;
+  numero_voo?: string | null;
   valor: number;
 };
 
@@ -315,6 +316,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           : undefined;
         return {
           ...item,
+          numero_voo: item.numero_voo || lancamento?.numero_voo || null,
           cotistaId: cotista?.id || "",
           nomeCotista: naturezaEspecial ? "Rateio entre cotistas" : cotista?.nome || responsavel || "",
           responsavelSugerido: responsavel,

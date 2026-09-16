@@ -198,7 +198,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       const respostas = apenasCaixaShare
         ? await Promise.all([buscarEnviosPagamento("share"), buscarEnviosPagamento("reembolso")])
         : [await buscarEnviosPagamento()];
-      setEnvios(respostas.flatMap((resposta) => resposta.envios).sort((a, b) => b.criado_em.localeCompare(a.criado_em)));
+      setEnvios(respostas.flatMap((resposta) => resposta.envios).sort((a, b) => (b.criado_em || "").localeCompare(a.criado_em || "")));
     } catch {
       setErro("Não foi possível carregar os envios de pagamento.");
     } finally {

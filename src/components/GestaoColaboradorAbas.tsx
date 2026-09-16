@@ -22,15 +22,14 @@ type GrupoTemporalProps<T> = {
 export function FichaColaboradorAbas({ ficha, onClose }: { ficha: FichaColaborador; onClose: () => void }) {
   const { perfil } = ficha;
 
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-    <section className={`${card} max-h-[92dvh] w-full max-w-6xl overflow-y-auto bg-background p-5`}>
+  return <section className={`${card} route-enter mt-6 w-full bg-background p-5`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <IndicadorPagina>Ficha de RH</IndicadorPagina>
           <h2 className="mt-1 text-xl font-extrabold">{perfil.nome_exibicao || perfil.nome_completo}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{perfil.departamento || "Departamento não informado"} · {perfil.email}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={onClose}><X size={17} /></Button>
+        <Button type="button" variant="outline" onClick={onClose} className="h-8 gap-1.5 px-3 text-[10px]"><X size={14} /> Voltar para colaboradores</Button>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Info label="CPF" value={perfil.cpf || "—"} />
@@ -48,8 +47,7 @@ export function FichaColaboradorAbas({ ficha, onClose }: { ficha: FichaColaborad
         <TabsContent value="ferias"><PastasTemporais items={ficha.ferias} dateFor={(item) => item.data_inicio} empty="Nenhuma solicitação de férias encontrada" render={(item) => <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold">{dataBr(item.data_inicio)} a {dataBr(item.data_fim)}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.observacoes || "Sem observações"}</p></div><div className="flex items-center gap-3"><span className="font-mono text-[10px] text-primary">{item.quantidade_dias} dias</span><EtiquetaStatus tone={item.status === "aprovada" ? "green" : item.status === "solicitada" ? "amber" : item.status === "reprovada" ? "red" : "neutral"}>{item.status}</EtiquetaStatus></div></div>} /></TabsContent>
         <TabsContent value="extrato"><PastasTemporais items={ficha.recebimentos} dateFor={(item) => String(item.data_despesa || item.data || item.criado_em || "")} empty="Nenhum recebimento encontrado" render={(item) => <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold">{String(item.descricao || item.tipo || "Recebimento")}</p><p className="mt-1 text-[10px] text-muted-foreground">{dataBr(String(item.data_despesa || item.data || item.criado_em || ""))}{item.observacoes ? ` · ${String(item.observacoes)}` : ""}</p></div><div className="text-right"><p className="font-mono text-xs font-bold text-emerald-500">{brl(item.valor)}</p><EtiquetaStatus tone={item.status === "pago" ? "green" : item.status === "cancelado" ? "red" : "amber"}>{String(item.status || "Registrado")}</EtiquetaStatus></div></div>} /></TabsContent>
       </Tabs>
-    </section>
-  </div>;
+    </section>;
 }
 
 function Info({ label, value }: { label: string; value: string }) {

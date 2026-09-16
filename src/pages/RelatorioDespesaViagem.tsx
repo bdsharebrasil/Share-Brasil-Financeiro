@@ -273,10 +273,6 @@ export default function RelatorioDespesaViagem({
   const clienteSelecionado = opcoes.clientes.find(
     (item) => item.id === form.cliente_id,
   );
-  const clienteEhHolding = clienteSelecionado?.holding === true || Number(clienteSelecionado?.holding || 0) === 1;
-  const sociosDaHolding = clienteEhHolding
-    ? opcoes.socios.filter((socio) => socio.holding_id === form.cliente_id)
-    : [];
   const quantidadeDiasCalculada = calcularQuantidadeDias(form.data_inicio, form.data_fim);
   const aeronaveSelecionada = opcoes.aeronaves.find(
     (item) => item.id === form.aeronave_id,
@@ -921,7 +917,7 @@ export default function RelatorioDespesaViagem({
             <SearchableCombobox
               items={opcoes.voos.map((item) => ({
                 id: item.numero_voo,
-                label: `${item.numero_voo} · ${dataBr(item.data_agendada)}${item.cotista_nome ? ` · ${item.cotista_nome}` : ""}${item.tripulante_nome ? ` · ${item.tripulante_nome}` : ""}`,
+                label: item.numero_voo,
               }))}
               value={form.numero_voo}
               onChange={(valor) => setCampo("numero_voo", valor)}
@@ -949,21 +945,6 @@ export default function RelatorioDespesaViagem({
               disabled={bloqueado}
             />
           </Campo>
-          {clienteEhHolding && (
-            <Campo label="Sócio / cotista">
-              <SearchableCombobox
-                items={sociosDaHolding.map((item) => ({
-                  id: item.id,
-                  label: item.nome,
-                }))}
-                value={form.socio_id}
-                onChange={(valor) => setCampo("socio_id", valor)}
-                placeholder="Selecione um sócio..."
-                searchPlaceholder="Buscar sócio..."
-                disabled={bloqueado}
-              />
-            </Campo>
-          )}
           <Campo label="Aeronave" required>
             <SearchableCombobox
               items={opcoes.aeronaves.map((item) => ({

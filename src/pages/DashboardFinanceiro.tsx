@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Send,
   TrendingUp,
-  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
@@ -181,7 +180,7 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-5 grid w-full max-w-4xl min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto mb-5 flex w-auto max-w-4xl min-w-0 flex-1 items-center justify-center gap-3 overflow-auto">
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
@@ -195,27 +194,11 @@ export default function DashboardFinanceiro({
           }}
         />
         <CartaoKpi
-          label="Pagamentos confirmados"
-          value={carregando ? "—" : String(resumo?.pagamentos_confirmados ?? 0)}
-          detail="Registros pagos no consolidado"
-          tone="violet"
-          icon={<CreditCard size={16} />}
-          className="min-w-0"
-        />
-        <CartaoKpi
           label="Total a receber"
           value={carregando ? "—" : formatarMoeda(Number(resumo?.total_a_receber ?? 0))}
           detail="Valores pendentes de recebimento"
           tone="green"
           icon={<TrendingUp size={16} />}
-          className="min-w-0"
-        />
-        <CartaoKpi
-          label="Total pago"
-          value={carregando ? "—" : formatarMoeda(Number(resumo?.total_pago ?? 0))}
-          detail="Valores liquidados no período"
-          tone="blue"
-          icon={<Wallet size={16} />}
           className="min-w-0"
         />
       </div>

@@ -11,13 +11,13 @@ type RelatorioFolderProps = { carregando: boolean; clientes: OpcoesRelatorioViag
 type CotistaFolder = { id: string; nome: string; relatorios: Relatorio[] };
 
 function statusLabel(status?: string) {
-  return ({ rascunho: "Rascunho", finalizado: "Finalizado", aguardando_aprovacao: "Aguardando aprovação", ajuste_necessario: "Ajuste necessário", aprovado: "Aprovado", enviado_cliente: "Enviado ao cliente" } as Record<string, string>)[status || ""] || status || "Rascunho";
+  return ({ rascunho: "Rascunho", finalizado: "Finalizado", aguardando_aprovacao: "Aguardando aprovação", ajuste_necessario: "Rejeitado", reprovado: "Rejeitado", rejeitado: "Rejeitado", aprovado: "Aprovado", enviado_cliente: "Enviado ao cliente" } as Record<string, string>)[status || ""] || status || "Rascunho";
 }
 function statusClass(status?: string) {
   if (status === "finalizado") return "border-blue-400/35 bg-blue-400/10 text-blue-300";
   if (status === "rascunho") return "border-orange-400/35 bg-orange-400/10 text-orange-300";
   if (status === "aprovado") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-  if (status === "ajuste_necessario") return "border-rose-400/30 bg-rose-400/10 text-rose-300";
+  if (["ajuste_necessario", "reprovado", "rejeitado"].includes(status || "")) return "border-rose-400/30 bg-rose-400/10 text-rose-300";
   if (status === "aguardando_aprovacao") return "border-amber-400/30 bg-amber-400/10 text-amber-200";
   return "border-border bg-secondary/50 text-muted-foreground";
 }
@@ -41,8 +41,8 @@ function ListaRelatorios({ relatorios, onAbrir }: { relatorios: Relatorio[]; onA
 export default function RelatorioFolder({ carregando, clientes, relatorios, visao, onMudarVisao, onAbrirRelatorio, onNovoRelatorio }: RelatorioFolderProps) {
   const [cotistaAberto, setCotistaAberto] = useState<string | null>(null);
   const [aeronaveAberta, setAeronaveAberta] = useState<string | null>(null);
-  const relatoriosFinalizados = relatorios.filter((item) => item.status === "enviado_cliente");
-  const relatoriosRevisao = relatorios.filter((item) => ["finalizado", "aguardando_aprovacao", "aprovado", "ajuste_necessario"].includes(item.status));
+  const relatoriosFinalizados = relatorios.filter((item) => ["finalizado", "enviado_cliente"].includes(item.status));
+  const relatoriosRevisao = relatorios.filter((item) => ["aprovado", "ajuste_necessario", "reprovado", "rejeitado"].includes(String(item.status || "").toLowerCase()));
   const rascunhos = relatorios.filter((item) => item.status === "rascunho");
   const cotistas = useMemo<CotistaFolder[]>(() => {
     const nomesClientes = new Map(clientes.map((cliente) => [cliente.id, cliente.razao_social || "Cliente sem razão social"]));

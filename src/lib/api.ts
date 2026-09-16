@@ -75,8 +75,10 @@ async function request(path: string, init: RequestInit = {}, token?: string | nu
   }
 
   if (!response.ok) {
-    const errorMessage = typeof data === "object" && data !== null && "error" in data
-      ? String((data as { error?: unknown }).error ?? `API ${path} falhou: ${response.status}`)
+    const errorMessage = typeof data === "object" && data !== null && "message" in data
+      ? String((data as { message?: unknown }).message ?? `API ${path} falhou: ${response.status}`)
+      : typeof data === "object" && data !== null && "error" in data
+        ? String((data as { error?: unknown }).error ?? `API ${path} falhou: ${response.status}`)
       : `API ${path} falhou: ${response.status}`;
     const error = new Error(errorMessage);
     (error as Error & { status?: number }).status = response.status;

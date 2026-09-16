@@ -177,6 +177,11 @@ function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancam
 
     if (candidatosPouso.length === 1) return candidatosPouso;
 
+    // Alguns PDFs/escaneamentos deixam o código ICAO ilegível. Com matrícula,
+    // data e horário ainda é seguro escolher o pouso mais próximo; sem horário,
+    // só fazemos a associação automática quando existe uma única operação.
+    if (!candidatosPouso.length && mesmaData.length === 1) return mesmaData;
+
     if (candidatosPouso.length > 1 && item.hora) {
       const minutosItem = converterHoraParaMinutos(item.hora);
       if (minutosItem !== null) {
@@ -191,6 +196,17 @@ function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancam
         const melhor = ordenados[0];
         const melhorMinutos = melhor ? converterHoraParaMinutos(melhor.tempo_pou || melhor.tempo_cor) : null;
         return melhorMinutos === null || Math.abs(melhorMinutos - minutosItem) <= 15 ? ordenados.slice(0, 1) : [];
+      }
+    }
+    if (!candidatosPouso.length && mesmaData.length > 1 && item.hora) {
+      const minutosItem = converterHoraParaMinutos(item.hora);
+      if (minutosItem !== null) {
+        const ordenados = mesmaData
+          .map((lancamento) => ({ lancamento, minutos: converterHoraParaMinutos(lancamento.tempo_pou || lancamento.tempo_cor) }))
+          .filter((itemComHora): itemComHora is { lancamento: DiarioLancamento; minutos: number } => itemComHora.minutos !== null)
+          .sort((a, b) => Math.abs(a.minutos - minutosItem) - Math.abs(b.minutos - minutosItem));
+        const melhor = ordenados[0];
+        return melhor && Math.abs(melhor.minutos - minutosItem) <= 15 ? [melhor.lancamento] : [];
       }
     }
     return candidatosPouso;
@@ -284,6 +300,13 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
   const totalLinhas = useMemo(
     () => linhas.reduce((total, linha) => total + (Number(linha.valor) || 0), 0),
     [linhas],
+  );
+  const consolidadoComPercentual = useMemo(
+    () => consolidado.map((grupo) => ({
+      ...grupo,
+      percentual: totalLinhas > 0 ? (grupo.valor / totalLinhas) * 100 : 0,
+    })),
+    [consolidado, totalLinhas],
   );
   const linhasSemCotista = linhas.filter((linha) => !linha.cotistaId).length;
   const linhasComRateioInvalido = linhas.filter((linha) => linha.percentuaisCotistas && Math.abs(Object.values(linha.percentuaisCotistas).reduce((soma, valor) => soma + valor, 0) - 100) > 0.01).length;
@@ -676,10 +699,10 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
                 <strong className="text-sm">{moeda(totalLinhas)}</strong>
               </div>
               <div className="divide-y divide-border">
-                {consolidado.map((grupo) => (
+                {consolidadoComPercentual.map((grupo) => (
                   <div key={grupo.cotista.id} className="flex items-center justify-between gap-4 px-4 py-3 text-[11px]">
-                    <span className="font-semibold">{grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s)</span></span>
-                    <span className="font-mono font-bold">{moeda(grupo.valor)}</span>
+                    <span className="font-semibold">{grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s) · {grupo.percentual.toFixed(2)}%</span></span>
+                    <span className="font-mono font-bold">{moeda(grupo.valor)} <span className="font-normal text-muted-foreground">/ {moeda(totalLinhas)}</span></span>
                   </div>
                 ))}
                 {!consolidado.length && <p className="px-4 py-3 text-[11px] text-muted-foreground">Atribua as operações para visualizar os recibos.</p>}

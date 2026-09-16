@@ -1396,7 +1396,7 @@ export default function RelatorioDespesaViagem({
         }}
         onSent={(emailId) => void programarDepoisDoEmail(emailId)}
         assuntoSugerido={`Relatório de despesa de viagem ${relatorio.numero_relatorio}`}
-        mensagemSugerida={`Olá,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio} para conferência.\n\nValor a reembolsar: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${reembolsoForm.vencimento.split("-").reverse().join("/")}\n\nApós o envio deste e-mail, o reembolso será programado no Contas a Receber.\n\nAtenciosamente,\nEquipe Share Brasil`}
+        mensagemSugerida={`Prezados,\n\nSegue o relatório de despesa de viagem ${relatorio.numero_relatorio}${relatorio.rota ? ` - ${relatorio.rota}` : ""} dos dias ${dataBr(relatorio.data_inicio)} e ${dataBr(relatorio.data_fim)} com a aeronave ${reembolsoForm.prefill.aeronave_matricula || "—"}\nValor a reembolsar: ${moeda(reembolsoForm.prefill.valor)}\nVencimento: ${dataBr(reembolsoForm.vencimento)}`}
         anexos={[{ id: `relatorio_pdf:${relatorio.id}`, url: reembolsoForm.prefill.pdf_url, label: `Relatório ${relatorio.numero_relatorio}.pdf`, filename: `relatorio-${relatorio.numero_relatorio}.pdf` }]}
       />}
     </div>

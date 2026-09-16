@@ -193,7 +193,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-border/70">
+              <div className="hidden overflow-x-auto rounded-xl border border-border/70 sm:block">
                 <table className="w-full min-w-[560px] text-xs">
                   <thead className="bg-secondary/[.18] text-[9px] uppercase tracking-[.12em] text-muted-foreground">
                     <tr><th className="p-2 text-left">Itens</th><th className="p-2 text-left">Peso (kg)</th><th className="p-2 text-left">Braço (pol)</th><th className="p-2 text-right">Momento (kg x pol)</th><th /></tr>
@@ -238,8 +238,52 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
                 </table>
               </div>
 
+              <div className="space-y-2 sm:hidden">
+                <div className="rounded-xl border border-border/70 bg-secondary/[.12] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <strong className="text-[10px] font-bold">Peso básico da aeronave</strong>
+                    <span className="text-[10px] font-semibold text-muted-foreground">Momento {fmt(linhasVazio.momento)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Campo label="Peso (kg)"><input className={cell} value={pesoVazio} onChange={(e) => setPesoVazio(e.target.value)} inputMode="decimal" /></Campo>
+                    <Campo label="Braço (pol)"><input className={cell} value={bracoVazio} onChange={(e) => setBracoVazio(e.target.value)} inputMode="decimal" /></Campo>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <strong className="text-[10px] font-bold">Combustível</strong>
+                    <span className="text-[10px] font-semibold text-muted-foreground">{fmt(fuelKg)} kg</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Campo label="Litros"><input className={cell} value={litros} onChange={(e) => setLitros(e.target.value)} placeholder="Litros" inputMode="decimal" /></Campo>
+                    <Campo label="Braço (pol)"><input className={cell} value={bracoFuel} onChange={(e) => setBracoFuel(e.target.value)} inputMode="decimal" /></Campo>
+                  </div>
+                  <p className="mt-2 text-right text-[10px] font-semibold text-muted-foreground">Momento {fmt(momentoFuel)}</p>
+                </div>
+                {itens.map((linha) => (
+                  <div key={linha.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="min-w-0 flex-1">
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Item</span>
+                        <input className={cell} value={linha.descricao} onChange={(e) => atualizarItem(linha.id, "descricao", e.target.value)} />
+                      </label>
+                      <button type="button" onClick={() => setItens((atual) => atual.filter((i) => i.id !== linha.id))} className="mt-4 shrink-0 rounded-lg border border-border p-1.5 text-red-300" aria-label={`Excluir ${linha.descricao}`}><Trash2 size={12} /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Campo label="Peso (kg)"><input className={cell} value={linha.peso ?? ""} onChange={(e) => atualizarItem(linha.id, "peso", e.target.value)} inputMode="decimal" /></Campo>
+                      <Campo label="Braço (pol)"><input className={cell} value={linha.braco ?? ""} onChange={(e) => atualizarItem(linha.id, "braco", e.target.value)} inputMode="decimal" /></Campo>
+                    </div>
+                    <p className="mt-2 text-right text-[10px] font-semibold text-muted-foreground">Momento {fmt(n(linha.peso) * n(linha.braco))}</p>
+                  </div>
+                ))}
+                <div className="grid grid-cols-2 gap-2 rounded-xl border-2 border-border bg-secondary/[.14] p-3 text-[11px]">
+                  <span><span className="block text-[9px] uppercase tracking-[.12em] text-muted-foreground">Peso total</span><strong>{fmt(totais.peso)} kg</strong></span>
+                  <span><span className="block text-[9px] uppercase tracking-[.12em] text-muted-foreground">Braço do CG</span><strong>{fmt(totais.cg)} pol</strong></span>
+                </div>
+              </div>
+
               {!somenteLeitura && (
-                <Button type="button" variant="outline" onClick={() => setItens((atual) => [...atual, { id: uid(), descricao: "Novo item", peso: null, braco: null }])} className="h-8 gap-2 text-[10px]">
+                <Button type="button" variant="outline" onClick={() => setItens((atual) => [...atual, { id: uid(), descricao: "Novo item", peso: null, braco: null }])} className="h-8 w-full gap-2 text-[10px] sm:w-auto">
                   <Plus size={12} /> Adicionar item
                 </Button>
               )}

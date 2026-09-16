@@ -243,7 +243,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
           </h1>
           <p className="mt-1.5 text-xs text-muted-foreground">Gestão operacional e financeira dos abastecimentos de combustível.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {aoVoltar && (
             <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]">
               <ChevronLeft size={13} /> Voltar
@@ -296,9 +296,9 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Selecione um cliente</h2>
                   <p className="mt-0.5 text-xs text-muted-foreground">Escolha um cliente para visualizar o histórico de abastecimentos.</p>
                 </div>
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+                <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
                   <Search size={13} className="text-muted-foreground" />
-                  <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cliente..." className="w-48 bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground" />
+                  <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cliente..." className="w-full bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground sm:w-48" />
                 </div>
               </div>
 
@@ -366,7 +366,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   </label>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -396,6 +396,9 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                     </tbody>
                   </table>
                 </div>
+                <div className="space-y-2 md:hidden">
+                  {registrosCliente.length ? registrosCliente.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />) : <EstadoVazio label="Nenhum registro encontrado para este cliente." />}
+                </div>
               </section>
             </div>
           )}
@@ -415,6 +418,12 @@ function StatTile({ label, value, icon, accent = "text-foreground", className = 
       <p className={`truncate text-lg font-bold ${accent}`}>{value}</p>
     </div>
   );
+}
+
+function AbastecimentoCard({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto") => void }) {
+  const pago = record.status === "pago";
+  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : "boleto";
+  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] font-bold text-primary">{record.numero_voo || record.matricula_registro || "Abastecimento"}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{record.trecho || "Trecho não informado"}</p></div><span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${pago ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : record.status === "cancelado" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-400/30 bg-amber-400/10 text-amber-400"}`}>{pago ? "Pago" : record.status === "cancelado" ? "Cancelado" : "Pendente"}</span></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Data / local</span><strong>{date(record.data)} · {record.local || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Volume</span><strong className="font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</strong></div><div><span className="block text-[9px] text-muted-foreground">Comanda / NF</span><strong className="font-mono">{record.numero_comanda || "—"} · {record.numero_nf || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Total</span><strong className="font-mono text-emerald-400">{money(record.valor_total)}</strong></div></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onEdit(record)} className="min-h-9 flex-1 rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary">Editar</button>{record.comanda_url || record.nota_url || record.boleto_url ? <button type="button" onClick={() => void onDownload(record.id, fileType)} className="min-h-9 rounded-lg border border-border px-3 py-2 text-[10px] font-bold">Baixar</button> : <label className="flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-lg border border-border px-3 py-2 text-[10px] font-bold"><Upload size={12} className="mr-1" /> Anexar<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(event) => void onUpload(record.id, "comanda", event.target.files?.[0])} /></label>}<button type="button" onClick={() => void onDelete(record.id)} className="min-h-9 rounded-lg border border-destructive/30 px-3 py-2 text-[10px] font-bold text-destructive">Excluir</button></div></article>;
 }
 
 function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto") => void }) {
@@ -507,6 +516,10 @@ function AbastecimentoForm({ form, options, editing, saving, setField, onClose, 
   );
 }
 
+function FornecedorCard({ supplier }: { supplier: Record<string, any> }) {
+  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-[10px] font-bold">{supplier.apelido || supplier.nome_completo || "Fornecedor"}</p><p className="mt-1 font-mono text-[9px] text-primary">{supplier.codigo_icao || "ICAO não informado"}</p></div><span className="text-right text-[10px] font-semibold text-muted-foreground">{supplier.cidade || "Cidade não informada"}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Telefone</span><strong className="font-mono">{supplier.telefone || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">AVGAS / JET</span><strong className="font-mono text-emerald-400">{Number(supplier.preco_avgas || 0) ? money(Number(supplier.preco_avgas)) : "—"} · {Number(supplier.preco_jet || 0) ? money(Number(supplier.preco_jet)) : "—"}</strong></div></div></article>;
+}
+
 function FornecedorTab({ options, onSaved, onError }: { options: AbastecimentoOpcoes | null; onSaved: () => void; onError: (msg: string) => void }) {
   const [query, setQuery] = useState("");
   const suppliers = (options?.fornecedores || []).filter((s) => [s.nome_completo, s.apelido, s.cidade, s.codigo_icao].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase()));
@@ -514,14 +527,14 @@ function FornecedorTab({ options, onSaved, onError }: { options: AbastecimentoOp
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+        <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
           <Search size={13} className="text-muted-foreground" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar fornecedor..." className="w-64 bg-transparent text-xs outline-none text-foreground" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar fornecedor..." className="w-full bg-transparent text-xs outline-none text-foreground sm:w-64" />
         </div>
       </div>
 
       <section className={`${card} overflow-hidden p-4`}>
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[800px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -552,6 +565,9 @@ function FornecedorTab({ options, onSaved, onError }: { options: AbastecimentoOp
               )}
             </tbody>
           </table>
+        </div>
+        <div className="space-y-2 md:hidden">
+          {suppliers.length ? suppliers.map((supplier) => <FornecedorCard key={supplier.id} supplier={supplier} />) : <EstadoVazio label="Nenhum fornecedor encontrado." />}
         </div>
       </section>
     </div>

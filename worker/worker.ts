@@ -2895,9 +2895,12 @@ app.post('/api/colaborador/documentos', async c => {
 })
 
 app.get('/api/colaborador/documentos/:id/arquivo', async c => {
-  const colaborador = await authenticatedColaborador(c)
-  if (!colaborador) return c.json({ error: 'nao_autorizado' }, 401)
-  const documento = await portalDb(c).prepare('SELECT caminho_arquivo, tipo_arquivo, nome_arquivo FROM documentos_usuarios WHERE id = ?1 AND user_id = ?2').bind(c.req.param('id'), colaborador.id).first<{ caminho_arquivo: string; tipo_arquivo: string; nome_arquivo: string }>()
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const podeVisualizarEquipe = await isColaboradorManager(c, user)
+  const documento = podeVisualizarEquipe
+    ? await portalDb(c).prepare('SELECT caminho_arquivo, tipo_arquivo, nome_arquivo FROM documentos_usuarios WHERE id = ?1').bind(c.req.param('id')).first<{ caminho_arquivo: string; tipo_arquivo: string; nome_arquivo: string }>()
+    : await portalDb(c).prepare('SELECT caminho_arquivo, tipo_arquivo, nome_arquivo FROM documentos_usuarios WHERE id = ?1 AND user_id = ?2').bind(c.req.param('id'), user.id).first<{ caminho_arquivo: string; tipo_arquivo: string; nome_arquivo: string }>()
   if (!documento) return c.notFound()
   const object = await bucketParaChaveColaborador(c, documento.caminho_arquivo).get(documento.caminho_arquivo)
   if (!object) return c.notFound()
@@ -5248,7 +5251,13 @@ app.get('/api/gestor/gestao-colaborador/:id/ficha', async c => {
     db.prepare("SELECT id, tipo, descricao, valor, data_despesa, vencimento, status, observacoes, pago_por, criado_em FROM envio_despesas WHERE tipo IN ('share', 'reembolso') AND (pago_por = ?1 OR fornecedor = ?1) ORDER BY COALESCE(data_despesa, criado_em) DESC LIMIT 200").bind(id).all().catch(() => ({ results: [] })),
     db.prepare("SELECT id, descricao, ROUND(valor_centavos / 100.0, 2) AS valor, data, status, observacoes, pago_por, criado_em FROM lancamentos WHERE pago_por = ?1 ORDER BY date(data) DESC, criado_em DESC LIMIT 200").bind(id).all().catch(() => ({ results: [] })),
   ])
-  return c.json({ perfil, documentos: documentos.results, funcoes: funcoes.results, ferias: ferias.results, recebimentos: [...recebimentos.results, ...lancamentos.results] })
+  return c.json({
+    perfil,
+    documentos: documentos.results.map((row: any) => ({ ...row, arquivo_url: `/api/colaborador/documentos/${row.id}/arquivo` })),
+    funcoes: funcoes.results,
+    ferias: ferias.results,
+    recebimentos: [...recebimentos.results, ...lancamentos.results],
+  })
 })
 
 app.get('/api/gestor/ferias', async c => {

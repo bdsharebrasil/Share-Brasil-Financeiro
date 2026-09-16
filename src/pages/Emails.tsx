@@ -29,7 +29,8 @@ import {
   Reply,
   Eye,
   X,
-  Building2
+  Building2,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ import {
   enviarEmailCliente,
   enviarMensagemInterna,
   baixarAnexoMensagem,
+  baixarAnexoEmailEnviado,
   type AnexoEmail,
   type ContatoEmail,
   type ContaBancariaEmail,
@@ -135,6 +137,7 @@ export default function Emails() {
   const [pastaAtiva, setPastaAtiva] = useState<PastaMensagem>("inbox");
   const [modoCriacao, setModoCriacao] = useState(false);
   const [mensagemInternaSelecionada, setMensagemInternaSelecionada] = useState<MensagemInterna | null>(null);
+  const [emailEnviadoSelecionado, setEmailEnviadoSelecionado] = useState<EmailEnviado | null>(null);
   const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
   const [categoriaAtiva, setCategoriaAtiva] = useState<string | null>(null);
@@ -302,6 +305,16 @@ export default function Emails() {
     }
   };
 
+  const abrirAnexoEmail = async (email: EmailEnviado, indice: number, nomeArquivo: string) => {
+    try {
+      const blob = await baixarAnexoEmailEnviado(email.id, indice);
+      const url = URL.createObjectURL(blob);
+      setAnexoVisualizado({ nome: nomeArquivo, tipo: blob.type || "application/octet-stream", url });
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o anexo do e-mail.");
+    }
+  };
+
   return (
     <div className="route-enter relative mx-auto -m-[22px] flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 overflow-hidden rounded-[9px] border border-[#0e141f] bg-[#060e16] pb-3 text-slate-100">
       {toast && <EmailToast toast={toast} onDone={() => setToast(null)} />}
@@ -419,7 +432,14 @@ export default function Emails() {
           </div>
 
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {mensagensFiltradas.length === 0 ? (
+            {pastaAtiva === "enviadas" ? (historicoEmails.length === 0 ? (
+              <div className="flex h-40 flex-col items-center justify-center text-center text-xs text-muted-foreground"><Send className="mb-2 h-8 w-8 opacity-20" />Nenhum e-mail enviado encontrado.</div>
+            ) : historicoEmails.map((email) => <button type="button" key={email.id} onClick={() => { setEmailEnviadoSelecionado(email); setMensagemInternaSelecionada(null); }} className={`w-full rounded-md border-l-2 p-3 text-left transition-all ${emailEnviadoSelecionado?.id === email.id ? "border-l-sky-400 bg-[#0d1a31]" : "border-l-transparent hover:bg-white/[.025]"}`}>
+              <div className="flex items-center justify-between gap-2"><span className="truncate text-[10px] font-semibold text-slate-200">{email.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[9px] text-slate-600">{horaBr(email.criado_em)}</span></div>
+              <p className="mt-1 truncate text-[9px] text-slate-500">Para: {email.destinatarios.join(", ") || "Destinatário não informado"}</p>
+              <p className="mt-1 truncate text-[9px] text-slate-600">{email.mensagem || "Sem texto"}</p>
+              <div className="mt-2 flex items-center gap-2 text-[9px] text-slate-600"><span>{dataBr(email.criado_em)}</span><span>•</span><span>{email.quantidade_anexos || 0} anexo{email.quantidade_anexos === 1 ? "" : "s"}</span><span className={String(email.status).toLowerCase() === "enviado" ? "text-emerald-300" : "text-red-300"}>{rotuloStatusEmail(email.status)}</span></div>
+            </button>)) : mensagensFiltradas.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center text-center text-xs text-muted-foreground">
                 <Mail className="mb-2 h-8 w-8 opacity-20" />
                 Nenhuma mensagem encontrada.
@@ -451,7 +471,7 @@ export default function Emails() {
                 </p>
               </button>
             ))}
-            <div className="mt-3 border-t border-white/[.08] pt-3">
+            {pastaAtiva !== "enviadas" && <div className="mt-3 border-t border-white/[.08] pt-3">
               <div className="flex items-center justify-between px-2 pb-2">
                 <h3 className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Histórico de e-mails</h3>
                 <span className="text-[9px] font-semibold text-slate-600">{historicoEmails.length}</span>
@@ -484,13 +504,20 @@ export default function Emails() {
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </div>
         </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
         <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#080f1d] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
-          {mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
+          {emailEnviadoSelecionado && pastaAtiva === "enviadas" && !modoCriacao && !configAberta ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="shrink-0 border-b border-white/[.06] bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-slate-400">Para: <span className="text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.criado_em)}</p></div>
+              <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="max-w-3xl whitespace-pre-wrap text-sm leading-7 text-slate-300">{emailEnviadoSelecionado.mensagem || "(Este e-mail não possui texto registrado.)"}</div>
+                {!!emailEnviadoSelecionado.anexos_detalhes?.length && <div className="mt-10 border-t border-white/[.08] pt-6"><p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-slate-500">Anexos ({emailEnviadoSelecionado.anexos_detalhes.length})</p><div className="flex flex-wrap gap-3">{emailEnviadoSelecionado.anexos_detalhes.map((anexo, indice) => <button type="button" key={`${anexo.nome_arquivo}-${indice}`} onClick={() => void abrirAnexoEmail(emailEnviadoSelecionado, indice, anexo.nome_arquivo)} className="flex items-center gap-3 rounded-lg border border-white/[.06] bg-[#111b2b] px-4 py-3 text-left hover:border-sky-500/30"><FileText size={20} className="text-sky-400" /><span className="max-w-[230px] truncate text-[10px] font-semibold text-slate-200">{anexo.nome_arquivo}</span><Download size={14} className="text-slate-500" /></button>)}</div></div>}
+              </div>
+            </div>
+          ) : mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
               {/* Cabeçalho da Mensagem */}
               <div className="flex shrink-0 flex-col gap-3 border-b border-white/[.06] bg-[#080e1a] p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">

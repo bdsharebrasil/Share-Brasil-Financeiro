@@ -1295,6 +1295,8 @@ export type EmailEnviado = {
   assunto: string;
   status: "enviado" | "erro" | "pendente" | "processando" | "enviado_parcial" | "cancelado" | string;
   quantidade_anexos: number;
+  mensagem?: string | null;
+  anexos_detalhes?: Array<{ nome_arquivo: string; tipo_arquivo: string; tamanho_bytes?: number; key?: string }>;
   criado_em: string;
   erro?: string | null;
   enviado_por?: string | null;
@@ -1310,6 +1312,9 @@ export type CentralEmailResponse = {
 
 export function buscarCentralEmail() {
   return colaboradorRequest<CentralEmailResponse>("/api/interno/emails");
+}
+export async function baixarAnexoEmailEnviado(emailId: string, indice: number) {
+  return carregarArquivoColaborador(`/api/interno/emails/${encodeURIComponent(emailId)}/anexos/${indice}`);
 }
 
 export function enviarEmailCliente(payload: {

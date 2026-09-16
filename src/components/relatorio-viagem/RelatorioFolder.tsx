@@ -42,7 +42,7 @@ export default function RelatorioFolder({ carregando, clientes, relatorios, visa
   const [cotistaAberto, setCotistaAberto] = useState<string | null>(null);
   const [aeronaveAberta, setAeronaveAberta] = useState<string | null>(null);
   const relatoriosFinalizados = relatorios.filter((item) => ["finalizado", "enviado_cliente"].includes(item.status));
-  const relatoriosRevisao = relatorios.filter((item) => ["aprovado", "ajuste_necessario", "reprovado", "rejeitado"].includes(String(item.status || "").toLowerCase()));
+  const relatoriosRevisao = relatorios.filter((item) => ["aprovado", "ajuste_necessario", "reprovado", "rejeitado", "aguardando_aprovacao"].includes(String(item.status || "").toLowerCase()));
   const rascunhos = relatorios.filter((item) => item.status === "rascunho");
   const cotistas = useMemo<CotistaFolder[]>(() => {
     const nomesClientes = new Map(clientes.map((cliente) => [cliente.id, cliente.razao_social || "Cliente sem razão social"]));

@@ -1609,26 +1609,20 @@ function adicionarCanvasPrincipal(
     proporcao;
 
   /*
-   * O ponto importante aqui:
-   *
-   * Se o conteúdo couber em uma página,
-   * ele NÃO cria uma segunda página.
-   *
-   * Isso elimina a página branca que
-   * acontecia por diferenças de poucos
-   * pixels entre 1123px e A4.
+   * O html2canvas pode devolver alguns pixels a mais por arredondamento
+   * de fontes e bordas. Esse pequeno excesso não representa uma segunda
+   * página; tratá-lo como tal criava uma folha quase vazia antes dos anexos.
    */
-  if (
-    altura <=
-    pageHeight + 1
-  ) {
+  const toleranciaOverflow = 4;
+
+  if (altura <= pageHeight + toleranciaOverflow) {
     pdf.addImage(
       imagem,
       "JPEG",
       0,
       0,
       pageWidth,
-      altura,
+      Math.min(altura, pageHeight),
     );
 
     return;

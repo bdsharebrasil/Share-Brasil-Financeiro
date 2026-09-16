@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, FileImage, FileText } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +19,7 @@ export default function AprovacaoRelatorioViagem() {
   const [motivo, setMotivo] = useState("");
   const [mensagem, setMensagem] = useState("Carregando relatório...");
   const [enviando, setEnviando] = useState(false);
+  const [mostrarComprovantes, setMostrarComprovantes] = useState(false);
 
   useEffect(() => {
     void fetch(`${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`)
@@ -73,6 +75,8 @@ export default function AprovacaoRelatorioViagem() {
 
   const r = data.relatorio;
   const despesas = (r.despesas || []).filter((d: any) => String(d.pago_por || "").includes(`tripulante_${data.tripulante_pos}`));
+  const resumo = data.resumo || {};
+  const comprovantes = r.anexos || [];
 
   return <main className="min-h-screen bg-[#030814] p-4 text-white sm:p-8"><div className="mx-auto max-w-3xl space-y-5">
     <header className="min-w-0"><p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Share Brasil · Aprovação de despesas</p><h1 className="mt-2 break-words text-2xl font-bold">Relatório {r.numero_relatorio}</h1><p className="break-words text-sm text-white/60">Voo {r.numero_voo || "—"} · Aeronave {r.aeronave_matricula || "—"} · {dataBr(r.data_inicio)} a {dataBr(r.data_fim)}</p></header>
@@ -82,7 +86,9 @@ export default function AprovacaoRelatorioViagem() {
       {rejeitado && motivoRejeicao && <p className="mt-3 rounded-lg border border-white/10 bg-black/10 p-3 text-sm text-white/80"><strong>Motivo informado:</strong> {motivoRejeicao}</p>}
     </section>}
     <section className="rounded-xl border border-white/10 bg-white/5 p-4 sm:p-5"><h2 className="font-semibold">Dados da viagem</h2><p className="mt-2 break-words text-sm text-white/70">Rota: {r.rota || "—"}</p><p className="break-words text-sm text-white/70">Tripulante {data.tripulante_pos}: {data.tripulante_pos === 1 ? r.nome_tripulante : r.nome_tripulante_2}</p></section>
+    <section className="rounded-xl border border-cyan-300/20 bg-cyan-300/[.06] p-4 sm:p-5"><h2 className="font-semibold text-cyan-100">Resumo financeiro</h2><p className="mt-1 text-xs text-white/55">Valores calculados conforme o relatório de despesa de viagem.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-lg border border-emerald-300/20 bg-emerald-300/[.08] p-3"><span className="block text-xs text-white/60">Total a receber</span><strong className="mt-1 block text-lg text-emerald-200">{moeda(resumo.total_a_receber)}</strong></div><div className="rounded-lg border border-white/10 bg-white/[.04] p-3"><span className="block text-xs text-white/60">Cliente pagou</span><strong className="mt-1 block text-lg">{moeda(resumo.cliente_pagou)}</strong></div><div className="rounded-lg border border-white/10 bg-white/[.04] p-3"><span className="block text-xs text-white/60">Share Brasil pagou</span><strong className="mt-1 block text-lg">{moeda(resumo.share_brasil_pagou)}</strong></div></div></section>
     <section className="overflow-hidden rounded-xl border border-white/10 bg-white/5"><div className="border-b border-white/10 p-5"><h2 className="font-semibold">Suas despesas</h2></div><div className="divide-y divide-white/10">{despesas.map((d: any, i: number) => <div className="flex min-w-0 items-start justify-between gap-4 p-4 sm:p-5" key={i}><div className="min-w-0"><p className="break-words font-medium">{d.descricao || d.categoria || "Despesa"}</p><p className="break-words text-xs text-white/50">{dataBr(d.data)} · {d.categoria || "Outros"}</p></div><strong className="shrink-0 whitespace-nowrap text-right">{moeda(d.valor)}</strong></div>)}{!despesas.length && <p className="p-5 text-sm text-white/60">Nenhuma despesa atribuída a você.</p>}</div></section>
+    <section className="overflow-hidden rounded-xl border border-white/10 bg-white/5"><button type="button" onClick={() => setMostrarComprovantes((aberto) => !aberto)} className="flex w-full items-center justify-between p-4 text-left hover:bg-white/[.04]"><span><strong className="block">Ver comprovantes</strong><span className="text-xs text-white/55">{comprovantes.length ? `${comprovantes.length} arquivo(s) anexado(s)` : "Nenhum comprovante anexado"}</span></span><span className="text-sm text-cyan-200">{mostrarComprovantes ? "Fechar" : "Abrir"}</span></button>{mostrarComprovantes && <div className="border-t border-white/10 p-4">{comprovantes.length ? <div className="grid gap-2">{comprovantes.map((anexo: any) => <a key={anexo.id} href={`${API_BASE}${anexo.url_arquivo}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/10 p-3 text-sm hover:border-cyan-300/40"><span className="flex min-w-0 items-center gap-2"><span className="shrink-0 text-cyan-200">{anexo.tipo_arquivo?.startsWith("image/") ? <FileImage size={16} /> : <FileText size={16} />}</span><span className="truncate">{anexo.nome_arquivo || "Comprovante"}</span></span><ExternalLink className="shrink-0 text-white/60" size={15} /></a>)}</div> : <p className="text-sm text-white/60">Nenhum comprovante disponível para este relatório.</p>}</div>}</section>
     {!decisaoRegistrada && <><Textarea value={motivo} onChange={(event) => setMotivo(event.target.value)} placeholder="Motivo (obrigatório se rejeitar)" className="min-h-24 resize-y bg-white/5 text-white" /><div className="flex flex-col gap-3 sm:flex-row"><Button disabled={enviando} onClick={() => void decidir(true)} className="w-full justify-center whitespace-normal text-center bg-emerald-600 hover:bg-emerald-500 sm:w-auto">Aprovar minhas despesas</Button><Button disabled={enviando} variant="outline" onClick={() => void decidir(false)} className="w-full justify-center whitespace-normal text-center border-rose-400/50 text-rose-200 sm:w-auto">Rejeitar e informar motivo</Button></div></>}
     {mensagem && <p className="text-sm text-cyan-200">{mensagem}</p>}
   </div></main>;

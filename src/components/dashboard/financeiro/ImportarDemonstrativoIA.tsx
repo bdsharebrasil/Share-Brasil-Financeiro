@@ -32,6 +32,7 @@ type ItemDemonstrativo = {
 
 type DemonstrativoLido = {
   tipo: TipoDemonstrativo;
+  tipo_detectado?: TipoDemonstrativo | null;
   numero_documento: string | null;
   competencia: string | null;
   data_faturamento: string | null;
@@ -49,6 +50,8 @@ type LinhaRateio = ItemDemonstrativo & {
   responsavelSugerido: string | null;
   naturezaEspecial?: "TRASLADO" | "VOO_TESTE";
   percentuaisCotistas?: Record<string, number>;
+  confianca?: "alta" | "media" | "baixa";
+  observacao?: string | null;
 };
 
 type ReciboGerado = Pick<Recibo, "id" | "numero_recibo" | "nome_pagador" | "valor">;
@@ -134,10 +137,23 @@ function converterHoraParaMinutos(horaStr: string | null | undefined): number | 
 }
 
 function responsavelDoLancamento(lancamento: DiarioLancamento) {
-  if (lancamento.voo_emprestado) {
-    return lancamento.socio_tomador_nome || lancamento.cliente_tomador_nome || lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
+  const emprestado = [1, "1", true, "true", "sim"].includes(lancamento.voo_emprestado as never);
+  if (emprestado) {
+    return lancamento.socio_tomador_nome || lancamento.cliente_tomador_nome || null;
   }
   return lancamento.socio_nome || lancamento.cliente_nome || lancamento.cliente_proprietario || null;
+}
+
+function cotistaDoLancamento(cotistas: CotistaRecibo[], lancamento: DiarioLancamento | null) {
+  if (!lancamento) return null;
+  const emprestado = [1, "1", true, "true", "sim"].includes(lancamento.voo_emprestado as never);
+  const clienteId = emprestado ? lancamento.cliente_tomador_emprestimo_id : lancamento.cliente_id;
+  const socioId = emprestado ? lancamento.socio_tomador_emprestimo_id : lancamento.socio_id;
+  if (!clienteId && !socioId) return null;
+  return cotistas.find((cotista) =>
+    (clienteId && cotista.cliente_id === clienteId) ||
+    (socioId && (cotista.socio_id === socioId || cotista.cotista_ids?.includes(socioId))),
+  ) || null;
 }
 
 /**
@@ -148,7 +164,10 @@ function responsavelDoLancamento(lancamento: DiarioLancamento) {
  * Para os demais tipos (ex.: DECEA), mantém o cruzamento por trecho completo (origem + destino).
  */
 function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancamento[], tipoDemonstrativo: TipoDemonstrativo) {
-  const mesmaData = lancamentos.filter((lancamento) => dataDiario(lancamento.data_registro) === dataDiario(item.data));
+  const mesmaData = lancamentos.filter((lancamento) => {
+    if (dataDiario(lancamento.data_registro) !== dataDiario(item.data)) return false;
+    return !item.matricula || normalizar(lancamento.matricula_registro) === normalizar(item.matricula);
+  });
   const operacao = codigoTrecho(item.operacao);
 
   if (tipoDemonstrativo === "INFRAERO") {
@@ -161,15 +180,17 @@ function encontrarLancamentos(item: ItemDemonstrativo, lancamentos: DiarioLancam
     if (candidatosPouso.length > 1 && item.hora) {
       const minutosItem = converterHoraParaMinutos(item.hora);
       if (minutosItem !== null) {
-        return candidatosPouso
+        const ordenados = candidatosPouso
           .sort((a, b) => {
             const minA = converterHoraParaMinutos(a.tempo_pou || a.tempo_cor);
             const minB = converterHoraParaMinutos(b.tempo_pou || b.tempo_cor);
             if (minA === null) return 1;
             if (minB === null) return -1;
             return Math.abs(minA - minutosItem) - Math.abs(minB - minutosItem);
-          })
-          .slice(0, 1);
+          });
+        const melhor = ordenados[0];
+        const melhorMinutos = melhor ? converterHoraParaMinutos(melhor.tempo_pou || melhor.tempo_cor) : null;
+        return melhorMinutos === null || Math.abs(melhorMinutos - minutosItem) <= 15 ? ordenados.slice(0, 1) : [];
       }
     }
     return candidatosPouso;
@@ -310,7 +331,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
         const candidatos = encontrarLancamentos(item, lancamentos, tipo);
         const lancamento = candidatos.find((candidato) => naturezaEspecialDoLancamento(candidato)) || (candidatos.length === 1 ? candidatos[0] : null);
         const responsavel = lancamento ? responsavelDoLancamento(lancamento) : null;
-        const cotista = cotistaPorNome(cotistasDaAeronave, responsavel);
+        const cotista = cotistaDoLancamento(cotistasDaAeronave, lancamento) || (!lancamento?.voo_emprestado ? cotistaPorNome(cotistasDaAeronave, responsavel) : null);
+        const emprestimoSemTomador = Boolean(lancamento && [1, "1", true, "true", "sim"].includes(lancamento.voo_emprestado as never) && !lancamento.cliente_tomador_emprestimo_id && !lancamento.socio_tomador_emprestimo_id);
         const naturezaEspecial = naturezaEspecialDoLancamento(lancamento);
         const percentuaisCotistas = naturezaEspecial && cotistasDaAeronave.length
           ? Object.fromEntries(cotistasDaAeronave.map((itemCotista) => [itemCotista.id, 100 / cotistasDaAeronave.length]))
@@ -323,6 +345,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           responsavelSugerido: responsavel,
           naturezaEspecial,
           percentuaisCotistas,
+          confianca: (emprestimoSemTomador ? "baixa" : cotista ? "alta" : lancamento ? "media" : "baixa") as LinhaRateio["confianca"],
+          observacao: emprestimoSemTomador ? "Empréstimo sem tomador identificado — preencher manualmente." : null,
         };
       });
       setDemonstrativo(resultado);
@@ -331,7 +355,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
         const categoriaTarifa = categoriasDemonstrativo[0];
         setCategoriaId(categoriaTarifa?.id || "");
       }
-      setSucesso(`${novasLinhas.length} operação(ões) lida(s). Revise as atribuições antes de gerar os recibos.`);
+      const tipoAviso = resultado.tipo_detectado && resultado.tipo_detectado !== tipo ? ` Tipo detectado no documento: ${resultado.tipo_detectado}.` : "";
+      setSucesso(`${novasLinhas.length} operação(ões) lida(s). Revise as atribuições antes de gerar os recibos.${tipoAviso}`);
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível ler o demonstrativo.");
     } finally {
@@ -575,6 +600,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
                         <p>{linha.origem && linha.destino ? `${linha.origem} → ${linha.destino}` : linha.operacao || "—"}</p>
                         {linha.responsavelSugerido && <p className="mt-1 text-[10px] text-primary">Diário: {linha.responsavelSugerido}</p>}
                         {linha.naturezaEspecial && <p className="mt-1 text-[10px] font-bold text-amber-700">{linha.naturezaEspecial === "VOO_TESTE" ? "VT - Voo Teste" : "TR - Traslado"}</p>}
+                        {linha.confianca === "baixa" && <p className="mt-1 text-[10px] font-bold text-amber-700">{linha.observacao || "Correspondência exige revisão manual."}</p>}
                       </td>
                       <td className="px-3 py-2">
                         {linha.percentuaisCotistas ? (

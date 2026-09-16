@@ -902,6 +902,7 @@ export type DiarioLancamento = {
   numero_sequencial: number;
   diario_mes_id: string;
   aeronave_id: string;
+  matricula_registro?: string | null;
   numero_voo: string | null;
   data_registro: string;
   aerodromo_partida: string;

@@ -15,7 +15,7 @@ export function IndicadorPagina({ children }: { children: ReactNode }) {
 
 export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5">
+    <div className="flex flex-col items-start justify-between gap-3 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center">
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="text-primary">{icon}</span>
         <div className="min-w-0">
@@ -23,7 +23,7 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
           {detail && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{detail}</p>}
         </div>
       </div>
-      {action}
+      <div className="w-full min-w-0 sm:w-auto">{action}</div>
     </div>
   );
 }

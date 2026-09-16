@@ -160,7 +160,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent className="max-h-[92vh] w-[96vw] max-w-4xl overflow-y-auto p-4 sm:p-6">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-4xl overscroll-contain overflow-y-auto p-3 pb-4 sm:max-h-[92vh] sm:w-[96vw] sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Scale size={17} className="text-primary" /> Ficha de peso e balanceamento
@@ -274,8 +274,8 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
                 <Button type="button" variant="outline" onClick={() => setAberto(false)} className="h-9 text-[10px]">Fechar</Button>
               ) : (
                 <>
-                  <Button type="button" variant="outline" onClick={() => void salvar(false)} disabled={salvando} className="h-9 gap-2 text-[10px]">Salvar rascunho</Button>
-                  <Button type="button" onClick={() => void salvar(true)} disabled={salvando || !contexto?.configuracao} className="h-9 gap-2 text-[10px]">
+                  <Button type="button" variant="outline" onClick={() => void salvar(false)} disabled={salvando} className="h-9 w-full gap-2 text-[10px] sm:w-auto">Salvar rascunho</Button>
+                  <Button type="button" onClick={() => void salvar(true)} disabled={salvando || !contexto?.configuracao} className="h-9 w-full gap-2 text-[10px] sm:w-auto">
                     {salvando ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />} Finalizar e assinar
                   </Button>
                 </>

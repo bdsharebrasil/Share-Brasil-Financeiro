@@ -1033,7 +1033,7 @@ export type OpcoesRelatorioViagem = {
   clientes: Array<{ id: string; razao_social: string | null; codigo_cliente: string | null; holding: number | boolean | null }>;
   aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string; modelo: string; status: string | null }>;
   tripulantes: Array<{ id: string; nome_completo: string; canac: string; status: string | null; origem: string }>;
-  voos: Array<{ numero_voo: string; cliente_id: string | null; socio_id: string | null; aeronave_id: string | null; origem: string | null; destino: string | null; data_agendada: string | null; dias_duracao: number | null; matricula_registro: string | null }>;
+  voos: Array<{ numero_voo: string; cliente_id: string | null; socio_id: string | null; aeronave_id: string | null; origem: string | null; destino: string | null; data_agendada: string | null; dias_duracao: number | null; matricula_registro: string | null; piloto_id: string | null; copiloto_id: string | null; cotista_nome: string | null; socio_nome: string | null; tripulante_nome: string | null; tripulante_nome_2: string | null }>;
   socios: Array<{ id: string; nome: string; holding_id: string | null }>;
 };
 export function buscarOpcoesRelatorioViagem() { return colaboradorRequest<OpcoesRelatorioViagem>("/api/financeiro/relatorios-despesa-viagem/opcoes"); }

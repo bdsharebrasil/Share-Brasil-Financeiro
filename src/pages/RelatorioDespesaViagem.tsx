@@ -285,6 +285,16 @@ export default function RelatorioDespesaViagem({
     id: item.id,
     label: `${item.nome_completo || (item as { nome?: string }).nome || "Tripulante"} · ${item.canac || item.origem}`,
   }));
+  const cotistas = [
+    ...opcoes.clientes.map((item) => ({
+      id: `cliente:${item.id}`,
+      label: `${item.razao_social || "Cotista sem nome"}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}${item.holding ? " · Holding" : ""}`,
+    })),
+    ...opcoes.socios.map((item) => ({
+      id: `socio:${item.id}`,
+      label: `${item.nome} · Sócio`,
+    })),
+  ];
   const setCampo = <K extends keyof Formulario>(
     campo: K,
     valor: Formulario[K],
@@ -323,6 +333,10 @@ export default function RelatorioDespesaViagem({
       data_inicio: dataInicio,
       data_fim: dataFim,
       quantidade_dias: String(dias),
+      tripulacao_id: voo.piloto_id || "",
+      nome_tripulante: voo.tripulante_nome || "",
+      tripulante_id_2: voo.copiloto_id || "",
+      nome_tripulante_2: voo.tripulante_nome_2 || "",
     }));
   };
   const iniciarNovo = () => {
@@ -907,7 +921,7 @@ export default function RelatorioDespesaViagem({
             <SearchableCombobox
               items={opcoes.voos.map((item) => ({
                 id: item.numero_voo,
-                label: `${item.numero_voo} · ${dataBr(item.data_agendada)}`,
+                label: `${item.numero_voo} · ${dataBr(item.data_agendada)}${item.cotista_nome ? ` · ${item.cotista_nome}` : ""}${item.tripulante_nome ? ` · ${item.tripulante_nome}` : ""}`,
               }))}
               value={form.numero_voo}
               onChange={(valor) => setCampo("numero_voo", valor)}
@@ -917,22 +931,21 @@ export default function RelatorioDespesaViagem({
               disabled={bloqueado}
             />
           </Campo>
-          <Campo label="Cliente">
+          <Campo label="Cotista">
             <SearchableCombobox
-                items={opcoes.clientes.map((item) => ({
-                  id: item.id,
-                  label: `${item.razao_social || "Cliente sem razão social"}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}${item.holding ? " · Holding" : ""}`,
-              }))}
-              value={form.cliente_id}
+              items={cotistas}
+              value={form.socio_id ? `socio:${form.socio_id}` : form.cliente_id ? `cliente:${form.cliente_id}` : ""}
               onChange={(valor) => {
+                const [tipo, id] = valor.split(":");
+                const socio = tipo === "socio" ? opcoes.socios.find((item) => item.id === id) : null;
                 setForm((atual) => ({
                   ...atual,
-                  cliente_id: valor,
-                  socio_id: "",
+                  cliente_id: socio?.holding_id || (tipo === "cliente" ? id : ""),
+                  socio_id: socio ? id : "",
                 }));
               }}
-              placeholder="Selecione um cliente..."
-              searchPlaceholder="Buscar cliente..."
+              placeholder="Selecione um cotista..."
+              searchPlaceholder="Buscar cotista..."
               disabled={bloqueado}
             />
           </Campo>

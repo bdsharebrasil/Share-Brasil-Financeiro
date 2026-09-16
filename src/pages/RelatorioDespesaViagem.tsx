@@ -277,7 +277,7 @@ export default function RelatorioDespesaViagem({
   const aeronaveSelecionada = opcoes.aeronaves.find(
     (item) => item.id === form.aeronave_id,
   );
-  const tripulantes = opcoes.tripulantes.map((item) => ({
+  const tripulantes = (Array.isArray(opcoes.tripulantes) ? opcoes.tripulantes : []).map((item) => ({
     id: item.id,
     label: `${item.nome_completo || (item as { nome?: string }).nome || "Tripulante"} · ${item.canac || item.origem}`,
   }));

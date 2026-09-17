@@ -3495,8 +3495,8 @@ app.get('/api/interno/agendamento', async c => {
       LEFT JOIN hold_socios so ON so.id = s.socio_id
       LEFT JOIN cliente ce ON ce.id = s.cliente_emprestimo_id
       LEFT JOIN hold_socios se ON se.id = s.socio_emprestimo_id
-      LEFT JOIN cotista_aeronave ca ON (ca.cliente_id = s.cliente_id OR ca.socio_id = s.socio_id) AND ca.aeronave_id = s.aeronave_id
-      LEFT JOIN cotista_aeronave cae ON (cae.cliente_id = s.cliente_emprestimo_id OR cae.socio_id = s.socio_emprestimo_id) AND cae.aeronave_id = s.aeronave_id
+      LEFT JOIN cotista_aeronave ca ON ca.id = (SELECT ca2.id FROM cotista_aeronave ca2 WHERE (ca2.cliente_id = s.cliente_id OR ca2.socio_id = s.socio_id) AND ca2.aeronave_id = s.aeronave_id ORDER BY ca2.id LIMIT 1)
+      LEFT JOIN cotista_aeronave cae ON cae.id = (SELECT cae2.id FROM cotista_aeronave cae2 WHERE (cae2.cliente_id = s.cliente_emprestimo_id OR cae2.socio_id = s.socio_emprestimo_id) AND cae2.aeronave_id = s.aeronave_id ORDER BY cae2.id LIMIT 1)
       LEFT JOIN aeronave a ON a.id = s.aeronave_id
       WHERE date(s.data_agendada) BETWEEN ?1 AND ?2
       ORDER BY date(s.data_agendada), s.horario_previsto_agendamento, s.criado_em`).bind(inicio, fim).all().catch(error => { log.error('[agendamento] lançamentos indisponíveis', error); return { results: [] } }),

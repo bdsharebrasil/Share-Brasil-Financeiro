@@ -533,14 +533,22 @@ financeiroRoutes.get('/dashboard/financeiro', async (c) => {
     const db = c.env.SHARE_DB
     const [receber, pagar, movimentacoes, emailsEnviados] = await Promise.all([
       listar(db, "SELECT valor_centavos, status FROM contas_areceber WHERE status <> 'CANCELADO'"),
-      listar(db, "SELECT valor_centavos, status FROM contas_apagar WHERE status <> 'CANCELADO'"),
+      listar(db, "SELECT id, lancamentos_id, valor_centavos, status, data_vencimento FROM contas_apagar WHERE status <> 'CANCELADO'"),
       listar(db, 'SELECT * FROM lancamentos ORDER BY criado_em DESC LIMIT 100'),
       listar(db, 'SELECT id, destinatarios, assunto, status, anexos, erro_mensagem AS erro, criado_em FROM emails_enviados ORDER BY criado_em DESC LIMIT 200'),
     ])
+    const hoje = new Date().toISOString().slice(0, 10)
+    const contaPendente = (row: Record<string, unknown>) => {
+      const status = String(row.status ?? '').toUpperCase()
+      const vencida = Boolean(row.data_vencimento) && String(row.data_vencimento).slice(0, 10) < hoje
+      return status === 'EM_ABERTO' || status === 'PENDENTE' || status === 'ATRASADO' || status === 'VENCIDO' || (vencida && !['PAGO', 'CANCELADO', 'RECEBIDO'].includes(status))
+    }
     const totalAReceber = receber.reduce((total, row) => total + Number(row.valor_centavos || 0) / 100, 0)
-    const totalPago = pagar.filter((row) => row.status === 'PAGO').reduce((total, row) => total + Number(row.valor_centavos || 0) / 100, 0)
+    const totalPago = pagar.filter((row) => String(row.status).toUpperCase() === 'PAGO').reduce((total, row) => total + Number(row.valor_centavos || 0) / 100, 0)
     const movimentacoesComFornecedor = await enriquecerFornecedores(db, movimentacoes)
-    return c.json({ resumo: { total_a_receber: totalAReceber, total_pago: totalPago, pendencias: pagar.filter((row) => row.status === 'EM_ABERTO').length, pagamentos_confirmados: pagar.filter((row) => row.status === 'PAGO').length }, movimentacoes: movimentacoesComFornecedor.map((row) => ({ ...row, fornecedor: row.fornecedor_nome ?? row.fornecedor ?? null, valor: Number(row.valor_centavos || 0) / 100 })), emails_enviados: emailsEnviados })
+    const contasPendentes = pagar.filter(contaPendente)
+    const contasEmAberto = new Set(contasPendentes.flatMap((row) => [row.id, row.lancamentos_id].filter(Boolean).map(String)))
+    return c.json({ resumo: { total_a_receber: totalAReceber, total_pago: totalPago, pendencias: contasPendentes.length, pagamentos_confirmados: pagar.filter((row) => String(row.status).toUpperCase() === 'PAGO').length }, movimentacoes: movimentacoesComFornecedor.map((row) => ({ ...row, fornecedor: row.fornecedor_nome ?? row.fornecedor ?? null, valor: Number(row.valor_centavos || 0) / 100, pendencia: [row.id, row.origem_id].filter(Boolean).some((id) => contasEmAberto.has(String(id))) })), emails_enviados: emailsEnviados })
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -553,12 +561,24 @@ financeiroRoutes.get('/dashboard/financeiro/movimentacoes', async (c) => {
       listar(db, `SELECT r.id, NULL AS numero_voo, r.criado_em AS data, NULL AS numero_doc, 'Reembolso' AS descricao, r.valor_centavos, r.status, 'CLIENTE' AS tipo_caixa, 'reembolso' AS origem, COALESCE(cl.razao_social, hs.nome, r.cotista_id, 'Cotista não informado') AS cotista_nome FROM reembolsos r LEFT JOIN cotista_aeronave ca ON ca.id = r.cotista_id LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id ORDER BY date(r.criado_em) DESC, r.id DESC LIMIT 1000`),
       listar(db, `SELECT r.id, r.numero_voo, r.data_inicio AS data, r.numero_relatorio AS numero_doc, 'Relatório de despesa de viagem' AS descricao, r.total_valor AS valor, r.status, 'CLIENTE' AS tipo_caixa, 'relatorio_despesa_viagem' AS origem, CASE WHEN r.socio_id IS NOT NULL THEN COALESCE(NULLIF(hs.nome, ''), ca.codigo_cliente) ELSE COALESCE(NULLIF(cl.razao_social, ''), NULLIF(h.nome, ''), NULLIF(hs_holding.nome, ''), ca.codigo_cliente) END AS cotista_nome FROM relatorio_despesa_viagem r LEFT JOIN cliente cl ON cl.id = r.cliente_id LEFT JOIN holdings h ON h.id = r.cliente_id LEFT JOIN cotista_aeronave ca ON ca.aeronave_id = r.aeronave_id AND ((r.socio_id IS NOT NULL AND ca.socio_id = r.socio_id) OR (r.cliente_id IS NOT NULL AND (ca.cliente_id = r.cliente_id OR ca.id = r.cliente_id))) LEFT JOIN hold_socios hs ON hs.id = COALESCE(r.socio_id, ca.socio_id) LEFT JOIN holdings hs_holding ON hs_holding.id = hs.holding_id ORDER BY date(r.data_inicio) DESC, r.id DESC LIMIT 1000`),
     ])
-    const rows: Record<string, unknown>[] = [...abastecimentos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor_total || 0), numero_doc: row.numero_nf || row.numero_comanda || null })), ...recibos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor || 0) / 100 })), ...reembolsos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor_centavos || 0) / 100 })), ...relatorios.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor || 0 })))]
+    const rows: Record<string, unknown>[] = [
+      ...abastecimentos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor_total || 0), numero_doc: row.numero_nf || row.numero_comanda || null })),
+      ...recibos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor || 0) / 100 })),
+      ...reembolsos.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor_centavos || 0) / 100 })),
+      ...relatorios.map((row): Record<string, unknown> => ({ ...row, valor: Number(row.valor || 0) })),
+    ]
     const pastas = new Map<string, { id: string; nome: string; quantidade: number; voos: Map<string, { numero_voo: string; quantidade: number; despesas: Record<string, unknown>[] }> }>()
     for (const row of rows) {
-      const nome = String(row.cotista_nome || 'Cotista não informado').trim() || 'Cotista não informado'; const numeroVoo = String(row.numero_voo || 'Sem número de voo').trim() || 'Sem número de voo'; const pastaId = nome.toLocaleLowerCase()
-      let pasta = pastas.get(pastaId); if (!pasta) { pasta = { id: pastaId, nome, quantidade: 0, voos: new Map() }; pastas.set(pastaId, pasta) }
-      let voo = pasta.voos.get(numeroVoo); if (!voo) { voo = { numero_voo: numeroVoo, quantidade: 0, despesas: [] }; pasta.voos.set(numeroVoo, voo) }
+      // A tela representa apenas despesas vinculadas a um voo. Registros sem
+      // número de voo não podem aparecer como uma pasta/voo artificial.
+      const numeroVoo = String(row.numero_voo || '').trim()
+      if (!numeroVoo) continue
+      const nome = String(row.cotista_nome || 'Cotista não informado').trim() || 'Cotista não informado'
+      const pastaId = nome.toLocaleLowerCase()
+      let pasta = pastas.get(pastaId)
+      if (!pasta) { pasta = { id: pastaId, nome, quantidade: 0, voos: new Map() }; pastas.set(pastaId, pasta) }
+      let voo = pasta.voos.get(numeroVoo)
+      if (!voo) { voo = { numero_voo: numeroVoo, quantidade: 0, despesas: [] }; pasta.voos.set(numeroVoo, voo) }
       voo.despesas.push({ ...row, email: 'NÃO INFORMADO', valor: Number(row.valor || 0), data: row.data || null }); voo.quantidade += 1; pasta.quantidade += 1
     }
     return c.json({ pastas: [...pastas.values()].map((pasta) => ({ ...pasta, voos: [...pasta.voos.values()] })) })
@@ -635,17 +655,102 @@ financeiroRoutes.post('/reembolsos', async (c) => {
   }
 })
 
-const DEMONSTRATIVO_IA_PROMPT = `Você é um extrator de dados de demonstrativos de tarifas aeronáuticas brasileiros (INFRAERO, DECEA e tarifas de pouso). Leia o arquivo enviado e devolva EXCLUSIVAMENTE JSON válido, sem markdown, no formato:
+const DEMONSTRATIVO_IA_PROMPT = (tipo: string) => `Você é um EXTRATOR DE DADOS estritamente fiel de demonstrativos/faturas de tarifas aeroportuárias e de navegação aérea brasileiras.
+O campo TIPO DO DEMONSTRATIVO informado pelo usuário é ${tipo}. Antes de extrair as linhas, confira o cabeçalho/layout: "DEMONSTRATIVO DAS TARIFAS A COBRAR", colunas POU/PER/PAN/PAT e emissor INFRAERO indicam TARIFA DE POUSO (INFRAERO); documento emitido pelo DECEA, com TAN/TAT, plano de voo IFR e rota origem-destino, indica TARIFA DECEA. Não confunda o aeroporto emissor com uma rota DECEA.
+
+Sua única tarefa é TRANSCREVER o que está escrito no documento. Você NÃO conhece a operação da aeronave, não sabe quem é o cotista/dono do avião, e não sabe a rota que o avião fez. NÃO adivinhe, NÃO infira, NÃO complete nada que não esteja literalmente no documento.
+
+FORMATO DE SAÍDA — responda EXCLUSIVAMENTE com este JSON, sem markdown, sem comentários, sem texto fora do JSON:
 {
   "numero_documento": string|null,
   "competencia": string|null,
   "data_faturamento": string|null,
   "aeronave_matricula": string|null,
+  "tipo_detectado": "INFRAERO"|"DECEA"|"POUSO"|null,
   "cliente_nome": string|null,
   "valor_total": number|null,
-  "itens": [{ "data": "DD/MM/AAAA", "hora": string|null, "operacao": string|null, "origem": string|null, "destino": string|null, "matricula": string|null, "valor": number }]
+  "itens": [
+    {
+      "data": "YYYY-MM-DD",
+      "hora": "HH:MM"|null,
+      "operacao": string|null,
+      "origem": string|null,
+      "destino": string|null,
+      "matricula": string|null,
+      "valor": number
+    }
+  ]
 }
-Regras: converta valores brasileiros para número decimal; inclua todas as operações na ordem original; use null quando não houver o campo; itens nunca pode ser null.`
+
+REGRAS OBRIGATÓRIAS POR ITEM:
+1. "data": data do evento da tarifa, SEMPRE em YYYY-MM-DD (converta DD/MM/AAAA quando for o caso).
+2. "hora": horário exato no formato HH:MM (24h). Se não houver horário no documento, use null — nunca invente.
+3. Para INFRAERO/POUSO: "operacao" é o código ICAO de 4 letras do aeródromo onde ocorreu o pouso (ex: SBCY, SBGL), repetido em cada item quando o documento não variar o aeroporto; deixe origem e destino null.
+4. Para DECEA: quando a linha trouxer uma rota/plano de voo, preencha "origem" e "destino" com os códigos ICAO de 4 letras. Não force "operacao" nem descarte a rota; se houver apenas um aeródromo/evento, use "operacao" e deixe origem/destino null.
+5. "valor": número decimal puro (float), sem "R$", sem separador de milhar, com ponto decimal. Ex: "R$ 1.234,56" vira 1234.56.
+6. "matricula": matrícula da aeronave se aparecer na linha; senão null.
+
+REGRAS DE NEGÓCIO — OBRIGATÓRIAS:
+- INFRAERO (tarifa de pouso) é cobrada por POUSO, no aeródromo onde o avião ATERRISSOU. O documento NÃO mostra de onde o avião veio nem para onde foi.
+- Para DECEA, a ligação com o trecho voado usa origem e destino extraídos do plano de voo e depois é confirmada pelo diário de bordo. Para INFRAERO/POUSO, a ligação usa o aeródromo de chegada e o horário do pouso.
+- NUNCA escreva nome de cotista, cliente, sócio ou proprietário nos itens, mesmo que veja anotação manuscrita no documento sugerindo isso. Ignore.
+- NUNCA invente, arredonde ou corrija valores — apenas converta o formato numérico do que está escrito.
+- "itens" nunca pode ser null/omitido; se não houver linha legível, retorne [].
+- Inclua TODAS as linhas do documento, na ordem em que aparecem.
+- Campo ausente no documento → null (nunca repita o rótulo da coluna como valor).
+- Se o cabeçalho/layout contradizer o tipo informado, informe o tipo real em "tipo_detectado", mas continue extraindo fielmente as linhas. Nesse caso, nunca fabrique origem/destino.`
+
+type ItemExtraidoBruto = Record<string, unknown>
+
+function paraNumeroDemonstrativo(valor: unknown): number | null {
+  if (typeof valor === 'number' && Number.isFinite(valor)) return valor
+  if (typeof valor !== 'string') return null
+  const limpo = valor
+    .replace(/R\$\s?/gi, '')
+    .trim()
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.')
+  const numero = Number(limpo)
+  return Number.isFinite(numero) ? numero : null
+}
+
+function paraDataIsoDemonstrativo(valor: unknown): string {
+  const texto = String(valor ?? '').trim()
+  if (!texto) return ''
+  const brasileira = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  if (brasileira) return `${brasileira[3]}-${brasileira[2]}-${brasileira[1]}`
+  const iso = texto.match(/^\d{4}-\d{2}-\d{2}/)
+  return iso ? iso[0] : texto
+}
+
+function normalizarItensDemonstrativo(dados: Record<string, unknown>): Record<string, unknown> {
+  const itensBrutos = Array.isArray(dados.itens) ? (dados.itens as ItemExtraidoBruto[]) : []
+  // Nos demonstrativos INFRAERO a matrícula normalmente aparece apenas no
+  // cabeçalho (como PRMDL no demonstrativo mensal), não em cada operação.
+  // Propagar esse contexto para cada item evita que o cruzamento dependa de
+  // uma repetição que não existe no documento.
+  const matriculaCabecalho = dados.aeronave_matricula ? String(dados.aeronave_matricula).trim().toUpperCase() : null
+  const itens = itensBrutos.map((item) => ({
+    ...item,
+    data: paraDataIsoDemonstrativo(item.data),
+    hora: item.hora ? String(item.hora).slice(0, 5) : null,
+    operacao: item.operacao ? String(item.operacao).trim().toUpperCase() : null,
+    origem: item.origem ? String(item.origem).trim().toUpperCase() : null,
+    destino: item.destino ? String(item.destino).trim().toUpperCase() : null,
+    matricula: item.matricula ? String(item.matricula).trim().toUpperCase() : matriculaCabecalho,
+    valor: paraNumeroDemonstrativo(item.valor) ?? 0,
+  }))
+  const somaItens = Math.round(itens.reduce((total, item) => total + (Number(item.valor) || 0), 0) * 100) / 100
+  const valorTotal = paraNumeroDemonstrativo(dados.valor_total)
+  const precisaRevisaoManual = valorTotal !== null && Math.abs(somaItens - valorTotal) > 0.01
+  return {
+    ...dados,
+    tipo_detectado: dados.tipo_detectado ? String(dados.tipo_detectado).trim().toUpperCase() : null,
+    valor_total: valorTotal,
+    itens,
+    _meta: { soma_itens: somaItens, precisa_revisao_manual: precisaRevisaoManual },
+  }
+}
 
 function normalizarBase64(value: unknown): string {
   return String(value ?? '').replace(/^data:[^;]+;base64,/i, '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/')
@@ -662,23 +767,26 @@ financeiroRoutes.post('/recibos/leitura-demonstrativo', async (c) => {
     const payload = { imageBase64: base64, mimeType, tipo }
     const resposta = c.env.GEMINI_API_KEY
       ? await (async () => {
-          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(c.env.GEMINI_API_KEY as string)}`
+          const modelos = ['gemini-flash-latest', 'gemini-3.6-flash']
           let aiRes: Response | null = null
-          let attempts = 0
           const maxAttempts = 3
-          while (attempts < maxAttempts) {
-            aiRes = await fetch(apiUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                systemInstruction: { parts: [{ text: DEMONSTRATIVO_IA_PROMPT }] },
-                contents: [{ role: 'user', parts: [{ text: `Tipo do demonstrativo: ${tipo}. Extraia os dados para revisão manual; não crie nem altere registros.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-                generationConfig: { response_mime_type: 'application/json' },
-              }),
-            })
-            if (aiRes.status !== 503) break
-            attempts++
-            if (attempts < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 2000 * attempts))
+          for (const modelo of modelos) {
+            let attempts = 0
+            while (attempts < maxAttempts) {
+              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(c.env.GEMINI_API_KEY as string)}`
+              aiRes = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  systemInstruction: { parts: [{ text: DEMONSTRATIVO_IA_PROMPT(tipo) }] },
+                  contents: [{ role: 'user', parts: [{ text: `Tipo do demonstrativo: ${tipo}. Extraia os dados para revisão manual; não crie nem altere registros.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+                  generationConfig: { response_mime_type: 'application/json' },
+                }),
+              })
+              if (aiRes.status !== 503) return aiRes
+              attempts++
+              if (attempts < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 2000 * attempts))
+            }
           }
           return aiRes
         })()
@@ -692,11 +800,11 @@ financeiroRoutes.post('/recibos/leitura-demonstrativo', async (c) => {
     if (!resposta) return c.json({ error: 'servico_de_leitura_ia_nao_configurado' }, 503)
     if (!resposta.ok) return c.json({ error: 'falha_na_leitura_por_ia', details: await resposta.text() }, 502)
     const json = await resposta.json<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; dados_extraidos?: Record<string, unknown> }>()
-    if (json.dados_extraidos) return c.json({ sucesso: true, persistido: false, tipo, dados_extraidos: json.dados_extraidos })
+    if (json.dados_extraidos) return c.json({ sucesso: true, persistido: false, tipo, dados_extraidos: normalizarItensDemonstrativo(json.dados_extraidos) })
     const texto = String(json.candidates?.[0]?.content?.parts?.[0]?.text || '{}').replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
     let dados: Record<string, unknown>
     try { dados = JSON.parse(texto) as Record<string, unknown> } catch { return c.json({ error: 'formato_invalido_retornado_pela_ia' }, 422) }
-    return c.json({ sucesso: true, persistido: false, tipo, dados_extraidos: dados })
+    return c.json({ sucesso: true, persistido: false, tipo, dados_extraidos: normalizarItensDemonstrativo(dados) })
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -765,6 +873,10 @@ financeiroRoutes.get('/recibos', async (c) => {
   const recibos = result.results ?? []
   const cotistaIds = [...new Set(recibos.filter((row) => row.pagador_tipo === 'cotista_aeronave').map((row) => String(row.pagador_id ?? '')).filter(Boolean))]
   const reciboIds = recibos.map((row) => String(row.id ?? '')).filter(Boolean)
+  const contasProgramadas = reciboIds.length
+    ? await listar(db, `SELECT c.id AS conta_pagar_id, l.origem_id AS recibo_id FROM contas_apagar c INNER JOIN lancamentos l ON l.id = c.lancamentos_id WHERE c.status <> 'CANCELADO' AND l.origem_tipo IN ('RECIBO', 'RECIBO_REEMBOLSO') AND l.origem_id IN (${reciboIds.map(() => '?').join(', ')})`, ...reciboIds)
+    : []
+  const contaProgramadaPorRecibo = new Map(contasProgramadas.map((row) => [String(row.recibo_id), String(row.conta_pagar_id)]))
   const cotistas = cotistaIds.length
     ? await listar(db, `SELECT ca.id, ca.cliente_id, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente) AS nome, COALESCE(cl.cnpj, hs.cpf) AS documento, COALESCE(cl.endereco, hs.endereco) AS endereco, COALESCE(cl.cidade, hs.cidade) AS cidade, COALESCE(cl.uf, hs.uf) AS uf FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id WHERE ca.id IN (${cotistaIds.map(() => '?').join(', ')}) OR ca.cliente_id IN (${cotistaIds.map(() => '?').join(', ')})`, ...cotistaIds, ...cotistaIds)
     : []
@@ -793,6 +905,8 @@ financeiroRoutes.get('/recibos', async (c) => {
       cidade_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.cidade ?? recibo.cidade_pagador ?? null : recibo.cidade_pagador ?? null,
       uf_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.uf ?? recibo.uf_pagador ?? null : recibo.uf_pagador ?? null,
       rateio_linhas: rateiosPorRecibo.get(String(recibo.id)) ?? [],
+      conta_pagar_id: contaProgramadaPorRecibo.get(String(recibo.id)) ?? null,
+      despesa_programada: contaProgramadaPorRecibo.has(String(recibo.id)),
     }
   }) })
 })
@@ -1045,6 +1159,29 @@ financeiroRoutes.post('/recibos/anexos', async (c) => {
   } catch (error) { return errorResponse(c, error) }
 })
 
+financeiroRoutes.post('/recibos/demonstrativo', async (c) => {
+  try {
+    await validateFinanceSchema(c.env.SHARE_DB)
+    const bucket = storage(c)
+    if (!bucket) return c.json({ error: 'storage_nao_configurado' }, 503)
+    const form = await c.req.parseBody()
+    const arquivo = form.arquivo
+    if (!(arquivo instanceof File)) return c.json({ error: 'arquivo_obrigatorio' }, 400)
+    if (arquivo.size <= 0 || (arquivo.type && arquivo.type !== 'application/pdf')) return c.json({ error: 'arquivo_pdf_invalido' }, 400)
+    const reciboId = String(form.recibo_id || '').trim() || null
+    if (reciboId) {
+      const recibo = await c.env.SHARE_DB.prepare('SELECT id FROM recibos WHERE id = ?').bind(reciboId).first<{ id: string }>()
+      if (!recibo) return c.json({ error: 'recibo_nao_encontrado' }, 404)
+    }
+    const id = crypto.randomUUID()
+    const safeName = (arquivo.name || 'demonstrativo-rateado.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')
+    const key = `share/recibos/demonstrativos/${reciboId || 'avulso'}-${id}-${safeName}`
+    await bucket.put(key, await arquivo.arrayBuffer(), { httpMetadata: { contentType: 'application/pdf' } })
+    await c.env.SHARE_DB.prepare('INSERT INTO recibo_anexos (id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_arquivo, enviado_por, recibo_id, finalidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(id, arquivo.name || safeName, key, 'application/pdf', arquivo.size, c.get('userId') || null, reciboId, 'DEMONSTRATIVO').run()
+    return c.json({ id, recibo_id: reciboId, caminho_arquivo: key, url: `/api/financeiro/recibos/anexos/${id}/arquivo`, nome_arquivo: arquivo.name || safeName, tipo_arquivo: 'application/pdf', tamanho_arquivo: arquivo.size }, 201)
+  } catch (error) { return errorResponse(c, error) }
+})
+
 financeiroRoutes.post('/recibos/:id/pdf', async (c) => {
   try {
     await validateFinanceSchema(c.env.SHARE_DB)
@@ -1057,13 +1194,19 @@ financeiroRoutes.post('/recibos/:id/pdf', async (c) => {
     const reciboId = c.req.param('id')
     const recibo = await c.env.SHARE_DB.prepare('SELECT status FROM recibos WHERE id = ?').bind(reciboId).first<{ status: string }>()
     if (!recibo) return c.json({ error: 'recibo_nao_encontrado' }, 404)
-    if (!['CRIADO', 'PDF_PENDENTE', 'ANEXO_PENDENTE', 'ERRO_ANEXO', 'ERRO_PDF'].includes(String(recibo.status).toUpperCase())) return c.json({ error: 'recibo_nao_aguarda_pdf', status_atual: recibo.status }, 409)
+    // Permite regenerar o PDF de um recibo já emitido sem criar novo recibo.
+    if (!['CRIADO', 'PDF_PENDENTE', 'ANEXO_PENDENTE', 'ERRO_ANEXO', 'ERRO_PDF', 'EMITIDO'].includes(String(recibo.status).toUpperCase())) return c.json({ error: 'recibo_nao_aguarda_pdf', status_atual: recibo.status }, 409)
     const bytes = new Uint8Array(await arquivo.arrayBuffer())
     if (bytes.length < 5 || String.fromCharCode(...bytes.slice(0, 5)) !== '%PDF-') return c.json({ error: 'conteudo_pdf_invalido' }, 400)
-    const anexoId = crypto.randomUUID()
+    const anexoExistente = await c.env.SHARE_DB.prepare("SELECT id FROM recibo_anexos WHERE recibo_id = ? AND (UPPER(COALESCE(finalidade, '')) = 'PDF' OR tipo_arquivo = 'application/pdf') ORDER BY rowid DESC LIMIT 1").bind(reciboId).first<{ id: string }>()
+    const anexoId = anexoExistente?.id || crypto.randomUUID()
     const key = `share/recibos/recibos-gerados/${reciboId}.pdf`
     await bucket.put(key, bytes, { httpMetadata: { contentType: 'application/pdf' } })
-    await c.env.SHARE_DB.prepare('INSERT INTO recibo_anexos (id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_arquivo, enviado_por, recibo_id, finalidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(anexoId, arquivo.name || `${reciboId}.pdf`, key, 'application/pdf', arquivo.size, c.get('userId') || null, reciboId, 'PDF').run()
+    if (anexoExistente) {
+      await c.env.SHARE_DB.prepare('UPDATE recibo_anexos SET nome_arquivo = ?, caminho_arquivo = ?, tipo_arquivo = ?, tamanho_arquivo = ?, enviado_por = ?, finalidade = ? WHERE id = ?').bind(arquivo.name || `${reciboId}.pdf`, key, 'application/pdf', arquivo.size, c.get('userId') || null, 'PDF', anexoId).run()
+    } else {
+      await c.env.SHARE_DB.prepare('INSERT INTO recibo_anexos (id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_arquivo, enviado_por, recibo_id, finalidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(anexoId, arquivo.name || `${reciboId}.pdf`, key, 'application/pdf', arquivo.size, c.get('userId') || null, reciboId, 'PDF').run()
+    }
     const pdfUrl = `/api/financeiro/recibos/anexos/${anexoId}/arquivo`
     await c.env.SHARE_DB.prepare('UPDATE recibos SET url_recibo = ? WHERE id = ?').bind(pdfUrl, reciboId).run()
     await c.env.SHARE_DB.prepare("UPDATE recibos SET status = 'EMITIDO' WHERE id = ?").bind(reciboId).run()

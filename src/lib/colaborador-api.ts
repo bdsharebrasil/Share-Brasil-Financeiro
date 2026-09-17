@@ -387,7 +387,9 @@ export type SolicitacaoVooInterna = {
   perna_atual_horario_pouso?: string | null;
   perna_atual_horario_corte?: string | null;
   perna_atual_status?: string | null;
-};
+  jornadas_encerradas?: number | string;
+  jornadas_abertas?: number | string;
+}
 
 export type AeronaveAgendamento = {
   id: string;
@@ -1021,6 +1023,7 @@ export function buscarNumerosVooAeronave(aeronaveId: string) {
 }
 
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown> & { tripulantes?: Array<{ tripulante_id: string; funcao: "PIC" | "SIC" }> }) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
+export function finalizarAgendamento(id: string) { return colaboradorRequest<{ success: boolean; status: string; id: string; numero_voo: string | null }>(`/api/interno/agendamento/${encodeURIComponent(id)}/finalizar`, { method: "POST" }); }
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function buscarLimitesJornada(id: string, corteFinal?: string) { const query = corteFinal ? `?corte_final=${encodeURIComponent(corteFinal)}` : ""; return colaboradorRequest<LimitesJornada>(`/api/interno/jornadas/${encodeURIComponent(id)}/limites${query}`); }
 export function encerrarJornadaVoo(id: string, payload: { horario_corte_final: string; observacoes?: string; confirmar_excedente?: boolean }) { return atualizarJornadaVoo(id, { ...payload, status: "encerrada" }); }

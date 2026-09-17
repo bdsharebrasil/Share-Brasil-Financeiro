@@ -23,6 +23,7 @@ interface TabelaLancamentosProps {
   filtros: FiltrosTabela;
   onFiltrar: (f: FiltrosTabela) => void;
   onDarBaixa: (lancamento: LancamentoTabela) => void;
+  onAbrirDetalhe?: (lancamento: LancamentoTabela) => void;
   acoes?: React.ReactNode;
   titulo?: string;
   carregando?: boolean;
@@ -35,6 +36,7 @@ export function TabelaLancamentos({
   filtros,
   onFiltrar,
   onDarBaixa,
+  onAbrirDetalhe,
   acoes,
   titulo = "Tabela de lançamentos",
   carregando = false,
@@ -113,7 +115,11 @@ export function TabelaLancamentos({
               {itens.map((l) => {
                 const pendente = PENDENTES.includes(l.status);
                 return (
-                  <TableRow key={l.id}>
+                  <TableRow
+                    key={l.id}
+                    onClick={onAbrirDetalhe ? () => onAbrirDetalhe(l) : undefined}
+                    className={onAbrirDetalhe ? "cursor-pointer" : undefined}
+                  >
                     <TableCell className="max-w-[280px]">
                       <p className="truncate text-sm font-medium text-card-foreground">{l.descricao}</p>
                       <p className="truncate font-mono text-xs text-muted-foreground">
@@ -145,14 +151,35 @@ export function TabelaLancamentos({
                       <StatusBadge status={l.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {pendente ? (
-                        <Button size="sm" variant="outline" onClick={() => onDarBaixa(l)}>
-                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                          Dar Baixa
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Liquidado</span>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        {onAbrirDetalhe && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAbrirDetalhe(l);
+                            }}
+                          >
+                            Detalhes
+                          </Button>
+                        )}
+                        {pendente ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDarBaixa(l);
+                            }}
+                          >
+                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                            Dar Baixa
+                          </Button>
+                        ) : (
+                          <span className="self-center text-xs text-muted-foreground">Liquidado</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

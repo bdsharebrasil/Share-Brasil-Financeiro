@@ -5,6 +5,7 @@ import type { ContaAPagar } from "./tipos";
 import { KpiCard } from "@/components/financeiro-design/KpiCard";
 import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
+import { DetalheContaAPagar } from "./DetalheContaAPagar";
 import {
   type FiltrosTabela,
   type LancamentoTabela,
@@ -21,6 +22,8 @@ export function AbaContasAPagar() {
   const { contas, carregando, erro, darBaixa } = useContasAPagar({});
   const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
   const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+  const contaDetalhe = useMemo(() => contas.find((c) => c.id === detalheId) || null, [contas, detalheId]);
 
   const itens = useMemo(() => contas.map(mapearContaAPagar), [contas]);
 
@@ -102,6 +105,7 @@ export function AbaContasAPagar() {
         filtros={filtros}
         onFiltrar={setFiltros}
         onDarBaixa={setBaixaAlvo}
+        onAbrirDetalhe={(l) => setDetalheId(l.id)}
         carregando={carregando}
       />
 
@@ -109,6 +113,12 @@ export function AbaContasAPagar() {
         lancamento={baixaAlvo}
         onFechar={() => setBaixaAlvo(null)}
         onConfirmar={confirmarBaixa}
+      />
+
+      <DetalheContaAPagar
+        conta={contaDetalhe}
+        onFechar={() => setDetalheId(null)}
+        onBaixar={darBaixa}
       />
     </div>
   );

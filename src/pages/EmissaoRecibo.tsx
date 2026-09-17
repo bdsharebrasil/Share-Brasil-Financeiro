@@ -72,7 +72,7 @@ type Formulario = {
   aeronave_id: string;
 
   // pagador (coluna real da tabela)
-  pagador_tipo: "empresa" | "cotista_aeronave";
+  pagador_tipo: "empresa" | "cotista_aeronave" | "cliente";
   pagador_id: string;
 
   // recebedor (única coluna real é recebedor_nome)
@@ -206,7 +206,7 @@ function tipoCaixaPara(form: Formulario): "share" | "cliente" | "holding" {
   if (form.tipo === "recibo_colaborador") return "share";
   if (form.tipo === "recibo_reembolso") return "cliente";
   // recibo_pagamento: segue quem está pagando
-  return form.pagador_tipo === "cotista_aeronave" ? "cliente" : "share";
+  return form.pagador_tipo === "cotista_aeronave" || form.pagador_tipo === "cliente" ? "cliente" : "share";
 }
 
 function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
@@ -404,6 +404,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const pagadorSelecionado = opcoes.cotistas.find(
     (item) => item.id === form.pagador_id,
   );
+  const clientePagadorSelecionado = opcoes.clientes.find(
+    (item) => item.id === form.pagador_id,
+  );
   const categoriaClienteSelecionada = opcoes.categorias_cliente.find(
     (item) => item.id === form.categoria_id,
   );
@@ -450,6 +453,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     alterar("pagador_id", id);
   };
 
+  const selecionarClienteDevedor = (id: string) => {
+    alterar("pagador_tipo", "cliente");
+    alterar("pagador_id", id);
+  };
+
   const categoriaValida =
     form.tipo === "recibo_reembolso"
       ? Boolean(form.categoria_id && form.categoria_nome)
@@ -482,9 +490,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             (form.pagador_tipo === "empresa" || form.pagador_id)
           : form.tipo === "recibo_reembolso"
             ? Boolean(
-                form.aeronave_id &&
-                  form.pagador_id &&
-                  form.pagador_tipo === "cotista_aeronave",
+                form.pagador_id &&
+                  (form.pagador_tipo === "cotista_aeronave" ||
+                    form.pagador_tipo === "cliente"),
               )
             : false),
   );
@@ -602,14 +610,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             }
           : form.tipo === "recibo_reembolso"
             ? {
-                pagador_tipo: "cotista_aeronave" as const,
+                pagador_tipo: form.pagador_tipo as "cotista_aeronave" | "cliente",
                 pagador_id: form.pagador_id,
-                nome_pagador: pagadorSelecionado?.nome || "",
+                nome_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.razao_social || "" : pagadorSelecionado?.nome || "",
                 documento_pagador:
-                  pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
-                endereco_pagador: pagadorSelecionado?.endereco || "",
-                cidade_pagador: pagadorSelecionado?.cidade || "",
-                uf_pagador: pagadorSelecionado?.uf || "",
+                  form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cnpj || "" : pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
+                endereco_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.endereco || "" : pagadorSelecionado?.endereco || "",
+                cidade_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cidade || "" : pagadorSelecionado?.cidade || "",
+                uf_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.uf || "" : pagadorSelecionado?.uf || "",
               }
             : form.pagador_tipo === "empresa"
               ? {
@@ -622,14 +630,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   uf_pagador: SHARE_UF,
                 }
               : {
-                  pagador_tipo: "cotista_aeronave" as const,
+                  pagador_tipo: form.pagador_tipo as "cotista_aeronave" | "cliente",
                   pagador_id: form.pagador_id,
-                  nome_pagador: pagadorSelecionado?.nome || "",
+                  nome_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.razao_social || "" : pagadorSelecionado?.nome || "",
                   documento_pagador:
-                    pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
-                  endereco_pagador: pagadorSelecionado?.endereco || "",
-                  cidade_pagador: pagadorSelecionado?.cidade || "",
-                  uf_pagador: pagadorSelecionado?.uf || "",
+                    form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cnpj || "" : pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "",
+                  endereco_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.endereco || "" : pagadorSelecionado?.endereco || "",
+                  cidade_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cidade || "" : pagadorSelecionado?.cidade || "",
+                  uf_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.uf || "" : pagadorSelecionado?.uf || "",
                 };
 
       // Recebedor conforme a regra fixa de cada tipo. Só existe a coluna
@@ -655,13 +663,15 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_colaborador" ? form.colaborador_id : null,
         aeronave_id:
           form.tipo === "recibo_reembolso"
-            ? form.aeronave_id
+            ? form.aeronave_id || null
             : form.tipo === "recibo_colaborador" &&
                 form.natureza_despesa === "aeronave"
               ? form.aeronave_id
               : null,
         rateado: false as const,
         ...dadosPagador,
+        cliente_id: form.pagador_tipo === "cliente" ? form.pagador_id : null,
+        codigo_cliente: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.codigo_cliente || null : null,
         valor_centavos: valorReciboCentavos,
         descricao: form.descricao_servico.trim(),
         data_emissao: form.data_emissao,
@@ -1048,7 +1058,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         despesa foi antecipada por ela.
                       </p>
                     </div>
-                    <Campo label="Aeronave da despesa" obrigatorio>
+                    <Campo label="Aeronave da despesa">
                       <SearchableCombobox
                         items={opcoes.aeronaves.map((aeronave) => ({
                           id: aeronave.id,
@@ -1070,24 +1080,26 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       obrigatorio
                     >
                       <SearchableCombobox
-                        items={(form.tipo === "recibo_reembolso"
-                          ? opcoes.cotistas
-                          : cotistasDaAeronave
-                        ).map((cotista) => ({
-                          id: cotista.id,
-                          label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
+                        items={[
+                          ...(form.aeronave_id ? cotistasDaAeronave : opcoes.cotistas),
+                          ...opcoes.clientes,
+                        ].map((pagador) => ({
+                          id: pagador.id,
+                          label: "razao_social" in pagador
+                            ? `${pagador.razao_social}${pagador.codigo_cliente ? ` · ${pagador.codigo_cliente}` : ""} · Cliente`
+                            : `${pagador.nome}${pagador.codigo_cliente ? ` · ${pagador.codigo_cliente}` : ""}`,
                         }))}
                         value={form.pagador_id}
-                        onChange={selecionarCotistaDevedor}
+                        onChange={(id) => opcoes.clientes.some((cliente) => cliente.id === id)
+                          ? selecionarClienteDevedor(id)
+                          : selecionarCotistaDevedor(id)}
                         placeholder={
-                          form.tipo === "recibo_reembolso" || form.aeronave_id
-                            ? "Selecione o cotista"
-                            : "Selecione a aeronave primeiro"
+                          "Selecione cliente ou cotista"
                         }
                         searchPlaceholder="Buscar cotista..."
                         emptyMessage={
                           form.tipo === "recibo_reembolso"
-                            ? "Nenhum cotista encontrado."
+                            ? "Nenhum cliente ou cotista encontrado."
                             : "Nenhum cotista encontrado para esta aeronave."
                         }
                       />
@@ -1098,8 +1110,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                           DADOS DO PAGADOR
                         </p>
                         <p className="mt-1 text-[11px] font-semibold">
-                          {pagadorSelecionado?.nome || "Cotista"} ·{" "}
-                          {pagadorSelecionado?.cnpj ||
+                          {form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.razao_social : pagadorSelecionado?.nome || "Pagador"} ·{" "}
+                          {form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.cnpj : pagadorSelecionado?.cnpj ||
                             pagadorSelecionado?.cpf ||
                             "Documento não informado"}
                         </p>
@@ -1155,6 +1167,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             id: cotista.id,
                             label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
                           })),
+                          ...opcoes.clientes.map((cliente) => ({
+                            id: cliente.id,
+                            label: `${cliente.razao_social}${cliente.codigo_cliente ? ` · ${cliente.codigo_cliente}` : ""} · Cliente`,
+                          })),
                         ]}
                         value={
                           form.pagador_tipo === "empresa"
@@ -1166,13 +1182,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             alterar("pagador_tipo", "empresa");
                             alterar("pagador_id", "");
                           } else {
-                            alterar("pagador_tipo", "cotista_aeronave");
+                            alterar("pagador_tipo", opcoes.clientes.some((cliente) => cliente.id === id) ? "cliente" : "cotista_aeronave");
                             alterar("pagador_id", id);
                           }
                         }}
                         placeholder="Selecione o pagador"
-                        searchPlaceholder="Buscar cotista..."
-                        emptyMessage="Nenhum cotista encontrado."
+                        searchPlaceholder="Buscar cliente ou cotista..."
+                        emptyMessage="Nenhum cliente ou cotista encontrado."
                       />
                     </Campo>
                     <div className="rounded-sm border border-primary/30 bg-primary/[.06] p-3">
@@ -1182,6 +1198,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       <p className="mt-1 text-[11px] font-semibold">
                         {form.pagador_tipo === "cotista_aeronave"
                           ? `${pagadorSelecionado?.nome || "Cotista"} · ${pagadorSelecionado?.cnpj || pagadorSelecionado?.cpf || "Documento não informado"}`
+                          : form.pagador_tipo === "cliente"
+                            ? `${clientePagadorSelecionado?.razao_social || "Cliente"} · ${clientePagadorSelecionado?.cnpj || "Documento não informado"}`
                           : "Share Brasil"}
                       </p>
                     </div>

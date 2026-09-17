@@ -1093,7 +1093,7 @@ export function buscarProgramacaoReembolsoRelatorio(id: string) { return colabor
 export function enviarDespesaAoCliente(id: string, payload: { data_vencimento: string; periodicidade?: string; tipo_rateio?: string; email_enviado_id?: string }) { return colaboradorRequest<{ success: boolean; status: string; message: string }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-cliente`, { method: "POST", body: JSON.stringify(payload) }); }
 
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
-export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null };
+export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null; codigo_cliente?: string | null };
 export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
 export type RecebedorRecibo = { id: string; nome: string; nome_completo?: string | null; cpf: string | null; email: string | null; telefone: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
@@ -1109,7 +1109,7 @@ export type Recibo = {
   numero_recibo: string;
   tipo_recibo: TipoRecibo;
   beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor";
-  pagador_tipo: "empresa" | "cotista_aeronave";
+  pagador_tipo: "empresa" | "cotista_aeronave" | "cliente";
   pagador_id: string;
   cliente_id?: string | null;
   colaborador_id: string | null;
@@ -1186,7 +1186,8 @@ export type CriarReciboPayload = {
   categoria_movimentacao_id?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;
-  pagador_tipo?: "empresa" | "cotista_aeronave";
+  codigo_cliente?: string | null;
+  pagador_tipo?: "empresa" | "cotista_aeronave" | "cliente";
   pagador_id?: string | null;
   periodicidade?: string | null;
   tipo_rateio?: string | null;

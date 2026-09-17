@@ -8,6 +8,7 @@ import {
   excluirAerodromoCadastro,
   type AerodromoCadastro,
 } from "@/lib/colaborador-api";
+import { normalizarCoordenadas } from "@/lib/coordenadas";
 
 const input = "h-9 w-full rounded-lg border border-border bg-card px-3 text-xs outline-none focus:border-primary/60";
 const vazio = { nome: "", designativo_icao: "", coordenadas: "" };
@@ -56,7 +57,8 @@ export default function Aerodromos({ aoVoltar }: { aoVoltar?: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      const payload = { nome, designativo_icao, coordenadas: form.coordenadas.trim() || null };
+      const coordenadas = form.coordenadas.trim() ? normalizarCoordenadas(form.coordenadas) : null;
+      const payload = { nome, designativo_icao, coordenadas };
       if (edit) await atualizarAerodromoCadastro(edit.id, payload);
       else await criarAerodromoCadastro(payload);
       cancelar();

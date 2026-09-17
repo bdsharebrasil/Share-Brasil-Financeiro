@@ -3738,6 +3738,10 @@ app.patch('/api/interno/jornadas/:jornadaId/pernas/:pernaId', async c => {
   const perna = await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE id = ? AND jornada_id = ?').bind(c.req.param('pernaId'), c.req.param('jornadaId')).first<any>()
   if (!perna) return c.notFound()
   const campos: Record<string, string> = { origem: 'origem', destino: 'destino', horario_ac: 'horario_ac', horario_dep: 'horario_dep', horario_pouso: 'horario_pouso', horario_corte: 'horario_corte' }
+  const aliases: Record<string, string> = { tempo_ac: 'horario_ac', tempo_dep: 'horario_dep', tempo_pou: 'horario_pouso', tempo_cor: 'horario_corte' }
+  for (const [alias, campo] of Object.entries(aliases)) if (body[alias] !== undefined && body[campo] === undefined) body[campo] = body[alias]
+  const aliases: Record<string, string> = { tempo_ac: 'horario_ac', tempo_dep: 'horario_dep', tempo_pou: 'horario_pouso', tempo_cor: 'horario_corte' }
+  for (const [alias, campo] of Object.entries(aliases)) if (body[alias] !== undefined && body[campo] === undefined) body[campo] = body[alias]
   const updates = Object.entries(campos).filter(([campo]) => body[campo] !== undefined)
   if (!updates.length) return c.json({ id: perna.id, status: perna.status })
   const valores = updates.map(([campo]) => body[campo] || null)

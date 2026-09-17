@@ -1015,6 +1015,11 @@ export function buscarJornadaVoo(id: string) { return colaboradorRequest<Jornada
 export type PreenchimentoJornadaDiario = { jornada_id: string; solicitacao_id: string; aeronave_id: string; pernas: Array<Partial<DiarioLancamento> & { jornada_id: string; aeronave_id: string; perna_id: string; ja_lancado: boolean }> };
 export function buscarPreenchimentoJornadaDiario(id: string) { return colaboradorRequest<PreenchimentoJornadaDiario>(`/api/interno/diario-bordo/preenchimento-jornada/${encodeURIComponent(id)}`); }
 
+export type NumeroVooOpcao = { solicitacao_id: string; numero_voo: string; origem: string | null; destino: string | null; data_agendada: string | null; cliente_id: string | null; socio_id: string | null; voo_emprestado: string | null; cliente_emprestimo_id: string | null; socio_emprestimo_id: string | null; piloto_id: string | null; copiloto_id: string | null; pic_canac: string | null; pic_nome: string | null; sic_canac: string | null; sic_nome: string | null };
+export function buscarNumerosVooAeronave(aeronaveId: string) {
+  return colaboradorRequest<{ voos: NumeroVooOpcao[] }>(`/api/interno/diario-bordo/numeros-voo/${encodeURIComponent(aeronaveId)}`);
+}
+
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown> & { tripulantes?: Array<{ tripulante_id: string; funcao: "PIC" | "SIC" }> }) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function buscarLimitesJornada(id: string, corteFinal?: string) { const query = corteFinal ? `?corte_final=${encodeURIComponent(corteFinal)}` : ""; return colaboradorRequest<LimitesJornada>(`/api/interno/jornadas/${encodeURIComponent(id)}/limites${query}`); }

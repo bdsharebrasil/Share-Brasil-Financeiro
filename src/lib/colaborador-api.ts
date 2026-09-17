@@ -586,6 +586,7 @@ export type ChecklistPreVoo = {
   itens: Record<string, unknown>;
   observacoes: string | null;
   abastecimento_id: string | null;
+  precisa_abastecer?: number | boolean | null;
   status: string;
   executado_por_nome?: string | null;
   usuario_id?: string | null;

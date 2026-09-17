@@ -180,7 +180,8 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-5 flex w-auto max-w-4xl min-w-0 flex-1 items-center justify-center gap-3 overflow-auto">
+      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
+
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Clock3, Flag, Loader2, Plane, Plus, Route, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
-import { atualizarJornadaVoo, atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, iniciarJornadaVoo, type JornadaVoo as Jornada } from "@/lib/colaborador-api";
+import { atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, buscarLimitesJornada, encerrarJornadaVoo, iniciarJornadaVoo, type JornadaVoo as Jornada, type LimitesJornada, type NivelAlertaJornada } from "@/lib/colaborador-api";
 import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
 
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary";
@@ -33,6 +33,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
   const [acionamento, setAcionamento] = useState("");
   const [apresentacao, setApresentacao] = useState("");
   const [perna, setPerna] = useState<PernaForm>({ ...pernaVazia(), origem: item.origem || "", destino: item.destino || "" });
+  const [limites, setLimites] = useState<LimitesJornada | null>(null);
 
   const opcoesAerodromos = useMemo(() => aerodromos, [aerodromos]);
   const carregar = async () => {
@@ -54,6 +55,9 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
     return () => { ativo = false; };
   }, []);
   useEffect(() => { if (!acionamento || apresentacao) return; const d = new Date(iso(data, acionamento)); if (!Number.isNaN(d.getTime())) setApresentacao(new Date(d.getTime() - 30 * 60000).toTimeString().slice(0, 5)); }, [data, acionamento, apresentacao]);
+  const atualizarLimites = useCallback(async (jornadaId: string) => { try { setLimites(await buscarLimitesJornada(jornadaId)); } catch { setLimites(null); } }, []);
+  useEffect(() => { if (jornada?.id) void atualizarLimites(jornada.id); }, [jornada?.id, atualizarLimites]);
+  useEffect(() => { if (!jornada?.id || jornada.status === "encerrada") return; const timer = window.setInterval(() => void atualizarLimites(jornada.id), 60_000); return () => window.clearInterval(timer); }, [jornada?.id, jornada?.status, atualizarLimites]);
 
   const ultimaPerna = jornada?.pernas?.[jornada.pernas.length - 1];
   const pernaCortada = Boolean(ultimaPerna?.horario_pouso && ultimaPerna?.horario_corte);
@@ -81,10 +85,12 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
     const corte = ultimaPerna?.horario_corte; if (!corte) { setErro("Salve o corte da última perna antes de encerrar a jornada."); return; }
     const corteDate = new Date(iso(jornada.data || data, hora(corte))); if (Number.isNaN(corteDate.getTime())) { setErro("O horário de corte salvo é inválido."); return; }
     setSalvando(true); setErro(""); setMensagem("");
-    try { const atualizada = await atualizarJornadaVoo(jornada.id, { status: "encerrada", horario_corte_final: new Date(corteDate.getTime() + 30 * 60000).toISOString() }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada."); }
-    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível encerrar a jornada."); } finally { setSalvando(false); }
+    const corteFinal = new Date(corteDate.getTime() + 30 * 60000).toISOString();
+    try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_corte_final: corteFinal }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada."); }
+    catch (e) { const mensagemErro = e instanceof Error ? e.message : ""; if (mensagemErro.startsWith("limite_jornada") && window.confirm("Esta jornada ultrapassa o limite legal. Registrar mesmo assim?")) { try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_corte_final: corteFinal, confirmar_excedente: true }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada com excedente confirmado."); } catch (confirmacao) { setErro(confirmacao instanceof Error ? confirmacao.message : "Não foi possível encerrar a jornada."); } } else setErro(mensagemErro || "Não foi possível encerrar a jornada."); } finally { setSalvando(false); }
   };
   const alterarPerna = (campo: keyof PernaForm, valor: string) => setPerna((atual) => ({ ...atual, [campo]: valor }));
+  const horas = (min: number) => `${Math.floor(Math.abs(min) / 60)}h${String(Math.abs(min) % 60).padStart(2, "0")}`;
   if (carregando) return <div className={box}><Loader2 className="animate-spin" size={16} /></div>;
 
   return <section className={`${box} space-y-4`}>
@@ -99,6 +105,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
       <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Horários: check-in da tripulação → AC → DEP → POU → COR. Na primeira gravação informe check-in, AC e DEP; POU e COR serão registrados depois.</p><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento || !perna.horario_dep} className="gap-2 text-xs"><Save size={14} /> Salvar AC e DEP</Button></div>
     </div> : <>
       <div className="grid gap-3 text-[10px] sm:grid-cols-4"><div><span className="text-muted-foreground">Data</span><strong className="block">{dataBr(jornada.data)}</strong></div><div><span className="text-muted-foreground">Tripulação check-in</span><strong className="block">{hora(jornada.horario_apresentacao) || "—"}</strong></div><div><span className="text-muted-foreground">AC</span><strong className="block text-sky-300">{hora(jornada.horario_acionamento) || "—"}</strong></div><div><span className="text-muted-foreground">Ordem dos tempos</span><strong className="block">CHECK-IN → AC → DEP → POU → COR</strong></div></div>
+      {limites && <div className={`rounded-xl border p-3 text-[10px] ${({ normal: "border-emerald-400/30 bg-emerald-400/5 text-emerald-200", atencao: "border-amber-400/30 bg-amber-400/5 text-amber-200", critico: "border-orange-400/40 bg-orange-400/10 text-orange-200", excedido: "border-red-400/40 bg-red-400/10 text-red-200" } as Record<NivelAlertaJornada, string>)[limites.nivel_alerta]}`}><p className="font-bold">{limites.nivel_alerta === "excedido" ? "Limite de jornada excedido" : limites.nivel_alerta === "critico" ? "Jornada próxima do limite" : limites.nivel_alerta === "atencao" ? "Atenção à jornada" : "Jornada dentro dos limites"}</p><p className="mt-1">Jornada {horas(limites.minutos_jornada)} de {horas(limites.limite_jornada_minutos)} · restam {limites.restante_minutos < 0 ? `-${horas(limites.restante_minutos)}` : horas(limites.restante_minutos)} (inclui 45 min pós-corte)</p><p>Semana {horas(limites.semana.minutos)}/{horas(limites.semana.limite)} · Mês {horas(limites.mes.minutos)}/{horas(limites.mes.limite)}</p></div>}
       {jornada.pernas?.map((p) => <div key={p.id} className={`flex flex-wrap items-center gap-2 rounded-lg border p-3 text-[10px] ${p.id === ultimaPerna?.id && pernaEmVoo ? "border-sky-400/40 bg-sky-400/5" : "border-[rgba(34,44,57,1)]"}`}><Plane size={13} className="text-primary" /><strong>Perna {p.numero}</strong><span>{p.origem} → {p.destino}</span><span className="text-muted-foreground">AC {hora(p.horario_ac) || "—"} · DEP {hora(p.horario_dep) || "—"} · POU {hora(p.horario_pouso) || "—"} · COR {hora(p.horario_corte) || "—"}</span><span className={`ml-auto ${p.status === "em_voo" ? "text-sky-300" : "text-emerald-300"}`}>{p.status === "em_voo" ? "Em voo" : "Pousado"}</span></div>)}
       {jornada.status !== "encerrada" && pernaEmVoo && ultimaPerna && <div className="rounded-xl border border-sky-400/30 bg-sky-400/5 p-4"><div className="mb-3 flex items-center gap-2 text-xs font-bold text-sky-200"><Clock3 size={15} /> Perna {ultimaPerna.numero} aguardando POU</div><div className="mb-4 grid gap-2 rounded-lg border border-border/60 bg-background/40 p-3 text-[10px] sm:grid-cols-4"><div><span className="text-muted-foreground">Trecho</span><strong className="block">{ultimaPerna.origem} → {ultimaPerna.destino}</strong></div><div><span className="text-muted-foreground">AC</span><strong className="block">{hora(ultimaPerna.horario_ac) || hora(jornada.horario_acionamento)}</strong></div><div><span className="text-muted-foreground">DEP</span><strong className="block">{hora(ultimaPerna.horario_dep) || "—"}</strong></div><div><span className="text-muted-foreground">Data</span><strong className="block">{dataBr(jornada.data)}</strong></div></div><div className="grid gap-3 sm:grid-cols-2"><Campo label="Pouso (POU) *"><input type="time" value={perna.horario_pouso} onChange={(e) => alterarPerna("horario_pouso", e.target.value)} className={input} /></Campo><Campo label="Corte (CORT) *"><input type="time" value={perna.horario_corte} onChange={(e) => alterarPerna("horario_corte", e.target.value)} className={input} /></Campo></div><Button onClick={() => void salvarCorte()} disabled={salvando || !perna.horario_pouso || !perna.horario_corte} className="mt-4 gap-2 text-xs"><CheckCircle2 size={14} /> Salvar POU e corte</Button></div>}
       {jornada.status !== "encerrada" && pernaCortada && !criandoPerna && <div className="flex flex-wrap gap-2 rounded-xl border border-[rgba(52,211,153,0.72)] bg-emerald-400/5 p-4"><p className="w-full text-[10px] text-emerald-200">POU e corte salvos. Escolha o próximo passo da jornada.</p><Button onClick={() => { setCriandoPerna(true); setPerna(pernaVazia()); }} className="gap-2 text-xs"><Plus size={14} /> Nova perna</Button><Button variant="outline" onClick={() => void encerrar()} disabled={salvando} className="gap-2 text-xs"><Flag size={14} /> Encerrar jornada</Button></div>}

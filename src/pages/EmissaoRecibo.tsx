@@ -317,6 +317,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [mensagem, setMensagem] = useState("");
   const [previewAberta, setPreviewAberta] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfPreviewNome, setPdfPreviewNome] = useState("recibo.pdf");
   const [pdfAbrindoId, setPdfAbrindoId] = useState<string | null>(null);
   const [estadoEmissao, setEstadoEmissao] = useState<
     | "CRIADO"
@@ -561,6 +562,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         if (atual) URL.revokeObjectURL(atual);
         return url;
       });
+      setPdfPreviewNome(
+        `${String(recibo.numero_recibo || recibo.id).replace(/[^a-z0-9-]/gi, "-")}.pdf`,
+      );
     } catch (cause) {
       setErro(
         cause instanceof Error
@@ -724,6 +728,16 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
+        // O upload terminou com sucesso. Mostra imediatamente o mesmo arquivo
+        // salvo, sem exigir que o usuário abra o histórico para encontrá-lo.
+        const previewUrl = URL.createObjectURL(pdf);
+        setPdfPreviewUrl((atual) => {
+          if (atual) URL.revokeObjectURL(atual);
+          return previewUrl;
+        });
+        setPdfPreviewNome(
+          `${String(resposta.recibo.numero_recibo || resposta.recibo.id).replace(/[^a-z0-9-]/gi, "-")}.pdf`,
+        );
       } catch (pdfError) {
         setEstadoEmissao("ERRO_PDF");
         await atualizarStatusRecibo(resposta.recibo.id, "ERRO_PDF").catch(
@@ -1664,6 +1678,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
                 >
                   <ExternalLink size={13} /> Abrir em nova aba
+                </a>
+                <a
+                  href={pdfPreviewUrl}
+                  download={pdfPreviewNome}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
+                >
+                  <FileText size={13} /> Baixar PDF
                 </a>
                 <Button
                   type="button"

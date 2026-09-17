@@ -2309,7 +2309,7 @@ status TEXT
   rateado INTEGER NOT NULL DEFAULT 0 CHECK (rateado IN (0,1)),
 
   pagador_tipo TEXT NOT NULL CHECK (
-    pagador_tipo IN (''empresa'',''cotista_aeronave'')
+    pagador_tipo IN (''empresa'',''cotista_aeronave'',''cliente'')
   ),
 
   pagador_id TEXT NOT NULL,

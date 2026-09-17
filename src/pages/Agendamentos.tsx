@@ -467,24 +467,31 @@ function DetalhesSolicitacao({ selecionada, tripulacao, pilotoId, copilotoId, mo
 function minutosDoDia(valor?: string | null) {
   if (!valor) return null;
   const texto = String(valor).trim();
-  const soHora = texto.match(/(\d{1,2}):(\d{2})/);
-  if (/^\d{1,2}:\d{2}/.test(texto) && soHora) return Number(soHora[1]) * 60 + Number(soHora[2]);
+  const soHora = texto.match(/^(\d{1,2}):(\d{2})/);
+  if (soHora) return Number(soHora[1]) * 60 + Number(soHora[2]);
   const data = new Date(texto);
   if (!Number.isNaN(data.getTime())) return data.getHours() * 60 + data.getMinutes();
-  return soHora ? Number(soHora[1]) * 60 + Number(soHora[2]) : null;
+  return null;
 }
-/** Soma somente AC → COR de cada perna, sem contar o intervalo entre pernas. */
+
+function minutosDaPerna(perna: import("@/lib/colaborador-api").JornadaVoo["pernas"][number]) {
+  const inicio = minutosDoDia(perna.horario_dep);
+  const fim = minutosDoDia(perna.horario_pouso);
+  if (inicio === null || fim === null) return null;
+  const duracao = fim >= inicio ? fim - inicio : fim + 1440 - inicio;
+  return duracao >= 0 && duracao < 1440 ? duracao : null;
+}
+
 function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").JornadaVoo) {
-  const minutos = (jornada.pernas || []).reduce((total, perna) => {
-    const inicio = minutosDoDia(perna.horario_ac);
-    const fim = minutosDoDia(perna.horario_corte);
-    if (inicio === null || fim === null) return total;
-    const duracao = fim >= inicio ? fim - inicio : fim + 1440 - inicio;
-    return total + (duracao >= 0 && duracao < 1440 ? duracao : 0);
-  }, 0);
-  if (!minutos && jornada.minutos_jornada) return `${Math.floor(jornada.minutos_jornada / 60)}h${String(jornada.minutos_jornada % 60).padStart(2, "0")}`;
-  if (!minutos && jornada.status !== "encerrada") return "Em andamento";
-  return `${Math.floor(minutos / 60)}h${String(minutos % 60).padStart(2, "0")}`;
+  const totalPersistido = Number(jornada.minutos_jornada);
+  const duracoes = (jornada.pernas || [])
+    .map(minutosDaPerna)
+    .filter((duracao): duracao is number => duracao !== null);
+  const minutos = Number.isFinite(totalPersistido) && totalPersistido > 0
+    ? totalPersistido
+    : duracoes.reduce((total, duracao) => total + duracao, 0);
+  if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
+  return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 }
 function horaJornada(valor?: string | null) { return valor ? new Date(valor).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"; }
 function dataJornada(valor?: string | null) { return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—"; }

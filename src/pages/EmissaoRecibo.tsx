@@ -1602,6 +1602,25 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         .join(" - ")}
                     </p>
                   </>
+                ) : form.pagador_tipo === "cliente" ? (
+                  <>
+                    <strong>
+                      {clientePagadorSelecionado?.razao_social || "Cliente"}
+                    </strong>
+                    <p>
+                      {clientePagadorSelecionado?.cnpj ||
+                        "Documento não informado"}
+                    </p>
+                    <p>
+                      {clientePagadorSelecionado?.endereco ||
+                        "Endereço não informado"}
+                    </p>
+                    <p>
+                      {[clientePagadorSelecionado?.cidade, clientePagadorSelecionado?.uf]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    </p>
+                  </>
                 ) : (
                   <>
                     <strong>{SHARE_NOME}</strong>

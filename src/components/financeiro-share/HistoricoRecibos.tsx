@@ -435,7 +435,9 @@ export default function HistoricoRecibos({
                     Pagador:{" "}
                     {recibo.pagador_tipo === "cotista_aeronave"
                       ? `Cotista da aeronave (${recibo.nome_pagador || recibo.pagador_id || "não identificado"})`
-                      : "Share Brasil"}{" "}
+                      : recibo.pagador_tipo === "cliente"
+                        ? `Cliente (${recibo.nome_pagador || recibo.pagador_id || "não identificado"})`
+                        : "Share Brasil"}{" "}
                     · {dataBr(recibo.data_emissao)}
                     {recibo.forma_pagamento
                       ? ` · ${recibo.forma_pagamento}`

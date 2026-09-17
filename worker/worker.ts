@@ -3753,7 +3753,10 @@ function nivelAlertaJornada(minutos: number, limite: number): 'normal' | 'atenca
 
 function minutosDaJornada(jornada: any, fimPrevisto?: string | null): number {
   if (Array.isArray(jornada.pernas)) {
-    return jornada.pernas.reduce((total: number, perna: any) => total + minutosEntre(perna.horario_ac, perna.horario_corte), 0)
+    return jornada.pernas.reduce(
+      (total: number, perna: any) => total + minutosEntre(perna.horario_dep, perna.horario_pouso),
+      0,
+    )
   }
   return 0
 }

@@ -386,7 +386,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
-        setCotistasEmail(cotistas);
+        setCotistasEmail(cotistasSelecionados);
         setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
@@ -455,10 +455,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSucessoEmail("");
     try {
       const grupos = envioRecemCriado?.tipo === "cliente"
-        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => ({
-          cotista,
-          anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id),
-        }))
+        ? cotistasEmail.map((cotista) => ({ cotista, anexos: [] as AnexoLinha[] }))
         : [{ cotista: null, anexos: anexosEnvioEmail }];
       if (!grupos.length) throw new Error("Atribua pelo menos um anexo a um cotista.");
       for (const grupo of grupos) {
@@ -469,19 +466,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           assunto: assunto.trim(),
           mensagem: corpoEmail.trim(),
           anexos: grupo.anexos.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
-          arquivos: grupo.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)),
+          // O e-mail usa somente arquivos escolhidos no computador.
+          // Em reembolsos, a mesma evidência local é enviada a cada cotista.
+          arquivos: arquivosNovos,
           nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
         });
       }
       if (envioRecemCriado) {
         await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
-        if (envioRecemCriado.tipo === "cliente") {
+        if (envioRecemCriado.tipo === "cliente" || envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
           setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "CONVERTIDO" } : e));
         }
       }
-      setSucessoEmail(envioRecemCriado?.tipo === "cliente"
-        ? `E-mail enviado com sucesso para ${grupos.length} cotista(s). Rateio criado por cotista.`
+      setSucessoEmail(envioRecemCriado?.tipo === "cliente" || envioRecemCriado?.tipo === "reembolso"
+        ? `E-mail enviado com sucesso para ${grupos.length} cotista(s). Lançamento e rateio criados.`
         : `E-mail enviado com sucesso para ${grupos.length} cotista(s).`);
       setMensagem("Lançamento criado e e-mail enviado ao cliente.");
       setTimeout(() => fecharModalEmail(), 1800);
@@ -746,7 +745,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
-                <AnexosEmail anexos={anexosFiltrados} selecionados={anexosSelecionados} onAlternar={alternarAnexo} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
+                <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
               </div>
 
               {contasBancarias.length > 0 && <div className="rounded-sm border border-primary/20 bg-primary/[.04] p-3">

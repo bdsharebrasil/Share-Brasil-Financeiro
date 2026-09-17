@@ -19,6 +19,7 @@ type Props = {
   arquivosNovos?: File[];
   onAdicionarArquivos?: (arquivos: File[]) => void;
   onRemoverArquivo?: (index: number) => void;
+  somenteArquivosLocais?: boolean;
 };
 
 type Grupo = { chave: string; titulo: string; icone: typeof Receipt; origens: string[] };
@@ -36,6 +37,7 @@ export function AnexosEmail({
   arquivosNovos = [],
   onAdicionarArquivos,
   onRemoverArquivo,
+  somenteArquivosLocais = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -109,7 +111,7 @@ export function AnexosEmail({
 
       {/* Comando (⌘K) para buscar e anexar — abre por cima, não ocupa espaço fixo no layout */}
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Buscar recibos, despesas, abastecimentos..." />
+        <CommandInput placeholder={somenteArquivosLocais ? "Selecionar arquivo do computador..." : "Buscar recibos, despesas, abastecimentos..."} />
         <CommandList>
           <CommandEmpty>Nenhum documento encontrado.</CommandEmpty>
 
@@ -126,7 +128,7 @@ export function AnexosEmail({
             </CommandItem>
           </CommandGroup>
 
-          {anexosPorGrupo.map(({ grupo, itens }) =>
+          {!somenteArquivosLocais && anexosPorGrupo.map(({ grupo, itens }) =>
             itens.length === 0 ? null : (
               <div key={grupo.chave}>
                 <CommandSeparator />

@@ -10,7 +10,11 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-import { anexarArquivoAoReciboPdf, gerarReciboPdf } from "@/lib/reciboPdf";
+import {
+  anexarArquivoAoReciboPdf,
+  gerarReciboPdf,
+  numeroPaginasPdf,
+} from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, {
@@ -495,13 +499,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
   const visualizarPdf = async (recibo: ReciboFinanceiro) => {
     let caminho = caminhoPdfRecibo(recibo);
-    // Reembolsos antigos podem ter sido salvos sem o recebedor no PDF.
-    // Regenerar no clique garante que o arquivo exibido tenha a Share Brasil.
-    const deveRegenerar = recibo.tipo_recibo === "recibo_reembolso";
     setErro("");
     setPdfAbrindoId(recibo.id);
     try {
-      if (!caminho || deveRegenerar) {
+      // Nunca regenere um PDF já persistido. Ele pode conter o comprovante
+      // anexado como páginas adicionais; regenerá-lo aqui descartaria essas
+      // páginas e substituiria o arquivo correto por um recibo de uma página.
+      if (!caminho) {
         const colaborador = opcoes.colaboradores.find(
           (item) => item.id === recibo.colaborador_id,
         );
@@ -515,6 +519,41 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               : item,
           ),
         );
+      } else if (recibo.tipo_recibo === "recibo_reembolso") {
+        // Corrige recibos emitidos antes desta proteção: o PDF final pode ter
+        // sido sobrescrito durante a visualização, embora o ORIGINAL continue
+        // salvo no R2. Só recompõe quando o PDF persistido ainda tem uma página.
+        const pdfAtual = await carregarArquivoColaborador(caminho);
+        if (await numeroPaginasPdf(pdfAtual) === 1) {
+          try {
+            const original = await carregarArquivoColaborador(
+              `/api/financeiro/recibos/${encodeURIComponent(recibo.id)}/anexo-original`,
+            );
+            const extensaoOriginal = original.type === "application/pdf"
+              ? "pdf"
+              : original.type.split("/")[1] || "bin";
+            const anexoOriginal = new File(
+              [original],
+              `comprovante-original.${extensaoOriginal}`,
+              { type: original.type || "application/octet-stream" },
+            );
+            const pdfCorrigido = await anexarArquivoAoReciboPdf(
+              pdfAtual,
+              anexoOriginal,
+            );
+            const salvo = await enviarPdfRecibo(recibo.id, pdfCorrigido);
+            caminho = `/api/financeiro/recibos/anexos/${encodeURIComponent(salvo.anexo_id)}/arquivo`;
+            setRecibos((atual) =>
+              atual.map((item) =>
+                item.id === recibo.id
+                  ? { ...item, pdf_anexo_id: salvo.anexo_id, pdf_url: salvo.pdf_url }
+                  : item,
+              ),
+            );
+          } catch {
+            // Se não houver comprovante original, mantém o PDF existente.
+          }
+        }
       }
       const blob = await carregarArquivoColaborador(caminho);
       const url = URL.createObjectURL(blob);

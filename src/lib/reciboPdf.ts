@@ -313,6 +313,11 @@ function tipoDoAnexo(arquivo: File): "pdf" | "imagem" | "desconhecido" {
   return "desconhecido";
 }
 
+export async function numeroPaginasPdf(pdf: Blob): Promise<number> {
+  const documento = await PDFDocument.load(await pdf.arrayBuffer());
+  return documento.getPageCount();
+}
+
 /** Acrescenta o comprovante original depois das páginas do recibo. */
 export async function anexarArquivoAoReciboPdf(
   reciboPdf: Blob,

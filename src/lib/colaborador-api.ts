@@ -1019,7 +1019,8 @@ export function iniciarJornadaVoo(id: string, payload: Record<string, unknown> &
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function buscarLimitesJornada(id: string, corteFinal?: string) { const query = corteFinal ? `?corte_final=${encodeURIComponent(corteFinal)}` : ""; return colaboradorRequest<LimitesJornada>(`/api/interno/jornadas/${encodeURIComponent(id)}/limites${query}`); }
 export function encerrarJornadaVoo(id: string, payload: { horario_corte_final: string; observacoes?: string; confirmar_excedente?: boolean }) { return atualizarJornadaVoo(id, { ...payload, status: "encerrada" }); }
-export function adicionarPernaJornada(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
+export type NovaPernaJornadaPayload = Record<string, unknown> & { confirmar_excedente?: boolean };
+export function adicionarPernaJornada(id: string, payload: NovaPernaJornadaPayload) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarPernaJornada(jornadaId: string, pernaId: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${jornadaId}/pernas/${pernaId}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 
 export type RelatorioDespesaViagem = Record<string, any> & {

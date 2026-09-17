@@ -79,8 +79,20 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
   const salvarNovaPerna = async () => {
     if (!jornada) return;
     setSalvando(true); setErro(""); setMensagem("");
-    try { await adicionarPernaJornada(jornada.id, perna); await carregar(); setCriandoPerna(false); setMensagem("Nova perna iniciada. Informe o pouso e o corte desta perna."); }
-    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível iniciar a nova perna."); } finally { setSalvando(false); }
+    try {
+      await adicionarPernaJornada(jornada.id, perna);
+      await carregar(); setCriandoPerna(false); setMensagem("Nova perna iniciada. Informe o pouso e o corte desta perna.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.startsWith("limite_jornada_excedido")) {
+        if (window.confirm("Este tripulante já está no limite legal de jornada. Iniciar esta perna mesmo assim?")) {
+          try {
+            await adicionarPernaJornada(jornada.id, { ...perna, confirmar_excedente: true });
+            await carregar(); setCriandoPerna(false); setMensagem("Perna iniciada com excedente confirmado.");
+          } catch (e2) { setErro(e2 instanceof Error ? e2.message : "Não foi possível iniciar a perna."); }
+        } else setErro(msg);
+      } else setErro(msg || "Não foi possível iniciar a nova perna.");
+    } finally { setSalvando(false); }
   };
   const encerrar = async () => {
     if (!jornada || pernaEmVoo || !pernaCortada) return;

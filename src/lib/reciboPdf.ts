@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { PDFDocument } from "pdf-lib";
 import logoShare from "@/assets/share-signature-logo.png";
 import assinaturaRecibo from "@/assets/assinatura-para-recibo.png";
 
@@ -265,4 +266,76 @@ export async function gerarReciboPdf(
   });
 
   return pdf.output("blob");
+}
+
+function lerArquivoComoDataUrl(arquivo: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result));
+    leitor.onerror = () => reject(new Error("Não foi possível ler o anexo do recibo."));
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+async function imagemComoPng(arquivo: File): Promise<Uint8Array> {
+  const dataUrl = await lerArquivoComoDataUrl(arquivo);
+  const imagem = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const elemento = new Image();
+    elemento.onload = () => resolve(elemento);
+    elemento.onerror = () => reject(new Error("Não foi possível ler a imagem anexada ao recibo."));
+    elemento.src = dataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = imagem.naturalWidth || imagem.width;
+  canvas.height = imagem.naturalHeight || imagem.height;
+  if (!canvas.width || !canvas.height) {
+    throw new Error("A imagem anexada ao recibo não possui dimensões válidas.");
+  }
+  const contexto = canvas.getContext("2d");
+  if (!contexto) throw new Error("Não foi possível preparar a imagem anexada ao recibo.");
+  contexto.drawImage(imagem, 0, 0);
+  const png = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((resultado) => {
+      if (resultado) resolve(resultado);
+      else reject(new Error("Não foi possível converter a imagem anexada ao recibo."));
+    }, "image/png");
+  });
+  return new Uint8Array(await png.arrayBuffer());
+}
+
+/** Acrescenta o comprovante original depois das páginas do recibo. */
+export async function anexarArquivoAoReciboPdf(
+  reciboPdf: Blob,
+  anexo: File,
+): Promise<File> {
+  const documento = await PDFDocument.load(await reciboPdf.arrayBuffer());
+  const tipo = anexo.type.toLowerCase();
+
+  if (tipo === "application/pdf" || anexo.name.toLowerCase().endsWith(".pdf")) {
+    const documentoAnexo = await PDFDocument.load(await anexo.arrayBuffer());
+    const paginas = await documento.copyPages(documentoAnexo, documentoAnexo.getPageIndices());
+    paginas.forEach((pagina) => documento.addPage(pagina));
+  } else if (tipo.startsWith("image/")) {
+    const imagem = await documento.embedPng(await imagemComoPng(anexo));
+    const pagina = documento.addPage([210 * 2.83465, 297 * 2.83465]);
+    const margem = 36;
+    const larguraDisponivel = pagina.getWidth() - margem * 2;
+    const alturaDisponivel = pagina.getHeight() - margem * 2;
+    const escala = Math.min(larguraDisponivel / imagem.width, alturaDisponivel / imagem.height);
+    const largura = imagem.width * escala;
+    const altura = imagem.height * escala;
+    pagina.drawImage(imagem, {
+      x: (pagina.getWidth() - largura) / 2,
+      y: (pagina.getHeight() - altura) / 2,
+      width: largura,
+      height: altura,
+    });
+  } else {
+    throw new Error("O anexo precisa ser uma imagem ou um arquivo PDF para ser incluído no recibo.");
+  }
+
+  const bytes = await documento.save();
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return new File([buffer], "recibo-com-anexo.pdf", { type: "application/pdf" });
 }

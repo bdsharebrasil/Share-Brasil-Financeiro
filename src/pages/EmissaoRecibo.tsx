@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-import { gerarReciboPdf } from "@/lib/reciboPdf";
+import { anexarArquivoAoReciboPdf, gerarReciboPdf } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, {
@@ -675,10 +675,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       let avisoPdf = "";
       try {
         setEstadoEmissao("PDF_PENDENTE");
-        const pdf = await gerarPdfRecibo(
+        let pdf = await gerarPdfRecibo(
           resposta.recibo,
           colaboradorSelecionado,
         );
+        if (arquivo) {
+          pdf = await anexarArquivoAoReciboPdf(pdf, arquivo);
+        }
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
@@ -1344,7 +1347,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   <Campo label="Anexo (opcional)">
                     <input
                       type="file"
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      accept="image/*,.pdf"
                       onChange={(e) => setArquivo(e.target.files?.[0] || null)}
                       className="campo file:mr-3 file:rounded-sm file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[10px] file:font-bold file:text-primary"
                     />

@@ -474,29 +474,23 @@ function minutosDoDia(valor?: string | null) {
   return null;
 }
 
-function minutosAcCorte(inicio?: string | null, fim?: string | null) {
-  if (!inicio || !fim) return null;
-  const inicioData = new Date(inicio);
-  const fimData = new Date(fim);
-  if (!Number.isNaN(inicioData.getTime()) && !Number.isNaN(fimData.getTime())) {
-    const duracao = Math.round((fimData.getTime() - inicioData.getTime()) / 60000);
-    if (duracao >= 0 && duracao < 1440) return duracao;
-  }
-  const inicioMinutos = minutosDoDia(inicio);
-  const fimMinutos = minutosDoDia(fim);
-  if (inicioMinutos === null || fimMinutos === null) return null;
-  const duracao = fimMinutos >= inicioMinutos
-    ? fimMinutos - inicioMinutos
-    : fimMinutos + 1440 - inicioMinutos;
+function minutosDaPerna(perna: import("@/lib/colaborador-api").JornadaVoo["pernas"][number]) {
+  const inicio = minutosDoDia(perna.horario_dep);
+  const fim = minutosDoDia(perna.horario_pouso);
+  if (inicio === null || fim === null) return null;
+  const duracao = fim >= inicio ? fim - inicio : fim + 1440 - inicio;
   return duracao >= 0 && duracao < 1440 ? duracao : null;
 }
 
 function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").JornadaVoo) {
+  const totalPersistido = Number(jornada.minutos_jornada);
   const duracoes = (jornada.pernas || [])
-    .map((perna) => minutosAcCorte(perna.horario_ac, perna.horario_corte))
+    .map(minutosDaPerna)
     .filter((duracao): duracao is number => duracao !== null);
-  if (!duracoes.length) return jornada.status !== "encerrada" ? "Em andamento" : "—";
-  const minutos = duracoes.reduce((total, duracao) => total + duracao, 0);
+  const minutos = Number.isFinite(totalPersistido) && totalPersistido > 0
+    ? totalPersistido
+    : duracoes.reduce((total, duracao) => total + duracao, 0);
+  if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
   return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 }
 function horaJornada(valor?: string | null) { return valor ? new Date(valor).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"; }

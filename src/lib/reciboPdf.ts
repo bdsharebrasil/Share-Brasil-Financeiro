@@ -303,19 +303,29 @@ async function imagemComoPng(arquivo: File): Promise<Uint8Array> {
   return new Uint8Array(await png.arrayBuffer());
 }
 
+function tipoDoAnexo(arquivo: File): "pdf" | "imagem" | "desconhecido" {
+  const tipo = arquivo.type.toLowerCase();
+  const nome = arquivo.name.toLowerCase();
+  if (tipo === "application/pdf" || nome.endsWith(".pdf")) return "pdf";
+  if (tipo.startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp)$/i.test(nome)) {
+    return "imagem";
+  }
+  return "desconhecido";
+}
+
 /** Acrescenta o comprovante original depois das páginas do recibo. */
 export async function anexarArquivoAoReciboPdf(
   reciboPdf: Blob,
   anexo: File,
 ): Promise<File> {
   const documento = await PDFDocument.load(await reciboPdf.arrayBuffer());
-  const tipo = anexo.type.toLowerCase();
+  const tipo = tipoDoAnexo(anexo);
 
-  if (tipo === "application/pdf" || anexo.name.toLowerCase().endsWith(".pdf")) {
+  if (tipo === "pdf") {
     const documentoAnexo = await PDFDocument.load(await anexo.arrayBuffer());
     const paginas = await documento.copyPages(documentoAnexo, documentoAnexo.getPageIndices());
     paginas.forEach((pagina) => documento.addPage(pagina));
-  } else if (tipo.startsWith("image/")) {
+  } else if (tipo === "imagem") {
     const imagem = await documento.embedPng(await imagemComoPng(anexo));
     const pagina = documento.addPage([210 * 2.83465, 297 * 2.83465]);
     const margem = 36;

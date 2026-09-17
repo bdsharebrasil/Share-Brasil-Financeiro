@@ -373,7 +373,9 @@ export type SolicitacaoVooInterna = {
   modelo: string | null;
   observacoes?: string | null;
   piloto_id?: string | null;
+  piloto_nome?: string | null;
   copiloto_id?: string | null;
+  copiloto_nome?: string | null;
   jornada_id?: string | null;
   jornada_status?: string | null;
   perna_atual_id?: string | null;
@@ -584,6 +586,7 @@ export type ChecklistPreVoo = {
   itens: Record<string, unknown>;
   observacoes: string | null;
   abastecimento_id: string | null;
+  precisa_abastecer?: number | boolean | null;
   status: string;
   executado_por_nome?: string | null;
   usuario_id?: string | null;

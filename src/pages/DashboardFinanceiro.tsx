@@ -38,6 +38,7 @@ function dataBruta(valor: string | null | undefined) {
     ? valor
     : data.toLocaleDateString("pt-BR");
 }
+
 function tomStatus(
   status: string | null,
 ): "green" | "amber" | "red" | "blue" | "violet" | "neutral" {
@@ -53,6 +54,7 @@ function tomStatus(
     return "amber";
   return "neutral";
 }
+
 function statusLabel(status: string | null) {
   if (!status) return "Sem status";
   const normalizado = status.toLowerCase().replace(/_/g, " ");
@@ -71,6 +73,7 @@ function statusLabel(status: string | null) {
     )[normalizado] || status.replace(/_/g, " ")
   );
 }
+
 function statusEmail(item: MovimentacaoFinanceira) {
   if (item.email_enviado === true || Boolean(item.email_enviado_id) || Boolean(item.email_enviado_em)) return "ENVIADO";
   const status = (item.email_status || item.status_email || item.status || "")
@@ -81,12 +84,14 @@ function statusEmail(item: MovimentacaoFinanceira) {
   if (item.email_enviado === false) return "PENDENTE";
   return "NÃO ENVIADO";
 }
+
 function tomStatusEmail(status: string) {
-  if (status === "ENVIADO") return "text-emerald-600";
-  if (status === "ERRO") return "text-red-600";
-  if (status === "PENDENTE") return "text-amber-600";
+  if (status === "ENVIADO") return "text-emerald-600 dark:text-emerald-400";
+  if (status === "ERRO") return "text-red-600 dark:text-red-400";
+  if (status === "PENDENTE") return "text-amber-600 dark:text-amber-400";
   return "text-muted-foreground";
 }
+
 function tipoCaixaLabel(tipo: string | null) {
   const normalizado = tipo?.trim().toLowerCase().replace(/[_-]/g, " ");
   if (normalizado === "cliente") return "Cliente";
@@ -94,22 +99,27 @@ function tipoCaixaLabel(tipo: string | null) {
   if (normalizado === "hold" || normalizado === "holding") return "Holding";
   return "Não informado";
 }
+
+// ATUALIZADO: Cores específicas solicitadas (Share = Verde, Cliente = Azul) com suporte a Light/Dark Mode
 function tipoCaixaClass(tipo: string | null) {
   const normalizado = tipo?.trim().toLowerCase().replace(/[_-]/g, " ");
-  if (normalizado === "cliente") return "border-sky-500/25 bg-sky-500/10 text-sky-700";
-  if (normalizado === "share" || normalizado === "share brasil" || normalizado === "sharebrasil") return "border-violet-500/25 bg-violet-500/10 text-violet-700";
-  if (normalizado === "hold" || normalizado === "holding") return "border-amber-500/25 bg-amber-500/10 text-amber-700";
-  return "border-border bg-muted/40 text-muted-foreground";
+  if (normalizado === "cliente") return "bg-blue-100 px-2.5 py-1 text-[11px] text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20";
+  if (normalizado === "share" || normalizado === "share brasil" || normalizado === "sharebrasil") return "bg-green-100 px-2.5 py-1 text-[11px] text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20";
+  if (normalizado === "hold" || normalizado === "holding") return "bg-amber-100 px-2.5 py-1 text-[11px] text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20";
+  return "bg-muted/40 px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-inset ring-border";
 }
+
 function saudacaoAtual() {
   const hora = new Date().getHours();
   if (hora < 12) return "Bom dia";
   if (hora < 18) return "Boa tarde";
   return "Boa noite";
 }
+
 function primeiroNome(nome: string) {
   return nome.split(" ").filter(Boolean)[0] || "Colaborador";
 }
+
 function valorMovimentacao(valor: number) {
   return valor === 78.9 ? 78.91 : valor;
 }
@@ -126,6 +136,7 @@ export default function DashboardFinanceiro({
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
+
   const carregar = useCallback(async (silencioso = false) => {
     if (silencioso) setAtualizando(true);
     else setCarregando(true);
@@ -140,6 +151,7 @@ export default function DashboardFinanceiro({
       setAtualizando(false);
     }
   }, []);
+
   useEffect(() => {
     void carregar();
     void buscarPerfilColaborador()
@@ -150,6 +162,7 @@ export default function DashboardFinanceiro({
       )
       .catch(() => undefined);
   }, [carregar]);
+
   const resumo = dados?.resumo;
   const movimentacoes = dados?.movimentacoes ?? [];
   const movimentacoesVisiveis = mostrarPendencias
@@ -162,12 +175,14 @@ export default function DashboardFinanceiro({
     (paginaExibida - 1) * itensPorPagina,
     paginaExibida * itensPorPagina,
   );
+
   return (
     <div className="route-enter">
       <HeroDashboard
         ambiente="financeiro"
         title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`}
       ></HeroDashboard>
+
       {erro && (
         <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">
           {erro}
@@ -180,8 +195,8 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
 
+      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
@@ -203,6 +218,7 @@ export default function DashboardFinanceiro({
           className="min-w-0"
         />
       </div>
+
       <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
@@ -237,7 +253,8 @@ export default function DashboardFinanceiro({
           onClick={() => aoNavegar("ciclo")}
         />
       </section>
-      <section className="overflow-hidden rounded-xl border border-border bg-card/75">
+
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
@@ -264,12 +281,14 @@ export default function DashboardFinanceiro({
             </div>
           }
         />
+        
         {mostrarPendencias && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
             <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo as movimentações das pendências em aberto.</span>
             <button type="button" onClick={() => { setMostrarPendencias(false); setPaginaAtual(1); }} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
           </div>
         )}
+        
         {carregando ? (
           <div className="space-y-3 p-5">
             <div className="skeleton h-12 rounded-lg" />
@@ -278,29 +297,29 @@ export default function DashboardFinanceiro({
           </div>
         ) : movimentacoesVisiveis.length ? (
           <>
+          {/* Tabela Desktop */}
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[1080px] text-left">
-              <thead>
-                <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
-                  <th className="px-4 py-4">Descrição</th>
-                  <th className="px-4 py-4">Nº doc</th>
-                  <th className="px-4 py-4">Fornecedor</th>
-                  <th className="px-4 py-4">Data</th>
-                  <th className="px-4 py-4">Caixa</th>
-                  <th className="px-4 py-4 text-right">Valor</th>
-                  <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4 text-muted-foreground">EMAIL</th>
+            <table className="w-full min-w-[1080px] text-left text-sm">
+              <thead className="bg-muted/5">
+                <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-4">ID / Data</th>
+                  <th className="px-5 py-4">Descrição / Fornecedor</th>
+                  <th className="px-5 py-4">Caixa</th>
+                  <th className="px-5 py-4 text-right">Valor (R$)</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4 text-center">E-mail</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/60">
                 {movimentacoesDaPagina.map((item) => (
                   <LinhaMovimentacao key={item.id} item={item} />
                 ))}
               </tbody>
             </table>
+            
             {totalPaginas > 1 && (
-              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3">
+                <p className="text-xs font-medium text-muted-foreground">
                   Página {paginaExibida} de {totalPaginas}
                 </p>
                 <div className="flex items-center gap-2">
@@ -308,7 +327,7 @@ export default function DashboardFinanceiro({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 text-xs"
+                    className="h-8 gap-1.5 text-xs bg-background"
                     onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
                     disabled={paginaExibida === 1}
                   >
@@ -318,7 +337,7 @@ export default function DashboardFinanceiro({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 text-xs"
+                    className="h-8 gap-1.5 text-xs bg-background"
                     onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
                     disabled={paginaExibida === totalPaginas}
                   >
@@ -328,13 +347,15 @@ export default function DashboardFinanceiro({
               </div>
             )}
           </div>
+
+          {/* Cards Mobile */}
           <div className="space-y-3 p-4 md:hidden">
             {movimentacoesDaPagina.map((item) => (
               <CartaoMovimentacao key={item.id} item={item} />
             ))}
             {totalPaginas > 1 && (
-              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
-                <p className="text-xs text-muted-foreground">
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-1 pt-4 pb-1">
+                <p className="text-xs font-medium text-muted-foreground">
                   Página {paginaExibida} de {totalPaginas}
                 </p>
                 <div className="flex items-center gap-2">
@@ -364,46 +385,51 @@ export default function DashboardFinanceiro({
           </div>
           </>
         ) : (
-          <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
+          <div className="py-4">
+            <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
+          </div>
         )}
       </section>
+
       <div className="mt-5">
         <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
       </div>
     </div>
   );
 }
-function CheckIcon() {
-  return <CircleDollarSign size={16} />;
-}
+
+// COMPONENTE: Cartão Mobile
 function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
   return (
-    <article className="rounded-xl border border-border/70 bg-card/60 p-3.5">
+    <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">
+          <p className="truncate text-sm font-bold text-foreground">
             {item.descricao || "Movimentação sem descrição"}
           </p>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {item.fornecedor || "Sem fornecedor"} · {item.numero_doc || "Sem doc"}
+          <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
+            <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span> 
+            <span>•</span> 
+            <span>{item.numero_doc || "Sem doc"}</span>
           </p>
         </div>
         <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-foreground">
           {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
         </p>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
+      
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
           {tipoCaixaLabel(item.tipo_caixa)}
         </span>
         <EtiquetaStatus tone={tomStatus(item.status)}>
           {statusLabel(item.status)}
         </EtiquetaStatus>
-        <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] ${tomStatusEmail(statusEmail(item))}`}>
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(statusEmail(item))}`}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
         </span>
-        <span className="ml-auto text-xs text-muted-foreground">
+        <span className="ml-auto text-xs font-medium text-muted-foreground">
           {dataBruta(item.data_pagamento || item.criado_em)}
         </span>
       </div>
@@ -411,41 +437,52 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
   );
 }
 
+// COMPONENTE: Linha Desktop
 function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
   return (
-    <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20">
-      <td className="px-4 py-4 align-top">
-        <p className="min-w-[280px] whitespace-normal text-sm font-semibold leading-6 text-foreground">
+    <tr className="transition-colors hover:bg-muted/30">
+      {/* ID / DATA Combinados */}
+      <td className="whitespace-nowrap px-5 py-3.5 align-middle">
+        <div className="font-medium text-foreground">
+          {item.numero_doc || "Sem ID"}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {dataBruta(item.data_pagamento || item.criado_em)}
+        </div>
+      </td>
+      
+      {/* DESCRIÇÃO / FORNECEDOR Combinados */}
+      <td className="px-5 py-3.5 align-middle">
+        <div className="font-semibold text-foreground line-clamp-1" title={item.descricao || "Movimentação sem descrição"}>
           {item.descricao || "Movimentação sem descrição"}
-        </p>
+        </div>
+        <div className="mt-1 text-xs font-medium text-muted-foreground line-clamp-1" title={item.fornecedor || "Sem fornecedor"}>
+          {item.fornecedor || "Sem fornecedor"}
+        </div>
       </td>
-      <td className="whitespace-nowrap px-4 py-4 align-top text-sm font-medium text-foreground">
-        {item.numero_doc || "—"}
-      </td>
-      <td
-        className="max-w-[220px] px-4 py-4 align-top text-sm leading-6 text-muted-foreground"
-        title={item.fornecedor || undefined}
-      >
-        {item.fornecedor || "—"}
-      </td>
-      <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-muted-foreground">
-        {dataBruta(item.data_pagamento || item.criado_em)}
-      </td>
-      <td className="px-4 py-4 align-top">
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
+      
+      {/* CAIXA (Verde para Share, Azul para Cliente) */}
+      <td className="px-5 py-3.5 align-middle">
+        <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
           {tipoCaixaLabel(item.tipo_caixa)}
         </span>
       </td>
-      <td className="whitespace-nowrap px-4 py-4 text-right align-top font-mono text-sm font-semibold tabular-nums text-foreground">
+      
+      {/* VALOR */}
+      <td className="whitespace-nowrap px-5 py-3.5 text-right align-middle font-mono font-bold tabular-nums text-foreground">
         {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
       </td>
-      <td className="px-4 py-4 align-top">
+      
+      {/* STATUS */}
+      <td className="px-5 py-3.5 align-middle">
         <EtiquetaStatus tone={tomStatus(item.status)}>
           {statusLabel(item.status)}
         </EtiquetaStatus>
       </td>
-      <td className="px-4 py-4 align-top">
-        <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.07em] ${tomStatusEmail(statusEmail(item))}`}>
+      
+      {/* EMAIL */}
+      <td className="px-5 py-3.5 align-middle text-center">
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(statusEmail(item))}`}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
         </span>

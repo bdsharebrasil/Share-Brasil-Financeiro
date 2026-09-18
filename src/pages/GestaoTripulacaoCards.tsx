@@ -128,6 +128,22 @@ type VooRegistro = {
   tempo_ifr: number;
 };
 
+type TotalHorasAcumuladas = {
+  horasTotais: number;
+  horasNoturnas: number;
+  horasIfr: number;
+  horasPic: number;
+  horasSic: number;
+};
+
+const totaisAcumuladosVazios: TotalHorasAcumuladas = {
+  horasTotais: 0,
+  horasNoturnas: 0,
+  horasIfr: 0,
+  horasPic: 0,
+  horasSic: 0,
+};
+
 function useCrewAvatar(crew: TripulanteGestao) {
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
   useEffect(() => {
@@ -511,7 +527,33 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
     "PIC",
   );
   const [loading, setLoading] = useState(true);
+  const [acumulado, setAcumulado] = useState<TotalHorasAcumuladas | null>(null);
+  const [acumuladoLoading, setAcumuladoLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAcumuladoLoading(true);
+    void buscarHorasTripulacao({ canac: crew.canac })
+      .then((result) => {
+        const total = (result.totais || []).reduce<TotalHorasAcumuladas>(
+          (acc, item) => ({
+            horasTotais: acc.horasTotais + Number(item.horas_totais || 0),
+            horasNoturnas: acc.horasNoturnas + Number(item.horas_noturnas || 0),
+            horasIfr: acc.horasIfr + Number(item.horas_ifr || 0),
+            horasPic:
+              acc.horasPic +
+              (item.funcao === "PIC" ? Number(item.horas_totais || 0) : 0),
+            horasSic:
+              acc.horasSic +
+              (item.funcao === "SIC" ? Number(item.horas_totais || 0) : 0),
+          }),
+          totaisAcumuladosVazios,
+        );
+        setAcumulado(total);
+      })
+      .catch(() => setAcumulado(null))
+      .finally(() => setAcumuladoLoading(false));
+  }, [crew.canac]);
 
   useEffect(() => {
     if (
@@ -676,6 +718,14 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/60 shadow-sm sm:grid-cols-5">
+        <AccumulatedMetric label="Horas totais" value={acumulado?.horasTotais ?? 0} loading={acumuladoLoading} />
+        <AccumulatedMetric label="Horas totais noturnas" value={acumulado?.horasNoturnas ?? 0} loading={acumuladoLoading} />
+        <AccumulatedMetric label="Horas totais IFR" value={acumulado?.horasIfr ?? 0} loading={acumuladoLoading} />
+        <AccumulatedMetric label="Horas totais PIC" value={acumulado?.horasPic ?? 0} loading={acumuladoLoading} />
+        <AccumulatedMetric label="Horas totais SIC" value={acumulado?.horasSic ?? 0} loading={acumuladoLoading} />
+      </div>
+
       {error && <Notice error>{error}</Notice>}
 
       {loading ? (
@@ -816,6 +866,26 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
         </div>
       )}
     </section>
+  );
+}
+function AccumulatedMetric({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: number;
+  loading: boolean;
+}) {
+  return (
+    <div className="bg-card px-4 py-3">
+      <p className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-extrabold">
+        {loading ? "..." : formatHours(value)}
+      </p>
+    </div>
   );
 }
 function HourRoleCard({

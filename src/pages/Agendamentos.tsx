@@ -491,22 +491,22 @@ function minutosDoDia(valor?: string | null) {
   return null;
 }
 
-function minutosDaPerna(perna: import("@/lib/colaborador-api").JornadaVoo["pernas"][number]) {
-  const inicio = minutosDoDia(perna.horario_dep);
-  const fim = minutosDoDia(perna.horario_pouso);
-  if (inicio === null || fim === null) return null;
-  const duracao = fim >= inicio ? fim - inicio : fim + 1440 - inicio;
-  return duracao >= 0 && duracao < 1440 ? duracao : null;
+function minutosEntreJornada(inicio?: string | null, fim?: string | null) {
+  if (!inicio || !fim) return null;
+  const a = new Date(inicio).getTime();
+  const b = new Date(fim).getTime();
+  return Number.isFinite(a) && Number.isFinite(b) && b >= a ? Math.round((b - a) / 60000) : null;
 }
-
 function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").JornadaVoo) {
   const totalPersistido = Number(jornada.minutos_jornada);
-  const duracoes = (jornada.pernas || [])
-    .map(minutosDaPerna)
-    .filter((duracao): duracao is number => duracao !== null);
+  const primeiraPerna = jornada.pernas?.[0];
+  const ultimaPerna = jornada.pernas?.[jornada.pernas.length - 1];
+  const inicio = jornada.horario_apresentacao || primeiraPerna?.horario_ac;
+  const fim = ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso;
+  const totalCalculado = minutosEntreJornada(inicio, fim);
   const minutos = Number.isFinite(totalPersistido) && totalPersistido > 0
     ? totalPersistido
-    : duracoes.reduce((total, duracao) => total + duracao, 0);
+    : totalCalculado === null ? 0 : totalCalculado + Number(jornada.minutos_pos_corte ?? 45);
   if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
   return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 }

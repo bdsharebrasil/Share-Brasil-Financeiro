@@ -3466,7 +3466,7 @@ app.get('/api/interno/tripulacao/horas', async c => {
   try {
     const mes = c.req.query('mes')
     const inicio = c.req.query('inicio') || (/^\d{4}-\d{2}$/.test(mes || '') ? `${mes}-01` : '1900-01-01')
-    const fim = c.req.query('fim') || (/^\d{4}-\d{2}$/.test(mes || '') ? `${mes}-31` : '2999-12-31')
+    const fim = c.req.query('fim') || (/^\d{4}-\d{2}$/.test(mes || '') ? new Date(Date.UTC(Number((mes || '2000-01').slice(0, 4)), Number((mes || '2000-01').slice(5, 7)), 0)).toISOString().slice(0, 10) : '2999-12-31')
     const aircraft = c.req.query('aeronave_id') || ''
     const canac = (c.req.query('canac') || '').trim()
     const filters = ['date(l.data_registro) BETWEEN ? AND ?']; const binds: string[] = [inicio, fim]

@@ -285,8 +285,8 @@ export type TripulanteGestao = { id: string; user_id: string | null; canac: stri
 export type FreelancerTripulacao = { id: string; canac: string; nome_completo: string; data_nascimento?: string | null; url_avatar?: string | null; status: string | null; telefone?: string | null; aeronave_id?: string | null; matricula_registro?: string | null; fabricante?: string | null; modelo?: string | null; observacao?: string | null };
 export type AeronaveTripulacao = { id: string; matricula_registro: string; fabricante: string; modelo: string; tipo_aeronave: string | null; numero_motores: number | null; status: string | null };
 export type GestaoTripulacaoResponse = { tripulantes: TripulanteGestao[]; habilitacoes: HabilitacaoTripulante[]; freelancers: FreelancerTripulacao[]; aeronaves: AeronaveTripulacao[] };
-export type HoraTripulacao = { canac: string | null; nome: string; funcao: "PIC" | "SIC"; horas_totais: number; horas_pic: number; horas_sic: number; horas_diurnas: number; horas_noturnas: number; horas_ifr: number; voos: number };
-export type HoraAeronave = { voos: number; horas_totais: number; horas_diurnas: number; horas_noturnas: number; horas_ifr: number };
+export type HoraTripulacao = { canac: string | null; nome: string; funcao: "PIC" | "SIC"; horas_totais: number; horas_pic: number; horas_sic: number; horas_diurnas: number; horas_computaveis: number; horas_noturnas: number; horas_ifr: number; voos: number };
+export type HoraAeronave = { voos: number; horas_totais: number; horas_diurnas: number; horas_computaveis: number; horas_noturnas: number; horas_ifr: number };
 export type ExtratoHorasAeronave = { aeronave_id: string | null; matricula_registro: string; voos: number; pic: HoraAeronave; sic: HoraAeronave };
 export type HorasTripulacaoResponse = { inicio: string; fim: string; voos: Array<Record<string, any>>; totais: HoraTripulacao[]; por_aeronave: ExtratoHorasAeronave[] };
 export function buscarGestaoTripulacao() { return colaboradorRequest<GestaoTripulacaoResponse>("/api/interno/tripulacao/gestao"); }

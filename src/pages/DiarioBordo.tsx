@@ -104,11 +104,11 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     return (
       <div className="diario-bordo route-enter min-w-0 max-w-full space-y-4 md:space-y-6">
         <section className={`${card} p-4 md:p-5 relative overflow-hidden`}>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 md:gap-4">
+          <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between md:gap-4">
             <button type="button" onClick={backToList} aria-label="Voltar para os diários" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary/50 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"><ArrowLeft size={13} /></button>
 
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
+            <div className="flex min-w-0 flex-1 flex-wrap items-stretch justify-end gap-2 sm:items-center">
+              <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:w-auto">
                 <span className="h-4 w-[2px] rounded-full bg-primary" />
                 <span className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Período</span>
                 <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="campo min-w-0 !w-auto !py-1 !px-2 text-[10px] font-bold uppercase">
@@ -116,13 +116,13 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                   {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
                 </select>
               </div>
-              {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-9 gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/15 text-[10px] font-extrabold text-sky-300 hover:bg-sky-500/25 hover:text-sky-200"><Plus size={13} /> Novo Voo</Button>}
-              <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-9 gap-1.5 text-[10px]"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
-              <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-9 gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200"><CalendarDays size={12} /> Novo Mês</Button>
+              {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-9 w-full justify-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/15 text-[10px] font-extrabold text-sky-300 hover:bg-sky-500/25 hover:text-sky-200 sm:w-auto"><Plus size={13} /> Novo Voo</Button>}
+              <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-9 w-full justify-center gap-1.5 text-[10px] sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
+              <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-9 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 lg:grid-cols-[1.55fr_1fr]">
+          <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 lg:grid-cols-[1.55fr_1fr]">
             <div className={`${card} p-4`}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-primary" />
@@ -141,7 +141,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                 <span className="h-4 w-1 rounded-full bg-amber-400" />
                 <span className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-400">Horímetro</span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <StatTile label="Inicial" value={`${decimal(month?.horimetro_inicio)}h`} />
                 <StatTile label="Final" value={`${decimal(month?.horimetro_final)}h`} />
                 <StatTile label="Ativo" value={`${decimal(month?.horimetro_ativo)}h`} />
@@ -182,7 +182,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     <div className="diario-bordo route-enter space-y-5">
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
         <div><IndicadorPagina>Operações / Diário de bordo</IndicadorPagina><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><BookOpenCheck className="text-primary" size={26} /> Diários de bordo</h1><p className="mt-1.5 text-xs text-muted-foreground">Gerencie os diários digitais, horas de voo, célula e registros operacionais das aeronaves.</p></div>
-        <div className="flex gap-2">{aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]"><ArrowLeft size={13} /> Voltar</Button>}{aoAbrirAerodromos && <Button type="button" variant="outline" onClick={aoAbrirAerodromos} className="h-9 gap-1.5 text-[10px]">Aeródromos</Button>}</div>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">{aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]"><ArrowLeft size={13} /> Voltar</Button>}{aoAbrirAerodromos && <Button type="button" variant="outline" onClick={aoAbrirAerodromos} className="h-9 gap-1.5 text-[10px]">Aeródromos</Button>}</div>
       </div>
       {(error || notice) && <div className={`rounded-lg border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-2"><label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-[10px] text-muted-foreground sm:flex-none"><Search size={13} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar aeronave..." className="w-full min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/70 sm:w-40" /></label><select value={ano} onChange={(event) => setAno(Number(event.target.value))} className="campo !h-9 !w-auto !py-1 !px-3 text-[10px] font-bold"><option value={ano}>{ano}</option><option value={ano - 1}>{ano - 1}</option><option value={ano + 1}>{ano + 1}</option></select></div><Button type="button" variant="outline" onClick={() => void loadList(true)} disabled={refreshing} className="h-9 gap-1.5 text-[10px]"><RefreshCw size={12} className={refreshing ? "animate-spin" : ""} /> Atualizar</Button></div>

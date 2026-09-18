@@ -63,16 +63,19 @@ import {
   excluirSenha,
   buscarContatosShare,
   criarContatoShare,
+  atualizarContatoShare,
   excluirContatoShare,
   buscarClientesShare,
   criarClienteShare,
   criarHoldingShare,
   criarSocioHoldingShare,
   atualizarClienteShare,
+  atualizarHoldingShare,
   atualizarSocioShare,
   vincularAeronaveCliente,
   vincularAeronaveSocioShare,
   enviarLogoCliente,
+  enviarLogoHolding,
   enviarDocumentoCliente,
   enviarDocumentoSocioShare,
   buscarTarefas,
@@ -121,6 +124,11 @@ function emailsCadastrados(registro?: Record<string, any> | null) {
   return [...new Set([registro.email_principal, ...adicionais]
     .map((email) => String(email || "").trim().toLowerCase())
     .filter(Boolean))];
+}
+
+function emailsParaSalvar(value: unknown) {
+  const values = Array.isArray(value) ? value : String(value || "").split(/[;,\s]+/);
+  return [...new Set(values.map((email) => String(email).trim().toLowerCase()).filter(Boolean))];
 }
 
 function Shell({
@@ -1015,7 +1023,10 @@ export function ContatosClientesShareBrasil() {
     "ativos",
   );
   const [showNewContact, setShowNewContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<string>();
   const [showNewCotista, setShowNewCotista] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
+  const [editingSocio, setEditingSocio] = useState(false);
   const [contactView, setContactView] = useState<"lista" | "grade">("grade");
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
@@ -1041,6 +1052,11 @@ export function ContatosClientesShareBrasil() {
     email: "",
     empresa: "",
     cargo: "",
+    categoria: "",
+    endereco: "",
+    cidade: "",
+    uf: "",
+    observacoes: "",
   });
   const [clientForm, setClientForm] = useState<Record<string, any>>({
     razao_social: "",
@@ -1053,6 +1069,8 @@ export function ContatosClientesShareBrasil() {
     telefone_cliente: "",
     telefone_outro: "",
     email_principal: "",
+    emails: "",
+    conta_bancaria: "",
     endereco: "",
     cidade: "",
     uf: "",
@@ -1063,6 +1081,9 @@ export function ContatosClientesShareBrasil() {
     nome: "",
     cpf: "",
     email_principal: "",
+    emails: "",
+    contato_financeiro: "",
+    telefone_financeiro: "",
     telefone: "",
     endereco: "",
     cidade: "",
@@ -1084,10 +1105,11 @@ export function ContatosClientesShareBrasil() {
     void Promise.all([buscarContatosShare(), buscarClientesShare()])
       .then(([c, data]) => {
         const holdingsAsClients = (data.holdings || []).map((holding) => ({
+          ...holding,
           id: holding.id,
           razao_social: holding.nome,
           holding: 1,
-          status: "ativo",
+          status: holding.ativo === 0 ? "inativo" : "ativo",
           conta_bancaria: holding.conta_bancaria,
         }));
         setContacts(c);
@@ -1126,10 +1148,25 @@ export function ContatosClientesShareBrasil() {
   );
 
   useEffect(() => {
-    if (selected) setClientForm({ ...selected });
+    if (selected) {
+      const emails = emailsCadastrados(selected);
+      setClientForm({
+        ...selected,
+        emails: emails.filter((email) => email !== selected.email_principal).join(", "),
+        conta_bancaria: selected.conta_bancaria || "",
+      });
+      setEditingClient(false);
+    }
   }, [selected]);
   useEffect(() => {
-    if (currentSocio) setSocioForm({ ...currentSocio });
+    if (currentSocio) {
+      const emails = emailsCadastrados(currentSocio);
+      setSocioForm({
+        ...currentSocio,
+        emails: emails.filter((email) => email !== currentSocio.email_principal).join(", "),
+      });
+      setEditingSocio(false);
+    }
   }, [currentSocio]);
 
   const openClient = (id: string) => {
@@ -1148,16 +1185,34 @@ export function ContatosClientesShareBrasil() {
   const addContact = async () => {
     if (!form.nome) return;
     try {
-      await criarContatoShare(form);
-      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "" });
+      if (editingContact) await atualizarContatoShare(editingContact, form);
+      else await criarContatoShare(form);
+      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", endereco: "", cidade: "", uf: "", observacoes: "" });
+      setEditingContact(undefined);
       setShowNewContact(false);
-      setOk("Contato salvo.");
+      setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
       refresh();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Não foi possível salvar o contato.",
       );
     }
+  };
+  const editContact = (contact: ContatoAgenda) => {
+    setForm({
+      nome: contact.nome || "",
+      telefone: contact.telefone || "",
+      email: contact.email || "",
+      empresa: contact.empresa || "",
+      cargo: contact.cargo || "",
+      categoria: contact.categoria || "",
+      endereco: contact.endereco || "",
+      cidade: contact.cidade || "",
+      uf: contact.uf || "",
+      observacoes: contact.observacoes || "",
+    });
+    setEditingContact(contact.id);
+    setShowNewContact(true);
   };
   const removeContact = async (id: string) => {
     try {
@@ -1182,6 +1237,8 @@ export function ContatosClientesShareBrasil() {
       telefone_cliente: "",
       telefone_outro: "",
       email_principal: "",
+      emails: "",
+      conta_bancaria: "",
       endereco: "",
       cidade: "",
       uf: "",
@@ -1203,7 +1260,14 @@ export function ContatosClientesShareBrasil() {
       if (clientForm.holding) {
         const holding = await criarHoldingShare({
           nome: clientForm.razao_social,
-          conta_bancaria: clientForm.codigo_cliente,
+          conta_bancaria: clientForm.conta_bancaria || clientForm.codigo_cliente,
+          cnpj: clientForm.cnpj,
+          inscricao_estadual: clientForm.inscricao_estadual,
+          proprietario: clientForm.proprietario,
+          endereco: clientForm.endereco,
+          cidade: clientForm.cidade,
+          uf: clientForm.uf,
+          emails: emailsParaSalvar(clientForm.emails),
         });
         if (!holdingSocioForm.nome || !holdingSocioForm.cpf)
           throw new Error("Informe nome e CPF do primeiro sócio da holding.");
@@ -1219,6 +1283,7 @@ export function ContatosClientesShareBrasil() {
         }
         const result = await criarClienteShare({
           ...clientForm,
+          emails: emailsParaSalvar(clientForm.emails),
           holding: 0,
           aeronave_id: newCotistaAircraftId || null,
           percentual_sociedade: newCotistaAircraftId ? percentual : null,
@@ -1238,16 +1303,22 @@ export function ContatosClientesShareBrasil() {
     }
   };
   const saveClient = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient || !selected) return;
     try {
-      await atualizarClienteShare(selectedClient, clientForm);
+      const payload = {
+        ...clientForm,
+        emails: emailsParaSalvar(clientForm.emails),
+      };
+      if (selected.holding) await atualizarHoldingShare(selectedClient, payload);
+      else await atualizarClienteShare(selectedClient, payload);
+      setEditingClient(false);
       setOk("Cadastro atualizado.");
       refresh();
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
-          : "Não foi possível atualizar o cliente.",
+          : "Não foi possível atualizar o cadastro.",
       );
     }
   };
@@ -1255,7 +1326,8 @@ export function ContatosClientesShareBrasil() {
     if (!selectedClient || !selected) return;
     try {
       const next = selected.status === "inativo" ? "ativo" : "inativo";
-      await atualizarClienteShare(selectedClient, { status: next });
+      if (selected.holding) await atualizarHoldingShare(selectedClient, { ativo: next !== "inativo" });
+      else await atualizarClienteShare(selectedClient, { status: next });
       setClientStatus(next === "inativo" ? "inativos" : "ativos");
       setOk(
         next === "inativo"
@@ -1272,7 +1344,11 @@ export function ContatosClientesShareBrasil() {
   const saveSocio = async () => {
     if (!selectedSocio) return;
     try {
-      await atualizarSocioShare(selectedSocio, socioForm);
+      await atualizarSocioShare(selectedSocio, {
+        ...socioForm,
+        emails: emailsParaSalvar(socioForm.emails),
+      });
+      setEditingSocio(false);
       setOk("Perfil do sócio atualizado.");
       refresh();
     } catch (e) {
@@ -1310,8 +1386,10 @@ export function ContatosClientesShareBrasil() {
   const upload = async (kind: "logo" | "doc", file?: File) => {
     if (!selectedClient || !file) return;
     try {
-      if (kind === "logo") await enviarLogoCliente(selectedClient, file);
-      else await enviarDocumentoCliente(selectedClient, file, documentCategory);
+      if (kind === "logo") {
+        if (selected?.holding) await enviarLogoHolding(selectedClient, file);
+        else await enviarLogoCliente(selectedClient, file);
+      } else await enviarDocumentoCliente(selectedClient, file, documentCategory);
       setOk(
         kind === "logo"
           ? "Logo salva na pasta avatar_logo."
@@ -1477,6 +1555,36 @@ export function ContatosClientesShareBrasil() {
               onChange={(e) => setForm({ ...form, cargo: e.target.value })}
               className={field}
             />
+            <Input
+              placeholder="Categoria"
+              value={form.categoria}
+              onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+              className={field}
+            />
+            <Input
+              placeholder="Endereço"
+              value={form.endereco}
+              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+              className="h-10 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2"
+            />
+            <Input
+              placeholder="Cidade"
+              value={form.cidade}
+              onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+              className={field}
+            />
+            <Input
+              placeholder="UF"
+              value={form.uf}
+              onChange={(e) => setForm({ ...form, uf: e.target.value })}
+              className={field}
+            />
+            <Textarea
+              placeholder="Observações"
+              value={form.observacoes}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              className="min-h-10 bg-background/70 text-sm sm:col-span-2"
+            />
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -1488,7 +1596,10 @@ export function ContatosClientesShareBrasil() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowNewContact(false)}
+                onClick={() => {
+                  setShowNewContact(false);
+                  setEditingContact(undefined);
+                }}
                 className="h-10 gap-2 text-xs"
               >
                 <X size={14} /> Cancelar
@@ -1527,23 +1638,42 @@ export function ContatosClientesShareBrasil() {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-xs font-bold">{item.nome}</p>
-                    <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                      {[item.cargo, item.empresa, item.email, item.telefone]
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                      {[item.categoria, item.cargo, item.empresa].filter(Boolean).map((value) => (
+                        <span key={value} className="rounded-md bg-primary/10 px-2 py-1 text-primary">
+                          {value}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                      {[item.email, item.telefone, [item.cidade, item.uf].filter(Boolean).join("/")]
                         .filter(Boolean)
-                        .join(" · ")}
+                        .join(" · ") || "Sem dados de contato"}
                     </p>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => void removeContact(item.id)}
-                  aria-label={`Remover contato ${item.nome}`}
-                  className="shrink-0 self-end text-muted-foreground hover:text-red-300"
-                >
-                  <X size={14} />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1 self-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => editContact(item)}
+                    aria-label={`Editar contato ${item.nome}`}
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void removeContact(item.id)}
+                    aria-label={`Remover contato ${item.nome}`}
+                    className="text-muted-foreground hover:text-red-300"
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -1629,7 +1759,11 @@ export function ContatosClientesShareBrasil() {
             {input("inscricao_estadual", "Inscrição estadual")}
             {input("proprietario", "Responsável / proprietário")}
             {input("email_principal", "E-mail principal")}
+            {input("emails", "E-mails adicionais, separados por vírgula")}
+            {input("contato_financeiro", "Contato financeiro")}
+            {input("telefone_financeiro", "Telefone financeiro")}
             {input("telefone_cliente", "Telefone principal")}
+            {clientForm.holding ? input("conta_bancaria", "Conta bancária") : null}
             {input("endereco", "Endereço", true)}
             {input("cidade", "Cidade")}
             {input("uf", "UF")}
@@ -1827,20 +1961,14 @@ export function ContatosClientesShareBrasil() {
                 >
                   <span className="flex min-w-0 items-start gap-3">
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-cyan-400 to-blue-500 text-base font-black text-white shadow-lg shadow-cyan-500/10">
-                      {item.url_logo ? (
-                        <img
-                          src={item.url_logo}
-                          alt={`Logo de ${item.razao_social || "cotista"}`}
-                          className="h-full w-full bg-white object-contain"
-                        />
-                      ) : (
-                        (item.razao_social || "?")
-                          .split(/\s+/)
-                          .map((part: string) => part.charAt(0))
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()
-                      )}
+                      <img
+                        src={item.url_logo || "/icon.png"}
+                        alt={`Logo de ${item.razao_social || "cotista"}`}
+                        className="h-full w-full bg-white object-contain"
+                        onError={(event) => {
+                          event.currentTarget.src = "/icon.png";
+                        }}
+                      />
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-extrabold text-white md:text-[15px]">
@@ -1900,9 +2028,6 @@ export function ContatosClientesShareBrasil() {
                       )}
                     </span>
                   </span>
-                  <span
-                    className={`absolute ml-auto h-2 w-2 rounded-full ${item.status === "inativo" ? "bg-amber-300" : "bg-emerald-400"}`}
-                  />
                 </button>
               );
             })}
@@ -1926,26 +2051,29 @@ export function ContatosClientesShareBrasil() {
       >
         <ChevronLeft size={16} /> Voltar para clientes
       </Button>
-      <section className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]">
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#142437] via-[#101a28] to-[#0d1420] p-5 md:p-8">
+      <section
+        className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]"
+        style={{
+          borderColor: "rgba(255, 255, 255, 0.02)",
+          backgroundColor: "rgba(6, 14, 25, 1)",
+        }}
+      >
+        <div
+          className="relative overflow-hidden bg-gradient-to-br from-[#142437] via-[#101a28] to-[#0d1420] p-5 md:p-8"
+          style={{ backgroundColor: "rgba(1, 5, 17, 1)" }}
+        >
           <div className="absolute -right-16 -top-20 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/30 bg-primary/10 text-2xl font-black text-primary shadow-[0_0_0_6px_rgba(47,185,167,.06)]">
-                {selected.url_logo ? (
-                  <img
-                    src={selected.url_logo}
-                    alt={`Logo de ${selected.razao_social || "cotista"}`}
-                    className="h-full w-full bg-white object-contain"
-                  />
-                ) : (
-                  (selected.razao_social || "?")
-                    .split(/\s+/)
-                    .map((part: string) => part.charAt(0))
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()
-                )}
+                <img
+                  src={selected.url_logo || "/icon.png"}
+                  alt={`Logo de ${selected.razao_social || "cotista"}`}
+                  className="h-full w-full bg-white object-contain"
+                  onError={(event) => {
+                    event.currentTarget.src = "/icon.png";
+                  }}
+                />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1978,7 +2106,10 @@ export function ContatosClientesShareBrasil() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setProfileTab("dados")}
+                onClick={() => {
+                  setProfileTab("dados");
+                  setEditingClient(true);
+                }}
                 className="h-9 gap-2 text-xs"
               >
                 <Pencil size={13} /> Editar perfil
@@ -2038,7 +2169,10 @@ export function ContatosClientesShareBrasil() {
           </button>
           <button
             type="button"
-            onClick={() => setProfileTab("dados")}
+            onClick={() => {
+              setProfileTab("dados");
+              setEditingClient(false);
+            }}
             className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "dados" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-300"}`}
           >
             Dados cadastrais
@@ -2108,56 +2242,73 @@ export function ContatosClientesShareBrasil() {
             </div>
           )}
           {profileTab === "dados" && (
-            <div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {input("razao_social", "Razão social", true)}
-                {input("codigo_cliente", "Código do cliente")}
-                {input("cnpj", "CNPJ")}
-                {input("inscricao_estadual", "Inscrição estadual")}
-                {input("proprietario", "Responsável / proprietário")}
-                {input("contato_financeiro", "Contato financeiro")}
-                {input("telefone_financeiro", "Telefone financeiro")}
-                {input("telefone_cliente", "Telefone principal")}
-                {input("telefone_outro", "Telefone alternativo")}
-                {input("email_principal", "E-mail principal")}
-                {input("endereco", "Endereço", true)}
-                {input("cidade", "Cidade")}
-                {input("uf", "UF")}
-              </div>
-              <Textarea
-                value={String(clientForm.observacoes ?? "")}
-                onChange={(e) =>
-                  setClientForm({ ...clientForm, observacoes: e.target.value })
-                }
-                placeholder="Observações e informações complementares"
-                className="mt-2 min-h-24 bg-background/70 text-sm"
-              />
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void saveClient()}
-                  className="h-9 gap-2 text-xs"
-                >
-                  <CheckCircle2 size={14} /> Salvar alterações
-                </Button>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  aria-label="Enviar logo do cliente"
-                  onChange={(e) => void upload("logo", e.target.files?.[0])}
-                  className="h-9 max-w-[190px] text-[10px]"
-                />
-                {categorySelect(
-                  documentCategory,
-                  setDocumentCategory,
-                  "Categoria do documento do cliente",
+            <div className="space-y-4">
+              {!editingClient ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {profileField("Razão social", selected.razao_social, <Building2 size={13} />)}
+                  {profileField("Código do cliente", selected.codigo_cliente, <Clipboard size={13} />)}
+                  {profileField("CNPJ", selected.cnpj, <FileText size={13} />)}
+                  {profileField("Inscrição estadual", selected.inscricao_estadual, <FileText size={13} />)}
+                  {selected.holding ? profileField("Conta bancária", selected.conta_bancaria, <Building2 size={13} />) : null}
+                  {profileField("Responsável / proprietário", selected.proprietario, <UserRound size={13} />)}
+                  {profileField("Telefone principal", selected.telefone_cliente, <Phone size={13} />)}
+                  {profileField("Telefone financeiro", selected.telefone_financeiro, <Phone size={13} />)}
+                  {profileField("Telefone alternativo", selected.telefone_outro, <Phone size={13} />)}
+                  {profileField("Contato financeiro", selected.contato_financeiro, <UserRound size={13} />)}
+                  {profileField("Endereço", [selected.endereco, selected.cidade, selected.uf].filter(Boolean).join(" · "), <MapPin size={13} />)}
+                  {profileField("Observações", selected.observacoes, <FileText size={13} />)}
+                  {profileEmails(selected)}
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {input("razao_social", "Razão social", true)}
+                    {input("codigo_cliente", "Código do cliente")}
+                    {input("cnpj", "CNPJ")}
+                    {input("inscricao_estadual", "Inscrição estadual")}
+                    {input("proprietario", "Responsável / proprietário")}
+                    {selected.holding ? input("conta_bancaria", "Conta bancária") : null}
+                    {input("contato_financeiro", "Contato financeiro")}
+                    {input("telefone_financeiro", "Telefone financeiro")}
+                    {input("telefone_cliente", "Telefone principal")}
+                    {input("telefone_outro", "Telefone alternativo")}
+                    {input("email_principal", "E-mail principal")}
+                    {input("emails", "E-mails adicionais, separados por vírgula", true)}
+                    {input("endereco", "Endereço", true)}
+                    {input("cidade", "Cidade")}
+                    {input("uf", "UF")}
+                  </div>
+                  <Textarea
+                    value={String(clientForm.observacoes ?? "")}
+                    onChange={(e) => setClientForm({ ...clientForm, observacoes: e.target.value })}
+                    placeholder="Observações e informações complementares"
+                    className="min-h-24 bg-background/70 text-sm"
+                  />
+                </>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {!editingClient ? (
+                  <Button type="button" onClick={() => setEditingClient(true)} className="h-9 gap-2 text-xs">
+                    <Pencil size={14} /> Editar dados cadastrais
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" onClick={() => void saveClient()} className="h-9 gap-2 text-xs">
+                      <CheckCircle2 size={14} /> Salvar alterações
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditingClient(false)} className="h-9 text-xs">
+                      Cancelar
+                    </Button>
+                  </>
                 )}
                 <Input
                   type="file"
-                  aria-label="Enviar documento do cliente"
-                  onChange={(e) => void upload("doc", e.target.files?.[0])}
-                  className="h-9 max-w-[190px] text-[10px]"
+                  accept="image/*"
+                  aria-label={`Enviar logo do ${selected.holding ? "holding" : "cliente"}`}
+                  onChange={(e) => void upload("logo", e.target.files?.[0])}
+                  className="h-9 max-w-[220px] text-[10px]"
                 />
+                <span className="text-[10px] text-slate-500">Logo opcional</span>
               </div>
             </div>
           )}
@@ -2288,34 +2439,44 @@ export function ContatosClientesShareBrasil() {
                 {profileField("Endereço", [currentSocio.endereco, currentSocio.cidade, currentSocio.uf].filter(Boolean).join(" · "), <MapPin size={13} />)}
                 {profileEmails(currentSocio, true)}
               </div>
-              <div className="border-t border-white/[.07] pt-5">
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-slate-500">Editar cadastro do sócio</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {socioInput("nome", "Nome completo")}
-                {socioInput("cpf", "CPF")}
-                {socioInput("email_principal", "E-mail")}
-                {socioInput("telefone", "Telefone")}
-                {socioInput("endereco", "Endereço")}
-                {socioInput("cidade", "Cidade")}
-                {socioInput("uf", "UF")}
-              </div>
-              <Textarea
-                value={String(socioForm.observacoes ?? "")}
-                onChange={(e) =>
-                  setSocioForm({ ...socioForm, observacoes: e.target.value })
-                }
-                placeholder="Observações do sócio"
-                className="min-h-20 bg-background/70 text-sm"
-              />
+              {editingSocio && (
+                <div className="space-y-3 rounded-xl border border-violet-300/15 bg-violet-300/[.03] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-violet-200">Editar cadastro do sócio</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {socioInput("nome", "Nome completo")}
+                    {socioInput("cpf", "CPF")}
+                    {socioInput("email_principal", "E-mail principal")}
+                    {socioInput("emails", "E-mails adicionais, separados por vírgula")}
+                    {socioInput("contato_financeiro", "Contato financeiro")}
+                    {socioInput("telefone_financeiro", "Telefone financeiro")}
+                    {socioInput("telefone", "Telefone")}
+                    {socioInput("endereco", "Endereço")}
+                    {socioInput("cidade", "Cidade")}
+                    {socioInput("uf", "UF")}
+                  </div>
+                  <Textarea
+                    value={String(socioForm.observacoes ?? "")}
+                    onChange={(e) => setSocioForm({ ...socioForm, observacoes: e.target.value })}
+                    placeholder="Observações do sócio"
+                    className="min-h-20 bg-background/70 text-sm"
+                  />
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void saveSocio()}
-                  className="h-9 gap-2 text-xs"
-                >
-                  <CheckCircle2 size={14} /> Salvar perfil do sócio
-                </Button>
+                {!editingSocio ? (
+                  <Button type="button" onClick={() => setEditingSocio(true)} className="h-9 gap-2 text-xs">
+                    <Pencil size={14} /> Editar cadastro do sócio
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" onClick={() => void saveSocio()} className="h-9 gap-2 text-xs">
+                      <CheckCircle2 size={14} /> Salvar perfil do sócio
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditingSocio(false)} className="h-9 text-xs">
+                      Cancelar
+                    </Button>
+                  </>
+                )}
                 {categorySelect(
                   socioDocumentCategory,
                   setSocioDocumentCategory,

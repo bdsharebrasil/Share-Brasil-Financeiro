@@ -5,6 +5,7 @@ import { EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashb
 import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import { CreateMonthDialog } from "@/components/diario/CreateMonthDialog";
 import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
+import DiarioLancamentoFormIntegrado from "@/components/diario/DiarioLancamentoForm";
 import { atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
@@ -114,7 +115,12 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
             </div>
 
             <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-              <div className="flex min-h-10 w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:w-auto">
+              <div className="flex w-full flex-col gap-2 sm:order-1 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} aria-label="Novo lançamento de voo" className="h-10 w-full justify-center gap-1.5 overflow-hidden rounded-[18px] border border-[rgba(12,12,12,0.35)] bg-[rgba(246,109,21,0.63)] text-[10px] font-extrabold text-[rgba(246,242,240,1)] [text-shadow:1px_1px_0_rgba(0,0,0,1)] hover:bg-[rgba(246,109,21,0.63)] hover:text-[rgba(246,242,240,1)] sm:h-9 sm:w-auto"><Plus size={13} strokeWidth={2.5} /> Novo lançamento</Button>}
+                <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-10 w-full justify-center gap-1.5 text-[10px] sm:h-9 sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
+                <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-10 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:h-9 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
+              </div>
+              <div className="flex min-h-10 w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:order-2 sm:w-auto">
                 <span className="h-4 w-[2px] shrink-0 rounded-full bg-primary" />
                 <span className="shrink-0 text-[10px] font-bold uppercase tracking-[.12em] text-primary">Período</span>
                 <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="campo min-w-0 flex-1 !w-auto !py-1 !px-2 text-[10px] font-bold uppercase sm:flex-none">
@@ -122,20 +128,9 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                   {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
                 </select>
               </div>
-              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-                <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-10 w-full justify-center gap-1.5 text-[10px] sm:h-9 sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
-                <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-10 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:h-9 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
-              </div>
             </div>
           </div>
 
-          {!closed && month && <div className="mt-3 flex min-w-0 flex-col gap-3 rounded-xl border border-sky-300/30 bg-sky-500/[.08] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
-            <div className="min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-sky-300">Registrar voo</p>
-              <p className="mt-1 text-xs text-muted-foreground">Adicione um novo lançamento ao diário desta aeronave.</p>
-            </div>
-            <Button type="button" onClick={() => setEntryEditor(null)} aria-label="Novo lançamento de voo" className="min-h-11 w-full shrink-0 justify-center gap-2 rounded-lg border border-sky-300/50 bg-sky-500 px-4 text-[11px] font-extrabold text-slate-950 shadow-[0_8px_24px_rgba(14,165,233,.24)] hover:bg-sky-300 sm:min-h-10 sm:w-auto sm:text-xs"><Plus size={16} strokeWidth={2.5} /> Novo lançamento de voo</Button>
-          </div>}
 
           <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 lg:grid-cols-[1.55fr_1fr]">
             <div className={`${card} p-4`}>
@@ -182,7 +177,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : !month && <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
         {month && <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-amber-400"><Fuel size={14} /></span><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-400">Consumo de combustível</p><p className="mt-0.5 truncate text-[10px] text-muted-foreground">Histórico registrado no mês <span className="mx-1 text-muted-foreground/60">·</span> {decimal(fuelTotal)} L abastecidos</p></div></div><ChevronDown size={15} className="shrink-0 text-amber-400/70" /></div>}
         {monthEditor && <CreateMonthDialog open={monthEditor} onOpenChange={setMonthEditor} aircraftId={selected.id} aircraftRegistration={selected.matricula_registro} month={period.mes} year={period.ano} currentModoCelula={month?.modo_celula || null} previousMonthData={month ? { celula_atual_ttotal: month.celula_atual_ttotal, celula_prox_revisao_ttotal: month.celula_prox_revisao_ttotal, horimetro_final: month.horimetro_final, aerodromo_base: month.aerodromo_base, consumo_combustivel: month.consumo_combustivel, tem_tarifa_diaria: Boolean(month.tem_tarifa_diaria), tarifa_diaria: month.tarifa_diaria } : null} onCreate={(payload) => saveMonth(payload)} />}
-        {entryEditor !== false && month && !closed && options && <DiarioLancamentoForm aeronaveId={selected.id} diarioMesId={month.id} opcoes={options} initialData={entryEditor || null} sugeridaCelula={Number(month.celula_atual_ttotal || 0)} sugestaoTrecho={details?.lancamentos?.length ? details.lancamentos[details.lancamentos.length - 1].trecho || `${details.lancamentos[details.lancamentos.length - 1].aerodromo_partida} X ${details.lancamentos[details.lancamentos.length - 1].aerodromo_chegada}` : undefined} temDiaria={Boolean(month.tem_tarifa_diaria)} onSubmit={saveEntry} onCancel={() => setEntryEditor(false)} saving={saving} />}
+        {entryEditor !== false && month && !closed && options && <DiarioLancamentoFormIntegrado aeronaveId={selected.id} diarioMesId={month.id} opcoes={options} initialData={entryEditor || null} sugeridaCelula={Number(month.celula_atual_ttotal || 0)} sugestaoTrecho={details?.lancamentos?.length ? details.lancamentos[details.lancamentos.length - 1].trecho || `${details.lancamentos[details.lancamentos.length - 1].aerodromo_partida} X ${details.lancamentos[details.lancamentos.length - 1].aerodromo_chegada}` : undefined} temDiaria={Boolean(month.tem_tarifa_diaria)} onSubmit={saveEntry} onCancel={() => setEntryEditor(false)} saving={saving} />}
         {month && (
           <div className="space-y-4">
             <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />

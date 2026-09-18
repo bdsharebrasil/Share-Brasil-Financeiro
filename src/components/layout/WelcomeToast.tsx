@@ -7,7 +7,7 @@ const CLOSE_DELAY = 700; // Tempo que fica na tela após completar a volta para 
 const TOTAL_MS = ORBIT_MS + CLOSE_DELAY;
 
 // Configurações de tamanho (círculo principal)
-const SIZE = 200; // Tamanho total do componente (largura e altura)
+const SIZE = 200; // Tamanho de referência (px) usado só para calcular a geometria do SVG
 const CENTER = SIZE / 2;
 const RADIUS = 88; // Raio da órbita do avião
 const PERIMETER = Math.round(2 * Math.PI * RADIUS);
@@ -44,11 +44,16 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
       className="welcome-toast-shell"
       style={{
         position: "fixed",
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
-        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+        // clamp() em vez de breakpoints fixos: o toast encolhe suavemente em
+        // qualquer largura de tela, do iPhone SE (320px) ao desktop, sem
+        // "saltos" entre tamanhos.
+        bottom: "max(calc(env(safe-area-inset-bottom, 0px) + 12px), calc(env(safe-area-inset-bottom, 0px) + 3vh))",
+        right: "max(calc(env(safe-area-inset-right, 0px) + 10px), calc(env(safe-area-inset-right, 0px) + 3vw))",
         zIndex: 9999,
-        width: SIZE,
-        height: SIZE,
+        width: "clamp(112px, 34vw, 200px)",
+        height: "clamp(112px, 34vw, 200px)",
+        maxWidth: "min(200px, 92vw)",
+        maxHeight: "min(200px, 92vw)",
         transformOrigin: "bottom right",
         transition: "opacity 0.3s cubic-bezier(0.34,1.56,0.64,1), transform 0.3s cubic-bezier(0.34,1.56,0.64,1)",
         opacity: entering ? 0 : 1,
@@ -56,13 +61,12 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
         pointerEvents: "none",
       }}
     >
-      {/* Wrapper que aplica a escala responsiva sem interferir na animação de entrada/saída acima */}
-      <div className="welcome-toast-scale" style={{ position: "absolute", inset: 0, transformOrigin: "bottom right" }}>
+      <div style={{ position: "absolute", inset: 0 }}>
         {/* Fundo escuro circular onde fica o texto */}
         <div
           style={{
             position: "absolute",
-            inset: 14, // Deixa um espaço para a linha do trajeto passar por fora
+            inset: "7%", // Deixa um espaço proporcional para a linha do trajeto passar por fora
             borderRadius: "50%",
             background: "linear-gradient(135deg, #378fc2b2 0%, #193d7a79 100%)",
             boxShadow: "0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,184,212,0.1) inset",
@@ -71,20 +75,46 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
             alignItems: "center",
             justifyContent: "center",
             textAlign: "center",
-            padding: 14,
+            padding: "8%",
           }}
         >
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(202, 252, 224, 0.8)", textTransform: "uppercase", marginBottom: 4 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "clamp(7px, 2.4vw, 10px)",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              color: "rgba(202, 252, 224, 0.8)",
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
             Share Brasil
           </p>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#7dcc88", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2 }}>
-            Bem-vindo,<br />
+          <p
+            style={{
+              margin: 0,
+              fontSize: "clamp(10px, 3.4vw, 15px)",
+              fontWeight: 700,
+              color: "#7dcc88",
+              fontFamily: "'DM Sans', sans-serif",
+              lineHeight: 1.2,
+              wordBreak: "break-word",
+            }}
+          >
+            Bem-vindo,
+            <br />
             <span style={{ color: "rgb(182, 226, 238)" }}>{displayName}</span>
           </p>
         </div>
 
-        {/* SVG que desenha o rastro luminoso */}
-        <svg width={SIZE} height={SIZE} style={{ position: "absolute", inset: 0, overflow: "visible" }} aria-hidden="true">
+        {/* SVG que desenha o rastro luminoso — escala junto com o contêiner via viewBox */}
+        <svg
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
+          aria-hidden="true"
+        >
           <defs>
             <linearGradient id="circular-glow" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#49B9D7" stopOpacity={0.4} />
@@ -108,15 +138,19 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           />
         </svg>
 
-        {/* Avião e seu contêiner de animação */}
-        <div style={{ position: "absolute", top: 0, left: 0, width: SIZE, height: SIZE }}>
+        {/* Avião e seu contêiner de animação — o path do offset-path usa as
+           mesmas coordenadas do viewBox (0-200), então o navegador escala
+           o movimento junto com o tamanho real do elemento pai. */}
+        <div style={{ position: "absolute", inset: 0 }}>
           <div
             style={{
               position: "absolute",
               top: 0,
               left: 0,
-              width: 20,
-              height: 20,
+              width: "10%",
+              height: "10%",
+              minWidth: 14,
+              minHeight: 14,
               display: "grid",
               placeItems: "center",
               offsetPath: `path('${orbitPath}')`,
@@ -124,13 +158,22 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
               animation: `planeOrbit ${ORBIT_MS}ms linear forwards`,
             } as React.CSSProperties}
           >
-            {/* Rotacionando 45deg pois o ícone padrão "Plane" do lucide aponta para a diagonal superior */}
-            <Plane size={18} strokeWidth={2} fill="#1b3979" color="#0b5c70" aria-hidden="true" style={{ transform: "rotate(35deg)" }} />
+            {/* Rotacionando 35deg pois o ícone padrão "Plane" do lucide aponta para a diagonal superior */}
+            <Plane
+              className="welcome-toast-plane-icon"
+              strokeWidth={2}
+              fill="#1b3979"
+              color="#0b5c70"
+              aria-hidden="true"
+              style={{ transform: "rotate(35deg)" }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Keyframes e escala responsiva embutidos */}
+      {/* Keyframes embutidos. O SVG usa coordenadas fixas (0-200) que são
+         reescaladas pelo próprio viewBox/offset-path, então não precisamos
+         mais de media queries com "saltos" de escala. */}
       <style>{`
         @keyframes planeOrbit {
           from { offset-distance: 0%; }
@@ -140,12 +183,9 @@ export default function WelcomeToast({ name }: WelcomeToastProps) {
           from { stroke-dashoffset: ${PERIMETER}; }
           to { stroke-dashoffset: 0; }
         }
-        .welcome-toast-scale { transform: scale(1); }
-        @media (max-width: 480px) {
-          .welcome-toast-scale { transform: scale(0.62); }
-        }
-        @media (min-width: 481px) and (max-width: 767px) {
-          .welcome-toast-scale { transform: scale(0.8); }
+        .welcome-toast-plane-icon {
+          width: clamp(14px, 4.2vw, 18px);
+          height: clamp(14px, 4.2vw, 18px);
         }
       `}</style>
     </div>

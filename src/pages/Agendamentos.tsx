@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,8 @@ const abas = [
 ] as const;
 type AbaAgendamento = (typeof abas)[number]["id"];
 type VisaoEscala = "semanal" | "mensal";
+type FiltroStatusCronograma = "todos" | "pendente" | "aprovada" | "em_voo";
+type VisaoCronograma = "grid" | "lista";
 
 const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const nomesDias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -81,6 +83,17 @@ function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutra
 function statusLabel(status: string) {
   return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
+function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
+  return [...itens].sort((a, b) => {
+    const aeronaveA = a.matricula_registro?.trim() || "";
+    const aeronaveB = b.matricula_registro?.trim() || "";
+    if (!aeronaveA && aeronaveB) return 1;
+    if (aeronaveA && !aeronaveB) return -1;
+    return aeronaveA.localeCompare(aeronaveB, "pt-BR", { numeric: true, sensitivity: "base" })
+      || String(a.data_agendada || "").localeCompare(String(b.data_agendada || ""))
+      || String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true, sensitivity: "base" });
+  });
+}
 function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
   return [
     ...opcoes.clientes.map((item) => ({ id: `cliente:${item.id}`, label: `${item.nome}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}` })),
@@ -103,6 +116,8 @@ export default function Agendamentos() {
   const [historicoJornadas, setHistoricoJornadas] = useState<import("@/lib/colaborador-api").JornadaVoo[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
   const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatusCronograma>("todos");
+  const [visaoCronograma, setVisaoCronograma] = useState<VisaoCronograma>("grid");
   const [buscaCalendario, setBuscaCalendario] = useState("");
   const [mostrarNovo, setMostrarNovo] = useState(false);
   const [mostrarDisponibilidade, setMostrarDisponibilidade] = useState(false);
@@ -167,10 +182,12 @@ export default function Agendamentos() {
   const nomesTripulantes = useMemo(() => new Map((painel?.tripulacao || []).map((tripulante) => [tripulante.id, tripulante.nome_completo])), [painel?.tripulacao]);
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const ativos = agendamentos.filter((item) => item.status !== "encerrada");
-    if (!termo) return ativos;
-    return ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo));
-  }, [agendamentos, busca]);
+    const ativos = agendamentos.filter((item) => item.status !== "encerrada" && (filtroStatus === "todos" || item.status === filtroStatus));
+    const encontrados = termo
+      ? ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
+      : ativos;
+    return ordenarPorAeronave(encontrados);
+  }, [agendamentos, busca, filtroStatus]);
 
   const abrirSolicitacao = (item: SolicitacaoVooInterna) => {
     setSelecionada(item);
@@ -282,7 +299,7 @@ export default function Agendamentos() {
     <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">{abas.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Icon size={14} />{item.label}</button>; })}</nav>
     {aba === "calendario" && <CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={[...confirmados, ...encerrados]} pendentes={pendentes} aeronaves={painel?.aeronaves || []} buscaVoo={buscaCalendario} aoMudarBuscaVoo={setBuscaCalendario} aoNavegarParaData={navegarParaDataCalendario} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao} />}
     {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} visao={visaoEscala} aoMudarVisao={setVisaoEscala} aoMarcar={() => setMostrarDisponibilidade((atual) => !atual)} />}
-    {aba === "cronograma" && <Cronograma solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} aoMudarBusca={setBusca} aoAbrir={abrirSolicitacao} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
+    {aba === "cronograma" && <Cronograma solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} historicoJornadas={historicoJornadas} carregandoHistorico={carregandoHistorico} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
     {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} />}
@@ -453,8 +470,8 @@ function Escala({ tripulacao, escala, disponibilidades, visao, aoMudarVisao, aoM
   </section>;
 }
 
-function Cronograma({ solicitacoes, nomesTripulantes, busca, aoMudarBusca, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { solicitacoes: SolicitacaoVooInterna[]; nomesTripulantes: Map<string, string>; busca: string; aoMudarBusca: (busca: string) => void; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail="Todas as solicitações de voo" action={<div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div>} />{solicitacoes.length ? <><div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{solicitacoes.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} aoAbrir={aoAbrir} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div></> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
+function Cronograma({ solicitacoes, nomesTripulantes, busca, filtroStatus, visao, aoMudarBusca, aoMudarFiltroStatus, aoMudarVisao, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { solicitacoes: SolicitacaoVooInterna[]; nomesTripulantes: Map<string, string>; busca: string; filtroStatus: FiltroStatusCronograma; visao: VisaoCronograma; aoMudarBusca: (busca: string) => void; aoMudarFiltroStatus: (filtro: FiltroStatusCronograma) => void; aoMudarVisao: (visao: VisaoCronograma) => void; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
+  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail="Todas as solicitações de voo" action={<div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Filtrar solicitações por status"><button type="button" onClick={() => aoMudarFiltroStatus("todos")} aria-pressed={filtroStatus === "todos"} className={`px-2 py-1 text-[9px] font-bold ${filtroStatus === "todos" ? "rounded-[16px] overflow-hidden bg-primary text-primary-foreground" : "rounded text-muted-foreground hover:bg-secondary"}`}>Todas</button><button type="button" onClick={() => aoMudarFiltroStatus("pendente")} aria-pressed={filtroStatus === "pendente"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "pendente" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Pendente</button><button type="button" onClick={() => aoMudarFiltroStatus("aprovada")} aria-pressed={filtroStatus === "aprovada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "aprovada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Aprovada</button><button type="button" onClick={() => aoMudarFiltroStatus("em_voo")} aria-pressed={filtroStatus === "em_voo"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "em_voo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Voo</button></div><div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Alternar visualização"><button type="button" onClick={() => aoMudarVisao("grid")} aria-label="Visualizar em grade" aria-pressed={visao === "grid"} className={`rounded p-1.5 ${visao === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="6" ry="6" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></svg></button><button type="button" onClick={() => aoMudarVisao("lista")} aria-label="Visualizar em lista" aria-pressed={visao === "lista"} className={`rounded p-1.5 ${visao === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><List size={14} /></button></div></div>} />{solicitacoes.length ? <><div className={visao === "grid" ? "grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3" : "space-y-2 p-3"}>{solicitacoes.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} aoAbrir={aoAbrir} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div></> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
 }
 
 function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { item: SolicitacaoVooInterna; nomesTripulantes: Map<string, string>; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {

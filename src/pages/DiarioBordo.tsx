@@ -103,24 +103,39 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     const fuelTotal = (details?.lancamentos || []).reduce((total, entry) => total + Number(entry.litros_combustivel_abastecido || 0), 0);
     return (
       <div className="diario-bordo route-enter min-w-0 max-w-full space-y-4 md:space-y-6">
-        <section className={`${card} p-4 md:p-5 relative overflow-hidden`}>
-          <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between md:gap-4">
-            <button type="button" onClick={backToList} aria-label="Voltar para os diários" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary/50 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"><ArrowLeft size={13} /></button>
+        <section className={`${card} relative overflow-hidden p-3 sm:p-4 md:p-5`}>
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:gap-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <button type="button" onClick={backToList} aria-label="Voltar para os diários" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"><ArrowLeft size={14} /></button>
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-[.16em] text-primary">Diário de bordo</p>
+                <p className="mt-0.5 truncate text-sm font-extrabold text-foreground">{selected.matricula_registro}</p>
+              </div>
+            </div>
 
-            <div className="flex min-w-0 flex-1 flex-wrap items-stretch justify-end gap-2 sm:items-center">
-              <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:w-auto">
-                <span className="h-4 w-[2px] rounded-full bg-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Período</span>
-                <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="campo min-w-0 !w-auto !py-1 !px-2 text-[10px] font-bold uppercase">
+            <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="flex min-h-10 w-full items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 sm:w-auto">
+                <span className="h-4 w-[2px] shrink-0 rounded-full bg-primary" />
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-[.12em] text-primary">Período</span>
+                <select value={`${period.ano}-${period.mes}`} onChange={(event) => changePeriod(event.target.value)} className="campo min-w-0 flex-1 !w-auto !py-1 !px-2 text-[10px] font-bold uppercase sm:flex-none">
                   <option value={`${period.ano}-${period.mes}`}>{monthName(period.mes)} {period.ano}</option>
                   {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
                 </select>
               </div>
-              {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-9 w-full justify-center gap-1.5 rounded-lg border border-sky-400/25 bg-sky-500/15 text-[10px] font-extrabold text-sky-300 hover:bg-sky-500/25 hover:text-sky-200 sm:w-auto"><Plus size={13} /> Novo Voo</Button>}
-              <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-9 w-full justify-center gap-1.5 text-[10px] sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
-              <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-9 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+                <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-10 w-full justify-center gap-1.5 text-[10px] sm:h-9 sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
+                <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-10 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:h-9 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
+              </div>
             </div>
           </div>
+
+          {!closed && month && <div className="mt-3 flex min-w-0 flex-col gap-3 rounded-xl border border-sky-300/30 bg-sky-500/[.08] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-sky-300">Registrar voo</p>
+              <p className="mt-1 text-xs text-muted-foreground">Adicione um novo lançamento ao diário desta aeronave.</p>
+            </div>
+            <Button type="button" onClick={() => setEntryEditor(null)} aria-label="Novo lançamento de voo" className="min-h-11 w-full shrink-0 justify-center gap-2 rounded-lg border border-sky-300/50 bg-sky-500 px-4 text-[11px] font-extrabold text-slate-950 shadow-[0_8px_24px_rgba(14,165,233,.24)] hover:bg-sky-300 sm:min-h-10 sm:w-auto sm:text-xs"><Plus size={16} strokeWidth={2.5} /> Novo lançamento de voo</Button>
+          </div>}
 
           <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 lg:grid-cols-[1.55fr_1fr]">
             <div className={`${card} p-4`}>

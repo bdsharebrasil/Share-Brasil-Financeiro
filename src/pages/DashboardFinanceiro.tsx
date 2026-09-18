@@ -163,7 +163,7 @@ export default function DashboardFinanceiro({
     paginaExibida * itensPorPagina,
   );
   return (
-    <div className="route-enter w-full min-w-0 px-3 sm:px-4 md:px-0">
+    <div className="route-enter">
       <HeroDashboard
         ambiente="financeiro"
         title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`}
@@ -180,7 +180,8 @@ export default function DashboardFinanceiro({
           </button>
         </div>
       )}
-      <div className="mx-auto mb-5 grid max-w-[770px] grid-cols-1 gap-3 sm:mb-6 sm:grid-cols-2">
+      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
+
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
@@ -202,7 +203,7 @@ export default function DashboardFinanceiro({
           className="min-w-0"
         />
       </div>
-      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="Recibos"
@@ -242,7 +243,7 @@ export default function DashboardFinanceiro({
           title="Movimentações financeiras"
           detail={mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
           action={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -264,109 +265,109 @@ export default function DashboardFinanceiro({
           }
         />
         {mostrarPendencias && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-3 py-3 text-xs sm:px-4">
+          <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
             <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo as movimentações das pendências em aberto.</span>
             <button type="button" onClick={() => { setMostrarPendencias(false); setPaginaAtual(1); }} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
           </div>
         )}
         {carregando ? (
-          <div className="space-y-3 p-4 sm:p-5">
+          <div className="space-y-3 p-5">
             <div className="skeleton h-12 rounded-lg" />
             <div className="skeleton h-12 rounded-lg" />
             <div className="skeleton h-12 rounded-lg" />
           </div>
         ) : movimentacoesVisiveis.length ? (
           <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1080px] text-left">
-                <thead>
-                  <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
-                    <th className="px-4 py-4">Descrição</th>
-                    <th className="px-4 py-4">Nº doc</th>
-                    <th className="px-4 py-4">Fornecedor</th>
-                    <th className="px-4 py-4">Data</th>
-                    <th className="px-4 py-4">Caixa</th>
-                    <th className="px-4 py-4 text-right">Valor</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4 text-muted-foreground">EMAIL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movimentacoesDaPagina.map((item) => (
-                    <LinhaMovimentacao key={item.id} item={item} />
-                  ))}
-                </tbody>
-              </table>
-              {totalPaginas > 1 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Página {paginaExibida} de {totalPaginas}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
-                      disabled={paginaExibida === 1}
-                    >
-                      <ChevronLeft size={14} /> Anterior
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
-                      disabled={paginaExibida === totalPaginas}
-                    >
-                      Próxima <ChevronRight size={14} />
-                    </Button>
-                  </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[1080px] text-left">
+              <thead>
+                <tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+                  <th className="px-4 py-4">Descrição</th>
+                  <th className="px-4 py-4">Nº doc</th>
+                  <th className="px-4 py-4">Fornecedor</th>
+                  <th className="px-4 py-4">Data</th>
+                  <th className="px-4 py-4">Caixa</th>
+                  <th className="px-4 py-4 text-right">Valor</th>
+                  <th className="px-4 py-4">Status</th>
+                  <th className="px-4 py-4 text-muted-foreground">EMAIL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movimentacoesDaPagina.map((item) => (
+                  <LinhaMovimentacao key={item.id} item={item} />
+                ))}
+              </tbody>
+            </table>
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Página {paginaExibida} de {totalPaginas}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+                    disabled={paginaExibida === 1}
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                    disabled={paginaExibida === totalPaginas}
+                  >
+                    Próxima <ChevronRight size={14} />
+                  </Button>
                 </div>
-              )}
-            </div>
-            <div className="space-y-3 p-3 sm:p-4 md:hidden">
-              {movimentacoesDaPagina.map((item) => (
-                <CartaoMovimentacao key={item.id} item={item} />
-              ))}
-              {totalPaginas > 1 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Página {paginaExibida} de {totalPaginas}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
-                      disabled={paginaExibida === 1}
-                    >
-                      <ChevronLeft size={14} /> Anterior
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
-                      disabled={paginaExibida === totalPaginas}
-                    >
-                      Próxima <ChevronRight size={14} />
-                    </Button>
-                  </div>
+              </div>
+            )}
+          </div>
+          <div className="space-y-3 p-4 md:hidden">
+            {movimentacoesDaPagina.map((item) => (
+              <CartaoMovimentacao key={item.id} item={item} />
+            ))}
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Página {paginaExibida} de {totalPaginas}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
+                    disabled={paginaExibida === 1}
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                    disabled={paginaExibida === totalPaginas}
+                  >
+                    Próxima <ChevronRight size={14} />
+                  </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
           </>
         ) : (
           <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
         )}
       </section>
-      <div className="mt-5 pb-[env(safe-area-inset-bottom)]">
+      <div className="mt-5">
         <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
       </div>
     </div>
@@ -387,12 +388,12 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
             {item.fornecedor || "Sem fornecedor"} · {item.numero_doc || "Sem doc"}
           </p>
         </div>
-        <p className="shrink-0 whitespace-nowrap font-mono text-sm font-bold tabular-nums text-foreground">
+        <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-foreground">
           {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
         </p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] ${tipoCaixaClass(item.tipo_caixa)}`}>
           {tipoCaixaLabel(item.tipo_caixa)}
         </span>
         <EtiquetaStatus tone={tomStatus(item.status)}>
@@ -402,7 +403,7 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {statusEmail(item)}
         </span>
-        <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
+        <span className="ml-auto text-xs text-muted-foreground">
           {dataBruta(item.data_pagamento || item.criado_em)}
         </span>
       </div>

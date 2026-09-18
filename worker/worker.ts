@@ -3464,36 +3464,39 @@ app.delete('/api/interno/tripulacao-freelancer/:id', async c => {
 })
 app.get('/api/interno/tripulacao/horas', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const mes = (c.req.query('mes') || '').trim()
+  const inicio = c.req.query('inicio') || (/^\d{4}-\d{2}$/.test(mes) ? `${mes}-01` : '1900-01-01')
+  const fim = c.req.query('fim') || (/^\d{4}-\d{2}$/.test(mes) ? `${mes}-31` : '2999-12-31')
+  const aircraft = (c.req.query('aeronave_id') || '').trim()
+  const canac = (c.req.query('canac') || '').trim()
+
   try {
-    const mes = c.req.query('mes')
-    const inicio = c.req.query('inicio') || (/^\d{4}-\d{2}$/.test(mes || '') ? `${mes}-01` : '1900-01-01')
-    const fim = c.req.query('fim') || (/^\d{4}-\d{2}$/.test(mes || '') ? new Date(Date.UTC(Number((mes || '2000-01').slice(0, 4)), Number((mes || '2000-01').slice(5, 7)), 0)).toISOString().slice(0, 10) : '2999-12-31')
-    const aircraft = c.req.query('aeronave_id') || ''
-    const canac = (c.req.query('canac') || '').trim()
-    const filters = ['date(l.data_registro) BETWEEN ? AND ?']; const binds: string[] = [inicio, fim]
+    const filters = ['date(l.data_registro) BETWEEN ? AND ?']
+    const binds: string[] = [inicio, fim]
     if (aircraft) { filters.push('l.aeronave_id = ?'); binds.push(aircraft) }
     if (canac) {
-      // Há lançamentos antigos que gravaram o UUID do tripulante em pic_canac/sic_canac.
-      // Incluímos UUID, CANAC e nome para que o extrato continue compatível com todos eles.
       const identities = await c.env.SHARE_DB.prepare(`
-        SELECT id AS value FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-        UNION SELECT id FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-        UNION SELECT canac FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-        UNION SELECT canac FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-        UNION SELECT nome_completo FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-        UNION SELECT nome_completo FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
-      `).bind(canac).all<{ value: string | number }>()
-      const values = [...new Set([canac, ...identities.results.map((item) => item.value).filter((value) => value !== null && value !== undefined).map((value) => String(value).trim()).filter(Boolean)].map((value) => String(value).trim().toLowerCase()))]
+        SELECT id, canac, nome_completo FROM tripulacao
+        WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+        UNION ALL
+        SELECT id, canac, nome_completo FROM tripulacao_freelancer
+        WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      `).bind(canac).all<{ id: string; canac: string; nome_completo: string }>()
+      const values = [...new Set([canac, ...identities.results.flatMap((item) => [item.id, item.canac, item.nome_completo]).filter((value): value is string => Boolean(value)).map((value) => value.toLowerCase())])]
       const placeholders = values.map(() => '?').join(', ')
       filters.push(`(lower(COALESCE(l.pic_canac, '')) IN (${placeholders}) OR lower(COALESCE(l.sic_canac, '')) IN (${placeholders}))`)
       binds.push(...values, ...values)
     }
-    const query = `SELECT l.*, a.matricula_registro,
+    const query = `SELECT l.id, l.data_registro, l.aeronave_id, l.numero_voo,
+      l.aerodromo_partida, l.aerodromo_chegada, l.trecho, l.pic_canac, l.pic_nome,
+      l.sic_canac, l.sic_nome, l.tempo_total, l.tempo_voo, l.tempo_ifr,
+      l.horas_noturnas, a.matricula_registro,
       COALESCE((SELECT t.canac FROM tripulacao t WHERE lower(t.id) = lower(l.pic_canac) OR upper(t.canac) = upper(l.pic_canac) OR upper(t.nome_completo) = upper(l.pic_canac) LIMIT 1), (SELECT f.canac FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.pic_canac) OR upper(f.canac) = upper(l.pic_canac) OR upper(f.nome_completo) = upper(l.pic_canac) LIMIT 1), l.pic_canac) AS pic_canac_exibicao,
       COALESCE((SELECT t.nome_completo FROM tripulacao t WHERE lower(t.id) = lower(l.pic_canac) OR upper(t.canac) = upper(l.pic_canac) OR upper(t.nome_completo) = upper(l.pic_canac) LIMIT 1), (SELECT f.nome_completo FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.pic_canac) OR upper(f.canac) = upper(l.pic_canac) OR upper(f.nome_completo) = upper(l.pic_canac) LIMIT 1), l.pic_nome) AS pic_nome_exibicao,
       COALESCE((SELECT t.canac FROM tripulacao t WHERE lower(t.id) = lower(l.sic_canac) OR upper(t.canac) = upper(l.sic_canac) OR upper(t.nome_completo) = upper(l.sic_canac) LIMIT 1), (SELECT f.canac FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.sic_canac) OR upper(f.canac) = upper(l.sic_canac) OR upper(f.nome_completo) = upper(l.sic_canac) LIMIT 1), l.sic_canac) AS sic_canac_exibicao,
       COALESCE((SELECT t.nome_completo FROM tripulacao t WHERE lower(t.id) = lower(l.sic_canac) OR upper(t.canac) = upper(l.sic_canac) OR upper(t.nome_completo) = upper(l.sic_canac) LIMIT 1), (SELECT f.nome_completo FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.sic_canac) OR upper(f.canac) = upper(l.sic_canac) OR upper(f.nome_completo) = upper(l.sic_canac) LIMIT 1), l.sic_nome) AS sic_nome_exibicao
-      FROM lancamentos_diario_bordo l LEFT JOIN aeronave a ON a.id = l.aeronave_id WHERE ${filters.join(' AND ')} ORDER BY date(l.data_registro) DESC`
+      FROM lancamentos_diario_bordo l LEFT JOIN aeronave a ON a.id = l.aeronave_id
+      WHERE ${filters.join(' AND ')} ORDER BY date(l.data_registro) DESC`
     const result = await c.env.SHARE_DB.prepare(query).bind(...binds).all<any>()
     const voos = result.results.map((row: any) => ({ id: row.id, data_registro: row.data_registro, matricula_registro: row.matricula_registro, aeronave_id: row.aeronave_id, numero_voo: row.numero_voo || null, aerodromo_partida: row.aerodromo_partida || null, aerodromo_chegada: row.aerodromo_chegada || null, trecho: row.trecho || null, pic_canac: row.pic_canac_exibicao || row.pic_canac, pic_nome: row.pic_nome_exibicao || row.pic_nome, sic_canac: row.sic_canac_exibicao || row.sic_canac, sic_nome: row.sic_nome_exibicao || row.sic_nome, tempo_total: Number(row.tempo_total || row.tempo_voo || 0), tempo_ifr: Number(row.tempo_ifr || 0), horas_noturnas: Number(row.horas_noturnas || 0), horas_diurnas: Math.max(0, Number(row.tempo_total || row.tempo_voo || 0) - Number(row.tempo_ifr || 0) - Number(row.horas_noturnas || 0)) }))
     const totals = new Map<string, any>(); const porAeronave = new Map<string, any>()
@@ -3512,8 +3515,8 @@ app.get('/api/interno/tripulacao/horas', async c => {
     const arredondar = (item: any): any => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, typeof value === 'number' ? round(value as number) : typeof value === 'object' && value ? arredondar(value) : value]))
     return c.json({ inicio, fim, voos, totais: [...totals.values()].map(arredondar), por_aeronave: [...porAeronave.values()].map(arredondar) })
   } catch (error) {
-    log.error('[tripulacao/horas] falha ao gerar extrato', error)
-    return c.json({ error: 'extrato_horas_indisponivel' }, 500)
+    console.error('tripulacao_horas_query_failed', { mes, inicio, fim, aircraft, canac, error })
+    return c.json({ error: 'tripulacao_horas_indisponiveis', detail: 'Não foi possível consultar as horas de voo neste momento.' }, 503)
   }
 })
 
@@ -3813,10 +3816,14 @@ function nivelAlertaJornada(minutos: number, limite: number): 'normal' | 'atenca
 }
 
 function minutosDaJornada(jornada: any, fimPrevisto?: string | null): number {
-  if (Array.isArray(jornada.pernas)) {
-    return jornada.pernas.reduce((total: number, perna: any) => total + minutosEntre(perna.horario_ac, perna.horario_corte), 0)
-  }
-  return 0
+  const pernas = Array.isArray(jornada.pernas) ? jornada.pernas : []
+  if (!pernas.length) return 0
+  const ultima = pernas[pernas.length - 1]
+  const inicio = jornada.horario_apresentacao || pernas[0]?.horario_ac
+  const fimVoo = fimPrevisto || ultima?.horario_corte || ultima?.horario_pouso
+  if (!inicio || !fimVoo) return 0
+  const posCorte = Number(jornada.minutos_pos_corte ?? LIMITES_JORNADA.posCorte)
+  return minutosEntre(inicio, fimVoo) + posCorte
 }
 
 async function sincronizarResumoJornada(db: D1Database, jornadaId: string) {
@@ -3824,8 +3831,9 @@ async function sincronizarResumoJornada(db: D1Database, jornadaId: string) {
       horario_pouso = (SELECT p.horario_pouso FROM pernas_jornada_voo p WHERE p.jornada_id = ?1 ORDER BY p.numero DESC LIMIT 1),
       horario_corte = (SELECT p.horario_corte FROM pernas_jornada_voo p WHERE p.jornada_id = ?1 ORDER BY p.numero DESC LIMIT 1)
     WHERE id = ?1`).bind(jornadaId).run()
-  const pernas = await db.prepare('SELECT horario_ac, horario_corte FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(jornadaId).all<any>()
-  const minutos = minutosDaJornada({ pernas: pernas.results || [] })
+  const jornada = await db.prepare('SELECT horario_apresentacao, minutos_pos_corte FROM jornadas_voo WHERE id = ?1').bind(jornadaId).first<any>()
+  const pernas = await db.prepare('SELECT horario_ac, horario_pouso, horario_corte FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(jornadaId).all<any>()
+  const minutos = minutosDaJornada({ ...jornada, pernas: pernas.results || [] })
   await db.prepare('UPDATE jornadas_voo SET minutos_jornada = ?1, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?2').bind(minutos || null, jornadaId).run()
   return pernas.results || []
 }
@@ -3898,7 +3906,7 @@ app.get('/api/interno/agendamento/:id/jornada', async c => {
     ...principal,
     pernas: pernas.results,
     limites: await avaliarLimitesJornada(c, { ...principal, pernas: pernas.results }),
-    tripulantes: await Promise.all(doVoo.map(async (j: any) => ({ ...j, limites: await avaliarLimitesJornada(c, j) }))),
+    tripulantes: await Promise.all(doVoo.map(async (j: any) => ({ ...j, pernas: pernas.results, limites: await avaliarLimitesJornada(c, { ...j, pernas: pernas.results }) }))),
     historico,
   })
 })
@@ -4062,8 +4070,8 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
   return c.json({
     ...principal,
     pernas: pernas.results,
-    limites: await avaliarLimitesJornada(c, principal),
-    tripulantes: await Promise.all(criadas.map(async (item) => ({ ...item, limites: await avaliarLimitesJornada(c, item) }))),
+    limites: await avaliarLimitesJornada(c, { ...principal, pernas: pernas.results }),
+    tripulantes: await Promise.all(criadas.map(async (item) => ({ ...item, pernas: pernas.results, limites: await avaliarLimitesJornada(c, { ...item, pernas: pernas.results }) }))),
   }, 201)
 })
 
@@ -5533,16 +5541,7 @@ app.get('/api/sharebrasil/clientes', async c => {
     db.prepare('SELECT * FROM documentos_socio ORDER BY criado_em DESC').all().catch(() => ({ results: [] as any[] })),
     db.prepare('SELECT id, matricula_registro, fabricante, modelo, status FROM aeronave ORDER BY matricula_registro').all().catch(() => ({ results: [] as any[] })),
   ])
-  return c.json({
-    clientes: clientes.results.map((item: any) => ({ ...item, url_logo: item.url_logo ? `/api/sharebrasil/clientes/${item.id}/logo/arquivo` : null })),
-    holdings: holdings.results.map((item: any) => ({ ...item, url_logo: item.url_logo ? `/api/sharebrasil/holdings/${item.id}/logo/arquivo` : null })),
-    socios: socios.results,
-    vinculos: vinculos.results,
-    aeronaves: aeronave.results,
-    aeronave: aeronave.results,
-    documentos: documentos.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/clientes/documentos/${item.id}/arquivo` })),
-    documentos_socios: documentosSocios.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/socios/documentos/${item.id}/arquivo` })),
-  })
+  return c.json({ clientes: clientes.results, holdings: holdings.results, socios: socios.results, vinculos: vinculos.results, aeronaves: aeronave.results, aeronave: aeronave.results, documentos: documentos.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/clientes/documentos/${item.id}/arquivo` })), documentos_socios: documentosSocios.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/socios/documentos/${item.id}/arquivo` })) })
 })
 
 app.post('/api/sharebrasil/holdings', async c => {
@@ -5552,21 +5551,8 @@ app.post('/api/sharebrasil/holdings', async c => {
   const nome = String(body.nome || '').trim()
   if (!nome) return c.json({ error: 'nome_holding_obrigatorio' }, 400)
   const id = uuid()
-  const emails = Array.isArray(body.emails) ? body.emails : []
-  await c.env.SHARE_DB.prepare('INSERT INTO holdings (id, nome, conta_bancaria, ativo, cnpj, proprietario, endereco, cidade, uf, emails, inscricao_estadual) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)').bind(id, nome, body.conta_bancaria || null, body.cnpj || null, body.proprietario || null, body.endereco || null, body.cidade || null, body.uf || null, JSON.stringify(emails), body.inscricao_estadual || null).run()
+  await c.env.SHARE_DB.prepare('INSERT INTO holdings (id, nome, conta_bancaria, ativo) VALUES (?, ?, ?, 1)').bind(id, nome, body.conta_bancaria || null).run()
   return c.json({ id, nome }, 201)
-})
-app.patch('/api/sharebrasil/holdings/:id', async c => {
-  const user = await shareBrasilUser(c)
-  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const fields = ['nome', 'conta_bancaria', 'cnpj', 'proprietario', 'endereco', 'cidade', 'uf', 'emails', 'inscricao_estadual', 'ativo']
-  const provided = fields.filter((field) => body[field] !== undefined)
-  if (!provided.length) return c.json({ error: 'nenhum_campo_informado' }, 400)
-  const values = provided.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : field === 'ativo' ? Number(Boolean(body.ativo)) : body[field] ?? null)
-  const result = await c.env.SHARE_DB.prepare(`UPDATE holdings SET ${provided.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`).bind(...values, c.req.param('id')).run()
-  if (!result.meta.changes) return c.notFound()
-  return c.json({ success: true })
 })
 app.post('/api/sharebrasil/holdings/:id/socios', async c => {
   const user = await shareBrasilUser(c)
@@ -5618,9 +5604,9 @@ app.patch('/api/sharebrasil/clientes/:id', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const fields = ['razao_social','cnpj','inscricao_estadual','proprietario','endereco','cidade','uf','contato_financeiro','telefone_financeiro','telefone_cliente','telefone_outro','email_principal','emails','status','codigo_cliente','observacoes']
-  const values = fields.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : body[field] ?? null)
-  const result = await c.env.SHARE_DB.prepare(`UPDATE cliente SET ${fields.map((field) => `${field} = ?`).join(', ')}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(...values, c.req.param('id')).run()
+  const fields = ['razao_social','cnpj','inscricao_estadual','proprietario','endereco','cidade','uf','contato_financeiro','telefone_financeiro','telefone_cliente','telefone_outro','email_principal','status','codigo_cliente','observacoes']
+  const values = fields.map((field) => body[field] ?? null)
+  const result = await c.env.SHARE_DB.prepare(`UPDATE cliente SET ${fields.map((field) => `${field} = COALESCE(?, ${field})`).join(', ')}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(...values, c.req.param('id')).run()
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
 })
@@ -5629,10 +5615,10 @@ app.patch('/api/sharebrasil/socios/:id', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const fields = ['nome', 'cpf', 'email_principal', 'emails', 'contato_financeiro', 'telefone_financeiro', 'telefone', 'endereco', 'cidade', 'uf', 'observacoes']
+  const fields = ['nome', 'cpf', 'email_principal', 'telefone', 'endereco', 'cidade', 'uf', 'observacoes']
   const provided = fields.filter((field) => body[field] !== undefined)
   if (!provided.length) return c.json({ error: 'nenhum_campo_informado' }, 400)
-  const values = provided.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : body[field] ?? null)
+  const values = provided.map((field) => body[field] ?? null)
   const result = await c.env.SHARE_DB.prepare(`UPDATE hold_socios SET ${provided.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`).bind(...values, c.req.param('id')).run()
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
@@ -5668,33 +5654,6 @@ app.get('/api/sharebrasil/clientes/:id/logo/arquivo', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const row = await c.env.SHARE_DB.prepare('SELECT url_logo FROM cliente WHERE id = ?1').bind(c.req.param('id')).first<{ url_logo: string | null }>()
-  if (!row?.url_logo) return c.notFound()
-  const object = await shareBrasilBucket(c).get(row.url_logo)
-  if (!object) return c.notFound()
-  return new Response(object.body, { headers: { 'Content-Type': 'image/*', 'Cache-Control': 'private, max-age=300' } })
-})
-
-app.post('/api/sharebrasil/holdings/:id/logo', async c => {
-  const user = await shareBrasilUser(c)
-  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const form = await c.req.formData()
-  const fileValue = form.get('arquivo') as unknown
-  if (!fileValue || typeof fileValue !== 'object' || !('size' in fileValue)) return c.json({ error: 'arquivo_obrigatorio' }, 400)
-  const file = fileValue as File
-  if (!file.type.startsWith('image/')) return c.json({ error: 'logo_deve_ser_imagem' }, 415)
-  try {
-    const key = await salvarArquivoShareBrasil(c, user.id, file, `documentos_cliente/avatar_logo/${c.req.param('id')}`)
-    await c.env.SHARE_DB.prepare('UPDATE holdings SET url_logo = ? WHERE id = ?').bind(key, c.req.param('id')).run()
-    return c.json({ url_logo: `/api/sharebrasil/holdings/${c.req.param('id')}/logo/arquivo` })
-  } catch (error: any) {
-    return c.json({ error: error?.message || 'falha_ao_salvar_logo' }, 400)
-  }
-})
-
-app.get('/api/sharebrasil/holdings/:id/logo/arquivo', async c => {
-  const user = await shareBrasilUser(c)
-  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
-  const row = await c.env.SHARE_DB.prepare('SELECT url_logo FROM holdings WHERE id = ?1').bind(c.req.param('id')).first<{ url_logo: string | null }>()
   if (!row?.url_logo) return c.notFound()
   const object = await shareBrasilBucket(c).get(row.url_logo)
   if (!object) return c.notFound()

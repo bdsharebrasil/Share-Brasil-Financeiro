@@ -182,138 +182,41 @@ function InfoField({ icon, label, value, mono = false }: { icon: React.ReactNode
 
 function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
   const [consultaTipo, setConsultaTipo] = useState<"mes" | "personalizado">("mes");
-  const [mes, setMes] = useState(new Date().toISOString().slice(0, 7));
+  const agora = new Date();
+  const [mes, setMes] = useState(`${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
-  const [voos, setVoos] = useState<VooRegistro[]>([]);
-  const [totais, setTotais] = useState<HoraTripulacao[]>([]);
+  const [extrato, setExtrato] = useState<import("@/lib/colaborador-api").ExtratoHorasAeronave[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (consultaTipo === "personalizado") {
-      if (!inicio || !fim) {
-        setVoos([]);
-        setTotais([]);
-        setLoading(false);
-        setError("Selecione a data inicial e final para filtrar o período.");
-        return;
-      }
-
-      if (new Date(inicio) > new Date(fim)) {
-        setVoos([]);
-        setTotais([]);
-        setLoading(false);
-        setError("A data inicial não pode ser maior que a data final.");
-        return;
-      }
+    if (consultaTipo === "personalizado" && (!inicio || !fim || new Date(inicio) > new Date(fim))) {
+      setExtrato([]); setLoading(false); setError(!inicio || !fim ? "Selecione a data inicial e final para filtrar o período." : "A data inicial não pode ser maior que a data final."); return;
     }
-
     setLoading(true); setError(null);
-    const params = consultaTipo === "mes" ? { mes } : { inicio, fim };
-
+    const params = consultaTipo === "mes" ? { mes, canac: crew.canac } : { inicio, fim, canac: crew.canac };
     void buscarHorasTripulacao(params)
-      .then((result) => { setVoos((result.voos || []) as VooRegistro[]); setTotais(result.totais || []); })
-      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar as horas de voo."))
+      .then((result) => setExtrato(result.por_aeronave || []))
+      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar o extrato de horas."))
       .finally(() => setLoading(false));
-  }, [mes, consultaTipo, inicio, fim]);
+  }, [mes, consultaTipo, inicio, fim, crew.canac]);
 
-  const meusVoos = useMemo(() => voos.filter((voo) => voo.pic_canac === crew.canac || voo.sic_canac === crew.canac), [voos, crew.canac]);
-  const porAeronave = useMemo(() => {
-    const map = new Map<string, { matricula: string; voos: number; horas: number; diurnas: number; noturnas: number; ifr: number }>();
-    for (const voo of meusVoos) {
-      const matricula = voo.matricula_registro || "Sem matrícula";
-      const atual = map.get(matricula) || { matricula, voos: 0, horas: 0, diurnas: 0, noturnas: 0, ifr: 0 };
-      atual.voos += 1; atual.horas += voo.tempo_voo || 0; atual.diurnas += voo.horas_diurnas || 0; atual.noturnas += voo.horas_noturnas || 0; atual.ifr += voo.tempo_ifr || 0;
-      map.set(matricula, atual);
-    }
-    return [...map.values()].sort((a, b) => b.horas - a.horas);
-  }, [meusVoos]);
-  const consolidado = useMemo(() => totais.filter((item) => item.canac === crew.canac), [totais, crew.canac]);
-  const totalMes = useMemo(() => meusVoos.reduce((acc, voo) => acc + (voo.tempo_voo || 0), 0), [meusVoos]);
+  const periodo = consultaTipo === "mes" ? new Date(`${mes}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : `${new Date(`${inicio}T12:00:00`).toLocaleDateString("pt-BR")} até ${new Date(`${fim}T12:00:00`).toLocaleDateString("pt-BR")}`;
+  const total = useMemo(() => extrato.reduce((acc, item) => ({ voos: acc.voos + item.voos, horas: acc.horas + item.pic.horas_totais + item.sic.horas_totais, pic: acc.pic + item.pic.horas_totais, sic: acc.sic + item.sic.horas_totais, ifr: acc.ifr + item.pic.horas_ifr + item.sic.horas_ifr, noturnas: acc.noturnas + item.pic.horas_noturnas + item.sic.horas_noturnas }), { voos: 0, horas: 0, pic: 0, sic: 0, ifr: 0, noturnas: 0 }), [extrato]);
+  const metric = (value: number) => formatHours(value);
 
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Clock3 size={16} className="text-primary" />
-          <div>
-            <h2 className="text-sm font-extrabold">Horas de voo</h2>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">Consulta por mês/ano ou período personalizado.</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={consultaTipo} onChange={(e) => setConsultaTipo(e.target.value as "mes" | "personalizado")} className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-[10px] font-medium">
-            <option value="mes">Mês e ano</option>
-            <option value="personalizado">Período personalizado</option>
-          </select>
-          {consultaTipo === "mes" ? (
-            <label className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
-              <span>Mês</span>
-              <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="h-9 w-[150px] rounded-lg border-border/70 bg-background/70 text-xs" />
-            </label>
-          ) : (
-            <>
-              <label className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
-                <span>Início</span>
-                <Input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="h-9 w-[140px] rounded-lg border-border/70 bg-background/70 text-xs" />
-              </label>
-              <label className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
-                <span>Fim</span>
-                <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="h-9 w-[140px] rounded-lg border-border/70 bg-background/70 text-xs" />
-              </label>
-            </>
-          )}
-        </div>
-      </div>
-
-      {error && <Notice error>{error}</Notice>}
-      {loading ? (
-        <div className="rounded-2xl border border-border bg-card/75 p-6 text-xs text-muted-foreground shadow-sm">Carregando horas de voo...</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/60 shadow-sm sm:grid-cols-4">
-            <Metric label="Horas no mês" value={formatHours(totalMes)} />
-            <Metric label="Voos" value={String(meusVoos.length)} />
-            <Metric label="PIC" value={formatHours(consolidado.find((i) => i.funcao === "PIC")?.horas_pic || 0)} />
-            <Metric label="SIC" value={formatHours(consolidado.find((i) => i.funcao === "SIC")?.horas_sic || 0)} />
-          </div>
-
-          {porAeronave.length ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {porAeronave.map((item) => (
-                <div key={item.matricula} className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plane size={16} /></span>
-                      <div>
-                        <p className="font-mono text-sm font-extrabold tracking-wide">{item.matricula}</p>
-                        <p className="text-[9px] uppercase tracking-[.12em] text-muted-foreground">{item.voos} voo(s) no mês</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-extrabold text-primary">{formatHours(item.horas)}</p>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/60 pt-3 text-center">
-                    <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">Diurnas</p><p className="mt-0.5 text-xs font-bold">{formatHours(item.diurnas)}</p></div>
-                    <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">Noturnas</p><p className="mt-0.5 text-xs font-bold">{formatHours(item.noturnas)}</p></div>
-                    <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">IFR</p><p className="mt-0.5 text-xs font-bold">{formatHours(item.ifr)}</p></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-border/70 bg-card/80 p-8 text-center shadow-sm">
-              <Plane size={20} className="mx-auto text-primary" />
-              <p className="mt-3 text-sm font-bold">Nenhum voo registrado no período</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Selecione outro mês para consultar o histórico.</p>
-            </div>
-          )}
-        </>
-      )}
-    </section>
-  );
+  return <section className="space-y-4">
+    <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card/90 to-card/70 p-5 shadow-sm"><div className="absolute -right-8 -top-10 h-36 w-36 rounded-full bg-primary/10 blur-2xl" /><div className="relative flex flex-wrap items-start justify-between gap-4"><div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Clock3 size={20} /></span><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-primary">Extrato de horas</p><h2 className="mt-1 text-lg font-extrabold capitalize">{periodo}</h2><p className="mt-1 text-[10px] text-muted-foreground">Horas registradas por avião, separadas entre PIC e SIC.</p></div></div><div className="flex flex-wrap items-center gap-2"><select value={consultaTipo} onChange={(e) => setConsultaTipo(e.target.value as "mes" | "personalizado")} className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-[10px] font-medium"><option value="mes">Mês atual / selecionar mês</option><option value="personalizado">Período personalizado</option></select>{consultaTipo === "mes" ? <Input aria-label="Mês do extrato" type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="h-9 w-[150px] rounded-lg border-border/70 bg-background/70 text-xs" /> : <><Input aria-label="Data inicial" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="h-9 w-[140px] rounded-lg border-border/70 bg-background/70 text-xs" /><Input aria-label="Data final" type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="h-9 w-[140px] rounded-lg border-border/70 bg-background/70 text-xs" /></>}</div></div></div>
+    {error && <Notice error>{error}</Notice>}
+    {loading ? <div className="rounded-2xl border border-border bg-card/75 p-8 text-xs text-muted-foreground shadow-sm">Calculando extrato de horas...</div> : <>
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/60 shadow-sm sm:grid-cols-5"><Metric label="Horas totais" value={metric(total.horas)} /><Metric label="Voos" value={String(total.voos)} /><Metric label="PIC" value={metric(total.pic)} /><Metric label="SIC" value={metric(total.sic)} /><Metric label="IFR / noturnas" value={`${metric(total.ifr)} · ${metric(total.noturnas)}`} /></div>
+      {extrato.length ? <div className="grid gap-4 lg:grid-cols-2">{extrato.map((item) => <div key={item.aeronave_id || item.matricula_registro} className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm"><div className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/30 p-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plane size={18} /></span><div><p className="font-mono text-base font-extrabold tracking-wide">{item.matricula_registro}</p><p className="text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">{item.voos} voo(s) no período</p></div></div><p className="text-xl font-extrabold text-primary">{metric(item.pic.horas_totais + item.sic.horas_totais)}</p></div><div className="grid gap-3 p-4 sm:grid-cols-2"><HourRoleCard role="PIC" data={item.pic} /><HourRoleCard role="SIC" data={item.sic} /></div><div className="grid grid-cols-3 gap-2 border-t border-border/60 px-4 py-3 text-center"><MiniHour label="Diurnas" value={item.pic.horas_diurnas + item.sic.horas_diurnas} /><MiniHour label="Noturnas" value={item.pic.horas_noturnas + item.sic.horas_noturnas} /><MiniHour label="IFR" value={item.pic.horas_ifr + item.sic.horas_ifr} /></div></div>)}</div> : <div className="rounded-2xl border border-dashed border-border bg-card/70 p-10 text-center shadow-sm"><Plane size={22} className="mx-auto text-primary" /><p className="mt-3 text-sm font-bold">Nenhum voo registrado no período</p><p className="mt-1 text-[10px] text-muted-foreground">Selecione outro mês ou período para consultar o extrato.</p></div>}
+    </>}
+  </section>;
 }
-
+function HourRoleCard({ role, data }: { role: "PIC" | "SIC"; data: { voos: number; horas_totais: number; horas_diurnas: number; horas_noturnas: number; horas_ifr: number } }) { return <div className={`rounded-xl border p-3 ${role === "PIC" ? "border-sky-400/25 bg-sky-400/[.06]" : "border-violet-400/25 bg-violet-400/[.06]"}`}><div className="flex items-center justify-between"><span className="text-[10px] font-extrabold uppercase tracking-[.16em]">{role}</span><span className="text-base font-extrabold">{formatHours(data.horas_totais)}</span></div><p className="mt-1 text-[9px] text-muted-foreground">{data.voos} voo(s) · tempo total</p></div>; }
+function MiniHour({ label, value }: { label: string; value: number }) { return <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p><p className="mt-1 text-xs font-bold">{formatHours(value)}</p></div>; }
 function HabilitacoesTab({ crew, habilitations, onChanged, onError, onOk }: { crew: TripulanteGestao; habilitations: HabilitacaoTripulante[]; onChanged: () => void; onError: (msg: string | null) => void; onOk: (msg: string | null) => void }) {
   const [newHab, setNewHab] = useState({ tipo_habilitacao: "", data_validade: "", classe_cma: "", fs_rh: "" });
   const [formOpen, setFormOpen] = useState(false);

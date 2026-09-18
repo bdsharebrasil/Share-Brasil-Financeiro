@@ -1021,8 +1021,10 @@ export type PreenchimentoJornadaDiario = { jornada_id: string; solicitacao_id: s
 export function buscarPreenchimentoJornadaDiario(id: string) { return colaboradorRequest<PreenchimentoJornadaDiario>(`/api/interno/diario-bordo/preenchimento-jornada/${encodeURIComponent(id)}`); }
 
 export type NumeroVooOpcao = { solicitacao_id: string; numero_voo: string; origem: string | null; destino: string | null; data_agendada: string | null; cliente_id: string | null; socio_id: string | null; voo_emprestado: string | null; cliente_emprestimo_id: string | null; socio_emprestimo_id: string | null; piloto_id: string | null; copiloto_id: string | null; pic_canac: string | null; pic_nome: string | null; sic_canac: string | null; sic_nome: string | null };
+export type NumeroVooPerna = { perna_id: string; numero: number; origem: string; destino: string; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id: string | null };
+export type NumeroVooJornada = { jornada_id: string; numero_jornada: number; data: string; status: string; horario_apresentacao: string | null; horario_acionamento: string | null; horario_pouso: string | null; horario_corte: string | null; pernas: NumeroVooPerna[] };
 export function buscarNumerosVooAeronave(aeronaveId: string) {
-  return colaboradorRequest<{ voos: NumeroVooOpcao[] }>(`/api/interno/diario-bordo/numeros-voo/${encodeURIComponent(aeronaveId)}`);
+  return colaboradorRequest<{ voos: Array<NumeroVooOpcao & { jornadas: NumeroVooJornada[] }> }>(`/api/interno/diario-bordo/numeros-voo/${encodeURIComponent(aeronaveId)}`);
 }
 
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown> & { tripulantes?: Array<{ tripulante_id: string; funcao: "PIC" | "SIC" }> }) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }

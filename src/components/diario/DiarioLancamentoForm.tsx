@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, Fuel, PlaneTakeoff, Save, Users, X } from "lucide-react";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { buscarNumerosVooAeronave, type NumeroVooJornada, type NumeroVooPerna } from "@/lib/colaborador-api";
 import { Button } from "@/components/ui/button";
 import type { DiarioLancamento, DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
@@ -64,6 +66,10 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<FormValues>(() => formFromEntry(initialData || undefined, today, sugeridaCelula, sugestaoTrecho));
   const [error, setError] = useState<string | null>(null);
+  const [voos, setVoos] = useState<Array<any>>([]);
+  const [jornadaSelecionada, setJornadaSelecionada] = useState("");
+  const [pernaSelecionada, setPernaSelecionada] = useState("");
+  useEffect(() => { void buscarNumerosVooAeronave(aeronaveId).then((response) => setVoos(response.voos || [])).catch(() => setVoos([])); }, [aeronaveId]);
   useEffect(() => { setForm(formFromEntry(initialData || undefined, today, sugeridaCelula, sugestaoTrecho)); setError(null); }, [initialData, diarioMesId, sugeridaCelula, sugestaoTrecho]);
   const setField = (key: string, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
   const value = (key: string) => String(form[key] ?? "");
@@ -72,6 +78,29 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
   const selectedSic = useMemo(() => tripulacaoInterna.find((tripulante) => tripulante.canac?.toUpperCase() === value("sic_canac").toUpperCase()), [tripulacaoInterna, form.sic_canac]);
   const rateioIgual = value("natureza_voo") === "TR - Traslado" || value("natureza_voo") === "VT - Voo Teste";
   const cotistaSelecionado = value("holding_id") ? `holding:${value("holding_id")}` : value("cliente_id");
+  const vooSelecionado = voos.find((voo) => voo.numero_voo === value("numero_voo"));
+  const jornadas = (vooSelecionado?.jornadas || []) as NumeroVooJornada[];
+  const jornada = jornadas.find((item) => item.jornada_id === jornadaSelecionada);
+  const pernas = (jornada?.pernas || []) as NumeroVooPerna[];
+  const perna = pernas.find((item) => item.perna_id === pernaSelecionada);
+  const aplicarVoo = (numero: string) => {
+    const voo = voos.find((item) => item.numero_voo === numero);
+    setField("numero_voo", numero); setField("cliente_id", voo?.cliente_id || ""); setField("socio_id", voo?.socio_id || "");
+    setField("voo_emprestado", voo?.voo_emprestado === "sim" || voo?.voo_emprestado === 1 || voo?.voo_emprestado === true);
+    setField("cliente_tomador_emprestimo_id", voo?.cliente_emprestimo_id || ""); setField("socio_tomador_emprestimo_id", voo?.socio_emprestimo_id || "");
+    setField("pic_canac", voo?.pic_canac || ""); setField("sic_canac", voo?.sic_canac || "");
+    setJornadaSelecionada(""); setPernaSelecionada("");
+  };
+  const aplicarPerna = (id: string) => {
+    const item = pernas.find((candidate) => candidate.perna_id === id); if (!item) return;
+    setPernaSelecionada(id); setField("jornada_id", jornadaSelecionada); setField("perna_jornada_id", id);
+    setField("aerodromo_partida", item.origem); setField("aerodromo_chegada", item.destino); setField("trecho", `${item.origem} X ${item.destino}`);
+    const hhmm = (iso: string | null) => iso ? iso.slice(11, 16) : "";
+    setField("tempo_ac", hhmm(item.horario_ac)); setField("tempo_dep", hhmm(item.horario_dep)); setField("tempo_pou", hhmm(item.horario_pouso)); setField("tempo_cor", hhmm(item.horario_corte));
+    const minutes = (a: string | null, b: string | null) => a && b ? Math.max(0, (Date.parse(b) - Date.parse(a)) / 3600000) : 0;
+    const voo = minutes(item.horario_dep, item.horario_pouso); const total = minutes(item.horario_ac, item.horario_corte || item.horario_pouso);
+    setField("tempo_voo", voo.toFixed(2)); setField("tempo_total", (total || voo).toFixed(2)); setField("horas_diurnas", voo.toFixed(2)); setField("data_registro", (item.horario_ac || jornada?.data || "").slice(0, 10));
+  };
   const clientesSocios = useMemo(() => opcoes.socios.filter((socio) => {
     if (value("holding_id")) return socio.holding_id === value("holding_id");
     return !value("cliente_id") || socio.cliente_id === value("cliente_id");
@@ -85,7 +114,7 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
     }
     const number = (key: string) => value(key) === "" ? 0 : Number(value(key));
     const payload: Record<string, unknown> = {
-      diario_mes_id: diarioMesId, aeronave_id: aeronaveId, data_registro: value("data_registro"), numero_voo: value("numero_voo") || null, natureza_voo: value("natureza_voo"),
+      diario_mes_id: diarioMesId, aeronave_id: aeronaveId, data_registro: value("data_registro"), numero_voo: value("numero_voo") || null, jornada_id: value("jornada_id") || null, perna_jornada_id: value("perna_jornada_id") || null, natureza_voo: value("natureza_voo"),
       aerodromo_partida: value("aerodromo_partida").toUpperCase(), aerodromo_chegada: value("aerodromo_chegada").toUpperCase(), trecho: value("trecho") || null,
       pic_canac: value("pic_canac").toUpperCase(), pic_nome: selectedPic?.nome_completo || null, sic_canac: value("sic_canac").toUpperCase() || null, sic_nome: selectedSic?.nome_completo || null,
       cliente_id: rateioIgual ? null : value("holding_id") ? null : value("cliente_id") || null, holding_id: rateioIgual ? null : value("holding_id") || null, socio_id: rateioIgual ? null : value("socio_id") || null, voo_emprestado: Boolean(form.voo_emprestado), cliente_tomador_emprestimo_id: value("cliente_tomador_emprestimo_id") || null, socio_tomador_emprestimo_id: value("socio_tomador_emprestimo_id") || null,

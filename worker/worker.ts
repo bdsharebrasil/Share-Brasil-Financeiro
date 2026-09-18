@@ -5521,7 +5521,16 @@ app.get('/api/sharebrasil/clientes', async c => {
     db.prepare('SELECT * FROM documentos_socio ORDER BY criado_em DESC').all().catch(() => ({ results: [] as any[] })),
     db.prepare('SELECT id, matricula_registro, fabricante, modelo, status FROM aeronave ORDER BY matricula_registro').all().catch(() => ({ results: [] as any[] })),
   ])
-  return c.json({ clientes: clientes.results, holdings: holdings.results, socios: socios.results, vinculos: vinculos.results, aeronaves: aeronave.results, aeronave: aeronave.results, documentos: documentos.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/clientes/documentos/${item.id}/arquivo` })), documentos_socios: documentosSocios.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/socios/documentos/${item.id}/arquivo` })) })
+  return c.json({
+    clientes: clientes.results.map((item: any) => ({ ...item, url_logo: item.url_logo ? `/api/sharebrasil/clientes/${item.id}/logo/arquivo` : null })),
+    holdings: holdings.results.map((item: any) => ({ ...item, url_logo: item.url_logo ? `/api/sharebrasil/holdings/${item.id}/logo/arquivo` : null })),
+    socios: socios.results,
+    vinculos: vinculos.results,
+    aeronaves: aeronave.results,
+    aeronave: aeronave.results,
+    documentos: documentos.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/clientes/documentos/${item.id}/arquivo` })),
+    documentos_socios: documentosSocios.results.map((item: any) => ({ ...item, arquivo_url: `/api/sharebrasil/socios/documentos/${item.id}/arquivo` })),
+  })
 })
 
 app.post('/api/sharebrasil/holdings', async c => {
@@ -5531,8 +5540,21 @@ app.post('/api/sharebrasil/holdings', async c => {
   const nome = String(body.nome || '').trim()
   if (!nome) return c.json({ error: 'nome_holding_obrigatorio' }, 400)
   const id = uuid()
-  await c.env.SHARE_DB.prepare('INSERT INTO holdings (id, nome, conta_bancaria, ativo) VALUES (?, ?, ?, 1)').bind(id, nome, body.conta_bancaria || null).run()
+  const emails = Array.isArray(body.emails) ? body.emails : []
+  await c.env.SHARE_DB.prepare('INSERT INTO holdings (id, nome, conta_bancaria, ativo, cnpj, proprietario, endereco, cidade, uf, emails, inscricao_estadual) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)').bind(id, nome, body.conta_bancaria || null, body.cnpj || null, body.proprietario || null, body.endereco || null, body.cidade || null, body.uf || null, JSON.stringify(emails), body.inscricao_estadual || null).run()
   return c.json({ id, nome }, 201)
+})
+app.patch('/api/sharebrasil/holdings/:id', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
+  const fields = ['nome', 'conta_bancaria', 'cnpj', 'proprietario', 'endereco', 'cidade', 'uf', 'emails', 'inscricao_estadual', 'ativo']
+  const provided = fields.filter((field) => body[field] !== undefined)
+  if (!provided.length) return c.json({ error: 'nenhum_campo_informado' }, 400)
+  const values = provided.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : field === 'ativo' ? Number(Boolean(body.ativo)) : body[field] ?? null)
+  const result = await c.env.SHARE_DB.prepare(`UPDATE holdings SET ${provided.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`).bind(...values, c.req.param('id')).run()
+  if (!result.meta.changes) return c.notFound()
+  return c.json({ success: true })
 })
 app.post('/api/sharebrasil/holdings/:id/socios', async c => {
   const user = await shareBrasilUser(c)
@@ -5584,9 +5606,9 @@ app.patch('/api/sharebrasil/clientes/:id', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const fields = ['razao_social','cnpj','inscricao_estadual','proprietario','endereco','cidade','uf','contato_financeiro','telefone_financeiro','telefone_cliente','telefone_outro','email_principal','status','codigo_cliente','observacoes']
-  const values = fields.map((field) => body[field] ?? null)
-  const result = await c.env.SHARE_DB.prepare(`UPDATE cliente SET ${fields.map((field) => `${field} = COALESCE(?, ${field})`).join(', ')}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(...values, c.req.param('id')).run()
+  const fields = ['razao_social','cnpj','inscricao_estadual','proprietario','endereco','cidade','uf','contato_financeiro','telefone_financeiro','telefone_cliente','telefone_outro','email_principal','emails','status','codigo_cliente','observacoes']
+  const values = fields.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : body[field] ?? null)
+  const result = await c.env.SHARE_DB.prepare(`UPDATE cliente SET ${fields.map((field) => `${field} = ?`).join(', ')}, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(...values, c.req.param('id')).run()
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
 })
@@ -5595,10 +5617,10 @@ app.patch('/api/sharebrasil/socios/:id', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const fields = ['nome', 'cpf', 'email_principal', 'telefone', 'endereco', 'cidade', 'uf', 'observacoes']
+  const fields = ['nome', 'cpf', 'email_principal', 'emails', 'contato_financeiro', 'telefone_financeiro', 'telefone', 'endereco', 'cidade', 'uf', 'observacoes']
   const provided = fields.filter((field) => body[field] !== undefined)
   if (!provided.length) return c.json({ error: 'nenhum_campo_informado' }, 400)
-  const values = provided.map((field) => body[field] ?? null)
+  const values = provided.map((field) => field === 'emails' ? JSON.stringify(Array.isArray(body.emails) ? body.emails : []) : body[field] ?? null)
   const result = await c.env.SHARE_DB.prepare(`UPDATE hold_socios SET ${provided.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`).bind(...values, c.req.param('id')).run()
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
@@ -5634,6 +5656,33 @@ app.get('/api/sharebrasil/clientes/:id/logo/arquivo', async c => {
   const user = await shareBrasilUser(c)
   if (!user) return c.json({ error: 'nao_autorizado' }, 401)
   const row = await c.env.SHARE_DB.prepare('SELECT url_logo FROM cliente WHERE id = ?1').bind(c.req.param('id')).first<{ url_logo: string | null }>()
+  if (!row?.url_logo) return c.notFound()
+  const object = await shareBrasilBucket(c).get(row.url_logo)
+  if (!object) return c.notFound()
+  return new Response(object.body, { headers: { 'Content-Type': 'image/*', 'Cache-Control': 'private, max-age=300' } })
+})
+
+app.post('/api/sharebrasil/holdings/:id/logo', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const form = await c.req.formData()
+  const fileValue = form.get('arquivo') as unknown
+  if (!fileValue || typeof fileValue !== 'object' || !('size' in fileValue)) return c.json({ error: 'arquivo_obrigatorio' }, 400)
+  const file = fileValue as File
+  if (!file.type.startsWith('image/')) return c.json({ error: 'logo_deve_ser_imagem' }, 415)
+  try {
+    const key = await salvarArquivoShareBrasil(c, user.id, file, `documentos_cliente/avatar_logo/${c.req.param('id')}`)
+    await c.env.SHARE_DB.prepare('UPDATE holdings SET url_logo = ? WHERE id = ?').bind(key, c.req.param('id')).run()
+    return c.json({ url_logo: `/api/sharebrasil/holdings/${c.req.param('id')}/logo/arquivo` })
+  } catch (error: any) {
+    return c.json({ error: error?.message || 'falha_ao_salvar_logo' }, 400)
+  }
+})
+
+app.get('/api/sharebrasil/holdings/:id/logo/arquivo', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const row = await c.env.SHARE_DB.prepare('SELECT url_logo FROM holdings WHERE id = ?1').bind(c.req.param('id')).first<{ url_logo: string | null }>()
   if (!row?.url_logo) return c.notFound()
   const object = await shareBrasilBucket(c).get(row.url_logo)
   if (!object) return c.notFound()

@@ -98,9 +98,9 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
   const encerrar = async () => {
     if (!jornada || pernaEmVoo || !pernaCortada) return;
     const pouso = ultimaPerna?.horario_pouso; const corte = ultimaPerna?.horario_corte; if (!pouso || !corte) { setErro("Salve o pouso e o corte da última perna antes de encerrar a jornada."); return; }
-    const pousoDate = new Date(iso(jornada.data || data, hora(pouso))); const corteDate = new Date(iso(jornada.data || data, hora(corte))); if (Number.isNaN(pousoDate.getTime()) || Number.isNaN(corteDate.getTime())) { setErro("Os horários POU/COR salvos são inválidos."); return; }
+    if (!/^\d{2}:\d{2}$/.test(hora(pouso)) || !/^\d{2}:\d{2}$/.test(hora(corte))) { setErro("Os horários POU/COR salvos são inválidos."); return; }
     setSalvando(true); setErro(""); setMensagem("");
-    const horarioPouso = pousoDate.toISOString(); const horarioCorte = corteDate.toISOString();
+    const horarioPouso = hora(pouso); const horarioCorte = hora(corte);
     try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_pouso: horarioPouso, horario_corte: horarioCorte }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada."); }
     catch (e) { const mensagemErro = e instanceof Error ? e.message : ""; const tripulanteId = mensagemErro.match(/tripulante_id=([^\s|]+)/)?.[1]; const nome = tripulanteId ? nomesTripulantes.get(tripulanteId) : undefined; if (mensagemErro.startsWith("limite_jornada")) { const aviso = nome ? `${nome} (${tripulanteId}) ultrapassa o limite legal. Registrar mesmo assim?` : "Um tripulante ultrapassa o limite legal. Registrar mesmo assim?"; if (window.confirm(aviso)) { try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_pouso: horarioPouso, horario_corte: horarioCorte, confirmar_excedente: true }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada com excedente confirmado."); } catch (confirmacao) { setErro(confirmacao instanceof Error ? confirmacao.message : "Não foi possível encerrar a jornada."); } } else setErro(mensagemErro); } else setErro(mensagemErro || "Não foi possível encerrar a jornada."); } finally { setSalvando(false); }
   };

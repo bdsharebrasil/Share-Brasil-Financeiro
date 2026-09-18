@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowLeft, Award, Briefcase, CalendarDays, CheckCircle2,
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { atualizarHabilitacaoTripulante, atualizarTripulante, buscarGestaoTripulacao, buscarHorasTripulacao, buscarPainelAgendamento, criarHabilitacaoTripulante, type EscalaAgendamento, type HabilitacaoTripulante, type HoraTripulacao, type TripulanteGestao } from "@/lib/colaborador-api";
+import { atualizarHabilitacaoTripulante, atualizarTripulante, buscarGestaoTripulacao, buscarHorasTripulacao, buscarPainelAgendamento, carregarArquivoColaborador, criarHabilitacaoTripulante, type EscalaAgendamento, type HabilitacaoTripulante, type HoraTripulacao, type TripulanteGestao } from "@/lib/colaborador-api";
 
 const DEFAULT_AVATAR = "/icon.pilot.png";
 
@@ -32,12 +32,29 @@ export function situacaoHabilitacoes(habs: HabilitacaoTripulante[]): HabSituacao
 
 type VooRegistro = { id: string; data_registro: string; matricula_registro: string | null; pic_canac: string | null; pic_nome: string | null; sic_canac: string | null; sic_nome: string | null; tempo_voo: number; horas_diurnas: number; horas_noturnas: number; tempo_ifr: number };
 
+function useCrewAvatar(crew: TripulanteGestao) {
+  const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
+  useEffect(() => {
+    let ativo = true;
+    let objectUrl: string | null = null;
+    if (!crew.foto_url) { setAvatar(DEFAULT_AVATAR); return () => undefined; }
+    void carregarArquivoColaborador(crew.foto_url).then((blob) => {
+      if (!ativo) return;
+      objectUrl = URL.createObjectURL(blob);
+      setAvatar(objectUrl);
+    }).catch(() => { if (ativo) setAvatar(DEFAULT_AVATAR); });
+    return () => { ativo = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [crew.foto_url]);
+  return avatar;
+}
+
 export function CrewCard({ crew, situacao, onClick }: { crew: TripulanteGestao; situacao: HabSituacao; onClick: () => void }) {
+  const avatar = useCrewAvatar(crew);
   return (
     <button type="button" onClick={onClick} className="group relative flex min-h-[210px] flex-col rounded-2xl border border-border/70 bg-card/80 p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
       <div className="flex items-start justify-between">
         <Avatar className="h-14 w-14 rounded-xl border border-border/70 bg-muted/40">
-          <AvatarImage src={crew.url_avatar || DEFAULT_AVATAR} className="rounded-xl object-cover" onError={(event) => { event.currentTarget.src = DEFAULT_AVATAR; }} />
+          <AvatarImage src={avatar} className="rounded-xl object-cover" onError={(event) => { event.currentTarget.src = DEFAULT_AVATAR; }} />
           <AvatarFallback className="rounded-xl bg-muted/40 text-muted-foreground"><UserRound size={22} /></AvatarFallback>
         </Avatar>
         <ChevronRight size={18} className="text-muted-foreground/60 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
@@ -67,6 +84,7 @@ function HabSituacaoBadge({ situacao }: { situacao: HabSituacao }) {
 type ProfileTab = "perfil" | "horas" | "habilitacoes" | "escala";
 
 export function CrewProfile({ crew, habilitations, onBack, onChanged }: { crew: TripulanteGestao; habilitations: HabilitacaoTripulante[]; onBack: () => void; onChanged: () => void }) {
+  const avatar = useCrewAvatar(crew);
   const [tab, setTab] = useState<ProfileTab>("perfil");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,7 +115,7 @@ export function CrewProfile({ crew, habilitations, onBack, onChanged }: { crew: 
       <section className="rounded-2xl border border-border/70 bg-card/80 shadow-sm">
         <div className="flex flex-wrap items-center gap-4 border-b border-border/60 p-5">
           <Avatar className="h-16 w-16 rounded-2xl border border-border/70 bg-muted/40">
-            <AvatarImage src={crew.url_avatar || DEFAULT_AVATAR} className="rounded-2xl object-cover" onError={(event) => { event.currentTarget.src = DEFAULT_AVATAR; }} />
+            <AvatarImage src={avatar} className="rounded-2xl object-cover" onError={(event) => { event.currentTarget.src = DEFAULT_AVATAR; }} />
             <AvatarFallback className="rounded-2xl bg-muted/40 text-lg font-extrabold text-muted-foreground">{initials(crew.nome_completo)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -297,7 +315,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
 }
 
 function HabilitacoesTab({ crew, habilitations, onChanged, onError, onOk }: { crew: TripulanteGestao; habilitations: HabilitacaoTripulante[]; onChanged: () => void; onError: (msg: string | null) => void; onOk: (msg: string | null) => void }) {
-  const [newHab, setNewHab] = useState({ tipo_habilitacao: "", data_validade: "", classe_cma: "", validade_cma: "", fs_rh: "" });
+  const [newHab, setNewHab] = useState({ tipo_habilitacao: "", data_validade: "", classe_cma: "", fs_rh: "" });
   const [formOpen, setFormOpen] = useState(false);
 
   const saveHabilitation = async (id: string, payload: Record<string, string | null>) => {
@@ -306,7 +324,7 @@ function HabilitacoesTab({ crew, habilitations, onChanged, onError, onOk }: { cr
   };
   const addHabilitation = async () => {
     if (!newHab.tipo_habilitacao.trim()) return onError("Informe o tipo da habilitação.");
-    try { await criarHabilitacaoTripulante(crew.id, newHab); setNewHab({ tipo_habilitacao: "", data_validade: "", classe_cma: "", validade_cma: "", fs_rh: "" }); setFormOpen(false); onOk("Habilitação adicionada."); onChanged(); }
+    try { await criarHabilitacaoTripulante(crew.id, { ...newHab, validade_cma: null }); setNewHab({ tipo_habilitacao: "", data_validade: "", classe_cma: "", fs_rh: "" }); setFormOpen(false); onOk("Habilitação adicionada."); onChanged(); }
     catch (e) { onError(e instanceof Error ? e.message : "Não foi possível adicionar a habilitação."); }
   };
 
@@ -333,7 +351,6 @@ function HabilitacoesTab({ crew, habilitations, onChanged, onError, onOk }: { cr
             <Input value={newHab.tipo_habilitacao} onChange={(e) => setNewHab({ ...newHab, tipo_habilitacao: e.target.value })} placeholder="Tipo de habilitação" className={field} />
             <Input value={newHab.classe_cma} onChange={(e) => setNewHab({ ...newHab, classe_cma: e.target.value })} placeholder="Classe CMA" className={field} />
             <Input type="date" value={newHab.data_validade} onChange={(e) => setNewHab({ ...newHab, data_validade: e.target.value })} className={field} />
-            <Input type="date" value={newHab.validade_cma} onChange={(e) => setNewHab({ ...newHab, validade_cma: e.target.value })} className={field} />
           </div>
           <Button type="button" variant="outline" onClick={() => void addHabilitation()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar habilitação</Button>
         </div>
@@ -417,8 +434,7 @@ function EscalaTripulanteTab({ crew }: { crew: TripulanteGestao }) {
 function Metric({ label, value }: { label: string; value: string }) { return <div className="bg-card px-4 py-3"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p><p className="mt-1 text-base font-extrabold">{value}</p></div>; }
 
 function HabilitationCard({ item, onSave }: { item: HabilitacaoTripulante; onSave: (id: string, payload: Record<string, string | null>) => void }) {
-  const [validity, setValidity] = useState(item.data_validade || "");
-  const [cmaValidity, setCmaValidity] = useState(item.validade_cma || "");
+  const [validity, setValidity] = useState(item.data_validade || item.validade_cma || "");
   const reference = item.data_validade || item.validade_cma;
   return (
     <div className={`rounded-xl border p-4 ${dueTone(reference)}`}>
@@ -430,9 +446,8 @@ function HabilitationCard({ item, onSave }: { item: HabilitacaoTripulante; onSav
         {reference && (diasParaVencer(reference)! < 0 ? <AlertTriangle size={16} className="text-red-400" /> : <CheckCircle2 size={16} className="text-emerald-400" />)}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Input type="date" value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" />
-        <Input type="date" value={cmaValidity} onChange={(e) => setCmaValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" />
-        <Button type="button" variant="outline" onClick={() => onSave(item.id, { data_validade: validity || null, validade_cma: cmaValidity || null })} className="h-8 text-[10px]">Atualizar</Button>
+        <Input type="date" aria-label="Data de vencimento" value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" />
+        <Button type="button" variant="outline" onClick={() => onSave(item.id, { data_validade: validity || null, validade_cma: null })} className="h-8 text-[10px]">Atualizar</Button>
       </div>
     </div>
   );

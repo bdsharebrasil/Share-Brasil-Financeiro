@@ -36,6 +36,20 @@ import {
 const DEFAULT_AVATAR = "/icon.pilot.png";
 
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
+const mesesDoAno = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 function formatHours(value: number) {
   return `${Number(value || 0)
@@ -614,13 +628,32 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
               <option value="personalizado">Período personalizado</option>
             </select>
             {consultaTipo === "mes" ? (
-              <Input
-                aria-label="Mês do extrato"
-                type="month"
-                value={mes}
-                onChange={(e) => setMes(e.target.value)}
-                className="h-9 w-[150px] rounded-lg border-border/70 bg-background/70 text-xs"
-              />
+              <>
+                <select
+                  aria-label="Mês do extrato"
+                  value={mes.slice(5, 7)}
+                  onChange={(e) => setMes(`${mes.slice(0, 4)}-${e.target.value}`)}
+                  className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-xs"
+                >
+                  {mesesDoAno.map((nome, index) => (
+                    <option key={nome} value={String(index + 1).padStart(2, "0")}>
+                      {nome}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Ano do extrato"
+                  value={mes.slice(0, 4)}
+                  onChange={(e) => setMes(`${e.target.value}-${mes.slice(5, 7)}`)}
+                  className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-xs"
+                >
+                  {Array.from({ length: 11 }, (_, index) => new Date().getFullYear() - 5 + index).map((ano) => (
+                    <option key={ano} value={ano}>
+                      {ano}
+                    </option>
+                  ))}
+                </select>
+              </>
             ) : (
               <>
                 <Input

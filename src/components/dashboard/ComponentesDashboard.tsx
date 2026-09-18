@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import aviationHero from "@/assets/aviation-hero.jpg";
+import aviationHeroOperacoes from "@/assets/aviation-hero1.jpg";
 import { ArrowDownRight, ArrowRight, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomesAmbiente, type Ambiente } from "@/types/navegacao";
@@ -29,9 +30,10 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
 }
 
 export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
+  const heroImage = ambiente === "operacoes" ? aviationHeroOperacoes : aviationHero;
   return (
     <section className="hero-panel relative mb-5 overflow-hidden rounded-xl border border-white/10 bg-[#111b29] shadow-[0_18px_55px_rgba(0,0,0,.22)] sm:mb-6 sm:rounded-2xl">
-      <img src={aviationHero} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
+      <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
       <div className="relative flex min-h-[150px] flex-col justify-between gap-5 p-4 sm:min-h-[175px] sm:gap-8 sm:p-6 md:min-h-[205px] md:p-8">

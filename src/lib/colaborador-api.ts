@@ -36,6 +36,7 @@ export type PagamentoColaborador = {
   id: string;
   descricao: string;
   competencia: string | null;
+  data_vencimento: string | null;
   data_pagamento: string | null;
   valor: number;
   status: "pago" | "pendente" | "cancelado";

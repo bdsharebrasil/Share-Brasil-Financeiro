@@ -105,7 +105,7 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
     setField("tempo_ac", hhmm(item.horario_ac)); setField("tempo_dep", hhmm(item.horario_dep)); setField("tempo_pou", hhmm(item.horario_pouso)); setField("tempo_cor", hhmm(item.horario_corte));
     const minutes = (a: string | null, b: string | null) => a && b ? Math.max(0, (Date.parse(b) - Date.parse(a)) / 3600000) : 0;
     const voo = minutes(item.horario_dep, item.horario_pouso); const total = minutes(item.horario_ac, item.horario_corte || item.horario_pouso);
-    setField("tempo_voo", voo.toFixed(2)); setField("tempo_total", (total || voo).toFixed(2)); setField("horas_diurnas", voo.toFixed(2)); setField("horas_noturnas", "0.00"); setField("pousos_total", item.horario_pouso ? "1" : "0"); setField("data_registro", (item.horario_ac || jornada?.data || "").slice(0, 10));
+    setField("tempo_voo", voo.toFixed(2)); setField("tempo_total", (total || voo).toFixed(2)); setField("horas_diurnas", voo.toFixed(2)); setField("horas_noturnas", "0.00"); setField("pousos_total", item.horario_pouso ? "1" : "0"); setField("distancia_nm", String(item.distancia_nm || 0)); setField("data_registro", (item.horario_ac || jornada?.data || "").slice(0, 10));
   };
   const clientesSocios = useMemo(() => opcoes.socios.filter((socio) => {
     if (value("holding_id")) return socio.holding_id === value("holding_id");

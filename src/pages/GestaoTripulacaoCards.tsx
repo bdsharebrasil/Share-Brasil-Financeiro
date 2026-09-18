@@ -743,7 +743,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
             <ArrowLeft size={14} /> Voltar para aeronaves
           </Button>
 
-          <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+          <section className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -763,7 +763,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
                 <span className="font-bold text-foreground">{periodo}</span>
               </p>
             </div>
-          </div>
+          </section>
 
           <div className="rounded-2xl border border-border/70 bg-card/80 shadow-sm">
             <div className="grid grid-cols-2 gap-1 border-b border-border/60 p-2">
@@ -807,8 +807,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
                         <span>{formatHours(flight.tempo_total)}</span>
                       </div>
                       <p className="mt-1 text-muted-foreground">
-                        {flight.numero_voo ? `Voo ${flight.numero_voo} · ` : ""}
-                        {funcaoSelecionada} neste lançamento
+                        {flight.numero_voo ? `Voo ${flight.numero_voo}` : ""}
                       </p>
                     </div>
                   ))}
@@ -911,17 +910,9 @@ function HourRoleCard({
           {role}
         </span>
         <span className="text-base font-extrabold">
-          {formatHours(data.horas_computaveis)}
+          {formatHours(data.horas_totais)}
         </span>
       </div>
-      <p className="mt-1 text-[9px] text-muted-foreground">
-        {data.voos} voo(s) · computável
-      </p>
-      <p className="mt-1 text-[9px] text-muted-foreground">
-        Tempo total {formatHours(data.horas_totais)} · IFR{" "}
-        {formatHours(data.horas_ifr)} · noturnas{" "}
-        {formatHours(data.horas_noturnas)}
-      </p>
     </div>
   );
 }

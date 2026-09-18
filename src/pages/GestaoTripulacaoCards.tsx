@@ -200,7 +200,7 @@ function FlightHoursTab({ crew }: { crew: TripulanteGestao }) {
     const params = consultaTipo === "mes" ? { mes, canac: crew.canac } : { inicio, fim, canac: crew.canac };
     void buscarHorasTripulacao(params)
       .then((result) => { setExtrato(result.por_aeronave || []); setVoos((result.voos || []) as VooRegistro[]); setAeronaveSelecionada(null); })
-      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar o extrato de horas."))
+      .catch((e) => setError(e instanceof Error && e.message.includes("tripulacao_horas_indisponiveis") ? "O serviço de horas de voo está temporariamente indisponível. Tente novamente em instantes." : e instanceof Error ? e.message : "Não foi possível carregar o extrato de horas."))
       .finally(() => setLoading(false));
   }, [mes, consultaTipo, inicio, fim, crew.canac]);
 

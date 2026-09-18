@@ -510,7 +510,14 @@ function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").Jornada
   if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
   return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 }
-function horaJornada(valor?: string | null) { return valor ? new Date(valor).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"; }
+function horaJornada(valor?: string | null) {
+  if (!valor) return "—";
+  const texto = String(valor).trim();
+  const isoUtc = texto.match(/T(\d{2}:\d{2})/);
+  if (isoUtc) return isoUtc[1];
+  const horaUtc = texto.match(/^(\d{1,2}):(\d{2})/);
+  return horaUtc ? `${horaUtc[1].padStart(2, "0")}:${horaUtc[2]}` : "—";
+}
 function dataJornada(valor?: string | null) { return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—"; }
 function HistoricoJornadas({ jornadas, carregando }: { jornadas: import("@/lib/colaborador-api").JornadaVoo[]; carregando: boolean }) {
   return <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-primary">Histórico operacional</p>{carregando ? <p className="mt-2 text-[10px] text-muted-foreground">Carregando jornadas...</p> : jornadas.length ? <div className="mt-2 space-y-2">{[...jornadas].sort((a, b) => Number(a.numero_jornada) - Number(b.numero_jornada)).map((jornada) => <div key={jornada.id} className="rounded-lg border border-border/70 bg-background/40 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[10px]">Jornada {jornada.numero_jornada} · dia {dataJornada(jornada.data)}</strong><span className="rounded-full bg-secondary px-2 py-1 text-[9px] font-bold">{jornada.status === "encerrada" ? "Encerrada" : "Em andamento"}</span></div><div className="mt-2 grid grid-cols-2 gap-2 text-[10px] sm:grid-cols-5"><Detalhe label="Check-in" valor={horaJornada(jornada.horario_apresentacao)} /><Detalhe label="AC" valor={horaJornada(jornada.horario_acionamento)} /><Detalhe label="POU" valor={horaJornada(jornada.horario_pouso)} /><Detalhe label="COR" valor={horaJornada(jornada.horario_corte)} /><Detalhe label="Tempo total" valor={formatarDuracaoJornada(jornada)} /></div>{jornada.pernas?.length ? <p className="mt-2 text-[9px] text-muted-foreground">{jornada.pernas.map((perna) => `${perna.origem} → ${perna.destino} · DEP ${horaJornada(perna.horario_dep)} · POU ${horaJornada(perna.horario_pouso)} · COR ${horaJornada(perna.horario_corte)}`).join(" | ")}</p> : null}</div>)}</div> : <p className="mt-2 text-[10px] text-muted-foreground">Nenhuma jornada iniciada.</p>}</div>;

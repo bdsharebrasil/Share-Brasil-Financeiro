@@ -9,7 +9,8 @@ import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary";
 const box = "rounded-2xl border border-[rgba(34,44,57,0.96)] bg-card/80 p-4 shadow-sm";
 const hoje = () => new Date().toISOString().slice(0, 10);
-const iso = (data: string, hora: string) => `${data}T${hora}:00`;
+// Horários operacionais são sempre informados e transmitidos em UTC/Zulu.
+const iso = (data: string, hora: string) => `${data}T${hora}:00Z`;
 const tomAlerta: Record<NivelAlertaJornada, string> = { normal: "border-emerald-400/30 bg-emerald-400/5 text-emerald-200", atencao: "border-amber-400/30 bg-amber-400/5 text-amber-200", critico: "border-orange-400/40 bg-orange-400/10 text-orange-200", excedido: "border-red-400/40 bg-red-400/10 text-red-200" };
 function hora(valor?: string | null) { if (!valor) return ""; const match = valor.match(/T(\d{2}:\d{2})/); return match?.[1] || valor.slice(0, 5); }
 function dataBr(valor?: string | null) { if (!valor) return "—"; const [ano, mes, dia] = valor.slice(0, 10).split("-"); return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor; }
@@ -56,7 +57,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
     void buscarAerodromos().then((resposta) => { if (ativo) setAerodromos(resposta.aerodromos || []); }).catch(() => { if (ativo) setAerodromos([]); }).finally(() => { if (ativo) setAerodromosCarregando(false); });
     return () => { ativo = false; };
   }, []);
-  useEffect(() => { if (!acionamento || apresentacao) return; const d = new Date(iso(data, acionamento)); if (!Number.isNaN(d.getTime())) setApresentacao(new Date(d.getTime() - 30 * 60000).toTimeString().slice(0, 5)); }, [data, acionamento, apresentacao]);
+  useEffect(() => { if (!acionamento || apresentacao) return; const d = new Date(iso(data, acionamento)); if (!Number.isNaN(d.getTime())) setApresentacao(new Date(d.getTime() - 30 * 60000).toISOString().slice(11, 16)); }, [data, acionamento, apresentacao]);
   const atualizarLimites = useCallback(async (jornadaId: string) => { try { setLimites(await buscarLimitesJornada(jornadaId)); } catch { setLimites(null); } }, []);
   useEffect(() => { if (jornada?.id) void atualizarLimites(jornada.id); }, [jornada?.id, atualizarLimites]);
   useEffect(() => { if (!jornada?.id || jornada.status === "encerrada") return; const timer = window.setInterval(() => void atualizarLimites(jornada.id), 60_000); return () => window.clearInterval(timer); }, [jornada?.id, jornada?.status, atualizarLimites]);

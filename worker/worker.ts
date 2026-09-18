@@ -2835,6 +2835,7 @@ app.patch('/api/colaborador/perfil', async c => {
   const assignments = updates.map(({ field }) => `${field} = ?`).join(', ')
   await c.env.SHARE_DB.prepare(`UPDATE user_profiles SET ${assignments}, data_atualizacao = CURRENT_TIMESTAMP WHERE id = ?`).bind(...updates.map(({ value }) => value), colaborador.id).run()
   const updated = await c.env.SHARE_DB.prepare('SELECT * FROM user_profiles WHERE id = ?1').bind(colaborador.id).first<Colaborador>()
+  await sincronizarTripulacaoColaborador(c, colaborador.id, updated || {}).catch(error => log.warn('[colaborador/perfil] tripulação não sincronizada', error?.message || error))
   return c.json({ perfil: { ...updated, foto_url: updated?.url_avatar ? '/api/colaborador/foto' : null, dias_ferias_direito: 30 } })
 })
 
@@ -2859,6 +2860,7 @@ app.post('/api/colaborador/foto', async c => {
   try {
     const key = await salvarArquivoColaborador(c, colaborador.id, file, 'avatar_profiles')
     await c.env.SHARE_DB.prepare('UPDATE user_profiles SET url_avatar = ?, data_atualizacao = CURRENT_TIMESTAMP WHERE id = ?').bind(key, colaborador.id).run()
+    await sincronizarTripulacaoColaborador(c, colaborador.id, {}).catch(error => log.warn('[colaborador/foto] tripulação não sincronizada', error?.message || error))
     return c.json({ foto_url: '/api/colaborador/foto' })
   } catch (error: any) {
     return c.json({ error: error?.message || 'falha_ao_salvar_foto' }, 400)
@@ -3389,12 +3391,23 @@ app.get('/api/interno/tripulacao/gestao', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const db = c.env.SHARE_DB
   const [tripulantes, habilitacoes, freelancers, aeronave] = await Promise.all([
-    db.prepare(`SELECT t.id, t.user_id, t.canac, t.nome_completo, t.status, t.tipo_licenca, up.email, up.telefone, up.url_avatar, up.departamento FROM tripulacao t LEFT JOIN user_profiles up ON up.id = t.user_id ORDER BY t.nome_completo`).all(),
+    db.prepare(`SELECT t.id, t.user_id, t.canac, t.nome_completo, t.status, t.tipo_licenca, up.email, up.telefone, up.url_avatar, up.departamento, CASE WHEN up.url_avatar IS NOT NULL THEN '/api/interno/tripulacao/' || t.id || '/foto' ELSE NULL END AS foto_url FROM tripulacao t LEFT JOIN user_profiles up ON up.id = t.user_id ORDER BY t.nome_completo`).all(),
     db.prepare('SELECT * FROM habilitacoes_tripulante ORDER BY data_validade, validade_cma').all(),
     db.prepare('SELECT f.*, a.matricula_registro, a.fabricante, a.modelo FROM tripulacao_freelancer f LEFT JOIN aeronave a ON a.id = f.aeronave_id ORDER BY f.nome_completo').all(),
     db.prepare('SELECT id, matricula_registro, fabricante, modelo, tipo_aeronave, numero_motores, status FROM aeronave ORDER BY matricula_registro').all(),
   ])
-  return c.json({ tripulantes: tripulantes.results, habilitacoes: habilitacoes.results, freelancers: freelancers.results, aeronave: aeronave.results })
+  return c.json({ tripulantes: tripulantes.results, habilitacoes: habilitacoes.results, freelancers: freelancers.results, aeronaves: aeronave.results })
+})
+app.get('/api/interno/tripulacao/:id/foto', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const row = await c.env.SHARE_DB.prepare('SELECT up.url_avatar FROM tripulacao t LEFT JOIN user_profiles up ON up.id = t.user_id WHERE t.id = ?1').bind(c.req.param('id')).first<{ url_avatar: string | null }>()
+  if (!row?.url_avatar) return c.notFound()
+  const object = await bucketParaChaveColaborador(c, row.url_avatar).get(row.url_avatar)
+  if (!object) return c.notFound()
+  const headers = new Headers()
+  object.writeHttpMetadata(headers)
+  headers.set('Cache-Control', 'private, max-age=300')
+  return new Response(object.body, { headers })
 })
 
 app.patch('/api/interno/tripulacao/:id', async c => {
@@ -3440,20 +3453,62 @@ app.patch('/api/interno/tripulacao-freelancer/:id', async c => {
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
 })
-
+app.delete('/api/interno/tripulacao-freelancer/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const id = c.req.param('id').trim()
+  if (!id) return c.json({ error: 'tripulante_id_obrigatorio' }, 400)
+  const result = await c.env.SHARE_DB.prepare('DELETE FROM tripulacao_freelancer WHERE id = ?1').bind(id).run()
+  if (!result.meta.changes) return c.notFound()
+  return c.json({ success: true })
+})
 app.get('/api/interno/tripulacao/horas', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const mes = c.req.query('mes')
   const inicio = c.req.query('inicio') || (/^\d{4}-\d{2}$/.test(mes || '') ? `${mes}-01` : '1900-01-01')
   const fim = c.req.query('fim') || (/^\d{4}-\d{2}$/.test(mes || '') ? `${mes}-31` : '2999-12-31')
   const aircraft = c.req.query('aeronave_id') || ''
-  const query = aircraft ? 'SELECT l.*, a.matricula_registro FROM lancamentos_diario_bordo l LEFT JOIN aeronave a ON a.id = l.aeronave_id WHERE date(l.data_registro) BETWEEN ?1 AND ?2 AND l.aeronave_id = ?3 ORDER BY date(l.data_registro) DESC' : 'SELECT l.*, a.matricula_registro FROM lancamentos_diario_bordo l LEFT JOIN aeronave a ON a.id = l.aeronave_id WHERE date(l.data_registro) BETWEEN ?1 AND ?2 ORDER BY date(l.data_registro) DESC'
-  const result = aircraft ? await c.env.SHARE_DB.prepare(query).bind(inicio, fim, aircraft).all<any>() : await c.env.SHARE_DB.prepare(query).bind(inicio, fim).all<any>()
-  const totals = new Map<string, any>(); const voos = result.results.map((row: any) => ({ id: row.id, data_registro: row.data_registro, matricula_registro: row.matricula_registro, pic_canac: row.pic_canac, pic_nome: row.pic_nome, sic_canac: row.sic_canac, sic_nome: row.sic_nome, tempo_voo: Number(row.tempo_voo || row.tempo_total || 0), horas_diurnas: Number(row.horas_diurnas || 0), horas_noturnas: Number(row.horas_noturnas || 0), tempo_ifr: Number(row.tempo_ifr || 0) }))
-  const add = (canac: string | null, nome: string | null, role: 'PIC' | 'SIC', row: any) => { if (!canac && !nome) return; const key = `${role}:${canac || nome}`; const current = totals.get(key) || { canac: canac || null, nome: nome || canac || 'Tripulante', funcao: role, horas_totais: 0, horas_pic: 0, horas_sic: 0, horas_diurnas: 0, horas_noturnas: 0, horas_ifr: 0, voos: 0 }; current.horas_totais += row.tempo_voo; current[`horas_${role.toLowerCase()}`] += row.tempo_voo; current.horas_diurnas += row.horas_diurnas; current.horas_noturnas += row.horas_noturnas; current.horas_ifr += row.tempo_ifr; current.voos += 1; totals.set(key, current) }
-  for (const row of voos) { add(row.pic_canac, row.pic_nome, 'PIC', row); add(row.sic_canac, row.sic_nome, 'SIC', row) }
+  const canac = (c.req.query('canac') || '').trim()
+  const filters = ['date(l.data_registro) BETWEEN ? AND ?']; const binds: string[] = [inicio, fim]
+  if (aircraft) { filters.push('l.aeronave_id = ?'); binds.push(aircraft) }
+  if (canac) {
+    // Há lançamentos antigos que gravaram o UUID do tripulante em pic_canac/sic_canac.
+    // Incluímos UUID, CANAC e nome para que o extrato continue compatível com todos eles.
+    const identities = await c.env.SHARE_DB.prepare(`
+      SELECT id AS value FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      UNION SELECT id FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      UNION SELECT canac FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      UNION SELECT canac FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      UNION SELECT nome_completo FROM tripulacao WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+      UNION SELECT nome_completo FROM tripulacao_freelancer WHERE lower(id) = lower(?1) OR upper(canac) = upper(?1) OR upper(nome_completo) = upper(?1)
+    `).bind(canac).all<{ value: string }>()
+    const values = [...new Set([canac, ...identities.results.map((item) => item.value).filter(Boolean)].map((value) => value.toLowerCase()))]
+    const placeholders = values.map(() => '?').join(', ')
+    filters.push(`(lower(COALESCE(l.pic_canac, '')) IN (${placeholders}) OR lower(COALESCE(l.sic_canac, '')) IN (${placeholders}))`)
+    binds.push(...values, ...values)
+  }
+  const query = `SELECT l.*, a.matricula_registro,
+    COALESCE((SELECT t.canac FROM tripulacao t WHERE lower(t.id) = lower(l.pic_canac) OR upper(t.canac) = upper(l.pic_canac) OR upper(t.nome_completo) = upper(l.pic_canac) LIMIT 1), (SELECT f.canac FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.pic_canac) OR upper(f.canac) = upper(l.pic_canac) OR upper(f.nome_completo) = upper(l.pic_canac) LIMIT 1), l.pic_canac) AS pic_canac_exibicao,
+    COALESCE((SELECT t.nome_completo FROM tripulacao t WHERE lower(t.id) = lower(l.pic_canac) OR upper(t.canac) = upper(l.pic_canac) OR upper(t.nome_completo) = upper(l.pic_canac) LIMIT 1), (SELECT f.nome_completo FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.pic_canac) OR upper(f.canac) = upper(l.pic_canac) OR upper(f.nome_completo) = upper(l.pic_canac) LIMIT 1), l.pic_nome) AS pic_nome_exibicao,
+    COALESCE((SELECT t.canac FROM tripulacao t WHERE lower(t.id) = lower(l.sic_canac) OR upper(t.canac) = upper(l.sic_canac) OR upper(t.nome_completo) = upper(l.sic_canac) LIMIT 1), (SELECT f.canac FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.sic_canac) OR upper(f.canac) = upper(l.sic_canac) OR upper(f.nome_completo) = upper(l.sic_canac) LIMIT 1), l.sic_canac) AS sic_canac_exibicao,
+    COALESCE((SELECT t.nome_completo FROM tripulacao t WHERE lower(t.id) = lower(l.sic_canac) OR upper(t.canac) = upper(l.sic_canac) OR upper(t.nome_completo) = upper(l.sic_canac) LIMIT 1), (SELECT f.nome_completo FROM tripulacao_freelancer f WHERE lower(f.id) = lower(l.sic_canac) OR upper(f.canac) = upper(l.sic_canac) OR upper(f.nome_completo) = upper(l.sic_canac) LIMIT 1), l.sic_nome) AS sic_nome_exibicao
+    FROM lancamentos_diario_bordo l LEFT JOIN aeronave a ON a.id = l.aeronave_id WHERE ${filters.join(' AND ')} ORDER BY date(l.data_registro) DESC`
+  const result = await c.env.SHARE_DB.prepare(query).bind(...binds).all<any>()
+  const voos = result.results.map((row: any) => ({ id: row.id, data_registro: row.data_registro, matricula_registro: row.matricula_registro, aeronave_id: row.aeronave_id, numero_voo: row.numero_voo || null, aerodromo_partida: row.aerodromo_partida || null, aerodromo_chegada: row.aerodromo_chegada || null, trecho: row.trecho || null, pic_canac: row.pic_canac_exibicao || row.pic_canac, pic_nome: row.pic_nome_exibicao || row.pic_nome, sic_canac: row.sic_canac_exibicao || row.sic_canac, sic_nome: row.sic_nome_exibicao || row.sic_nome, tempo_total: Number(row.tempo_total || row.tempo_voo || 0), tempo_ifr: Number(row.tempo_ifr || 0), horas_noturnas: Number(row.horas_noturnas || 0), horas_diurnas: Math.max(0, Number(row.tempo_total || row.tempo_voo || 0) - Number(row.tempo_ifr || 0) - Number(row.horas_noturnas || 0)) }))
+  const totals = new Map<string, any>(); const porAeronave = new Map<string, any>()
+  const add = (canacTripulante: string | null, nome: string | null, role: 'PIC' | 'SIC', row: any) => {
+    if (!canacTripulante && !nome) return
+    const tempoTotal = row.tempo_total; const tempoIfr = row.tempo_ifr; const horasNoturnas = row.horas_noturnas; const horasDiurnas = Math.max(0, tempoTotal - tempoIfr - horasNoturnas)
+    const key = `${role}:${canacTripulante || nome}`; const current = totals.get(key) || { canac: canacTripulante || null, nome: nome || canacTripulante || 'Tripulante', funcao: role, horas_totais: 0, horas_pic: 0, horas_sic: 0, horas_diurnas: 0, horas_computaveis: 0, horas_noturnas: 0, horas_ifr: 0, voos: 0 }
+    current.horas_totais += tempoTotal; current[`horas_${role.toLowerCase()}`] += tempoTotal; current.horas_diurnas += horasDiurnas; current.horas_computaveis += horasDiurnas; current.horas_noturnas += horasNoturnas; current.horas_ifr += tempoIfr; current.voos += 1; totals.set(key, current)
+    const aircraftKey = row.aeronave_id || row.matricula_registro || 'sem-aeronave'; const aircraft = porAeronave.get(aircraftKey) || { aeronave_id: row.aeronave_id || null, matricula_registro: row.matricula_registro || 'Sem matrícula', voos: 0, pic: { voos: 0, horas_totais: 0, horas_diurnas: 0, horas_computaveis: 0, horas_noturnas: 0, horas_ifr: 0 }, sic: { voos: 0, horas_totais: 0, horas_diurnas: 0, horas_computaveis: 0, horas_noturnas: 0, horas_ifr: 0 } }
+    const bucket = aircraft[role.toLowerCase()]; bucket.voos += 1; bucket.horas_totais += tempoTotal; bucket.horas_diurnas += horasDiurnas; bucket.horas_computaveis += horasDiurnas; bucket.horas_noturnas += horasNoturnas; bucket.horas_ifr += tempoIfr
+    if (role === 'PIC' || !row.pic_canac || (canac && String(canacTripulante || '').toUpperCase() === canac.toUpperCase())) aircraft.voos += 1
+    porAeronave.set(aircraftKey, aircraft)
+  }
+  for (const row of voos) { if (!canac || String(row.pic_canac || '').toUpperCase() === canac.toUpperCase() || String(row.pic_nome || '').toUpperCase() === canac.toUpperCase()) add(row.pic_canac, row.pic_nome, 'PIC', row); if (!canac || String(row.sic_canac || '').toUpperCase() === canac.toUpperCase() || String(row.sic_nome || '').toUpperCase() === canac.toUpperCase()) add(row.sic_canac, row.sic_nome, 'SIC', row) }
   const round = (value: number) => Math.round(value * 100) / 100
-  return c.json({ inicio, fim, voos, totais: [...totals.values()].map((item) => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, typeof value === 'number' ? round(value as number) : value]))) })
+  const arredondar = (item: any): any => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, typeof value === 'number' ? round(value as number) : typeof value === 'object' && value ? arredondar(value) : value]))
+  return c.json({ inicio, fim, voos, totais: [...totals.values()].map(arredondar), por_aeronave: [...porAeronave.values()].map(arredondar) })
 })
 
 app.get('/api/interno/planos-voo', async c => {
@@ -3614,7 +3669,7 @@ app.post('/api/interno/agendamento', async c => {
   }
   const id = uuid()
   await c.env.SHARE_DB.prepare(`INSERT INTO solicitacoes_reserva_voo (id, cliente_id, socio_id, cliente_emprestimo_id, socio_emprestimo_id, aeronave_id, voo_emprestado, origem, destino, data_agendada, horario_previsto_agendamento, dias_duracao, numero_passageiros, status, observacoes, piloto_id, copiloto_id, numero_voo, aprovado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(id, clienteId, socio?.id || null, clienteEmprestimoId, socioEmprestimoId, aeronaveId, vooEmprestado, origem, destino, dataAgendada, body?.horario_previsto_agendamento?.trim() || null, diasDuracao, Math.max(1, Number(body?.numero_passageiros || 1)), 'pendente', body?.observacoes?.trim() || null, null, null, null, null).run()
+    .bind(id, clienteId, socio?.id || null, clienteEmprestimoId, socioEmprestimoId, aeronaveId, vooEmprestado, origem, destino, dataAgendada, body?.horario_previsto_agendamento?.trim() || null, diasDuracao, Math.max(1, Number(body?.numero_passageiros || 1)), 'pendente', body?.observacoes?.trim() || null, piloto?.id || null, copiloto?.id || null, null, null).run()
   return c.json({ id, status: 'pendente', numero_voo: null }, 201)
 })
 
@@ -3753,10 +3808,7 @@ function nivelAlertaJornada(minutos: number, limite: number): 'normal' | 'atenca
 
 function minutosDaJornada(jornada: any, fimPrevisto?: string | null): number {
   if (Array.isArray(jornada.pernas)) {
-    return jornada.pernas.reduce(
-      (total: number, perna: any) => total + minutosEntre(perna.horario_dep, perna.horario_pouso),
-      0,
-    )
+    return jornada.pernas.reduce((total: number, perna: any) => total + minutosEntre(perna.horario_ac, perna.horario_corte), 0)
   }
   return 0
 }
@@ -3910,12 +3962,26 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
     LEFT JOIN tripulacao t2 ON t2.id = s.copiloto_id
     LEFT JOIN tripulacao_freelancer f2 ON f2.id = s.copiloto_id
     WHERE s.aeronave_id = ?1 AND s.numero_voo IS NOT NULL AND TRIM(s.numero_voo) <> ''
-    ORDER BY datetime(s.data_agendada) DESC
-    LIMIT 300
+    ORDER BY datetime(s.data_agendada) DESC LIMIT 300
   `).bind(aeronaveId).all<any>()
-  return c.json({ voos: rows.results || [] })
+  const voos = await Promise.all((rows.results || []).map(async (voo: any) => {
+    const jornadas = await c.env.SHARE_DB.prepare(`
+      SELECT id AS jornada_id, numero_jornada, data, status, horario_apresentacao, horario_acionamento,
+             horario_pouso, horario_corte
+      FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC, data DESC
+    `).bind(voo.solicitacao_id).all<any>()
+    const jornadasComPernas = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
+      const pernas = await c.env.SHARE_DB.prepare(`
+        SELECT id AS perna_id, numero, origem, destino, horario_ac, horario_dep, horario_pouso,
+               horario_corte, status, lancamento_diario_id
+        FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero
+      `).bind(jornada.jornada_id).all<any>()
+      return { ...jornada, pernas: pernas.results || [] }
+    }))
+    return { ...voo, jornadas: jornadasComPernas }
+  }))
+  return c.json({ voos })
 })
-
 app.post('/api/interno/agendamento/:id/jornada', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   await garantirTabelaJornadas(c)

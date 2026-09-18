@@ -2051,8 +2051,17 @@ export function ContatosClientesShareBrasil() {
       >
         <ChevronLeft size={16} /> Voltar para clientes
       </Button>
-      <section className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]">
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#142437] via-[#101a28] to-[#0d1420] p-5 md:p-8">
+      <section
+        className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]"
+        style={{
+          borderColor: "rgba(255, 255, 255, 0.02)",
+          backgroundColor: "rgba(6, 14, 25, 1)",
+        }}
+      >
+        <div
+          className="relative overflow-hidden bg-gradient-to-br from-[#142437] via-[#101a28] to-[#0d1420] p-5 md:p-8"
+          style={{ backgroundColor: "rgba(1, 5, 17, 1)" }}
+        >
           <div className="absolute -right-16 -top-20 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">

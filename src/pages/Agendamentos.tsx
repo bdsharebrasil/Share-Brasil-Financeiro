@@ -83,6 +83,17 @@ function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutra
 function statusLabel(status: string) {
   return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
+function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
+  return [...itens].sort((a, b) => {
+    const aeronaveA = a.matricula_registro?.trim() || "";
+    const aeronaveB = b.matricula_registro?.trim() || "";
+    if (!aeronaveA && aeronaveB) return 1;
+    if (aeronaveA && !aeronaveB) return -1;
+    return aeronaveA.localeCompare(aeronaveB, "pt-BR", { numeric: true, sensitivity: "base" })
+      || String(a.data_agendada || "").localeCompare(String(b.data_agendada || ""))
+      || String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true, sensitivity: "base" });
+  });
+}
 function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
   return [
     ...opcoes.clientes.map((item) => ({ id: `cliente:${item.id}`, label: `${item.nome}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}` })),
@@ -172,8 +183,10 @@ export default function Agendamentos() {
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const ativos = agendamentos.filter((item) => item.status !== "encerrada" && (filtroStatus === "todos" || item.status === filtroStatus));
-    if (!termo) return ativos;
-    return ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo));
+    const encontrados = termo
+      ? ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
+      : ativos;
+    return ordenarPorAeronave(encontrados);
   }, [agendamentos, busca, filtroStatus]);
 
   const abrirSolicitacao = (item: SolicitacaoVooInterna) => {

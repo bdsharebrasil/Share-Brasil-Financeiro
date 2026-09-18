@@ -123,19 +123,20 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                   {selectedMonthOptions.filter((item) => `${item.ano}-${item.mes}` !== `${period.ano}-${period.mes}`).map((item) => <option key={`${item.ano}-${item.mes}`} value={`${item.ano}-${item.mes}`}>{monthName(item.mes)} {item.ano}</option>)}
                 </select>
               </div>
-              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
                 <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-10 w-full justify-center gap-1.5 text-[10px] sm:h-9 sm:w-auto"><RefreshCw size={12} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
                 <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-10 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-[10px] font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:h-9 sm:w-auto"><CalendarDays size={12} /> Novo Mês</Button>
+                {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} aria-label="Novo lançamento de voo" className="h-10 w-full justify-center gap-1.5 rounded-lg border border-orange-400/35 bg-orange-500/20 text-[10px] font-extrabold text-orange-200 shadow-[0_8px_24px_rgba(249,115,22,.16)] hover:bg-orange-500/30 hover:text-orange-100 sm:h-9 sm:w-auto"><Plus size={13} strokeWidth={2.5} /> Novo lançamento</Button>}
               </div>
             </div>
           </div>
 
-          {!closed && month && <div className="mt-3 flex min-w-0 flex-col gap-3 rounded-xl border border-sky-300/30 bg-sky-500/[.08] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
+          {!closed && month && <div className="mt-3 flex min-w-0 items-start gap-3 rounded-xl border border-orange-300/25 bg-orange-500/[.06] p-3 sm:items-center sm:p-3.5">
+            <span className="mt-0.5 shrink-0 rounded-lg border border-orange-400/25 bg-orange-500/10 p-2 text-orange-300 sm:mt-0"><PlaneTakeoff size={14} /></span>
             <div className="min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-sky-300">Registrar voo</p>
-              <p className="mt-1 text-xs text-muted-foreground">Adicione um novo lançamento ao diário desta aeronave.</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-orange-300">Registrar voo</p>
+              <p className="mt-1 text-xs text-muted-foreground">Use “Novo lançamento” no grupo de ações acima para adicionar um voo.</p>
             </div>
-            <Button type="button" onClick={() => setEntryEditor(null)} aria-label="Novo lançamento de voo" className="min-h-11 w-full shrink-0 justify-center gap-2 rounded-lg border border-sky-300/50 bg-sky-500 px-4 text-[11px] font-extrabold text-slate-950 shadow-[0_8px_24px_rgba(14,165,233,.24)] hover:bg-sky-300 sm:min-h-10 sm:w-auto sm:text-xs"><Plus size={16} strokeWidth={2.5} /> Novo lançamento de voo</Button>
           </div>}
 
           <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 lg:grid-cols-[1.55fr_1fr]">

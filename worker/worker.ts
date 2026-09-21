@@ -1606,6 +1606,31 @@ app.get('/api/notam/:icao', async (c) => {
   }
 })
 
+app.get('/api/charts/preview', async (c) => {
+  if (!(await requireAiswebRateLimit(c))) return c.json({ error: 'Limite de requisições atingido, tente novamente em instantes' }, 429)
+  const rawUrl = c.req.query('url')
+  if (!rawUrl) return c.json({ error: 'url é obrigatória' }, 400)
+  let chartUrl: URL
+  try {
+    chartUrl = new URL(rawUrl)
+  } catch {
+    return c.json({ error: 'URL da carta inválida' }, 400)
+  }
+  if (chartUrl.protocol !== 'https:' || chartUrl.hostname !== 'aisweb.decea.mil.br') return c.json({ error: 'Domínio da carta não autorizado' }, 400)
+  try {
+    const response = await fetch(chartUrl)
+    if (!response.ok || !response.body) return c.json({ error: `Não foi possível carregar a carta (${response.status})` }, 502)
+    const headers = new Headers()
+    headers.set('Content-Type', response.headers.get('content-type') || 'application/pdf')
+    headers.set('Content-Disposition', c.req.query('download') === '1' ? 'attachment' : 'inline')
+    headers.set('Cache-Control', 'private, max-age=300')
+    return new Response(response.body, { status: 200, headers })
+  } catch (e: any) {
+    log.error('[charts/preview]:', e.message)
+    return c.json({ error: 'Não foi possível carregar a carta' }, 502)
+  }
+})
+
 app.get('/api/charts/:icao', async (c) => {
   if (!(await requireAiswebRateLimit(c))) return c.json({ error: 'Limite de requisições atingido, tente novamente em instantes' }, 429)
   const icao = c.req.param('icao').toUpperCase()
@@ -3952,7 +3977,7 @@ async function garantirTabelaJornadas(c: Context<{ Bindings: Bindings }>) {
     { table: 'pernas_jornada_voo', columns: ['id', 'horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte', 'status', 'lancamento_diario_id'] },
   ])
 }
-const LIMITES_JORNADA = { dia: 540, semana: 2640, mes: 10560, posCorte: 45 } as const
+const LIMITES_JORNADA = { dia: 540, semana: 2640, mes: 10560, posCorte: 30 } as const
 const STATUS_JORNADA = ['em_solo', 'em_rota', 'encerrada'] as const
 
 function normalizarHorarioJornada(data: string, valor: unknown, referencia?: string | null): string | null {

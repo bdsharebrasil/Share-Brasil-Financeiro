@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Fuel, PlaneTakeoff, Save, Users, X } from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { buscarNumerosVooAeronave, type NumeroVooJornada, type NumeroVooPerna } from "@/lib/colaborador-api";
+import { buscarSol } from "@/lib/flightplan-api";
 import { Button } from "@/components/ui/button";
 import type { DiarioLancamento, DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
@@ -10,6 +11,60 @@ const selectClass = `${inputClass} appearance-none [&>option]:bg-[#101722] [&>op
 const naturezas = ["AE - Aérea/Regular", "CQ - Cheque", "EX - Executivo", "NR - Não remunerado", "RE - Retorno/Reposição", "PV - Privado", "SA - Serviço aéreo", "TN - Táxi aéreo", "TR - Traslado", "VT - Voo Teste"];
 
 type FormValues = Record<string, string | boolean>;
+
+type DayNightHours = { diurnas: number; noturnas: number };
+
+const utcDate = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10);
+
+const dateRange = (start: number, end: number) => {
+  const dates: string[] = [];
+  for (let cursor = Date.parse(`${utcDate(start)}T00:00:00Z`); cursor < end; cursor += 86400000) dates.push(utcDate(cursor));
+  return dates;
+};
+
+const solarTimestamp = (date: string, time: string | undefined) => {
+  if (!time) return null;
+  const value = time.trim();
+  const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value);
+  const timestamp = hasTimezone
+    ? Date.parse(value)
+    : /^\d{4}[-/]\d{2}[-/]\d{2}/.test(value)
+      ? Date.parse(value.replace(" ", "T") + "Z")
+      : Date.parse(`${date}T${value}Z`);
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+async function splitFlightHours(start: string | null, end: string | null, icao: string): Promise<DayNightHours> {
+  const startTimestamp = start ? Date.parse(start) : NaN;
+  const endTimestamp = end ? Date.parse(end) : NaN;
+  const flightMilliseconds = endTimestamp - startTimestamp;
+  const fallback = { diurnas: Number.isFinite(flightMilliseconds) ? Math.max(0, flightMilliseconds / 3600000) : 0, noturnas: 0 };
+  if (!Number.isFinite(startTimestamp) || !Number.isFinite(endTimestamp) || flightMilliseconds <= 0 || !icao) return fallback;
+
+  const dates = dateRange(startTimestamp, endTimestamp);
+  try {
+    const responses = await Promise.all(dates.map((date) => buscarSol(icao, date)));
+    const solarDays = responses.map((response, index) => {
+      const requestedDate = dates[index].replace(/\D/g, "");
+      const day = response.solar?.find((candidate) => candidate.date?.replace(/\D/g, "") === requestedDate)
+        || (response.solar?.length === 1 && !response.solar[0]?.date ? response.solar[0] : undefined);
+      if (!day?.civil_twilight_begin || !day.civil_twilight_end) return null;
+      const begin = solarTimestamp(dates[index], day.civil_twilight_begin);
+      const end = solarTimestamp(dates[index], day.civil_twilight_end);
+      return begin !== null && end !== null && end > begin ? { begin, end } : null;
+    });
+    if (solarDays.some((day) => !day)) return fallback;
+
+    const daylightMilliseconds = solarDays.reduce((total, day) => total + Math.max(0, Math.min(endTimestamp, day!.end) - Math.max(startTimestamp, day!.begin)), 0);
+    const diurnas = daylightMilliseconds / 3600000;
+    return {
+      diurnas: Number(diurnas.toFixed(2)),
+      noturnas: Number(Math.max(0, flightMilliseconds / 3600000 - diurnas).toFixed(2)),
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 function formFromEntry(entry: Partial<DiarioLancamento> | undefined, date: string, celula: number, sugestaoTrecho = ""): FormValues {
   const natureza = entry?.natureza_voo || "EX - Executivo";
@@ -72,6 +127,7 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState("");
   const [jornadaSelecionada, setJornadaSelecionada] = useState("");
   const [pernaSelecionada, setPernaSelecionada] = useState("");
+  const splitRequestRef = useRef(0);
   useEffect(() => { void buscarNumerosVooAeronave(aeronaveId).then((response) => setVoos(response.voos || [])).catch(() => setVoos([])); }, [aeronaveId]);
   useEffect(() => {
     const next = formFromEntry(initialData || undefined, today, sugeridaCelula, sugestaoTrecho);
@@ -99,6 +155,7 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
   const aplicarVoo = (solicitacaoId: string) => {
     const voo = voos.find((item) => item.solicitacao_id === solicitacaoId);
     if (!voo) return;
+    splitRequestRef.current += 1;
     setSolicitacaoSelecionada(solicitacaoId);
     setField("numero_voo", voo.numero_voo); setField("cliente_id", voo.cliente_id || ""); setField("socio_id", voo.socio_id || "");
     setField("voo_emprestado", voo?.voo_emprestado === "sim" || voo?.voo_emprestado === 1 || voo?.voo_emprestado === true);
@@ -115,7 +172,13 @@ export default function DiarioLancamentoForm({ aeronaveId, diarioMesId, opcoes, 
     setField("tempo_ac", hhmm(item.horario_ac)); setField("tempo_dep", hhmm(item.horario_dep)); setField("tempo_pou", hhmm(item.horario_pouso)); setField("tempo_cor", hhmm(item.horario_corte));
     const minutes = (a: string | null, b: string | null) => a && b ? Math.max(0, (Date.parse(b) - Date.parse(a)) / 3600000) : 0;
     const voo = minutes(item.horario_dep, item.horario_pouso); const total = minutes(item.horario_ac, item.horario_corte || item.horario_pouso);
+    const requestId = ++splitRequestRef.current;
     setField("tempo_voo", voo.toFixed(2)); setField("tempo_total", (total || voo).toFixed(2)); setField("horas_diurnas", voo.toFixed(2)); setField("horas_noturnas", "0.00"); setField("pousos_total", item.horario_pouso ? "1" : "0"); setField("distancia_nm", String(item.distancia_nm || 0)); setField("data_registro", (item.horario_ac || jornada?.data || "").slice(0, 10));
+    void splitFlightHours(item.horario_dep, item.horario_pouso, item.origem).then(({ diurnas, noturnas }) => {
+      if (requestId !== splitRequestRef.current) return;
+      setField("horas_diurnas", diurnas.toFixed(2));
+      setField("horas_noturnas", noturnas.toFixed(2));
+    });
   };
   const clientesSocios = useMemo(() => opcoes.socios.filter((socio) => {
     if (value("holding_id")) return socio.holding_id === value("holding_id");

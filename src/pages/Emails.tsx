@@ -39,7 +39,7 @@ import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import ConfiguracaoContasBancarias from "@/components/email/ConfiguracaoContasBancarias";
-import MinhaAssinaturaEmail from "@/pages/MinhaAssinaturaEmail";
+import MinhaAssinaturaEmail from "@/components/email/MinhaAssinaturaEmail";
 import logoShare from "@/assets/share-signature-logo.png";
 import {
   buscarCentralEmail,

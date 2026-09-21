@@ -67,7 +67,7 @@ async function splitFlightHours(start: string | null, end: string | null, icao: 
 }
 
 function formFromEntry(entry: Partial<DiarioLancamento> | undefined, date: string, celula: number, sugestaoTrecho = ""): FormValues {
-  const natureza = entry?.natureza_voo || "EX - Executivo";
+  const natureza = entry?.natureza_voo || "PV - Privado";
   const rateioIgual = natureza === "TR - Traslado" || natureza === "VT - Voo Teste";
   return {
     data_registro: entry?.data_registro?.slice(0, 10) || date,

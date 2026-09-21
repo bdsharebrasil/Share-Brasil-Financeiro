@@ -1562,7 +1562,7 @@ id                       TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob
   horario_pouso     TEXT,
   horario_corte      TEXT,
 
-  minutos_pos_corte        INTEGER NOT NULL DEFAULT 45,
+  minutos_pos_corte        INTEGER NOT NULL DEFAULT 30,
 
   status                   TEXT NOT NULL DEFAULT ''em_solo''
                             CHECK (status IN (''em_solo'', ''em_rota'', ''encerrada'')),

@@ -59,6 +59,14 @@ function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefine
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 }
+function hojeUtc() {
+  return new Date().toISOString().slice(0, 10);
+}
+function horarioUtc(data: string, hora?: string) {
+  if (!hora) return undefined;
+  const instante = new Date(`${data}T${hora}:00Z`);
+  return Number.isFinite(instante.getTime()) ? instante.toISOString() : undefined;
+}
 function primeiroDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth(), 1); }
 function ultimoDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth() + 1, 0); }
 function inicioSemana(data: Date) { return new Date(data.getFullYear(), data.getMonth(), data.getDate() - ((data.getDay() + 6) % 7)); }
@@ -135,7 +143,7 @@ export default function Agendamentos() {
   const [motivo, setMotivo] = useState("");
   const [checklistAberto, setChecklistAberto] = useState(false);
   const [jornadaAberta, setJornadaAberta] = useState(false);
-  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: dataIso(new Date()), data_fim: dataIso(new Date()), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
   const [novaDisponibilidade, setNovaDisponibilidade] = useState({ tripulante_id: "", data_inicio: dataIso(new Date()), data_fim: dataIso(new Date()), status: "aviso" as "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel", observacoes: "" });
   const carregamentoAtual = useRef(0);
 
@@ -245,10 +253,10 @@ export default function Agendamentos() {
     if (novo.aeronave_id && !aeronaveDoTitular && (!novo.voo_emprestimo_confirmado || !temCedente)) { toast({ title: "Informe o empréstimo da aeronave", description: "Confirme que o voo é emprestado e selecione o cliente ou sócio cedente.", variant: "destructive" }); return; }
     setProcessando(true);
     try {
-      const resposta = await criarAgendamento({ ...novo, piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
+      const resposta = await criarAgendamento({ ...novo, horario_previsto_agendamento: horarioUtc(novo.data_agendada, novo.horario_previsto_agendamento), piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
       toast({ title: "Agendamento criado", description: resposta.numero_voo ? `Número de voo: ${resposta.numero_voo}.` : "A solicitação ficará pendente de confirmação." });
       setMostrarNovo(false);
-      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: dataIso(new Date()), data_fim: dataIso(new Date()), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
       await carregar(true);
     } catch (error) { toast({ title: "Não foi possível criar o agendamento", description: error instanceof Error ? error.message : "Confira os campos e tente novamente.", variant: "destructive" }); }
     finally { setProcessando(false); }
@@ -397,14 +405,15 @@ function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valo
 
 function formatarHorarioAgendamento(valor: string | null | undefined) {
   if (!valor) return { utc: "—", brasilia: "—" };
-  const partes = valor.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!partes) return { utc: valor, brasilia: "—" };
-  const horas = Number(partes[1]);
-  const minutos = Number(partes[2]);
-  const segundos = Number(partes[3] || 0);
-  if (horas > 23 || minutos > 59 || segundos > 59) return { utc: valor, brasilia: "—" };
-  const utc = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
-  const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(Date.UTC(1970, 0, 1, horas, minutos, segundos)));
+  const texto = String(valor).trim();
+  const instante = /^\d{4}-\d{2}-\d{2}T/.test(texto) ? new Date(texto) : (() => {
+    const partes = texto.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!partes) return new Date(NaN);
+    return new Date(Date.UTC(1970, 0, 1, Number(partes[1]), Number(partes[2]), Number(partes[3] || 0)));
+  })();
+  if (!Number.isFinite(instante.getTime())) return { utc: texto, brasilia: "—" };
+  const utc = instante.toISOString().slice(11, 16);
+  const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(instante);
   return { utc, brasilia };
 }
 
@@ -516,7 +525,7 @@ function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").Jornada
   const fim = ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso;
   const totalCalculado = minutosEntreJornada(inicio, fim);
   const minutos = totalCalculado !== null
-    ? totalCalculado + Number(jornada.minutos_pos_corte ?? 45)
+    ? totalCalculado + 30
     : Number.isFinite(totalPersistido) && totalPersistido > 0 ? totalPersistido : 0;
   if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
   return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;

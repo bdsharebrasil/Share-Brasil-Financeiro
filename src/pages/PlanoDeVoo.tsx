@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   BookmarkCheck,
   CalendarClock,
@@ -14,7 +15,6 @@ import {
   FileText,
   FolderOpen,
   Fuel,
-  Gauge,
   Lightbulb,
   LoaderCircle,
   MapPinned,
@@ -27,7 +27,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, WMSTileLayer, useMapEvents } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, WMSTileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,6 @@ import {
 } from "@/lib/colaborador-api";
 import {
   CabecalhoSecao,
-  CartaoKpi,
   EtiquetaStatus,
   EstadoVazio,
   IndicadorPagina,
@@ -318,10 +317,16 @@ function MeasureLayer({ points, onChange }: { points: [number, number][]; onChan
   return <>{points.map((point, index) => <CircleMarker key={`${point[0]}-${point[1]}-${index}`} center={point} radius={6} pathOptions={{ color: '#f1c348', fillColor: '#f1c348', fillOpacity: 1 }}><Tooltip permanent direction="top">P{index + 1}</Tooltip></CircleMarker>)}{points.length === 2 && <Polyline positions={points as [[number, number], [number, number]]} pathOptions={{ color: '#f1c348', weight: 3, dashArray: '6 6' }} />}</>;
 }
 
-function RouteMap({ data }: { data: GeneratedData }) {
+function RouteViewport({ positions }: { positions: [[number, number], [number, number]] }) {
+  const map = useMap();
+  useEffect(() => { map.fitBounds(positions, { padding: [80, 80], maxZoom: 4 }); }, [map, positions]);
+  return null;
+}
+
+function RouteMap({ data, className = "" }: { data: GeneratedData; className?: string }) {
   const response = data.response;
-  const positions: [[number, number], [number, number]] = [[response.departure.lat, response.departure.lon], [response.destination.lat, response.destination.lon]];
-  const center: [number, number] = [(response.departure.lat + response.destination.lat) / 2, (response.departure.lon + response.destination.lon) / 2];
+  const positions = useMemo<[[number, number], [number, number]]>(() => [[response.departure.lat, response.departure.lon], [response.destination.lat, response.destination.lon]], [response.departure.lat, response.departure.lon, response.destination.lat, response.destination.lon]);
+  const center = useMemo<[number, number]>(() => [(response.departure.lat + response.destination.lat) / 2, (response.departure.lon + response.destination.lon) / 2], [response.departure.lat, response.destination.lat, response.departure.lon, response.destination.lon]);
   const mapKey = `${response.departure.icao}-${response.destination.icao}`;
   const [baseLayer, setBaseLayer] = useState<'mapa' | 'terreno' | 'satelite'>('mapa');
   const [showAirspace, setShowAirspace] = useState(false);
@@ -329,7 +334,7 @@ function RouteMap({ data }: { data: GeneratedData }) {
   const [measurePoints, setMeasurePoints] = useState<[number, number][]>([]);
   const measure = measurePoints.length === 2 ? { distance: distanceNm(measurePoints[0], measurePoints[1]), bearing: bearingDegrees(measurePoints[0], measurePoints[1]) } : null;
   const tileUrl = baseLayer === 'satelite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : baseLayer === 'terreno' ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  return <div className="relative overflow-hidden rounded-xl border border-border bg-[#0b1725]"><MapContainer key={mapKey} center={center} zoom={5} scrollWheelZoom className="h-[320px] w-full sm:h-[390px]"><TileLayer attribution={baseLayer === 'satelite' ? 'Tiles &copy; Esri' : baseLayer === 'terreno' ? '&copy; OpenTopoMap' : '&copy; OpenStreetMap'} url={tileUrl} />{showAirspace && <WMSTileLayer url="https://geoaisweb.decea.mil.br/geoserver/ows" params={{ layers: 'ICA:airspace,ICA:airway', format: 'image/png', transparent: true, version: '1.1.1' }} opacity={0.58} />}{showWeather && <WeatherRadarLayer />}<Polyline positions={positions} pathOptions={{ color: '#4aa3f0', weight: 4, dashArray: '10 8' }} /><CircleMarker center={positions[0]} radius={8} pathOptions={{ color: '#66d190', fillColor: '#66d190', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.departure.icao}</Tooltip></CircleMarker><CircleMarker center={positions[1]} radius={8} pathOptions={{ color: '#f1c348', fillColor: '#f1c348', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.destination.icao}</Tooltip></CircleMarker><MeasureLayer points={measurePoints} onChange={setMeasurePoints} /></MapContainer><div className="absolute left-3 top-3 z-[500] rounded-lg border border-white/10 bg-[#081321]/90 px-3 py-2 backdrop-blur"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#78bdf4]">Rota sugerida</p><p className="mt-1 max-w-[250px] font-mono text-[11px] text-white">{response.flightplan.route}</p><p className="mt-1 text-[9px] text-white/60">{response.flightplan.route_source === 'AISWEB/DECEA' ? 'AISWEB / DECEA' : 'Direta / fallback'}</p></div><div className="absolute right-3 top-3 z-[500] flex max-w-[220px] flex-wrap justify-end gap-1.5 rounded-lg border border-white/10 bg-[#081321]/90 p-2 backdrop-blur"><span className="w-full px-1 pb-1 text-[9px] font-bold uppercase tracking-[.12em] text-white/60">Camadas e cartas</span>{(['mapa', 'terreno', 'satelite'] as const).map((layer) => <button key={layer} type="button" onClick={() => setBaseLayer(layer)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${baseLayer === layer ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>{layer === 'satelite' ? 'Satélite' : layer[0].toUpperCase() + layer.slice(1)}</button>)}<button type="button" onClick={() => setShowAirspace((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showAirspace ? 'bg-[#62c7a0] text-[#061b16]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Espaço aéreo</button><button type="button" onClick={() => setShowWeather((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showWeather ? 'bg-[#7bb8ed] text-[#061521]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Meteo ao vivo</button><button type="button" onClick={() => setMeasurePoints([])} className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-bold text-white/75 hover:bg-white/20">Limpar régua</button></div>{measure && <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-[#f1c348]/40 bg-[#081321]/90 px-3 py-2 text-[10px] text-white shadow-lg backdrop-blur"><p className="font-bold text-[#f1c348]">Régua de navegação</p><p className="mt-1 font-mono">Proa {String(Math.round(measure.bearing)).padStart(3, '0')}° · {measure.distance.toFixed(1)} NM</p><p className="text-[9px] text-white/60">Clique em dois pontos do mapa para medir.</p></div>}{!measure && <p className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-md bg-[#081321]/75 px-2 py-1 text-[9px] text-white/70">Régua: clique em dois pontos</p>}</div>;
+  return <div className={`relative overflow-hidden rounded-xl border border-border bg-[#0b1725] ${className}`}><MapContainer key={mapKey} center={center} zoom={4} scrollWheelZoom className="h-[min(72vh,680px)] min-h-[520px] w-full"><RouteViewport positions={positions} /><TileLayer attribution={baseLayer === 'satelite' ? 'Tiles &copy; Esri' : baseLayer === 'terreno' ? '&copy; OpenTopoMap' : '&copy; OpenStreetMap'} url={tileUrl} />{showAirspace && <WMSTileLayer url="https://geoaisweb.decea.mil.br/geoserver/ows" params={{ layers: 'ICA:airspace,ICA:airway', format: 'image/png', transparent: true, version: '1.1.1' }} opacity={0.58} />}{showWeather && <WeatherRadarLayer />}<Polyline positions={positions} pathOptions={{ color: '#4aa3f0', weight: 4, dashArray: '10 8' }} /><CircleMarker center={positions[0]} radius={8} pathOptions={{ color: '#66d190', fillColor: '#66d190', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.departure.icao}</Tooltip></CircleMarker><CircleMarker center={positions[1]} radius={8} pathOptions={{ color: '#f1c348', fillColor: '#f1c348', fillOpacity: 0.95 }}><Tooltip permanent direction="top" offset={[0, -7]}>{response.destination.icao}</Tooltip></CircleMarker><MeasureLayer points={measurePoints} onChange={setMeasurePoints} /></MapContainer><div className="absolute left-3 top-3 z-[500] rounded-lg border border-white/10 bg-[#081321]/90 px-3 py-2 backdrop-blur"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#78bdf4]">Rota sugerida</p><p className="mt-1 max-w-[250px] font-mono text-[11px] text-white">{response.flightplan.route}</p><p className="mt-1 text-[9px] text-white/60">{response.flightplan.route_source === 'AISWEB/DECEA' ? 'AISWEB / DECEA' : 'Direta / fallback'}</p></div><div className="absolute right-3 top-3 z-[500] flex max-w-[220px] flex-wrap justify-end gap-1.5 rounded-lg border border-white/10 bg-[#081321]/90 p-2 backdrop-blur"><span className="w-full px-1 pb-1 text-[9px] font-bold uppercase tracking-[.12em] text-white/60">Camadas e cartas</span>{(['mapa', 'terreno', 'satelite'] as const).map((layer) => <button key={layer} type="button" onClick={() => setBaseLayer(layer)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${baseLayer === layer ? 'bg-primary text-primary-foreground' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>{layer === 'satelite' ? 'Satélite' : layer[0].toUpperCase() + layer.slice(1)}</button>)}<button type="button" onClick={() => setShowAirspace((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showAirspace ? 'bg-[#62c7a0] text-[#061b16]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Espaço aéreo</button><button type="button" onClick={() => setShowWeather((value) => !value)} className={`rounded-md px-2 py-1 text-[9px] font-bold ${showWeather ? 'bg-[#7bb8ed] text-[#061521]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>Meteo ao vivo</button><button type="button" onClick={() => setMeasurePoints([])} className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-bold text-white/75 hover:bg-white/20">Limpar régua</button></div>{measure && <div className="absolute bottom-3 left-3 z-[500] rounded-lg border border-[#f1c348]/40 bg-[#081321]/90 px-3 py-2 text-[10px] text-white shadow-lg backdrop-blur"><p className="font-bold text-[#f1c348]">Régua de navegação</p><p className="mt-1 font-mono">Proa {String(Math.round(measure.bearing)).padStart(3, '0')}° · {measure.distance.toFixed(1)} NM</p><p className="text-[9px] text-white/60">Clique em dois pontos do mapa para medir.</p></div>}{!measure && <p className="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-md bg-[#081321]/75 px-2 py-1 text-[9px] text-white/70">Régua: clique em dois pontos</p>}</div>;
 }
 
 function WeatherCard({ title, icao, weather }: { title: string; icao: string; weather: WeatherResponse | null }) {
@@ -433,11 +438,34 @@ function ChecklistPlanoCard({ planId, checklist, onSaved, onError, onGeneratePdf
   </section>;
 }
 
+type ResultPanel = "cartas" | "rotaer" | "notam" | "meteorologia" | "checklist";
+
+const RESULT_PANEL_OPTIONS: Array<{ id: ResultPanel; label: string; icon: React.ReactNode }> = [
+  { id: "cartas", label: "Ver cartas", icon: <MapPinned size={16} /> },
+  { id: "rotaer", label: "ROTAER / pistas", icon: <Route size={16} /> },
+  { id: "notam", label: "NOTAM", icon: <AlertTriangle size={16} /> },
+  { id: "meteorologia", label: "Meteorologia", icon: <CloudSun size={16} /> },
+  { id: "checklist", label: "Checklist do plano", icon: <CheckCircle2 size={16} /> },
+];
+
+function PlanResultPanel({ panel, data, planId, checklist, onChecklistSaved, onError, onGeneratePdf, generatingPdf }: { panel: ResultPanel; data: GeneratedData; planId: string | null; checklist: ChecklistPlanoVoo | null; onChecklistSaved: (value: ChecklistPlanoVoo) => void; onError: (message: string) => void; onGeneratePdf: () => void; generatingPdf: boolean }) {
+  const { response } = data;
+  if (panel === "cartas") return <div className="space-y-3"><ChartsList title={`Cartas de ${response.departure.icao}`} charts={data.departureCharts} /><ChartsList title={`Cartas de ${response.destination.icao}`} charts={data.destinationCharts} /></div>;
+  if (panel === "rotaer") return <div className="space-y-3"><AirportBriefingCard title="Origem" airport={data.departureAirport} solar={data.departureSolar} fuelPrices={data.departureFuelPrices} /><AirportBriefingCard title="Destino" airport={data.destinationAirport} solar={data.destinationSolar} fuelPrices={data.destinationFuelPrices} /></div>;
+  if (panel === "meteorologia") return <div className="space-y-3"><WeatherCard title="Meteorologia de saída" icao={response.departure.icao} weather={data.departureWeather} /><WeatherCard title="Meteorologia de destino" icao={response.destination.icao} weather={data.destinationWeather} /></div>;
+  if (panel === "checklist") return <ChecklistPlanoCard planId={planId} checklist={checklist} onSaved={onChecklistSaved} onError={onError} onGeneratePdf={onGeneratePdf} generatingPdf={generatingPdf} />;
+  return <div className="space-y-3"><NotamLeituraAjuda /><section className="rounded-xl border border-[#f1c348]/30 bg-card/70 p-4"><div className="flex items-center gap-2"><AlertTriangle size={16} className="text-[#f1c348]" /><div><p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#f1c348]">NOTAMs agregados</p><h3 className="mt-1 text-sm font-bold">Alertas da rota</h3></div></div>{response.notam_alerts.length > 0 ? <div className="mt-4 space-y-2">{response.notam_alerts.map((notam) => <div key={notam.id} className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-mono text-[10px] font-bold">{notam.number || "NOTAM"}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{notam.message}</p></div>)}</div> : <p className="mt-4 text-[10px] text-muted-foreground">Nenhum NOTAM foi retornado para esta consulta.</p>}</section></div>;
+}
+
+function PlanResultSidebar({ panel, onToggle, data, planId, checklist, onChecklistSaved, onError, onGeneratePdf, generatingPdf }: { panel: ResultPanel | null; onToggle: (panel: ResultPanel) => void; data: GeneratedData; planId: string | null; checklist: ChecklistPlanoVoo | null; onChecklistSaved: (value: ChecklistPlanoVoo) => void; onError: (message: string) => void; onGeneratePdf: () => void; generatingPdf: boolean }) {
+  return <aside className="min-w-0 rounded-xl border border-border bg-card/70 p-2.5"><div className="flex items-center justify-between gap-2 px-1.5 pb-2"><div><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">Camadas do plano</p><p className="mt-1 text-[10px] text-muted-foreground">Clique para abrir ou fechar</p></div>{panel && <button type="button" onClick={() => onToggle(panel)} aria-label="Fechar painel" className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"><XCircle size={15} /></button>}</div><div className="grid gap-1.5">{RESULT_PANEL_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => onToggle(option.id)} aria-pressed={panel === option.id} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[10px] font-bold transition-colors ${panel === option.id ? "border-primary/50 bg-primary/15 text-primary" : "border-border/70 bg-secondary/20 text-muted-foreground hover:border-primary/30 hover:bg-primary/[.06] hover:text-foreground"}`}>{option.icon}<span>{option.label}</span><ChevronDown size={13} className={`ml-auto transition-transform ${panel === option.id ? "rotate-180" : ""}`} /></button>)}</div>{panel && <div className="mt-3 max-h-[calc(72vh-20px)] overflow-y-auto border-t border-border pt-3"><PlanResultPanel panel={panel} data={data} planId={planId} checklist={checklist} onChecklistSaved={onChecklistSaved} onError={onError} onGeneratePdf={onGeneratePdf} generatingPdf={generatingPdf} /></div>}</aside>;
+}
+
 function PlanoSalvoCard({ plan, disabled, onOpen }: { plan: PlanoVooSalvo; disabled: boolean; onOpen: () => void }) {
   return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] font-bold text-primary">{plan.numero_voo || "Sem número"}</p><p className="mt-1 font-mono text-[10px] font-semibold">{plan.adep} → {plan.ades}</p></div><span className="text-right text-[10px] text-muted-foreground">{plan.data_voo || "Data não informada"}</span></div><p className="mt-2 text-[10px] text-muted-foreground">EOBT {plan.eobt || "UTC a definir"} · salvo em {new Date(plan.created_at).toLocaleDateString("pt-BR")}</p><Button type="button" variant="outline" onClick={onOpen} disabled={disabled} className="mt-3 h-9 w-full gap-1.5 border-border bg-transparent text-[10px]"><FolderOpen size={13} /> Abrir plano</Button></article>;
 }
 
-function OperationalResult({ data, form, onSave, saving, saved, planId, checklist, onChecklistSaved, onError, onGeneratePdf, generatingPdf }: { data: GeneratedData; form: FlightPlanForm; onSave: () => void; saving: boolean; saved: boolean; planId: string | null; checklist: ChecklistPlanoVoo | null; onChecklistSaved: (value: ChecklistPlanoVoo) => void; onError: (message: string) => void; onGeneratePdf: () => void; generatingPdf: boolean }) {
+function OperationalResult({ data, form, onSave, onBack, saving, saved, planId, checklist, onChecklistSaved, onError, onGeneratePdf, generatingPdf }: { data: GeneratedData; form: FlightPlanForm; onSave: () => void; onBack: () => void; saving: boolean; saved: boolean; planId: string | null; checklist: ChecklistPlanoVoo | null; onChecklistSaved: (value: ChecklistPlanoVoo) => void; onError: (message: string) => void; onGeneratePdf: () => void; generatingPdf: boolean }) {
   const response = data.response;
   const speed = Math.max(Number(form.cruiseSpeed) || response.flightplan.cruise_speed || 1, 1);
   const burn = Math.max(Number(form.fuelBurn) || response.fuel.burn_lh || 1, 1);
@@ -452,46 +480,28 @@ function OperationalResult({ data, form, onSave, saving, saved, planId, checklis
   const marginFuel = availableFuel - requiredFuel;
   const canReach = marginFuel >= 0;
   const suggestedAlternate = response.alternates.find((item) => item.icao !== response.flightplan.ades);
+  const [resultPanel, setResultPanel] = useState<ResultPanel | null>(null);
 
   return (
     <section className="mt-7 space-y-5 route-enter">
       <div className="flex flex-col justify-between gap-3 border-b border-border pb-4 sm:flex-row sm:items-end">
         <div><IndicadorPagina>Plano calculado</IndicadorPagina><h2 className="text-xl font-extrabold tracking-[-.04em]">Briefing operacional</h2><p className="mt-1 text-[11px] text-muted-foreground">Dados aeronáuticos e meteorológicos consultados no AISWEB/DECEA.</p></div>
-        <div className="flex flex-wrap gap-2"><EtiquetaStatus tone={canReach ? "green" : "red"}>{canReach ? "Autonomia compatível" : "Autonomia insuficiente"}</EtiquetaStatus><Button type="button" onClick={onSave} disabled={saving || saved} className="h-9 gap-2 text-xs">{saving ? <LoaderCircle size={14} className="animate-spin" /> : saved ? <BookmarkCheck size={14} /> : <Save size={14} />}{saved ? "Plano salvo" : "Salvar plano"}</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={onBack} className="h-9 gap-2 text-xs"><ArrowLeft size={14} /> Editar plano</Button><EtiquetaStatus tone={canReach ? "green" : "red"}>{canReach ? "Autonomia compatível" : "Autonomia insuficiente"}</EtiquetaStatus><Button type="button" onClick={onSave} disabled={saving || saved} className="h-9 gap-2 text-xs">{saving ? <LoaderCircle size={14} className="animate-spin" /> : saved ? <BookmarkCheck size={14} /> : <Save size={14} />}{saved ? "Plano salvo" : "Salvar plano"}</Button></div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <CartaoKpi label="Distância" value={`${response.flightplan.distance_nm} NM`} detail={`${response.flightplan.adep} → ${response.flightplan.ades}`} icon={<Route size={16} />} />
-        <CartaoKpi label="Tempo estimado" value={formatFlightTime(flightMinutes)} detail={`GS estimada ${Math.round(groundSpeed)} kt`} tone="green" icon={<Gauge size={16} />} />
-        <CartaoKpi label="Combustível requerido" value={`${Math.round(requiredFuel)} L`} detail={`Trip + reserva + táxi`} tone={canReach ? "amber" : "red"} icon={<Fuel size={16} />} />
-        <CartaoKpi label="Margem de autonomia" value={`${Math.round(marginFuel)} L`} detail={`${endurance.toFixed(1)} h disponíveis`} tone={canReach ? "green" : "red"} icon={<ShieldCheck size={16} />} />
-      </div>
+      <div className="grid gap-2 sm:grid-cols-4"><WeatherMetric label="Distância" value={`${response.flightplan.distance_nm} NM`} /><WeatherMetric label="Tempo estimado" value={formatFlightTime(flightMinutes)} /><WeatherMetric label="Combustível requerido" value={`${Math.round(requiredFuel)} L`} /><WeatherMetric label="Margem de autonomia" value={`${Math.round(marginFuel)} L`} /></div>
 
       {response.performance && <section className="rounded-xl border border-primary/25 bg-primary/[.04] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-[.13em] text-primary">Performance da aeronave</p><h3 className="mt-1 text-sm font-bold">{[response.performance.fabricante, response.performance.modelo].filter(Boolean).join(' · ') || 'Dados cadastrados'}</h3></div><EtiquetaStatus tone="green">Fonte: {response.performance.source === 'performance_aeronave' ? 'performance_aeronave' : 'aeronave'}</EtiquetaStatus></div><div className="mt-3 grid grid-cols-2 gap-2 text-[10px] sm:grid-cols-4"><WeatherMetric label="Cruzeiro" value={`${response.performance.velocidade_cruzeiro_kt} kt`} /><WeatherMetric label="Consumo" value={`${response.performance.consumo_combustivel_lh} L/h`} /><WeatherMetric label="Teto" value={response.performance.teto_servico_ft ? `${response.performance.teto_servico_ft} ft` : '—'} /><WeatherMetric label="Subida" value={response.performance.taxa_subida_fpm ? `${response.performance.taxa_subida_fpm} ft/min` : '—'} /></div></section>}
 
-      <div className="grid gap-4 xl:grid-cols-2"><AirportBriefingCard title="Origem" airport={data.departureAirport} solar={data.departureSolar} fuelPrices={data.departureFuelPrices} /><AirportBriefingCard title="Destino" airport={data.destinationAirport} solar={data.destinationSolar} fuelPrices={data.destinationFuelPrices} /></div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
-        <RouteMap data={data} />
-        <div className="space-y-4">
-          <section className="rounded-xl border border-border bg-card/70 p-4">
-            <div className="flex items-center gap-2"><Compass size={16} className="text-primary" /><div><p className="text-[9px] font-bold uppercase tracking-[.13em] text-muted-foreground">Rota publicada</p><p className="mt-1 font-mono text-xs font-bold">{response.flightplan.route}</p></div></div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-[10px]"><WeatherMetric label="Origem" value={formatAirportName(data.departureAirport, response.departure.name)} /><WeatherMetric label="Destino" value={formatAirportName(data.destinationAirport, response.destination.name)} /><WeatherMetric label="Fonte da rota" value={response.flightplan.route_source === "AISWEB/DECEA" ? "AISWEB/DECEA" : "Rota direta / fallback"} /><WeatherMetric label="NOTAMs" value={`${response.notam_count} alerta(s)`} /></div>
-          </section>
-          <section className={`rounded-xl border p-4 ${canReach ? "border-[#5bbd75]/30 bg-[#5bbd75]/[.06]" : "border-[#e77b80]/40 bg-[#e77b80]/[.08]"}`}>
-            <div className="flex items-start gap-3">{canReach ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[#6bd188]" /> : <XCircle size={18} className="mt-0.5 shrink-0 text-[#ed8c90]" />}<div><p className="text-xs font-bold">{canReach ? "Autonomia dentro do planejamento" : "Revisar autonomia antes do despacho"}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Cálculo conservador usando vento de saída, consumo informado, táxi e reserva de {form.reserveMin} minutos.</p></div></div>
-          </section>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_350px] xl:items-start">
+        <div className="min-w-0 space-y-3">
+          <RouteMap data={data} />
+          <section className="rounded-xl border border-border bg-card/70 p-4"><div className="flex items-center gap-2"><Compass size={16} className="text-primary" /><div><p className="text-[9px] font-bold uppercase tracking-[.13em] text-muted-foreground">Rota publicada</p><p className="mt-1 font-mono text-xs font-bold">{response.flightplan.route}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2 text-[10px]"><WeatherMetric label="Origem" value={formatAirportName(data.departureAirport, response.departure.name)} /><WeatherMetric label="Destino" value={formatAirportName(data.destinationAirport, response.destination.name)} /><WeatherMetric label="Fonte da rota" value={response.flightplan.route_source === "AISWEB/DECEA" ? "AISWEB/DECEA" : "Rota direta / fallback"} /><WeatherMetric label="NOTAMs" value={`${response.notam_count} alerta(s)`} /></div></section>
+          <section className={`rounded-xl border p-4 ${canReach ? "border-[#5bbd75]/30 bg-[#5bbd75]/[.06]" : "border-[#e77b80]/40 bg-[#e77b80]/[.08]"}`}><div className="flex items-start gap-3">{canReach ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[#6bd188]" /> : <XCircle size={18} className="mt-0.5 shrink-0 text-[#ed8c90]" />}<div><p className="text-xs font-bold">{canReach ? "Autonomia dentro do planejamento" : "Revisar autonomia antes do despacho"}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Cálculo conservador usando vento de saída, consumo informado, táxi e reserva de {form.reserveMin} minutos.</p></div></div></section>
           <section className="rounded-xl border border-[#f1c348]/30 bg-[#f1c348]/[.06] p-4"><div className="flex items-start gap-3"><MapPinned size={18} className="mt-0.5 shrink-0 text-[#f4cc64]" /><div><p className="text-xs font-bold">Alternativa sugerida</p><p className="mt-1 font-mono text-sm font-bold">{suggestedAlternate ? `${suggestedAlternate.icao} · ${suggestedAlternate.name}` : "Nenhum alternado retornado"}</p><p className="mt-1 text-[10px] text-muted-foreground">{suggestedAlternate ? `${suggestedAlternate.distance_km} km do destino · validar NOTAM, meteorologia e performance.` : "Consulte a disponibilidade de aeródromos próximos no AISWEB."}</p></div></div></section>
         </div>
+        <PlanResultSidebar panel={resultPanel} onToggle={(panel) => setResultPanel((current) => current === panel ? null : panel)} data={data} planId={planId} checklist={checklist} onChecklistSaved={onChecklistSaved} onError={onError} onGeneratePdf={onGeneratePdf} generatingPdf={generatingPdf} />
       </div>
-
-      <div className="grid gap-4 lg:grid-cols-2"><WeatherCard title="Meteorologia de saída" icao={response.departure.icao} weather={data.departureWeather} /><WeatherCard title="Meteorologia de destino" icao={response.destination.icao} weather={data.destinationWeather} /></div>
-      <div className="grid gap-4 lg:grid-cols-2"><ChartsList title={`Cartas de ${response.departure.icao}`} charts={data.departureCharts} /><ChartsList title={`Cartas de ${response.destination.icao}`} charts={data.destinationCharts} /></div>
-
-      <ChecklistPlanoCard planId={planId} checklist={checklist} onSaved={onChecklistSaved} onError={onError} onGeneratePdf={onGeneratePdf} generatingPdf={generatingPdf} />
-
-      <NotamLeituraAjuda />
-      {response.notam_alerts.length > 0 && <section className="rounded-xl border border-[#f1c348]/30 bg-card/70"><CabecalhoSecao icon={<AlertTriangle size={15} />} title="NOTAMs agregados" detail="Consulte o texto oficial antes de liberar o voo" /><div className="space-y-2 p-4">{response.notam_alerts.slice(0, 8).map((notam) => <div key={notam.id} className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-mono text-[10px] font-bold">{notam.number || "NOTAM"}</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{notam.message}</p></div>)}</div></section>}
     </section>
   );
 }
@@ -776,6 +786,7 @@ export default function PlanoDeVoo() {
       {error && <div className="flex items-start gap-3 rounded-xl border border-[#e77b80]/35 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><div>{error}<button type="button" onClick={() => setError(null)} className="ml-2 font-bold underline">Fechar</button></div></div>}
       {airportError && <div className="rounded-xl border border-[#f1c348]/30 bg-[#f1c348]/10 p-3 text-[10px] text-[#f4cc64]">{airportError}</div>}
 
+      <div className={generated ? "hidden" : "space-y-6"}>
       <section className="rounded-xl border border-border bg-card/75">
         <CabecalhoSecao icon={<CalendarClock size={15} />} title="Origem do plano" detail="Use um voo existente para preencher os dados ou comece manualmente." />
         <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:p-5">
@@ -837,9 +848,11 @@ export default function PlanoDeVoo() {
 
       <div className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[.06] p-4 sm:flex-row sm:items-center md:p-5"><div className="flex items-start gap-3"><Route size={18} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-xs font-bold">Gerar mapa e briefing</p><p className="mt-1 text-[10px] text-muted-foreground">Consulta rota, ROTAER, METAR/TAF, cartas e NOTAMs para origem e destino.</p></div></div><Button type="button" onClick={() => void generatePlan()} disabled={generating} className="h-11 gap-2 px-5 text-xs font-bold">{generating ? <LoaderCircle size={15} className="animate-spin" /> : <ArrowRight size={15} />} {generating ? "Consultando AISWEB..." : "Calcular plano de voo"}</Button></div>
 
-      {generated && <OperationalResult data={generated} form={form} onSave={() => void savePlan()} saving={saving} saved={saved} planId={savedPlanId} checklist={checklist} onChecklistSaved={setChecklist} onError={setError} onGeneratePdf={() => void gerarPdfPlano()} generatingPdf={generatingPdf} />}
+      </div>
 
-      <section className="rounded-xl border border-border bg-card/75">        <CabecalhoSecao icon={<BookmarkCheck size={15} />} title="Planos salvos" detail="Abra um plano concluído para revisar o briefing e atualizar a rota." />{savedPlans.length ? <><div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Voo</th><th className="px-4 py-3">Trecho</th><th className="px-4 py-3">Data / EOBT</th><th className="px-4 py-3">Salvo em</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{savedPlans.slice(0, 12).map((plan) => <tr key={plan.id} className="border-b border-border/60 last:border-0"><td className="px-4 py-3 font-mono text-[10px] font-bold">{plan.numero_voo || "Sem número"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{plan.adep} → {plan.ades}</td><td className="px-4 py-3 text-[10px]"><p>{plan.data_voo || "—"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{plan.eobt || "UTC a definir"}</p></td><td className="px-4 py-3 text-[10px] text-muted-foreground">{new Date(plan.created_at).toLocaleString("pt-BR")}</td><td className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => void openSavedPlan(plan)} disabled={generating} className="h-8 gap-1.5 border-border bg-transparent text-[10px]"><FolderOpen size={13} /> Abrir</Button></td></tr>)}</tbody></table></div><div className="space-y-2 p-3 md:hidden">{savedPlans.slice(0, 12).map((plan) => <PlanoSalvoCard key={plan.id} plan={plan} disabled={generating} onOpen={() => void openSavedPlan(plan)} />)}</div></> : <EstadoVazio label="Nenhum plano salvo ainda" />}</section>
+      {generated && <OperationalResult data={generated} form={form} onSave={() => void savePlan()} onBack={() => { setGenerated(null); setSaved(false); }} saving={saving} saved={saved} planId={savedPlanId} checklist={checklist} onChecklistSaved={setChecklist} onError={setError} onGeneratePdf={() => void gerarPdfPlano()} generatingPdf={generatingPdf} />}
+
+      <section className={`${generated ? "hidden " : ""}rounded-xl border border-border bg-card/75`}>        <CabecalhoSecao icon={<BookmarkCheck size={15} />} title="Planos salvos" detail="Abra um plano concluído para revisar o briefing e atualizar a rota." />{savedPlans.length ? <><div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Voo</th><th className="px-4 py-3">Trecho</th><th className="px-4 py-3">Data / EOBT</th><th className="px-4 py-3">Salvo em</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{savedPlans.slice(0, 12).map((plan) => <tr key={plan.id} className="border-b border-border/60 last:border-0"><td className="px-4 py-3 font-mono text-[10px] font-bold">{plan.numero_voo || "Sem número"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{plan.adep} → {plan.ades}</td><td className="px-4 py-3 text-[10px]"><p>{plan.data_voo || "—"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{plan.eobt || "UTC a definir"}</p></td><td className="px-4 py-3 text-[10px] text-muted-foreground">{new Date(plan.created_at).toLocaleString("pt-BR")}</td><td className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => void openSavedPlan(plan)} disabled={generating} className="h-8 gap-1.5 border-border bg-transparent text-[10px]"><FolderOpen size={13} /> Abrir</Button></td></tr>)}</tbody></table></div><div className="space-y-2 p-3 md:hidden">{savedPlans.slice(0, 12).map((plan) => <PlanoSalvoCard key={plan.id} plan={plan} disabled={generating} onOpen={() => void openSavedPlan(plan)} />)}</div></> : <EstadoVazio label="Nenhum plano salvo ainda" />}</section>
     </div>
   );
 }

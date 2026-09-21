@@ -520,7 +520,7 @@ export default function PlanoDeVoo() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.allSettled([buscarPainelAgendamento(), buscarAerodromos(), buscarPlanosVoo()]).then((results) => {
+    Promise.allSettled([buscarPainelAgendamento("2000-01-01", "2099-12-31"), buscarAerodromos(), buscarPlanosVoo()]).then((results) => {
       if (!active) return;
       const panelResult = results[0];
       const airportResult = results[1];
@@ -768,9 +768,8 @@ export default function PlanoDeVoo() {
     <div className="route-enter space-y-6">
       <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#101c2c] p-6 shadow-[0_18px_55px_rgba(0,0,0,.2)] md:p-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
-        <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div><IndicadorPagina>Operações · Planejamento</IndicadorPagina><h1 className="mt-2 max-w-2xl text-[30px] font-extrabold tracking-[-.055em] text-white md:text-[40px]">Plano de voo profissional</h1><p className="mt-3 max-w-2xl text-xs leading-relaxed text-white/65 md:text-sm">Preencha, valide e gere o briefing do voo com dados oficiais AISWEB/DECEA. O rascunho só é salvo quando você solicitar.</p></div>
-          <div className="grid grid-cols-2 gap-2 text-[10px] text-white/70 sm:grid-cols-3"><div className="rounded-lg border border-white/10 bg-white/[.05] p-3"><p className="uppercase tracking-[.1em]">Fonte</p><p className="mt-1 font-mono font-bold text-white">AISWEB</p></div><div className="rounded-lg border border-white/10 bg-white/[.05] p-3"><p className="uppercase tracking-[.1em]">Padrão</p><p className="mt-1 font-mono font-bold text-white">ICAO / DECEA</p></div><div className="col-span-2 rounded-lg border border-white/10 bg-white/[.05] p-3 sm:col-span-1"><p className="uppercase tracking-[.1em]">Status</p><p className="mt-1 flex items-center gap-1.5 font-bold text-[#6bd188]"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-current" /> Pronto</p></div></div>
+        <div className="relative">
+          <h1 className="max-w-2xl text-[30px] font-extrabold tracking-[-.055em] text-white md:text-[40px]">Plano de voo profissional</h1>
         </div>
       </section>
 

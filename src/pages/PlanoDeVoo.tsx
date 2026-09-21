@@ -7,7 +7,6 @@ import {
   CalendarClock,
   CheckCircle2,
   ChevronDown,
-  CircleHelp,
   CloudSun,
   Compass,
   Download,
@@ -806,7 +805,6 @@ export default function PlanoDeVoo() {
           <Field label="Número de voo existente" hint={loading ? "Carregando..." : `${flightOptions.length} voo(s) disponível(is)`}>
             <SearchableCombobox items={flightOptions} value={form.existingFlightId} onChange={selectExistingFlight} placeholder={loading ? "Carregando voos..." : "Selecionar voo já aprovado"} searchPlaceholder="Buscar número, rota ou data" emptyMessage="Nenhum voo aprovado encontrado." disabled={loading} className="h-11 rounded-lg bg-background/70" />
           </Field>
-          <Button type="button" variant="outline" onClick={() => { setForm(initialForm()); setGenerated(null); setSavedPlanId(null); setChecklist(null); setSaved(false); setError(null); }} className="h-11 gap-2 self-end border-border bg-transparent text-xs"><Plane size={14} /> Começar manualmente</Button>
         </div>
         {form.existingFlightId && <div className="mx-4 mb-4 flex items-center gap-2 rounded-lg border border-[#5bbd75]/25 bg-[#5bbd75]/[.06] px-3 py-2.5 text-[10px] text-[#6bd188] md:mx-5"><CheckCircle2 size={14} /> Dados do voo carregados. Revise todos os campos antes de gerar.</div>}
       </section>
@@ -841,25 +839,13 @@ export default function PlanoDeVoo() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card/75">
-        <CabecalhoSecao icon={<Fuel size={15} />} title="Performance e combustível" detail="O sistema calcula tempo, velocidade no solo, autonomia, reserva e alternativa." />
-        <div className="grid gap-5 p-4 md:grid-cols-2 md:p-5 xl:grid-cols-5">
-          <Field label="Velocidade de cruzeiro" hint="kt"><Input type="number" min="1" value={form.cruiseSpeed} onChange={(event) => update("cruiseSpeed", event.target.value)} className={`${inputClass} font-mono`} /></Field>
-          <SelectField label="Combustível planejado" value={form.fuelType} items={[{ id: "AVGAS 100LL", label: "AVGAS 100LL" }, { id: "JET A1", label: "JET A-1" }]} onChange={(value) => update("fuelType", value)} placeholder="Tipo de combustível" />
-          <Field label="Consumo da aeronave" hint="L/h"><Input type="number" min="1" value={form.fuelBurn} onChange={(event) => update("fuelBurn", event.target.value)} className={`${inputClass} font-mono`} /></Field>
-          <Field label="Autonomia disponível" hint="horas"><Input type="number" min="0" step="0.1" value={form.enduranceHours} onChange={(event) => update("enduranceHours", event.target.value)} className={`${inputClass} font-mono`} /></Field>
-          <Field label="Reserva regulamentar" hint="minutos"><Input type="number" min="0" value={form.reserveMin} onChange={(event) => update("reserveMin", event.target.value)} className={`${inputClass} font-mono`} /></Field>
-          <Field label="Táxi estimado" hint="minutos"><Input type="number" min="0" value={form.taxiMin} onChange={(event) => update("taxiMin", event.target.value)} className={`${inputClass} font-mono`} /></Field>
-        </div>
-        <div className="mx-4 mb-5 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/[.05] p-3 text-[10px] leading-relaxed text-muted-foreground md:mx-5"><CircleHelp size={15} className="mt-0.5 shrink-0 text-primary" />O consumo é informado pelo operador e deve refletir a performance real da aeronave. O cálculo é uma ferramenta de apoio ao despacho e não substitui a decisão do piloto em comando.</div>
-      </section>
 
       <section className="rounded-xl border border-border bg-card/75">
         <CabecalhoSecao icon={<ShieldCheck size={15} />} title="Referência rápida de abreviaturas" detail="Códigos do formulário alinhados ao padrão ICAO/DECEA." action={<a href="https://aisweb.decea.mil.br/?i=abreviaturas" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline">Consultar AISWEB <ExternalLink size={11} /></a>} />
         <div className="grid gap-3 p-4 text-[10px] sm:grid-cols-2 lg:grid-cols-4 md:p-5"><div className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-bold text-primary">I · V · Y · Z</p><p className="mt-1 leading-relaxed text-muted-foreground">Regras IFR, VFR ou mudança subsequente. Para Y/Z, registre os pontos de mudança na rota.</p></div><div className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-bold text-primary">S · G · N · M · X</p><p className="mt-1 leading-relaxed text-muted-foreground">Tipo de voo: regular, geral, não regular, militar ou distinto.</p></div><div className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-bold text-primary">J · H · M · L</p><p className="mt-1 leading-relaxed text-muted-foreground">Categoria de esteira: super, pesada, média e leve.</p></div><div className="rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="font-bold text-primary">Item 18</p><p className="mt-1 leading-relaxed text-muted-foreground">Use RMK TYP/ para ZZZZ e RMK RALT/ para alternativa ou observações operacionais.</p></div></div>
       </section>
 
-      <div className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[.06] p-4 sm:flex-row sm:items-center md:p-5"><div className="flex items-start gap-3"><Route size={18} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-xs font-bold">Gerar mapa e briefing</p><p className="mt-1 text-[10px] text-muted-foreground">Consulta rota, ROTAER, METAR/TAF, cartas e NOTAMs para origem e destino.</p></div></div><Button type="button" onClick={() => void generatePlan()} disabled={generating} className="h-11 gap-2 px-5 text-xs font-bold">{generating ? <LoaderCircle size={15} className="animate-spin" /> : <ArrowRight size={15} />} {generating ? "Consultando AISWEB..." : "Calcular plano de voo"}</Button></div>
+      <div className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[.06] p-4 sm:flex-row sm:items-center md:p-5"><div className="flex items-start gap-3"><Route size={18} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-xs font-bold">Gerar mapa e briefing</p></div></div><Button type="button" onClick={() => void generatePlan()} disabled={generating} className="h-11 gap-2 px-5 text-xs font-bold">{generating ? <LoaderCircle size={15} className="animate-spin" /> : <ArrowRight size={15} />} {generating ? "Consultando AISWEB..." : "Calcular plano de voo"}</Button></div>
 
       </div>
 

@@ -368,6 +368,8 @@ function WeatherMetric({ label, value }: { label: string; value: string }) {
 }
 
 function ChartsList({ title, charts }: { title: string; charts: ChartResponse[] }) {
+  const [selectedChart, setSelectedChart] = useState<ChartResponse | null>(null);
+
   return (
     <div className="rounded-xl border border-border bg-card/70 p-4">
       <div className="flex items-center justify-between gap-3">
@@ -376,12 +378,17 @@ function ChartsList({ title, charts }: { title: string; charts: ChartResponse[] 
       </div>
       {charts.length ? (
         <div className="mt-3 space-y-2">
-          {charts.map((chart, index) => (
-            <a key={`${chart.url}-${index}`} href={chart.url || "https://aisweb.decea.mil.br/?i=cartas"} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-secondary/25 px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-primary/[.05]">
-              <span className="min-w-0"><span className="block truncate text-[10px] font-bold">{chart.title || "Carta aeronáutica"}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{[chart.tipo, chart.descricao].filter(Boolean).join(" · ") || "Consultar documento no AISWEB"}</span></span>
-              <ExternalLink size={13} className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-            </a>
-          ))}
+          {charts.map((chart, index) => {
+            const available = Boolean(chart.url);
+            const previewUrl = available ? `/api/charts/preview?url=${encodeURIComponent(chart.url)}` : "";
+            const downloadUrl = available ? `${previewUrl}&download=1` : "";
+            const selected = selectedChart?.url === chart.url && selectedChart?.title === chart.title;
+            return <div key={`${chart.url}-${index}`} className={`rounded-lg border bg-secondary/25 p-3 transition-colors ${selected ? "border-primary/50" : "border-border/70"}`}>
+              <div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className="block truncate text-[10px] font-bold">{chart.title || "Carta aeronáutica"}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{[chart.tipo, chart.descricao].filter(Boolean).join(" · ") || "Documento aeronáutico AISWEB"}</span></div><MapPinned size={13} className="shrink-0 text-primary" /></div>
+              <div className="mt-2 flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={!available} onClick={() => setSelectedChart(selected ? null : chart)} className="h-7 gap-1.5 border-border bg-transparent px-2.5 text-[10px]"><ExternalLink size={12} />{selected ? "Fechar visualização" : "Visualizar na página"}</Button>{available && <a href={downloadUrl} download target="_blank" rel="noreferrer" className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2.5 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"><Download size={12} /> Baixar</a>}</div>
+              {selected && <div className="mt-3 overflow-hidden rounded-lg border border-border bg-[#0b1725]"><iframe title={`Visualização ${chart.title || "carta aeronáutica"}`} src={previewUrl} className="h-[420px] w-full" /></div>}
+            </div>;
+          })}
         </div>
       ) : <p className="mt-4 text-[10px] text-muted-foreground">Nenhuma carta retornada para este aeródromo. A consulta oficial permanece disponível no AISWEB.</p>}
     </div>

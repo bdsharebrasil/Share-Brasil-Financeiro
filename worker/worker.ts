@@ -1606,6 +1606,31 @@ app.get('/api/notam/:icao', async (c) => {
   }
 })
 
+app.get('/api/charts/preview', async (c) => {
+  if (!(await requireAiswebRateLimit(c))) return c.json({ error: 'Limite de requisições atingido, tente novamente em instantes' }, 429)
+  const rawUrl = c.req.query('url')
+  if (!rawUrl) return c.json({ error: 'url é obrigatória' }, 400)
+  let chartUrl: URL
+  try {
+    chartUrl = new URL(rawUrl)
+  } catch {
+    return c.json({ error: 'URL da carta inválida' }, 400)
+  }
+  if (chartUrl.protocol !== 'https:' || chartUrl.hostname !== 'aisweb.decea.mil.br') return c.json({ error: 'Domínio da carta não autorizado' }, 400)
+  try {
+    const response = await fetch(chartUrl)
+    if (!response.ok || !response.body) return c.json({ error: `Não foi possível carregar a carta (${response.status})` }, 502)
+    const headers = new Headers()
+    headers.set('Content-Type', response.headers.get('content-type') || 'application/pdf')
+    headers.set('Content-Disposition', c.req.query('download') === '1' ? 'attachment' : 'inline')
+    headers.set('Cache-Control', 'private, max-age=300')
+    return new Response(response.body, { status: 200, headers })
+  } catch (e: any) {
+    log.error('[charts/preview]:', e.message)
+    return c.json({ error: 'Não foi possível carregar a carta' }, 502)
+  }
+})
+
 app.get('/api/charts/:icao', async (c) => {
   if (!(await requireAiswebRateLimit(c))) return c.json({ error: 'Limite de requisições atingido, tente novamente em instantes' }, 429)
   const icao = c.req.param('icao').toUpperCase()

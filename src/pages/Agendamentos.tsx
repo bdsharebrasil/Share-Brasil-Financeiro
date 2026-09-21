@@ -40,7 +40,7 @@ const abas = [
 ] as const;
 type AbaAgendamento = (typeof abas)[number]["id"];
 type VisaoEscala = "semanal" | "mensal";
-type FiltroStatusCronograma = "todos" | "pendente" | "aprovada" | "em_voo";
+type FiltroStatusCronograma = "todos" | "pendente" | "aprovada" | "em_voo" | "encerrada";
 type VisaoCronograma = "grid" | "lista";
 
 const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -58,6 +58,14 @@ function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefine
 
 function dataIso(data: Date) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+}
+function hojeUtc() {
+  return new Date().toISOString().slice(0, 10);
+}
+function horarioUtc(data: string, hora?: string) {
+  if (!hora) return undefined;
+  const instante = new Date(`${data}T${hora}:00Z`);
+  return Number.isFinite(instante.getTime()) ? instante.toISOString() : undefined;
 }
 function primeiroDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth(), 1); }
 function ultimoDiaMes(data: Date) { return new Date(data.getFullYear(), data.getMonth() + 1, 0); }
@@ -135,7 +143,7 @@ export default function Agendamentos() {
   const [motivo, setMotivo] = useState("");
   const [checklistAberto, setChecklistAberto] = useState(false);
   const [jornadaAberta, setJornadaAberta] = useState(false);
-  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: dataIso(new Date()), data_fim: dataIso(new Date()), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
   const [novaDisponibilidade, setNovaDisponibilidade] = useState({ tripulante_id: "", data_inicio: dataIso(new Date()), data_fim: dataIso(new Date()), status: "aviso" as "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel", observacoes: "" });
   const carregamentoAtual = useRef(0);
 
@@ -187,7 +195,7 @@ export default function Agendamentos() {
   const nomesTripulantes = useMemo(() => new Map((painel?.tripulacao || []).map((tripulante) => [tripulante.id, tripulante.nome_completo])), [painel?.tripulacao]);
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const ativos = agendamentos.filter((item) => item.status !== "encerrada" && (filtroStatus === "todos" || item.status === filtroStatus));
+    const ativos = agendamentos.filter((item) => filtroStatus === "todos" ? item.status !== "encerrada" : item.status === filtroStatus);
     const encontrados = termo
       ? ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
       : ativos;
@@ -245,10 +253,10 @@ export default function Agendamentos() {
     if (novo.aeronave_id && !aeronaveDoTitular && (!novo.voo_emprestimo_confirmado || !temCedente)) { toast({ title: "Informe o empréstimo da aeronave", description: "Confirme que o voo é emprestado e selecione o cliente ou sócio cedente.", variant: "destructive" }); return; }
     setProcessando(true);
     try {
-      const resposta = await criarAgendamento({ ...novo, piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
+      const resposta = await criarAgendamento({ ...novo, horario_previsto_agendamento: horarioUtc(novo.data_agendada, novo.horario_previsto_agendamento), piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
       toast({ title: "Agendamento criado", description: resposta.numero_voo ? `Número de voo: ${resposta.numero_voo}.` : "A solicitação ficará pendente de confirmação." });
       setMostrarNovo(false);
-      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: dataIso(new Date()), data_fim: dataIso(new Date()), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
       await carregar(true);
     } catch (error) { toast({ title: "Não foi possível criar o agendamento", description: error instanceof Error ? error.message : "Confira os campos e tente novamente.", variant: "destructive" }); }
     finally { setProcessando(false); }
@@ -397,14 +405,15 @@ function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valo
 
 function formatarHorarioAgendamento(valor: string | null | undefined) {
   if (!valor) return { utc: "—", brasilia: "—" };
-  const partes = valor.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!partes) return { utc: valor, brasilia: "—" };
-  const horas = Number(partes[1]);
-  const minutos = Number(partes[2]);
-  const segundos = Number(partes[3] || 0);
-  if (horas > 23 || minutos > 59 || segundos > 59) return { utc: valor, brasilia: "—" };
-  const utc = `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
-  const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(Date.UTC(1970, 0, 1, horas, minutos, segundos)));
+  const texto = String(valor).trim();
+  const instante = /^\d{4}-\d{2}-\d{2}T/.test(texto) ? new Date(texto) : (() => {
+    const partes = texto.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!partes) return new Date(NaN);
+    return new Date(Date.UTC(1970, 0, 1, Number(partes[1]), Number(partes[2]), Number(partes[3] || 0)));
+  })();
+  if (!Number.isFinite(instante.getTime())) return { utc: texto, brasilia: "—" };
+  const utc = instante.toISOString().slice(11, 16);
+  const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(instante);
   return { utc, brasilia };
 }
 
@@ -476,7 +485,7 @@ function Escala({ tripulacao, escala, disponibilidades, visao, aoMudarVisao, aoM
 }
 
 function Cronograma({ solicitacoes, nomesTripulantes, busca, filtroStatus, visao, aoMudarBusca, aoMudarFiltroStatus, aoMudarVisao, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { solicitacoes: SolicitacaoVooInterna[]; nomesTripulantes: Map<string, string>; busca: string; filtroStatus: FiltroStatusCronograma; visao: VisaoCronograma; aoMudarBusca: (busca: string) => void; aoMudarFiltroStatus: (filtro: FiltroStatusCronograma) => void; aoMudarVisao: (visao: VisaoCronograma) => void; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail="Todas as solicitações de voo" action={<div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Filtrar solicitações por status"><button type="button" onClick={() => aoMudarFiltroStatus("todos")} aria-pressed={filtroStatus === "todos"} className={`px-2 py-1 text-[9px] font-bold ${filtroStatus === "todos" ? "rounded-[16px] overflow-hidden bg-primary text-primary-foreground" : "rounded text-muted-foreground hover:bg-secondary"}`}>Todas</button><button type="button" onClick={() => aoMudarFiltroStatus("pendente")} aria-pressed={filtroStatus === "pendente"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "pendente" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Pendente</button><button type="button" onClick={() => aoMudarFiltroStatus("aprovada")} aria-pressed={filtroStatus === "aprovada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "aprovada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Aprovada</button><button type="button" onClick={() => aoMudarFiltroStatus("em_voo")} aria-pressed={filtroStatus === "em_voo"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "em_voo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Voo</button></div><div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Alternar visualização"><button type="button" onClick={() => aoMudarVisao("grid")} aria-label="Visualizar em grade" aria-pressed={visao === "grid"} className={`rounded p-1.5 ${visao === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="6" ry="6" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></svg></button><button type="button" onClick={() => aoMudarVisao("lista")} aria-label="Visualizar em lista" aria-pressed={visao === "lista"} className={`rounded p-1.5 ${visao === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><List size={14} /></button></div></div>} />{solicitacoes.length ? <><div className={visao === "grid" ? "grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3" : "space-y-2 p-3"}>{solicitacoes.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} aoAbrir={aoAbrir} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div></> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
+  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail="Todas as solicitações de voo" action={<div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Filtrar solicitações por status"><button type="button" onClick={() => aoMudarFiltroStatus("todos")} aria-pressed={filtroStatus === "todos"} className={`px-2 py-1 text-[9px] font-bold ${filtroStatus === "todos" ? "rounded-[16px] overflow-hidden bg-primary text-primary-foreground" : "rounded text-muted-foreground hover:bg-secondary"}`}>Todas</button><button type="button" onClick={() => aoMudarFiltroStatus("pendente")} aria-pressed={filtroStatus === "pendente"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "pendente" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Pendente</button><button type="button" onClick={() => aoMudarFiltroStatus("aprovada")} aria-pressed={filtroStatus === "aprovada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "aprovada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Aprovada</button><button type="button" onClick={() => aoMudarFiltroStatus("em_voo")} aria-pressed={filtroStatus === "em_voo"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "em_voo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Voo</button><button type="button" onClick={() => aoMudarFiltroStatus("encerrada")} aria-pressed={filtroStatus === "encerrada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "encerrada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Encerrado</button></div><div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Alternar visualização"><button type="button" onClick={() => aoMudarVisao("grid")} aria-label="Visualizar em grade" aria-pressed={visao === "grid"} className={`rounded p-1.5 ${visao === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="6" ry="6" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></svg></button><button type="button" onClick={() => aoMudarVisao("lista")} aria-label="Visualizar em lista" aria-pressed={visao === "lista"} className={`rounded p-1.5 ${visao === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><List size={14} /></button></div></div>} />{solicitacoes.length ? <><div className={visao === "grid" ? "grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3" : "space-y-2 p-3"}>{solicitacoes.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} aoAbrir={aoAbrir} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div></> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
 }
 
 function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { item: SolicitacaoVooInterna; nomesTripulantes: Map<string, string>; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
@@ -516,7 +525,7 @@ function formatarDuracaoJornada(jornada: import("@/lib/colaborador-api").Jornada
   const fim = ultimaPerna?.horario_corte || ultimaPerna?.horario_pouso;
   const totalCalculado = minutosEntreJornada(inicio, fim);
   const minutos = totalCalculado !== null
-    ? totalCalculado + Number(jornada.minutos_pos_corte ?? 45)
+    ? totalCalculado + 30
     : Number.isFinite(totalPersistido) && totalPersistido > 0 ? totalPersistido : 0;
   if (!minutos) return jornada.status !== "encerrada" ? "Em andamento" : "—";
   return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;

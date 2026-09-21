@@ -294,7 +294,7 @@ function formFromEntry(entry: Partial<DiarioLancamento> | undefined, date: strin
   return {
     data_registro: entry?.data_registro?.slice(0, 10) || date,
     numero_voo: entry?.numero_voo || "",
-    natureza_voo: entry?.natureza_voo || "EX - Executivo",
+    natureza_voo: entry?.natureza_voo || "PV - Privado",
     aerodromo_partida: entry?.aerodromo_partida || "",
     aerodromo_chegada: entry?.aerodromo_chegada || "",
     trecho: entry?.trecho || sugestaoTrecho,

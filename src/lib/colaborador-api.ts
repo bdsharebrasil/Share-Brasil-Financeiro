@@ -657,7 +657,31 @@ export type PlanoVooSalvo = {
   data_voo: string | null;
   eobt: string | null;
   created_at: string;
+  checklist_status?: "rascunho" | "concluido" | string | null;
   payload: Record<string, any>;
+};
+
+export type ChecklistPlanoVoo = {
+  id: string;
+  plano_voo_id: string;
+  itens: Record<string, unknown>;
+  observacoes: string | null;
+  status: "rascunho" | "concluido" | string;
+  executado_por_nome?: string | null;
+  atualizado_em?: string | null;
+  concluido_em?: string | null;
+};
+
+export type PrecoAbastecimento = {
+  id?: string;
+  fornecedor?: string | null;
+  codigo_icao?: string | null;
+  valor_unitario: number;
+  litros?: number | null;
+  data?: string | null;
+  tipo_combustivel?: string | null;
+  local?: string | null;
+  origem: "fornecedor_cadastrado" | "abastecimento_historico" | string;
 };
 
 export function buscarPlanosVoo() {
@@ -669,6 +693,29 @@ export function salvarPlanoVoo(payload: Record<string, unknown>) {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function buscarChecklistPlanoVoo(id: string) {
+  return colaboradorRequest<ChecklistPlanoVoo | null>(`/api/interno/planos-voo/${encodeURIComponent(id)}/checklist`);
+}
+
+export function salvarChecklistPlanoVoo(id: string, payload: { itens: Record<string, unknown>; observacoes?: string; status?: "rascunho" | "concluido" }) {
+  return colaboradorRequest<{ id: string; plano_voo_id: string; status: string; atualizado_em: string }>(`/api/interno/planos-voo/${encodeURIComponent(id)}/checklist`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function enviarPdfPlanoVoo(id: string, arquivo: File) {
+  const body = new FormData();
+  body.append("arquivo", arquivo, arquivo.name);
+  return colaboradorRequest<{ success: boolean; nome_arquivo: string }>(`/api/interno/planos-voo/${encodeURIComponent(id)}/pdf`, { method: "POST", body });
+}
+
+export function buscarPrecosAbastecimento(icao: string, tipoCombustivel?: string) {
+  const query = new URLSearchParams({ icao });
+  if (tipoCombustivel) query.set("tipo_combustivel", tipoCombustivel);
+  return colaboradorRequest<{ icao: string; tipo_combustivel: string | null; fornecedores: PrecoAbastecimento[]; historico: PrecoAbastecimento[]; source: string }>(`/api/interno/abastecimentos/precos?${query.toString()}`);
 }
 
 type RegistroFinanceiro = Record<string, unknown>;

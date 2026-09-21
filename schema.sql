@@ -2131,6 +2131,17 @@ INSERT INTO "sqlite_master"("sql") VALUES('CREATE TABLE pernas_jornada_voo (
     eobt TEXT NULL,
     payload_json TEXT NOT NULL,
     criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )'), ('CREATE TABLE checklists_planos_voo (
+    id TEXT PRIMARY KEY NOT NULL,
+    plano_voo_id TEXT NOT NULL UNIQUE,
+    itens_json TEXT NOT NULL DEFAULT ''{}'',
+    observacoes TEXT NULL,
+    status TEXT NOT NULL DEFAULT 'rascunho',
+    executado_por TEXT NULL,
+    executado_por_nome TEXT NULL,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    concluido_em TEXT NULL
   )'), ('CREATE TABLE rateio_despesas (
   id TEXT PRIMARY KEY NOT NULL,
   lancamento_id TEXT REFERENCES lancamentos(id),

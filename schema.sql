@@ -2103,6 +2103,7 @@ INSERT INTO "sqlite_master"("sql") VALUES('CREATE TABLE pernas_jornada_voo (
 
   origem                TEXT NOT NULL,      -- ICAO
   destino               TEXT NOT NULL,      -- ICAO
+  numero_passageiros    INTEGER NOT NULL DEFAULT 0,
 
   -- ISO 8601 UTC, mesma convenção da jornada. horario_ac e horario_dep entram junto na criação;
   -- horario_pouso e horario_corte são preenchidos depois, em PATCHes separados.

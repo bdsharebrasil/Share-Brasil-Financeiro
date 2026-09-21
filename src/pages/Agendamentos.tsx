@@ -84,7 +84,12 @@ function statusLabel(status: string) {
   return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
+  const prioridadeStatus: Record<string, number> = { em_voo: 0, aprovada: 1, pendente: 2 };
   return [...itens].sort((a, b) => {
+    const prioridadeA = prioridadeStatus[a.status] ?? 3;
+    const prioridadeB = prioridadeStatus[b.status] ?? 3;
+    if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
+
     const aeronaveA = a.matricula_registro?.trim() || "";
     const aeronaveB = b.matricula_registro?.trim() || "";
     if (!aeronaveA && aeronaveB) return 1;

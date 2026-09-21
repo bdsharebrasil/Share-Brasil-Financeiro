@@ -32,6 +32,14 @@ export type ChartResponse = {
   url: string;
 };
 
+export type AirportOperationalData = {
+  opea?: unknown;
+  obstacles?: unknown[];
+  other_lighting?: unknown;
+  secondary_power?: unknown;
+  local_regulations?: unknown;
+};
+
 export type AirportDetail = {
   icao: string;
   name?: string;
@@ -42,6 +50,26 @@ export type AirportDetail = {
   runways?: unknown[];
   frequencies?: unknown[];
   restrictions?: unknown[];
+  operational?: AirportOperationalData;
+  opea?: unknown;
+  obstacles?: unknown[];
+  other_lighting?: unknown;
+  secondary_power?: unknown;
+  local_regulations?: unknown;
+  raw_data?: Record<string, unknown>;
+};
+
+export type SolarDay = {
+  date: string;
+  sunrise: string;
+  sunset: string;
+  civil_twilight_begin?: string;
+  civil_twilight_end?: string;
+};
+
+export type SolarResponse = {
+  icao: string;
+  solar: SolarDay[];
 };
 
 export type FlightPlanResponse = {
@@ -96,6 +124,11 @@ export async function buscarCartas(icao: string): Promise<{ charts?: ChartRespon
 
 export async function buscarRotaer(icao: string): Promise<{ airport: AirportDetail }> {
   return apiFetch(`/api/rotaer/${encodeURIComponent(icao)}`) as Promise<{ airport: AirportDetail }>;
+}
+
+export async function buscarSol(icao: string, date?: string): Promise<SolarResponse> {
+  const query = date ? `?date=${encodeURIComponent(date.replace(/-/g, ''))}` : '';
+  return apiFetch(`/api/solar/${encodeURIComponent(icao)}${query}`) as Promise<SolarResponse>;
 }
 
 export async function calcularPlanoVoo(params: {

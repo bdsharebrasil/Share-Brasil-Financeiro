@@ -3,7 +3,7 @@ import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CabecalhoSecao, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { buscarGestaoTripulacao, type AeronaveTripulacao, type FreelancerTripulacao, type HabilitacaoTripulante, type TripulanteGestao } from "@/lib/colaborador-api";
-import { CrewCard, CrewProfile, situacaoHabilitacoes } from "@/pages/GestaoTripulacaoCards";
+import { CrewCard, CrewProfile, situacaoHabilitacoes } from "@/components/dashboard/operacoes/GestaoTripulacaoCards";
 import GestaoTripulacaoExternos from "@/components/GestaoTripulacaoExternos";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";

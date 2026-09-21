@@ -177,7 +177,7 @@ export default function DashboardFinanceiro({
   );
 
   return (
-    <div className="route-enter">
+    <div className="route-enter mx-auto w-full max-w-[1320px] min-w-0">
       <HeroDashboard
         ambiente="financeiro"
         title={`${saudacaoAtual()}, ${primeiroNome(nomeColaborador)}`}
@@ -196,7 +196,7 @@ export default function DashboardFinanceiro({
         </div>
       )}
 
-      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
+      <div className="mx-auto mb-6 grid w-full max-w-[820px] gap-3 sm:grid-cols-2">
         <CartaoKpi
           label="Pendências"
           value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
@@ -219,7 +219,7 @@ export default function DashboardFinanceiro({
         />
       </div>
 
-      <section className="mx-auto mb-5 grid max-w-6xl min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="mx-auto mb-5 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="Recibos"
@@ -254,18 +254,18 @@ export default function DashboardFinanceiro({
         />
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
           detail={mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
           action={
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => aoNavegar("movimentacoes")}
-                className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
+                className="h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
               >
                 <FolderOpen size={12} /> Ver todas
               </Button>
@@ -274,7 +274,7 @@ export default function DashboardFinanceiro({
                 variant="outline"
                 onClick={() => void carregar(true)}
                 disabled={atualizando}
-                className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"
+                className="h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
               >
                 <RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar
               </Button>
@@ -298,7 +298,7 @@ export default function DashboardFinanceiro({
         ) : movimentacoesVisiveis.length ? (
           <>
           {/* Tabela Desktop */}
-          <div className="hidden overflow-x-auto md:block">
+          <div className="hidden max-w-full overflow-x-auto lg:block">
             <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-muted/5">
                 <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -318,7 +318,7 @@ export default function DashboardFinanceiro({
             </table>
             
             {totalPaginas > 1 && (
-              <div className="flex items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3">
                 <p className="text-xs font-medium text-muted-foreground">
                   Página {paginaExibida} de {totalPaginas}
                 </p>
@@ -349,12 +349,12 @@ export default function DashboardFinanceiro({
           </div>
 
           {/* Cards Mobile */}
-          <div className="space-y-3 p-4 md:hidden">
+          <div className="space-y-3 p-4 lg:hidden">
             {movimentacoesDaPagina.map((item) => (
               <CartaoMovimentacao key={item.id} item={item} />
             ))}
             {totalPaginas > 1 && (
-              <div className="flex items-center justify-between gap-4 border-t border-border/60 px-1 pt-4 pb-1">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 pb-1 pt-4">
                 <p className="text-xs font-medium text-muted-foreground">
                   Página {paginaExibida} de {totalPaginas}
                 </p>
@@ -391,7 +391,7 @@ export default function DashboardFinanceiro({
         )}
       </section>
 
-      <div className="mt-5">
+      <div className="mt-5 w-full min-w-0">
         <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
       </div>
     </div>

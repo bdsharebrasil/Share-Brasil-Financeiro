@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import LayoutInterno from "@/components/layout/LayoutInterno";
 import Login from "@/pages/login";
-import AprovacaoRelatorioViagem from "@/pages/AprovacaoRelatorioViagem";
+import AprovacaoRelatorioViagem from "@/components/relatorio-viagem/AprovacaoRelatorioViagem";
 
 function ProtecaoColaborador() {
   const [verificando, setVerificando] = useState(true);

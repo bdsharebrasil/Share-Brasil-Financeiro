@@ -4213,7 +4213,16 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const aeronaveId = c.req.param('aeronaveId')
   if (!aeronaveId) return c.json({ voos: [] })
-  const rows = await c.env.SHARE_DB.prepare(`
+  const db = c.env.SHARE_DB
+  const schema = await db.prepare("SELECT name FROM pragma_table_info('jornadas_voo')").all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))
+  const jornadaColumns = new Set((schema.results || []).map((item) => String(item.name)))
+  const pernaSchema = await db.prepare("SELECT name FROM pragma_table_info('pernas_jornada_voo')").all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))
+  const pernaColumns = new Set((pernaSchema.results || []).map((item) => String(item.name)))
+  const jornadaDisponivel = jornadaColumns.has('id')
+  const colunaPouso = jornadaColumns.has('horario_pouso') ? 'horario_pouso' : 'horario_corte_inicio'
+  const colunaCorte = jornadaColumns.has('horario_corte') ? 'horario_corte' : 'horario_corte_final'
+  const colunaPassageiros = pernaColumns.has('numero_passageiros') ? 'COALESCE(p.numero_passageiros, 0)' : '0'
+  const rows = await db.prepare(`
     SELECT s.id AS solicitacao_id, s.numero_voo, s.origem, s.destino, s.data_agendada,
            s.cliente_id, s.socio_id, s.voo_emprestado, s.cliente_emprestimo_id, s.socio_emprestimo_id,
            s.piloto_id, s.copiloto_id,
@@ -4228,31 +4237,39 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
     ORDER BY datetime(s.data_agendada) DESC LIMIT 300
   `).bind(aeronaveId).all<any>()
   const voos = await Promise.all((rows.results || []).map(async (voo: any) => {
-    const jornadas = await c.env.SHARE_DB.prepare(`
-      SELECT id AS jornada_id, numero_jornada, data, status, horario_apresentacao, horario_acionamento,
-             horario_pouso, horario_corte
-      FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC, data DESC
-    `).bind(voo.solicitacao_id).all<any>()
-    const jornadasComPernas = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
-      const pernas = await c.env.SHARE_DB.prepare(`
-        SELECT p.id AS perna_id, p.numero, p.origem, p.destino, p.numero_passageiros, p.horario_ac, p.horario_dep, p.horario_pouso,
-               p.horario_corte, p.status, p.lancamento_diario_id, ap.coordenadas AS origem_coordenadas,
-               ad.coordenadas AS destino_coordenadas
-        FROM pernas_jornada_voo p
-        LEFT JOIN aerodromo ap ON upper(ap.designativo_icao) = upper(p.origem)
-        LEFT JOIN aerodromo ad ON upper(ad.designativo_icao) = upper(p.destino)
-        WHERE p.jornada_id = ?1 ORDER BY p.numero
-      `).bind(jornada.jornada_id).all<any>()
-      const calculadas = (pernas.results || []).map((perna: any) => {
-        const coordenada = (value: unknown) => { const [lat, lon] = String(value || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] as const : null }
-        const origem = coordenada(perna.origem_coordenadas); const destino = coordenada(perna.destino_coordenadas)
-        const distancia_nm = origem && destino ? Number((haversineKm(origem[0], origem[1], destino[0], destino[1]) * 0.539957).toFixed(1)) : 0
-        const { origem_coordenadas: _origem, destino_coordenadas: _destino, ...publica } = perna
-        return { ...publica, distancia_nm }
-      })
-      return { ...jornada, pernas: calculadas }
-    }))
-    return { ...voo, jornadas: jornadasComPernas }
+    if (!jornadaDisponivel) return { ...voo, jornadas: [] }
+    try {
+      const jornadas = await db.prepare(`
+        SELECT id AS jornada_id, numero_jornada, data, status, horario_apresentacao, horario_acionamento,
+               ${colunaPouso} AS horario_pouso, ${colunaCorte} AS horario_corte
+        FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC, data DESC
+      `).bind(voo.solicitacao_id).all<any>()
+      const jornadasComPernas = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
+        const pernas = await db.prepare(`
+          SELECT p.id AS perna_id, p.numero, p.origem, p.destino,
+                 ${colunaPassageiros} AS numero_passageiros,
+                 p.horario_ac, p.horario_dep, p.horario_pouso, p.horario_corte,
+                 p.status, p.lancamento_diario_id, ap.coordenadas AS origem_coordenadas,
+                 ad.coordenadas AS destino_coordenadas
+          FROM pernas_jornada_voo p
+          LEFT JOIN aerodromo ap ON upper(ap.designativo_icao) = upper(p.origem)
+          LEFT JOIN aerodromo ad ON upper(ad.designativo_icao) = upper(p.destino)
+          WHERE p.jornada_id = ?1 ORDER BY p.numero
+        `).bind(jornada.jornada_id).all<any>()
+        const calculadas = (pernas.results || []).map((perna: any) => {
+          const coordenada = (value: unknown) => { const [lat, lon] = String(value || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] as const : null }
+          const origem = coordenada(perna.origem_coordenadas); const destino = coordenada(perna.destino_coordenadas)
+          const distancia_nm = origem && destino ? Number((haversineKm(origem[0], origem[1], destino[0], destino[1]) * 0.539957).toFixed(1)) : 0
+          const { origem_coordenadas: _origem, destino_coordenadas: _destino, ...publica } = perna
+          return { ...publica, distancia_nm }
+        })
+        return { ...jornada, pernas: calculadas }
+      }))
+      return { ...voo, jornadas: jornadasComPernas }
+    } catch (error) {
+      log.error('[diario-bordo] jornadas indisponíveis para número de voo', error)
+      return { ...voo, jornadas: [] }
+    }
   }))
   return c.json({ voos })
 })

@@ -3979,9 +3979,25 @@ app.post('/api/interno/agendamento/:id/checklist', async c => {
 
 async function garantirTabelaJornadas(c: Context<{ Bindings: Bindings }>) {
   await validateWorkerSchema(c, [
-    { table: 'jornadas_voo', columns: ['id', 'data', 'horario_acionamento', 'horario_apresentacao', 'horario_pouso', 'horario_corte', 'tripulante_id', 'funcao_tripulante', 'jornada_principal_id', 'minutos_pos_corte', 'minutos_jornada', 'nivel_alerta', 'limite_jornada_minutos', 'limite_semanal_minutos', 'limite_mensal_minutos', 'atualizado_em'] },
-    { table: 'pernas_jornada_voo', columns: ['id', 'horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte', 'numero_passageiros', 'status', 'lancamento_diario_id'] },
+    { table: 'jornadas_voo', columns: ['id', 'solicitacao_id', 'aeronave_id', 'data', 'horario_acionamento', 'horario_apresentacao', 'tripulante_id', 'funcao_tripulante', 'jornada_principal_id', 'status'] },
+    { table: 'pernas_jornada_voo', columns: ['id', 'jornada_id', 'numero', 'origem', 'destino', 'horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte', 'status'] },
   ])
+}
+
+function normalizarPernaJornada(perna: any) {
+  return {
+    ...perna,
+    numero_passageiros: perna.numero_passageiros == null ? 0 : Number(perna.numero_passageiros),
+  }
+}
+
+function normalizarJornadaRegistro(jornada: any) {
+  return {
+    ...jornada,
+    horario_pouso: jornada.horario_pouso ?? jornada.horario_corte_inicio ?? null,
+    horario_corte: jornada.horario_corte ?? jornada.horario_corte_final ?? null,
+    pernas: Array.isArray(jornada.pernas) ? jornada.pernas.map(normalizarPernaJornada) : jornada.pernas,
+  }
 }
 const LIMITES_JORNADA = { dia: 540, semana: 2640, mes: 10560, posCorte: 30 } as const
 const STATUS_JORNADA = ['em_solo', 'em_rota', 'encerrada'] as const
@@ -4107,31 +4123,39 @@ function statusPerna(p: { horario_ac?: string | null; horario_corte?: string | n
 }
 app.get('/api/interno/agendamento/:id/jornada', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  await garantirTabelaJornadas(c)
+  try {
+    await garantirTabelaJornadas(c)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'O schema de jornadas não está disponível no banco operacional.'
+    log.error('[jornada] schema incompatível', error)
+    return c.json({ error: 'jornada_schema_incompativel', detail }, 503)
+  }
   const idSolicitacao = c.req.param('id')
   const jornadas = await c.env.SHARE_DB.prepare('SELECT * FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC').bind(idSolicitacao).all<any>()
-  const principal = (jornadas.results || []).find((j: any) => j.status !== 'encerrada' && !j.jornada_principal_id)
-    || (jornadas.results || []).find((j: any) => j.status !== 'encerrada')
-    || (jornadas.results || [])[0]
+  const registros = (jornadas.results || []).map(normalizarJornadaRegistro)
+  const principal = registros.find((j: any) => j.status !== 'encerrada' && !j.jornada_principal_id)
+    || registros.find((j: any) => j.status !== 'encerrada')
+    || registros[0]
   if (!principal) return c.json(null)
   const raiz = principal.jornada_principal_id || principal.id
   const pernas = await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(raiz).all<any>()
-  const doVoo = (jornadas.results || []).filter((j: any) => j.numero_jornada === principal.numero_jornada)
+  const pernasNormalizadas = (pernas.results || []).map(normalizarPernaJornada)
+  const doVoo = registros.filter((j: any) => j.numero_jornada === principal.numero_jornada)
   const jornadaPorNumero = new Map<number, any>()
-  for (const jornada of jornadas.results || []) {
+  for (const jornada of registros) {
     const numero = Number(jornada.numero_jornada)
     const atual = jornadaPorNumero.get(numero)
     if (!atual || jornada.funcao_tripulante === 'PIC') jornadaPorNumero.set(numero, jornada)
   }
   const historico = await Promise.all([...jornadaPorNumero.values()].map(async (j: any) => ({
     ...j,
-    pernas: (await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(j.jornada_principal_id || j.id).all<any>()).results,
+    pernas: (await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(j.jornada_principal_id || j.id).all<any>()).results.map(normalizarPernaJornada),
   })))
   return c.json({
     ...principal,
-    pernas: pernas.results,
-    limites: await avaliarLimitesJornada(c, { ...principal, pernas: pernas.results }),
-    tripulantes: await Promise.all(doVoo.map(async (j: any) => ({ ...j, pernas: pernas.results, limites: await avaliarLimitesJornada(c, { ...j, pernas: pernas.results }) }))),
+    pernas: pernasNormalizadas,
+    limites: await avaliarLimitesJornada(c, { ...principal, pernas: pernasNormalizadas }),
+    tripulantes: await Promise.all(doVoo.map(async (j: any) => ({ ...j, pernas: pernasNormalizadas, limites: await avaliarLimitesJornada(c, { ...j, pernas: pernasNormalizadas }) }))),
     historico,
   })
 })

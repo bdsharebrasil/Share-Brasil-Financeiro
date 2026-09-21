@@ -4286,7 +4286,11 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
     }
     criadas.push(await db.prepare('SELECT * FROM jornadas_voo WHERE id = ?1').bind(jornadaId).first<any>())
   }
-  await db.prepare("UPDATE solicitacoes_reserva_voo SET status = 'em_voo', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'aprovada'").bind(idSolicitacao).run()
+  await db.prepare(`UPDATE solicitacoes_reserva_voo
+    SET horario_previsto_agendamento = ?1,
+        status = CASE WHEN status = 'aprovada' THEN 'em_voo' ELSE status END,
+        atualizado_em = CURRENT_TIMESTAMP
+    WHERE id = ?2`).bind(acionamento, idSolicitacao).run()
   const pernas = await db.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(principalId).all<any>()
   const principal = criadas[0]
   return c.json({
@@ -4343,6 +4347,10 @@ app.patch('/api/interno/jornadas/:id', async c => {
           item.id === atual.id ? (body.observacoes ?? atual.observacoes) : item.observacoes,
           limites.minutos_jornada, limites.nivel_alerta, item.id).run()
     }
+    await db.prepare(`UPDATE solicitacoes_reserva_voo
+      SET horario_previsto_agendamento = ?1,
+          atualizado_em = CURRENT_TIMESTAMP
+      WHERE id = ?2`).bind(acionamento, atual.solicitacao_id).run()
     // Encerrar uma jornada não finaliza o agendamento. A solicitação permanece
     // aprovada para permitir outra jornada no mesmo número de voo.
     const atualizada = await db.prepare('SELECT * FROM jornadas_voo WHERE id = ?1').bind(atual.id).first<any>()
@@ -4353,6 +4361,10 @@ app.patch('/api/interno/jornadas/:id', async c => {
       horario_corte = ?4, data = ?5, minutos_pos_corte = 30, status = ?6, observacoes = ?7, minutos_jornada = ?8, nivel_alerta = ?9
      WHERE id = ?10`)
     .bind(apresentacao, acionamento, corteInicio, corteFinal, data, status, body.observacoes !== undefined ? body.observacoes : atual.observacoes, minutos, nivel, atual.id).run()
+  await db.prepare(`UPDATE solicitacoes_reserva_voo
+    SET horario_previsto_agendamento = ?1,
+        atualizado_em = CURRENT_TIMESTAMP
+    WHERE id = ?2`).bind(acionamento, atual.solicitacao_id).run()
   const jornada = await db.prepare('SELECT * FROM jornadas_voo WHERE id = ?1').bind(atual.id).first<any>()
   return c.json({ ...jornada, limites: await avaliarLimitesJornada(c, jornada) })
 })

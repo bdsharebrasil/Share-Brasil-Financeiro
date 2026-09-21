@@ -126,6 +126,12 @@ function dataBr(data?: string | null) {
   const [ano, mes, dia] = data.slice(0, 10).split("-");
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : data;
 }
+function dataHoraBr(data?: string | null) {
+  if (!data) return "—";
+  const [dataParte, horaParte] = data.trim().replace("T", " ").split(" ");
+  const [ano, mes, dia] = dataParte.slice(0, 10).split("-");
+  return ano && mes && dia && horaParte ? `${dia}/${mes}/${ano} ${horaParte.slice(0, 5)}` : data;
+}
 function calcularQuantidadeDias(dataInicio: string, dataFim: string) {
   if (!dataInicio || !dataFim) return 1;
   const inicio = new Date(`${dataInicio}T00:00:00Z`).getTime();
@@ -1236,6 +1242,7 @@ export default function RelatorioDespesaViagem({
               nome={relatorio?.nome_tripulante || form.nome_tripulante}
               status={relatorio?.status_aprovacao_tripulante}
               enviado={relatorio?.enviado_para_tripulante_em}
+              aprovadoEm={relatorio?.aprovado_tripulante_1_em || relatorio?.aprovado_tripulante_em}
               onEnviar={() => void enviarAprovacao(1)}
               link={linksAprovacao[1]}
               onCopiar={copiarLinkAprovacao}
@@ -1257,6 +1264,7 @@ export default function RelatorioDespesaViagem({
               nome={relatorio?.nome_tripulante_2 || form.nome_tripulante_2}
               status={relatorio?.status_aprovacao_tripulante_2}
               enviado={relatorio?.enviado_para_tripulante_2_em}
+              aprovadoEm={relatorio?.aprovado_tripulante_2_em}
               onEnviar={() => void enviarAprovacao(2)}
               link={linksAprovacao[2]}
               onCopiar={copiarLinkAprovacao}
@@ -1801,6 +1809,7 @@ function AprovacaoLinha({
   nome,
   status,
   enviado,
+  aprovadoEm,
   link,
   onEnviar,
   onCopiar,
@@ -1812,6 +1821,7 @@ function AprovacaoLinha({
   nome?: string | null;
   status?: string | null;
   enviado?: string | null;
+  aprovadoEm?: string | null;
   link?: string;
   onEnviar: () => void;
   onCopiar: (link: string) => void;
@@ -1830,7 +1840,12 @@ function AprovacaoLinha({
         </p>
         {enviado && (
           <p className="mt-1 text-[10px] text-muted-foreground">
-            Enviado em {dataBr(enviado)}
+            Enviado em {dataHoraBr(enviado)}
+          </p>
+        )}
+        {aprovado && aprovadoEm && (
+          <p className="mt-1 text-[10px] font-medium text-emerald-300">
+            Aprovado pelo tripulante em {dataHoraBr(aprovadoEm)}
           </p>
         )}
       </div>

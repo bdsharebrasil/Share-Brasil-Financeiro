@@ -13,6 +13,13 @@ function dataBr(v: unknown) {
   return a && m && d ? `${d}/${m}/${a}` : "—";
 }
 
+function dataHoraBr(v: unknown) {
+  const valor = String(v || "").trim().replace("T", " ");
+  const [data, hora] = valor.split(" ");
+  const [a, m, d] = data.slice(0, 10).split("-");
+  return a && m && d && hora ? `${d}/${m}/${a} ${hora.slice(0, 5)}` : "—";
+}
+
 export default function AprovacaoRelatorioViagem() {
   const token = new URLSearchParams(window.location.search).get("token") || window.location.pathname.split("/").pop() || "";
   const [data, setData] = useState<any>(null);
@@ -43,6 +50,9 @@ export default function AprovacaoRelatorioViagem() {
   const motivoRejeicao = data?.tripulante_pos === 1
     ? data?.relatorio?.motivo_reprovacao_tripulante_1
     : data?.relatorio?.motivo_reprovacao_tripulante_2;
+  const aprovadoEm = data?.tripulante_pos === 1
+    ? data?.relatorio?.aprovado_tripulante_1_em || data?.relatorio?.aprovado_tripulante_em
+    : data?.relatorio?.aprovado_tripulante_2_em;
 
   const decidir = async (aprovado: boolean) => {
     if (decisaoRegistrada) return;
@@ -83,6 +93,7 @@ export default function AprovacaoRelatorioViagem() {
     {decisaoRegistrada && <section className={`rounded-xl border p-5 ${rejeitado ? "border-rose-400/30 bg-rose-400/10" : "border-emerald-400/30 bg-emerald-400/10"}`}>
       <p className={`text-sm font-bold uppercase tracking-[0.12em] ${rejeitado ? "text-rose-200" : "text-emerald-200"}`}>{rejeitado ? "Relatório já rejeitado" : "Relatório já aprovado"}</p>
       <p className="mt-2 text-sm text-white/80">Sua decisão já foi registrada. Não é possível alterar a decisão por este link.</p>
+      {statusAtual === "aprovado" && aprovadoEm && <p className="mt-3 text-sm text-emerald-100">Aprovado pelo tripulante em {dataHoraBr(aprovadoEm)}</p>}
       {rejeitado && motivoRejeicao && <p className="mt-3 rounded-lg border border-white/10 bg-black/10 p-3 text-sm text-white/80"><strong>Motivo informado:</strong> {motivoRejeicao}</p>}
     </section>}
     <section className="rounded-xl border border-white/10 bg-white/5 p-4 sm:p-5"><h2 className="font-semibold">Dados da viagem</h2><p className="mt-2 break-words text-sm text-white/70">Rota: {r.rota || "—"}</p><p className="break-words text-sm text-white/70">Tripulante {data.tripulante_pos}: {data.tripulante_pos === 1 ? r.nome_tripulante : r.nome_tripulante_2}</p></section>

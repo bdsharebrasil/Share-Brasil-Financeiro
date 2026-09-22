@@ -1,4 +1,4 @@
-import { formatarCoordenada, formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/formato";
+import { formatarCoordenada, formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/format";
 import type { Segmento } from "@/lib/tipos";
 
 export function TabelaSegmentos({ segmentos }: { segmentos: Segmento[] }) {

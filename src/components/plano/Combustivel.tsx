@@ -1,6 +1,6 @@
 import { Campo, Dado } from "./Secao";
 import { classeEntrada } from "./PlanoIcao";
-import { formatarNumero, minutosParaHoraMinuto } from "@/lib/formato";
+import { formatarNumero, minutosParaHoraMinuto } from "@/lib/format";
 import type { ResultadoCombustivel } from "@/lib/navegacao";
 
 interface Props {

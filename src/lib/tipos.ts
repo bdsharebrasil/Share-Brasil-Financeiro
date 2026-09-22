@@ -47,6 +47,16 @@ export interface ContextoVoo {
   fonte: string;
 }
 
+export interface SugestaoVoo {
+  numero_voo: string;
+  origem: string;
+  destino: string;
+  data_agendada: string | null;
+  status: string | null;
+  matricula_registro?: string | null;
+  modelo?: string | null;
+}
+
 export interface AerodromoResumo {
   id: string;
   label: string;

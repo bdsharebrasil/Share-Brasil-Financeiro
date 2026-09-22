@@ -11,7 +11,7 @@ import {
   tempoMinutos,
   type Coordenada,
 } from "@/lib/navegacao";
-import { formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/formato";
+import { formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/format";
 import { provedorAtivo, provedorContingencia, type EstiloMapa } from "./provedor";
 import type { PontoRota } from "@/lib/tipos";
 
@@ -92,7 +92,8 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     instancia.touchZoomRotate.enable();
     instancia.on("error", (evento: { error?: { message?: string; status?: number } }) => {
       const mensagem = evento?.error?.message ?? "";
-      if (/style|403|401|Forbidden|Failed to fetch/i.test(mensagem)) {
+      const status = evento?.error?.status ?? 0;
+      if (status >= 400 || /style|tile|source|403|401|Forbidden|Failed to fetch|AJAXError/i.test(mensagem)) {
         setContingencia(true);
       }
     });
@@ -133,6 +134,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     if (!instancia) return;
 
     const desenhar = () => {
+      if (!instancia.isStyleLoaded()) return;
       marcadores.current.forEach((m) => m.remove());
       marcadores.current = [];
 
@@ -157,10 +159,11 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
         instancia.removeSource("radar");
       }
 
+      const pontosRota = pontos.filter((ponto) => ponto.tipo !== "alternado");
       const linha: [number, number][] = [];
-      for (let i = 0; i < pontos.length - 1; i += 1) {
-        const a = pontos[i]!;
-        const b = pontos[i + 1]!;
+      for (let i = 0; i < pontosRota.length - 1; i += 1) {
+        const a = pontosRota[i]!;
+        const b = pontosRota[i + 1]!;
         linha.push(...arcoCirculoMaximo(a, b, 48));
       }
 

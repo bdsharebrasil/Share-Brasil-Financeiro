@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { api, ErroApi } from "@/lib/api";
+import { buscarAerodromos, calcularPlanoVoo } from "@/lib/flightplan-api";
+import { buscarPainelAgendamento } from "@/lib/colaborador-api";
 import {
   calcularCombustivel,
   distanciaKm,
@@ -9,13 +10,14 @@ import {
   proaVerdadeira,
   tempoMinutos,
 } from "@/lib/navegacao";
-import { horaMinutoParaMinutos } from "@/lib/formato";
+import { horaMinutoParaMinutos } from "@/lib/format";
 import type {
   ContextoVoo,
   FormularioIcao,
   PontoRota,
   RespostaRotas,
   Segmento,
+  SugestaoVoo,
 } from "@/lib/tipos";
 
 const FORMULARIO_INICIAL: FormularioIcao = {
@@ -27,7 +29,7 @@ const FORMULARIO_INICIAL: FormularioIcao = {
   esteira: "L",
   equipamento: "",
   adep: "",
-  dataVoo: "",
+  dataVoo: new Date().toISOString().slice(0, 10),
   eobt: "",
   velocidade: "",
   nivel: "",
@@ -54,8 +56,9 @@ const ESTEIRA_POR_TIPO: Record<string, FormularioIcao["esteira"]> = {
   JATO: "M",
 };
 
-export function usarPlanoVoo() {
+export function usePlanoVoo() {
   const [contexto, setContexto] = useState<ContextoVoo | null>(null);
+  const [sugestoes, setSugestoes] = useState<SugestaoVoo[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [formulario, setFormulario] = useState<FormularioIcao>(FORMULARIO_INICIAL);
@@ -71,43 +74,103 @@ export function usarPlanoVoo() {
     setFormulario((atual) => ({ ...atual, [campo]: valor }));
   }, []);
 
+  const resetar = useCallback(() => {
+    setContexto(null);
+    setFormulario({ ...FORMULARIO_INICIAL, dataVoo: new Date().toISOString().slice(0, 10) });
+    setCoordenadas({});
+    setRotaAisweb(null);
+    setMinutosReserva(45);
+    setMinutosTaxi(10);
+    setVentoKt(0);
+    setCombustivelABordo("");
+    setErro(null);
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+    void buscarPainelAgendamento("2000-01-01", "2099-12-31").then((painel) => {
+      if (!ativo) return;
+      setSugestoes(painel.agendamentos.filter((item) => item.numero_voo).map((item) => ({
+        numero_voo: item.numero_voo!,
+        origem: item.origem,
+        destino: item.destino,
+        data_agendada: item.data_agendada,
+        status: item.status,
+        matricula_registro: item.matricula_registro,
+        modelo: item.modelo,
+      })));
+    }).catch(() => {
+      if (ativo) setSugestoes([]);
+    });
+    return () => { ativo = false; };
+  }, []);
+
   const buscarVoo = useCallback(async (numeroVoo: string) => {
     setCarregando(true);
     setErro(null);
     try {
-      const dados = await api.contextoVoo(numeroVoo);
-      setContexto(dados);
-      const aeronave = dados.aeronave;
-      const velocidade =
-        aeronave?.performance_velocidade_cruzeiro_kt ??
-        (aeronave?.velocidade_cruzeiro ? Number(aeronave.velocidade_cruzeiro) : null);
+      const painel = await buscarPainelAgendamento("2000-01-01", "2099-12-31");
+      const solicitacao = painel.agendamentos.find((item) => item.numero_voo?.toUpperCase() === numeroVoo.trim().toUpperCase());
+      if (!solicitacao) throw new Error("Voo não encontrado nas solicitações de reserva.");
+      const aeronave = painel.aeronaves.find((item) => item.id === solicitacao.aeronave_id) ?? null;
+      const piloto = painel.tripulacao.find((item) => item.id === solicitacao.piloto_id) ?? null;
+      const copiloto = painel.tripulacao.find((item) => item.id === solicitacao.copiloto_id) ?? null;
+      const contexto: ContextoVoo = {
+        solicitacao: {
+          id: solicitacao.id,
+          numero_voo: solicitacao.numero_voo,
+          origem: solicitacao.origem,
+          destino: solicitacao.destino,
+          data_agendada: solicitacao.data_agendada,
+          horario_previsto_agendamento: solicitacao.horario_previsto_agendamento,
+          dias_duracao: solicitacao.dias_duracao,
+          numero_passageiros: solicitacao.numero_passageiros,
+          status: solicitacao.status,
+          observacoes: solicitacao.observacoes ?? null,
+        },
+        aeronave: aeronave ? {
+          id: aeronave.id,
+          matricula_registro: aeronave.matricula_registro,
+          fabricante: aeronave.fabricante,
+          modelo: aeronave.modelo,
+          tipo_aeronave: aeronave.tipo_aeronave,
+          consumo_combustivel: Number(aeronave.consumo_combustivel) || null,
+          velocidade_cruzeiro: aeronave.velocidade_cruzeiro,
+          performance_velocidade_cruzeiro_kt: aeronave.performance_velocidade_cruzeiro_kt,
+          performance_categoria: aeronave.performance_categoria,
+          base: aeronave.base,
+          ano: aeronave.ano,
+        } : null,
+        cliente: null,
+        cotista: null,
+        tripulacao: {
+          piloto: piloto ? { id: piloto.id, canac: piloto.canac, nome_completo: piloto.nome_completo, tipo_licenca: piloto.tipo_licenca } : null,
+          copiloto: copiloto ? { id: copiloto.id, canac: copiloto.canac, nome_completo: copiloto.nome_completo, tipo_licenca: copiloto.tipo_licenca } : null,
+        },
+        passageiros: solicitacao.numero_passageiros || 0,
+        fonte: "agendamento",
+      };
+      setContexto(contexto);
+      const velocidade = (aeronave?.performance_velocidade_cruzeiro_kt ?? Number(aeronave?.velocidade_cruzeiro)) || null;
       setFormulario((atual) => ({
         ...atual,
-        identificacao: dados.solicitacao.numero_voo ?? atual.identificacao,
-        adep: (dados.solicitacao.origem ?? "").toUpperCase(),
-        ades: (dados.solicitacao.destino ?? "").toUpperCase(),
-        dataVoo: dados.solicitacao.data_agendada?.slice(0, 10) ?? "",
-        eobt: (dados.solicitacao.horario_previsto_agendamento ?? "").slice(0, 5),
+        identificacao: solicitacao.numero_voo ?? atual.identificacao,
+        adep: solicitacao.origem.toUpperCase(),
+        ades: solicitacao.destino.toUpperCase(),
+        dataVoo: solicitacao.data_agendada?.slice(0, 10) || atual.dataVoo,
+        eobt: (solicitacao.horario_previsto_agendamento ?? "").slice(0, 5),
         tipoAeronave: aeronave?.modelo ?? atual.tipoAeronave,
-        esteira: ESTEIRA_POR_TIPO[aeronave?.tipo_aeronave ?? ""] ?? atual.esteira,
+        esteira: ESTEIRA_POR_TIPO[aeronave?.tipo_aeronave?.toUpperCase() ?? ""] ?? atual.esteira,
         velocidade: velocidade ? `N${String(Math.round(velocidade)).padStart(4, "0")}` : atual.velocidade,
-        pessoasABordo: String(dados.passageiros || ""),
-        piloto: dados.tripulacao.piloto?.nome_completo ?? atual.piloto,
+        pessoasABordo: String(solicitacao.numero_passageiros || ""),
+        piloto: piloto?.nome_completo ?? atual.piloto,
         outrasInformacoes: aeronave?.matricula_registro
           ? `REG/${aeronave.matricula_registro.replace("-", "")} TYP/${aeronave.modelo ?? ""}`.trim()
           : atual.outrasInformacoes,
       }));
     } catch (e) {
       setContexto(null);
-      setErro(
-        e instanceof ErroApi && e.status === 404
-          ? "Voo não encontrado nas solicitações de reserva."
-          : e instanceof ErroApi && e.status === 401
-            ? "Sessão não autenticada. Entre no sistema Share Brasil para consultar os voos."
-            : e instanceof Error
-              ? e.message
-              : "Falha ao consultar o voo.",
-      );
+      setErro(e instanceof Error ? e.message : "Falha ao consultar o voo.");
     } finally {
       setCarregando(false);
     }
@@ -129,8 +192,8 @@ export function usarPlanoVoo() {
     (async () => {
       for (const icao of pendentes) {
         try {
-          const { aerodromos } = await api.aerodromos(icao);
-          const achado = aerodromos.find((a) => a.id === icao) ?? aerodromos[0];
+          const { aerodromos } = await buscarAerodromos();
+          const achado = aerodromos.find((a) => a.id === icao);
           const coord = interpretarCoordenadas(achado?.coordenadas);
           if (ativo && achado && coord) {
             setCoordenadas((atual) => ({ ...atual, [icao]: { ...coord, nome: achado.name } }));
@@ -149,16 +212,31 @@ export function usarPlanoVoo() {
     const adep = formulario.adep.toUpperCase();
     const ades = formulario.ades.toUpperCase();
     if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) return;
+    setErro(null);
     try {
-      const dados = await api.rotas(adep, ades);
-      setRotaAisweb(dados);
-      const primeira = dados.routes[0];
-      if (primeira) atualizar("rota", primeira.route);
+      const velocidadeConsulta = Number(formulario.velocidade.replace(/[^\d]/g, "")) || Number(contexto?.aeronave?.performance_velocidade_cruzeiro_kt) || Number(contexto?.aeronave?.velocidade_cruzeiro) || 120;
+      const consumoConsulta = Number(contexto?.aeronave?.consumo_combustivel) || 36;
+      const dados = await calcularPlanoVoo({
+        adep,
+        ades,
+        speed: velocidadeConsulta,
+        fuelBurn: consumoConsulta,
+        reserveMin: minutosReserva,
+      });
+      const resposta: RespostaRotas = {
+        adep,
+        ades,
+        routes: [{ route: dados.flightplan.route, source: dados.flightplan.route_source }],
+        preferred_available: dados.flightplan.route_source === "AISWEB/DECEA",
+        source: dados.flightplan.route_source,
+      };
+      setRotaAisweb(resposta);
+      atualizar("rota", dados.flightplan.route);
     } catch (e) {
       setRotaAisweb(null);
       setErro(e instanceof Error ? e.message : "Falha ao consultar rotas.");
     }
-  }, [formulario.adep, formulario.ades, atualizar]);
+  }, [formulario.adep, formulario.ades, formulario.velocidade, contexto, atualizar, minutosReserva]);
 
   const pontos: PontoRota[] = useMemo(() => {
     const lista: PontoRota[] = [];
@@ -246,10 +324,12 @@ export function usarPlanoVoo() {
 
   return {
     contexto,
+    sugestoes,
     carregando,
     erro,
     formulario,
     atualizar,
+    resetar,
     buscarVoo,
     coordenadas,
     pontos,

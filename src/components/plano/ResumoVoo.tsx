@@ -1,5 +1,5 @@
 import { Dado } from "./Secao";
-import { formatarData } from "@/lib/formato";
+import { formatarData } from "@/lib/format";
 import type { ContextoVoo } from "@/lib/tipos";
 
 export function ResumoVoo({ contexto }: { contexto: ContextoVoo }) {

@@ -132,6 +132,11 @@
   .responsive-table { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
   .responsive-table > table { min-width: 680px; }
   .page-grid { min-width: 0; }
+  .marcador { align-items: center; background: hsl(var(--card)); border: 2px solid hsl(var(--primary)); border-radius: 999px; box-shadow: 0 3px 12px rgb(0 0 0 / .35); color: hsl(var(--foreground)); display: flex; font: 700 10px/1 var(--app-font-mono); justify-content: center; min-width: 34px; padding: 5px 7px; transform: translateY(-50%); white-space: nowrap; }
+  .marcador--adep { border-color: hsl(var(--chart-2)); }
+  .marcador--ades { border-color: hsl(var(--chart-3)); }
+  .marcador--alternado { border-color: hsl(var(--chart-4)); }
+  .marcador--regua { background: hsl(var(--chart-3)); border-color: hsl(var(--chart-3)); color: hsl(var(--background)); min-width: 24px; padding: 5px; }
 }
 
 .diario-bordo .text-\[8px\] { font-size: 0.625rem; }

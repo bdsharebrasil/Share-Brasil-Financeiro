@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { api, URL_WORKER } from "@/lib/api";
+import { API_ORIGIN } from "@/lib/api";
+import {
+  buscarAerodromos,
+  buscarCartas,
+  buscarClima,
+  buscarNotams,
+  buscarRotaer,
+  buscarSol,
+} from "@/lib/flightplan-api";
 
 interface Carta {
   title?: string;
@@ -31,7 +39,7 @@ interface DadosAerodromo {
 const VAZIO: DadosAerodromo = { erros: [], carregando: true };
 
 function urlCarta(url: string, baixar = false) {
-  return `${URL_WORKER}/api/charts/preview?url=${encodeURIComponent(url)}${baixar ? "&download=1" : ""}`;
+  return `${API_ORIGIN}/api/charts/preview?url=${encodeURIComponent(url)}${baixar ? "&download=1" : ""}`;
 }
 
 async function carregar(icao: string): Promise<DadosAerodromo> {
@@ -46,11 +54,11 @@ async function carregar(icao: string): Promise<DadosAerodromo> {
   };
 
   const [met, notam, cartas, solar, rotaer] = await Promise.all([
-    tentar("Meteorologia", () => api.meteorologia(icao)),
-    tentar("NOTAM", () => api.notam(icao)),
-    tentar("Cartas", () => api.cartas(icao)),
-    tentar("Nascer/pôr do sol", () => api.solar(icao)),
-    tentar("Ficha do aeródromo", () => api.rotaer(icao)),
+    tentar("Meteorologia", () => buscarClima(icao)),
+    tentar("NOTAM", () => buscarNotams(icao)),
+    tentar("Cartas", () => buscarCartas(icao)),
+    tentar("Nascer/pôr do sol", () => buscarSol(icao)),
+    tentar("Ficha do aeródromo", () => buscarRotaer(icao)),
   ]);
 
   return {

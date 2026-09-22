@@ -1,37 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { api, type SugestaoVoo } from "@/lib/api";
-import { formatarData } from "@/lib/formato";
+import { formatarData } from "@/lib/format";
+import type { SugestaoVoo } from "@/lib/tipos";
 
 interface Props {
   carregando: boolean;
   erro: string | null;
   resumo: string | null;
+  sugestoes: SugestaoVoo[];
   aoBuscar: (numeroVoo: string) => void;
 }
 
-export function BuscaVoo({ carregando, erro, resumo, aoBuscar }: Props) {
+export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Props) {
   const [valor, setValor] = useState("");
-  const [sugestoes, setSugestoes] = useState<SugestaoVoo[]>([]);
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
-
-  // Autocomplete a partir das solicitações reais (ex.: EBL-0003/26, GRF-0101/26)
-  useEffect(() => {
-    let vivo = true;
-    const id = setTimeout(async () => {
-      try {
-        const { sugestoes: lista } = await api.sugestoesVoo(valor.trim());
-        if (vivo) setSugestoes(lista ?? []);
-      } catch {
-        if (vivo) setSugestoes([]);
-      }
-    }, 250);
-    return () => {
-      vivo = false;
-      clearTimeout(id);
-    };
-  }, [valor]);
 
   useEffect(() => {
     const fora = (e: MouseEvent) => {

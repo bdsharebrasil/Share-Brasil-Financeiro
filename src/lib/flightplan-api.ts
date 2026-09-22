@@ -5,6 +5,7 @@ export type AerodromoOption = {
   label: string;
   name: string;
   city?: string | null;
+  coordenadas?: string | null;
 };
 
 export type WeatherResponse = {
@@ -120,6 +121,10 @@ export async function buscarClima(icao: string): Promise<WeatherResponse> {
 
 export async function buscarCartas(icao: string): Promise<{ charts?: ChartResponse[] }> {
   return apiFetch(`/api/charts/${encodeURIComponent(icao)}`) as Promise<{ charts?: ChartResponse[] }>;
+}
+
+export async function buscarNotams(icao: string): Promise<{ notams?: Array<{ id: string; number?: string | null; type?: string | null; message?: string; start?: string | null; end?: string | null }> }> {
+  return apiFetch(`/api/notam/${encodeURIComponent(icao)}`) as Promise<{ notams?: Array<{ id: string; number?: string | null; type?: string | null; message?: string; start?: string | null; end?: string | null }> }>;
 }
 
 export async function buscarRotaer(icao: string): Promise<{ airport: AirportDetail }> {

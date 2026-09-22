@@ -24,6 +24,10 @@ interface TabelaLancamentosProps {
   onFiltrar: (f: FiltrosTabela) => void;
   onDarBaixa: (lancamento: LancamentoTabela) => void;
   onAbrirDetalhe?: (lancamento: LancamentoTabela) => void;
+  onEditar?: (lancamento: LancamentoTabela) => void;
+  onDuplicar?: (lancamento: LancamentoTabela) => void;
+  onAgendar?: (lancamento: LancamentoTabela) => void;
+  onAnexar?: (lancamento: LancamentoTabela) => void;
   acoes?: React.ReactNode;
   titulo?: string;
   carregando?: boolean;
@@ -37,6 +41,10 @@ export function TabelaLancamentos({
   onFiltrar,
   onDarBaixa,
   onAbrirDetalhe,
+  onEditar,
+  onDuplicar,
+  onAgendar,
+  onAnexar,
   acoes,
   titulo = "Tabela de lançamentos",
   carregando = false,
@@ -164,6 +172,10 @@ export function TabelaLancamentos({
                             Detalhes
                           </Button>
                         )}
+                        {onEditar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEditar(l); }}>Editar</Button>}
+                        {onDuplicar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDuplicar(l); }}>Duplicar</Button>}
+                        {onAgendar && pendente && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAgendar(l); }}>Agendar</Button>}
+                        {onAnexar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAnexar(l); }}>Anexo</Button>}
                         {pendente ? (
                           <Button
                             size="sm"

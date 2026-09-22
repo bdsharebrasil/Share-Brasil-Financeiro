@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import type { ContaAPagar } from "./tipos";
 import { KpiCard } from "@/components/financeiro-design/KpiCard";
 import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
 import { DetalheContaAPagar } from "./DetalheContaAPagar";
+import { agendarContaAPagar, anexarDocumentoLancamento, duplicarLancamento, editarLancamento } from "@/lib/financeiro-share-api";
 import {
   type FiltrosTabela,
   type LancamentoTabela,
@@ -19,7 +21,29 @@ function formatarBRLLocal(valor: number): string {
 }
 
 export function AbaContasAPagar() {
-  const { contas, carregando, erro, darBaixa } = useContasAPagar({});
+  const { contas, carregando, erro, darBaixa, recarregar } = useContasAPagar({});
+
+  async function editar(lancamento: LancamentoTabela) {
+    const descricao = window.prompt("Descrição da conta", lancamento.descricao);
+    if (!descricao?.trim() || descricao.trim() === lancamento.descricao) return;
+    try { await editarLancamento(lancamento.lancamentoId ?? lancamento.id, { descricao: descricao.trim() }); await recarregar(); toast.success("Conta atualizada."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível editar a conta."); }
+  }
+
+  async function duplicar(lancamento: LancamentoTabela) {
+    try { await duplicarLancamento(lancamento.lancamentoId ?? lancamento.id); await recarregar(); toast.success("Conta duplicada."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível duplicar a conta."); }
+  }
+
+  async function agendar(lancamento: LancamentoTabela) {
+    try { await agendarContaAPagar(lancamento.id); await recarregar(); toast.success("Pagamento agendado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível agendar o pagamento."); }
+  }
+
+  async function anexar(lancamento: LancamentoTabela) {
+    const url = window.prompt("URL do documento", "https://");
+    if (!url?.trim() || url.trim() === "https://") return;
+    const nome = window.prompt("Nome do documento", "documento");
+    if (!nome?.trim()) return;
+    try { await anexarDocumentoLancamento(lancamento.lancamentoId ?? lancamento.id, { nome: nome.trim(), url: url.trim() }); await recarregar(); toast.success("Documento anexado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível anexar o documento."); }
+  }
   const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
   const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
   const [detalheId, setDetalheId] = useState<string | null>(null);
@@ -106,6 +130,10 @@ export function AbaContasAPagar() {
         onFiltrar={setFiltros}
         onDarBaixa={setBaixaAlvo}
         onAbrirDetalhe={(l) => setDetalheId(l.id)}
+        onEditar={(l) => void editar(l)}
+        onDuplicar={(l) => void duplicar(l)}
+        onAgendar={(l) => void agendar(l)}
+        onAnexar={(l) => void anexar(l)}
         carregando={carregando}
       />
 

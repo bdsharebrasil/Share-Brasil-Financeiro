@@ -33,7 +33,7 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
 
 function normalizarLancamentoCaixa(row: any): Lancamento {
   return {
-    id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null,
+    id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null, cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
     data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
     descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? null,
     fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
@@ -291,10 +291,12 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/financeiro/balanco${sufixo}`));
 }
 
-export async function buscarDashboardCotista(inicio?: string, fim?: string) {
+export async function buscarDashboardCotista(inicio?: string, fim?: string, aeronaveId?: string, cotistaId?: string) {
   const parametros = new URLSearchParams();
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
+  if (aeronaveId) parametros.set("aeronave_id", aeronaveId);
+  if (cotistaId) parametros.set("cotista_id", cotistaId);
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
   const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/financeiro/cotista/dashboard${sufixo}`);
   return {
@@ -350,4 +352,50 @@ export function formatarData(valor: string | null | undefined) {
   const data = valor.slice(0, 10).split("-");
   if (data.length !== 3) return valor;
   return `${data[2]}/${data[1]}/${data[0]}`;
+}
+
+export type DashboardShare = {
+  live?: boolean;
+  kpis: Array<{ label: string; value: string; delta: string; helper: string; tone?: string }>;
+  cashFlow: Array<{ mes: string; entradas: number; saidas: number; saldo: number }>;
+  categories: Array<{ name: string; value: number; fill: string }>;
+  payables: unknown[];
+  receivables: unknown[];
+  reimbursements: unknown[];
+  salaries: unknown[];
+};
+
+export type DashboardCotistaRequest = { periodo?: string; visao?: string; cotista?: string; aeronave?: string };
+
+export function buscarDashboardShare(periodo?: string, aeronave?: string): Promise<DashboardShare> {
+  const query = paraQueryString({ periodo, aeronave });
+  return financeiroRequest<DashboardShare>(`/api/financeiro/share${query}`);
+}
+
+export async function buscarDashboardCotistaReal(filtros: DashboardCotistaRequest = {}) {
+  const query = paraQueryString({ inicio: filtros.periodo?.match(/^\\d{4}-\\d{2}$/) ? `${filtros.periodo}-01` : undefined, aeronave_id: filtros.aeronave && filtros.aeronave !== "Todas as aeronaves" ? filtros.aeronave : undefined, cotista_id: filtros.cotista && filtros.cotista !== "Todos os cotistas" ? filtros.cotista : undefined });
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/cotista/dashboard${query}`);
+}
+
+export const getShareFinance = buscarDashboardShare;
+export const getCotistaFinance = (periodo: string, visao: string, cotista: string, aeronave: string) => financeiroRequest<Record<string, unknown>>(`/api/financeiro/cotista${paraQueryString({ periodo, visao, cotista, aeronave })}`);
+
+export function editarLancamento(id: string, dados: Record<string, unknown>) {
+  return financeiroRequest<Lancamento>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(dados) });
+}
+
+export function duplicarLancamento(id: string, dados: Record<string, unknown> = {}) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/duplicar`, { method: "POST", body: JSON.stringify(dados) });
+}
+
+export function agendarContaAPagar(id: string, dados: { observacoes?: string } = {}) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/agendar`, { method: "POST", body: JSON.stringify(dados) });
+}
+
+export function anexarDocumentoLancamento(id: string, dados: { nome: string; url: string; tipo?: string; numero?: string }) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/anexos`, { method: "POST", body: JSON.stringify(dados) });
+}
+
+export function gerarReembolso(dados: Record<string, unknown>) {
+  return financeiroRequest<Record<string, unknown>>("/api/financeiro/reembolsos", { method: "POST", body: JSON.stringify(dados) });
 }

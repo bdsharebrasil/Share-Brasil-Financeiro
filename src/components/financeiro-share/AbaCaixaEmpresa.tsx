@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCaixaEmpresa } from '@/hooks/useCaixaEmpresa';
+import { gerarReembolso } from '@/lib/financeiro-share-api';
 import type { FluxoLancamento, StatusLancamento } from './tipos';
 
 function formatarMoeda(centavos: number): string {
@@ -31,9 +34,18 @@ function formatarStatus(status: StatusLancamento) {
 export function AbaCaixaEmpresa() {
   const [fluxo, setFluxo] = useState<FluxoLancamento | 'TODOS'>('TODOS');
 
-  const { lancamentos, carregando, erro } = useCaixaEmpresa({
+  const { lancamentos, carregando, erro, recarregar } = useCaixaEmpresa({
     fluxo: fluxo === 'TODOS' ? undefined : fluxo,
   });
+
+  async function gerar(lancamento: (typeof lancamentos)[number]) {
+    if (!lancamento.cotistaId) return toast.error('Este lançamento não possui cotista vinculado.');
+    try {
+      await gerarReembolso({ lancamento_origem_id: lancamento.id, cotista_aeronave_id: lancamento.cotistaId, valor_centavos: lancamento.valorCentavos, descricao: lancamento.descricao, data: lancamento.data, data_emissao: lancamento.data, data_vencimento: lancamento.prazo });
+      await recarregar();
+      toast.success('Reembolso gerado e salvo no D1.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível gerar o reembolso.'); }
+  }
 
   return (
     <div className="space-y-5">
@@ -61,12 +73,12 @@ export function AbaCaixaEmpresa() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>N doc</TableHead><TableHead>Fornecedor</TableHead><TableHead>Fluxo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>N doc</TableHead><TableHead>Fornecedor</TableHead><TableHead>Fluxo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lancamentos.length === 0 ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</TableCell></TableRow> : lancamentos.map((l) => (
-                      <TableRow key={l.id}><TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell><TableCell className="font-medium">{l.descricao}</TableCell><TableCell>{l.documento ?? '—'}</TableCell><TableCell>{l.fornecedor ?? '—'}</TableCell><TableCell><Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>{l.fluxo === 'ENTRADA' ? 'Entrada' : 'Saída'}</Badge></TableCell><TableCell className={`text-right font-medium ${l.fluxo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}`}>{formatarMoeda(l.valorCentavos)}</TableCell><TableCell><Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge></TableCell></TableRow>
+                    {lancamentos.length === 0 ? <TableRow><TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</TableCell></TableRow> : lancamentos.map((l) => (
+                      <TableRow key={l.id}><TableCell className="whitespace-nowrap text-muted-foreground">{formatarData(l.data)}</TableCell><TableCell className="font-medium">{l.descricao}</TableCell><TableCell>{l.documento ?? '—'}</TableCell><TableCell>{l.fornecedor ?? '—'}</TableCell><TableCell><Badge variant={l.fluxo === 'ENTRADA' ? 'default' : 'secondary'}>{l.fluxo === 'ENTRADA' ? 'Entrada' : 'Saída'}</Badge></TableCell><TableCell className={`text-right font-medium ${l.fluxo === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}`}>{formatarMoeda(l.valorCentavos)}</TableCell><TableCell><Badge className={CORES_STATUS[l.status]}>{formatarStatus(l.status)}</Badge></TableCell><TableCell className="text-right">{l.reembolsavel && l.cotistaId ? <Button size="sm" variant="outline" onClick={() => void gerar(l)}>Gerar reembolso</Button> : '—'}</TableCell></TableRow>
                     ))}
                   </TableBody>
                 </Table>

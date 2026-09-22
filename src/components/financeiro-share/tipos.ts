@@ -13,6 +13,7 @@ export type StatusContaAPagar = StatusContaFinanceira;
 export interface Lancamento {
   id: string;
   aeronaveId: string | null;
+  cotistaId: string | null;
   data: string; // ISO date
   descricao: string;
   documento: string | null;

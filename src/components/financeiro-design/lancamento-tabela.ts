@@ -4,6 +4,7 @@ export type FluxoTabela = "ENTRADA" | "SAIDA";
 
 export interface LancamentoTabela {
   id: string;
+  lancamentoId?: string | null;
   descricao: string;
   fornecedor: string;
   categoriaNome: string;
@@ -43,6 +44,7 @@ export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
   const vencida = conta.status === "PENDENTE" && new Date(conta.dataVencimento) < new Date();
   return {
     id: conta.id,
+    lancamentoId: conta.lancamentoId,
     descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a pagar",
     fornecedor: conta.fornecedorId ?? "—",
     categoriaNome: conta.categoriaNome ?? "Sem categoria",
@@ -62,6 +64,7 @@ export function mapearContaAReceber(conta: ContaAReceber): LancamentoTabela {
   const vencida = ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(conta.status) && new Date(conta.dataVencimento) < new Date();
   return {
     id: conta.id,
+    lancamentoId: conta.lancamentoId,
     descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a receber",
     fornecedor: conta.fornecedor ?? "—",
     categoriaNome: conta.categoriaNome ?? "Sem categoria",

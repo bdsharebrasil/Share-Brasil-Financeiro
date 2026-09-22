@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { HandCoins } from "lucide-react";
+import { toast } from "sonner";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
 import type { ContaAReceber } from "./tipos";
+import { duplicarLancamento, editarLancamento } from "@/lib/financeiro-share-api";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import { KpiCard } from "@/components/financeiro-design/KpiCard";
 import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
@@ -14,7 +16,17 @@ import {
 } from "@/components/financeiro-design/lancamento-tabela";
 
 export function AbaContasAReceber() {
-  const { contas, carregando, erro, darBaixa } = useContasAReceber({});
+  const { contas, carregando, erro, darBaixa, recarregar } = useContasAReceber({});
+
+  async function editar(lancamento: LancamentoTabela) {
+    const descricao = window.prompt("Descrição do recebimento", lancamento.descricao);
+    if (!descricao?.trim() || descricao.trim() === lancamento.descricao) return;
+    try { await editarLancamento(lancamento.lancamentoId ?? lancamento.id, { descricao: descricao.trim() }); await recarregar(); toast.success("Recebimento atualizado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível editar o recebimento."); }
+  }
+
+  async function duplicar(lancamento: LancamentoTabela) {
+    try { await duplicarLancamento(lancamento.lancamentoId ?? lancamento.id); await recarregar(); toast.success("Recebimento duplicado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível duplicar o recebimento."); }
+  }
   const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
   const [contaSelecionada, setContaSelecionada] = useState<ContaAReceber | null>(null);
 
@@ -92,6 +104,9 @@ export function AbaContasAReceber() {
         filtros={filtros}
         onFiltrar={setFiltros}
         onDarBaixa={onDarBaixa}
+        onAbrirDetalhe={(l) => onDarBaixa(l)}
+        onEditar={(l) => void editar(l)}
+        onDuplicar={(l) => void duplicar(l)}
         carregando={carregando}
       />
 

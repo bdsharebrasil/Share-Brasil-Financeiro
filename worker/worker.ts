@@ -3980,14 +3980,14 @@ app.post('/api/interno/agendamento/:id/checklist', async c => {
 async function garantirTabelaJornadas(c: Context<{ Bindings: Bindings }>) {
   await validateWorkerSchema(c, [
     { table: 'jornadas_voo', columns: ['id', 'solicitacao_id', 'aeronave_id', 'data', 'horario_acionamento', 'horario_apresentacao', 'tripulante_id', 'funcao_tripulante', 'jornada_principal_id', 'status'] },
-    { table: 'pernas_jornada_voo', columns: ['id', 'jornada_id', 'numero', 'origem', 'destino', 'horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte', 'status'] },
+    { table: 'pernas_jornada_voo', columns: ['id', 'jornada_id', 'numero', 'origem', 'destino', 'horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte', 'passageiros', 'status'] },
   ])
 }
 
 function normalizarPernaJornada(perna: any) {
   return {
     ...perna,
-    numero_passageiros: perna.numero_passageiros == null ? 0 : Number(perna.numero_passageiros),
+    numero_passageiros: perna.numero_passageiros ?? (perna.passageiros == null ? 0 : Number(perna.passageiros)),
   }
 }
 
@@ -4148,7 +4148,7 @@ app.get('/api/interno/agendamento/:id/jornada', async c => {
     if (origem && destino) {
       const status = statusPerna({ horario_dep: principal.horario_dep, horario_pouso: principal.horario_pouso, horario_corte: principal.horario_corte })
       const pernaId = uuid()
-      await c.env.SHARE_DB.prepare(`INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, numero_passageiros, horario_ac, horario_dep, horario_pouso, horario_corte, status)
+      await c.env.SHARE_DB.prepare(`INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, passageiros, horario_ac, horario_dep, horario_pouso, horario_corte, status)
         VALUES (?, ?, 1, ?, ?, 0, ?, ?, ?, ?, ?)`).bind(pernaId, raiz, origem, destino, principal.horario_acionamento || null, principal.horario_dep || null, principal.horario_pouso || null, principal.horario_corte || null, status === 'programada' && principal.status === 'em_rota' ? 'em_voo' : status).run()
       pernasNormalizadas = [(await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE id = ?1').bind(pernaId).first<any>())].filter(Boolean).map(normalizarPernaJornada)
     }
@@ -4234,7 +4234,7 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
   const jornadaDisponivel = jornadaColumns.has('id')
   const colunaPouso = jornadaColumns.has('horario_pouso') ? 'horario_pouso' : 'horario_corte_inicio'
   const colunaCorte = jornadaColumns.has('horario_corte') ? 'horario_corte' : 'horario_corte_final'
-  const colunaPassageiros = pernaColumns.has('numero_passageiros') ? 'COALESCE(p.numero_passageiros, 0)' : '0'
+  const colunaPassageiros = pernaColumns.has('passageiros') ? 'COALESCE(p.passageiros, 0)' : '0'
   const rows = await db.prepare(`
     SELECT s.id AS solicitacao_id, s.numero_voo, s.origem, s.destino, s.data_agendada,
            s.cliente_id, s.socio_id, s.voo_emprestado, s.cliente_emprestimo_id, s.socio_emprestimo_id,
@@ -4343,7 +4343,7 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
         body.observacoes || null, extractSupabaseUserId(c)).run()
     if (!principalId) {
       principalId = jornadaId
-      await db.prepare('INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, numero_passageiros, horario_ac, horario_dep, status) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)')
+      await db.prepare('INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, passageiros, horario_ac, horario_dep, status) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)')
         .bind(uuid(), jornadaId, origem, destino, numeroPassageiros, acionamento, horarioDep, statusPerna({ horario_ac: acionamento, horario_dep: horarioDep })).run()
     }
     criadas.push(await db.prepare('SELECT * FROM jornadas_voo WHERE id = ?1').bind(jornadaId).first<any>())
@@ -4357,9 +4357,9 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
   const principal = criadas[0]
   return c.json({
     ...principal,
-    pernas: pernas.results,
-    limites: await avaliarLimitesJornada(c, { ...principal, pernas: pernas.results }),
-    tripulantes: await Promise.all(criadas.map(async (item) => ({ ...item, pernas: pernas.results, limites: await avaliarLimitesJornada(c, { ...item, pernas: pernas.results }) }))),
+    pernas: (pernas.results || []).map(normalizarPernaJornada),
+    limites: await avaliarLimitesJornada(c, { ...principal, pernas: (pernas.results || []).map(normalizarPernaJornada) }),
+    tripulantes: await Promise.all(criadas.map(async (item) => ({ ...item, pernas: (pernas.results || []).map(normalizarPernaJornada), limites: await avaliarLimitesJornada(c, { ...item, pernas: (pernas.results || []).map(normalizarPernaJornada) }) }))),
   }, 201)
 })
 
@@ -4488,7 +4488,7 @@ app.post('/api/interno/jornadas/:id/pernas', async c => {
   const numeroPassageiros = normalizarNumeroPassageiros(b.numero_passageiros)
   if (numeroPassageiros === null) return c.json({ error: 'numero_passageiros_invalido' }, 400)
   const status = statusPerna({ horario_ac: horarioAc, horario_dep: horarioDep, horario_pouso: horarioPouso, horario_corte: horarioCorte })
-  await db.prepare('INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, numero_passageiros, horario_ac, horario_dep, horario_pouso, horario_corte, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, passageiros, horario_ac, horario_dep, horario_pouso, horario_corte, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .bind(pernaId, jornada.id, numero, origem, destino, numeroPassageiros, horarioAc, horarioDep, horarioPouso, horarioCorte, status).run()
   const pernas = await sincronizarResumoJornada(db, jornada.id)
   if (horarioDep && jornada.status === 'em_solo') await db.prepare("UPDATE jornadas_voo SET status = 'em_rota' WHERE id = ?1").bind(jornada.id).run()
@@ -4537,7 +4537,7 @@ app.patch('/api/interno/jornadas/:jornadaId/pernas/:pernaId', async c => {
   if (body.numero_passageiros !== undefined) {
     const numeroPassageiros = normalizarNumeroPassageiros(body.numero_passageiros)
     if (numeroPassageiros === null) return c.json({ error: 'numero_passageiros_invalido' }, 400)
-    valores.numero_passageiros = numeroPassageiros
+    valores.passageiros = numeroPassageiros
   }
   const encadeamento = ['horario_ac', 'horario_dep', 'horario_pouso', 'horario_corte'] as const
   let referencia: string | null = jornada?.horario_apresentacao || null
@@ -4556,7 +4556,7 @@ app.patch('/api/interno/jornadas/:jornadaId/pernas/:pernaId', async c => {
     .bind(...campos.map((campo) => valores[campo] ?? null), perna.id).run()
   const pernas = await sincronizarResumoJornada(db, perna.jornada_id)
   const atualizada = await db.prepare('SELECT * FROM pernas_jornada_voo WHERE id = ?1').bind(perna.id).first<any>()
-  return c.json({ ...atualizada, limites: jornada ? await avaliarLimitesJornada(c, { ...jornada, pernas }) : null })
+  return c.json({ ...normalizarPernaJornada(atualizada), limites: jornada ? await avaliarLimitesJornada(c, { ...jornada, pernas }) : null })
 })
 
 /*
@@ -4703,6 +4703,20 @@ async function garantirTabelaRelatorioDespesaViagem(c: Context<{ Bindings: Bindi
 function despesasRelatorioViagem(valor: unknown) {
   if (Array.isArray(valor)) return valor
   try { const parsed = JSON.parse(String(valor || '[]')); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+
+function pagadorDespesaRelatorio(valor: unknown) {
+  return String(valor || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '_')
+}
+
+function despesaTripulanteRelatorio(despesa: any, pos: 1 | 2) {
+  const valor = Number(despesa?.valor ?? despesa?.amount ?? 0)
+  const pagador = pagadorDespesaRelatorio(despesa?.pago_por ?? despesa?.paid_by)
+  return valor > 0 && (pagador === `tripulante_${pos}` || pagador === `tripulante${pos}`)
+}
+
+function requerAprovacaoTripulanteRelatorio(despesas: unknown, pos: 1 | 2) {
+  return despesasRelatorioViagem(despesas).some((despesa: any) => despesaTripulanteRelatorio(despesa, pos))
 }
 
 function statusRelatorioViagem(valor: unknown) {
@@ -5133,13 +5147,14 @@ app.post('/api/financeiro/relatorios-despesa-viagem/:id/aprovacao', async c => {
     const decision = body.aprovado ? 'aprovado' : 'reprovado'
     const nextTripulante1Status = pos === 1 ? decision : report.status_aprovacao_tripulante
     const nextTripulante2Status = pos === 2 ? decision : report.status_aprovacao_tripulante_2
-    const requiredSecond = despesasRelatorioViagem(report.despesas).some((item: any) => String(item?.pago_por || '').toLowerCase().replace(/[\s-]+/g, '_') === 'tripulante_2')
+    const requiredSecond = requerAprovacaoTripulanteRelatorio(report.despesas, 2)
     const nextReportStatus = decision === 'reprovado'
       ? 'ajuste_necessario'
       : nextTripulante1Status === 'aprovado' && (!requiredSecond || nextTripulante2Status === 'aprovado')
         ? 'aprovado'
         : 'aguardando_aprovacao'
-    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.observacoes?.trim() || null, nextReportStatus, id).run()
+    const segundoAplicavel = requerAprovacaoTripulanteRelatorio(report.despesas, 2)
+    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.observacoes?.trim() || null, segundoAplicavel ? 1 : 0, decision, nextReportStatus, id).run()
     const updated = await buscarRelatorioViagemComNomes(c, id)
     if (!updated) return c.notFound()
     if (body.aprovado) {
@@ -5160,7 +5175,15 @@ app.get('/api/financeiro/relatorios-despesa-viagem/:id/programacao-reembolso', a
     a.matricula_registro AS aeronave_matricula, r.cliente_id, r.socio_id, r.pdf_url, r.status
     FROM relatorio_despesa_viagem r LEFT JOIN aeronave a ON a.id = r.aeronave_id WHERE r.id = ?`).bind(c.req.param('id')).first<any>()
   if (!row) return c.notFound()
-  if (row.status !== 'aprovado') return c.json({ error: 'aguarde_aprovacao_de_todos_os_tripulantes' }, 409)
+  const statusAtual = statusRelatorioViagem(row.status)
+  const segundoAplicavel = requerAprovacaoTripulanteRelatorio(row.despesas, 2)
+  if (statusAtual !== 'aprovado') {
+    if (!segundoAplicavel && statusRelatorioViagem(row.status) === 'aguardando_aprovacao' && String(row.status_aprovacao_tripulante || '').toLowerCase() === 'aprovado') {
+      await c.env.SHARE_DB.prepare("UPDATE relatorio_despesa_viagem SET status = 'aprovado', status_aprovacao_tripulante_2 = 'nao_aplicavel', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?1").bind(row.id).run()
+    } else {
+      return c.json({ error: 'aguarde_aprovacao_de_todos_os_tripulantes' }, 409)
+    }
+  }
   return c.json({ descricao: `Relatório Despesa de Viagem - ${row.numero_relatorio}`, valor: Math.max(0, Number(row.total_valor || 0) - Number(row.total_cliente || 0)), fornecedor: 'Share Brasil', grupo_categoria_id: 'b4016b98-7b4c-4f18-9f8d-d7b03cd4d300', subcategoria: 'RELATORIO DE VIAGEM', aeronave_id: row.aeronave_id, aeronave_matricula: row.aeronave_matricula, cliente_id: row.cliente_id, socio_id: row.socio_id, periodicidade: '', tipo_rateio: '', pdf_url: row.pdf_url })
 })
 app.post('/api/financeiro/relatorios-despesa-viagem/:id/enviar-cliente', async c => {
@@ -5241,13 +5264,13 @@ app.post('/api/public/relatorios-despesa-viagem/aprovacao/:token', async c => {
     const decision = body.aprovado ? 'aprovado' : 'reprovado'
     const nextTripulante1Status = pos === 1 ? decision : row.status_aprovacao_tripulante
     const nextTripulante2Status = pos === 2 ? decision : row.status_aprovacao_tripulante_2
-    const requiredSecond = despesasRelatorioViagem(row.despesas).some((item: any) => String(item?.pago_por || '').toLowerCase().replace(/[\s-]+/g, '_') === 'tripulante_2')
+    const requiredSecond = requerAprovacaoTripulanteRelatorio(row.despesas, 2)
     const nextReportStatus = decision === 'reprovado'
       ? 'ajuste_necessario'
       : nextTripulante1Status === 'aprovado' && (!requiredSecond || nextTripulante2Status === 'aprovado')
         ? 'aprovado'
         : 'aguardando_aprovacao'
-    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.motivo?.trim() || null, nextReportStatus, row.id).run()
+    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.motivo?.trim() || null, requiredSecond ? 1 : 0, decision, nextReportStatus, row.id).run()
     const decidedBy = pos === 1 ? row.user1_id : row.user2_id || ''
     const updatedForNotification = await buscarRelatorioViagemComNomes(c, row.id)
     if (updatedForNotification) {

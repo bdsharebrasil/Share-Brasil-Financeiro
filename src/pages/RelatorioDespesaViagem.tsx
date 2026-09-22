@@ -1265,6 +1265,7 @@ export default function RelatorioDespesaViagem({
               status={relatorio?.status_aprovacao_tripulante_2}
               enviado={relatorio?.enviado_para_tripulante_2_em}
               aprovadoEm={relatorio?.aprovado_tripulante_2_em}
+              naoAplicavel={Boolean(relatorio?.tripulante_id_2 && totaisPorPagador.tripulante_2 <= 0)}
               onEnviar={() => void enviarAprovacao(2)}
               link={linksAprovacao[2]}
               onCopiar={copiarLinkAprovacao}
@@ -1810,6 +1811,7 @@ function AprovacaoLinha({
   status,
   enviado,
   aprovadoEm,
+  naoAplicavel = false,
   link,
   onEnviar,
   onCopiar,
@@ -1822,6 +1824,7 @@ function AprovacaoLinha({
   status?: string | null;
   enviado?: string | null;
   aprovadoEm?: string | null;
+  naoAplicavel?: boolean;
   link?: string;
   onEnviar: () => void;
   onCopiar: (link: string) => void;
@@ -1858,22 +1861,24 @@ function AprovacaoLinha({
               : "border-border bg-secondary/50 text-muted-foreground"
         }
       >
-        {aprovado
-          ? "Conferido como correto"
+        {naoAplicavel
+          ? "Sem despesa"
+          : aprovado
+            ? "Conferido como correto"
           : reprovado
             ? "Não aprovado"
             : "Pendente"}
       </Badge>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={onEnviar}
-        disabled={disabled}
-        className="w-full justify-center gap-1.5 whitespace-normal text-center sm:w-auto sm:whitespace-nowrap"
-      >
-        <Send size={13} /> Enviar para aprovação tripulação
-      </Button>
+      {!naoAplicavel && <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onEnviar}
+          disabled={disabled}
+          className="w-full justify-center gap-1.5 whitespace-normal text-center sm:w-auto sm:whitespace-nowrap"
+        >
+          <Send size={13} /> Enviar para aprovação tripulação
+        </Button>}
       {link && (
         <Button
           type="button"

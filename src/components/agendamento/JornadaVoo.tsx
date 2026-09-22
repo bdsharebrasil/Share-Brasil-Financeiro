@@ -55,6 +55,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
   const opcoesAerodromos = useMemo(() => aerodromos, [aerodromos]);
   const carregar = async () => {
     const atual = await buscarJornadaVoo(item.id);
+    setErro("");
     setJornada(atual);
     if (atual) {
       setData(atual.data || item.data_agendada || hoje());
@@ -129,6 +130,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
   const alterarPerna = (campo: keyof PernaForm, valor: string) => setPerna((atual) => ({ ...atual, [campo]: valor }));
   const horas = (min: number) => `${Math.floor(Math.abs(min) / 60)}h${String(Math.abs(min) % 60).padStart(2, "0")}`;
   if (carregando) return <div className={box}><Loader2 className="animate-spin" size={16} /></div>;
+  if (erro && !jornada) return <section className={`${box} space-y-4`}><div className="rounded-xl border border-red-400/30 bg-red-400/5 p-4"><p className="text-xs font-bold text-red-200">Não foi possível carregar o histórico da jornada.</p><p className="mt-2 break-words text-[10px] text-red-200/80">{erro}</p><div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => { setCarregando(true); setErro(""); void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }} className="text-xs">Tentar novamente</Button><Button type="button" variant="outline" onClick={aoFechar} className="text-xs">Fechar</Button></div></div></section>;
 
   const nivelCabecalho = jornada?.tripulantes?.reduce<NivelAlertaJornada>((pior, tripulante) => ({ normal: 0, atencao: 1, critico: 2, excedido: 3 }[tripulante.limites.nivel_alerta] > { normal: 0, atencao: 1, critico: 2, excedido: 3 }[pior] ? tripulante.limites.nivel_alerta : pior), limites?.nivel_alerta || "normal") || "normal";
   return <section className={`${box} space-y-4`}>

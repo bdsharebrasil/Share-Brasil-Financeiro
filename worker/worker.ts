@@ -197,8 +197,8 @@ function escapeHtml(value: string | number): string {
 async function requireAuthenticatedUser(c: Context<{ Bindings: Bindings }>): Promise<boolean> {
   const authorization = c.req.header('authorization')
   log.debug('[auth] Authorization header present:', Boolean(authorization))
-  const { SUPABASE_URL, SUPABASE_ANON_KEY, VITE_SUPABASE_PUBLISHABLE_KEY } = c.env
-  const supabaseApiKey = SUPABASE_ANON_KEY || VITE_SUPABASE_PUBLISHABLE_KEY || c.req.header('apikey')
+  const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_PUBLISHABLE_KEY } = c.env
+  const supabaseApiKey = SUPABASE_ANON_KEY || VITE_SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY || c.req.header('apikey')
 
   if (!authorization?.startsWith('Bearer ')) {
     log.debug('[auth] missing Bearer token')
@@ -1069,7 +1069,7 @@ async function authenticatedColaborador(c: Context<{ Bindings: Bindings }>): Pro
 async function authenticatedColaboradorToken(c: Context<{ Bindings: Bindings }>, token: string): Promise<Colaborador | null> {
   const normalizedToken = token.trim()
   if (!normalizedToken || !c.env.SUPABASE_URL) return null
-  const apiKey = c.env.SUPABASE_ANON_KEY || c.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  const apiKey = c.env.SUPABASE_ANON_KEY || c.env.VITE_SUPABASE_PUBLISHABLE_KEY || c.env.SUPABASE_SERVICE_ROLE_KEY
   if (!apiKey) return null
   const response = await fetch(`${c.env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: apiKey, Authorization: `Bearer ${normalizedToken}` } }).catch(() => null)
   if (!response?.ok) return null
@@ -4001,7 +4001,7 @@ function normalizarJornadaRegistro(jornada: any) {
   }
 }
 const LIMITES_JORNADA = { dia: 540, semana: 2640, mes: 10560, posCorte: 30 } as const
-const STATUS_JORNADA = ['em_solo', 'em_rota', 'encerrada'] as const
+const STATUS_JORNADA = ['em_solo', 'em_rota', 'pousado', 'encerrada'] as const
 
 function normalizarNumeroPassageiros(valor: unknown): number | null {
   if (valor === undefined || valor === null || valor === '') return 0

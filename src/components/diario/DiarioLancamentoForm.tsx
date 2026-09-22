@@ -54,14 +54,8 @@ const checkinBeforeAc = (time?: string | null) => {
   const total = (hours * 60 + minutes - 30 + 1440) % 1440;
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 };
-const diffHoras = (inicio?: string, fim?: string) => {
-  if (!inicio || !fim) return 0;
-  const [h1, m1] = inicio.split(":").map(Number);
-  const [h2, m2] = fim.split(":").map(Number);
-  let minutos = h2 * 60 + m2 - (h1 * 60 + m1);
-  if (minutos < 0) minutos += 24 * 60;
-  return Number((minutos / 60).toFixed(2));
-};
+const timestampUtc = (data: string, hora: string) =>
+  data && hora ? `${data}T${hora.length === 5 ? `${hora}:00` : hora}Z` : null;
 
 function formFromEntry(
   entry: Partial<DiarioLancamento> | undefined,
@@ -77,6 +71,10 @@ function formFromEntry(
       numero_voo: entry?.numero_voo || "",
       jornada_id: (entry as any)?.jornada_id || "",
       perna_jornada_id: (entry as any)?.perna_jornada_id || "",
+      acionamento_utc: (entry as any)?.acionamento_utc || "",
+      decolagem_utc: (entry as any)?.decolagem_utc || "",
+      pouso_utc: (entry as any)?.pouso_utc || "",
+      corte_utc: (entry as any)?.corte_utc || "",
       natureza_voo: natureza,
       aerodromo_partida: entry?.aerodromo_partida || "",
       aerodromo_chegada: entry?.aerodromo_chegada || "",
@@ -101,6 +99,9 @@ function formFromEntry(
     tempo_total: String(entry?.tempo_total ?? ""),
     horas_diurnas: String(entry?.horas_diurnas ?? ""),
     horas_noturnas: String(entry?.horas_noturnas ?? ""),
+    horas_noturnas_manual: false,
+    consumo_combustivel_voo: String((entry as any)?.consumo_combustivel_voo ?? ""),
+    consumo_combustivel_total: String((entry as any)?.consumo_combustivel_total ?? ""),
     pousos_total: String(entry?.pousos_total ?? 1),
     distancia_nm: String(entry?.distancia_nm ?? ""),
     litros_combustivel_inicio_voo: String(
@@ -205,32 +206,16 @@ export default function DiarioLancamentoForm({
   const setField = (key: string, value: string | boolean) =>
     setForm((current) => ({ ...current, [key]: value }));
   const value = (key: string) => String(form[key] ?? "");
-  const recalcularTempos = (alteracoes: Partial<Record<"tempo_ac" | "tempo_dep" | "tempo_pou" | "tempo_cor", string>> = {}) => {
-    const tempos = {
-      tempo_ac: alteracoes.tempo_ac ?? value("tempo_ac"),
-      tempo_dep: alteracoes.tempo_dep ?? value("tempo_dep"),
-      tempo_pou: alteracoes.tempo_pou ?? value("tempo_pou"),
-      tempo_cor: alteracoes.tempo_cor ?? value("tempo_cor"),
-    };
-    const tempoVoo = diffHoras(tempos.tempo_dep, tempos.tempo_pou);
-    const tempoTotal = diffHoras(tempos.tempo_ac, tempos.tempo_cor || tempos.tempo_pou);
-    const consumoHora = Number(consumoCombustivel || 0);
-    setField("tempo_voo", tempoVoo.toFixed(2));
-    setField("tempo_total", tempoTotal.toFixed(2));
-    setField("horas_diurnas", tempoVoo.toFixed(2));
-    setField("horas_noturnas", "0.00");
-    setField("consumo_combustivel_voo", (tempoVoo * consumoHora).toFixed(2));
-    setField("consumo_combustivel_total", (tempoTotal * consumoHora).toFixed(2));
-  };
   const setTempoAc = (tempoAc: string) => {
     setField("tempo_ac", tempoAc);
     setField("tripulacao_checkin_hora", checkinBeforeAc(tempoAc));
-    recalcularTempos({ tempo_ac: tempoAc });
+    setField("acionamento_utc", timestampUtc(value("data_registro"), tempoAc) || "");
   };
   const alterarTempo = (campo: "tempo_ac" | "tempo_dep" | "tempo_pou" | "tempo_cor", valor: string) => {
     setField(campo, valor);
     if (campo === "tempo_ac") setField("tripulacao_checkin_hora", checkinBeforeAc(valor));
-    recalcularTempos({ [campo]: valor });
+    const timestampCampo = { tempo_ac: "acionamento_utc", tempo_dep: "decolagem_utc", tempo_pou: "pouso_utc", tempo_cor: "corte_utc" }[campo];
+    setField(timestampCampo, timestampUtc(value("data_registro"), valor) || "");
   };
   const tripulacao = useMemo(
     () => opcoes.tripulantes,
@@ -373,10 +358,18 @@ export default function DiarioLancamentoForm({
     setField("tempo_dep", tempoDep);
     setField("tempo_pou", tempoPou);
     setField("tempo_cor", tempoCor);
+    setField("acionamento_utc", item.horario_ac || "");
+    setField("decolagem_utc", item.horario_dep || "");
+    setField("pouso_utc", item.horario_pouso || "");
+    setField("corte_utc", item.horario_corte || "");
     setField("passageiros", String(item.numero_passageiros ?? 0));
-    recalcularTempos({ tempo_ac: tempoAc, tempo_dep: tempoDep, tempo_pou: tempoPou, tempo_cor: tempoCor });
+    setField("tempo_voo", Number(item.tempo_voo || 0).toFixed(2));
+    setField("tempo_total", Number(item.tempo_total || 0).toFixed(2));
     setField("horas_diurnas", Number(item.horas_diurnas || 0).toFixed(2));
     setField("horas_noturnas", Number(item.horas_noturnas || 0).toFixed(2));
+    setField("horas_noturnas_manual", false);
+    setField("consumo_combustivel_voo", Number(item.consumo_combustivel_voo || 0).toFixed(2));
+    setField("consumo_combustivel_total", Number(item.consumo_combustivel_total || 0).toFixed(2));
     setField("pousos_total", item.horario_pouso ? "1" : "0");
     setField("distancia_nm", String(item.distancia_nm || 0));
     setField(
@@ -435,17 +428,12 @@ export default function DiarioLancamentoForm({
         value("cliente_tomador_emprestimo_id") || null,
       socio_tomador_emprestimo_id: value("socio_tomador_emprestimo_id") || null,
       tripulacao_checkin_hora: value("tripulacao_checkin_hora") || null,
-      tempo_ac: value("tempo_ac") || null,
-      tempo_dep: value("tempo_dep") || null,
-      tempo_pou: value("tempo_pou") || null,
-      tempo_cor: value("tempo_cor") || null,
+      acionamento_utc: value("perna_jornada_id") ? (value("acionamento_utc") || timestampUtc(value("data_registro"), value("tempo_ac"))) : timestampUtc(value("data_registro"), value("tempo_ac")),
+      decolagem_utc: value("perna_jornada_id") ? (value("decolagem_utc") || timestampUtc(value("data_registro"), value("tempo_dep"))) : timestampUtc(value("data_registro"), value("tempo_dep")),
+      pouso_utc: value("perna_jornada_id") ? (value("pouso_utc") || timestampUtc(value("data_registro"), value("tempo_pou"))) : timestampUtc(value("data_registro"), value("tempo_pou")),
+      corte_utc: value("perna_jornada_id") ? (value("corte_utc") || timestampUtc(value("data_registro"), value("tempo_cor"))) : timestampUtc(value("data_registro"), value("tempo_cor")),
       tempo_ifr: number("tempo_ifr"),
-      tempo_voo: number("tempo_voo"),
-      tempo_total: number("tempo_total") || number("tempo_voo"),
-      horas_diurnas: number("horas_diurnas") || number("tempo_voo"),
-      horas_noturnas: number("horas_noturnas"),
-      consumo_combustivel_voo: number("consumo_combustivel_voo"),
-      consumo_combustivel_total: number("consumo_combustivel_total"),
+      ...(Boolean(form.horas_noturnas_manual) ? { horas_noturnas: number("horas_noturnas") } : {}),
       pousos_total: number("pousos_total"),
       distancia_nm: number("distancia_nm"),
       litros_combustivel_inicio_voo: number("litros_combustivel_inicio_voo"),
@@ -849,22 +837,25 @@ export default function DiarioLancamentoForm({
             <DurationField
               label="Tempo de voo (h)"
               value={value("tempo_voo")}
-              onChange={(v) => setField("tempo_voo", v)}
+              readOnly
             />
             <DurationField
               label="Tempo total (h)"
               value={value("tempo_total")}
-              onChange={(v) => setField("tempo_total", v)}
+              readOnly
             />
             <DurationField
               label="Horas diurnas"
               value={value("horas_diurnas")}
-              onChange={(v) => setField("horas_diurnas", v)}
+              readOnly
             />
             <DurationField
               label="Horas noturnas"
               value={value("horas_noturnas")}
-              onChange={(v) => setField("horas_noturnas", v)}
+              onChange={(v) => {
+                setField("horas_noturnas", v);
+                setField("horas_noturnas_manual", true);
+              }}
             />
             <DurationField
               label="Tempo IFR"
@@ -908,6 +899,20 @@ export default function DiarioLancamentoForm({
           title="Combustível e abastecimento"
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Consumo de voo">
+              <input
+                value={value("consumo_combustivel_voo")}
+                readOnly
+                className={`${inputClass} cursor-not-allowed opacity-70`}
+              />
+            </Field>
+            <Field label="Consumo total">
+              <input
+                value={value("consumo_combustivel_total")}
+                readOnly
+                className={`${inputClass} cursor-not-allowed opacity-70`}
+              />
+            </Field>
             <NumberField
               label="Litros no início"
               value={value("litros_combustivel_inicio_voo")}
@@ -1113,10 +1118,12 @@ function DurationField({
   label,
   value,
   onChange,
+  readOnly = false,
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
+  readOnly?: boolean;
 }) {
   return (
     <Field label={`${label} ·`}>
@@ -1124,8 +1131,9 @@ function DurationField({
         type="time"
         step="60"
         value={decimalToHoursMinutes(value)}
-        onChange={(e) => onChange(hoursMinutesToDecimal(e.target.value))}
-        className={inputClass}
+        readOnly={readOnly}
+        onChange={(e) => onChange?.(hoursMinutesToDecimal(e.target.value))}
+        className={readOnly ? `${inputClass} cursor-not-allowed opacity-70` : inputClass}
       />
     </Field>
   );

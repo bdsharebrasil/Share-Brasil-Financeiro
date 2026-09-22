@@ -196,6 +196,11 @@ export default function DiarioLancamentoForm({
     setError(null);
   }, [initialData, diarioMesId, sugeridaCelula, sugestaoTrecho]);
   useEffect(() => {
+    if (!initialData?.numero_voo || solicitacaoSelecionada) return;
+    const voo = voos.find((item) => item.numero_voo === initialData.numero_voo);
+    if (voo) setSolicitacaoSelecionada(voo.solicitacao_id);
+  }, [initialData?.numero_voo, solicitacaoSelecionada, voos]);
+  useEffect(() => {
     if (!solicitacaoSelecionada) {
       setSolicitacaoSelecionada(
         voos.find((voo) => voo.numero_voo === value("numero_voo"))
@@ -332,6 +337,14 @@ export default function DiarioLancamentoForm({
     setField("perna_jornada_id", "");
     setJornadaSelecionada("");
     setPernaSelecionada("");
+  };
+  const limparVinculoVoo = () => {
+    setSolicitacaoSelecionada("");
+    setJornadaSelecionada("");
+    setPernaSelecionada("");
+    setField("numero_voo", "");
+    setField("jornada_id", "");
+    setField("perna_jornada_id", "");
   };
   const aplicarPerna = (id: string) => {
     const item = pernasDisponiveis.find(
@@ -527,24 +540,30 @@ export default function DiarioLancamentoForm({
                   id: voo.solicitacao_id,
                   label: `${voo.numero_voo || "Voo sem número"} · ${formatDateShort(voo.data_agendada)}${voo.origem && voo.destino ? ` · ${voo.origem} → ${voo.destino}` : ""}`,
                 }))}
-                value={solicitacaoSelecionada}
-                selectedLabel={voos.find((voo) => voo.solicitacao_id === solicitacaoSelecionada)?.numero_voo || ""}
+                value={solicitacaoSelecionada || value("numero_voo")}
+                selectedLabel={voos.find((voo) => voo.solicitacao_id === solicitacaoSelecionada)?.numero_voo || value("numero_voo")}
                 onChange={(id) => {
                   if (!id) {
-                    setSolicitacaoSelecionada("");
-                    setField("numero_voo", "");
-                    setField("jornada_id", "");
-                    setField("perna_jornada_id", "");
-                    setJornadaSelecionada("");
-                    setPernaSelecionada("");
+                    limparVinculoVoo();
                     return;
                   }
-                  aplicarVoo(id);
+                  if (voos.some((voo) => voo.solicitacao_id === id)) {
+                    aplicarVoo(id);
+                    return;
+                  }
+                  // Um número digitado pode ser usado sem vínculo com uma solicitação.
+                  setSolicitacaoSelecionada("");
+                  setJornadaSelecionada("");
+                  setPernaSelecionada("");
+                  setField("numero_voo", id);
+                  setField("jornada_id", "");
+                  setField("perna_jornada_id", "");
                 }}
                 placeholder="Buscar número do voo"
                 searchPlaceholder="Digite número, rota ou data..."
-                emptyMessage="Nenhuma solicitação encontrada para esta aeronave."
+                emptyMessage="Nenhum voo encontrado. Digite para lançar manualmente ou selecione um voo."
                 clearable
+                allowFreeText
                 wrapItemLabels
                 className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
               />

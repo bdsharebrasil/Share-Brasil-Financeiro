@@ -246,7 +246,7 @@ export default function FinanceiroCotista() {
 
     setCarregando(true);
     try {
-      setDashboard(await buscarDashboardCotista());
+      setDashboard(await buscarDashboardCotista(undefined, undefined, aeronaveSelecionada));
     } catch {
       setDashboard(null);
     } finally {

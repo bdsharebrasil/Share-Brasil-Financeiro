@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { API_BASE } from "@/lib/api";
 
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
 export type PerfilColaborador = {
   id: string;
   email: string;
@@ -98,6 +100,7 @@ export async function colaboradorRequest<T>(path: string, init: RequestInit = {}
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
+  if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
   const data = await response.json().catch(() => null) as T & { error?: string; detail?: string; solicitacao_id?: string; tripulante_id?: string | null; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
   if (!response.ok) {

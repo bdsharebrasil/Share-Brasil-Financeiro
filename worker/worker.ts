@@ -89,7 +89,7 @@ app.use('*', async (c, next) => {
   const allowed = c.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean)
   const corsMiddleware = cors({
     origin: allowed && allowed.length > 0 ? allowed : '*',
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowHeaders: ['Content-Type', 'Authorization', 'apikey', 'X-Requested-With'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
   })
   return corsMiddleware(c, next)
@@ -197,8 +197,8 @@ function escapeHtml(value: string | number): string {
 async function requireAuthenticatedUser(c: Context<{ Bindings: Bindings }>): Promise<boolean> {
   const authorization = c.req.header('authorization')
   log.debug('[auth] Authorization header present:', Boolean(authorization))
-  const { SUPABASE_URL, SUPABASE_ANON_KEY, VITE_SUPABASE_PUBLISHABLE_KEY } = c.env
-  const supabaseApiKey = SUPABASE_ANON_KEY || VITE_SUPABASE_PUBLISHABLE_KEY
+  const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_PUBLISHABLE_KEY } = c.env
+  const supabaseApiKey = SUPABASE_ANON_KEY || VITE_SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY || c.req.header('apikey')
 
   if (!authorization?.startsWith('Bearer ')) {
     log.debug('[auth] missing Bearer token')
@@ -1069,7 +1069,7 @@ async function authenticatedColaborador(c: Context<{ Bindings: Bindings }>): Pro
 async function authenticatedColaboradorToken(c: Context<{ Bindings: Bindings }>, token: string): Promise<Colaborador | null> {
   const normalizedToken = token.trim()
   if (!normalizedToken || !c.env.SUPABASE_URL) return null
-  const apiKey = c.env.SUPABASE_ANON_KEY || c.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  const apiKey = c.env.SUPABASE_ANON_KEY || c.env.VITE_SUPABASE_PUBLISHABLE_KEY || c.env.SUPABASE_SERVICE_ROLE_KEY
   if (!apiKey) return null
   const response = await fetch(`${c.env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: apiKey, Authorization: `Bearer ${normalizedToken}` } }).catch(() => null)
   if (!response?.ok) return null
@@ -3994,13 +3994,14 @@ function normalizarPernaJornada(perna: any) {
 function normalizarJornadaRegistro(jornada: any) {
   return {
     ...jornada,
+    horario_dep: jornada.horario_dep ?? jornada.tempo_dep ?? null,
     horario_pouso: jornada.horario_pouso ?? jornada.horario_corte_inicio ?? null,
     horario_corte: jornada.horario_corte ?? jornada.horario_corte_final ?? null,
     pernas: Array.isArray(jornada.pernas) ? jornada.pernas.map(normalizarPernaJornada) : jornada.pernas,
   }
 }
 const LIMITES_JORNADA = { dia: 540, semana: 2640, mes: 10560, posCorte: 30 } as const
-const STATUS_JORNADA = ['em_solo', 'em_rota', 'encerrada'] as const
+const STATUS_JORNADA = ['em_solo', 'em_rota', 'pousado', 'encerrada'] as const
 
 function normalizarNumeroPassageiros(valor: unknown): number | null {
   if (valor === undefined || valor === null || valor === '') return 0
@@ -4139,7 +4140,19 @@ app.get('/api/interno/agendamento/:id/jornada', async c => {
   if (!principal) return c.json(null)
   const raiz = principal.jornada_principal_id || principal.id
   const pernas = await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(raiz).all<any>()
-  const pernasNormalizadas = (pernas.results || []).map(normalizarPernaJornada)
+  let pernasNormalizadas = (pernas.results || []).map(normalizarPernaJornada)
+  if (!pernasNormalizadas.length && principal.status !== 'encerrada' && (principal.horario_acionamento || principal.horario_dep || principal.horario_pouso || principal.horario_corte)) {
+    const voo = await c.env.SHARE_DB.prepare('SELECT origem, destino FROM solicitacoes_reserva_voo WHERE id = ?1').bind(idSolicitacao).first<{ origem: string | null; destino: string | null }>()
+    const origem = String(voo?.origem || '').trim().toUpperCase()
+    const destino = String(voo?.destino || '').trim().toUpperCase()
+    if (origem && destino) {
+      const status = statusPerna({ horario_dep: principal.horario_dep, horario_pouso: principal.horario_pouso, horario_corte: principal.horario_corte })
+      const pernaId = uuid()
+      await c.env.SHARE_DB.prepare(`INSERT INTO pernas_jornada_voo (id, jornada_id, numero, origem, destino, numero_passageiros, horario_ac, horario_dep, horario_pouso, horario_corte, status)
+        VALUES (?, ?, 1, ?, ?, 0, ?, ?, ?, ?, ?)`).bind(pernaId, raiz, origem, destino, principal.horario_acionamento || null, principal.horario_dep || null, principal.horario_pouso || null, principal.horario_corte || null, status === 'programada' && principal.status === 'em_rota' ? 'em_voo' : status).run()
+      pernasNormalizadas = [(await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE id = ?1').bind(pernaId).first<any>())].filter(Boolean).map(normalizarPernaJornada)
+    }
+  }
   const doVoo = registros.filter((j: any) => j.numero_jornada === principal.numero_jornada)
   const jornadaPorNumero = new Map<number, any>()
   for (const jornada of registros) {

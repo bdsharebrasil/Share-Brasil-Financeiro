@@ -16,9 +16,7 @@ export interface ProvedorMapa {
   estilo: (estilo: EstiloMapa) => string | StyleSpecification;
 }
 
-// Chave publicável do MapTiler (restringível por domínio no painel do provedor).
-const CHAVE_MAPTILER =
-  (import.meta.env["VITE_MAPTILER_KEY"] as string | undefined) || "ifmFkMbXO19jfJbWM1iM";
+const CHAVE_MAPTILER = (import.meta.env["VITE_MAPTILER_KEY"] as string | undefined)?.trim() || "";
 
 const ESTILOS_MAPTILER: Record<EstiloMapa, string> = {
   padrao: "streets-v2",

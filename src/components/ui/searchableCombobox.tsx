@@ -31,6 +31,10 @@ interface SearchableComboboxProps {
   icon?: React.ReactNode;
   disabled?: boolean;
   allowFreeText?: boolean;
+  clearable?: boolean;
+  selectedLabel?: string;
+  wrapSelectedLabel?: boolean;
+  wrapItemLabels?: boolean;
   className?: string;
   popoverClassName?: string;
 }
@@ -45,6 +49,10 @@ export function SearchableCombobox({
   icon,
   disabled,
   allowFreeText = false,
+  clearable = false,
+  selectedLabel,
+  wrapSelectedLabel = false,
+  wrapItemLabels = false,
   className,
   popoverClassName,
 }: SearchableComboboxProps) {
@@ -68,35 +76,35 @@ export function SearchableCombobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full justify-between h-11 px-3 bg-background hover:bg-accent/50 transition-colors touch-manipulation",
-            "border-border/60 shadow-sm rounded-lg lg:h-10",
+            "w-full justify-between h-11 px-3 bg-[#101722] text-slate-100 hover:bg-[#172231] transition-colors touch-manipulation",
+            "border-white/[.12] shadow-sm rounded-lg lg:h-10",
             className,
             // Tipografia mais elegante dependendo do estado
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
           )}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className={cn("flex min-w-0 flex-1 items-center gap-2", wrapSelectedLabel && "items-start") }>
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
-            <span className="min-w-0 truncate text-base tracking-tight lg:text-sm">
-              {selectedItem ? selectedItem.label : (value ? value : placeholder)}
+            <span className={cn("min-w-0 truncate text-base tracking-tight lg:text-sm", wrapSelectedLabel && "overflow-visible whitespace-normal break-words text-left text-clip") }>
+              {selectedItem ? (selectedLabel || selectedItem.label) : (value ? value : placeholder)}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border/50 bg-popover p-0 text-popover-foreground shadow-lg", popoverClassName)} align="start" side="bottom">
-        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground" shouldFilter={false}>
-          <div className="border-b border-border/50">
+      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-white/[.12] bg-[#101722] p-0 text-slate-100 shadow-lg", popoverClassName)} align="start" side="bottom">
+        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-[#101722] text-slate-100" shouldFilter={false}>
+          <div className="border-b border-white/[.1]">
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}
               onValueChange={setSearchValue}
-              className="flex h-12 w-full rounded-md bg-transparent py-3 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
+              className="flex h-12 w-full rounded-md bg-transparent py-3 text-base text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
             />
           </div>
           <CommandList className="max-h-[min(50dvh,320px)] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
             {filteredItems.length === 0 && !allowFreeText && (
-              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+              <CommandEmpty className="py-6 text-center text-sm text-slate-400">
                 {emptyMessage}
               </CommandEmpty>
             )}
@@ -104,6 +112,19 @@ export function SearchableCombobox({
               <CommandEmpty className="py-2" />
             )}
             <CommandGroup>
+              {clearable && value && (
+                <CommandItem
+                  value="__clear_selection__"
+                  onSelect={() => {
+                    onChange("", "")
+                    setSearchValue("")
+                    setOpen(false)
+                  }}
+                  className="flex min-h-[2.75rem] items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-400 transition-colors hover:bg-white/[.06] hover:text-white"
+                >
+                  Limpar seleção
+                </CommandItem>
+              )}
               {filteredItems.map((item) => (
                 <CommandItem
                   key={item.id}
@@ -122,8 +143,10 @@ export function SearchableCombobox({
                     )}
                   />
                   <span className={cn(
-                    "truncate",
-                    value === item.id ? "font-semibold" : "font-medium text-foreground/80"
+                    "min-w-0",
+                    !wrapItemLabels && "truncate",
+                    wrapItemLabels && "whitespace-normal break-words text-left",
+                    value === item.id ? "font-semibold" : "font-medium text-slate-200"
                   )}>
                     {item.label}
                   </span>

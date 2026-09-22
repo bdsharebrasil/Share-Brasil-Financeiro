@@ -399,3 +399,10 @@ export function anexarDocumentoLancamento(id: string, dados: { nome: string; url
 export function gerarReembolso(dados: Record<string, unknown>) {
   return financeiroRequest<Record<string, unknown>>("/api/financeiro/reembolsos", { method: "POST", body: JSON.stringify(dados) });
 }
+
+export type ReembolsoPendente = { id: string; conta_receber_id: string; descricao: string | null; aeronave: string | null; cotista_nome: string | null; valor_total_centavos: number; valor_devido_centavos: number; valor_recebido_centavos: number; valor_pendente_centavos: number; status: string; data_vencimento: string | null };
+export function buscarReembolsosPendentes() { return financeiroRequest<ReembolsoPendente[]>("/api/financeiro/reembolsos/pendentes"); }
+export function baixarReembolsosConsolidados(dados: Record<string, unknown>) { return financeiroRequest<Record<string, unknown>>("/api/financeiro/reembolsos/baixa-consolidada", { method: "POST", body: JSON.stringify(dados) }); }
+
+export type ResumoSalarios = { disponivel: boolean; folha: Record<string, unknown> | null; itens: Array<Record<string, unknown>>; resumo: { folha_mes: number; salarios_pagos: number; salarios_pendentes: number; beneficios: number; encargos: number; impostos: number; total_folha: number } };
+export function buscarResumoSalarios() { return financeiroRequest<ResumoSalarios>("/api/financeiro/salarios/resumo"); }

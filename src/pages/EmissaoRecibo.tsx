@@ -395,6 +395,14 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         : [],
     [form.aeronave_id, opcoes.cotistas],
   );
+  const clientesSemCotista = useMemo(() => {
+    const clienteIdsCotistas = new Set(
+      opcoes.cotistas
+        .map((cotista) => cotista.cliente_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    return opcoes.clientes.filter((cliente) => !clienteIdsCotistas.has(cliente.id));
+  }, [opcoes.clientes, opcoes.cotistas]);
 
   const valorReciboCentavos = Math.round(valorNumerico(form.valor) * 100);
   const tipoSelecionado = opcoesTipo.find((item) => item.id === form.tipo);
@@ -1101,7 +1109,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       <SearchableCombobox
                         items={[
                           ...(form.aeronave_id ? cotistasDaAeronave : opcoes.cotistas),
-                          ...opcoes.clientes,
+                          ...clientesSemCotista,
                         ].map((pagador) => ({
                           id: pagador.id,
                           label: "razao_social" in pagador
@@ -1109,7 +1117,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             : `${pagador.nome}${pagador.codigo_cliente ? ` · ${pagador.codigo_cliente}` : ""}`,
                         }))}
                         value={form.pagador_id}
-                        onChange={(id) => opcoes.clientes.some((cliente) => cliente.id === id)
+                        onChange={(id) => clientesSemCotista.some((cliente) => cliente.id === id)
                           ? selecionarClienteDevedor(id)
                           : selecionarCotistaDevedor(id)}
                         placeholder={
@@ -1186,7 +1194,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             id: cotista.id,
                             label: `${cotista.nome}${cotista.codigo_cliente ? ` · ${cotista.codigo_cliente}` : ""}`,
                           })),
-                          ...opcoes.clientes.map((cliente) => ({
+                          ...clientesSemCotista.map((cliente) => ({
                             id: cliente.id,
                             label: `${cliente.razao_social}${cliente.codigo_cliente ? ` · ${cliente.codigo_cliente}` : ""} · Cliente`,
                           })),
@@ -1201,7 +1209,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                             alterar("pagador_tipo", "empresa");
                             alterar("pagador_id", "");
                           } else {
-                            alterar("pagador_tipo", opcoes.clientes.some((cliente) => cliente.id === id) ? "cliente" : "cotista_aeronave");
+                            alterar("pagador_tipo", clientesSemCotista.some((cliente) => cliente.id === id) ? "cliente" : "cotista_aeronave");
                             alterar("pagador_id", id);
                           }
                         }}

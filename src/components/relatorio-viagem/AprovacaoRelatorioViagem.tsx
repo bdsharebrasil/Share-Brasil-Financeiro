@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  CircleDollarSign,
   ExternalLink,
   Eye,
   FileImage,
@@ -24,19 +20,13 @@ import {
 import { API_BASE } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 
-/*
-  Página pública de aprovação de Relatório de Despesa de Viagem.
-
-  Importante:
-  - Não usa ScrollArea nem qualquer container com overflow-y próprio.
-  - O scroll principal fica no documento/body, evitando a sensação de "trava"
-    ao rolar no celular.
-  - A barra de decisão fica fixa no rodapé apenas enquanto a aprovação estiver pendente.
-  - O endpoint público atual já entrega r.anexos com indice_despesa e url_arquivo.
-*/
-
 type TipoAcao = "aprovar" | "rejeitar" | null;
-type Pagador = "tripulante_1" | "tripulante_2" | "cliente" | "sharebrasil" | "outro";
+type Pagador =
+  | "tripulante_1"
+  | "tripulante_2"
+  | "cliente"
+  | "sharebrasil"
+  | "outro";
 
 type Despesa = {
   id?: string;
@@ -111,7 +101,7 @@ function moeda(valor: unknown) {
 
 function dataBr(valor: unknown) {
   const partes = String(valor || "").slice(0, 10).split("-");
-  if (partes.length !== 3 || !partes[0] || !partes[1] || !partes[2]) return "—";
+  if (partes.length !== 3 || partes.some((item) => !item)) return "—";
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
@@ -131,9 +121,15 @@ function normalizarPagador(valor: unknown): Pagador {
     .replace(/[\s-]+/g, "_");
 
   if (normalizado === "cliente" || normalizado === "client") return "cliente";
-  if (["share", "sharebrasil", "share_brasil"].includes(normalizado)) return "sharebrasil";
-  if (["tripulante_2", "tripulante2"].includes(normalizado)) return "tripulante_2";
-  if (["tripulante_1", "tripulante1"].includes(normalizado)) return "tripulante_1";
+  if (["share", "sharebrasil", "share_brasil"].includes(normalizado)) {
+    return "sharebrasil";
+  }
+  if (["tripulante_2", "tripulante2"].includes(normalizado)) {
+    return "tripulante_2";
+  }
+  if (["tripulante_1", "tripulante1"].includes(normalizado)) {
+    return "tripulante_1";
+  }
   return "outro";
 }
 
@@ -170,54 +166,76 @@ function isImagem(anexo: Anexo) {
 }
 
 function isPdf(anexo: Anexo) {
-  return String(anexo.tipo_arquivo || "").toLowerCase() === "application/pdf" ||
-    String(anexo.nome_arquivo || "").toLowerCase().endsWith(".pdf");
+  return (
+    String(anexo.tipo_arquivo || "").toLowerCase() === "application/pdf" ||
+    String(anexo.nome_arquivo || "").toLowerCase().endsWith(".pdf")
+  );
 }
 
 function statusLegivel(status: unknown) {
-  const value = String(status || "").toLowerCase();
-  if (value === "aprovado") return "Aprovado";
-  if (value === "reprovado" || value === "rejeitado") return "Reprovado";
-  if (value === "nao_aplicavel") return "Não aplicável";
+  const valor = String(status || "").toLowerCase();
+  if (valor === "aprovado") return "Aprovado";
+  if (valor === "reprovado" || valor === "rejeitado") return "Reprovado";
+  if (valor === "nao_aplicavel") return "Não aplicável";
   return "Pendente";
 }
 
-function classeCategoria(categoria: unknown) {
+function categoriaClasse(categoria: unknown) {
   const valor = String(categoria || "").toLowerCase();
-  if (valor.includes("hosped")) return "bg-violet-50 text-violet-700 border-violet-200";
-  if (valor.includes("aliment")) return "bg-amber-50 text-amber-700 border-amber-200";
-  if (valor.includes("transport")) return "bg-sky-50 text-sky-700 border-sky-200";
-  if (valor.includes("combust")) return "bg-slate-100 text-slate-700 border-slate-200";
-  return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (valor.includes("hosped")) {
+    return "border-violet-400/20 bg-violet-400/10 text-violet-200";
+  }
+  if (valor.includes("aliment")) {
+    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
+  }
+  if (valor.includes("transport")) {
+    return "border-sky-400/20 bg-sky-400/10 text-sky-200";
+  }
+  if (valor.includes("combust")) {
+    return "border-slate-400/20 bg-slate-400/10 text-slate-200";
+  }
+  return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
 }
 
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+function Cartao({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <section
-      className={`rounded-3xl border border-slate-200 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.07)] ${className}`}
+      className={`overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] ${className}`}
     >
       {children}
     </section>
   );
 }
 
-function SectionHeader({
+function TituloSecao({
   icon,
-  title,
-  subtitle,
+  titulo,
+  subtitulo,
 }: {
   icon: ReactNode;
-  title: string;
-  subtitle?: string;
+  titulo: string;
+  subtitulo?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
-      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-700">
+    <div className="flex items-start gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+      <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-sky-200">
         {icon}
       </span>
       <div className="min-w-0">
-        <h2 className="text-sm font-extrabold tracking-tight text-slate-900 sm:text-base">{title}</h2>
-        {subtitle ? <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{subtitle}</p> : null}
+        <h2 className="text-sm font-extrabold tracking-tight text-white sm:text-base">
+          {titulo}
+        </h2>
+        {subtitulo ? (
+          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            {subtitulo}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -238,90 +256,206 @@ export default function AprovacaoRelatorioViagem() {
   const [enviando, setEnviando] = useState(false);
   const [acao, setAcao] = useState<TipoAcao>(null);
   const [motivo, setMotivo] = useState("");
-  const [comprovanteSelecionado, setComprovanteSelecionado] = useState<ComprovanteSelecionado | null>(null);
-  const [abertos, setAbertos] = useState<Record<string, boolean>>({
-    suas: true,
-    cliente: false,
-    share: false,
-    comprovantes: false,
-  });
+  const [chegouAoFim, setChegouAoFim] = useState(false);
+  const [comprovanteSelecionado, setComprovanteSelecionado] =
+    useState<ComprovanteSelecionado | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Esta página é pública e deve usar apenas o scroll do documento.
-    // Assim não existe um segundo viewport prendendo a rolagem do celular.
-    const htmlAnterior = document.documentElement.style.overflowY;
-    const bodyAnterior = document.body.style.overflowY;
-    document.documentElement.style.overflowY = "auto";
-    document.body.style.overflowY = "auto";
+    /*
+      A tela pública NÃO usa o ScrollArea do sistema.
+      O body fica travado e existe um único viewport de rolagem:
+      o container fixo abaixo.
+      Isso elimina o problema de "puxar a tela e ela não descer".
+    */
+    const html = document.documentElement;
+    const body = document.body;
 
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const anterior = {
+      htmlOverflow: html.style.overflow,
+      htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyHeight: body.style.height,
+      bodyOverscroll: body.style.overscrollBehaviorY,
+      colorScheme: html.style.colorScheme,
+    };
 
+    html.style.overflow = "hidden";
+    html.style.height = "100%";
+    html.style.colorScheme = "dark";
+
+    body.style.overflow = "hidden";
+    body.style.height = "100%";
+    body.style.overscrollBehaviorY = "none";
+
+    return () => {
+      html.style.overflow = anterior.htmlOverflow;
+      html.style.height = anterior.htmlHeight;
+      html.style.colorScheme = anterior.colorScheme;
+
+      body.style.overflow = anterior.bodyOverflow;
+      body.style.height = anterior.bodyHeight;
+      body.style.overscrollBehaviorY = anterior.bodyOverscroll;
+    };
+  }, []);
+
+  useEffect(() => {
     let ativo = true;
-    void fetch(`${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`)
+    setData(null);
+    setErro(false);
+    setChegouAoFim(false);
+    setMensagem("Carregando relatório...");
+
+    void fetch(
+      `${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`,
+    )
       .then(async (response) => {
         const json = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(json?.error || "Link inválido ou expirado.");
+        if (!response.ok) {
+          throw new Error(json?.error || "Link inválido ou expirado.");
+        }
         if (!ativo) return;
+
         setData(json as ApprovalData);
         setMensagem("");
-        setErro(false);
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+        });
       })
       .catch((error) => {
         if (!ativo) return;
         setErro(true);
-        setMensagem(error instanceof Error ? error.message : "Link inválido ou expirado.");
+        setMensagem(
+          error instanceof Error
+            ? error.message
+            : "Link inválido ou expirado.",
+        );
       });
 
     return () => {
       ativo = false;
-      document.documentElement.style.overflowY = htmlAnterior;
-      document.body.style.overflowY = bodyAnterior;
     };
   }, [token]);
 
-  const despesas = useMemo(() => parseDespesas(data?.relatorio?.despesas), [data?.relatorio?.despesas]);
-  const anexos = useMemo(() => (Array.isArray(data?.relatorio?.anexos) ? data!.relatorio.anexos! : []), [data?.relatorio?.anexos]);
+  const despesas = useMemo(
+    () => parseDespesas(data?.relatorio?.despesas),
+    [data?.relatorio?.despesas],
+  );
 
-  const resumo = data?.resumo || {};
+  const anexos = useMemo(
+    () =>
+      Array.isArray(data?.relatorio?.anexos)
+        ? data.relatorio.anexos
+        : [],
+    [data?.relatorio?.anexos],
+  );
+
+  const anexosPorDespesa = useMemo(() => {
+    const mapa = new Map<number, Anexo[]>();
+
+    anexos.forEach((anexo) => {
+      const indice = Number(anexo.indice_despesa);
+      if (!Number.isFinite(indice)) return;
+
+      const lista = mapa.get(indice) || [];
+      lista.push(anexo);
+      mapa.set(indice, lista);
+    });
+
+    return mapa;
+  }, [anexos]);
+
   const posicao = data?.tripulante_pos || 1;
-  const nomeTripulante = posicao === 1 ? data?.relatorio?.nome_tripulante : data?.relatorio?.nome_tripulante_2;
-  const pagadorTripulante: Pagador = posicao === 1 ? "tripulante_1" : "tripulante_2";
+  const relatorio = data?.relatorio;
+  const nomeTripulante =
+    posicao === 1
+      ? relatorio?.nome_tripulante
+      : relatorio?.nome_tripulante_2;
+
+  const pagadorTripulante: Pagador =
+    posicao === 1 ? "tripulante_1" : "tripulante_2";
 
   const despesasTripulante = useMemo(
-    () => despesas.filter((item) => normalizarPagador(item.pago_por || item.paid_by) === pagadorTripulante),
+    () =>
+      despesas.filter(
+        (item) =>
+          normalizarPagador(item.pago_por || item.paid_by) ===
+          pagadorTripulante,
+      ),
     [despesas, pagadorTripulante],
   );
 
+  const despesasOutroTripulante = useMemo(
+    () =>
+      despesas.filter(
+        (item) =>
+          normalizarPagador(item.pago_por || item.paid_by) !==
+            pagadorTripulante &&
+          normalizarPagador(item.pago_por || item.paid_by) ===
+            (posicao === 1 ? "tripulante_2" : "tripulante_1"),
+      ),
+    [despesas, posicao, pagadorTripulante],
+  );
+
   const despesasCliente = useMemo(
-    () => despesas.filter((item) => normalizarPagador(item.pago_por || item.paid_by) === "cliente"),
+    () =>
+      despesas.filter(
+        (item) =>
+          normalizarPagador(item.pago_por || item.paid_by) === "cliente",
+      ),
     [despesas],
   );
 
   const despesasShare = useMemo(
-    () => despesas.filter((item) => normalizarPagador(item.pago_por || item.paid_by) === "sharebrasil"),
+    () =>
+      despesas.filter(
+        (item) =>
+          normalizarPagador(item.pago_por || item.paid_by) === "sharebrasil",
+      ),
     [despesas],
   );
+
+  const despesasOutros = useMemo(
+    () =>
+      despesas.filter(
+        (item) =>
+          normalizarPagador(item.pago_por || item.paid_by) === "outro",
+      ),
+    [despesas],
+  );
+
+  const resumo = data?.resumo || {};
 
   const totalGeral = useMemo(
-    () => despesas.reduce((total, item) => total + (Number(item.valor) || 0), 0),
+    () =>
+      despesas.reduce(
+        (total, item) => total + (Number(item.valor) || 0),
+        0,
+      ),
     [despesas],
   );
 
-  const totalTripulante = Number(resumo.total_a_receber) || despesasTripulante.reduce((total, item) => total + (Number(item.valor) || 0), 0);
-  const totalCliente = Number(resumo.cliente_pagou) || despesasCliente.reduce((total, item) => total + (Number(item.valor) || 0), 0);
-  const totalShare = Number(resumo.share_brasil_pagou) || despesasShare.reduce((total, item) => total + (Number(item.valor) || 0), 0);
+  const totalTripulante =
+    Number(resumo.total_a_receber) ||
+    despesasTripulante.reduce(
+      (total, item) => total + (Number(item.valor) || 0),
+      0,
+    );
 
-  const anexosPorDespesa = useMemo(() => {
-    const mapa = new Map<number, Anexo[]>();
-    anexos.forEach((anexo) => {
-      const indice = Number(anexo.indice_despesa);
-      if (!Number.isFinite(indice)) return;
-      const atuais = mapa.get(indice) || [];
-      atuais.push(anexo);
-      mapa.set(indice, atuais);
-    });
-    return mapa;
-  }, [anexos]);
+  const totalCliente =
+    Number(resumo.cliente_pagou) ||
+    despesasCliente.reduce(
+      (total, item) => total + (Number(item.valor) || 0),
+      0,
+    );
+
+  const totalShare =
+    Number(resumo.share_brasil_pagou) ||
+    despesasShare.reduce(
+      (total, item) => total + (Number(item.valor) || 0),
+      0,
+    );
 
   const statusAtual = data
     ? String(
@@ -331,26 +465,49 @@ export default function AprovacaoRelatorioViagem() {
       ).toLowerCase()
     : "";
 
-  const decisaoRegistrada = statusAtual === "aprovado" || statusAtual === "reprovado" || statusAtual === "rejeitado";
+  const decisaoRegistrada =
+    statusAtual === "aprovado" ||
+    statusAtual === "reprovado" ||
+    statusAtual === "rejeitado";
+
   const foiAprovado = statusAtual === "aprovado";
-  const foiReprovado = statusAtual === "reprovado" || statusAtual === "rejeitado";
+  const foiReprovado =
+    statusAtual === "reprovado" || statusAtual === "rejeitado";
 
   const aprovadoEm =
     posicao === 1
-      ? data?.relatorio.aprovado_tripulante_1_em || data?.relatorio.aprovado_tripulante_em
-      : data?.relatorio.aprovado_tripulante_2_em;
+      ? relatorio?.aprovado_tripulante_1_em ||
+        relatorio?.aprovado_tripulante_em
+      : relatorio?.aprovado_tripulante_2_em;
 
   const motivoRegistrado =
     posicao === 1
-      ? data?.relatorio.motivo_reprovacao_tripulante_1 || data?.relatorio.observacoes_aprovacao_tripulante
-      : data?.relatorio.motivo_reprovacao_tripulante_2 || data?.relatorio.observacoes_aprovacao_tripulante_2;
+      ? relatorio?.motivo_reprovacao_tripulante_1 ||
+        relatorio?.observacoes_aprovacao_tripulante
+      : relatorio?.motivo_reprovacao_tripulante_2 ||
+        relatorio?.observacoes_aprovacao_tripulante_2;
 
-  const alternar = (chave: string) => {
-    setAbertos((atual) => ({ ...atual, [chave]: !atual[chave] }));
+  const verificarFimScroll = () => {
+    const elemento = scrollRef.current;
+    if (!elemento) return;
+
+    const chegou =
+      elemento.scrollTop + elemento.clientHeight >=
+      elemento.scrollHeight - 48;
+
+    if (chegou) setChegouAoFim(true);
   };
 
   const decidir = async (aprovado: boolean) => {
     if (!data || decisaoRegistrada || enviando) return;
+
+    if (aprovado && !chegouAoFim) {
+      setMensagem(
+        "Desça até o final do relatório para liberar a aprovação.",
+      );
+      return;
+    }
+
     if (!aprovado && !motivo.trim()) {
       setMensagem("Informe o motivo da rejeição antes de continuar.");
       return;
@@ -365,415 +522,650 @@ export default function AprovacaoRelatorioViagem() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ aprovado, motivo: motivo.trim() }),
+          body: JSON.stringify({
+            aprovado,
+            motivo: motivo.trim(),
+          }),
         },
       );
 
       const json = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(json?.error || "Não foi possível registrar sua decisão.");
 
-      setData((atual) => (atual ? { ...atual, relatorio: json.relatorio } : atual));
-      setMensagem(aprovado ? "Sua aprovação foi registrada com sucesso." : "Sua rejeição foi registrada com sucesso.");
+      if (!response.ok) {
+        throw new Error(
+          json?.error || "Não foi possível registrar sua decisão.",
+        );
+      }
+
+      setData((atual) =>
+        atual
+          ? {
+              ...atual,
+              relatorio: json.relatorio,
+            }
+          : atual,
+      );
+
+      setMensagem(
+        aprovado
+          ? "Sua aprovação foi registrada com sucesso."
+          : "Sua rejeição foi registrada com sucesso.",
+      );
+
       setMotivo("");
       setAcao(null);
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      });
     } catch (error) {
-      setMensagem(error instanceof Error ? error.message : "Não foi possível registrar sua decisão.");
+      setMensagem(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registrar sua decisão.",
+      );
     } finally {
       setEnviando(false);
     }
   };
 
+  const abrirComprovante = (
+    anexo: Anexo,
+    indice: number,
+    descricaoDespesa: string,
+  ) => {
+    setComprovanteSelecionado({
+      ...anexo,
+      indice,
+      descricaoDespesa,
+    });
+  };
+
+  const renderDespesa = (despesa: Despesa, indice: number) => {
+    const anexosDaDespesa = anexosPorDespesa.get(indice) || [];
+
+    return (
+      <div
+        key={`${despesa.id || "despesa"}-${indice}`}
+        className="border-b border-white/10 px-4 py-4 last:border-b-0 sm:px-5 sm:py-5"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${categoriaClasse(
+                  despesa.categoria,
+                )}`}
+              >
+                {despesa.categoria || "Outros"}
+              </span>
+
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-slate-400">
+                {dataBr(despesa.data)}
+              </span>
+            </div>
+
+            <p className="mt-3 break-words text-sm font-extrabold text-white">
+              {despesa.descricao || "Despesa sem descrição"}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Pago por {nomePagador(despesa.pago_por || despesa.paid_by)}
+            </p>
+
+            {despesa.observacoes ? (
+              <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">
+                {despesa.observacoes}
+              </p>
+            ) : null}
+          </div>
+
+          <strong className="shrink-0 text-sm font-black text-white sm:text-base">
+            {moeda(despesa.valor)}
+          </strong>
+        </div>
+
+        {anexosDaDespesa.length ? (
+          <div className="mt-3 space-y-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              Comprovantes
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {anexosDaDespesa.map((anexo) => (
+                <button
+                  key={anexo.id}
+                  type="button"
+                  onClick={() =>
+                    abrirComprovante(
+                      anexo,
+                      indice,
+                      despesa.descricao || "Despesa",
+                    )
+                  }
+                  className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-left text-xs font-bold text-slate-200 transition active:scale-[0.99] hover:border-sky-300/30 hover:bg-white/[0.07]"
+                >
+                  {isImagem(anexo) ? (
+                    <FileImage
+                      size={15}
+                      className="shrink-0 text-sky-300"
+                    />
+                  ) : (
+                    <FileText
+                      size={15}
+                      className="shrink-0 text-slate-300"
+                    />
+                  )}
+
+                  <span className="min-w-0 max-w-[190px] truncate">
+                    {anexo.nome_arquivo || "Comprovante"}
+                  </span>
+
+                  <Eye size={14} className="shrink-0 text-slate-500" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   if (!data) {
     return (
-      <main className="min-h-dvh bg-[#f5f7fa] px-4 py-8 text-slate-900 sm:px-6 sm:py-12">
-        <div className="mx-auto flex min-h-[70dvh] w-full max-w-xl items-center justify-center">
-          <Card className="w-full p-6 text-center sm:p-8">
-            <img src="/logo.share.png" alt="Share Brasil" className="mx-auto mb-6 h-12 w-auto object-contain" />
-            <div className={`mx-auto grid size-12 place-items-center rounded-2xl ${erro ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
-              {erro ? <XCircle size={23} /> : <Loader2 size={23} className="animate-spin" />}
+      <main className="fixed inset-0 overflow-y-auto bg-[#060b14] text-white">
+        <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+            <img
+              src="/logo.share.png"
+              alt="Share Brasil"
+              className="mx-auto mb-6 h-12 w-auto object-contain"
+            />
+
+            <div
+              className={`mx-auto grid size-12 place-items-center rounded-2xl ${
+                erro
+                  ? "bg-rose-400/10 text-rose-300"
+                  : "bg-white/[0.06] text-sky-300"
+              }`}
+            >
+              {erro ? (
+                <XCircle size={23} />
+              ) : (
+                <Loader2 size={23} className="animate-spin" />
+              )}
             </div>
-            <h1 className="mt-5 text-lg font-extrabold">{erro ? "Não foi possível abrir o relatório" : "Carregando relatório"}</h1>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500">{mensagem}</p>
-          </Card>
+
+            <h1 className="mt-5 text-lg font-extrabold">
+              {erro
+                ? "Não foi possível abrir o relatório"
+                : "Carregando relatório"}
+            </h1>
+
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-400">
+              {mensagem}
+            </p>
+          </div>
         </div>
       </main>
     );
   }
 
-  const relatorio = data.relatorio;
-
   return (
-    <main className="min-h-dvh overflow-visible bg-[#f5f7fa] pb-36 text-slate-900 sm:pb-40">
-      <div className="mx-auto w-full max-w-3xl px-3 pb-8 pt-3 sm:px-6 sm:pb-12 sm:pt-6">
-        <header className="sticky top-0 z-30 -mx-3 mb-4 border-b border-slate-200/80 bg-[#f5f7fa]/95 px-3 py-3 backdrop-blur-xl sm:static sm:mx-0 sm:mb-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
-          <div className="flex items-center gap-3">
-            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm sm:size-14">
-              <img src="/logo.share.png" alt="Share Brasil" className="max-h-8 w-auto object-contain sm:max-h-9" />
+    <>
+      <main
+        ref={scrollRef}
+        onScroll={verificarFimScroll}
+        className="fixed inset-0 z-10 overflow-y-auto overscroll-y-contain bg-[#060b14] text-white"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
+        }}
+      >
+        <div className="mx-auto w-full max-w-4xl px-3 pb-44 pt-3 sm:px-6 sm:pb-48 sm:pt-6">
+          <header className="mb-4 flex items-center gap-3 sm:mb-6">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] sm:size-14">
+              <img
+                src="/logo.share.png"
+                alt="Share Brasil"
+                className="max-h-8 w-auto object-contain sm:max-h-9"
+              />
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#2f6c93] sm:text-[11px]">Share Brasil</p>
-              <h1 className="truncate text-base font-extrabold tracking-tight text-slate-950 sm:text-xl">Aprovação de despesas</h1>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-sky-300 sm:text-[11px]">
+                Share Brasil
+              </p>
+
+              <h1 className="truncate text-base font-extrabold tracking-tight text-white sm:text-xl">
+                Aprovação de despesas
+              </h1>
             </div>
-            <span className={`hidden rounded-full border px-3 py-1.5 text-[11px] font-bold sm:inline-flex ${decisaoRegistrada ? (foiAprovado ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700") : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+
+            <span
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold ${
+                decisaoRegistrada
+                  ? foiAprovado
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                    : "border-rose-400/20 bg-rose-400/10 text-rose-200"
+                  : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+              }`}
+            >
               {statusLegivel(statusAtual)}
             </span>
-          </div>
-        </header>
+          </header>
 
-        {mensagem ? (
-          <div className={`mb-4 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm sm:mb-5 ${mensagem.includes("sucesso") ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-            <Info size={17} className="mt-0.5 shrink-0" />
-            <p className="min-w-0 leading-relaxed">{mensagem}</p>
-          </div>
-        ) : null}
+          {mensagem ? (
+            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-300/15 bg-sky-300/[0.06] px-4 py-3 text-sm text-sky-100 sm:mb-5">
+              <Info size={17} className="mt-0.5 shrink-0" />
+              <p className="min-w-0 leading-relaxed">{mensagem}</p>
+            </div>
+          ) : null}
 
-        <Card className="overflow-hidden border-slate-200">
-          <div className="border-b border-slate-100 bg-gradient-to-br from-white to-slate-50 px-4 py-5 sm:px-6 sm:py-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#2f6c93]">
-                  <ShieldCheck size={13} /> Revisão do tripulante
-                </span>
-                <h2 className="mt-3 break-words text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">
-                  Relatório {relatorio.numero_relatorio || "—"}
-                </h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                  Confira todas as despesas da viagem antes de aprovar.
+          <Cartao>
+            <div className="border-b border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-5 sm:px-6 sm:py-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200">
+                    <ShieldCheck size={13} />
+                    Revisão completa
+                  </span>
+
+                  <h2 className="mt-3 break-words text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+                    Relatório {relatorio?.numero_relatorio || "—"}
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-relaxed text-slate-400">
+                    Confira o relatório inteiro, incluindo suas despesas, as
+                    despesas do cliente, da Share Brasil e os comprovantes,
+                    antes de aprovar.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:min-w-[160px] sm:text-right">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-200/70">
+                    Seu total
+                  </p>
+                  <p className="mt-1 text-xl font-black text-emerald-100">
+                    {moeda(totalTripulante)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Voo
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-white">
+                    <Plane size={14} className="text-sky-300" />
+                    {relatorio?.numero_voo || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Aeronave
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-white">
+                    {relatorio?.aeronave_matricula ||
+                      relatorio?.matricula_aeronave ||
+                      "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Período
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-white">
+                    {dataBr(relatorio?.data_inicio)} a{" "}
+                    {dataBr(relatorio?.data_fim)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Tripulante
+                  </p>
+                  <p className="mt-1 break-words text-sm font-bold text-white">
+                    {nomeTripulante || `Tripulante ${posicao}`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Rota
+                </p>
+                <p className="mt-1 break-words text-sm font-bold text-white">
+                  {relatorio?.rota || "—"}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-right shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Seu total</p>
-                <p className="mt-0.5 text-xl font-black tracking-tight text-slate-950">{moeda(totalTripulante)}</p>
-              </div>
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Voo</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-800"><Plane size={14} />{relatorio.numero_voo || "—"}</p>
+            <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
+              <div className="bg-[#0b111c] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Total da viagem
+                </p>
+                <p className="mt-1 text-base font-black text-white">
+                  {moeda(totalGeral)}
+                </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aeronave</p>
-                <p className="mt-1 text-sm font-bold text-slate-800">{relatorio.aeronave_matricula || relatorio.matricula_aeronave || "—"}</p>
+
+              <div className="bg-[#0b111c] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Você
+                </p>
+                <p className="mt-1 text-base font-black text-emerald-200">
+                  {moeda(totalTripulante)}
+                </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Período</p>
-                <p className="mt-1 text-sm font-bold text-slate-800">{dataBr(relatorio.data_inicio)} → {dataBr(relatorio.data_fim)}</p>
+
+              <div className="bg-[#0b111c] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Cliente
+                </p>
+                <p className="mt-1 text-base font-black text-sky-200">
+                  {moeda(totalCliente)}
+                </p>
+              </div>
+
+              <div className="bg-[#0b111c] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Share Brasil
+                </p>
+                <p className="mt-1 text-base font-black text-white">
+                  {moeda(totalShare)}
+                </p>
               </div>
             </div>
+          </Cartao>
 
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-              <div className="flex items-start gap-2.5">
-                <UserRound size={17} className="mt-0.5 shrink-0 text-[#2f6c93]" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tripulante</p>
-                  <p className="mt-0.5 break-words text-sm font-bold text-slate-800">{nomeTripulante || `Tripulante ${posicao}`}</p>
-                  <p className="mt-0.5 break-words text-xs text-slate-500">Rota: {relatorio.rota || "—"}</p>
+          <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+            <Cartao>
+              <TituloSecao
+                icon={<UserRound size={18} />}
+                titulo={`Suas despesas (${despesasTripulante.length})`}
+                subtitulo={`Total pago por você: ${moeda(totalTripulante)}`}
+              />
+
+              {despesasTripulante.length ? (
+                <div>
+                  {despesasTripulante.map((despesa) =>
+                    renderDespesa(despesa, despesas.indexOf(despesa)),
+                  )}
                 </div>
-              </div>
-            </div>
-          </div>
+              ) : (
+                <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
+                  Nenhuma despesa atribuída a você.
+                </p>
+              )}
+            </Cartao>
 
-          <div className="grid grid-cols-2 gap-px bg-slate-100 sm:grid-cols-4">
-            <div className="bg-white p-3.5 sm:p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total da viagem</p>
-              <p className="mt-1 text-base font-black text-slate-900">{moeda(totalGeral)}</p>
-            </div>
-            <div className="bg-white p-3.5 sm:p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Você</p>
-              <p className="mt-1 text-base font-black text-emerald-700">{moeda(totalTripulante)}</p>
-            </div>
-            <div className="bg-white p-3.5 sm:p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</p>
-              <p className="mt-1 text-base font-black text-sky-700">{moeda(totalCliente)}</p>
-            </div>
-            <div className="bg-white p-3.5 sm:p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Share Brasil</p>
-              <p className="mt-1 text-base font-black text-slate-800">{moeda(totalShare)}</p>
-            </div>
-          </div>
-        </Card>
+            {despesasOutroTripulante.length ? (
+              <Cartao>
+                <TituloSecao
+                  icon={<UserRound size={18} />}
+                  titulo={`Despesas do outro tripulante (${despesasOutroTripulante.length})`}
+                  subtitulo="Exibidas para conferência do relatório completo."
+                />
 
-        <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
-          <Card className="overflow-hidden">
-            <button
-              type="button"
-              className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5"
-              onClick={() => alternar("suas")}
-              aria-expanded={abertos.suas}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><UserRound size={18} /></span>
-                <span className="min-w-0">
-                  <strong className="block text-sm font-extrabold text-slate-900">Suas despesas</strong>
-                  <span className="block text-xs text-slate-500">{despesasTripulante.length} lançamento(s) · {moeda(totalTripulante)}</span>
-                </span>
-              </span>
-              {abertos.suas ? <ChevronUp size={18} className="shrink-0 text-slate-400" /> : <ChevronDown size={18} className="shrink-0 text-slate-400" />}
-            </button>
-            {abertos.suas ? (
-              <div className="border-t border-slate-100">
-                {despesasTripulante.map((despesa) => {
-                  const indice = despesas.indexOf(despesa);
-                  const anexosDaDespesa = anexosPorDespesa.get(indice) || [];
-                  return (
-                    <div key={`${despesa.id || "despesa"}-${indice}`} className="border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2 py-1 text-[10px] font-extrabold ${classeCategoria(despesa.categoria)}`}>{despesa.categoria || "Outros"}</span>
-                            {anexosDaDespesa.length ? <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500"><ReceiptText size={11} />{anexosDaDespesa.length} comprovante(s)</span> : null}
-                          </div>
-                          <p className="mt-2 break-words text-sm font-bold text-slate-900">{despesa.descricao || "Despesa sem descrição"}</p>
-                          <p className="mt-1 text-xs text-slate-500">{dataBr(despesa.data)} · Pago por {nomePagador(despesa.pago_por || despesa.paid_by)}</p>
-                          {despesa.observacoes ? <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">{despesa.observacoes}</p> : null}
+                <div>
+                  {despesasOutroTripulante.map((despesa) =>
+                    renderDespesa(despesa, despesas.indexOf(despesa)),
+                  )}
+                </div>
+              </Cartao>
+            ) : null}
+
+            <Cartao>
+              <TituloSecao
+                icon={<ReceiptText size={18} />}
+                titulo={`Despesas pagas pelo cliente (${despesasCliente.length})`}
+                subtitulo={`Total pago pelo cliente: ${moeda(totalCliente)}`}
+              />
+
+              {despesasCliente.length ? (
+                <div>
+                  {despesasCliente.map((despesa) =>
+                    renderDespesa(despesa, despesas.indexOf(despesa)),
+                  )}
+                </div>
+              ) : (
+                <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
+                  Nenhuma despesa paga pelo cliente.
+                </p>
+              )}
+            </Cartao>
+
+            <Cartao>
+              <TituloSecao
+                icon={<ShieldCheck size={18} />}
+                titulo={`Despesas pagas pela Share Brasil (${despesasShare.length})`}
+                subtitulo={`Total pago pela Share Brasil: ${moeda(totalShare)}`}
+              />
+
+              {despesasShare.length ? (
+                <div>
+                  {despesasShare.map((despesa) =>
+                    renderDespesa(despesa, despesas.indexOf(despesa)),
+                  )}
+                </div>
+              ) : (
+                <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
+                  Nenhuma despesa paga pela Share Brasil.
+                </p>
+              )}
+            </Cartao>
+
+            {despesasOutros.length ? (
+              <Cartao>
+                <TituloSecao
+                  icon={<Info size={18} />}
+                  titulo={`Despesas sem pagador identificado (${despesasOutros.length})`}
+                  subtitulo="Confira estes lançamentos antes de aprovar."
+                />
+
+                <div>
+                  {despesasOutros.map((despesa) =>
+                    renderDespesa(despesa, despesas.indexOf(despesa)),
+                  )}
+                </div>
+              </Cartao>
+            ) : null}
+
+            <Cartao>
+              <TituloSecao
+                icon={<FileText size={18} />}
+                titulo={`Todos os comprovantes (${anexos.length})`}
+                subtitulo="Todos os arquivos anexados ao relatório estão disponíveis para conferência."
+              />
+
+              {anexos.length ? (
+                <div className="space-y-2 px-4 py-4 sm:px-5">
+                  {anexos.map((anexo) => {
+                    const indice = Number(anexo.indice_despesa);
+                    const despesa = Number.isFinite(indice)
+                      ? despesas[indice]
+                      : undefined;
+
+                    return (
+                      <div
+                        key={anexo.id}
+                        className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3"
+                      >
+                        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300">
+                          {isImagem(anexo) ? (
+                            <FileImage size={18} />
+                          ) : (
+                            <FileText size={18} />
+                          )}
                         </div>
-                        <strong className="shrink-0 text-sm font-black text-slate-900 sm:text-base">{moeda(despesa.valor)}</strong>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-white">
+                            {anexo.nome_arquivo || "Comprovante"}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                            {despesa?.descricao || "Comprovante da viagem"}
+                            {tamanhoArquivo(anexo.tamanho_arquivo)
+                              ? ` · ${tamanhoArquivo(anexo.tamanho_arquivo)}`
+                              : ""}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            abrirComprovante(
+                              anexo,
+                              Number.isFinite(indice) ? indice : -1,
+                              despesa?.descricao || "Comprovante da viagem",
+                            )
+                          }
+                          className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-200"
+                          aria-label={`Visualizar ${
+                            anexo.nome_arquivo || "comprovante"
+                          }`}
+                        >
+                          <Eye size={17} />
+                        </button>
                       </div>
-                      {anexosDaDespesa.length ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {anexosDaDespesa.map((anexo) => (
-                            <button
-                              key={anexo.id}
-                              type="button"
-                              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm active:scale-[.99]"
-                              onClick={() => setComprovanteSelecionado({ ...anexo, indice, descricaoDespesa: despesa.descricao || "Despesa" })}
-                            >
-                              {isImagem(anexo) ? <FileImage size={15} className="text-[#2f6c93]" /> : <FileText size={15} className="text-slate-500" />}
-                              <span className="max-w-[170px] truncate">{anexo.nome_arquivo || "Comprovante"}</span>
-                              <Eye size={14} className="text-slate-400" />
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {!despesasTripulante.length ? <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">Nenhuma despesa atribuída a você.</p> : null}
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="overflow-hidden">
-            <button
-              type="button"
-              className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5"
-              onClick={() => alternar("cliente")}
-              aria-expanded={abertos.cliente}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700"><CircleDollarSign size={18} /></span>
-                <span className="min-w-0">
-                  <strong className="block text-sm font-extrabold text-slate-900">Despesas pagas pelo cliente</strong>
-                  <span className="block text-xs text-slate-500">{despesasCliente.length} lançamento(s) · {moeda(totalCliente)}</span>
-                </span>
-              </span>
-              {abertos.cliente ? <ChevronUp size={18} className="shrink-0 text-slate-400" /> : <ChevronDown size={18} className="shrink-0 text-slate-400" />}
-            </button>
-            {abertos.cliente ? (
-              <div className="border-t border-slate-100">
-                {despesasCliente.map((despesa) => {
-                  const indice = despesas.indexOf(despesa);
-                  const anexosDaDespesa = anexosPorDespesa.get(indice) || [];
-                  return (
-                    <div key={`${despesa.id || "cliente"}-${indice}`} className="border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-extrabold ${classeCategoria(despesa.categoria)}`}>{despesa.categoria || "Outros"}</span>
-                          <p className="mt-2 break-words text-sm font-bold text-slate-900">{despesa.descricao || "Despesa sem descrição"}</p>
-                          <p className="mt-1 text-xs text-slate-500">{dataBr(despesa.data)} · Pago por Cliente</p>
-                        </div>
-                        <strong className="shrink-0 text-sm font-black text-slate-900 sm:text-base">{moeda(despesa.valor)}</strong>
-                      </div>
-                      {anexosDaDespesa.length ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {anexosDaDespesa.map((anexo) => (
-                            <button
-                              key={anexo.id}
-                              type="button"
-                              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm"
-                              onClick={() => setComprovanteSelecionado({ ...anexo, indice, descricaoDespesa: despesa.descricao || "Despesa" })}
-                            >
-                              {isImagem(anexo) ? <FileImage size={15} className="text-[#2f6c93]" /> : <FileText size={15} className="text-slate-500" />}
-                              <span className="max-w-[170px] truncate">{anexo.nome_arquivo || "Comprovante"}</span>
-                              <Eye size={14} className="text-slate-400" />
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {!despesasCliente.length ? <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">Nenhuma despesa paga pelo cliente.</p> : null}
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="overflow-hidden">
-            <button
-              type="button"
-              className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5"
-              onClick={() => alternar("share")}
-              aria-expanded={abertos.share}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-700"><ShieldCheck size={18} /></span>
-                <span className="min-w-0">
-                  <strong className="block text-sm font-extrabold text-slate-900">Despesas pagas pela Share Brasil</strong>
-                  <span className="block text-xs text-slate-500">{despesasShare.length} lançamento(s) · {moeda(totalShare)}</span>
-                </span>
-              </span>
-              {abertos.share ? <ChevronUp size={18} className="shrink-0 text-slate-400" /> : <ChevronDown size={18} className="shrink-0 text-slate-400" />}
-            </button>
-            {abertos.share ? (
-              <div className="border-t border-slate-100">
-                {despesasShare.map((despesa) => {
-                  const indice = despesas.indexOf(despesa);
-                  const anexosDaDespesa = anexosPorDespesa.get(indice) || [];
-                  return (
-                    <div key={`${despesa.id || "share"}-${indice}`} className="border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-extrabold ${classeCategoria(despesa.categoria)}`}>{despesa.categoria || "Outros"}</span>
-                          <p className="mt-2 break-words text-sm font-bold text-slate-900">{despesa.descricao || "Despesa sem descrição"}</p>
-                          <p className="mt-1 text-xs text-slate-500">{dataBr(despesa.data)} · Pago por Share Brasil</p>
-                        </div>
-                        <strong className="shrink-0 text-sm font-black text-slate-900 sm:text-base">{moeda(despesa.valor)}</strong>
-                      </div>
-                      {anexosDaDespesa.length ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {anexosDaDespesa.map((anexo) => (
-                            <button
-                              key={anexo.id}
-                              type="button"
-                              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm"
-                              onClick={() => setComprovanteSelecionado({ ...anexo, indice, descricaoDespesa: despesa.descricao || "Despesa" })}
-                            >
-                              {isImagem(anexo) ? <FileImage size={15} className="text-[#2f6c93]" /> : <FileText size={15} className="text-slate-500" />}
-                              <span className="max-w-[170px] truncate">{anexo.nome_arquivo || "Comprovante"}</span>
-                              <Eye size={14} className="text-slate-400" />
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {!despesasShare.length ? <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">Nenhuma despesa paga pela Share Brasil.</p> : null}
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="overflow-hidden">
-            <button
-              type="button"
-              className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5"
-              onClick={() => alternar("comprovantes")}
-              aria-expanded={abertos.comprovantes}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2f6c93]"><ReceiptText size={18} /></span>
-                <span className="min-w-0">
-                  <strong className="block text-sm font-extrabold text-slate-900">Comprovantes da viagem</strong>
-                  <span className="block text-xs text-slate-500">{anexos.length} arquivo(s) disponível(is)</span>
-                </span>
-              </span>
-              {abertos.comprovantes ? <ChevronUp size={18} className="shrink-0 text-slate-400" /> : <ChevronDown size={18} className="shrink-0 text-slate-400" />}
-            </button>
-            {abertos.comprovantes ? (
-              <div className="border-t border-slate-100 px-4 py-4 sm:px-5">
-                {anexos.length ? (
-                  <div className="grid gap-2">
-                    {anexos.map((anexo) => {
-                      const indice = Number(anexo.indice_despesa);
-                      const despesa = Number.isFinite(indice) ? despesas[indice] : undefined;
-                      const descricao = despesa?.descricao || "Comprovante da viagem";
-                      return (
-                        <div key={anexo.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-slate-600 shadow-sm">
-                            {isImagem(anexo) ? <FileImage size={18} /> : <FileText size={18} />}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-slate-800">{anexo.nome_arquivo || "Comprovante"}</p>
-                            <p className="mt-0.5 truncate text-[11px] text-slate-500">{descricao}{tamanhoArquivo(anexo.tamanho_arquivo) ? ` · ${tamanhoArquivo(anexo.tamanho_arquivo)}` : ""}</p>
-                          </div>
-                          <button
-                            type="button"
-                            className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm"
-                            onClick={() => setComprovanteSelecionado({ ...anexo, indice: Number.isFinite(indice) ? indice : -1, descricaoDespesa: descricao })}
-                            aria-label={`Visualizar ${anexo.nome_arquivo || "comprovante"}`}
-                          >
-                            <Eye size={17} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center">
-                    <ReceiptText className="mx-auto text-slate-300" size={28} />
-                    <p className="mt-2 text-sm font-bold text-slate-700">Nenhum comprovante anexado</p>
-                    <p className="mt-1 text-xs text-slate-500">Não há arquivos disponíveis para este relatório.</p>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="border-blue-100 bg-blue-50/40 p-4 sm:p-5">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 shrink-0 text-[#2f6c93]" size={18} />
-              <div className="min-w-0">
-                <p className="text-sm font-extrabold text-slate-900">Antes de aprovar</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">Revise suas despesas, os valores pagos pelo cliente e pela Share Brasil e os comprovantes anexados.</p>
-              </div>
-            </div>
-          </Card>
-
-          {decisaoRegistrada ? (
-            <Card className={foiAprovado ? "border-emerald-200 bg-emerald-50/70" : "border-rose-200 bg-rose-50/70"}>
-              <div className="flex items-start gap-3 p-4 sm:p-5">
-                {foiAprovado ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={22} /> : <XCircle className="mt-0.5 shrink-0 text-rose-600" size={22} />}
-                <div className="min-w-0">
-                  <p className={`text-base font-extrabold ${foiAprovado ? "text-emerald-800" : "text-rose-800"}`}>
-                    {foiAprovado ? "Sua aprovação foi registrada" : "Sua rejeição foi registrada"}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-4 py-7 text-center sm:px-5">
+                  <ReceiptText
+                    className="mx-auto text-slate-600"
+                    size={28}
+                  />
+                  <p className="mt-2 text-sm font-bold text-slate-300">
+                    Nenhum comprovante anexado
                   </p>
-                  {foiAprovado && aprovadoEm ? <p className="mt-1 text-xs text-emerald-700">Registrado em {dataHoraBr(aprovadoEm)}.</p> : null}
-                  {foiReprovado && motivoRegistrado ? <p className="mt-2 break-words rounded-xl border border-white/70 bg-white/60 p-3 text-xs leading-relaxed text-rose-800"><strong>Motivo:</strong> {motivoRegistrado}</p> : null}
-                  <p className="mt-2 text-xs leading-relaxed text-slate-600">Este link não permite alterar a decisão já registrada.</p>
+                </div>
+              )}
+            </Cartao>
+
+            <Cartao className="border-sky-300/10 bg-sky-300/[0.035]">
+              <div className="flex items-start gap-3 px-4 py-4 sm:px-5">
+                <AlertCircle
+                  className="mt-0.5 shrink-0 text-sky-300"
+                  size={19}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-white">
+                    Conferência final
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    Você está vendo o relatório completo. A aprovação só será
+                    liberada depois que você chegar ao final desta página.
+                  </p>
                 </div>
               </div>
-            </Card>
-          ) : null}
+            </Cartao>
+
+            {decisaoRegistrada ? (
+              <Cartao
+                className={
+                  foiAprovado
+                    ? "border-emerald-300/15 bg-emerald-300/[0.05]"
+                    : "border-rose-300/15 bg-rose-300/[0.05]"
+                }
+              >
+                <div className="flex items-start gap-3 px-4 py-5 sm:px-5">
+                  {foiAprovado ? (
+                    <CheckCircle2
+                      className="mt-0.5 shrink-0 text-emerald-300"
+                      size={23}
+                    />
+                  ) : (
+                    <XCircle
+                      className="mt-0.5 shrink-0 text-rose-300"
+                      size={23}
+                    />
+                  )}
+
+                  <div className="min-w-0">
+                    <p
+                      className={`text-base font-extrabold ${
+                        foiAprovado
+                          ? "text-emerald-200"
+                          : "text-rose-200"
+                      }`}
+                    >
+                      {foiAprovado
+                        ? "Sua aprovação foi registrada"
+                        : "Sua rejeição foi registrada"}
+                    </p>
+
+                    {foiAprovado && aprovadoEm ? (
+                      <p className="mt-1 text-xs text-emerald-300/80">
+                        Registrado em {dataHoraBr(aprovadoEm)}.
+                      </p>
+                    ) : null}
+
+                    {foiReprovado && motivoRegistrado ? (
+                      <p className="mt-2 break-words rounded-xl border border-white/10 bg-black/10 p-3 text-xs leading-relaxed text-rose-100">
+                        <strong>Motivo:</strong> {motivoRegistrado}
+                      </p>
+                    ) : null}
+
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                      Este link não permite alterar uma decisão já registrada.
+                    </p>
+                  </div>
+                </div>
+              </Cartao>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </main>
 
       {!decisaoRegistrada ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-12px_35px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-          <div className="mx-auto w-full max-w-3xl px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <span>Decisão do tripulante {posicao}</span>
-              <span>{moeda(totalTripulante)}</span>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
+              <span
+                className={
+                  chegouAoFim ? "text-emerald-300" : "text-amber-300"
+                }
+              >
+                {chegouAoFim
+                  ? "Relatório revisado até o final"
+                  : "Desça até o final para liberar a aprovação"}
+              </span>
+
+              <span className="text-slate-400">{moeda(totalTripulante)}</span>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_1.4fr]">
+
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 disabled={enviando}
-                onClick={() => { setMotivo(""); setAcao("rejeitar"); }}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-3 text-sm font-extrabold text-rose-700 shadow-sm transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => {
+                  setMotivo("");
+                  setAcao("rejeitar");
+                }}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition active:scale-[0.99] disabled:opacity-50"
               >
                 <X size={17} />
                 Rejeitar
               </button>
+
               <button
                 type="button"
-                disabled={enviando}
-                onClick={() => { setMotivo(""); setAcao("aprovar"); }}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-3 text-sm font-extrabold text-white shadow-[0_8px_22px_rgba(5,150,105,0.28)] transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={enviando || !chegouAoFim}
+                onClick={() => {
+                  setMotivo("");
+                  setAcao("aprovar");
+                }}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-35"
               >
                 <Check size={17} />
-                Aprovar despesas
+                Aprovar relatório
               </button>
             </div>
           </div>
@@ -781,35 +1173,55 @@ export default function AprovacaoRelatorioViagem() {
       ) : null}
 
       {acao ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl border border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Confirmação</p>
-                <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950">{acao === "aprovar" ? "Aprovar este relatório?" : "Rejeitar este relatório?"}</h2>
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                  Confirmação
+                </p>
+                <h2 className="mt-1 text-lg font-black tracking-tight text-white">
+                  {acao === "aprovar"
+                    ? "Aprovar este relatório?"
+                    : "Rejeitar este relatório?"}
+                </h2>
               </div>
-              <button type="button" onClick={() => setAcao(null)} className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500" aria-label="Fechar">
+
+              <button
+                type="button"
+                onClick={() => setAcao(null)}
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"
+                aria-label="Fechar"
+              >
                 <X size={18} />
               </button>
             </div>
 
             {acao === "aprovar" ? (
-              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+              <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
-                  <p className="text-sm leading-relaxed text-emerald-900">Você está confirmando a aprovação das suas despesas no valor de <strong>{moeda(totalTripulante)}</strong>.</p>
+                  <CheckCircle2
+                    className="mt-0.5 shrink-0 text-emerald-300"
+                    size={20}
+                  />
+                  <p className="text-sm leading-relaxed text-emerald-100">
+                    Você está confirmando a aprovação do relatório no valor
+                    individual de <strong>{moeda(totalTripulante)}</strong>.
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="mt-4">
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs leading-relaxed text-rose-800">
-                  Para rejeitar, informe o que precisa ser corrigido no relatório.
+                <div className="rounded-2xl border border-rose-300/15 bg-rose-300/[0.06] p-4 text-xs leading-relaxed text-rose-100">
+                  Para rejeitar, informe o que precisa ser corrigido no
+                  relatório.
                 </div>
+
                 <Textarea
                   value={motivo}
                   onChange={(event) => setMotivo(event.target.value)}
                   placeholder="Ex.: Almoço de 19/09 informado com valor incorreto."
-                  className="mt-3 min-h-28 resize-y rounded-2xl border-slate-200 bg-white text-sm text-slate-900"
+                  className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500"
                   autoFocus
                 />
               </div>
@@ -820,17 +1232,31 @@ export default function AprovacaoRelatorioViagem() {
                 type="button"
                 disabled={enviando}
                 onClick={() => setAcao(null)}
-                className="min-h-12 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 disabled:opacity-60"
+                className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50"
               >
                 Cancelar
               </button>
+
               <button
                 type="button"
-                disabled={enviando || (acao === "rejeitar" && !motivo.trim())}
+                disabled={
+                  enviando ||
+                  (acao === "rejeitar" && !motivo.trim())
+                }
                 onClick={() => void decidir(acao === "aprovar")}
-                className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50 ${acao === "aprovar" ? "bg-emerald-600" : "bg-rose-600"}`}
+                className={`min-h-12 rounded-2xl px-3 text-sm font-extrabold ${
+                  acao === "aprovar"
+                    ? "bg-emerald-500 text-[#04120c]"
+                    : "bg-rose-500 text-white"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
               >
-                {enviando ? <Loader2 className="mx-auto animate-spin" size={18} /> : acao === "aprovar" ? "Confirmar aprovação" : "Confirmar rejeição"}
+                {enviando ? (
+                  <Loader2 className="mx-auto animate-spin" size={18} />
+                ) : acao === "aprovar" ? (
+                  "Confirmar aprovação"
+                ) : (
+                  "Confirmar rejeição"
+                )}
               </button>
             </div>
           </div>
@@ -838,79 +1264,112 @@ export default function AprovacaoRelatorioViagem() {
       ) : null}
 
       {comprovanteSelecionado ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-2 backdrop-blur-sm sm:p-6">
-          <div className="flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                {isImagem(comprovanteSelecionado) ? <FileImage size={17} /> : <FileText size={17} />}
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-6">
+          <div className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300">
+                {isImagem(comprovanteSelecionado) ? (
+                  <FileImage size={17} />
+                ) : (
+                  <FileText size={17} />
+                )}
               </div>
+
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-extrabold text-slate-900">{comprovanteSelecionado.nome_arquivo || "Comprovante"}</p>
-                <p className="truncate text-[11px] text-slate-500">{comprovanteSelecionado.descricaoDespesa}</p>
+                <p className="truncate text-sm font-extrabold text-white">
+                  {comprovanteSelecionado.nome_arquivo || "Comprovante"}
+                </p>
+                <p className="truncate text-[11px] text-slate-500">
+                  {comprovanteSelecionado.descricaoDespesa}
+                </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => setComprovanteSelecionado(null)}
-                className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"
                 aria-label="Fechar comprovante"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-2 sm:p-4">
+            <div
+              className="min-h-0 flex-1 overflow-auto bg-[#050a12] p-2 sm:p-4"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
               {isImagem(comprovanteSelecionado) ? (
-                <div className="flex min-h-[50dvh] items-center justify-center rounded-2xl bg-white p-2 sm:p-4">
+                <div className="flex min-h-[55dvh] items-center justify-center rounded-2xl bg-black/20 p-2 sm:p-4">
                   <img
                     src={`${API_BASE}${comprovanteSelecionado.url_arquivo}`}
-                    alt={comprovanteSelecionado.nome_arquivo || "Comprovante"}
+                    alt={
+                      comprovanteSelecionado.nome_arquivo || "Comprovante"
+                    }
                     className="max-h-[78dvh] w-auto max-w-full rounded-xl object-contain"
                   />
                 </div>
               ) : isPdf(comprovanteSelecionado) ? (
-                <div className="flex min-h-[45dvh] flex-col items-center justify-center rounded-2xl bg-white p-6 text-center">
-                  <FileText size={42} className="text-slate-300" />
-                  <p className="mt-3 text-sm font-bold text-slate-800">Comprovante em PDF</p>
-                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">Abra o arquivo em uma nova guia para visualizar no leitor de PDF do seu celular.</p>
+                <div className="flex min-h-[50dvh] flex-col items-center justify-center rounded-2xl bg-white/[0.03] p-6 text-center">
+                  <FileText size={44} className="text-slate-600" />
+                  <p className="mt-3 text-sm font-bold text-white">
+                    Comprovante em PDF
+                  </p>
+                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                    Abra o arquivo em uma nova guia para usar o leitor de PDF
+                    do celular.
+                  </p>
+
                   <a
                     href={`${API_BASE}${comprovanteSelecionado.url_arquivo}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#2f6c93] px-4 text-sm font-extrabold text-white"
+                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-4 text-sm font-extrabold text-[#04111c]"
                   >
-                    Abrir PDF <ExternalLink size={15} />
+                    Abrir PDF
+                    <ExternalLink size={15} />
                   </a>
                 </div>
               ) : (
-                <div className="flex min-h-[45dvh] flex-col items-center justify-center rounded-2xl bg-white p-6 text-center">
-                  <FileText size={42} className="text-slate-300" />
-                  <p className="mt-3 text-sm font-bold text-slate-800">Arquivo disponível</p>
+                <div className="flex min-h-[50dvh] flex-col items-center justify-center rounded-2xl bg-white/[0.03] p-6 text-center">
+                  <FileText size={44} className="text-slate-600" />
+                  <p className="mt-3 text-sm font-bold text-white">
+                    Arquivo disponível
+                  </p>
+
                   <a
                     href={`${API_BASE}${comprovanteSelecionado.url_arquivo}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#2f6c93] px-4 text-sm font-extrabold text-white"
+                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-4 text-sm font-extrabold text-[#04111c]"
                   >
-                    Abrir arquivo <ArrowLeft size={15} className="rotate-180" />
+                    Abrir arquivo
+                    <ExternalLink size={15} />
                   </a>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:px-5">
-              <span className="truncate text-[11px] text-slate-400">Comprovante {comprovanteSelecionado.indice >= 0 ? comprovanteSelecionado.indice + 1 : ""}</span>
+            <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 sm:px-5">
+              <span className="truncate text-[11px] text-slate-500">
+                Comprovante{" "}
+                {comprovanteSelecionado.indice >= 0
+                  ? comprovanteSelecionado.indice + 1
+                  : ""}
+              </span>
+
               <a
                 href={`${API_BASE}${comprovanteSelecionado.url_arquivo}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700"
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-bold text-slate-200"
               >
-                Abrir em nova guia <ExternalLink size={14} />
+                Abrir em nova guia
+                <ExternalLink size={14} />
               </a>
             </div>
           </div>
         </div>
       ) : null}
-    </main>
+    </>
   );
 }

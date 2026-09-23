@@ -213,19 +213,14 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
   if (recibo.pdf_anexo_id)
     return `/api/financeiro/recibos/anexos/${encodeURIComponent(recibo.pdf_anexo_id)}/arquivo`;
   const pdfPersistido = recibo.pdf_url || recibo.url_recibo;
-  if (!pdfPersistido) return "";
-  try {
-    const url = new URL(pdfPersistido, window.location.origin);
-    return `${url.pathname}${url.search}`;
-  } catch {
-    return pdfPersistido;
-  }
+  return pdfPersistido
+    ? `/api/financeiro/recibos/${encodeURIComponent(recibo.id)}/pdf/arquivo`
+    : "";
 }
 
 // Gera o PDF a partir de um recibo já persistido. Usa apenas colunas reais
 // da tabela (nome_pagador, documento_pagador, endereco_pagador,
-// cidade_pagador, uf_pagador, recebedor_nome) — não depende de nenhum campo
-// inexistente no banco.
+// cidade_pagador, uf_pagador e os dados persistidos do recebedor).
 async function gerarPdfRecibo(
   recibo: ReciboFinanceiro,
   colaborador?: OpcoesRecibos["colaboradores"][number],
@@ -280,13 +275,15 @@ async function gerarPdfRecibo(
       ? recibo.recebedor_nome || "—"
       : recibo.nome_pagador || "—",
     pagadorDocumento: ehPagamento
-      ? undefined
+      ? recibo.recebedor_cpf
+        ? `CPF/CNPJ: ${recibo.recebedor_cpf}`
+        : undefined
       : recibo.documento_pagador
         ? `CNPJ/CPF: ${recibo.documento_pagador}`
         : null,
-    pagadorEndereco: ehPagamento ? undefined : recibo.endereco_pagador,
-    pagadorCidade: ehPagamento ? undefined : recibo.cidade_pagador,
-    pagadorUf: ehPagamento ? undefined : recibo.uf_pagador,
+    pagadorEndereco: ehPagamento ? recibo.recebedor_endereco : recibo.endereco_pagador,
+    pagadorCidade: ehPagamento ? recibo.recebedor_cidade : recibo.cidade_pagador,
+    pagadorUf: ehPagamento ? recibo.recebedor_uf : recibo.uf_pagador,
   });
 
   return new File(
@@ -640,10 +637,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   uf_pagador: form.pagador_tipo === "cliente" ? clientePagadorSelecionado?.uf || "" : pagadorSelecionado?.uf || "",
                 };
 
-      // Recebedor conforme a regra fixa de cada tipo. Só existe a coluna
-      // recebedor_nome — CPF/endereço do recebedor, quando coletados no
-      // formulário (recibo_pagamento), servem só para montar o PDF, não são
-      // persistidos.
+      // Recebedor conforme a regra fixa de cada tipo. Os dados do recebedor
+      // são persistidos para que o PDF possa ser regenerado sem perder nome
+      // ou documento.
       const recebedorNome =
         form.tipo === "recibo_reembolso"
           ? SHARE_NOME
@@ -664,6 +660,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         aeronave_id:
           form.tipo === "recibo_reembolso"
             ? form.aeronave_id || null
+            : form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave"
+              ? pagadorSelecionado?.aeronave_id || null
             : form.tipo === "recibo_colaborador" &&
                 form.natureza_despesa === "aeronave"
               ? form.aeronave_id
@@ -694,6 +692,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               : "DESPESAS EMPRESA"
             : null,
         recebedor_nome: recebedorNome,
+        recebedor_cpf:
+          form.tipo === "recibo_pagamento"
+            ? form.recebedor_cpf_ui.trim() || null
+            : form.tipo === "recibo_colaborador"
+              ? colaboradorSelecionado?.cpf || null
+              : SHARE_DOCUMENTO,
         numero_documento_anexo: arquivo
           ? form.numero_documento_anexo.trim() || null
           : null,
@@ -831,6 +835,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   };
 
   const programarEmail = (recibo: ReciboFinanceiro) => {
+    if (recibo.tipo_recibo === "recibo_pagamento") {
+      setReciboProgramacao(recibo);
+      return;
+    }
     setReciboEmail(recibo);
     if (String(recibo.status).toUpperCase() === "EMAIL_ENVIADO") setReciboProgramacao(recibo);
     else setModalEmail(true);

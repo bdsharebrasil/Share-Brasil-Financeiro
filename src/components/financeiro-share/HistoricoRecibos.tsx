@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Loader2,
   Mail,
+  Send,
   Search,
   SlidersHorizontal,
   X,
@@ -478,7 +479,7 @@ export default function HistoricoRecibos({
                   <div className="flex items-center gap-1.5">
                     {recibo.despesa_programada ? (
                       <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
-                        <CheckCircle2 size={13} /> Despesa programada
+                        <CheckCircle2 size={13} /> {recibo.tipo_recibo === "recibo_pagamento" ? "Despesa rateada" : "Despesa programada"}
                       </span>
                     ) : ![
                       "CANCELADO",
@@ -492,7 +493,7 @@ export default function HistoricoRecibos({
                         onClick={() => onProgramarEmail(recibo)}
                         className="h-8 gap-1.5 rounded-lg px-2.5 text-[10px]"
                       >
-                        <Mail size={13} /> {String(recibo.status).toUpperCase() === "EMAIL_ENVIADO" ? "Programar contas a pagar" : "Programar e enviar email"}
+                        {recibo.tipo_recibo === "recibo_pagamento" ? <Send size={13} /> : <Mail size={13} />} {recibo.tipo_recibo === "recibo_pagamento" ? "Enviar despesa rateio" : String(recibo.status).toUpperCase() === "EMAIL_ENVIADO" ? "Programar contas a pagar" : "Programar e enviar email"}
                       </Button>
                     )}
                     {![

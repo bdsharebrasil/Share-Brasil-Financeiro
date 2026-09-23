@@ -714,8 +714,10 @@ export default function RelatorioDespesaViagem({
     setEmailReembolsoAberto(false);
     setSalvando(true);
     try {
-      await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio, email_enviado_id: emailId });
-      setRelatorio((atual) => atual ? { ...atual, status: "enviado_cliente" } : atual);
+      const resposta = await enviarDespesaAoCliente(relatorio.id, { data_vencimento: reembolsoForm.vencimento, periodicidade: reembolsoForm.periodicidade, tipo_rateio: reembolsoForm.tipoRateio, email_enviado_id: emailId });
+      const relatorioAtualizado = resposta.relatorio || { ...relatorio, status: "enviado_cliente" };
+      setRelatorio(relatorioAtualizado as Relatorio);
+      setRelatorios((atuais) => atuais.map((item) => item.id === relatorio.id ? relatorioAtualizado as Relatorio : item));
       setReembolsoForm((atual) => ({ ...atual, aberto: false }));
       toast.success("Programação concluída", { description: "O reembolso foi enviado para Contas a Receber e os lançamentos financeiros foram gerados." });
       setMensagem({ tipo: "ok", texto: "Reembolso programado e enviado para o cliente." });

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buscarCtmDashboard, type CtmDashboard, type CtmRegistro } from "@/lib/colaborador-api";
 import { BarraProgresso, CabecalhoSecao, CartaoKpi, EstadoVazio, EtiquetaStatus, formatarMoeda } from "@/components/dashboard/ComponentesDashboard";
+import CtmPesoBalanceamento from "@/components/dashboard/operacoes/ctm/ctm_pesoebalanceamento/CtmPesoBalanceamento";
 
 const tabs = [
   ["overview", "Visão geral", Gauge], ["programa", "Programa", CalendarClock], ["oas", "Ordens de serviço", ClipboardList], ["orcamentos", "Orçamentos", FileText], ["componentes", "Componentes", Boxes], ["diretrizes", "Diretrizes", ShieldAlert], ["ras", "RAS", FileCheck2], ["peso", "Peso e balanceamento", Scale], ["rateio", "Rateio e horas", BarChart3],
@@ -41,7 +42,7 @@ export default function CTM() {
       <TabelaCTM value="componentes" title="Componentes e itens controlados" detail="Rastreabilidade de peça, série, posição e vida restante" rows={dados?.componentes || []} columns={[["nome", "Componente"], ["part_number", "P/N"], ["numero_serie", "S/N"], ["posicao", "Posição"], ["percentual_vida_restante", "Vida restante"], ["status", "Status"]]} />
       <TabelaCTM value="diretrizes" title="Diretrizes e documentos técnicos" detail="ADs, SBs e vencimentos por data, horas e ciclos" rows={dados?.diretrizes || []} columns={[["numero", "Número"], ["titulo", "Título"], ["tipo", "Tipo"], ["data_vencimento", "Vencimento"], ["status", "Status"]]} />
       <TabelaCTM value="ras" title="RAS — Relatórios de acompanhamento" detail="Histórico de serviços, itens e documentos" rows={dados?.ras || []} columns={[["numero_ras", "Número"], ["descricao", "Descrição"], ["data_entrada", "Entrada"], ["status", "Status"], ["valor_total", "Total"]]} moneyKeys={["valor_total"]} />
-      <TabsContent value="peso"><PainelVazio icon={<Scale size={22} />} title="Peso, balanceamento e carregamentos" detail="A ficha técnica, estações e carregamentos serão exibidos aqui para a aeronave selecionada." rows={dados?.carregamentos || []} /></TabsContent>
+      <TabsContent value="peso"><CtmPesoBalanceamento /></TabsContent>
       <TabsContent value="rateio"><PainelVazio icon={<BarChart3 size={22} />} title="Rateio e horas voadas" detail="Custos fixos, variáveis, horas voadas e participação dos cotistas." rows={[]} /></TabsContent>
     </Tabs>
   </div>;

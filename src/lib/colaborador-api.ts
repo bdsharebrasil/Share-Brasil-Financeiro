@@ -652,6 +652,39 @@ export type PesoBalanceamentoContexto = {
 export function buscarPesoBalanceamentoVoo(id: string) { return colaboradorRequest<PesoBalanceamentoContexto>(`/api/interno/agendamento/${id}/peso-balanceamento`); }
 export function salvarPesoBalanceamentoVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<{ success: boolean; ficha: PesoBalanceamentoFicha }>(`/api/interno/agendamento/${id}/peso-balanceamento`, { method: "POST", body: JSON.stringify(payload) }); }
 
+export type ConfiguracaoPesoBalanceamento = {
+  id: string;
+  aeronave_id: string;
+  matricula_registro?: string | null;
+  fabricante?: string | null;
+  modelo?: string | null;
+  numero_serie?: string | null;
+  peso_vazio_padrao: number;
+  braco_cg_padrao: number;
+  momento_padrao?: number | null;
+  peso_maximo_decolagem: number;
+  peso_maximo_pouso: number;
+  peso_maximo_sem_combustivel?: number | null;
+  cg_limite_dianteiro: number;
+  cg_limite_traseiro: number;
+  mac_comprimento: number;
+  lemac_distancia: number;
+  capacidade_combustivel_total?: number | null;
+  capacidade_combustivel_util?: number | null;
+  validado?: number | boolean | null;
+  notas?: string | null;
+  data_ultima_pesagem?: string | null;
+  numero_relatorio_pesagem?: string | null;
+  responsavel_tecnico?: string | null;
+  limite_bagagem_diant_kg?: number | null;
+  limite_bagagem_tras_kg?: number | null;
+  atualizado_em?: string | null;
+};
+export type FichaPesoBalanceamentoLista = PesoBalanceamentoFicha & { matricula_registro?: string | null; modelo?: string | null; origem?: string | null; destino?: string | null; data_agendada?: string | null };
+export function buscarConfiguracoesPesoBalanceamento(aeronaveId?: string) { return colaboradorRequest<{ configuracoes: ConfiguracaoPesoBalanceamento[] }>(`/api/ctm/peso-balanceamento${aeronaveId ? `?aeronave_id=${encodeURIComponent(aeronaveId)}` : ""}`); }
+export function salvarConfiguracaoPesoBalanceamento(payload: Partial<ConfiguracaoPesoBalanceamento> & { aeronave_id: string }) { return colaboradorRequest<{ configuracao: ConfiguracaoPesoBalanceamento }>("/api/ctm/peso-balanceamento", { method: "POST", body: JSON.stringify(payload) }); }
+export function buscarFichasPesoBalanceamento() { return colaboradorRequest<{ fichas: FichaPesoBalanceamentoLista[] }>("/api/ctm/fichas-peso-balanceamento"); }
+
 export type PlanoVooSalvo = {
   id: string;
   numero_voo: string | null;

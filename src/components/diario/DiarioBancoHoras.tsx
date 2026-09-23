@@ -34,7 +34,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
   return (
     <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
       <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-amber-300/10 p-2 text-amber-300"><History size={16} /></span>
             <div>
@@ -44,14 +44,14 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
           </div>
         </div>
         {!saldos.length ? (
-          <p className="px-5 py-10 text-center text-xs text-slate-500">Nenhum voo emprestado registrado nesta competência.</p>
+          <p className="px-4 py-8 text-center text-xs text-slate-500 sm:px-5 sm:py-10">Nenhum voo emprestado registrado nesta competência.</p>
         ) : (
           <div className="divide-y divide-white/[.06]">
             {saldos.map((saldo) => {
               const balanco = saldo.emprestou - saldo.tomou;
               const positivo = balanco >= 0;
               return (
-                <div key={saldo.nome} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                <div key={saldo.nome} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${positivo ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : "border-amber-400/25 bg-amber-400/10 text-amber-300"}`}>
                       {positivo ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
@@ -70,7 +70,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300"><Users size={16} /></span>
             <div>
@@ -81,9 +81,9 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
           <PieChart size={15} className="text-slate-500" />
         </div>
         {!horasCotistas.length ? (
-          <p className="px-5 py-10 text-center text-xs text-slate-500">Ainda não há horas vinculadas a cotistas neste mês.</p>
+          <p className="px-4 py-8 text-center text-xs text-slate-500 sm:px-5 sm:py-10">Ainda não há horas vinculadas a cotistas neste mês.</p>
         ) : (
-          <div className="space-y-3 p-5">
+          <div className="space-y-3 p-4 sm:p-5">
             {horasCotistas.map((item) => {
               const percentual = totalCotistas > 0 ? (Number(item.horas_voo || 0) / totalCotistas) * 100 : 0;
               return (

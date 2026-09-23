@@ -67,6 +67,32 @@ const diferencaHoras = (inicio: string, fim: string) => {
   return minutos / 60;
 };
 
+const valueFrom = (values: FormValues, key: string) => String(values[key] ?? "");
+const camposCalculadosDosTempos = (
+  values: FormValues,
+  consumoCombustivel: number | string | null | undefined,
+): Partial<FormValues> => {
+  const tempoVoo = valueFrom(values, "tempo_dep") && valueFrom(values, "tempo_pou")
+    ? diferencaHoras(valueFrom(values, "tempo_dep"), valueFrom(values, "tempo_pou"))
+    : null;
+  const tempoTotal = valueFrom(values, "tempo_ac") && valueFrom(values, "tempo_cor")
+    ? diferencaHoras(valueFrom(values, "tempo_ac"), valueFrom(values, "tempo_cor"))
+    : null;
+  const campos: Partial<FormValues> = {};
+  if (tempoVoo !== null) {
+    campos.tempo_voo = tempoVoo.toFixed(2);
+    campos.horas_diurnas = tempoVoo.toFixed(2);
+    campos.consumo_combustivel_voo = (tempoVoo * Number(consumoCombustivel || 0)).toFixed(2);
+  }
+  if (tempoTotal !== null || tempoVoo !== null) {
+    const total = tempoTotal ?? tempoVoo ?? 0;
+    campos.tempo_total = total.toFixed(2);
+    campos.consumo_combustivel_total = (total * Number(consumoCombustivel || 0)).toFixed(2);
+  }
+  if (tempoVoo !== null && !values.horas_noturnas_manual) campos.horas_noturnas = "0.00";
+  return campos;
+};
+
 const normalizarNumeroVoo = (value: unknown) =>
   String(value ?? "").trim().replace(/\s+/g, "").toUpperCase();
 
@@ -232,39 +258,24 @@ export default function DiarioLancamentoForm({
   const setField = (key: string, value: string | boolean) =>
     setForm((current) => ({ ...current, [key]: value }));
   const value = (key: string) => String(form[key] ?? "");
-  const atualizarCalculosManuais = (campo: string, valor: string) => {
-    const tempos = {
-      tempo_ac: value("tempo_ac"),
-      tempo_dep: value("tempo_dep"),
-      tempo_pou: value("tempo_pou"),
-      tempo_cor: value("tempo_cor"),
-      [campo]: valor,
-    };
-    const tempoVoo = diferencaHoras(tempos.tempo_dep, tempos.tempo_pou);
-    const tempoTotal = diferencaHoras(tempos.tempo_ac, tempos.tempo_cor);
-    const valores = {
-      tempo_voo: tempoVoo,
-      tempo_total: tempoTotal || tempoVoo,
-      horas_diurnas: tempoVoo,
-      horas_noturnas: 0,
-      consumo_combustivel_voo: tempoVoo * Number(consumoCombustivel || 0),
-      consumo_combustivel_total: (tempoTotal || tempoVoo) * Number(consumoCombustivel || 0),
-    };
-    Object.entries(valores).forEach(([chave, valorCalculado]) => setField(chave, valorCalculado.toFixed(2)));
+  const alterarTempo = (
+    campo: "tempo_ac" | "tempo_dep" | "tempo_pou" | "tempo_cor",
+    valor: string,
+  ) => {
+    setForm((current) => {
+      const next = { ...current, [campo]: valor };
+      if (campo === "tempo_ac") next.tripulacao_checkin_hora = checkinBeforeAc(valor);
+      const timestampCampo = {
+        tempo_ac: "acionamento_utc",
+        tempo_dep: "decolagem_utc",
+        tempo_pou: "pouso_utc",
+        tempo_cor: "corte_utc",
+      }[campo];
+      next[timestampCampo] = timestampUtc(valueFrom(next, "data_registro"), valor) || "";
+      return { ...next, ...camposCalculadosDosTempos(next, consumoCombustivel) };
+    });
   };
-  const setTempoAc = (tempoAc: string) => {
-    setField("tempo_ac", tempoAc);
-    setField("tripulacao_checkin_hora", checkinBeforeAc(tempoAc));
-    setField("acionamento_utc", timestampUtc(value("data_registro"), tempoAc) || "");
-    if (!value("perna_jornada_id")) atualizarCalculosManuais("tempo_ac", tempoAc);
-  };
-  const alterarTempo = (campo: "tempo_ac" | "tempo_dep" | "tempo_pou" | "tempo_cor", valor: string) => {
-    setField(campo, valor);
-    if (campo === "tempo_ac") setField("tripulacao_checkin_hora", checkinBeforeAc(valor));
-    const timestampCampo = { tempo_ac: "acionamento_utc", tempo_dep: "decolagem_utc", tempo_pou: "pouso_utc", tempo_cor: "corte_utc" }[campo];
-    setField(timestampCampo, timestampUtc(value("data_registro"), valor) || "");
-    if (!value("perna_jornada_id")) atualizarCalculosManuais(campo, valor);
-  };
+  const setTempoAc = (tempoAc: string) => alterarTempo("tempo_ac", tempoAc);
   const tripulacao = useMemo(
     () => opcoes.tripulantes,
     [opcoes.tripulantes],
@@ -320,6 +331,17 @@ export default function DiarioLancamentoForm({
     (item) => !item.lancamento_diario_id || item.perna_id === pernaSelecionada,
   );
   const perna = pernas.find((item) => item.perna_id === pernaSelecionada);
+  useEffect(() => {
+    if (!solicitacaoSelecionada || jornadaSelecionada || value("jornada_id")) return;
+    if (jornadas.length !== 1) return;
+    setJornadaSelecionada(jornadas[0].jornada_id);
+    setField("jornada_id", jornadas[0].jornada_id);
+  }, [jornadaSelecionada, jornadas, solicitacaoSelecionada]);
+  useEffect(() => {
+    if (!(jornadaSelecionada || value("jornada_id")) || pernaSelecionada || value("perna_jornada_id")) return;
+    if (pernasDisponiveis.length !== 1) return;
+    aplicarPerna(pernasDisponiveis[0].perna_id);
+  }, [jornadaSelecionada, pernasDisponiveis, pernaSelecionada]);
   const aerodromos = useMemo(
     () =>
       opcoes.aerodromos.map((aero) => ({
@@ -399,43 +421,57 @@ export default function DiarioLancamentoForm({
     );
     if (!item) return;
     const selectedJornadaId = jornadaSelecionada || value("jornada_id");
-    setPernaSelecionada(id);
-    setJornadaSelecionada(selectedJornadaId);
-    setField("jornada_id", selectedJornadaId);
-    setField("perna_jornada_id", id);
-    setField("aerodromo_partida", item.origem);
-    setField("aerodromo_chegada", item.destino);
-    setField(
-      "trecho",
-      `${nomeAerodromo(item.origem)} (${item.origem}) X ${nomeAerodromo(item.destino)} (${item.destino})`,
-    );
     const hhmm = (iso: string | null) => (iso ? iso.slice(11, 16) : "");
     const tempoAc = hhmm(item.horario_ac);
     const tempoDep = hhmm(item.horario_dep);
     const tempoPou = hhmm(item.horario_pouso);
     const tempoCor = hhmm(item.horario_corte);
-    setTempoAc(tempoAc);
-    setField("tempo_dep", tempoDep);
-    setField("tempo_pou", tempoPou);
-    setField("tempo_cor", tempoCor);
-    setField("acionamento_utc", item.horario_ac || "");
-    setField("decolagem_utc", item.horario_dep || "");
-    setField("pouso_utc", item.horario_pouso || "");
-    setField("corte_utc", item.horario_corte || "");
-    setField("passageiros", String(item.numero_passageiros ?? 0));
-    setField("tempo_voo", Number(item.tempo_voo || 0).toFixed(2));
-    setField("tempo_total", Number(item.tempo_total || 0).toFixed(2));
-    setField("horas_diurnas", Number(item.horas_diurnas || 0).toFixed(2));
-    setField("horas_noturnas", Number(item.horas_noturnas || 0).toFixed(2));
-    setField("horas_noturnas_manual", false);
-    setField("consumo_combustivel_voo", Number(item.consumo_combustivel_voo || 0).toFixed(2));
-    setField("consumo_combustivel_total", Number(item.consumo_combustivel_total || 0).toFixed(2));
-    setField("pousos_total", item.horario_pouso ? "1" : "0");
-    setField("distancia_nm", String(item.distancia_nm || 0));
-    setField(
-      "data_registro",
-      (item.horario_ac || jornada?.data || "").slice(0, 10),
-    );
+    setPernaSelecionada(id);
+    setJornadaSelecionada(selectedJornadaId);
+    setForm((current) => {
+      const next: FormValues = {
+        ...current,
+        jornada_id: selectedJornadaId,
+        perna_jornada_id: id,
+        aerodromo_partida: item.origem,
+        aerodromo_chegada: item.destino,
+        trecho: `${nomeAerodromo(item.origem)} (${item.origem}) X ${nomeAerodromo(item.destino)} (${item.destino})`,
+        tempo_ac: tempoAc,
+        tempo_dep: tempoDep,
+        tempo_pou: tempoPou,
+        tempo_cor: tempoCor,
+        acionamento_utc: item.horario_ac || "",
+        decolagem_utc: item.horario_dep || "",
+        pouso_utc: item.horario_pouso || "",
+        corte_utc: item.horario_corte || "",
+        passageiros: String(item.numero_passageiros ?? 0),
+        horas_noturnas_manual: false,
+        pousos_total: item.horario_pouso ? "1" : "0",
+        distancia_nm: String(item.distancia_nm || 0),
+        data_registro: (item.horario_ac || jornada?.data || "").slice(0, 10),
+      };
+      const calculados = camposCalculadosDosTempos(next, consumoCombustivel);
+      const tempoVoo = Number(item.tempo_voo) > 0
+        ? Number(item.tempo_voo)
+        : Number(calculados.tempo_voo || 0);
+      const tempoTotal = Number(item.tempo_total) > 0
+        ? Number(item.tempo_total)
+        : Number(calculados.tempo_total || tempoVoo);
+      return {
+        ...next,
+        ...calculados,
+        tempo_voo: tempoVoo.toFixed(2),
+        tempo_total: tempoTotal.toFixed(2),
+        horas_diurnas: Number(item.horas_diurnas ?? calculados.horas_diurnas ?? 0).toFixed(2),
+        horas_noturnas: Number(item.horas_noturnas ?? 0).toFixed(2),
+        consumo_combustivel_voo: Number(item.consumo_combustivel_voo) > 0
+          ? Number(item.consumo_combustivel_voo).toFixed(2)
+          : (tempoVoo * Number(consumoCombustivel || 0)).toFixed(2),
+        consumo_combustivel_total: Number(item.consumo_combustivel_total) > 0
+          ? Number(item.consumo_combustivel_total).toFixed(2)
+          : (tempoTotal * Number(consumoCombustivel || 0)).toFixed(2),
+      };
+    });
   };
   const clientesSocios = useMemo(
     () =>

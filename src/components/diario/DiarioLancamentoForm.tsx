@@ -524,11 +524,12 @@ export default function DiarioLancamentoForm({
         value("cliente_tomador_emprestimo_id") || null,
       socio_tomador_emprestimo_id: value("socio_tomador_emprestimo_id") || null,
       tripulacao_checkin_hora: value("tripulacao_checkin_hora") || null,
-      acionamento_utc: value("perna_jornada_id") ? (value("acionamento_utc") || timestampUtc(value("data_registro"), value("tempo_ac"))) : timestampUtc(value("data_registro"), value("tempo_ac")),
-      decolagem_utc: value("perna_jornada_id") ? (value("decolagem_utc") || timestampUtc(value("data_registro"), value("tempo_dep"))) : timestampUtc(value("data_registro"), value("tempo_dep")),
-      pouso_utc: value("perna_jornada_id") ? (value("pouso_utc") || timestampUtc(value("data_registro"), value("tempo_pou"))) : timestampUtc(value("data_registro"), value("tempo_pou")),
-      corte_utc: value("perna_jornada_id") ? (value("corte_utc") || timestampUtc(value("data_registro"), value("tempo_cor"))) : timestampUtc(value("data_registro"), value("tempo_cor")),
+      acionamento_utc: timestampUtc(value("data_registro"), value("tempo_ac")),
+      decolagem_utc: timestampUtc(value("data_registro"), value("tempo_dep")),
+      pouso_utc: timestampUtc(value("data_registro"), value("tempo_pou")),
+      corte_utc: timestampUtc(value("data_registro"), value("tempo_cor")),
       tempo_ifr: number("tempo_ifr"),
+      horas_diurnas: number("horas_diurnas"),
       ...(Boolean(form.horas_noturnas_manual) ? { horas_noturnas: number("horas_noturnas") } : {}),
       pousos_total: number("pousos_total"),
       distancia_nm: number("distancia_nm"),
@@ -909,8 +910,8 @@ export default function DiarioLancamentoForm({
               <input
                 type="time"
                 value={value("tripulacao_checkin_hora")}
-                readOnly
-                className={`${inputClass} cursor-not-allowed opacity-80`}
+                onChange={(e) => setField("tripulacao_checkin_hora", e.target.value)}
+                className={inputClass}
               />
             </Field>
             <Field label="Tempo AC">

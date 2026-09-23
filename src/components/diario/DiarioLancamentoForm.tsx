@@ -57,6 +57,16 @@ const checkinBeforeAc = (time?: string | null) => {
 const timestampUtc = (data: string, hora: string) =>
   data && hora ? `${data}T${hora.length === 5 ? `${hora}:00` : hora}Z` : null;
 
+const diferencaHoras = (inicio: string, fim: string) => {
+  if (!inicio || !fim) return 0;
+  const [inicioHora, inicioMinuto] = inicio.split(":").map(Number);
+  const [fimHora, fimMinuto] = fim.split(":").map(Number);
+  if (![inicioHora, inicioMinuto, fimHora, fimMinuto].every(Number.isFinite)) return 0;
+  let minutos = fimHora * 60 + fimMinuto - (inicioHora * 60 + inicioMinuto);
+  if (minutos < 0) minutos += 24 * 60;
+  return minutos / 60;
+};
+
 const normalizarNumeroVoo = (value: unknown) =>
   String(value ?? "").trim().replace(/\s+/g, "").toUpperCase();
 
@@ -74,10 +84,10 @@ function formFromEntry(
       numero_voo: entry?.numero_voo || "",
       jornada_id: (entry as any)?.jornada_id || "",
       perna_jornada_id: (entry as any)?.perna_jornada_id || "",
-      acionamento_utc: (entry as any)?.acionamento_utc || "",
-      decolagem_utc: (entry as any)?.decolagem_utc || "",
-      pouso_utc: (entry as any)?.pouso_utc || "",
-      corte_utc: (entry as any)?.corte_utc || "",
+      acionamento_utc: entry?.acionamento_utc || timestampUtc(entry?.data_registro?.slice(0, 10) || date, entry?.tempo_ac?.slice(0, 5) || "") || "",
+      decolagem_utc: entry?.decolagem_utc || timestampUtc(entry?.data_registro?.slice(0, 10) || date, entry?.tempo_dep?.slice(0, 5) || "") || "",
+      pouso_utc: entry?.pouso_utc || timestampUtc(entry?.data_registro?.slice(0, 10) || date, entry?.tempo_pou?.slice(0, 5) || "") || "",
+      corte_utc: entry?.corte_utc || timestampUtc(entry?.data_registro?.slice(0, 10) || date, entry?.tempo_cor?.slice(0, 5) || "") || "",
       natureza_voo: natureza,
       aerodromo_partida: entry?.aerodromo_partida || "",
       aerodromo_chegada: entry?.aerodromo_chegada || "",
@@ -222,16 +232,38 @@ export default function DiarioLancamentoForm({
   const setField = (key: string, value: string | boolean) =>
     setForm((current) => ({ ...current, [key]: value }));
   const value = (key: string) => String(form[key] ?? "");
+  const atualizarCalculosManuais = (campo: string, valor: string) => {
+    const tempos = {
+      tempo_ac: value("tempo_ac"),
+      tempo_dep: value("tempo_dep"),
+      tempo_pou: value("tempo_pou"),
+      tempo_cor: value("tempo_cor"),
+      [campo]: valor,
+    };
+    const tempoVoo = diferencaHoras(tempos.tempo_dep, tempos.tempo_pou);
+    const tempoTotal = diferencaHoras(tempos.tempo_ac, tempos.tempo_cor);
+    const valores = {
+      tempo_voo: tempoVoo,
+      tempo_total: tempoTotal || tempoVoo,
+      horas_diurnas: tempoVoo,
+      horas_noturnas: 0,
+      consumo_combustivel_voo: tempoVoo * Number(consumoCombustivel || 0),
+      consumo_combustivel_total: (tempoTotal || tempoVoo) * Number(consumoCombustivel || 0),
+    };
+    Object.entries(valores).forEach(([chave, valorCalculado]) => setField(chave, valorCalculado.toFixed(2)));
+  };
   const setTempoAc = (tempoAc: string) => {
     setField("tempo_ac", tempoAc);
     setField("tripulacao_checkin_hora", checkinBeforeAc(tempoAc));
     setField("acionamento_utc", timestampUtc(value("data_registro"), tempoAc) || "");
+    if (!value("perna_jornada_id")) atualizarCalculosManuais("tempo_ac", tempoAc);
   };
   const alterarTempo = (campo: "tempo_ac" | "tempo_dep" | "tempo_pou" | "tempo_cor", valor: string) => {
     setField(campo, valor);
     if (campo === "tempo_ac") setField("tripulacao_checkin_hora", checkinBeforeAc(valor));
     const timestampCampo = { tempo_ac: "acionamento_utc", tempo_dep: "decolagem_utc", tempo_pou: "pouso_utc", tempo_cor: "corte_utc" }[campo];
     setField(timestampCampo, timestampUtc(value("data_registro"), valor) || "");
+    if (!value("perna_jornada_id")) atualizarCalculosManuais(campo, valor);
   };
   const tripulacao = useMemo(
     () => opcoes.tripulantes,
@@ -1028,16 +1060,6 @@ export default function DiarioLancamentoForm({
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="Local do abastecimento">
-              <input
-                value={value("abastecimento_local")}
-                onChange={(e) =>
-                  setField("abastecimento_local", e.target.value)
-                }
-                placeholder="ICAO / posto"
-                className={inputClass}
-              />
             </Field>
             <Field label="Comanda">
               <input

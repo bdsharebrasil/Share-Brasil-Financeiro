@@ -3135,6 +3135,12 @@ function diarioBoolean(value: unknown): number {
   return value === true || value === 1 || value === '1' || value === 'true' ? 1 : 0
 }
 
+function diarioText(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  const text = String(value).trim()
+  return text || null
+}
+
 async function recalcularDiarioMes(c: Context<{ Bindings: Bindings }>, diarioMesId: string): Promise<void> {
   const db = c.env.SHARE_DB
   const diario = await db.prepare('SELECT id, celula_anterior_ttotal, celula_prox_revisao_ttotal, celula_anterior_tvoo, celula_prox_revisao_tvoo FROM diario_mes WHERE id = ?1').bind(diarioMesId).first<any>()
@@ -3318,10 +3324,10 @@ function normalizarLancamentoDiario(body: Record<string, any>, aeronave: any, de
   const tempoVoo = diarioNumber(body.tempo_voo)
   const tempoTotal = diarioNumber(body.tempo_total, tempoVoo)
   const consumoHora = diarioNumber(aeronave?.consumo_combustivel)
-  const consumoVoo = diarioNumber(body.consumo_combustivel_voo, Number((tempoVoo * consumoHora).toFixed(2)))
-  const consumoTotal = diarioNumber(body.consumo_combustivel_total, Number((tempoTotal * consumoHora).toFixed(2)))
+  const consumoVoo = Number((tempoVoo * consumoHora).toFixed(2))
+  const consumoTotal = Number((tempoTotal * consumoHora).toFixed(2))
   const row: Record<string, unknown> = {
-    numero_voo: body.numero_voo?.trim() || null, jornada_id: body.jornada_id?.trim() || null, diario_mes_id: defaults.diarioMesId || body.diario_mes_id,
+    numero_voo: diarioText(body.numero_voo), jornada_id: diarioText(body.jornada_id), diario_mes_id: defaults.diarioMesId || body.diario_mes_id,
     aeronave_id: body.aeronave_id, cliente_id: rateioIgual ? null : body.cliente_id || null, holding_id: rateioIgual ? null : body.holding_id || null, socio_id: rateioIgual ? null : body.socio_id || null, voo_emprestado: diarioBoolean(body.voo_emprestado), socio_tomador_emprestimo_id: body.socio_tomador_emprestimo_id || null, cliente_tomador_emprestimo_id: body.cliente_tomador_emprestimo_id || null,
     data_registro: data, aerodromo_partida: partida, aerodromo_chegada: chegada, trecho: body.trecho?.trim() || `${partida} X ${chegada}`,
     pic_canac: String(body.pic_canac || '').trim().toUpperCase(), pic_nome: body.pic_nome?.trim() || null, sic_canac: body.sic_canac?.trim()?.toUpperCase() || null, sic_nome: body.sic_nome?.trim() || null, tripulacao_checkin_hora: body.tripulacao_checkin_hora || null,
@@ -3365,23 +3371,30 @@ app.post('/api/interno/diario-bordo/lancamentos', async c => {
   const perfilPic = await db.prepare('SELECT nome_completo FROM user_profiles WHERE id = ?1').bind(extractSupabaseUserId(c)).first<{ nome_completo: string | null }>()
   const [nomePic, nomeSic, trecho] = await Promise.all([nomeTripulantePorCanac(c, body.pic_canac), nomeTripulantePorCanac(c, body.sic_canac), trechoAerodromosDiario(c, body.aerodromo_partida, body.aerodromo_chegada)])
   const horario = (valor: string | null) => valor ? String(valor).slice(11, 16) : null
-  const tempoHoras = (inicio: string | null, fim: string | null) => Number((minutosEntre(inicio, fim) / 60).toFixed(2))
+  const dadosOperacionais = await calcularDadosOperacionais(c, pernaVinculada ? {
+    ...body,
+    acionamento_utc: pernaVinculada.horario_ac,
+    decolagem_utc: pernaVinculada.horario_dep,
+    pouso_utc: pernaVinculada.horario_pouso,
+    corte_utc: pernaVinculada.horario_corte,
+  } : body, data, pernaVinculada?.origem || body.aerodromo_partida)
   const dadosDaPerna = pernaVinculada ? {
     ...body,
     numero_voo: body.numero_voo || null,
     jornada_id: pernaVinculada.jornada_id,
     aerodromo_partida: pernaVinculada.origem,
     aerodromo_chegada: pernaVinculada.destino,
-    tempo_ac: horario(pernaVinculada.horario_ac),
-    tempo_dep: horario(pernaVinculada.horario_dep),
-    tempo_pou: horario(pernaVinculada.horario_pouso),
-    tempo_cor: horario(pernaVinculada.horario_corte),
-    tempo_voo: tempoHoras(pernaVinculada.horario_dep, pernaVinculada.horario_pouso),
-    tempo_total: tempoHoras(pernaVinculada.horario_ac, pernaVinculada.horario_corte || pernaVinculada.horario_pouso),
-    horas_diurnas: tempoHoras(pernaVinculada.horario_dep, pernaVinculada.horario_pouso),
+    tempo_ac: horario(dadosOperacionais.acionamento_utc),
+    tempo_dep: horario(dadosOperacionais.decolagem_utc),
+    tempo_pou: horario(dadosOperacionais.pouso_utc),
+    tempo_cor: horario(dadosOperacionais.corte_utc),
+    tempo_voo: dadosOperacionais.tempo_voo,
+    tempo_total: dadosOperacionais.tempo_total,
+    horas_diurnas: dadosOperacionais.horas_diurnas,
+    horas_noturnas: dadosOperacionais.horas_noturnas,
     pousos_total: pernaVinculada.horario_pouso ? 1 : 0,
   } : body
-  const row = normalizarLancamentoDiario({ ...dadosDaPerna, cliente_id: String(body.cliente_id || '').trim() || null, socio_id: String(body.socio_id || '').trim() || null, pic_nome: nomePic || body.pic_nome || perfilPic?.nome_completo || null, sic_nome: nomeSic || body.sic_nome || null, trecho, aeronave_id: aeronaveId, diario_mes_id: diarioMesId }, aeronave, { diarioMesId, sequencial: Number(last?.sequencial || 0) + 1, celula: diarioNumber(body.celula, diarioNumber(diario.celula_atual_ttotal) + diarioNumber(dadosDaPerna.tempo_total)), criadoPor: extractSupabaseUserId(c) })
+  const row = normalizarLancamentoDiario({ ...dadosDaPerna, ...dadosOperacionais, tempo_ac: horario(dadosOperacionais.acionamento_utc), tempo_dep: horario(dadosOperacionais.decolagem_utc), tempo_pou: horario(dadosOperacionais.pouso_utc), tempo_cor: horario(dadosOperacionais.corte_utc), cliente_id: String(body.cliente_id || '').trim() || null, socio_id: String(body.socio_id || '').trim() || null, pic_nome: nomePic || body.pic_nome || perfilPic?.nome_completo || null, sic_nome: nomeSic || body.sic_nome || null, trecho, aeronave_id: aeronaveId, diario_mes_id: diarioMesId }, aeronave, { diarioMesId, sequencial: Number(last?.sequencial || 0) + 1, celula: diarioNumber(body.celula, diarioNumber(diario.celula_atual_ttotal) + diarioNumber(dadosOperacionais.tempo_total)), criadoPor: extractSupabaseUserId(c) })
   const columns = ['id', ...Object.keys(row)]
   await db.prepare(`INSERT INTO lancamentos_diario_bordo (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`).bind(id, ...columns.slice(1).map(column => row[column])).run()
   if (pernaId) {
@@ -3398,7 +3411,7 @@ app.post('/api/interno/diario-bordo/lancamentos', async c => {
   }
   await recalcularDiarioMes(c, diarioMesId)
   const inserted = await db.prepare('SELECT * FROM lancamentos_diario_bordo WHERE id = ?1').bind(id).first()
-  return c.json(inserted, 201)
+  return c.json({ ...inserted, acionamento_utc: dadosOperacionais.acionamento_utc, decolagem_utc: dadosOperacionais.decolagem_utc, pouso_utc: dadosOperacionais.pouso_utc, corte_utc: dadosOperacionais.corte_utc, solar_status: dadosOperacionais.solar_status }, 201)
 })
 
 app.patch('/api/interno/diario-bordo/lancamentos/:id', async c => {
@@ -3410,13 +3423,17 @@ app.patch('/api/interno/diario-bordo/lancamentos/:id', async c => {
   if (!current) return c.notFound()
   if (Number(current.fechado)) return c.json({ error: 'diario_fechado' }, 409)
   const aeronave = await db.prepare('SELECT id, consumo_combustivel FROM aeronave WHERE id = ?1').bind(current.aeronave_id).first<any>()
-  const merged = { ...current, ...body, aeronave_id: current.aeronave_id, diario_mes_id: current.diario_mes_id,
-    consumo_combustivel_voo: body.consumo_combustivel_voo === undefined ? undefined : body.consumo_combustivel_voo,
-    consumo_combustivel_total: body.consumo_combustivel_total === undefined ? undefined : body.consumo_combustivel_total }
+  const merged = { ...current, ...body, aeronave_id: current.aeronave_id, diario_mes_id: current.diario_mes_id }
+  const operacionalInput: Record<string, any> = { ...merged }
+  if (body.horas_noturnas === undefined) delete operacionalInput.horas_noturnas
+  const dadosOperacionais = await calcularDadosOperacionais(c, operacionalInput, String(current.data_registro || '').slice(0, 10), current.aerodromo_partida)
   const perfilPic = await db.prepare('SELECT nome_completo FROM user_profiles WHERE id = ?1').bind(extractSupabaseUserId(c)).first<{ nome_completo: string | null }>()
   const [nomePic, nomeSic, trecho] = await Promise.all([nomeTripulantePorCanac(c, body.pic_canac || current.pic_canac), nomeTripulantePorCanac(c, body.sic_canac || current.sic_canac), body.aerodromo_partida || body.aerodromo_chegada ? trechoAerodromosDiario(c, body.aerodromo_partida || current.aerodromo_partida, body.aerodromo_chegada || current.aerodromo_chegada) : Promise.resolve(current.trecho)])
-  const row = normalizarLancamentoDiario({ ...merged, cliente_id: body.cliente_id !== undefined ? String(body.cliente_id || '').trim() || null : current.cliente_id, socio_id: body.socio_id !== undefined ? String(body.socio_id || '').trim() || null : current.socio_id, trecho, pic_nome: nomePic || body.pic_nome || current.pic_nome || perfilPic?.nome_completo || null, sic_nome: nomeSic || body.sic_nome || current.sic_nome || null }, aeronave, { diarioMesId: current.diario_mes_id, sequencial: current.numero_sequencial, criadoPor: current.criado_por })
-  const updates = DIARIO_LANCAMENTO_FIELDS.filter(field => body[field] !== undefined).map(field => [field, row[field]] as const)
+  const row = normalizarLancamentoDiario({ ...merged, ...dadosOperacionais, tempo_ac: dadosOperacionais.acionamento_utc?.slice(11, 16) || null, tempo_dep: dadosOperacionais.decolagem_utc?.slice(11, 16) || null, tempo_pou: dadosOperacionais.pouso_utc?.slice(11, 16) || null, tempo_cor: dadosOperacionais.corte_utc?.slice(11, 16) || null, cliente_id: body.cliente_id !== undefined ? String(body.cliente_id || '').trim() || null : current.cliente_id, socio_id: body.socio_id !== undefined ? String(body.socio_id || '').trim() || null : current.socio_id, trecho, pic_nome: nomePic || body.pic_nome || current.pic_nome || perfilPic?.nome_completo || null, sic_nome: nomeSic || body.sic_nome || current.sic_nome || null }, aeronave, { diarioMesId: current.diario_mes_id, sequencial: current.numero_sequencial, criadoPor: current.criado_por })
+  const timestampsInformados = ['acionamento_utc', 'decolagem_utc', 'pouso_utc', 'corte_utc'].some(field => body[field] !== undefined)
+  const camposOperacionais = ['tempo_ac', 'tempo_dep', 'tempo_pou', 'tempo_cor', 'tempo_voo', 'tempo_total', 'horas_diurnas', 'horas_noturnas', 'consumo_combustivel_voo', 'consumo_combustivel_total']
+  const recalcularOperacionais = timestampsInformados || body.horas_noturnas !== undefined
+  const updates = DIARIO_LANCAMENTO_FIELDS.filter(field => body[field] !== undefined || recalcularOperacionais && camposOperacionais.includes(field)).map(field => [field, row[field]] as const)
   if (body.data_registro !== undefined) updates.push(['data_registro', row.data_registro])
   if (updates.length === 0) return c.json({ error: 'nenhum_campo_informado' }, 400)
   if (body.data_registro !== undefined && (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.data_registro)) || String(row.data_registro).slice(0, 7) !== `${current.diario_ano || ''}-${String(current.diario_mes || '').padStart(2, '0')}`)) return c.json({ error: 'data_fora_do_mes' }, 400)
@@ -3436,7 +3453,8 @@ app.patch('/api/interno/diario-bordo/lancamentos/:id', async c => {
     }
   }
   await recalcularDiarioMes(c, current.diario_mes_id)
-  return c.json(await db.prepare('SELECT * FROM lancamentos_diario_bordo WHERE id = ?1').bind(id).first())
+  const updated = await db.prepare('SELECT * FROM lancamentos_diario_bordo WHERE id = ?1').bind(id).first()
+  return c.json({ ...updated, acionamento_utc: dadosOperacionais.acionamento_utc, decolagem_utc: dadosOperacionais.decolagem_utc, pouso_utc: dadosOperacionais.pouso_utc, corte_utc: dadosOperacionais.corte_utc, solar_status: dadosOperacionais.solar_status })
 })
 
 app.delete('/api/interno/diario-bordo/lancamentos/:id', async c => {
@@ -3727,7 +3745,7 @@ app.post('/api/interno/planos-voo/:id/pdf', async c => {
   const plan = await c.env.SHARE_DB.prepare('SELECT id, payload_json FROM planos_voo WHERE id = ?1').bind(planId).first<{ id: string; payload_json: string }>()
   if (!plan) return c.notFound()
   const form = await c.req.formData()
-  const file = form.get('arquivo')
+  const file = form.get('arquivo') as File | null
   if (!(file instanceof File) || !file.size || file.type !== 'application/pdf') return c.json({ error: 'pdf_invalido' }, 400)
   const userId = extractSupabaseUserId(c) || 'interno'
   const key = await salvarArquivoShareBrasil(c, userId, file, 'planos-voo')
@@ -4066,6 +4084,112 @@ function minutosEntre(inicio: string | null, fim: string | null): number {
   return ajustado - a <= 86_400_000 ? Math.round((ajustado - a) / 60000) : 0
 }
 
+function dataUtc(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10)
+}
+
+function normalizarDataParaComparacao(valor: unknown): string {
+  const texto = String(valor ?? '').trim()
+  if (!texto) return ''
+  const dm = texto.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/)
+  if (dm) return `${dm[3]}${dm[2]}${dm[1]}`
+  return texto.replace(/\D/g, '')
+}
+
+function instanteSolarUtc(data: string, valor: unknown): number | null {
+  const texto = String(valor ?? '').trim()
+  if (!texto) return null
+  const normalizado = texto.replace(/^(\d{4})(\d{2})(\d{2})\s+/, '$1-$2-$3T')
+  const candidato = /^\d{4}-\d{2}-\d{2}T/.test(normalizado)
+    ? normalizado
+    : `${data}T${normalizado}${/Z$|[+-]\d{2}:?\d{2}$/.test(normalizado) ? '' : 'Z'}`
+  const timestamp = Date.parse(candidato)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+async function calcularHorasDiurnas(
+  c: Context<{ Bindings: Bindings }>,
+  origem: string | null,
+  partida: string | null,
+  pouso: string | null,
+): Promise<{ diurnas: number; noturnas: number }> {
+  const inicio = partida ? new Date(partida).getTime() : NaN
+  const fim = pouso ? new Date(pouso).getTime() : NaN
+  const icao = String(origem ?? '').trim().toUpperCase()
+  if (!icao || !Number.isFinite(inicio) || !Number.isFinite(fim) || fim <= inicio) return { diurnas: 0, noturnas: 0 }
+
+  const totalMs = fim - inicio
+  const datas: string[] = []
+  for (let cursor = Date.parse(`${dataUtc(inicio)}T00:00:00Z`); cursor <= fim; cursor += 86_400_000) {
+    datas.push(dataUtc(cursor))
+  }
+  const dias = await Promise.all(datas.map(async (data) => {
+    const dataDecea = data.replace(/-/g, '')
+    const payload = await cachedFetch(c, `solar-${icao}-${dataDecea}`, 86_400, () => fetchAisweb(c, 'sol', { icaoCode: icao, date: dataDecea }))
+    const itens = Array.isArray(payload) ? payload : (payload?.sol ?? [payload])
+    const esperado = data.replace(/\D/g, '')
+    const item = itens.find((dia: any) => normalizarDataParaComparacao(dia?.date ?? dia?.data) === esperado) || (itens.length === 1 ? itens[0] : null)
+    const nascer = instanteSolarUtc(data, item?.nascer ?? item?.sunrise)
+    const poente = instanteSolarUtc(data, item?.poente ?? item?.sunset)
+    if (nascer === null || poente === null || poente <= nascer) throw new Error(`DECEA não retornou nascer/pôr do sol para ${icao} em ${data}`)
+    return Math.max(0, Math.min(fim, poente) - Math.max(inicio, nascer))
+  }))
+  const diurnas = dias.reduce((total, valor) => total + valor, 0) / 3_600_000
+  const tempoVoo = totalMs / 3_600_000
+  return {
+    diurnas: Number(diurnas.toFixed(2)),
+    noturnas: Number(Math.max(0, tempoVoo - diurnas).toFixed(2)),
+  }
+}
+
+type DadosOperacionais = {
+  acionamento_utc: string | null
+  decolagem_utc: string | null
+  pouso_utc: string | null
+  corte_utc: string | null
+  tempo_voo: number
+  tempo_total: number
+  horas_diurnas: number
+  horas_noturnas: number
+  solar_status: 'calculated' | 'calculated_manual_night' | 'not_calculated'
+}
+
+async function calcularDadosOperacionais(
+  c: Context<{ Bindings: Bindings }>,
+  body: Record<string, any>,
+  data: string,
+  origem: string | null = body.aerodromo_partida,
+): Promise<DadosOperacionais> {
+  const timestamp = (utc: unknown, legado: unknown, referencia?: string | null) =>
+    normalizarHorarioJornada(data, utc ?? legado, referencia)
+  const acionamento = timestamp(body.acionamento_utc, body.tempo_ac)
+  const decolagem = timestamp(body.decolagem_utc, body.tempo_dep, acionamento)
+  const pouso = timestamp(body.pouso_utc, body.tempo_pou, decolagem || acionamento)
+  const corte = timestamp(body.corte_utc, body.tempo_cor, pouso || decolagem || acionamento)
+  const inicioVoo = decolagem ? new Date(decolagem).getTime() : NaN
+  const fimVoo = pouso ? new Date(pouso).getTime() : NaN
+  const inicioTotal = acionamento ? new Date(acionamento).getTime() : NaN
+  const fimTotal = (corte || pouso) ? new Date(corte || pouso!).getTime() : NaN
+  const tempoVoo = Number((Number.isFinite(inicioVoo) && Number.isFinite(fimVoo) && fimVoo >= inicioVoo ? (fimVoo - inicioVoo) / 3_600_000 : 0).toFixed(2))
+  const tempoTotal = Number((Number.isFinite(inicioTotal) && Number.isFinite(fimTotal) && fimTotal >= inicioTotal ? (fimTotal - inicioTotal) / 3_600_000 : tempoVoo).toFixed(2))
+  const calculoSolar = await calcularHorasDiurnas(c, origem, decolagem, pouso)
+  const temAjusteNoturno = body.horas_noturnas !== undefined && body.horas_noturnas !== null && body.horas_noturnas !== ''
+  const horasNoturnas = temAjusteNoturno
+    ? Number(Math.min(tempoVoo, Math.max(0, diarioNumber(body.horas_noturnas))).toFixed(2))
+    : calculoSolar.noturnas
+  return {
+    acionamento_utc: acionamento,
+    decolagem_utc: decolagem,
+    pouso_utc: pouso,
+    corte_utc: corte,
+    tempo_voo: tempoVoo,
+    tempo_total: tempoTotal,
+    horas_diurnas: temAjusteNoturno ? Number(Math.max(0, tempoVoo - horasNoturnas).toFixed(2)) : calculoSolar.diurnas,
+    horas_noturnas: horasNoturnas,
+    solar_status: temAjusteNoturno ? 'calculated_manual_night' : (decolagem && pouso ? 'calculated' : 'not_calculated'),
+  }
+}
+
 function nivelAlertaJornada(minutos: number, limite: number): 'normal' | 'atencao' | 'critico' | 'excedido' {
   const pct = limite > 0 ? minutos / limite : 0
   return pct > 1 ? 'excedido' : pct >= 0.9 ? 'critico' : pct >= 0.75 ? 'atencao' : 'normal'
@@ -4214,9 +4338,10 @@ app.get('/api/interno/diario-bordo/preenchimento-jornada/:id', async c => {
   const pernas = await c.env.SHARE_DB.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ? ORDER BY numero').bind(jornadaId).all<any>()
   const hhmm = (iso: string | null) => (iso ? String(iso).slice(11, 16) : null)
   const horas = (ini: string | null, fim: string | null) => Math.round((minutosEntre(ini, fim) / 60) * 100) / 100
-  const preenchimentos = pernas.results.map((perna: any) => {
+  const preenchimentos = await Promise.all(pernas.results.map(async (perna: any) => {
     const tempoVoo = horas(perna.horario_dep, perna.horario_pouso)
     const tempoTotal = horas(perna.horario_ac, perna.horario_corte || perna.horario_pouso)
+    const calculoSolar = await calcularHorasDiurnas(c, perna.origem, perna.horario_dep, perna.horario_pouso)
     return {
       perna_jornada_id: perna.id, ja_lancado: Boolean(perna.lancamento_diario_id), lancamento_diario_id: perna.lancamento_diario_id || null,
       data_registro: String(perna.horario_ac || jornada.data).slice(0, 10), numero_voo: jornada.numero_voo || null, jornada_id: jornada.id,
@@ -4226,9 +4351,9 @@ app.get('/api/interno/diario-bordo/preenchimento-jornada/:id', async c => {
       pic_canac: jornada.pic_canac || '', pic_nome: jornada.pic_nome || null, sic_canac: jornada.sic_canac || null, sic_nome: jornada.sic_nome || null,
       tripulacao_checkin_hora: hhmm(jornada.horario_apresentacao), tempo_ac: hhmm(perna.horario_ac), tempo_dep: hhmm(perna.horario_dep),
       tempo_pou: hhmm(perna.horario_pouso), tempo_cor: hhmm(perna.horario_corte), tempo_voo: tempoVoo,
-      tempo_total: tempoTotal || tempoVoo, horas_diurnas: tempoVoo, pousos_total: perna.horario_pouso ? 1 : 0, passageiros: perna.numero_passageiros ?? 0,
+      tempo_total: tempoTotal || tempoVoo, horas_diurnas: calculoSolar.diurnas, horas_noturnas: calculoSolar.noturnas, pousos_total: perna.horario_pouso ? 1 : 0, passageiros: perna.numero_passageiros ?? 0,
     }
-  })
+  }))
   return c.json({ jornada_id: jornada.id, solicitacao_id: jornada.solicitacao_id, aeronave_id: jornada.aeronave_id, pernas: preenchimentos })
 })
 
@@ -4240,6 +4365,7 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
   const aeronaveId = c.req.param('aeronaveId')
   if (!aeronaveId) return c.json({ voos: [] })
   const db = c.env.SHARE_DB
+  const aeronave = await db.prepare('SELECT consumo_combustivel FROM aeronave WHERE id = ?1').bind(aeronaveId).first<{ consumo_combustivel: number | string | null }>()
   const schema = await db.prepare("SELECT name FROM pragma_table_info('jornadas_voo')").all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))
   const jornadaColumns = new Set((schema.results || []).map((item) => String(item.name)))
   const pernaSchema = await db.prepare("SELECT name FROM pragma_table_info('pernas_jornada_voo')").all<{ name: string }>().catch(() => ({ results: [] as { name: string }[] }))
@@ -4248,6 +4374,7 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
   const colunaPouso = jornadaColumns.has('horario_pouso') ? 'horario_pouso' : 'horario_corte_inicio'
   const colunaCorte = jornadaColumns.has('horario_corte') ? 'horario_corte' : 'horario_corte_final'
   const colunaPassageiros = pernaColumns.has('passageiros') ? 'COALESCE(p.passageiros, 0)' : '0'
+  const colunaLancamento = pernaColumns.has('lancamento_diario_id') ? 'p.lancamento_diario_id' : 'NULL'
   const rows = await db.prepare(`
     SELECT s.id AS solicitacao_id, s.numero_voo, s.origem, s.destino, s.data_agendada,
            s.cliente_id, s.socio_id, s.voo_emprestado, s.cliente_emprestimo_id, s.socio_emprestimo_id,
@@ -4259,43 +4386,58 @@ app.get('/api/interno/diario-bordo/numeros-voo/:aeronaveId', async c => {
     LEFT JOIN tripulacao_freelancer f ON f.id = s.piloto_id
     LEFT JOIN tripulacao t2 ON t2.id = s.copiloto_id
     LEFT JOIN tripulacao_freelancer f2 ON f2.id = s.copiloto_id
-    WHERE s.aeronave_id = ?1 AND s.numero_voo IS NOT NULL AND TRIM(s.numero_voo) <> ''
+    WHERE (s.aeronave_id = ?1 OR EXISTS (SELECT 1 FROM jornadas_voo jv WHERE jv.solicitacao_id = s.id AND jv.aeronave_id = ?1))
+      AND s.numero_voo IS NOT NULL AND TRIM(s.numero_voo) <> ''
     ORDER BY datetime(s.data_agendada) DESC LIMIT 300
   `).bind(aeronaveId).all<any>()
   const voos = await Promise.all((rows.results || []).map(async (voo: any) => {
     if (!jornadaDisponivel) return { ...voo, jornadas: [] }
+    let jornadas: { results?: any[] } = { results: [] }
     try {
-      const jornadas = await db.prepare(`
+      jornadas = await db.prepare(`
         SELECT id AS jornada_id, numero_jornada, data, status, horario_apresentacao, horario_acionamento,
                ${colunaPouso} AS horario_pouso, ${colunaCorte} AS horario_corte
         FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC, data DESC
       `).bind(voo.solicitacao_id).all<any>()
-      const jornadasComPernas = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
-        const pernas = await db.prepare(`
+    } catch (error) {
+      log.error('[diario-bordo] jornadas indisponíveis para número de voo', error)
+      return { ...voo, jornadas: [] }
+    }
+    const jornadasComPernas = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
+      let pernas: { results?: any[] } = { results: [] }
+      try {
+        pernas = await db.prepare(`
           SELECT p.id AS perna_id, p.numero, p.origem, p.destino,
                  ${colunaPassageiros} AS numero_passageiros,
                  p.horario_ac, p.horario_dep, p.horario_pouso, p.horario_corte,
-                 p.status, p.lancamento_diario_id, ap.coordenadas AS origem_coordenadas,
+                 p.status, ${colunaLancamento} AS lancamento_diario_id, ap.coordenadas AS origem_coordenadas,
                  ad.coordenadas AS destino_coordenadas
           FROM pernas_jornada_voo p
           LEFT JOIN aerodromo ap ON upper(ap.designativo_icao) = upper(p.origem)
           LEFT JOIN aerodromo ad ON upper(ad.designativo_icao) = upper(p.destino)
           WHERE p.jornada_id = ?1 ORDER BY p.numero
         `).bind(jornada.jornada_id).all<any>()
-        const calculadas = (pernas.results || []).map((perna: any) => {
-          const coordenada = (value: unknown) => { const [lat, lon] = String(value || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] as const : null }
-          const origem = coordenada(perna.origem_coordenadas); const destino = coordenada(perna.destino_coordenadas)
-          const distancia_nm = origem && destino ? Number((haversineKm(origem[0], origem[1], destino[0], destino[1]) * 0.539957).toFixed(1)) : 0
-          const { origem_coordenadas: _origem, destino_coordenadas: _destino, ...publica } = perna
-          return { ...publica, distancia_nm }
-        })
-        return { ...jornada, pernas: calculadas }
+      } catch (error) {
+        log.error(`[diario-bordo] pernas indisponíveis para jornada ${jornada.jornada_id}`, error)
+        return { ...jornada, pernas: [] }
+      }
+      const consumoHora = diarioNumber(aeronave?.consumo_combustivel)
+      const calculadas = await Promise.all((pernas.results || []).map(async (perna: any) => {
+        const { origem_coordenadas: _origem, destino_coordenadas: _destino, ...publica } = perna
+        const coordenada = (value: unknown) => { const [lat, lon] = String(value || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] as const : null }
+        const origem = coordenada(perna.origem_coordenadas); const destino = coordenada(perna.destino_coordenadas)
+        const distancia_nm = origem && destino ? Number((haversineKm(origem[0], origem[1], destino[0], destino[1]) * 0.539957).toFixed(1)) : 0
+        try {
+          const dadosOperacionais = await calcularDadosOperacionais(c, { acionamento_utc: perna.horario_ac, decolagem_utc: perna.horario_dep, pouso_utc: perna.horario_pouso, corte_utc: perna.horario_corte, aerodromo_partida: perna.origem }, String(perna.horario_ac || jornada.data).slice(0, 10), perna.origem)
+          return { ...publica, distancia_nm, tempo_voo: dadosOperacionais.tempo_voo, tempo_total: dadosOperacionais.tempo_total, horas_diurnas: dadosOperacionais.horas_diurnas, horas_noturnas: dadosOperacionais.horas_noturnas, consumo_combustivel_voo: Number((dadosOperacionais.tempo_voo * consumoHora).toFixed(2)), consumo_combustivel_total: Number((dadosOperacionais.tempo_total * consumoHora).toFixed(2)), solar_status: dadosOperacionais.solar_status }
+        } catch (error) {
+          log.error(`[diario-bordo] falha ao calcular dados da perna ${perna.perna_id}`, error)
+          return { ...publica, distancia_nm, tempo_voo: 0, tempo_total: 0, horas_diurnas: 0, horas_noturnas: 0, consumo_combustivel_voo: 0, consumo_combustivel_total: 0, solar_status: 'not_calculated' }
+        }
       }))
-      return { ...voo, jornadas: jornadasComPernas }
-    } catch (error) {
-      log.error('[diario-bordo] jornadas indisponíveis para número de voo', error)
-      return { ...voo, jornadas: [] }
-    }
+      return { ...jornada, pernas: calculadas }
+    }))
+    return { ...voo, jornadas: jornadasComPernas }
   }))
   return c.json({ voos })
 })
@@ -7051,7 +7193,7 @@ async function garantirTabelaEmails(c: Context<{ Bindings: Bindings }>) {
   await validateWorkerSchema(c, [
     { table: 'user_profiles', columns: ['id', 'email_envio'] },
     { table: 'assinaturas_email', columns: ['id'] },
-    { table: 'emails_enviados', columns: ['id', 'anexos_detalhes'] },
+    { table: 'emails_enviados', columns: ['id', 'anexos_detalhes', 'email_enviado_em'] },
   ])
 }
 function normalizarEmail(valor: unknown): string | null {
@@ -7131,7 +7273,7 @@ app.get('/api/interno/emails', async c => {
     db.prepare("SELECT r.id AS recibo_id, r.numero_recibo, r.url_recibo, COALESCE(a.id, r.id) AS id, COALESCE(a.nome_arquivo, r.numero_recibo || '.pdf') AS nome_arquivo, COALESCE(a.tipo_arquivo, 'application/pdf') AS tipo_arquivo, a.tamanho_arquivo, COALESCE(a.criado_em, r.criado_em) AS criado_em FROM recibos r LEFT JOIN recibo_anexos a ON a.recibo_id = r.id AND (UPPER(COALESCE(a.finalidade, '')) = 'PDF' OR a.tipo_arquivo = 'application/pdf') WHERE a.id IS NOT NULL OR r.url_recibo IS NOT NULL ORDER BY COALESCE(a.criado_em, r.criado_em) DESC LIMIT 300").all().catch(() => ({ results: [] })),
     db.prepare("SELECT id, nome_arquivo, tipo_arquivo, tamanho_arquivo, criado_em FROM relatorio_despesa_viagem_anexos ORDER BY criado_em DESC LIMIT 200").all().catch(() => ({ results: [] })),
     db.prepare("SELECT id, local, numero_comanda, numero_nf, comanda_url, nota_url, boleto_url FROM abastecimentos WHERE comanda_url IS NOT NULL OR nota_url IS NOT NULL OR boleto_url IS NOT NULL ORDER BY data DESC LIMIT 200").all().catch(() => ({ results: [] })),
-    db.prepare("SELECT id, destinatarios, assunto, mensagem, status, anexos, anexos_detalhes, quantidade_anexos, erro_mensagem AS erro, enviado_por, referencia_tipo, referencia_id, criado_em FROM emails_enviados WHERE enviado_por = ?1 ORDER BY criado_em DESC LIMIT 100").bind(user.id).all(),
+    db.prepare("SELECT id, destinatarios, assunto, mensagem, status, anexos, anexos_detalhes, quantidade_anexos, erro_mensagem AS erro, enviado_por, referencia_tipo, referencia_id, criado_em, email_enviado_em FROM emails_enviados WHERE enviado_por = ?1 ORDER BY criado_em DESC LIMIT 100").bind(user.id).all(),
   ])
   const contatos: any[] = []
   for (const row of (clientes.results as any[])) {
@@ -7326,7 +7468,8 @@ app.post('/api/interno/emails', async c => {
     if (!response.ok) { status = 'erro'; erro = await response.text().catch(() => 'falha_ao_enviar_email') }
   }
   const [primeiroPrefix, primeiroRawId] = (origens[0] || '').includes(':') ? origens[0].split(':', 2) : [null, null]
-  await db.prepare('INSERT INTO emails_enviados (id, destinatarios, assunto, mensagem, anexos, anexos_detalhes, quantidade_anexos, status, erro_mensagem, enviado_por, referencia_tipo, referencia_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, JSON.stringify(destinatarios), assunto, mensagem, JSON.stringify(ids), JSON.stringify(anexosDetalhes), anexos.length, status, erro, user.id, primeiroPrefix, primeiroRawId).run()
+  const emailEnviadoEm = status === 'enviado' ? new Date().toISOString() : null
+  await db.prepare('INSERT INTO emails_enviados (id, destinatarios, assunto, mensagem, anexos, anexos_detalhes, quantidade_anexos, status, erro_mensagem, enviado_por, referencia_tipo, referencia_id, email_enviado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, JSON.stringify(destinatarios), assunto, mensagem, JSON.stringify(ids), JSON.stringify(anexosDetalhes), anexos.length, status, erro, user.id, primeiroPrefix, primeiroRawId, emailEnviadoEm).run()
   if (status === 'enviado') {
     // A FK de lancamentos.email_enviado_id exige que o registro pai exista
     // antes da atualização do lançamento.
@@ -7729,6 +7872,56 @@ async function gerarFinanceiroNfSaida(
 async function garantirTabelaFichaPeso(c: Context<{ Bindings: Bindings }>) {
   await validateWorkerSchema(c, [{table:'ctm_ficha_peso_balanceamento',columns:['id','solicitacao_id','assinatura_nome']}])
 }
+
+app.get('/api/ctm/peso-balanceamento', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const aeronaveId = c.req.query('aeronave_id')
+  const query = aeronaveId
+    ? `SELECT p.*, a.matricula_registro, a.fabricante, a.modelo, a.numero_serie
+       FROM ctm_peso_balanceamento p LEFT JOIN aeronave a ON a.id = p.aeronave_id
+       WHERE p.aeronave_id = ?1 ORDER BY p.atualizado_em DESC`
+    : `SELECT p.*, a.matricula_registro, a.fabricante, a.modelo, a.numero_serie
+       FROM ctm_peso_balanceamento p LEFT JOIN aeronave a ON a.id = p.aeronave_id
+       ORDER BY p.atualizado_em DESC`
+  const rows = await c.env.SHARE_DB.prepare(query).bind(...(aeronaveId ? [aeronaveId] : [])).all<any>()
+  return c.json({ configuracoes: rows.results || [] })
+})
+
+app.post('/api/ctm/peso-balanceamento', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
+  const aeronaveId = String(body.aeronave_id || '').trim()
+  if (!aeronaveId) return c.json({ error: 'aeronave_obrigatoria' }, 400)
+  const numero = (value: unknown, fallback: number | null = null) => value === '' || value === undefined || value === null ? fallback : Number(value)
+  const atual = await c.env.SHARE_DB.prepare('SELECT id FROM ctm_peso_balanceamento WHERE aeronave_id = ?1').bind(aeronaveId).first<any>()
+  const id = atual?.id || crypto.randomUUID()
+  const valores = [
+    numero(body.peso_vazio_padrao, 0), numero(body.braco_cg_padrao, 0), numero(body.momento_padrao),
+    numero(body.peso_maximo_decolagem, 0), numero(body.peso_maximo_pouso, 0), numero(body.peso_maximo_sem_combustivel),
+    numero(body.cg_limite_dianteiro, 0), numero(body.cg_limite_traseiro, 0), numero(body.mac_comprimento, 0), numero(body.lemac_distancia, 0),
+    numero(body.capacidade_combustivel_total), numero(body.capacidade_combustivel_util), body.validado ? 1 : 0,
+    body.notas?.toString().trim() || null, body.data_ultima_pesagem || null, body.numero_relatorio_pesagem?.toString().trim() || null,
+    body.responsavel_tecnico?.toString().trim() || null, numero(body.limite_bagagem_diant_kg), numero(body.limite_bagagem_tras_kg), user.id,
+  ]
+  if (atual) {
+    await c.env.SHARE_DB.prepare(`UPDATE ctm_peso_balanceamento SET peso_vazio_padrao=?, braco_cg_padrao=?, momento_padrao=?, peso_maximo_decolagem=?, peso_maximo_pouso=?, peso_maximo_sem_combustivel=?, cg_limite_dianteiro=?, cg_limite_traseiro=?, mac_comprimento=?, lemac_distancia=?, capacidade_combustivel_total=?, capacidade_combustivel_util=?, validado=?, notas=?, data_ultima_pesagem=?, numero_relatorio_pesagem=?, responsavel_tecnico=?, limite_bagagem_diant_kg=?, limite_bagagem_tras_kg=?, atualizado_em=CURRENT_TIMESTAMP, criado_por=? WHERE id=?`).bind(...valores, id).run()
+  } else {
+    await c.env.SHARE_DB.prepare(`INSERT INTO ctm_peso_balanceamento (peso_vazio_padrao, braco_cg_padrao, momento_padrao, peso_maximo_decolagem, peso_maximo_pouso, peso_maximo_sem_combustivel, cg_limite_dianteiro, cg_limite_traseiro, mac_comprimento, lemac_distancia, capacidade_combustivel_total, capacidade_combustivel_util, validado, notas, data_ultima_pesagem, numero_relatorio_pesagem, responsavel_tecnico, limite_bagagem_diant_kg, limite_bagagem_tras_kg, criado_por, aeronave_id, id) VALUES (${new Array(22).fill('?').join(', ')})`).bind(...valores, aeronaveId, id).run()
+  }
+  const configuracao = await c.env.SHARE_DB.prepare('SELECT p.*, a.matricula_registro, a.fabricante, a.modelo, a.numero_serie FROM ctm_peso_balanceamento p LEFT JOIN aeronave a ON a.id=p.aeronave_id WHERE p.id=?1').bind(id).first<any>()
+  return c.json({ configuracao }, atual ? 200 : 201)
+})
+
+app.get('/api/ctm/fichas-peso-balanceamento', async c => {
+  const user = await shareBrasilUser(c)
+  if (!user) return c.json({ error: 'nao_autorizado' }, 401)
+  const rows = await c.env.SHARE_DB.prepare(`SELECT f.*, a.matricula_registro, a.modelo, s.origem, s.destino, s.data_agendada
+    FROM ctm_ficha_peso_balanceamento f LEFT JOIN aeronave a ON a.id=f.aeronave_id
+    LEFT JOIN solicitacoes_reserva_voo s ON s.id=f.solicitacao_id ORDER BY COALESCE(f.data_voo, f.criado_em) DESC`).all<any>()
+  return c.json({ fichas: (rows.results || []).map((f: any) => ({ ...f, itens_carregamento: parseJsonOr(f.itens_carregamento, []), snapshot_limites: parseJsonOr(f.snapshot_limites, {}) })) })
+})
 
 const parseJsonOr = (value: unknown, fallback: unknown) => {
   try { return JSON.parse(String(value ?? '')) } catch { return fallback }

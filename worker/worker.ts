@@ -4088,6 +4088,14 @@ function dataUtc(timestamp: number): string {
   return new Date(timestamp).toISOString().slice(0, 10)
 }
 
+function normalizarDataParaComparacao(valor: unknown): string {
+  const texto = String(valor ?? '').trim()
+  if (!texto) return ''
+  const dm = texto.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/)
+  if (dm) return `${dm[3]}${dm[2]}${dm[1]}`
+  return texto.replace(/\D/g, '')
+}
+
 function instanteSolarUtc(data: string, valor: unknown): number | null {
   const texto = String(valor ?? '').trim()
   if (!texto) return null
@@ -4120,7 +4128,7 @@ async function calcularHorasDiurnas(
     const payload = await cachedFetch(c, `solar-${icao}-${dataDecea}`, 86_400, () => fetchAisweb(c, 'sol', { icaoCode: icao, date: dataDecea }))
     const itens = Array.isArray(payload) ? payload : (payload?.sol ?? [payload])
     const esperado = data.replace(/\D/g, '')
-    const item = itens.find((dia: any) => String(dia?.date ?? dia?.data ?? '').replace(/\D/g, '') === esperado) || (itens.length === 1 && !itens[0]?.date && !itens[0]?.data ? itens[0] : null)
+    const item = itens.find((dia: any) => normalizarDataParaComparacao(dia?.date ?? dia?.data) === esperado) || (itens.length === 1 ? itens[0] : null)
     const nascer = instanteSolarUtc(data, item?.nascer ?? item?.sunrise)
     const poente = instanteSolarUtc(data, item?.poente ?? item?.sunset)
     if (nascer === null || poente === null || poente <= nascer) throw new Error(`DECEA não retornou nascer/pôr do sol para ${icao} em ${data}`)

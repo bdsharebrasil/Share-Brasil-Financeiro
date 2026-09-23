@@ -993,6 +993,10 @@ export type DiarioMes = {
 };
 export type DiarioLancamento = {
   id: string;
+  acionamento_utc?: string | null;
+  decolagem_utc?: string | null;
+  pouso_utc?: string | null;
+  corte_utc?: string | null;
   numero_sequencial: number;
   diario_mes_id: string;
   aeronave_id: string;

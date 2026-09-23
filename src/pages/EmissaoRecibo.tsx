@@ -20,7 +20,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import HistoricoRecibos, {
   type FiltrosHistoricoRecibos,
 } from "@/components/financeiro-share/HistoricoRecibos";
-import ProgramarContaAPagarDialog from "@/components/financeiro-share/ProgramarContaAPagarDialog";
+import ProgramarContaAPagarDialog, { type RateioDiretoPayload } from "@/components/financeiro-share/ProgramarContaAPagarDialog";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import ImportarDemonstrativoIA from "@/components/dashboard/financeiro/ImportarDemonstrativoIA";
 import logoShare from "@/assets/share-signature-logo.png";
@@ -35,6 +35,7 @@ import {
   criarRecibo,
   enviarAnexoRecibo,
   enviarPdfRecibo,
+  enviarDespesaRateioRecibo,
   atualizarStatusRecibo,
   type OpcoesRecibos,
   type Recibo as ReciboFinanceiro,
@@ -90,6 +91,7 @@ type Formulario = {
   data_emissao: string;
   data_vencimento: string;
   forma_pagamento: string;
+  numero_voo: string;
 
   categoria_id: string;
   categoria_nome: string;
@@ -119,6 +121,7 @@ const inicial = (): Formulario => ({
   data_emissao: hoje(),
   data_vencimento: "",
   forma_pagamento: "",
+  numero_voo: "",
   categoria_id: "",
   categoria_nome: "",
   categoria_despesa_subcategoria: "",
@@ -327,6 +330,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   >(null);
   const [reciboEmail, setReciboEmail] = useState<ReciboFinanceiro | null>(null);
   const [reciboProgramacao, setReciboProgramacao] = useState<ReciboFinanceiro | null>(null);
+  const [rateioAposEmail, setRateioAposEmail] = useState<{ recibo: ReciboFinanceiro; payload: RateioDiretoPayload } | null>(null);
   const [modalEmail, setModalEmail] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
   const mostrarFeedback = (tipo: "sucesso" | "erro", texto: string) => {
@@ -675,8 +679,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         aeronave_id:
           form.tipo === "recibo_reembolso"
             ? form.aeronave_id || null
-            : form.tipo === "recibo_pagamento" && form.pagador_tipo === "cotista_aeronave"
-              ? pagadorSelecionado?.aeronave_id || null
+            : form.tipo === "recibo_pagamento"
+              ? form.aeronave_id || null
             : form.tipo === "recibo_colaborador" &&
                 form.natureza_despesa === "aeronave"
               ? form.aeronave_id
@@ -693,6 +697,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento"
             ? form.forma_pagamento || null
             : null,
+        numero_voo: form.numero_voo.trim() || null,
         tipo_caixa: tipoCaixaPara(form),
         categoria_movimentacao_id: form.categoria_id,
         categoria_nome: form.categoria_nome || null,
@@ -868,10 +873,20 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     try {
       await atualizarStatusRecibo(reciboEmail.id, "EMAIL_ENVIADO");
       const atualizado = { ...reciboEmail, status: "EMAIL_ENVIADO" as const };
-      setRecibos((atual) => atual.map((item) => item.id === reciboEmail.id ? atualizado : item));
+      const rateioPendente = rateioAposEmail?.recibo.id === reciboEmail.id ? rateioAposEmail : null;
+      if (rateioPendente) {
+        await enviarDespesaRateioRecibo(reciboEmail.id, rateioPendente.payload);
+        setRateioAposEmail(null);
+      }
+      setRecibos((atual) => atual.map((item) => item.id === reciboEmail.id ? { ...atualizado, despesa_programada: Boolean(rateioPendente) || item.despesa_programada } : item));
       setModalEmail(false);
-      setReciboProgramacao(atualizado);
-      mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
+      if (rateioPendente) {
+        setReciboProgramacao(null);
+        mostrarFeedback("sucesso", "EMAIL ENVIADO E RATEIO CRIADO COM SUCESSO");
+      } else {
+        setReciboProgramacao(atualizado);
+        mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
+      }
     } catch (cause) {
       mostrarFeedback("erro", cause instanceof Error ? cause.message : "Não foi possível atualizar o status do e-mail.");
     }
@@ -945,7 +960,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
       <EnviarEmailClienteDialog
         open={modalEmail}
-        onOpenChange={setModalEmail}
+        onOpenChange={(aberto) => {
+          setModalEmail(aberto);
+          if (!aberto && rateioAposEmail) setRateioAposEmail(null);
+        }}
         onSent={() => void emailEnviado()}
         assuntoSugerido={reciboEmail ? `Recibo ${reciboEmail.numero_recibo}` : ""}
         mensagemSugerida={reciboEmail ? `Olá,\n\nSegue o recibo ${reciboEmail.numero_recibo} em anexo.` : ""}
@@ -965,6 +983,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         recibo={reciboProgramacao}
         aeronaves={opcoes.aeronaves}
         categorias={opcoes.categorias_cliente}
+        onRequestEmail={(recibo, payload) => {
+          setRateioAposEmail({ recibo, payload });
+          setReciboEmail(recibo);
+          setReciboProgramacao(null);
+          setModalEmail(true);
+        }}
         onOpenChange={(aberto) => { if (!aberto) setReciboProgramacao(null); }}
         onSaved={() => {
           if (reciboProgramacao) {
@@ -1044,6 +1068,28 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               <div className="grid gap-4 md:grid-cols-2">
                 {form.tipo === "recibo_pagamento" && (
                   <>
+                    <Campo label="Aeronave (opcional)">
+                      <select
+                        value={form.aeronave_id}
+                        onChange={(e) => alterar("aeronave_id", e.target.value)}
+                        className="campo"
+                      >
+                        <option value="">Selecione a aeronave</option>
+                        {opcoes.aeronaves.map((aeronave) => (
+                          <option key={aeronave.id} value={aeronave.id}>
+                            {aeronave.matricula_registro}{aeronave.modelo ? ` · ${aeronave.modelo}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                    <Campo label="Número do voo (opcional)">
+                      <input
+                        value={form.numero_voo}
+                        onChange={(e) => alterar("numero_voo", e.target.value)}
+                        placeholder="Ex.: 1234"
+                        className="campo"
+                      />
+                    </Campo>
                     <Campo label="RECEBEDOR (nome)" obrigatorio>
                       <input
                         value={form.recebedor_nome}

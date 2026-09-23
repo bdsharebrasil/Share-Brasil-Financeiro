@@ -15,6 +15,7 @@ const tipos = ["FIXO", "VARIAVEL_POR_VOO", "VARIAVEL_POR_HORA", "EXTRA"] as cons
 const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"];
 const hoje = () => new Date().toISOString().slice(0, 10);
 
+export type RateioDiretoPayload = { aeronave_id: string; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
  type Props = {
   open: boolean;
   recibo: Recibo | null;
@@ -22,9 +23,10 @@ const hoje = () => new Date().toISOString().slice(0, 10);
   categorias: CategoriaClienteRecibo[];
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  onRequestEmail: (recibo: Recibo, payload: RateioDiretoPayload) => void;
 };
 
-export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, categorias, onOpenChange, onSaved }: Props) {
+export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, categorias, onOpenChange, onSaved, onRequestEmail }: Props) {
   const rateioDireto = recibo?.tipo_recibo === "recibo_pagamento";
   const [aeronaveId, setAeronaveId] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
@@ -39,6 +41,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
   const [carregandoCotistas, setCarregandoCotistas] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [enviarEmailAntes, setEnviarEmailAntes] = useState(false);
 
   const categoriaSelecionada = categorias.find((item) => item.id === categoriaId);
   const subcategorias = useMemo(
@@ -57,6 +60,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setObservacoes("");
     setBoleto(null);
     setErro("");
+    setEnviarEmailAntes(false);
     setCotistas([]);
     setPercentuais({});
   }, [open, recibo]);
@@ -112,12 +116,18 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
             valor_centavos: valorCentavos,
           };
         });
-        await enviarDespesaRateioRecibo(recibo.id, {
+        const payload: RateioDiretoPayload = {
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
+          numero_voo: recibo.numero_voo || null,
           observacoes: observacoes.trim() || null,
           rateio_linhas: rateioLinhas,
-        });
+        };
+        if (enviarEmailAntes) {
+          onRequestEmail(recibo, payload);
+          return;
+        }
+        await enviarDespesaRateioRecibo(recibo.id, payload);
       } else {
         if (!aeronaveId || !dataVencimento || !selecionados.length || Math.abs(totalPercentual - 100) > 0.01) {
           setErro("Informe aeronave, vencimento e percentuais dos cotistas somando 100%.");
@@ -167,9 +177,10 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
         {rateioDireto ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-primary/25 bg-primary/[.06] p-4 text-xs leading-relaxed">
-              <p className="font-bold">O e-mail deste recibo já foi enviado.</p>
-              <p className="mt-1 text-muted-foreground">Ao confirmar, o sistema criará a despesa diretamente no rateio do cotista pagador. Se o cotista estiver vinculado a uma holding, será criado em <strong>rateio_hold</strong>; nos demais casos, em <strong>rateio_despesas</strong>.</p>
+              <p className="font-bold">Envio opcional do recibo</p>
+              <p className="mt-1 text-muted-foreground">Você pode enviar o e-mail agora e, após o envio confirmado, o sistema criará o lançamento e o rateio. Sem marcar a opção, o rateio será criado diretamente.</p>
             </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card p-3 text-xs"><input type="checkbox" checked={enviarEmailAntes} onChange={(event) => setEnviarEmailAntes(event.target.checked)} className="mt-0.5" /><span><strong>Enviar e-mail antes de criar o rateio</strong><span className="mt-1 block text-muted-foreground">O status do recibo será atualizado para EMAIL_ENVIADO somente quando o envio for concluído.</span></span></label>
             <div className="rounded-xl border border-border/70 p-4 text-xs">
               <p><strong>Pagador:</strong> {recibo.nome_pagador || "não identificado"}</p>
               <p className="mt-1"><strong>Descrição:</strong> {recibo.descricao || recibo.descricao_servico || "—"}</p>

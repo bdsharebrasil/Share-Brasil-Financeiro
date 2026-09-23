@@ -1214,6 +1214,7 @@ export type Recibo = {
   recebedor_cidade?: string | null;
   recebedor_uf?: string | null;
   aeronave_id: string | null;
+  numero_voo?: string | null;
   rateado: number;
   nome_pagador: string;
   documento_pagador: string | null;
@@ -1248,7 +1249,7 @@ export type Recibo = {
 };
 export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas_id: string; cotista_id?: string | null; cotista_nome?: string | null; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; nome: string | null; percentual: number; valor: number };
 
-export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string; percentual?: number; percentual_sociedade?: number; valor?: number; valor_centavos?: number; pago_por?: string };
+export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string | null; percentual?: number; percentual_sociedade?: number; valor?: number; valor_centavos?: number; pago_por?: string };
 export type CriarReciboPayload = {
   tipo_recibo: TipoRecibo;
   natureza_despesa?: "aeronave" | "empresa" | null;
@@ -1277,6 +1278,7 @@ export type CriarReciboPayload = {
   data_vencimento?: string | null;
   forma_pagamento?: string | null;
   categoria_movimentacao_id?: string | null;
+  numero_voo?: string | null;
   subcategoria_1?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;

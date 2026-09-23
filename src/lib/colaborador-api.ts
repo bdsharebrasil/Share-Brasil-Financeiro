@@ -1422,6 +1422,7 @@ export type EmailEnviado = {
   mensagem?: string | null;
   anexos_detalhes?: Array<{ nome_arquivo: string; tipo_arquivo: string; tamanho_bytes?: number; key?: string }>;
   criado_em: string;
+  email_enviado_em?: string | null;
   erro?: string | null;
   enviado_por?: string | null;
   referencia_tipo?: string | null;

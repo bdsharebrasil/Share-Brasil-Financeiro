@@ -57,6 +57,9 @@ const checkinBeforeAc = (time?: string | null) => {
 const timestampUtc = (data: string, hora: string) =>
   data && hora ? `${data}T${hora.length === 5 ? `${hora}:00` : hora}Z` : null;
 
+const normalizarNumeroVoo = (value: unknown) =>
+  String(value ?? "").trim().replace(/\s+/g, "").toUpperCase();
+
 function formFromEntry(
   entry: Partial<DiarioLancamento> | undefined,
   date: string,
@@ -197,13 +200,21 @@ export default function DiarioLancamentoForm({
   }, [initialData, diarioMesId, sugeridaCelula, sugestaoTrecho]);
   useEffect(() => {
     if (!initialData?.numero_voo || solicitacaoSelecionada) return;
-    const voo = voos.find((item) => item.numero_voo === initialData.numero_voo);
+    const voo = voos.find(
+      (item) =>
+        normalizarNumeroVoo(item.numero_voo) ===
+        normalizarNumeroVoo(initialData.numero_voo),
+    );
     if (voo) setSolicitacaoSelecionada(voo.solicitacao_id);
   }, [initialData?.numero_voo, solicitacaoSelecionada, voos]);
   useEffect(() => {
     if (!solicitacaoSelecionada) {
       setSolicitacaoSelecionada(
-        voos.find((voo) => voo.numero_voo === value("numero_voo"))
+        voos.find(
+          (voo) =>
+            normalizarNumeroVoo(voo.numero_voo) ===
+            normalizarNumeroVoo(value("numero_voo")),
+        )
           ?.solicitacao_id || "",
       );
     }
@@ -263,7 +274,11 @@ export default function DiarioLancamentoForm({
     : value("cliente_id");
   const vooSelecionado =
     voos.find((voo) => voo.solicitacao_id === solicitacaoSelecionada) ||
-    voos.find((voo) => voo.numero_voo === value("numero_voo"));
+    voos.find(
+      (voo) =>
+        normalizarNumeroVoo(voo.numero_voo) ===
+        normalizarNumeroVoo(value("numero_voo")),
+    );
   const jornadas = (vooSelecionado?.jornadas || []) as NumeroVooJornada[];
   const jornada = jornadas.find(
     (item) => item.jornada_id === (jornadaSelecionada || value("jornada_id")),
@@ -549,6 +564,15 @@ export default function DiarioLancamentoForm({
                   }
                   if (voos.some((voo) => voo.solicitacao_id === id)) {
                     aplicarVoo(id);
+                    return;
+                  }
+                  const vooCorrespondente = voos.find(
+                    (voo) =>
+                      normalizarNumeroVoo(voo.numero_voo) ===
+                      normalizarNumeroVoo(id),
+                  );
+                  if (vooCorrespondente) {
+                    aplicarVoo(vooCorrespondente.solicitacao_id);
                     return;
                   }
                   // Um número digitado pode ser usado sem vínculo com uma solicitação.

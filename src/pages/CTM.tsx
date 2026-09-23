@@ -42,7 +42,7 @@ export default function CTM() {
       <TabelaCTM value="componentes" title="Componentes e itens controlados" detail="Rastreabilidade de peça, série, posição e vida restante" rows={dados?.componentes || []} columns={[["nome", "Componente"], ["part_number", "P/N"], ["numero_serie", "S/N"], ["posicao", "Posição"], ["percentual_vida_restante", "Vida restante"], ["status", "Status"]]} />
       <TabelaCTM value="diretrizes" title="Diretrizes e documentos técnicos" detail="ADs, SBs e vencimentos por data, horas e ciclos" rows={dados?.diretrizes || []} columns={[["numero", "Número"], ["titulo", "Título"], ["tipo", "Tipo"], ["data_vencimento", "Vencimento"], ["status", "Status"]]} />
       <TabelaCTM value="ras" title="RAS — Relatórios de acompanhamento" detail="Histórico de serviços, itens e documentos" rows={dados?.ras || []} columns={[["numero_ras", "Número"], ["descricao", "Descrição"], ["data_entrada", "Entrada"], ["status", "Status"], ["valor_total", "Total"]]} moneyKeys={["valor_total"]} />
-      <TabsContent value="peso"><CtmPesoBalanceamento /></TabsContent>
+      <TabsContent value="peso"><CtmPesoBalanceamento aeronaveId={aeronaveId || undefined} /></TabsContent>
       <TabsContent value="rateio"><PainelVazio icon={<BarChart3 size={22} />} title="Rateio e horas voadas" detail="Custos fixos, variáveis, horas voadas e participação dos cotistas." rows={[]} /></TabsContent>
     </Tabs>
   </div>;

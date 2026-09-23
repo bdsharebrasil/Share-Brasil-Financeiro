@@ -190,8 +190,10 @@ function statusClass(status?: string) {
 
 export default function RelatorioDespesaViagem({
   aoVoltar,
+  aoResetarRolagem,
 }: {
   aoVoltar?: () => void;
+  aoResetarRolagem?: () => void;
 }) {
   const [opcoes, setOpcoes] = useState<OpcoesRelatorioViagem>({
     clientes: [],
@@ -230,6 +232,10 @@ export default function RelatorioDespesaViagem({
   const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
   const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
+
+  useEffect(() => {
+    aoResetarRolagem?.();
+  }, [aba, aoResetarRolagem]);
 
   useEffect(
     () => () => {

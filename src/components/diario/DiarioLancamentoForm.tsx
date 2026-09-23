@@ -13,7 +13,7 @@ import type {
 } from "@/lib/colaborador-api";
 
 const inputClass =
-  "h-10 w-full rounded-xl border border-white/[.1] bg-white/[.04] px-3 text-xs text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/[.07] focus:ring-2 focus:ring-cyan-300/15";
+  "h-11 w-full min-w-0 rounded-xl border border-white/[.1] bg-white/[.04] px-3 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-cyan-300/60 focus:bg-white/[.07] focus:ring-2 focus:ring-cyan-300/15";
 const selectClass = `${inputClass} appearance-none [&>option]:bg-[#101722] [&>option]:text-slate-100`;
 const naturezas = [
   "AE - Aérea/Regular",
@@ -597,7 +597,7 @@ export default function DiarioLancamentoForm({
           <X size={15} />
         </button>
       </div>
-      <div className="relative min-w-0 space-y-4 bg-[#02090f] p-3 sm:space-y-6 sm:p-5">
+      <div className="relative min-w-0 space-y-4 bg-[#02090f] p-3 sm:space-y-5 sm:p-4 lg:p-5">
         {error && (
           <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-200">
             {error}
@@ -609,7 +609,7 @@ export default function DiarioLancamentoForm({
           </div>
         )}
         <FormSection icon={<PlaneTakeoff size={13} />} title="Voo e rota">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Data *">
               <input
                 type="date"
@@ -658,7 +658,7 @@ export default function DiarioLancamentoForm({
                 clearable
                 allowFreeText
                 wrapItemLabels
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Jornada (número e data)">
@@ -686,7 +686,7 @@ export default function DiarioLancamentoForm({
                 searchPlaceholder="Buscar jornada..."
                 emptyMessage="Selecione um voo primeiro."
                 wrapItemLabels
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Trecho da jornada">
@@ -700,7 +700,7 @@ export default function DiarioLancamentoForm({
                 placeholder="Selecione o trecho"
                 searchPlaceholder="Buscar nome ou ICAO..."
                 emptyMessage="Selecione a jornada primeiro."
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Natureza *">
@@ -722,7 +722,7 @@ export default function DiarioLancamentoForm({
                 placeholder="Selecionar natureza"
                 searchPlaceholder="Buscar natureza..."
                 emptyMessage="Nenhuma natureza encontrada."
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Trecho">
@@ -741,7 +741,7 @@ export default function DiarioLancamentoForm({
                 placeholder="Selecionar aeródromo"
                 searchPlaceholder="Buscar por nome ou ICAO..."
                 emptyMessage="Nenhum aeródromo encontrado."
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Destino ICAO *">
@@ -752,7 +752,7 @@ export default function DiarioLancamentoForm({
                 placeholder="Selecionar aeródromo"
                 searchPlaceholder="Buscar por nome ou ICAO..."
                 emptyMessage="Nenhum aeródromo encontrado."
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Passageiros">
@@ -779,7 +779,7 @@ export default function DiarioLancamentoForm({
           )}
         </FormSection>
         <FormSection icon={<Users size={13} />} title="Tripulação e cotista">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="PIC * · tripulação ">
               <SearchableCombobox
                 items={tripulacao.map((tripulante) => ({
@@ -792,7 +792,7 @@ export default function DiarioLancamentoForm({
                 searchPlaceholder="Buscar ou digitar nome/CANAC..."
                 emptyMessage="Nenhum tripulante encontrado."
                 allowFreeText
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="SIC · tripulação ">
@@ -807,7 +807,7 @@ export default function DiarioLancamentoForm({
                 searchPlaceholder="Buscar ou digitar nome/CANAC..."
                 emptyMessage="Nenhum tripulante encontrado."
                 allowFreeText
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             <Field label="Cliente">
@@ -837,7 +837,7 @@ export default function DiarioLancamentoForm({
                 placeholder={rateioIgual ? "Rateio igual entre cotistas" : "Selecionar cliente"}
                 searchPlaceholder="Buscar cliente ..."
                 emptyMessage="Nenhum cliente encontrado."
-                className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
               />
             </Field>
             {value("holding_id") && !rateioIgual && (
@@ -849,7 +849,7 @@ export default function DiarioLancamentoForm({
                   placeholder="Selecionar sócio"
                   searchPlaceholder="Buscar sócio..."
                   emptyMessage="Nenhum sócio encontrado"
-                  className="h-10 rounded-xl border-white/[.1] bg-white/[.04] text-xs text-slate-100"
+                  className="h-11 rounded-xl border-white/[.1] bg-white/[.04] text-sm text-slate-100"
                 />
               </Field>
             )}
@@ -905,7 +905,7 @@ export default function DiarioLancamentoForm({
           icon={<TimerIcon />}
           title="Tempos operacionais (UTC/Zulu) e célula"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Horário de apresentação">
               <input
                 type="time"
@@ -996,7 +996,7 @@ export default function DiarioLancamentoForm({
         </FormSection>
         {temDiaria && (
           <FormSection icon={<BookOpen size={13} />} title="Diárias">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <NumberField
                 label="Quantidade de diárias"
                 value={value("diarias")}
@@ -1010,7 +1010,7 @@ export default function DiarioLancamentoForm({
           icon={<Fuel size={13} />}
           title="Combustível e abastecimento"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Consumo de voo">
               <input
                 value={value("consumo_combustivel_voo")}
@@ -1117,7 +1117,7 @@ export default function DiarioLancamentoForm({
               />
             </Field>
           </div>}
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          <div className="mt-3 grid min-w-0 gap-3 xl:grid-cols-3">
             <TextField
               label="Ocorrências"
               value={value("ocorrencias")}
@@ -1184,8 +1184,8 @@ function FormSection({
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">
+    <label className="block min-w-0">
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-[.08em] text-slate-400">
         {label}
       </span>
       {children}
@@ -1254,7 +1254,7 @@ function TextField({
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="min-h-[76px] w-full resize-y rounded-xl border border-white/[.1] bg-white/[.04] px-3 py-2 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/15"
+        className="min-h-[76px] w-full resize-y rounded-xl border border-white/[.1] bg-white/[.04] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/15"
         placeholder="Sem registro"
       />
     </Field>

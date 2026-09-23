@@ -139,10 +139,10 @@
   .marcador--regua { background: hsl(var(--chart-3)); border-color: hsl(var(--chart-3)); color: hsl(var(--background)); min-width: 24px; padding: 5px; }
 }
 
-.diario-bordo .text-\[8px\] { font-size: 0.625rem; }
-.diario-bordo .text-\[9px\] { font-size: 0.6875rem; }
-.diario-bordo .text-\[10px\] { font-size: 0.75rem; }
-.diario-bordo .text-\[11px\] { font-size: 0.8125rem; }
+.diario-bordo .text-\[8px\] { font-size: 0.6875rem; }
+.diario-bordo .text-\[9px\] { font-size: 0.75rem; }
+.diario-bordo .text-\[10px\] { font-size: 0.8125rem; }
+.diario-bordo .text-\[11px\] { font-size: 0.875rem; }
 .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 

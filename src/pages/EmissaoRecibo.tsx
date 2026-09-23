@@ -440,6 +440,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const selecionaCategoria = (id: string, nome: string) => {
     alterar("categoria_id", id);
     alterar("categoria_nome", nome);
+    alterar("categoria_despesa_subcategoria", "");
   };
 
   // Seleciona o cotista devedor no reembolso: preenche pagador_tipo/id e já
@@ -468,7 +469,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               (form.categoria_id !== CATEGORIA_OUTRO_ID ||
                 form.categoria_nome_manual.trim()),
           )
-        : Boolean(form.categoria_id && form.categoria_nome);
+        : form.tipo === "recibo_pagamento"
+          ? Boolean(
+              form.categoria_id &&
+                form.categoria_nome &&
+                (subcategoriasCliente.length === 0 || form.categoria_despesa_subcategoria),
+            )
+          : Boolean(form.categoria_id && form.categoria_nome);
 
   // Regra fixa por tipo:
   // - recibo_colaborador: recebedor = colaborador; pagador é sempre a Share.
@@ -682,7 +689,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         categoria_movimentacao_id: form.categoria_id,
         categoria_nome: form.categoria_nome || null,
         categoria_despesa_subcategoria:
-          form.tipo === "recibo_reembolso"
+          form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso"
+            ? form.categoria_despesa_subcategoria || null
+            : null,
+        subcategoria_1:
+          form.tipo === "recibo_pagamento"
             ? form.categoria_despesa_subcategoria || null
             : null,
         grupo_categoria:
@@ -1315,19 +1326,33 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         <option>Dinheiro</option>
                       </select>
                     </Campo>
-                    <Campo label="Categoria" obrigatorio>
+                    <Campo label="Categoria movimentação cliente" obrigatorio>
                       <SearchableCombobox
-                        items={opcoes.categorias.map((item) => ({
+                        items={opcoes.categorias_cliente.map((item) => ({
                           id: item.id,
                           label: item.nome,
                         }))}
                         value={form.categoria_id}
                         onChange={selecionaCategoria}
-                        placeholder="Selecione a categoria"
-                        searchPlaceholder="Buscar categoria..."
-                        emptyMessage="Nenhuma categoria cadastrada."
+                        placeholder="Selecione a categoria cliente"
+                        searchPlaceholder="Buscar categoria cliente..."
+                        emptyMessage="Nenhuma categoria cliente cadastrada."
                       />
                     </Campo>
+                    {subcategoriasCliente.length > 0 && (
+                      <Campo label="Subcategoria cliente" obrigatorio>
+                        <select
+                          value={form.categoria_despesa_subcategoria}
+                          onChange={(e) => alterar("categoria_despesa_subcategoria", e.target.value)}
+                          className="campo"
+                        >
+                          <option value="">Selecione a subcategoria</option>
+                          {subcategoriasCliente.map((subcategoria) => (
+                            <option key={subcategoria} value={subcategoria}>{subcategoria}</option>
+                          ))}
+                        </select>
+                      </Campo>
+                    )}
                   </>
                 )}
 

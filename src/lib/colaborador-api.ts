@@ -1277,6 +1277,7 @@ export type CriarReciboPayload = {
   data_vencimento?: string | null;
   forma_pagamento?: string | null;
   categoria_movimentacao_id?: string | null;
+  subcategoria_1?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;
   codigo_cliente?: string | null;
@@ -1284,7 +1285,6 @@ export type CriarReciboPayload = {
   pagador_id?: string | null;
   periodicidade?: string | null;
   tipo_rateio?: string | null;
-  subcategoria_1?: string | null;
   subcategoria_2?: string | null;
   subcategoria_3?: string | null;
   subcategoria_4?: string | null;

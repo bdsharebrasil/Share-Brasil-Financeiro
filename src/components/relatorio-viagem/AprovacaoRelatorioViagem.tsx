@@ -77,6 +77,8 @@ type Relatorio = {
   observacoes_aprovacao_tripulante_2?: string | null;
 };
 
+type FiltroDespesas = "tripulante" | "cliente" | "sharebrasil" | "outros";
+
 type ApprovalData = {
   relatorio: Relatorio;
   resumo?: {
@@ -251,6 +253,9 @@ export default function AprovacaoRelatorioViagem() {
   const [chegouAoFim, setChegouAoFim] = useState(false);
   const [comprovanteSelecionado, setComprovanteSelecionado] =
     useState<ComprovanteSelecionado | null>(null);
+  const [filtroDespesas, setFiltroDespesas] =
+    useState<FiltroDespesas>("tripulante");
+  const [filtrosRevisados, setFiltrosRevisados] = useState<FiltroDespesas[]>([]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -297,6 +302,8 @@ export default function AprovacaoRelatorioViagem() {
     setData(null);
     setErro(false);
     setChegouAoFim(false);
+    setFiltrosRevisados([]);
+    setFiltroDespesas("tripulante");
     setMensagem("Carregando relatório...");
 
     void fetch(
@@ -449,6 +456,103 @@ export default function AprovacaoRelatorioViagem() {
       0,
     );
 
+  const totalOutros = useMemo(
+    () =>
+      [...despesasOutroTripulante, ...despesasOutros].reduce(
+        (total, item) => total + (Number(item.valor) || 0),
+        0,
+      ),
+    [despesasOutroTripulante, despesasOutros],
+  );
+
+  const despesasFiltradas = useMemo(() => {
+    switch (filtroDespesas) {
+      case "cliente":
+        return despesasCliente;
+      case "sharebrasil":
+        return despesasShare;
+      case "outros":
+        return [...despesasOutroTripulante, ...despesasOutros];
+      case "tripulante":
+      default:
+        return despesasTripulante;
+    }
+  }, [
+    despesasCliente,
+    despesasOutroTripulante,
+    despesasOutros,
+    despesasShare,
+    despesasTripulante,
+    filtroDespesas,
+  ]);
+
+  const filtroInfo = useMemo(() => {
+    switch (filtroDespesas) {
+      case "cliente":
+        return {
+          titulo: "Despesas pagas pelo cliente",
+          subtitulo: `Total pago pelo cliente: ${moeda(totalCliente)}`,
+          vazio: "Nenhuma despesa paga pelo cliente.",
+          icon: <ReceiptText size={18} />,
+        };
+      case "sharebrasil":
+        return {
+          titulo: "Despesas pagas pela Share Brasil",
+          subtitulo: `Total pago pela Share Brasil: ${moeda(totalShare)}`,
+          vazio: "Nenhuma despesa paga pela Share Brasil.",
+          icon: <ShieldCheck size={18} />,
+        };
+      case "outros":
+        return {
+          titulo: "Outras despesas",
+          subtitulo: `Total: ${moeda(totalOutros)}`,
+          vazio: "Nenhuma outra despesa no relatório.",
+          icon: <Info size={18} />,
+        };
+      case "tripulante":
+      default:
+        return {
+          titulo: `Suas despesas`,
+          subtitulo: `Total pago por você: ${moeda(totalTripulante)}`,
+          vazio: "Nenhuma despesa atribuída a você.",
+          icon: <UserRound size={18} />,
+        };
+    }
+  }, [filtroDespesas, totalCliente, totalOutros, totalShare, totalTripulante]);
+
+  const filtrosDisponiveis = useMemo<FiltroDespesas[]>(() => {
+    const disponiveis: FiltroDespesas[] = [];
+    if (despesasTripulante.length) disponiveis.push("tripulante");
+    if (despesasCliente.length) disponiveis.push("cliente");
+    if (despesasShare.length) disponiveis.push("sharebrasil");
+    if (despesasOutroTripulante.length || despesasOutros.length) {
+      disponiveis.push("outros");
+    }
+    return disponiveis;
+  }, [
+    despesasCliente.length,
+    despesasOutroTripulante.length,
+    despesasOutros.length,
+    despesasShare.length,
+    despesasTripulante.length,
+  ]);
+
+  const relatorioRevisado = useMemo(
+    () =>
+      filtrosDisponiveis.length === 0 ||
+      filtrosDisponiveis.every((filtro) => filtrosRevisados.includes(filtro)),
+    [filtrosDisponiveis, filtrosRevisados],
+  );
+
+  const selecionarFiltro = (filtro: FiltroDespesas) => {
+    setFiltroDespesas(filtro);
+    setChegouAoFim(filtrosRevisados.includes(filtro));
+    setMensagem("");
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  };
+
   const statusAtual = data
     ? String(
         posicao === 1
@@ -487,15 +591,43 @@ export default function AprovacaoRelatorioViagem() {
       elemento.scrollTop + elemento.clientHeight >=
       elemento.scrollHeight - 48;
 
-    if (chegou) setChegouAoFim(true);
+    if (chegou) {
+      setChegouAoFim(true);
+      setFiltrosRevisados((atual) =>
+        atual.includes(filtroDespesas)
+          ? atual
+          : [...atual, filtroDespesas],
+      );
+    }
   };
+
+  useEffect(() => {
+    const elemento = scrollRef.current;
+    if (!elemento) return;
+
+    const frame = requestAnimationFrame(() => {
+      const cabeNaTela =
+        elemento.scrollHeight <= elemento.clientHeight + 48;
+
+      if (!cabeNaTela) return;
+
+      setChegouAoFim(true);
+      setFiltrosRevisados((atual) =>
+        atual.includes(filtroDespesas)
+          ? atual
+          : [...atual, filtroDespesas],
+      );
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [filtroDespesas, despesasFiltradas.length]);
 
   const decidir = async (aprovado: boolean) => {
     if (!data || decisaoRegistrada || enviando) return;
 
-    if (aprovado && !chegouAoFim) {
+    if (aprovado && !relatorioRevisado) {
       setMensagem(
-        "Desça até o final do relatório para liberar a aprovação.",
+        "Revise os grupos de despesas disponíveis, um por vez, até o final de cada grupo para liberar a aprovação.",
       );
       return;
     }
@@ -669,7 +801,7 @@ export default function AprovacaoRelatorioViagem() {
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
-              src="/logoshare.branco.png"
+              src="/logo.share.png"
               alt="Share Brasil"
               className="mx-auto mb-6 h-12 w-auto object-contain"
             />
@@ -718,7 +850,7 @@ export default function AprovacaoRelatorioViagem() {
           <header className="mb-4 flex items-center gap-3 sm:mb-6">
             <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] sm:size-14">
               <img
-                src="/logoshare.branco.png"
+                src="/logo.share.png"
                 alt="Share Brasil"
                 className="max-h-8 w-auto object-contain sm:max-h-9"
               />
@@ -768,9 +900,9 @@ export default function AprovacaoRelatorioViagem() {
                   </h2>
 
                   <p className="mt-1 text-sm leading-relaxed text-slate-400">
-                    Confira o relatório inteiro, incluindo suas despesas, as
-                    despesas do cliente, da Share Brasil e os comprovantes,
-                    antes de aprovar.
+                    Use os cartões abaixo para revisar suas despesas, as do
+                    cliente e as da Share Brasil separadamente. Os comprovantes
+                    continuam junto de cada despesa.
                   </p>
                 </div>
 
@@ -846,127 +978,105 @@ export default function AprovacaoRelatorioViagem() {
                 </p>
               </div>
 
-              <div className="bg-[#0b111c] p-4">
+              <button
+                type="button"
+                onClick={() => selecionarFiltro("tripulante")}
+                className={`text-left p-4 transition hover:bg-white/[0.045] ${
+                  filtroDespesas === "tripulante"
+                    ? "bg-emerald-400/[0.10] ring-1 ring-inset ring-emerald-300/25"
+                    : "bg-[#0b111c]"
+                }`}
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Você
                 </p>
                 <p className="mt-1 text-base font-black text-emerald-200">
                   {moeda(totalTripulante)}
                 </p>
-              </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                  {despesasTripulante.length} despesa(s)
+                </p>
+              </button>
 
-              <div className="bg-[#0b111c] p-4">
+              <button
+                type="button"
+                onClick={() => selecionarFiltro("cliente")}
+                className={`text-left p-4 transition hover:bg-white/[0.045] ${
+                  filtroDespesas === "cliente"
+                    ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
+                    : "bg-[#0b111c]"
+                }`}
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Cliente
                 </p>
                 <p className="mt-1 text-base font-black text-sky-200">
                   {moeda(totalCliente)}
                 </p>
-              </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                  {despesasCliente.length} despesa(s)
+                </p>
+              </button>
 
-              <div className="bg-[#0b111c] p-4">
+              <button
+                type="button"
+                onClick={() => selecionarFiltro("sharebrasil")}
+                className={`text-left p-4 transition hover:bg-white/[0.045] ${
+                  filtroDespesas === "sharebrasil"
+                    ? "bg-white/[0.08] ring-1 ring-inset ring-white/15"
+                    : "bg-[#0b111c]"
+                }`}
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Share Brasil
                 </p>
                 <p className="mt-1 text-base font-black text-white">
                   {moeda(totalShare)}
                 </p>
-              </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                  {despesasShare.length} despesa(s)
+                </p>
+              </button>
             </div>
+
+            {(despesasOutroTripulante.length || despesasOutros.length) ? (
+              <div className="border-t border-white/10 px-4 py-3 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => selecionarFiltro("outros")}
+                  className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${
+                    filtroDespesas === "outros"
+                      ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
+                      : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <Info size={14} />
+                  Outras despesas ({despesasOutroTripulante.length + despesasOutros.length})
+                </button>
+              </div>
+            ) : null}
           </Cartao>
 
           <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
             <Cartao>
               <TituloSecao
-                icon={<UserRound size={18} />}
-                titulo={`Suas despesas (${despesasTripulante.length})`}
-                subtitulo={`Total pago por você: ${moeda(totalTripulante)}`}
+                icon={filtroInfo.icon}
+                titulo={`${filtroInfo.titulo} (${despesasFiltradas.length})`}
+                subtitulo={filtroInfo.subtitulo}
               />
 
-              {despesasTripulante.length ? (
+              {despesasFiltradas.length ? (
                 <div>
-                  {despesasTripulante.map((despesa) =>
+                  {despesasFiltradas.map((despesa) =>
                     renderDespesa(despesa, despesas.indexOf(despesa)),
                   )}
                 </div>
               ) : (
                 <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
-                  Nenhuma despesa atribuída a você.
+                  {filtroInfo.vazio}
                 </p>
               )}
             </Cartao>
-
-            {despesasOutroTripulante.length ? (
-              <Cartao>
-                <TituloSecao
-                  icon={<UserRound size={18} />}
-                  titulo={`Despesas do outro tripulante (${despesasOutroTripulante.length})`}
-                  subtitulo="Exibidas para conferência do relatório completo."
-                />
-
-                <div>
-                  {despesasOutroTripulante.map((despesa) =>
-                    renderDespesa(despesa, despesas.indexOf(despesa)),
-                  )}
-                </div>
-              </Cartao>
-            ) : null}
-
-            <Cartao>
-              <TituloSecao
-                icon={<ReceiptText size={18} />}
-                titulo={`Despesas pagas pelo cliente (${despesasCliente.length})`}
-                subtitulo={`Total pago pelo cliente: ${moeda(totalCliente)}`}
-              />
-
-              {despesasCliente.length ? (
-                <div>
-                  {despesasCliente.map((despesa) =>
-                    renderDespesa(despesa, despesas.indexOf(despesa)),
-                  )}
-                </div>
-              ) : (
-                <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
-                  Nenhuma despesa paga pelo cliente.
-                </p>
-              )}
-            </Cartao>
-
-            <Cartao>
-              <TituloSecao
-                icon={<ShieldCheck size={18} />}
-                titulo={`Despesas pagas pela Share Brasil (${despesasShare.length})`}
-                subtitulo={`Total pago pela Share Brasil: ${moeda(totalShare)}`}
-              />
-
-              {despesasShare.length ? (
-                <div>
-                  {despesasShare.map((despesa) =>
-                    renderDespesa(despesa, despesas.indexOf(despesa)),
-                  )}
-                </div>
-              ) : (
-                <p className="px-4 py-5 text-sm text-slate-500 sm:px-5">
-                  Nenhuma despesa paga pela Share Brasil.
-                </p>
-              )}
-            </Cartao>
-
-            {despesasOutros.length ? (
-              <Cartao>
-                <TituloSecao
-                  icon={<Info size={18} />}
-                  titulo={`Despesas sem pagador identificado (${despesasOutros.length})`}
-                  subtitulo="Confira estes lançamentos antes de aprovar."
-                />
-
-                <div>
-                  {despesasOutros.map((despesa) =>
-                    renderDespesa(despesa, despesas.indexOf(despesa)),
-                  )}
-                </div>
-              </Cartao>
-            ) : null}
 
             <Cartao className="border-sky-300/10 bg-sky-300/[0.035]">
               <div className="flex items-start gap-3 px-4 py-4 sm:px-5">
@@ -979,8 +1089,9 @@ export default function AprovacaoRelatorioViagem() {
                     Conferência final
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    Você está vendo o relatório completo. A aprovação só será
-                    liberada depois que você chegar ao final desta página.
+                    Revise cada grupo disponível usando os cartões acima. A
+                    aprovação será liberada depois que todos os grupos forem
+                    revisados até o final.
                   </p>
                 </div>
               </div>
@@ -1052,9 +1163,11 @@ export default function AprovacaoRelatorioViagem() {
                   chegouAoFim ? "text-emerald-300" : "text-amber-300"
                 }
               >
-                {chegouAoFim
-                  ? "Relatório revisado até o final"
-                  : "Desça até o final para liberar a aprovação"}
+                {relatorioRevisado
+                  ? "Todos os grupos foram revisados"
+                  : chegouAoFim
+                    ? "Grupo atual revisado · confira os demais"
+                    : "Desça até o final deste grupo para revisar"}
               </span>
 
               <span className="text-slate-400">{moeda(totalTripulante)}</span>
@@ -1076,7 +1189,7 @@ export default function AprovacaoRelatorioViagem() {
 
               <button
                 type="button"
-                disabled={enviando || !chegouAoFim}
+                disabled={enviando || !relatorioRevisado}
                 onClick={() => {
                   setMotivo("");
                   setAcao("aprovar");

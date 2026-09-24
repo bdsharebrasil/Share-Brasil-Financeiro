@@ -153,14 +153,6 @@ function parseDespesas(valor: Relatorio["despesas"]): Despesa[] {
   }
 }
 
-function tamanhoArquivo(valor: unknown) {
-  const bytes = Number(valor);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function isImagem(anexo: Anexo) {
   return String(anexo.tipo_arquivo || "").toLowerCase().startsWith("image/");
 }
@@ -677,7 +669,7 @@ export default function AprovacaoRelatorioViagem() {
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
-              src="/logo.share.png"
+              src="/logoshare.branco.png"
               alt="Share Brasil"
               className="mx-auto mb-6 h-12 w-auto object-contain"
             />
@@ -726,7 +718,7 @@ export default function AprovacaoRelatorioViagem() {
           <header className="mb-4 flex items-center gap-3 sm:mb-6">
             <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] sm:size-14">
               <img
-                src="/logo.share.png"
+                src="/logoshare.branco.png"
                 alt="Share Brasil"
                 className="max-h-8 w-auto object-contain sm:max-h-9"
               />
@@ -975,79 +967,6 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
               </Cartao>
             ) : null}
-
-            <Cartao>
-              <TituloSecao
-                icon={<FileText size={18} />}
-                titulo={`Todos os comprovantes (${anexos.length})`}
-                subtitulo="Todos os arquivos anexados ao relatório estão disponíveis para conferência."
-              />
-
-              {anexos.length ? (
-                <div className="space-y-2 px-4 py-4 sm:px-5">
-                  {anexos.map((anexo) => {
-                    const indice = Number(anexo.indice_despesa);
-                    const despesa = Number.isFinite(indice)
-                      ? despesas[indice]
-                      : undefined;
-
-                    return (
-                      <div
-                        key={anexo.id}
-                        className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3"
-                      >
-                        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300">
-                          {isImagem(anexo) ? (
-                            <FileImage size={18} />
-                          ) : (
-                            <FileText size={18} />
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-white">
-                            {anexo.nome_arquivo || "Comprovante"}
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                            {despesa?.descricao || "Comprovante da viagem"}
-                            {tamanhoArquivo(anexo.tamanho_arquivo)
-                              ? ` · ${tamanhoArquivo(anexo.tamanho_arquivo)}`
-                              : ""}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            abrirComprovante(
-                              anexo,
-                              Number.isFinite(indice) ? indice : -1,
-                              despesa?.descricao || "Comprovante da viagem",
-                            )
-                          }
-                          className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-200"
-                          aria-label={`Visualizar ${
-                            anexo.nome_arquivo || "comprovante"
-                          }`}
-                        >
-                          <Eye size={17} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="px-4 py-7 text-center sm:px-5">
-                  <ReceiptText
-                    className="mx-auto text-slate-600"
-                    size={28}
-                  />
-                  <p className="mt-2 text-sm font-bold text-slate-300">
-                    Nenhum comprovante anexado
-                  </p>
-                </div>
-              )}
-            </Cartao>
 
             <Cartao className="border-sky-300/10 bg-sky-300/[0.035]">
               <div className="flex items-start gap-3 px-4 py-4 sm:px-5">

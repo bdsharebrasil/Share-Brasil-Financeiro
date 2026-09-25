@@ -176,6 +176,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [bancoSelecionado, setBancoSelecionado] = useState<ContaBancariaEmail | null>(null);
   const [buscaContato, setBuscaContato] = useState("");
   const [destinatario, setDestinatario] = useState("");
+  const [destinatarioInformado, setDestinatarioInformado] = useState(false);
   const [nomeDestinatario, setNomeDestinatario] = useState("");
   const [assunto, setAssunto] = useState("");
   const [corpoEmail, setCorpoEmail] = useState("");
@@ -387,10 +388,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
         setCotistasEmail(cotistasSelecionados);
+        setDestinatario("");
+        setDestinatarioInformado(false);
+        setNomeDestinatario("");
         setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
           setDestinatario(contatoInicial.email);
+          setDestinatarioInformado(false);
           setNomeDestinatario(contatoInicial.nome);
         }
         setModalEmail(true);
@@ -410,6 +415,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const fecharModalEmail = () => {
     setModalEmail(false);
     setDestinatario("");
+    setDestinatarioInformado(false);
     setNomeDestinatario("");
     setAssunto("");
     setCorpoEmail("");
@@ -454,12 +460,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setErroEmail("");
     setSucessoEmail("");
     try {
+      const arquivosDoFormulario = new Set(anexosEnvioEmail.flatMap((anexo) => anexo.file ? [anexo.file] : []));
+      const arquivosAdicionais = arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
       const grupos = envioRecemCriado?.tipo === "cliente"
-        ? cotistasEmail.map((cotista) => ({ cotista, anexos: [] as AnexoLinha[] }))
+        ? cotistasEmail.map((cotista) => ({ cotista, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id) }))
         : [{ cotista: null, anexos: anexosEnvioEmail }];
       if (!grupos.length) throw new Error("Atribua pelo menos um anexo a um cotista.");
       for (const grupo of grupos) {
-        const email = grupo.cotista?.email?.trim() || destinatario.trim();
+        const email = (destinatarioInformado ? destinatario : grupo.cotista?.email || destinatario).trim();
         if (!email) throw new Error(`Cotista ${grupo.cotista?.nome || "selecionado"} sem e-mail.`);
         await enviarEmailCliente({
           destinatarios: [email],
@@ -468,7 +476,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           anexos: grupo.anexos.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
           // O e-mail usa somente arquivos escolhidos no computador.
           // Em reembolsos, a mesma evidência local é enviada a cada cotista.
-          arquivos: arquivosNovos,
+          arquivos: envioRecemCriado?.tipo === "cliente"
+            ? [...grupo.anexos.flatMap((anexo) => anexo.file ? [anexo.file] : []), ...arquivosAdicionais]
+            : arquivosNovos,
           nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
         });
       }
@@ -716,8 +726,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
-                <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setNomeDestinatario(contato.nome); }} />
-                <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo" />
+                <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setDestinatarioInformado(true); setNomeDestinatario(contato.nome); }} />
+                <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setDestinatarioInformado(true); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo" />
               </div>
 
               <div className="space-y-2">

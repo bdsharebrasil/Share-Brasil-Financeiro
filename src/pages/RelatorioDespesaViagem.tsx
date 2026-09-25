@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   CircleAlert,
   Copy,
-  Eye,
   FileDown,
   FilePlus2,
   FileText,
@@ -15,7 +14,6 @@ import {
   Save,
   Send,
   Trash2,
-  Upload,
   X,
   Users,
 } from "lucide-react";
@@ -31,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
@@ -218,9 +217,6 @@ export default function RelatorioDespesaViagem({
     url: string;
   } | null>(null);
   const [carregandoAnexo, setCarregandoAnexo] = useState(false);
-  const comprovanteInputRefs = useRef<Record<string, HTMLInputElement | null>>(
-    {},
-  );
   const [aba, setAba] = useState<"lista" | "editor">("lista");
   const [visaoLista, setVisaoLista] = useState<"finalizados" | "rascunhos" | "revisao">(
     "finalizados",
@@ -726,11 +722,7 @@ export default function RelatorioDespesaViagem({
       setReembolsoForm((atual) => ({ ...atual, aberto: true }));
     } finally { setSalvando(false); }
   };
-  const uploadAnexo = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    indiceDespesa = 0,
-  ) => {
-    const arquivo = event.target.files?.[0];
+  const uploadAnexo = async (arquivo: File, indiceDespesa = 0) => {
     if (!arquivo) return;
     setAnexando(true);
     try {
@@ -764,7 +756,6 @@ export default function RelatorioDespesaViagem({
       });
     } finally {
       setAnexando(false);
-      event.target.value = "";
     }
   };
   const visualizarAnexo = async (anexo: RelatorioDespesaViagemAnexo) => {
@@ -1140,52 +1131,15 @@ export default function RelatorioDespesaViagem({
                 />
               </Campo>
               <Campo label={index === despesas.length - 1 ? "Comprovante" : undefined}>
-                <div className="flex w-full items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-10 min-w-0 flex-1 justify-start border-primary/40 bg-primary/5 text-primary hover:border-primary hover:bg-primary/10"
-                    onClick={() =>
-                      comprovanteInputRefs.current[despesa.id]?.click()
-                    }
-                    disabled={bloqueado || anexando}
-                  >
-                    <Upload size={14} />
-                    <span className="truncate">
-                      {(relatorio?.anexos || []).find(
-                        (anexo) => anexo === anexoDaDespesa(index),
-                      )?.nome_arquivo || "Enviar comprovante"}
-                    </span>
-                  </Button>
-                  {anexoDaDespesa(index) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label="Visualizar comprovante"
-                      title="Visualizar comprovante"
-                      className="size-10 shrink-0 border-primary/40 text-primary hover:border-primary hover:bg-primary/10"
-                      onClick={() => {
-                        const anexo = anexoDaDespesa(index);
-                        if (anexo) void visualizarAnexo(anexo);
-                      }}
-                      disabled={carregandoAnexo}
-                    >
-                      <Eye size={16} />
-                    </Button>
-                  )}
-                  <input
-                    ref={(element) => {
-                      comprovanteInputRefs.current[despesa.id] = element;
-                    }}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                    onChange={(event) => void uploadAnexo(event, index)}
-                    disabled={bloqueado || anexando}
-                  />
-                </div>
+                <AnexosDinamicos
+                  existingName={anexoDaDespesa(index)?.nome_arquivo || null}
+                  onFileChange={(file) => { if (file) void uploadAnexo(file, index); }}
+                  uploading={anexando || carregandoAnexo}
+                  disabled={bloqueado}
+                  label="Comprovante"
+                  description="Imagem ou PDF"
+                  onView={() => { const anexo = anexoDaDespesa(index); if (anexo) void visualizarAnexo(anexo); }}
+                />
               </Campo>
               <div className="flex items-end justify-end">
                 <Button

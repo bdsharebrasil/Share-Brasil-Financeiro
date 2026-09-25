@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
-import { CheckCircle2, ExternalLink, FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { cn } from "@/lib/utils";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 
 export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "demonstrativo" | "outro" | "comanda";
 export interface AnexoLinha { id: string; tipo: AnexoTipoId; numero: string; url: string | null; file: File | null; cotista_id?: string; uploading?: boolean; }
@@ -13,17 +13,16 @@ const TIPOS: { id: AnexoTipoId; label: string }[] = [
   { id: "boleto", label: "BOLETO" }, { id: "comanda", label: "COMANDA" }, { id: "demonstrativo", label: "DEMONSTRATIVO" }, { id: "outro", label: "OUTRO DOCUMENTO" },
 ];
 export function anexoTipoLabel(id: AnexoTipoId) { return TIPOS.find((t) => t.id === id)?.label || id; }
-function humanSize(bytes: number) { if (!bytes) return ""; const kb = bytes / 1024; return kb < 1024 ? `${kb.toFixed(0)} KB` : `${(kb / 1024).toFixed(1)} MB`; }
 interface Props { anexos: AnexoLinha[]; onChange: (next: AnexoLinha[]) => void; storagePrefix: string; bucket?: string; cotistas?: Array<{ id: string; label: string }>; uploadFile?: (file: File, id: string) => Promise<string>; className?: string; onView?: (url: string, name?: string, type?: "pdf" | "image") => void; }
 
 export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, bucket = "client-documents", cotistas = [], uploadFile, className, onView }: Props) {
-  const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
   const anexosRef = useRef(anexos);
   useEffect(() => { anexosRef.current = anexos; }, [anexos]);
   const updateLinha = useCallback((id: string, patch: Partial<AnexoLinha>) => { const next = anexosRef.current.map((a) => a.id === id ? { ...a, ...patch } : a); anexosRef.current = next; onChange(next); }, [onChange]);
   const removeLinha = (id: string) => { const next = anexosRef.current.filter((a) => a.id !== id); anexosRef.current = next; onChange(next); };
   const addLinha = () => { const next = [...anexosRef.current, { id: crypto.randomUUID(), tipo: "comprovante" as AnexoTipoId, numero: "", url: null, file: null, uploading: false }]; anexosRef.current = next; onChange(next); };
-  const handleFile = async (id: string, file: File) => {
+  const handleFile = async (id: string, file: File | null) => {
+    if (!file) { updateLinha(id, { file: null, url: null }); return; }
     updateLinha(id, { file, uploading: true });
     try {
       let url: string;
@@ -42,12 +41,12 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
   return <div className={cn("space-y-3", className)}>
     <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Documentos anexos</span><Button type="button" variant="outline" size="sm" onClick={addLinha} className="h-8 gap-1.5 rounded-lg text-xs"><Plus className="h-3.5 w-3.5" /> Adicionar anexo</Button></div>
     {!anexos.length && <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-5 text-center text-xs text-muted-foreground">Nenhum anexo adicionado.</div>}
-    <div className="space-y-2">{anexos.map((a) => <div key={a.id} className="rounded-xl border border-border/60 bg-card/40 p-3"><div className={cn("grid grid-cols-1 items-center gap-2", cotistas.length ? "sm:grid-cols-[160px_1fr_190px_auto]" : "sm:grid-cols-[160px_1fr_auto_auto]")}>
+    <div className="space-y-2">{anexos.map((a) => <div key={a.id} className="rounded-xl border border-border/60 bg-card/40 p-3"><div className={cn("grid grid-cols-1 items-start gap-3", cotistas.length ? "lg:grid-cols-[160px_1fr_190px_minmax(250px,1.3fr)_auto]" : "lg:grid-cols-[160px_1fr_minmax(250px,1.3fr)_auto")}>
       <SearchableCombobox items={TIPOS} value={a.tipo} onChange={(id) => updateLinha(a.id, { tipo: (id as AnexoTipoId) || "outro" })} placeholder="Tipo..." searchPlaceholder="Buscar tipo..." />
-      <Input value={a.numero} inputMode="numeric" onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Número do documento" className="h-9 rounded-lg text-sm" />
+      <input value={a.numero} inputMode="numeric" onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Número do documento" className="h-9 rounded-lg border border-border bg-background/50 px-3 text-sm outline-none focus:border-primary/60" />
       {cotistas.length > 0 && <SearchableCombobox items={cotistas} value={a.cotista_id || ""} onChange={(id) => updateLinha(a.id, { cotista_id: id })} placeholder="Cotista do anexo..." searchPlaceholder="Buscar cotista..." />}
-      <div className="flex min-w-[160px] items-center gap-2"><input ref={(el) => { inputsRef.current[a.id] = el; }} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(a.id, file); e.currentTarget.value = ""; }} />{a.uploading ? <span className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando...</span> : a.url ? <button type="button" onClick={() => onView?.(a.url!, a.file?.name, a.url!.toLowerCase().split(".").pop() === "pdf" ? "pdf" : "image")} className="flex max-w-[180px] items-center gap-1.5 truncate rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{a.file?.name || "Ver arquivo"}</span><ExternalLink className="h-3 w-3 shrink-0" /></button> : <Button type="button" variant="outline" size="sm" onClick={() => inputsRef.current[a.id]?.click()} className="h-9 w-full gap-1.5 rounded-lg text-xs"><Upload className="h-3.5 w-3.5" /> Enviar arquivo</Button>}</div>
-      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-9 w-9 rounded-lg text-rose-500" title="Remover linha"><Trash2 className="h-4 w-4" /></Button>
-    </div>{a.file && !a.uploading && <div className="mt-1.5 flex items-center gap-1.5 pl-1 text-[10px] text-muted-foreground"><FileText className="h-3 w-3" /><span className="truncate">{a.file.name}</span><span>· {humanSize(a.file.size)}</span></div>}</div>)}</div>
+      <AnexosDinamicos file={a.file} onFileChange={(file) => void handleFile(a.id, file)} uploading={Boolean(a.uploading)} existingUrl={a.url} onView={onView} label="Arquivo" />
+      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-9 w-9 text-rose-500" title="Remover linha"><Trash2 className="h-4 w-4" /></Button>
+    </div></div>)}</div>
   </div>;
 }

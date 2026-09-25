@@ -21,6 +21,7 @@ import {
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { FolderCard } from "@/components/ui/folder-card";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 import {
   EnviarEmailClienteDialog,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
@@ -754,37 +755,15 @@ export default function NFSaidaTab() {
               <textarea className={inputCls} rows={2} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
             {documentType === "nota" && (
               <div className="md:col-span-3">
-                <label className={labelCls}>PDF ou imagem</label>
-                {form.arquivo_pdf_url ? (
-                  <div className="flex items-center gap-3 rounded-lg border border-border bg-background/70 p-3">
-                    {isImageUrl(form.arquivo_pdf_url) ? (
-                      <img src={form.arquivo_pdf_url} alt="Pré-visualização" className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
-                    ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-card">
-                        <FileText className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-foreground">{getFileNameFromUrl(form.arquivo_pdf_url)}</p>
-                      <button type="button" onClick={() => setPdfViewer({ url: form.arquivo_pdf_url, title: getFileNameFromUrl(form.arquivo_pdf_url) })} className="text-left text-xs text-cyan-400 hover:text-cyan-300">Abrir arquivo</button>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-card/70 px-2.5 py-1.5 text-xs text-foreground hover:bg-card-secondary">
-                        <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Trocar"}
-                        <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
-                      </label>
-                      <button type="button" onClick={() => setForm({ ...form, arquivo_pdf_url: "" })} className="rounded-lg border border-red-900/50 bg-red-950/40 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-900/40">
-                        Remover
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background/40 px-4 py-6 text-center text-xs text-muted-foreground hover:border-cyan-400/50 hover:text-foreground">
-                    <Upload className="h-5 w-5" />
-                    {uploading ? "Enviando..." : "Clique para enviar PDF ou imagem"}
-                    <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
-                  </label>
-                )}
+                <AnexosDinamicos
+                  existingUrl={form.arquivo_pdf_url || null}
+                  existingName={form.arquivo_pdf_url ? getFileNameFromUrl(form.arquivo_pdf_url) : null}
+                  onFileChange={(file) => { if (file) void uploadDocument(file); else setForm({ ...form, arquivo_pdf_url: "" }); }}
+                  uploading={uploading}
+                  label="PDF ou imagem"
+                  description="Documento da nota fiscal"
+                  onView={(url, name) => setPdfViewer({ url, title: name || "Documento" })}
+                />
               </div>
             )}
           </div>

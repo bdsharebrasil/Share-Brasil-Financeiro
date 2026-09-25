@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Download, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
+import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes, type FornecedorCombustivel } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
@@ -581,7 +582,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
         {(["comanda", "nota", "boleto", "comprovante"] as const).map((type) => {
           const existingUrl = type === "comanda" ? editing?.comanda_url : type === "nota" ? editing?.nota_url : type === "boleto" ? editing?.boleto_url : editing?.comprovante_url;
           const labels = { comanda: "Comanda", nota: "Nota fiscal", boleto: "Boleto", comprovante: "Comprovante" };
-          return <label key={type} className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">{labels[type]}</span><input type="file" accept="application/pdf,image/*" onChange={(e) => addFile(type, e.target.files?.[0])} className="campo text-[10px]" />{files[type] && <span className="mt-1 block truncate text-[10px] text-primary">{files[type]?.name}</span>}{existingUrl && !files[type] && <span className="mt-1 block text-[10px] text-muted-foreground">Arquivo já anexado</span>}</label>;
+          return <AnexosDinamicos key={type} file={files[type]} onFileChange={(file) => addFile(type, file || undefined)} existingUrl={existingUrl} existingName={existingUrl ? `${labels[type]} já anexado` : null} label={labels[type]} description="PDF ou imagem" />;
         })}
       </div>
 

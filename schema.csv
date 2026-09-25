@@ -21,7 +21,6 @@ sql
     comanda_url TEXT,
     nota_url TEXT,
     boleto_url TEXT,
-    comprovante_url TEXT,
 
     fornecedor_id TEXT,
     

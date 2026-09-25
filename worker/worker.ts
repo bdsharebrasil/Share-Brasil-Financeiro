@@ -4854,7 +4854,7 @@ app.post('/api/interno/solicitacoes/:id/reprovar', async c => {
 
 // ─── Operações: abastecimentos ─────────────────────────────────────────────
 async function garantirTabelaAbastecimentos(c: Context<{ Bindings: Bindings }>) {
-  await validateWorkerSchema(c, [{ table: 'abastecimentos', columns: ['id', 'data', 'cliente_id', 'socio_id', 'aeronave_id', 'lancamento_diario_id', 'prazo_envio_cliente_dias', 'prazo_envio_cliente_em', 'comprovante_url'] }])
+  await validateWorkerSchema(c, [{ table: 'abastecimentos', columns: ['id', 'data', 'cliente_id', 'socio_id', 'aeronave_id', 'lancamento_diario_id', 'prazo_envio_cliente_dias', 'prazo_envio_cliente_em'] }])
 }
 
 async function garantirTabelaRelatorioDespesaViagem(c: Context<{ Bindings: Bindings }>) {
@@ -5691,7 +5691,7 @@ app.get('/api/interno/abastecimentos', async c => {
   if (valorMin && Number.isFinite(Number(valorMin))) { conditions.push(`a.valor_total >= ?${index++}`); binds.push(Number(valorMin)) }
   if (valorMax && Number.isFinite(Number(valorMax))) { conditions.push(`a.valor_total <= ?${index++}`); binds.push(Number(valorMax)) }
   if (busca) { conditions.push(`(lower(COALESCE(a.local, '')) LIKE ?${index} OR lower(COALESCE(a.trecho, '')) LIKE ?${index} OR lower(COALESCE(a.numero_comanda, '')) LIKE ?${index} OR lower(COALESCE(a.numero_nf, '')) LIKE ?${index})`); binds.push(`%${busca.toLowerCase()}%`); index++ }
-  const result = await c.env.SHARE_DB.prepare(`SELECT a.*, c.razao_social AS cliente_nome, s.nome AS socio_nome, ar.matricula_registro, ar.fabricante, ar.modelo, f.nome_completo AS fornecedor_nome, f.apelido AS fornecedor_apelido, u.nome_completo AS criado_por_nome FROM abastecimentos a LEFT JOIN cliente c ON c.id = a.cliente_id LEFT JOIN hold_socios s ON s.id = a.socio_id LEFT JOIN aeronave ar ON ar.id = a.aeronave_id LEFT JOIN fornecedores_favoritos f ON f.id = a.fornecedor_id LEFT JOIN user_profiles u ON u.id = a.criado_por WHERE ${conditions.join(' AND ')} ORDER BY date(a.data) DESC, a.id DESC`).bind(...binds).all()
+  const result = await c.env.SHARE_DB.prepare(`SELECT a.*, COALESCE((SELECT l.comprovante_url FROM lancamentos l WHERE l.abastecimentos_id = a.id LIMIT 1), (SELECT mh.comprovante_url FROM movimentos_holding mh WHERE mh.abastecimentos_id = a.id LIMIT 1)) AS comprovante_url, c.razao_social AS cliente_nome, s.nome AS socio_nome, ar.matricula_registro, ar.fabricante, ar.modelo, f.nome_completo AS fornecedor_nome, f.apelido AS fornecedor_apelido, u.nome_completo AS criado_por_nome FROM abastecimentos a LEFT JOIN cliente c ON c.id = a.cliente_id LEFT JOIN hold_socios s ON s.id = a.socio_id LEFT JOIN aeronave ar ON ar.id = a.aeronave_id LEFT JOIN fornecedores_favoritos f ON f.id = a.fornecedor_id LEFT JOIN user_profiles u ON u.id = a.criado_por WHERE ${conditions.join(' AND ')} ORDER BY date(a.data) DESC, a.id DESC`).bind(...binds).all()
   return c.json({ abastecimentos: result.results })
 })
 
@@ -5752,16 +5752,41 @@ app.post('/api/interno/abastecimentos', async c => {
     : null
   if (diarioId && (!diario || diario.aeronave_id !== aeronaveId)) return c.json({ error: 'lancamento_diario_invalido_para_aeronave' }, 409)
   if ((diario?.cliente_id && diario.cliente_id !== clienteId) || (diario?.socio_id && diario.socio_id !== socioId)) return c.json({ error: 'titular_nao_corresponde_ao_lancamento_diario' }, 409)
-  await c.env.SHARE_DB.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, desconto, fornecedor_id, status, observacao, forma_pagamento, data_vencimento_boleto, criado_por, lancamento_diario_id, data_pagamento, banco, voo_emprestado, numero_voo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(id, body?.cliente_id || null, body?.socio_id || null, body?.aeronave_id || null, data, body?.tipo_combustivel || null, body?.trecho || null, local, body?.numero_comanda || null, body?.numero_nf || null, Number.isFinite(litros) ? litros : 0, Number.isFinite(valorUnitario) ? valorUnitario : 0, Number.isFinite(valorTotal) ? valorTotal : 0, body?.desconto == null ? null : Number(body.desconto), body?.fornecedor_id || null, body?.status || 'pendente', body?.observacao || null, body?.forma_pagamento || null, body?.data_vencimento_boleto || null, authenticated?.id || extractSupabaseUserId(c) || null, body?.lancamento_diario_id || null, body?.data_pagamento || null, body?.banco || null, body?.voo_emprestado ? 1 : 0, body?.numero_voo || null).run()
+  const abastecimentoStatement = db.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, desconto, fornecedor_id, status, observacao, forma_pagamento, data_vencimento_boleto, criado_por, lancamento_diario_id, data_pagamento, banco, voo_emprestado, numero_voo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(id, clienteId, socioId, aeronaveId, data, body?.tipo_combustivel || null, body?.trecho || diario?.trecho || null, local, body?.numero_comanda || null, body?.numero_nf || null, litros, Number.isFinite(valorUnitario) ? valorUnitario : 0, valorTotal, body?.desconto == null ? null : Number(body.desconto), body?.fornecedor_id || null, body?.status || 'pendente', body?.observacao || null, body?.forma_pagamento || null, body?.data_vencimento_boleto || null, userId, diarioId, body?.status === 'pago' ? body?.data_pagamento : null, body?.banco || null, body?.voo_emprestado ? 1 : diario?.voo_emprestado ? 1 : 0, body?.numero_voo || diario?.numero_voo || null)
+  const financeiroStatement = await statementFinanceiroAbastecimento(c, id, {
+    ...body,
+    cliente_id: clienteId,
+    socio_id: socioId,
+    aeronave_id: aeronaveId,
+    data,
+    valor_total: valorTotal,
+    trecho: body?.trecho || diario?.trecho || '',
+  }, userId)
+  await db.batch([abastecimentoStatement, financeiroStatement])
   return c.json({ id, success: true }, 201)
 })
 
 app.patch('/api/interno/abastecimentos/:id', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  await garantirTabelaAbastecimentos(c); const body = await c.req.json<Record<string, any>>().catch(() => ({} as any)); const id = c.req.param('id')
-  const result = await c.env.SHARE_DB.prepare(`UPDATE abastecimentos SET cliente_id = ?, socio_id = ?, aeronave_id = ?, data = ?, tipo_combustivel = ?, trecho = ?, local = ?, numero_comanda = ?, numero_nf = ?, litros = ?, valor_unitario = ?, valor_total = ?, desconto = ?, fornecedor_id = ?, status = ?, observacao = ?, forma_pagamento = ?, data_vencimento_boleto = ?, lancamento_diario_id = ?, data_pagamento = ?, banco = ?, voo_emprestado = ?, numero_voo = ?, prazo_envio_cliente_dias = ?, prazo_envio_cliente_em = ? WHERE id = ?`).bind(body.cliente_id || null, body.socio_id || null, body.aeronave_id || null, body.data, body.tipo_combustivel || null, body.trecho || null, body.local, body.numero_comanda || null, body.numero_nf || null, Number(body.litros || 0), Number(body.valor_unitario || 0), Number(body.valor_total || 0), body.desconto == null ? null : Number(body.desconto), body.fornecedor_id || null, body.status || null, body.observacao || null, body.forma_pagamento || null, body.data_vencimento_boleto || null, body.lancamento_diario_id || null, body.status === 'pago' ? body.data_pagamento || null : null, body.banco || null, body.voo_emprestado ? 1 : 0, body.numero_voo || null, body.prazo_envio_cliente_dias == null ? null : Number(body.prazo_envio_cliente_dias), body.prazo_envio_cliente_em || null, id).run()
-  if (!result.meta.changes) return c.notFound(); return c.json({ success: true, id })
+  await garantirTabelaAbastecimentos(c)
+  const body = await c.req.json<Record<string, any>>().catch(() => ({} as any))
+  const id = c.req.param('id')
+  const db = c.env.SHARE_DB
+  const statusPago = body.status === 'pago'
+  const dataVencimentoFinanceiro = statusPago ? body.data_pagamento : body.data_vencimento_boleto || body.data
+  const valorCentavos = Math.round(Number(body.valor_total || 0) * 100)
+  const descricaoFinanceira = `Abastecimento ${String(body.trecho || '').trim()}`.trim()
+  const fornecedor = body.fornecedor_id
+    ? await db.prepare('SELECT COALESCE(apelido, nome_completo) AS nome FROM fornecedores_favoritos WHERE id = ?1').bind(body.fornecedor_id).first<{ nome: string | null }>()
+    : null
+  const result = await db.prepare(`UPDATE abastecimentos SET cliente_id = ?, socio_id = ?, aeronave_id = ?, data = ?, tipo_combustivel = ?, trecho = ?, local = ?, numero_comanda = ?, numero_nf = ?, litros = ?, valor_unitario = ?, valor_total = ?, desconto = ?, fornecedor_id = ?, status = ?, observacao = ?, forma_pagamento = ?, data_vencimento_boleto = ?, lancamento_diario_id = ?, data_pagamento = ?, banco = ?, voo_emprestado = ?, numero_voo = ?, prazo_envio_cliente_dias = ?, prazo_envio_cliente_em = ? WHERE id = ?`).bind(body.cliente_id || null, body.socio_id || null, body.aeronave_id || null, body.data, body.tipo_combustivel || null, body.trecho || null, body.local, body.numero_comanda || null, body.numero_nf || null, Number(body.litros || 0), Number(body.valor_unitario || 0), Number(body.valor_total || 0), body.desconto == null ? null : Number(body.desconto), body.fornecedor_id || null, body.status || null, body.observacao || null, body.forma_pagamento || null, body.data_vencimento_boleto || null, body.lancamento_diario_id || null, statusPago ? body.data_pagamento || null : null, body.banco || null, body.voo_emprestado ? 1 : 0, body.numero_voo || null, body.prazo_envio_cliente_dias == null ? null : Number(body.prazo_envio_cliente_dias), body.prazo_envio_cliente_em || null, id).run()
+  if (!result.meta.changes) return c.notFound()
+  await db.batch([
+    db.prepare(`UPDATE lancamentos SET data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedores_favoritos_id = ?, fornecedor_nome = ?, status = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(body.data, dataVencimentoFinanceiro, statusPago ? body.data_pagamento : null, descricaoFinanceira, body.fornecedor_id || null, fornecedor?.nome || null, statusPago ? 'PAGO' : 'EM_ABERTO', valorCentavos, body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id),
+    db.prepare(`UPDATE movimentos_holding SET data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedor_id = ?, fornecedor_nome = ?, status = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(body.data, dataVencimentoFinanceiro, statusPago ? body.data_pagamento : null, descricaoFinanceira, body.fornecedor_id || null, fornecedor?.nome || null, statusPago ? 'PAGO' : 'EM_ABERTO', valorCentavos, body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id),
+  ])
+  return c.json({ success: true, id })
 })
 
 app.delete('/api/interno/abastecimentos/:id', async c => {
@@ -5791,20 +5816,28 @@ app.post('/api/interno/abastecimentos/:id/arquivo', async c => {
   if (!registro) return c.notFound()
   const titularId = registro.socio_id || registro.cliente_id
   if (!titularId) return c.json({ error: 'titular_obrigatorio_para_arquivo' }, 409)
+  if (tipo === 'comprovante') {
+    const lancamento = await c.env.SHARE_DB.prepare('SELECT id FROM lancamentos WHERE abastecimentos_id = ?1 UNION ALL SELECT id FROM movimentos_holding WHERE abastecimentos_id = ?1 LIMIT 1').bind(id).first<{ id: string }>()
+    if (!lancamento) return c.json({ error: 'lancamento_financeiro_nao_encontrado' }, 409)
+  }
   const pasta = tipo === 'nota' ? 'abastecimentos/nota fiscal' : tipo === 'boleto' ? 'abastecimentos/boleto' : tipo === 'comprovante' ? 'abastecimentos/comprovante' : 'abastecimentos/comanda'
   const objectKey = await salvarArquivoShareBrasil(c, titularId, file, pasta)
-  const column = tipo === 'nota' ? 'nota_url' : tipo === 'boleto' ? 'boleto_url' : tipo === 'comprovante' ? 'comprovante_url' : 'comanda_url'
   const arquivoUrl = new URL(`/api/interno/abastecimentos/${encodeURIComponent(id)}/arquivo/${tipo}`, c.req.url)
   arquivoUrl.searchParams.set('key', objectKey)
-  await c.env.SHARE_DB.prepare(`UPDATE abastecimentos SET ${column} = ? WHERE id = ?`).bind(arquivoUrl.toString(), id).run()
   if (tipo === 'comprovante') {
-    await c.env.SHARE_DB.prepare('UPDATE lancamentos SET comprovante_url = ?1 WHERE abastecimentos_id = ?2').bind(arquivoUrl.toString(), id).run()
-    await c.env.SHARE_DB.prepare('UPDATE movimentos_holding SET comprovante_url = ?1 WHERE abastecimentos_id = ?2').bind(arquivoUrl.toString(), id).run()
+    await c.env.SHARE_DB.batch([
+      c.env.SHARE_DB.prepare('UPDATE lancamentos SET comprovante_url = ?1 WHERE abastecimentos_id = ?2').bind(arquivoUrl.toString(), id),
+      c.env.SHARE_DB.prepare('UPDATE movimentos_holding SET comprovante_url = ?1 WHERE abastecimentos_id = ?2').bind(arquivoUrl.toString(), id),
+    ])
   } else {
+    const column = tipo === 'nota' ? 'nota_url' : tipo === 'boleto' ? 'boleto_url' : 'comanda_url'
     const lancamentoColumn = tipo === 'nota' ? 'url_nf' : tipo === 'boleto' ? 'url_boleto' : 'url_doc'
     const movimentoColumn = tipo === 'nota' ? 'url_nf' : tipo === 'boleto' ? 'url_boleto' : 'url_doc'
-    await c.env.SHARE_DB.prepare(`UPDATE lancamentos SET ${lancamentoColumn} = ? WHERE abastecimentos_id = ?`).bind(arquivoUrl.toString(), id).run()
-    await c.env.SHARE_DB.prepare(`UPDATE movimentos_holding SET ${movimentoColumn} = ? WHERE abastecimentos_id = ?`).bind(arquivoUrl.toString(), id).run()
+    await c.env.SHARE_DB.batch([
+      c.env.SHARE_DB.prepare(`UPDATE abastecimentos SET ${column} = ?1 WHERE id = ?2`).bind(arquivoUrl.toString(), id),
+      c.env.SHARE_DB.prepare(`UPDATE lancamentos SET ${lancamentoColumn} = ?1 WHERE abastecimentos_id = ?2`).bind(arquivoUrl.toString(), id),
+      c.env.SHARE_DB.prepare(`UPDATE movimentos_holding SET ${movimentoColumn} = ?1 WHERE abastecimentos_id = ?2`).bind(arquivoUrl.toString(), id),
+    ])
   }
   return c.json({ success: true, caminho_arquivo: objectKey, url: arquivoUrl.toString() })
 })

@@ -241,6 +241,11 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   -webkit-overflow-scrolling: touch;
 }
 
+.app-main-scroll [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  width: 100% !important;
+}
+
 @media (max-width: 640px) {
   .diario-bordo input,
   .diario-bordo select,

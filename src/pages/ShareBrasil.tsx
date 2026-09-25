@@ -208,9 +208,15 @@ function horaLocalPonto(date = new Date()) {
     minute: "2-digit",
   });
 }
+function pontoValor(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized && !["null", "undefined"].includes(normalized.toLowerCase())
+    ? normalized
+    : null;
+}
 function pontoEncerrado(registro?: PontoLancamento) {
   const status = String(registro?.status || "").trim().toLowerCase();
-  return ["finished", "encerrado", "closed"].includes(status) || Boolean(registro?.saida_hora);
+  return ["finished", "encerrado", "closed"].includes(status) || Boolean(pontoValor(registro?.saida_hora));
 }
 
 export function DashboardShareBrasil({
@@ -464,7 +470,7 @@ export function PontoShareBrasil() {
               </div>
             ) : (
               <>
-                {!todayEntry?.entrada_hora && (
+                {!pontoValor(todayEntry?.entrada_hora) && (
                   <Button
                     type="button"
                     onClick={() => void action("entrada")}
@@ -473,7 +479,7 @@ export function PontoShareBrasil() {
                     <LogIn size={14} /> Iniciar dia
                   </Button>
                 )}
-                {todayEntry?.entrada_hora && !todayEntry.inicio_almoco && (
+                {pontoValor(todayEntry?.entrada_hora) && !pontoValor(todayEntry.inicio_almoco) && (
                   <Button
                     type="button"
                     variant="outline"
@@ -483,7 +489,7 @@ export function PontoShareBrasil() {
                     <Pause size={14} /> Saída almoço
                   </Button>
                 )}
-                {todayEntry?.inicio_almoco && !todayEntry.fim_almoco && (
+                {pontoValor(todayEntry?.inicio_almoco) && !pontoValor(todayEntry.fim_almoco) && (
                   <Button
                     type="button"
                     variant="outline"
@@ -493,7 +499,7 @@ export function PontoShareBrasil() {
                     <Play size={14} /> Volta almoço
                   </Button>
                 )}
-                {todayEntry?.entrada_hora && !todayEntry?.saida_hora && (
+                {pontoValor(todayEntry?.entrada_hora) && !pontoValor(todayEntry?.saida_hora) && (
                   <Button
                     type="button"
                     variant="outline"
@@ -594,12 +600,12 @@ export function PontoShareBrasil() {
                     <td className="px-4 py-3 font-mono">
                       {dataPt(item.data_entrada)}
                     </td>
-                    <td className="px-4 py-3">{item.entrada_hora || "—"}</td>
+                    <td className="px-4 py-3">{pontoValor(item.entrada_hora) || "—"}</td>
                     <td className="px-4 py-3">
-                      {item.inicio_almoco || "—"}{" "}
-                      {item.fim_almoco ? `→ ${item.fim_almoco}` : ""}
+                      {pontoValor(item.inicio_almoco) || "—"}{" "}
+                      {pontoValor(item.fim_almoco) ? `→ ${pontoValor(item.fim_almoco)}` : ""}
                     </td>
-                    <td className="px-4 py-3">{item.saida_hora || "—"}</td>
+                    <td className="px-4 py-3">{pontoValor(item.saida_hora) || "—"}</td>
                     <td className="px-4 py-3">
                       {item.horas_totais ? `${item.horas_totais} h` : "—"}
                     </td>

@@ -207,6 +207,25 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   overflow-x: clip;
 }
 
+.diario-bordo .diario-resumo-grid,
+.diario-bordo .diario-stat-grid,
+.diario-bordo .diario-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+}
+
+.diario-bordo .diario-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.diario-bordo .diario-form-grid--fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.diario-bordo .diario-form-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+}
+
 .diario-bordo input,
 .diario-bordo select,
 .diario-bordo textarea,
@@ -220,6 +239,11 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.app-main-scroll [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  width: 100% !important;
 }
 
 @media (max-width: 640px) {

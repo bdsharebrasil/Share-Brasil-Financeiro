@@ -595,7 +595,7 @@ export default function DiarioLancamentoForm({
           </div>
         )}
         <FormSection icon={<PlaneTakeoff size={13} />} title="Voo e rota">
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="diario-form-grid diario-form-grid--fields min-w-0 gap-3">
             <Field label="Data *">
               <input
                 type="date"
@@ -765,7 +765,7 @@ export default function DiarioLancamentoForm({
           )}
         </FormSection>
         <FormSection icon={<Users size={13} />} title="Tripulação e cotista">
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="diario-form-grid diario-form-grid--fields min-w-0 gap-3">
             <Field label="PIC * · tripulação ">
               <SearchableCombobox
                 items={tripulacao.map((tripulante) => ({
@@ -850,7 +850,7 @@ export default function DiarioLancamentoForm({
             Voo emprestado
           </label>
           {Boolean(form.voo_emprestado) && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="diario-form-grid diario-form-grid--fields mt-3 gap-2">
               <Field label="Cliente tomador do empréstimo">
                 <select
                   value={value("cliente_tomador_emprestimo_id")}
@@ -891,7 +891,7 @@ export default function DiarioLancamentoForm({
           icon={<TimerIcon />}
           title="Tempos operacionais (UTC/Zulu) e célula"
         >
-          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="diario-form-grid diario-form-grid--compact min-w-0 gap-3">
             <Field label="Horário de apresentação">
               <input
                 type="time"
@@ -982,7 +982,7 @@ export default function DiarioLancamentoForm({
         </FormSection>
         {temDiaria && (
           <FormSection icon={<BookOpen size={13} />} title="Diárias">
-            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="diario-form-grid diario-form-grid--fields min-w-0 gap-3">
               <NumberField
                 label="Quantidade de diárias"
                 value={value("diarias")}
@@ -996,7 +996,7 @@ export default function DiarioLancamentoForm({
           icon={<Fuel size={13} />}
           title="Combustível e abastecimento"
         >
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="diario-form-grid diario-form-grid--fields min-w-0 gap-3">
             <Field label="Consumo de voo">
               <input
                 value={value("consumo_combustivel_voo")}
@@ -1027,7 +1027,7 @@ export default function DiarioLancamentoForm({
             />
             Teve abastecimento?
           </label>
-          {Boolean(form.abastecido) && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {Boolean(form.abastecido) && <div className="diario-form-grid diario-form-grid--fields mt-3 gap-2">
             <NumberField
               label="Litros abastecidos"
               value={value("abastecimento_litros")}
@@ -1103,7 +1103,7 @@ export default function DiarioLancamentoForm({
               />
             </Field>
           </div>}
-          <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="diario-form-grid diario-form-grid--fields mt-3 min-w-0 gap-3">
             <TextField
               label="Ocorrências"
               value={value("ocorrencias")}

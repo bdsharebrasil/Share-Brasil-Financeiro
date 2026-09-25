@@ -573,31 +573,17 @@ export default function DiarioLancamentoForm({
   };
 
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_24px_70px_rgba(0,0,0,.22)]">
+    <section className="relative w-full min-w-0 overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] p-3 shadow-[0_24px_70px_rgba(0,0,0,.22)] sm:p-5 lg:p-6">
       <div className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full bg-cyan-400/[.07] blur-3xl" />
-      <div className="relative flex items-start justify-between gap-3 border-b border-white/[.08] bg-[#0d1521] px-3 py-3 sm:items-center sm:px-5 sm:py-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300">
-            <BookOpen size={16} />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-white">
-              {initialData
-                ? "Editar lançamento de voo"
-                : "Novo lançamento de voo"}
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-400"></p>
-          </div>
+      <div className="relative mb-5 flex flex-col gap-3 border-b border-white/[.08] bg-[#0d1521] pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-cyan-300">Lançamento de voo</p>
+          <h2 className="mt-1 text-lg font-extrabold text-white sm:text-xl">{initialData ? "Editar lançamento" : "Novo lançamento"}</h2>
+          <p className="mt-1 text-sm text-slate-400">Preencha os dados operacionais do voo.</p>
         </div>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-xl border border-white/[.08] p-2 text-slate-400 transition-colors hover:border-white/[.2] hover:text-white"
-        >
-          <X size={15} />
-        </button>
+        <Button type="button" variant="outline" onClick={onCancel} className="h-11 w-full border-white/[.12] bg-white/[.03] text-xs text-slate-300 hover:bg-white/[.08] hover:text-white sm:h-9 sm:w-auto"><X size={14} className="mr-1.5" /> Cancelar</Button>
       </div>
-      <div className="relative min-w-0 space-y-4 bg-[#02090f] p-3 sm:space-y-5 sm:p-4 lg:p-5">
+      <div className="relative min-w-0 space-y-4 bg-[#02090f] sm:space-y-5">
         {error && (
           <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-200">
             {error}
@@ -609,7 +595,7 @@ export default function DiarioLancamentoForm({
           </div>
         )}
         <FormSection icon={<PlaneTakeoff size={13} />} title="Voo e rota">
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Data *">
               <input
                 type="date"
@@ -779,7 +765,7 @@ export default function DiarioLancamentoForm({
           )}
         </FormSection>
         <FormSection icon={<Users size={13} />} title="Tripulação e cotista">
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="PIC * · tripulação ">
               <SearchableCombobox
                 items={tripulacao.map((tripulante) => ({
@@ -905,7 +891,7 @@ export default function DiarioLancamentoForm({
           icon={<TimerIcon />}
           title="Tempos operacionais (UTC/Zulu) e célula"
         >
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
             <Field label="Horário de apresentação">
               <input
                 type="time"
@@ -996,7 +982,7 @@ export default function DiarioLancamentoForm({
         </FormSection>
         {temDiaria && (
           <FormSection icon={<BookOpen size={13} />} title="Diárias">
-            <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <NumberField
                 label="Quantidade de diárias"
                 value={value("diarias")}
@@ -1010,7 +996,7 @@ export default function DiarioLancamentoForm({
           icon={<Fuel size={13} />}
           title="Combustível e abastecimento"
         >
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Consumo de voo">
               <input
                 value={value("consumo_combustivel_voo")}
@@ -1117,7 +1103,7 @@ export default function DiarioLancamentoForm({
               />
             </Field>
           </div>}
-          <div className="mt-3 grid min-w-0 gap-3 xl:grid-cols-3">
+          <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
             <TextField
               label="Ocorrências"
               value={value("ocorrencias")}
@@ -1135,7 +1121,7 @@ export default function DiarioLancamentoForm({
             />
           </div>
         </FormSection>
-        <div className="sticky bottom-0 -mx-3 -mb-3 flex flex-col-reverse items-stretch justify-end gap-2 border-t border-white/[.08] bg-[#0d1521]/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:flex-row sm:items-center sm:px-5 sm:py-4">
+        <div className="sticky bottom-0 z-10 -mx-3 flex flex-col-reverse items-stretch justify-end gap-2 border-t border-white/[.08] bg-[#0d1521]/95 px-3 py-3 backdrop-blur sm:static sm:mx-0 sm:flex-row sm:items-center sm:px-0 sm:py-3">
           <Button
             type="button"
             variant="outline"

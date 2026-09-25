@@ -194,3 +194,47 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   .campo { min-height: 42px; font-size: 13px; }
   [data-radix-dialog-content] { padding: 1rem; }
 }
+
+/* Diário de bordo: proteção contra overflow em celular */
+.diario-bordo,
+.diario-bordo * {
+  min-width: 0;
+}
+
+.diario-bordo {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.diario-bordo input,
+.diario-bordo select,
+.diario-bordo textarea,
+.diario-bordo button {
+  max-width: 100%;
+}
+
+.diario-bordo .responsive-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .diario-bordo input,
+  .diario-bordo select,
+  .diario-bordo textarea {
+    font-size: 16px !important;
+  }
+
+  .diario-bordo .campo {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .diario-bordo button {
+    min-height: 44px;
+  }
+}

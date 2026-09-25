@@ -324,12 +324,15 @@ export async function baixarArquivoAbastecimento(id: string, tipo: "comanda" | "
   }
   if (!session?.access_token) throw new Error("sessao_nao_encontrada");
 
-  const response = await fetch(`${API_BASE}/api/interno/abastecimentos/${id}/arquivo/${tipo}`, {
+  const response = await fetch(`${API_BASE}/api/interno/abastecimentos/${encodeURIComponent(id)}/arquivo/${tipo}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
     credentials: "omit",
   });
 
-  if (!response.ok) throw new Error("Não foi possível baixar o arquivo do abastecimento.");
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: string; detail?: string } | null;
+    throw new Error([data?.error || `api_${response.status}`, data?.detail].filter(Boolean).join(" — "));
+  }
   return response.blob();
 }
 

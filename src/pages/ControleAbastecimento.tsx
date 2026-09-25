@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Download, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
-import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes } from "@/lib/colaborador-api";
+import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes, type FornecedorCombustivel } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const money = (value: number) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -32,6 +32,8 @@ const emptyForm = {
   banco: "",
   voo_emprestado: false,
   numero_voo: "",
+  prazo_envio_cliente_dias: "",
+  prazo_envio_cliente_em: "",
 };
 
 type Form = typeof emptyForm;
@@ -41,6 +43,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const [options, setOptions] = useState<AbastecimentoOpcoes | null>(null);
   const [records, setRecords] = useState<Abastecimento[]>([]);
   const [form, setForm] = useState<Form>(emptyForm);
+  const [files, setFiles] = useState<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>({ comanda: null, nota: null, boleto: null, comprovante: null });
+  const [persistedRecordId, setPersistedRecordId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Abastecimento | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -70,7 +74,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       setOptions({
         clientes: Array.isArray(op?.clientes) ? op.clientes : [],
         socios: Array.isArray(op?.socios) ? op.socios : [],
-        aeronaves: Array.isArray(op?.aeronaves) ? op.aeronaves : [],
+        aeronaves: Array.isArray(op?.aeronaves) ? op.aeronaves : Array.isArray((op as any)?.aeronave) ? (op as any).aeronave : [],
         fornecedores: Array.isArray(op?.fornecedores) ? op.fornecedores : [],
         diarios: Array.isArray(op?.diarios) ? op.diarios : [],
       });
@@ -143,6 +147,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const closeForm = () => {
     setFormOpen(false);
     setEditing(null);
+    setPersistedRecordId(null);
+    setFiles({ comanda: null, nota: null, boleto: null, comprovante: null });
     setForm(emptyForm);
   };
 
@@ -153,15 +159,23 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       ...Object.fromEntries(
         Object.entries(item)
           .filter(([key]) => key in emptyForm)
-          .map(([key, value]) => [key, value == null ? "" : value])
+          .map(([key, value]) => [key, key === "voo_emprestado" ? Boolean(value) : value == null ? "" : String(value)])
       ),
     } as Form);
+    setFiles({ comanda: null, nota: null, boleto: null, comprovante: null });
+    setPersistedRecordId(item.id);
     setFormOpen(true);
   };
 
   const save = async () => {
-    if (!form.data || !form.local) {
-      setError("Informe a data e o local do abastecimento.");
+    const litros = Number(form.litros);
+    const valorTotal = Number(form.valor_total || litros * Number(form.valor_unitario || 0));
+    if (!form.data || !form.local || !form.aeronave_id || (!form.cliente_id && !form.socio_id) || !Number.isFinite(litros) || litros <= 0 || !Number.isFinite(valorTotal) || valorTotal <= 0) {
+      setError("Informe data, local, aeronave, cliente ou sócio, litros e valor total válidos.");
+      return;
+    }
+    if (form.status === "pago" && !form.data_pagamento) {
+      setError("Informe a data do pagamento para um abastecimento pago.");
       return;
     }
 
@@ -171,17 +185,42 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     try {
       const payload = {
         ...form,
-        litros: Number(form.litros || 0),
-        valor_unitario: Number(form.valor_unitario || 0),
-        valor_total: Number(form.valor_total || Number(form.litros || 0) * Number(form.valor_unitario || 0)),
+        cliente_id: form.socio_id ? null : form.cliente_id || null,
+        socio_id: form.cliente_id ? null : form.socio_id || null,
+        litros,
+        valor_unitario: Number(form.valor_unitario || valorTotal / litros),
+        valor_total: valorTotal,
         desconto: form.desconto ? Number(form.desconto) : null,
+        prazo_envio_cliente_dias: form.prazo_envio_cliente_dias ? Number(form.prazo_envio_cliente_dias) : null,
         voo_emprestado: Boolean(form.voo_emprestado),
       };
 
-      if (editing) {
-        await atualizarAbastecimento(editing.id, payload);
+      let recordId = editing?.id || persistedRecordId;
+      if (recordId) {
+        await atualizarAbastecimento(recordId, payload);
       } else {
-        await criarAbastecimento(payload);
+        const created = await criarAbastecimento(payload);
+        recordId = created.id;
+        setPersistedRecordId(recordId);
+      }
+      if (!recordId) throw new Error("O Worker não retornou o ID do abastecimento.");
+
+      const failedUploads: string[] = [];
+      for (const type of ["comanda", "nota", "boleto", "comprovante"] as const) {
+        const file = files[type];
+        if (!file) continue;
+        try {
+          await anexarArquivoAbastecimento(recordId, type, file);
+          setFiles((current) => ({ ...current, [type]: null }));
+        } catch {
+          failedUploads.push(type);
+        }
+      }
+
+      if (failedUploads.length) {
+        setError(`Abastecimento salvo. Não foi possível enviar: ${failedUploads.join(", ")}.`);
+        await load();
+        return;
       }
 
       setMessage(editing ? "Abastecimento atualizado." : "Abastecimento registrado.");
@@ -205,7 +244,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     }
   };
 
-  const upload = async (id: string, type: "comanda" | "nota" | "boleto", file?: File) => {
+  const upload = async (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => {
     if (!file) return;
     try {
       await anexarArquivoAbastecimento(id, type, file);
@@ -216,7 +255,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     }
   };
 
-  const download = async (id: string, type: "comanda" | "nota" | "boleto") => {
+  const download = async (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => {
     try {
       const blob = await baixarArquivoAbastecimento(id, type);
       const url = URL.createObjectURL(blob);
@@ -285,7 +324,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
         <>
           {formOpen && (
             <div className="mb-6">
-              <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} setField={setField} onClose={closeForm} onSave={() => void save()} />
+              <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} files={files} setFiles={setFiles} setField={setField} onClose={closeForm} onSave={() => void save()} />
             </div>
           )}
 
@@ -420,16 +459,16 @@ function StatTile({ label, value, icon, accent = "text-foreground", className = 
   );
 }
 
-function AbastecimentoCard({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto") => void }) {
+function AbastecimentoCard({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
   const pago = record.status === "pago";
-  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : "boleto";
+  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : record.boleto_url ? "boleto" : "comprovante";
   return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] font-bold text-primary">{record.numero_voo || record.matricula_registro || "Abastecimento"}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{record.trecho || "Trecho não informado"}</p></div><span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${pago ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : record.status === "cancelado" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-400/30 bg-amber-400/10 text-amber-400"}`}>{pago ? "Pago" : record.status === "cancelado" ? "Cancelado" : "Pendente"}</span></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Data / local</span><strong>{date(record.data)} · {record.local || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Volume</span><strong className="font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</strong></div><div><span className="block text-[9px] text-muted-foreground">Comanda / NF</span><strong className="font-mono">{record.numero_comanda || "—"} · {record.numero_nf || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Total</span><strong className="font-mono text-emerald-400">{money(record.valor_total)}</strong></div></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onEdit(record)} className="min-h-9 flex-1 rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary">Editar</button>{record.comanda_url || record.nota_url || record.boleto_url ? <button type="button" onClick={() => void onDownload(record.id, fileType)} className="min-h-9 rounded-lg border border-border px-3 py-2 text-[10px] font-bold">Baixar</button> : <label className="flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-lg border border-border px-3 py-2 text-[10px] font-bold"><Upload size={12} className="mr-1" /> Anexar<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(event) => void onUpload(record.id, "comanda", event.target.files?.[0])} /></label>}<button type="button" onClick={() => void onDelete(record.id)} className="min-h-9 rounded-lg border border-destructive/30 px-3 py-2 text-[10px] font-bold text-destructive">Excluir</button></div></article>;
 }
 
-function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto") => void }) {
+function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const pago = record.status === "pago";
-  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : "boleto";
+  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : record.boleto_url ? "boleto" : "comprovante";
 
   return (
     <tr className="border-b border-border/60 bg-card/40 hover:bg-primary/5">
@@ -457,7 +496,7 @@ function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { 
               <button type="button" onClick={() => { setMenuAberto(false); onEdit(record); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary">
                 <Edit3 size={13} /> Editar
               </button>
-              {record.comanda_url || record.nota_url || record.boleto_url ? (
+              {record.comanda_url || record.nota_url || record.boleto_url || record.comprovante_url ? (
                 <button type="button" onClick={() => { setMenuAberto(false); void onDownload(record.id, fileType); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary">
                   <Download size={13} /> Baixar arquivo
                 </button>
@@ -478,11 +517,13 @@ function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { 
   );
 }
 
-function AbastecimentoForm({ form, options, editing, saving, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; editing: Abastecimento | null; saving: boolean; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
+function AbastecimentoForm({ form, options, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
   const aeronaves = Array.isArray(options?.aeronaves) ? options.aeronaves : [];
   const clientes = Array.isArray(options?.clientes) ? options.clientes : [];
   const socios = Array.isArray(options?.socios) ? options.socios : [];
   const fornecedores = Array.isArray(options?.fornecedores) ? options.fornecedores : [];
+  const diarios = (options?.diarios || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
+  const addFile = (type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => setFiles((current) => ({ ...current, [type]: file || null }));
 
   return (
     <section className={`${card} p-5 space-y-4`}>
@@ -497,16 +538,54 @@ function AbastecimentoForm({ form, options, editing, saving, setField, onClose, 
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Trecho</span><input placeholder="Trecho" value={form.trecho} onChange={(e) => setField("trecho", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Combustível</span><select value={form.tipo_combustivel} onChange={(e) => setField("tipo_combustivel", e.target.value)} className="campo"><option>JET A1</option><option>AVGAS</option></select></label>
 
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Aeronave</span><select value={form.aeronave_id} onChange={(e) => setField("aeronave_id", e.target.value)} className="campo"><option value="">Selecionar aeronave</option>{aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula_registro} · {a.modelo}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Cliente cotista</span><select value={form.cliente_id} onChange={(e) => setField("cliente_id", e.target.value)} className="campo"><option value="">Selecionar cliente</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Sócio</span><select value={form.socio_id} onChange={(e) => setField("socio_id", e.target.value)} className="campo"><option value="">Selecionar sócio</option>{socios.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Fornecedor</span><select value={form.fornecedor_id} onChange={(e) => setField("fornecedor_id", e.target.value)} className="campo"><option value="">Selecionar fornecedor</option>{fornecedores.map((f) => <option key={f.id} value={f.id}>{f.apelido || f.nome_completo}</option>)}</select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Aeronave *</span><select value={form.aeronave_id} onChange={(e) => { setField("aeronave_id", e.target.value); setField("lancamento_diario_id", ""); }} className="campo"><option value="">Selecionar aeronave</option>{aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula_registro} · {a.modelo}</option>)}</select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Cliente cotista</span><select value={form.cliente_id} onChange={(e) => { setField("cliente_id", e.target.value); if (e.target.value) setField("socio_id", ""); }} className="campo"><option value="">Selecionar cliente</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Sócio / holding</span><select value={form.socio_id} onChange={(e) => { setField("socio_id", e.target.value); if (e.target.value) setField("cliente_id", ""); }} className="campo"><option value="">Selecionar sócio</option>{socios.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Fornecedor</span><select value={form.fornecedor_id} onChange={(e) => setField("fornecedor_id", e.target.value)} className="campo"><option value="">Selecionar fornecedor</option>{fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome_fornecedor} · {f.nome_cidade}</option>)}</select></label>
 
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Nº Comanda</span><input placeholder="Comanda" value={form.numero_comanda} onChange={(e) => setField("numero_comanda", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Nº NF</span><input placeholder="NF" value={form.numero_nf} onChange={(e) => setField("numero_nf", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Litros</span><input type="number" step="0.01" value={form.litros} onChange={(e) => setField("litros", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Valor Unitário</span><input type="number" step="0.01" value={form.valor_unitario} onChange={(e) => setField("valor_unitario", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Desconto (R$)</span><input type="number" step="0.01" value={form.desconto} onChange={(e) => setField("desconto", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Valor Total (R$) *</span><input type="number" step="0.01" value={form.valor_total} onChange={(e) => setField("valor_total", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Pagamento</span><select value={form.status} onChange={(e) => setField("status", e.target.value)} className="campo"><option value="pendente">Pendente</option><option value="pago">Pago</option></select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Forma de pagamento</span><select value={form.forma_pagamento} onChange={(e) => setField("forma_pagamento", e.target.value)} className="campo"><option value="">Selecionar</option><option value="PIX">PIX</option><option value="Cartão de crédito">Cartão de crédito</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vencimento do boleto</span><input type="date" value={form.data_vencimento_boleto} onChange={(e) => setField("data_vencimento_boleto", e.target.value)} className="campo font-mono" /></label>
+        {form.status === "pago" && <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data do pagamento</span><input type="date" value={form.data_pagamento} onChange={(e) => setField("data_pagamento", e.target.value)} className="campo font-mono" /></label>}
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Banco</span><input value={form.banco} onChange={(e) => setField("banco", e.target.value)} className="campo" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Prazo de envio ao cliente (dias)</span><input type="number" min="0" step="1" value={form.prazo_envio_cliente_dias} onChange={(e) => setField("prazo_envio_cliente_dias", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Enviar até</span><input type="date" value={form.prazo_envio_cliente_em} onChange={(e) => setField("prazo_envio_cliente_em", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Número do voo</span><input value={form.numero_voo} onChange={(e) => setField("numero_voo", e.target.value)} className="campo font-mono" /></label>
+        <label className="flex items-center gap-2 pt-6 text-[10px] font-bold uppercase text-muted-foreground"><input type="checkbox" checked={Boolean(form.voo_emprestado)} onChange={(e) => setField("voo_emprestado", e.target.checked)} />Voo emprestado</label>
       </div>
+
+      <div className="rounded-xl border border-border p-4">
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vincular ao diário de bordo</span><select value={form.lancamento_diario_id} onChange={(e) => {
+          const diario = diarios.find((item: any) => item.id === e.target.value) as any;
+          setField("lancamento_diario_id", e.target.value);
+          if (!diario) return;
+          setField("aeronave_id", diario.aeronave_id || form.aeronave_id);
+          setField("cliente_id", diario.cliente_id || "");
+          setField("socio_id", diario.cliente_id ? "" : diario.socio_id || "");
+          setField("data", String(diario.data_registro || "").slice(0, 10));
+          setField("trecho", diario.trecho || `${diario.aerodromo_partida || ""} X ${diario.aerodromo_chegada || ""}`);
+          setField("local", diario.local_combustivel || diario.aerodromo_partida || form.local);
+          setField("numero_voo", diario.numero_voo || "");
+          setField("voo_emprestado", Boolean(diario.voo_emprestado));
+        }} className="campo"><option value="">Sem vínculo</option>{diarios.map((d: any) => <option key={d.id} value={d.id}>{d.numero_voo || d.id.slice(0, 8)} · {date(d.data_registro)} · {d.trecho || `${d.aerodromo_partida} X ${d.aerodromo_chegada}`}</option>)}</select></label>
+        {form.lancamento_diario_id && <p className="mt-2 text-[10px] text-muted-foreground">O abastecimento será associado ao voo selecionado.</p>}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(["comanda", "nota", "boleto", "comprovante"] as const).map((type) => {
+          const existingUrl = type === "comanda" ? editing?.comanda_url : type === "nota" ? editing?.nota_url : type === "boleto" ? editing?.boleto_url : editing?.comprovante_url;
+          const labels = { comanda: "Comanda", nota: "Nota fiscal", boleto: "Boleto", comprovante: "Comprovante" };
+          return <label key={type} className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">{labels[type]}</span><input type="file" accept="application/pdf,image/*" onChange={(e) => addFile(type, e.target.files?.[0])} className="campo text-[10px]" />{files[type] && <span className="mt-1 block truncate text-[10px] text-primary">{files[type]?.name}</span>}{existingUrl && !files[type] && <span className="mt-1 block text-[10px] text-muted-foreground">Arquivo já anexado</span>}</label>;
+        })}
+      </div>
+
+      <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Observações</span><textarea value={form.observacao} onChange={(e) => setField("observacao", e.target.value)} className="campo min-h-20 resize-y" /></label>
 
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" onClick={onClose} className="h-9">Cancelar</Button>
@@ -516,59 +595,78 @@ function AbastecimentoForm({ form, options, editing, saving, setField, onClose, 
   );
 }
 
-function FornecedorCard({ supplier }: { supplier: Record<string, any> }) {
-  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-[10px] font-bold">{supplier.apelido || supplier.nome_completo || "Fornecedor"}</p><p className="mt-1 font-mono text-[9px] text-primary">{supplier.codigo_icao || "ICAO não informado"}</p></div><span className="text-right text-[10px] font-semibold text-muted-foreground">{supplier.cidade || "Cidade não informada"}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Telefone</span><strong className="font-mono">{supplier.telefone || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">AVGAS / JET</span><strong className="font-mono text-emerald-400">{Number(supplier.preco_avgas || 0) ? money(Number(supplier.preco_avgas)) : "—"} · {Number(supplier.preco_jet || 0) ? money(Number(supplier.preco_jet)) : "—"}</strong></div></div></article>;
+type FornecedorForm = { nome_cidade: string; codigo_icao: string; nome_fornecedor: string; pessoa_contato: string; telefone: string; preco_avgas: string; preco_jet: string };
+const emptyFornecedor: FornecedorForm = { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "" };
+
+function FornecedorCard({ supplier, onEdit }: { supplier: FornecedorCombustivel; onEdit: (supplier: FornecedorCombustivel) => void }) {
+  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-[10px] font-bold">{supplier.nome_fornecedor}</p><p className="mt-1 font-mono text-[9px] text-primary">{supplier.codigo_icao || "ICAO não informado"}</p></div><span className="text-right text-[10px] font-semibold text-muted-foreground">{supplier.nome_cidade || "Cidade não informada"}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Telefone</span><strong className="font-mono">{supplier.telefone || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">AVGAS / JET</span><strong className="font-mono text-emerald-400">{Number(supplier.preco_avgas || 0) ? money(Number(supplier.preco_avgas)) : "—"} · {Number(supplier.preco_jet || 0) ? money(Number(supplier.preco_jet)) : "—"}</strong></div></div><button type="button" onClick={() => onEdit(supplier)} className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-primary"><Edit3 size={12} /> Editar fornecedor</button></article>;
 }
 
 function FornecedorTab({ options, onSaved, onError }: { options: AbastecimentoOpcoes | null; onSaved: () => void; onError: (msg: string) => void }) {
   const [query, setQuery] = useState("");
-  const suppliers = (options?.fornecedores || []).filter((s) => [s.nome_completo, s.apelido, s.cidade, s.codigo_icao].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase()));
+  const [form, setForm] = useState<FornecedorForm>(emptyFornecedor);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const suppliers = (options?.fornecedores || []).filter((supplier) => [supplier.nome_fornecedor, supplier.nome_cidade, supplier.codigo_icao, supplier.pessoa_contato].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase()));
+  const setField = (key: keyof FornecedorForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const editSupplier = (supplier: FornecedorCombustivel) => {
+    setEditingId(supplier.id);
+    setForm({ nome_cidade: supplier.nome_cidade, codigo_icao: supplier.codigo_icao || "", nome_fornecedor: supplier.nome_fornecedor, pessoa_contato: supplier.pessoa_contato || "", telefone: supplier.telefone || "", preco_avgas: supplier.preco_avgas == null ? "" : String(supplier.preco_avgas), preco_jet: supplier.preco_jet == null ? "" : String(supplier.preco_jet) });
+    setFormOpen(true);
+  };
+  const closeForm = () => { setForm(emptyFornecedor); setEditingId(null); setFormOpen(false); };
+  const saveSupplier = async () => {
+    if (!form.nome_cidade.trim() || !form.nome_fornecedor.trim()) { onError("Informe a cidade e o nome do fornecedor."); return; }
+    const precoAvgas = form.preco_avgas.trim() ? Number(form.preco_avgas) : null;
+    const precoJet = form.preco_jet.trim() ? Number(form.preco_jet) : null;
+    if ([precoAvgas, precoJet].some((preco) => preco != null && (!Number.isFinite(preco) || preco < 0))) { onError("Informe preços válidos e não negativos."); return; }
+    const payload = { nome_cidade: form.nome_cidade.trim(), codigo_icao: form.codigo_icao.trim().toUpperCase() || null, nome_fornecedor: form.nome_fornecedor.trim(), pessoa_contato: form.pessoa_contato.trim() || null, telefone: form.telefone.trim() || null, preco_avgas: precoAvgas, preco_jet: precoJet };
+    setSaving(true);
+    try {
+      if (editingId) await atualizarFornecedorAbastecimento(editingId, payload);
+      else await criarFornecedorAbastecimento(payload);
+      closeForm();
+      onSaved();
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : "Não foi possível salvar o fornecedor.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
           <Search size={13} className="text-muted-foreground" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar fornecedor..." className="w-full bg-transparent text-xs outline-none text-foreground sm:w-64" />
         </div>
+        <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-9 gap-1.5"><Plus size={13} /> Novo fornecedor</Button>
       </div>
+
+      {formOpen && <section className={`${card} space-y-3 p-4`}>
+        <div className="flex items-center justify-between"><h3 className="text-sm font-bold">{editingId ? "Editar fornecedor" : "Novo fornecedor"}</h3><button type="button" onClick={closeForm} className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"><X size={14} /></button></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Cidade *</span><input value={form.nome_cidade} onChange={(event) => setField("nome_cidade", event.target.value)} className="campo" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">ICAO</span><input maxLength={4} value={form.codigo_icao} onChange={(event) => setField("codigo_icao", event.target.value)} className="campo font-mono uppercase" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Fornecedor *</span><input value={form.nome_fornecedor} onChange={(event) => setField("nome_fornecedor", event.target.value)} className="campo" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Pessoa de contato</span><input value={form.pessoa_contato} onChange={(event) => setField("pessoa_contato", event.target.value)} className="campo" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Telefone</span><input value={form.telefone} onChange={(event) => setField("telefone", event.target.value)} className="campo" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Preço AVGAS</span><input type="number" min="0" step="0.01" value={form.preco_avgas} onChange={(event) => setField("preco_avgas", event.target.value)} className="campo font-mono" /></label>
+          <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Preço JET</span><input type="number" min="0" step="0.01" value={form.preco_jet} onChange={(event) => setField("preco_jet", event.target.value)} className="campo font-mono" /></label>
+        </div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button><Button type="button" disabled={saving} onClick={() => void saveSupplier()}>{saving ? "Salvando..." : "Salvar fornecedor"}</Button></div>
+      </section>}
 
       <section className={`${card} overflow-hidden p-4`}>
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[800px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3">Cidade</th>
-                <th className="px-4 py-3">ICAO</th>
-                <th className="px-4 py-3">Fornecedor</th>
-                <th className="px-4 py-3">Telefone</th>
-                <th className="px-4 py-3 text-right">Preço AVGAS</th>
-                <th className="px-4 py-3 text-right">Preço JET</th>
-              </tr>
-            </thead>
-            <tbody className="text-foreground">
-              {suppliers.length ? (
-                suppliers.map((s) => (
-                  <tr key={s.id} className="border-b border-border/60 hover:bg-primary/5">
-                    <td className="px-4 py-3">{s.cidade || "—"}</td>
-                    <td className="px-4 py-3 font-mono font-bold text-primary">{s.codigo_icao || "—"}</td>
-                    <td className="px-4 py-3 font-bold">{s.apelido || s.nome_completo}</td>
-                    <td className="px-4 py-3 font-mono">{s.telefone || "—"}</td>
-                    <td className="px-4 py-3 text-right font-mono">{Number(s.preco_avgas || 0) ? money(Number(s.preco_avgas)) : "—"}</td>
-                    <td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">{Number(s.preco_jet || 0) ? money(Number(s.preco_jet)) : "—"}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-muted-foreground">Nenhum fornecedor encontrado.</td>
-                </tr>
-              )}
-            </tbody>
+          <table className="w-full min-w-[900px] border-collapse text-left text-xs">
+            <thead><tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3">Cidade</th><th className="px-4 py-3">ICAO</th><th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3">Contato</th><th className="px-4 py-3">Telefone</th><th className="px-4 py-3 text-right">Preço AVGAS</th><th className="px-4 py-3 text-right">Preço JET</th><th className="px-4 py-3">Ações</th></tr></thead>
+            <tbody className="text-foreground">{suppliers.length ? suppliers.map((supplier) => <tr key={supplier.id} className="border-b border-border/60 hover:bg-primary/5"><td className="px-4 py-3">{supplier.nome_cidade || "—"}</td><td className="px-4 py-3 font-mono font-bold text-primary">{supplier.codigo_icao || "—"}</td><td className="px-4 py-3 font-bold">{supplier.nome_fornecedor}</td><td className="px-4 py-3">{supplier.pessoa_contato || "—"}</td><td className="px-4 py-3 font-mono">{supplier.telefone || "—"}</td><td className="px-4 py-3 text-right font-mono">{supplier.preco_avgas != null ? money(Number(supplier.preco_avgas)) : "—"}</td><td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">{supplier.preco_jet != null ? money(Number(supplier.preco_jet)) : "—"}</td><td className="px-4 py-3"><button type="button" onClick={() => editSupplier(supplier)} className="inline-flex items-center gap-1 font-semibold text-primary"><Edit3 size={12} /> Editar</button></td></tr>) : <tr><td colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum fornecedor encontrado.</td></tr>}</tbody>
           </table>
         </div>
-        <div className="space-y-2 md:hidden">
-          {suppliers.length ? suppliers.map((supplier) => <FornecedorCard key={supplier.id} supplier={supplier} />) : <EstadoVazio label="Nenhum fornecedor encontrado." />}
-        </div>
+        <div className="space-y-2 md:hidden">{suppliers.length ? suppliers.map((supplier) => <FornecedorCard key={supplier.id} supplier={supplier} onEdit={editSupplier} />) : <EstadoVazio label="Nenhum fornecedor encontrado." />}</div>
       </section>
     </div>
   );

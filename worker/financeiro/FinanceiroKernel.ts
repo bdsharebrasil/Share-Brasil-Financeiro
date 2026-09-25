@@ -646,8 +646,8 @@ function linkStatement(
   userId: string | null,
 ): D1PreparedStatement {
   requireTable(schema, 'financeiro_vinculos', ['id', 'origem_tipo', 'origem_id', 'destino_tipo', 'destino_id', 'tipo_vinculo'])
-    return db.prepare(
-      `INSERT OR IGNORE INTO financeiro_vinculos
+  return db.prepare(
+    `INSERT OR IGNORE INTO financeiro_vinculos
        (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo)
       VALUES (?, ?, ?, ?, ?, ?)`,
   ).bind(id(), origemTipo, origemId, destinoTipo, destinoId, tipoVinculo)
@@ -696,6 +696,11 @@ function clientAllocationStatements(
           data_pagamento: null,
           descricao_despesa: command.descricao,
           observacoes: nullableText(command.observacoes),
+          origem_id: nullableText(command.recibo_id),
+          origem_tipo: nullableText(command.recibo_id) ? 'RECIBO' : null,
+          numero_recibo: nullableText(command.numero_recibo),
+          numero_voo: nullableText(command.numero_voo),
+          url_recibo: nullableText(command.url_recibo),
           anexos_json: (() => { const anexos = Array.isArray(command.anexos_json) ? command.anexos_json : JSON.parse(String(command.anexos_json || '[]')); return JSON.stringify(anexos.filter((anexo: Row) => !anexo.cotista_id || anexo.cotista_id === line.cotistaId)) })(),
           numero_nf: (() => { const anexos = Array.isArray(command.anexos_json) ? command.anexos_json : JSON.parse(String(command.anexos_json || '[]')); return anexos.find((anexo: Row) => anexo.cotista_id === line.cotistaId && anexo.tipo === 'nf')?.numero || null })(),
           url_nf: (() => { const anexos = Array.isArray(command.anexos_json) ? command.anexos_json : JSON.parse(String(command.anexos_json || '[]')); return anexos.find((anexo: Row) => anexo.cotista_id === line.cotistaId && anexo.tipo === 'nf')?.url || null })(),
@@ -772,6 +777,7 @@ function holdingAllocationStatements(
         categoria_nome: nullableText(
           command.categoria_nome ?? command.categoria,
         ),
+        numero_voo: nullableText(command.numero_voo),
         tipo_rateio: upper(command.tipo_rateio || 'FIXO'),
         percentual_sociedade: line.percentual,
         percentual_uso: line.percentual,
@@ -785,6 +791,10 @@ function holdingAllocationStatements(
         data_pagamento: line.pagoDiretamente ? command.data : null,
         descricao_despesa: command.descricao,
         observacoes: nullableText(command.observacoes),
+        origem_id: nullableText(command.recibo_id),
+        origem_tipo: nullableText(command.recibo_id) ? 'RECIBO' : null,
+        documento_numero: nullableText(command.numero_recibo),
+        documento_url: nullableText(command.url_recibo),
         criado_por: userId,
       },
       ['id', 'movimento_holding_id', 'aeronave_id', 'socio_id'],
@@ -850,10 +860,13 @@ export async function createExpense(
           grupo_categoria: nullableText(command.grupo_categoria),
           fluxo: 'SAIDA',
           natureza: reembolsavel ? 'REEMBOLSO' : 'DESPESA',
+          tipo_caixa: 'HOLD',
           valor_centavos: amount,
           valor: amount / 100,
           pago_diretamente: direct ? 1 : 0,
           status: direct ? 'PAGO' : 'EM_ABERTO',
+          numero_recibo: nullableText(command.numero_recibo),
+          url_recibo: nullableText(command.url_recibo),
           criado_por: userId,
           observacoes: nullableText(command.observacoes),
           idempotency_key: command.idempotency_key,
@@ -939,8 +952,11 @@ export async function createExpense(
           pago_diretamente: 1,
           reembolsavel: 0,
           reembolso_quitado: 0,
-          origem_tipo: 'DESPESA',
-          origem_id: lancamentoId,
+          origem_tipo: command.recibo_id ? 'RECIBO' : 'DESPESA',
+          origem_id: command.recibo_id || lancamentoId,
+          numero_recibo: nullableText(command.numero_recibo),
+          numero_voo: nullableText(command.numero_voo),
+          url_recibo: nullableText(command.url_recibo),
           idempotency_key: command.idempotency_key,
           criado_por: userId,
         },
@@ -992,7 +1008,7 @@ export async function createExpense(
         ),
         grupo_categoria: nullableText(
           command.grupo_categoria ||
-            (reembolsavel ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA'),
+          (reembolsavel ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA'),
         ),
         fluxo: 'SAIDA',
         natureza: 'DESPESA',
@@ -1825,17 +1841,67 @@ async function buildReceiptPagamento(
     )
   }
 
+  const possuiRateioInformado = Array.isArray(command.rateio_linhas) && command.rateio_linhas.length > 0
   if (['cotista_aeronave', 'cliente'].includes(String(input.pagador_tipo))) {
+    if (input.pagador_tipo === 'cliente' && possuiRateioInformado) {
+      return createExpense(db, {
+        ...command,
+        recibo_id: receiptId,
+        tipo_caixa: 'CLIENTE',
+        fluxo: 'SAIDA',
+        categoria_id: input.categoria_movimentacao_id,
+        categoria_cliente_id: input.categoria_movimentacao_id,
+        aeronave_id: input.aeronave_id || command.aeronave_id,
+        numero_voo: input.numero_voo,
+        rateio_linhas: command.rateio_linhas,
+        pago_diretamente: true,
+        reembolsavel: false,
+        idempotency_key: `recibo-pagamento:${receiptId}`,
+      }, userId, { internal: true })
+    }
+    const pagadorId = text(input.pagador_id)
+    const aeronaveInformada = text(input.aeronave_id || command.aeronave_id)
+    const cotista = await db.prepare(`
+      SELECT id, aeronave_id, socio_id, percentual_sociedade
+        FROM cotista_aeronave
+       WHERE (id = ?1 AND ?2 = 'cotista_aeronave')
+          OR (cliente_id = ?1 AND ?2 = 'cliente')
+         AND (?3 = '' OR aeronave_id = ?3)
+       ORDER BY CASE WHEN aeronave_id = ?3 AND ?3 <> '' THEN 0 ELSE 1 END, id
+       LIMIT 1
+    `).bind(pagadorId, String(input.pagador_tipo), aeronaveInformada).first<{ id: string; aeronave_id: string; socio_id: string | null; percentual_sociedade: number | null }>()
+    if (!cotista?.id) {
+      throw new FinanceError(
+        'O pagador precisa estar vinculado a um cotista e a uma aeronave para gerar o rateio',
+        'cotista_rateio_obrigatorio',
+      )
+    }
+    const percentualSociedade = Number(cotista.percentual_sociedade ?? 100)
+    const rateioLinhas = Array.isArray(command.rateio_linhas) && command.rateio_linhas.length
+      ? command.rateio_linhas
+      : [{
+        cotista_id: cotista.id,
+        socio_id: cotista.socio_id,
+        percentual: 100,
+        percentual_sociedade: percentualSociedade,
+        valor_centavos: input.valor_centavos,
+        pago_diretamente: true,
+      }]
     return createExpense(db, {
       ...command,
       recibo_id: receiptId,
+      numero_voo: input.numero_voo,
       tipo_caixa: 'CLIENTE',
       fluxo: 'SAIDA',
-      categoria_id: null,
+      categoria_id: input.categoria_movimentacao_id,
       categoria_cliente_id: input.categoria_movimentacao_id,
-      sem_rateio: true,
+      aeronave_id: cotista.aeronave_id || aeronaveInformada,
+      cotista_aeronave_id: cotista.id,
+      socio_id: cotista.socio_id,
+      rateio_linhas: rateioLinhas,
       pago_diretamente: true,
       reembolsavel: false,
+      idempotency_key: `recibo-pagamento:${receiptId}`,
     }, userId, { internal: true })
   }
 
@@ -1883,6 +1949,7 @@ export async function finalizarRecibo(
   db: Database,
   receiptId: string,
   userId: string | null,
+  overrides: Row = {},
 ): Promise<Row> {
   const receipt = await db.prepare('SELECT * FROM recibos WHERE id = ? LIMIT 1').bind(receiptId).first<Row>()
   if (!receipt) throw new FinanceError('Recibo não encontrado', 'recibo_nao_encontrado', 404)
@@ -1904,6 +1971,7 @@ export async function finalizarRecibo(
     db,
     {
       ...receipt,
+      ...overrides,
       valor_centavos: receipt.valor,
       categoria_movimentacao_id: receipt.categoria_movimentacao_id,
       data: receipt.data_emissao,
@@ -1913,6 +1981,64 @@ export async function finalizarRecibo(
     buildFinance,
     receiptId,
   )
+}
+
+export async function enviarReciboPagamentoParaRateio(
+  db: Database,
+  receiptId: string,
+  userId: string | null,
+  body: Row = {},
+): Promise<Row> {
+  const receipt = await db.prepare(
+    `SELECT * FROM recibos WHERE id = ?1 AND tipo_recibo = 'recibo_pagamento' LIMIT 1`,
+  ).bind(receiptId).first<Row>()
+  if (!receipt) throw new FinanceError('Recibo de pagamento não encontrado', 'recibo_pagamento_nao_encontrado', 404)
+
+  const existingClient = await db.prepare(
+    `SELECT id FROM rateio_despesas WHERE origem_tipo = 'RECIBO' AND origem_id = ?1 LIMIT 1`,
+  ).bind(receiptId).first<{ id: string }>().catch(() => null)
+  const existingHolding = await db.prepare(
+    `SELECT id FROM rateio_hold WHERE origem_tipo = 'RECIBO' AND origem_id = ?1 LIMIT 1`,
+  ).bind(receiptId).first<{ id: string }>().catch(() => null)
+  if (existingClient?.id || existingHolding?.id) {
+    return {
+      ok: true,
+      recibo_id: receiptId,
+      lancamento_id: receipt.lancamento_id || null,
+      rateio_ids: [existingClient?.id || existingHolding!.id],
+      idempotent: true,
+    }
+  }
+
+  const result = await finalizarRecibo(db, receiptId, userId, {
+    aeronave_id: text(body.aeronave_id) || receipt.aeronave_id || null,
+    numero_voo: text(body.numero_voo) || receipt.numero_voo || null,
+    rateio_linhas: Array.isArray(body.rateio_linhas) ? body.rateio_linhas : undefined,
+    data_vencimento: text(body.data_vencimento) || receipt.data_vencimento || null,
+    observacoes: text(body.observacoes) || receipt.observacoes || null,
+  })
+  const rateios = await db.prepare(
+    `SELECT id, cotista_id, percentual_uso AS percentual, valor_rateado_centavos AS valor
+       FROM rateio_despesas WHERE origem_tipo = 'RECIBO' AND origem_id = ?1
+     UNION ALL
+     SELECT rh.id, ca.id AS cotista_id, rh.percentual_uso AS percentual, rh.valor_rateado_centavos AS valor
+       FROM rateio_hold rh LEFT JOIN cotista_aeronave ca ON ca.socio_id = rh.socio_id AND ca.aeronave_id = rh.aeronave_id
+      WHERE rh.origem_tipo = 'RECIBO' AND rh.origem_id = ?1`,
+  ).bind(receiptId).all<{ id: string; cotista_id: string | null; percentual: number | null; valor: number }>().catch(() => ({ results: [] as { id: string; cotista_id: string | null; percentual: number | null; valor: number }[] }))
+  if (!rateios.results?.length) throw new FinanceError('Não foi possível criar o rateio do recibo', 'rateio_nao_criado', 500)
+  const reciboRateioExistente = await db.prepare('SELECT id FROM recibo_rateio WHERE recibo_id = ?1 LIMIT 1').bind(receiptId).first<{ id: string }>().catch(() => null)
+  if (!reciboRateioExistente) {
+    await db.batch(rateios.results.map((rateio) => db.prepare(
+      'INSERT INTO recibo_rateio (id, recibo_id, rateio_id, percentual, valor, cotista_id) VALUES (?, ?, ?, ?, ?, ?)',
+    ).bind(id(), receiptId, rateio.id, Number(rateio.percentual || 0), Number(rateio.valor || 0), rateio.cotista_id)))
+  }
+  return {
+    ok: true,
+    recibo_id: receiptId,
+    lancamento_id: result.lancamento_id || null,
+    rateio_ids: rateios.results.map((row) => row.id),
+    idempotent: false,
+  }
 }
 
 export async function emitirReciboReembolso(db: Database, body: Row, userId: string | null): Promise<Row> {
@@ -1935,7 +2061,7 @@ export async function programarReciboReembolso(db: Database, receiptId: string, 
   // O e-mail pode ter sido enviado antes ou depois da criação dos lançamentos.
   // O histórico é opcional e não pode interromper a programação financeira.
   const emailInfo = await db.prepare(
-      `SELECT e.id FROM emails_enviados e
+    `SELECT e.id FROM emails_enviados e
        LEFT JOIN recibo_anexos a
          ON a.id = e.referencia_id
         AND e.referencia_tipo = 'recibo'
@@ -2057,6 +2183,7 @@ async function issueReceiptInternal(
     valor_centavos: input.valor_centavos,
     data: input.data_emissao,
     categoria_id: input.categoria_movimentacao_id,
+    categoria_despesa_subcategoria: input.subcategoria_1,
     aeronave_id: input.aeronave_id,
     cotista_aeronave_id: input.pagador_tipo === 'cotista_aeronave' ? input.pagador_id : body.cotista_aeronave_id,
     cliente_id: input.pagador_tipo === 'cliente' ? input.pagador_id : body.cliente_id,
@@ -2076,91 +2203,96 @@ async function issueReceiptInternal(
   if (!numero) throw new FinanceError('Número do recibo não encontrado', 'numero_recibo_ausente', 500)
   let financeiroCriado: Row | null = null
   try {
-  if (!existingReceiptId) {
-    await createReceiptRecord(db, { ...input, ...body } as typeof input, reciboId, numero, userId)
-    return {
-      recibo: {
-        id: reciboId,
+    if (!existingReceiptId) {
+      await createReceiptRecord(db, { ...input, ...body } as typeof input, reciboId, numero, userId)
+      return {
+        recibo: {
+          id: reciboId,
+          numero_recibo: numero,
+          tipo_recibo: input.tipo_recibo,
+          pagador_tipo: input.pagador_tipo,
+          pagador_id: input.pagador_id,
+          nome_pagador: body.nome_pagador || null,
+          documento_pagador: body.documento_pagador || null,
+          endereco_pagador: body.endereco_pagador || null,
+          cidade_pagador: body.cidade_pagador || null,
+          uf_pagador: body.uf_pagador || null,
+          recebedor_nome: input.recebedor_nome || null,
+          recebedor_cpf: input.recebedor_cpf || null,
+          recebedor_endereco: input.recebedor_endereco || null,
+          recebedor_cidade: input.recebedor_cidade || null,
+          recebedor_uf: input.recebedor_uf || null,
+          aeronave_id: input.aeronave_id || null,
+          rateado: 0,
+          valor: input.valor_centavos,
+          valor_centavos: input.valor_centavos,
+          descricao: input.descricao,
+          data_emissao: input.data_emissao,
+          data_vencimento: input.data_vencimento || null,
+          categoria_id: input.categoria_movimentacao_id,
+          categoria_movimentacao_id: input.categoria_movimentacao_id,
+          status: 'CRIADO',
+          url_recibo: null,
+          lancamento_id: null,
+        },
+        recibo_id: reciboId,
         numero_recibo: numero,
-        tipo_recibo: input.tipo_recibo,
-        pagador_tipo: input.pagador_tipo,
-        pagador_id: input.pagador_id,
-        nome_pagador: body.nome_pagador || null,
-        documento_pagador: body.documento_pagador || null,
-        endereco_pagador: body.endereco_pagador || null,
-        cidade_pagador: body.cidade_pagador || null,
-        uf_pagador: body.uf_pagador || null,
-        aeronave_id: input.aeronave_id || null,
-        rateado: 0,
-        valor: input.valor_centavos,
-        valor_centavos: input.valor_centavos,
-        descricao: input.descricao,
-        data_emissao: input.data_emissao,
-        data_vencimento: input.data_vencimento || null,
-        categoria_id: input.categoria_movimentacao_id,
-        categoria_movimentacao_id: input.categoria_movimentacao_id,
-        status: 'CRIADO',
-        url_recibo: null,
         lancamento_id: null,
-      },
-      recibo_id: reciboId,
-      numero_recibo: numero,
-      lancamento_id: null,
-      lancamento_cliente_id: null,
-      rateio_ids: [],
-      rateio_linhas: [],
-      status: 'CRIADO',
-      valor_centavos: input.valor_centavos,
+        lancamento_cliente_id: null,
+        rateio_ids: [],
+        rateio_linhas: [],
+        status: 'CRIADO',
+        valor_centavos: input.valor_centavos,
+      }
     }
-  }
-  const categoriaNome = nullableText(body.categoria_nome) || nullableText(
-    (await db.prepare(`
+    const categoriaNome = nullableText(body.categoria_nome) || nullableText(
+      (await db.prepare(`
       SELECT nome FROM categoria_movimentacao_cliente WHERE id = ?
       UNION ALL
       SELECT nome FROM categoria_movimentacao_share WHERE id = ?
       LIMIT 1
     `).bind(input.categoria_movimentacao_id, input.categoria_movimentacao_id).first<{ nome: string | null }>())?.nome,
-  )
-  const financeiro = financeiroCriado = await buildFinance(db, schema, {
-    ...comando,
-    categoria_nome: categoriaNome,
-  }, input, reciboId, userId)
-  const lancamentoId = text('shareLancamentoId' in financeiro ? financeiro.shareLancamentoId : financeiro.lancamento_id ?? financeiro.id)
-  const rateioLancamentoId = text('clienteLancamentoId' in financeiro ? financeiro.clienteLancamentoId : lancamentoId)
-  await db.prepare('UPDATE recibos SET lancamento_id = ? WHERE id = ?').bind(lancamentoId, reciboId).run()
-  const rateios = input.tipo_recibo === 'recibo_saida'
-    ? await createReceiptAllocations(db, reciboId, rateioLancamentoId)
-    : []
-  await db.batch([
-    linkStatement(db, schema, 'RECIBO', reciboId, 'LANCAMENTO', lancamentoId, 'RECIBO_LANCAMENTO', userId),
-    ...rateios.map((rateio) => linkStatement(db, schema, 'RECIBO', reciboId, 'RATEIO', String(rateio.id), 'RECIBO_RATEIO', userId)),
-    auditStatement(db, schema, 'recibos', reciboId, 'CRIACAO_RECIBO', userId, null, input.valor_centavos, null, null),
-  ])
-  const statusAtual = await db.prepare('SELECT status FROM recibos WHERE id = ?').bind(reciboId).first<{ status: string }>()
-  const statusFinal = String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO'
-    ? 'PDF_PENDENTE'
-    : String(statusAtual?.status ?? 'PDF_PENDENTE')
-  if (statusFinal === 'PDF_PENDENTE' && String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO') {
-    await updateReceiptStatus(db, reciboId, 'PDF_PENDENTE')
-  }
-  const recibo = {
-    id: reciboId,
-    numero_recibo: numero,
-    tipo_recibo: input.tipo_recibo,
-    pagador_tipo: input.pagador_tipo,
-    pagador_id: input.pagador_id,
-    aeronave_id: input.aeronave_id || null,
-    rateado: rateios.length ? 1 : 0,
-    valor: input.valor_centavos,
-    valor_centavos: input.valor_centavos,
-    descricao: input.descricao,
-    data_emissao: input.data_emissao,
-    categoria_id: input.categoria_movimentacao_id,
-    categoria_movimentacao_id: input.categoria_movimentacao_id,
-    status: statusFinal,
-    lancamento_id: lancamentoId,
-  }
-  return { recibo, recibo_id: reciboId, numero_recibo: numero, lancamento_id: lancamentoId, lancamento_cliente_id: rateioLancamentoId, rateio_ids: rateios.map((rateio) => rateio.id), rateio_linhas: rateios, status: statusFinal, valor_centavos: input.valor_centavos }
+    )
+    const financeiro = financeiroCriado = await buildFinance(db, schema, {
+      ...comando,
+      categoria_nome: categoriaNome,
+    }, input, reciboId, userId)
+    const lancamentoId = text('shareLancamentoId' in financeiro ? financeiro.shareLancamentoId : financeiro.lancamento_id ?? financeiro.id)
+    const rateioLancamentoId = text('clienteLancamentoId' in financeiro ? financeiro.clienteLancamentoId : lancamentoId)
+    await db.prepare('UPDATE recibos SET lancamento_id = ? WHERE id = ?').bind(lancamentoId, reciboId).run()
+    const rateios = input.tipo_recibo === 'recibo_saida'
+      ? await createReceiptAllocations(db, reciboId, rateioLancamentoId)
+      : []
+    await db.batch([
+      linkStatement(db, schema, 'RECIBO', reciboId, 'LANCAMENTO', lancamentoId, 'RECIBO_LANCAMENTO', userId),
+      ...rateios.map((rateio) => linkStatement(db, schema, 'RECIBO', reciboId, 'RATEIO', String(rateio.id), 'RECIBO_RATEIO', userId)),
+      auditStatement(db, schema, 'recibos', reciboId, 'CRIACAO_RECIBO', userId, null, input.valor_centavos, null, null),
+    ])
+    const statusAtual = await db.prepare('SELECT status FROM recibos WHERE id = ?').bind(reciboId).first<{ status: string }>()
+    const statusFinal = String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO'
+      ? 'PDF_PENDENTE'
+      : String(statusAtual?.status ?? 'PDF_PENDENTE')
+    if (statusFinal === 'PDF_PENDENTE' && String(statusAtual?.status ?? '').toUpperCase() === 'CRIADO') {
+      await updateReceiptStatus(db, reciboId, 'PDF_PENDENTE')
+    }
+    const recibo = {
+      id: reciboId,
+      numero_recibo: numero,
+      tipo_recibo: input.tipo_recibo,
+      pagador_tipo: input.pagador_tipo,
+      pagador_id: input.pagador_id,
+      aeronave_id: input.aeronave_id || null,
+      rateado: rateios.length ? 1 : 0,
+      valor: input.valor_centavos,
+      valor_centavos: input.valor_centavos,
+      descricao: input.descricao,
+      data_emissao: input.data_emissao,
+      categoria_id: input.categoria_movimentacao_id,
+      categoria_movimentacao_id: input.categoria_movimentacao_id,
+      status: statusFinal,
+      lancamento_id: lancamentoId,
+    }
+    return { recibo, recibo_id: reciboId, numero_recibo: numero, lancamento_id: lancamentoId, lancamento_cliente_id: rateioLancamentoId, rateio_ids: rateios.map((rateio) => rateio.id), rateio_linhas: rateios, status: statusFinal, valor_centavos: input.valor_centavos }
   } catch (error) {
     const created = await db.prepare('SELECT lancamento_id FROM recibos WHERE id = ?').bind(reciboId).first<{ lancamento_id: string | null }>()
     const lancamentoIds = [...new Set([

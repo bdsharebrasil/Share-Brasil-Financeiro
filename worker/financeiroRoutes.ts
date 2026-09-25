@@ -9,6 +9,7 @@ import {
   emitirReciboColaborador,
   emitirReciboPagamento,
   emitirReciboSaida,
+  enviarReciboPagamentoParaRateio,
   programarReciboReembolso,
   processFinanceQueue,
   settlePayable,
@@ -631,7 +632,7 @@ financeiroRoutes.get('/dashboard/financeiro', async (c) => {
       listar(db, "SELECT valor_centavos, status FROM contas_areceber WHERE status <> 'CANCELADO'"),
       listar(db, "SELECT id, lancamentos_id, valor_centavos, status, data_vencimento FROM contas_apagar WHERE status <> 'CANCELADO'"),
       listar(db, 'SELECT * FROM lancamentos ORDER BY criado_em DESC LIMIT 100'),
-      listar(db, 'SELECT id, destinatarios, assunto, status, anexos, erro_mensagem AS erro, criado_em FROM emails_enviados ORDER BY criado_em DESC LIMIT 200'),
+      listar(db, 'SELECT id, destinatarios, assunto, status, anexos, erro_mensagem AS erro, criado_em, email_enviado_em FROM emails_enviados ORDER BY criado_em DESC LIMIT 200'),
     ])
     const hoje = new Date().toISOString().slice(0, 10)
     const contaPendente = (row: Record<string, unknown>) => {
@@ -757,15 +758,55 @@ financeiroRoutes.post('/lancamentos/receita', async (c) => {
 financeiroRoutes.post('/reembolsos', async (c) => {
   try {
     const body = await c.req.json()
-    const result = await createReimbursement(
-      c.env.SHARE_DB,
-      body,
-      c.get('userId') || null,
-    )
+    const result = await createReimbursement(c.env.SHARE_DB, body, c.get('userId') || null)
     return c.json(result, result.idempotent ? 200 : 201)
-  } catch (error) {
-    return errorResponse(c, error)
-  }
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.get('/reembolsos/pendentes', async (c) => {
+  try {
+    const rows = await listar(c.env.SHARE_DB, `SELECT r.id, r.conta_receber_id, r.lancamento_origem_id, r.cotista_id, r.valor_centavos, r.status, r.criado_em, cr.data_vencimento, cr.data_recebimento, cr.banco_recebimento, l.descricao, a.matricula_registro AS aeronave, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente, r.cotista_id) AS cotista_nome, COALESCE((SELECT SUM(rp.valor_centavos) FROM rateio_pagamentos rp WHERE rp.conta_receber_id = r.conta_receber_id AND rp.status = 'CONFIRMADO'), 0) AS valor_recebido_centavos FROM reembolsos r LEFT JOIN contas_areceber cr ON cr.id = r.conta_receber_id LEFT JOIN lancamentos l ON l.id = r.lancamento_origem_id LEFT JOIN aeronave a ON a.id = l.aeronave_id LEFT JOIN cotista_aeronave ca ON ca.id = r.cotista_id LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id WHERE UPPER(COALESCE(r.status, '')) NOT IN ('REEMBOLSADO', 'CANCELADO') ORDER BY date(COALESCE(cr.data_vencimento, r.criado_em)) ASC, r.criado_em DESC LIMIT 500`)
+    return c.json(rows.map((row) => { const total = Number(row.valor_centavos ?? 0); const recebido = Number(row.valor_recebido_centavos ?? 0); return { ...row, valor_total_centavos: total, valor_devido_centavos: total, valor_recebido_centavos: recebido, valor_pendente_centavos: Math.max(0, total - recebido) } }))
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.post('/reembolsos/baixa-consolidada', async (c) => {
+  try {
+    const body = await c.req.json<Record<string, any>>()
+    const ids = Array.isArray(body.reembolso_ids) ? body.reembolso_ids.map(String).filter(Boolean) : []
+    if (!ids.length) return c.json({ error: 'reembolso_ids_obrigatorio' }, 400)
+    if (!body.tipo_pagador || !body.data_pagamento) return c.json({ error: 'pagador_e_data_obrigatorios' }, 400)
+    const db = c.env.SHARE_DB; const placeholders = ids.map(() => '?').join(',')
+    const reembolsos = await db.prepare(`SELECT id, conta_receber_id FROM reembolsos WHERE id IN (${placeholders})`).bind(...ids).all<{ id: string; conta_receber_id: string | null }>()
+    const contas = (reembolsos.results ?? []).filter((row) => row.conta_receber_id)
+    if (contas.length !== ids.length) return c.json({ error: 'reembolso_ou_conta_receber_nao_encontrado' }, 404)
+    const pendentes = await Promise.all(contas.map(async (row) => {
+      const conta = await db.prepare('SELECT id, valor_centavos, lancamentos_id FROM contas_areceber WHERE id = ?').bind(row.conta_receber_id).first<{ id: string; valor_centavos: number; lancamentos_id: string }>()
+      const pago = await db.prepare("SELECT COALESCE(SUM(valor_centavos), 0) AS total FROM rateio_pagamentos WHERE conta_receber_id = ? AND status = 'CONFIRMADO'").bind(row.conta_receber_id).first<{ total: number }>()
+      return { ...row, conta, pendente: Math.max(0, Number(conta?.valor_centavos ?? 0) - Number(pago?.total ?? 0)) }
+    }))
+    const total = pendentes.reduce((sum, row) => sum + row.pendente, 0); const informado = Number(body.valor_centavos ?? Math.round(Number(body.valor ?? 0) * 100))
+    if (!Number.isInteger(informado) || informado !== total) return c.json({ error: 'valor_consolidado_invalido', esperado_centavos: total }, 400)
+    const resultados = []
+    for (const row of pendentes) {
+      const rateios = await db.prepare("SELECT id, valor_rateado_centavos, valor_pago_real_centavos FROM rateio_despesas WHERE lancamento_id = ? AND status NOT IN ('CANCELADO')").bind(row.conta?.lancamentos_id).all<{ id: string; valor_rateado_centavos: number; valor_pago_real_centavos: number }>()
+      let restante = row.pendente; const distribuicao = (rateios.results ?? []).map((rateio) => { const saldo = Math.max(0, Number(rateio.valor_rateado_centavos) - Number(rateio.valor_pago_real_centavos ?? 0)); const valor = Math.min(restante, saldo); restante -= valor; return { rateio_id: rateio.id, valor_centavos: valor } }).filter((item) => item.valor_centavos > 0)
+      resultados.push(await settleReceivable(db, String(row.conta_receber_id), { data_recebimento: body.data_pagamento, conta_bancaria_id: body.conta_bancaria_id ?? body.banco, comprovante_url: body.comprovante_url ?? body.comprovante, idempotency_key: `${body.idempotency_key ?? `reembolso-consolidado:${body.data_pagamento}`}:${row.id}`, pagamentos: [{ tipo_pagador: body.tipo_pagador, pagador_cotista_id: body.pagador_cotista_id ?? null, pagador_holding_id: body.pagador_holding_id ?? null, valor_centavos: row.pendente, data_pagamento: body.data_pagamento, conta_bancaria_id: body.conta_bancaria_id ?? body.banco, comprovante_url: body.comprovante_url ?? body.comprovante, rateios: distribuicao }] }, c.get('userId') || null))
+    }
+    return c.json({ ok: true, valor_centavos: total, contas_baixadas: resultados.length, resultados })
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.get('/salarios/resumo', async (c) => {
+  try {
+    const db = c.env.SHARE_DB
+    const folhas = await db.prepare(`SELECT f.*, COUNT(i.id) AS quantidade_colaboradores FROM folhas_pagamento f LEFT JOIN itens_folha i ON i.folha_id = f.id GROUP BY f.id ORDER BY f.competencia_ano DESC, f.competencia_mes DESC LIMIT 24`).all<Record<string, unknown>>()
+    const folha = folhas.results?.[0] ?? null
+    const itens = folha ? await db.prepare(`SELECT i.*, COALESCE(u.nome_exibicao, u.nome_completo, u.login, i.user_id) AS colaborador FROM itens_folha i LEFT JOIN user_profiles u ON u.id = i.user_id WHERE i.folha_id = ? ORDER BY colaborador`).bind(folha.id).all<Record<string, unknown>>() : { results: [] as Record<string, unknown>[] }
+    const soma = (field: string) => (itens.results ?? []).reduce((sum, row) => sum + Number(row[field] ?? 0), 0); const pagos = (itens.results ?? []).filter((row) => String(row.status).toUpperCase() === 'PAGO')
+    const beneficios = await db.prepare('SELECT COALESCE(SUM(saldo_inicial), 0) AS total FROM cartoes_beneficios WHERE ano = ? AND mes = ?').bind(Number(folha?.competencia_ano ?? new Date().getFullYear()), Number(folha?.competencia_mes ?? new Date().getMonth() + 1)).first<{ total: number }>().catch(() => ({ total: 0 }))
+    return c.json({ disponivel: true, folha, folhas: folhas.results ?? [], itens: itens.results ?? [], resumo: { folha_mes: Number(folha?.total_liquido_centavos ?? soma('total_liquido_centavos')) / 100, salarios_pagos: pagos.reduce((s, row) => s + Number(row.total_liquido_centavos ?? 0), 0) / 100, salarios_pendentes: ((itens.results ?? []).filter((row) => !pagos.includes(row))).reduce((s, row) => s + Number(row.total_liquido_centavos ?? 0), 0) / 100, beneficios: Number(beneficios?.total ?? 0), encargos: Number(folha?.total_encargos_centavos ?? soma('fgts_centavos') + soma('inss_centavos')) / 100, impostos: soma('irrf_centavos') / 100, total_folha: Number(folha?.total_liquido_centavos ?? soma('total_liquido_centavos')) / 100 } })
+  } catch (error) { return errorResponse(c, error) }
 })
 
 financeiroRoutes.patch('/lancamentos/:id', async (c) => {
@@ -1056,10 +1097,19 @@ financeiroRoutes.get('/recibos', async (c) => {
   const cotistaIds = [...new Set(recibos.filter((row) => row.pagador_tipo === 'cotista_aeronave').map((row) => String(row.pagador_id ?? '')).filter(Boolean))]
   const clienteIds = [...new Set(recibos.filter((row) => row.pagador_tipo === 'cliente').map((row) => String(row.pagador_id ?? '')).filter(Boolean))]
   const reciboIds = recibos.map((row) => String(row.id ?? '')).filter(Boolean)
+  const pdfAnexos = reciboIds.length
+    ? await listar(db, `SELECT id, recibo_id FROM recibo_anexos WHERE recibo_id IN (${reciboIds.map(() => '?').join(', ')}) AND UPPER(COALESCE(finalidade, '')) = 'PDF' ORDER BY rowid DESC`, ...reciboIds)
+    : []
+  const pdfAnexoPorRecibo = new Map<string, Record<string, unknown>>()
+  pdfAnexos.forEach((row) => { if (row.recibo_id && !pdfAnexoPorRecibo.has(String(row.recibo_id))) pdfAnexoPorRecibo.set(String(row.recibo_id), row) })
   const contasProgramadas = reciboIds.length
     ? await listar(db, `SELECT c.id AS conta_pagar_id, l.origem_id AS recibo_id FROM contas_apagar c INNER JOIN lancamentos l ON l.id = c.lancamentos_id WHERE c.status <> 'CANCELADO' AND l.origem_tipo IN ('RECIBO', 'RECIBO_REEMBOLSO') AND l.origem_id IN (${reciboIds.map(() => '?').join(', ')})`, ...reciboIds)
     : []
+  const rateiosCriados = reciboIds.length
+    ? await listar(db, `SELECT DISTINCT origem_id AS recibo_id FROM rateio_despesas WHERE origem_tipo = 'RECIBO' AND origem_id IN (${reciboIds.map(() => '?').join(', ')}) UNION SELECT DISTINCT origem_id AS recibo_id FROM rateio_hold WHERE origem_tipo = 'RECIBO' AND origem_id IN (${reciboIds.map(() => '?').join(', ')})`, ...reciboIds, ...reciboIds).catch(() => [])
+    : []
   const contaProgramadaPorRecibo = new Map(contasProgramadas.map((row) => [String(row.recibo_id), String(row.conta_pagar_id)]))
+  const rateioCriadoPorRecibo = new Set(rateiosCriados.map((row) => String(row.recibo_id)))
   const cotistas = cotistaIds.length
     ? await listar(db, `SELECT ca.id, ca.cliente_id, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente) AS nome, COALESCE(cl.cnpj, hs.cpf) AS documento, COALESCE(cl.endereco, hs.endereco) AS endereco, COALESCE(cl.cidade, hs.cidade) AS cidade, COALESCE(cl.uf, hs.uf) AS uf FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id WHERE ca.id IN (${cotistaIds.map(() => '?').join(', ')}) OR ca.cliente_id IN (${cotistaIds.map(() => '?').join(', ')})`, ...cotistaIds, ...cotistaIds)
     : []
@@ -1086,6 +1136,8 @@ financeiroRoutes.get('/recibos', async (c) => {
     const cotista = cotistaPorId.get(String(recibo.pagador_id ?? ''))
     return {
       ...recibo,
+      pdf_anexo_id: pdfAnexoPorRecibo.get(String(recibo.id))?.id ?? null,
+      pdf_url: recibo.url_recibo ?? null,
       nome_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.nome ?? recibo.nome_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.nome ?? recibo.nome_pagador ?? null : 'Share Brasil',
       documento_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.documento ?? recibo.documento_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.documento ?? recibo.documento_pagador ?? null : recibo.documento_pagador ?? null,
       endereco_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.endereco ?? recibo.endereco_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.endereco ?? recibo.endereco_pagador ?? null : recibo.endereco_pagador ?? null,
@@ -1093,7 +1145,7 @@ financeiroRoutes.get('/recibos', async (c) => {
       uf_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.uf ?? recibo.uf_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.uf ?? recibo.uf_pagador ?? null : recibo.uf_pagador ?? null,
       rateio_linhas: rateiosPorRecibo.get(String(recibo.id)) ?? [],
       conta_pagar_id: contaProgramadaPorRecibo.get(String(recibo.id)) ?? null,
-      despesa_programada: contaProgramadaPorRecibo.has(String(recibo.id)),
+      despesa_programada: contaProgramadaPorRecibo.has(String(recibo.id)) || rateioCriadoPorRecibo.has(String(recibo.id)),
     }
   }) })
 })
@@ -1135,6 +1187,14 @@ financeiroRoutes.patch('/recibos/:id/status', async (c) => {
     const result = await c.env.SHARE_DB.prepare('UPDATE recibos SET status = ? WHERE id = ?').bind(status, c.req.param('id')).run()
     if (!result.meta.changes) return c.json({ error: 'recibo_nao_encontrado' }, 404)
     return c.json({ ok: true, status })
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.post('/recibos/:id/enviar-despesa-rateio', async (c) => {
+  try {
+    const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>))
+    const result = await enviarReciboPagamentoParaRateio(c.env.SHARE_DB, c.req.param('id'), c.get('userId') || null, body)
+    return c.json(result, result.idempotent ? 200 : 201)
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -1392,7 +1452,7 @@ financeiroRoutes.post('/recibos/:id/pdf', async (c) => {
     // explicitamente marcado como PDF gerado.
     const anexoExistente = await c.env.SHARE_DB.prepare("SELECT id FROM recibo_anexos WHERE recibo_id = ? AND UPPER(COALESCE(finalidade, '')) = 'PDF' ORDER BY rowid DESC LIMIT 1").bind(reciboId).first<{ id: string }>()
     const anexoId = anexoExistente?.id || crypto.randomUUID()
-    const key = `share/recibos/recibos-gerados/${reciboId}.pdf`
+    const key = `recibos/${reciboId}/gerado.pdf`
     const pdfUrl = publicStorageUrl(c, key)
     await bucket.put(key, bytes, { httpMetadata: { contentType: 'application/pdf' } })
     if (anexoExistente) {
@@ -1406,6 +1466,25 @@ financeiroRoutes.post('/recibos/:id/pdf', async (c) => {
     // A criação financeira ocorre somente na programação após o e-mail.
     return c.json({ anexo_id: anexoId, pdf_url: pdfUrl, recibo_id: reciboId, status: 'EMITIDO' }, 201)
   } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.get('/recibos/:id/pdf/arquivo', async (c) => {
+  const bucket = storage(c)
+  if (!bucket) return c.json({ error: 'storage_nao_configurado' }, 503)
+  const row = await c.env.SHARE_DB.prepare(`
+    SELECT caminho_arquivo, tipo_arquivo, nome_arquivo
+      FROM recibo_anexos
+     WHERE recibo_id = ?1 AND UPPER(COALESCE(finalidade, '')) = 'PDF'
+     ORDER BY rowid DESC LIMIT 1
+  `).bind(c.req.param('id')).first<{ caminho_arquivo: string; tipo_arquivo: string; nome_arquivo: string }>()
+  if (!row) return c.notFound()
+  const object = await bucket.get(row.caminho_arquivo)
+  if (!object) return c.notFound()
+  return c.body(await object.arrayBuffer(), 200, {
+    'Content-Type': row.tipo_arquivo || 'application/pdf',
+    'Content-Disposition': `inline; filename="${row.nome_arquivo.replace(/[^a-zA-Z0-9._-]/g, '_')}"`,
+    'Cache-Control': 'private, max-age=3600',
+  })
 })
 
 financeiroRoutes.get('/recibos/anexos/:id/arquivo', async (c) => {

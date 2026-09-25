@@ -208,6 +208,10 @@ function horaLocalPonto(date = new Date()) {
     minute: "2-digit",
   });
 }
+function pontoEncerrado(registro?: PontoLancamento) {
+  const status = String(registro?.status || "").trim().toLowerCase();
+  return ["finished", "encerrado", "closed"].includes(status) || Boolean(registro?.saida_hora);
+}
 
 export function DashboardShareBrasil({
   aoNavegar,
@@ -367,13 +371,24 @@ export function PontoShareBrasil() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   };
-  useEffect(load, [month]);
+  useEffect(() => {
+    load();
+    const refresh = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const interval = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [month]);
   const todayEntry = Array.isArray(data?.lancamentos)
-    ? data.lancamentos.find((item) => item.data_entrada === today)
+    ? data.lancamentos.find((item) => String(item.data_entrada).slice(0, 10) === today)
     : undefined;
-  const jornadaEncerrada =
-    todayEntry?.status?.toLowerCase() === "finished" ||
-    Boolean(todayEntry?.saida_hora);
+  const jornadaEncerrada = pontoEncerrado(todayEntry);
   const action = async (
     name: "entrada" | "inicio_almoco" | "fim_almoco" | "saida" | "encerrar",
   ) => {

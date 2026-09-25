@@ -101,7 +101,7 @@ export async function colaboradorRequest<T>(path: string, init: RequestInit = {}
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
   if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit", cache: "no-store" });
   const data = await response.json().catch(() => null) as T & { error?: string; detail?: string; solicitacao_id?: string; tripulante_id?: string | null; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
   if (!response.ok) {
     const diagnostico = [data?.detail, data?.solicitacao_id && `solicitacao=${data.solicitacao_id}`, data?.tripulante_id && `tripulante_id=${data.tripulante_id}`, data?.cliente_id && `cliente=${data.cliente_id}`, data?.socio_id && `socio=${data.socio_id}`, data?.aeronave_id && `aeronave=${data.aeronave_id}`].filter(Boolean).join(" | ");

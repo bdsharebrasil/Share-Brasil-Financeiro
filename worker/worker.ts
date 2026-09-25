@@ -5729,7 +5729,7 @@ async function statementFinanceiroAbastecimento(c: Context<{ Bindings: Bindings 
 
 app.post('/api/interno/abastecimentos', async c => {
   const authenticated = await authenticatedColaborador(c)
-  if (!authenticated && !checkInternalAuth(c)) return c.json({ error: 'internal_auth_required' }, 401)
+  if (!authenticated && !(await checkInternalAuth(c))) return c.json({ error: 'internal_auth_required' }, 401)
   await garantirTabelaAbastecimentos(c)
   const body = await c.req.json<Record<string, any>>().catch(() => null)
   const data = String(body?.data || '').trim()
@@ -5782,7 +5782,7 @@ app.delete('/api/interno/abastecimentos/:id', async c => {
 
 app.post('/api/interno/abastecimentos/:id/arquivo', async c => {
   const authenticated = await authenticatedColaborador(c)
-  if (!authenticated && !checkInternalAuth(c)) return c.json({ error: 'internal_auth_required' }, 401)
+  if (!authenticated && !(await checkInternalAuth(c))) return c.json({ error: 'internal_auth_required' }, 401)
   await garantirTabelaAbastecimentos(c); const id = c.req.param('id'); const form = await c.req.parseBody(); const file = form.arquivo; const tipo = String(form.tipo || 'comanda')
   if (!(file instanceof File) || !file.size) return c.json({ error: 'arquivo_obrigatorio' }, 400)
   if (!['comanda', 'nota', 'boleto', 'comprovante'].includes(tipo)) return c.json({ error: 'tipo_arquivo_invalido' }, 400)

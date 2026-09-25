@@ -108,7 +108,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     return (
       <div className="diario-bordo route-enter mx-auto w-full min-w-0 max-w-[1440px] space-y-4 px-3 pb-6 sm:px-4 lg:px-6 lg:space-y-5">
         <section className={`${card} relative overflow-hidden p-3 sm:p-4 md:p-5`}>
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
             <div className="flex min-w-0 items-center gap-2.5">
               <button type="button" onClick={backToList} aria-label="Voltar para os diários" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary/50 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"><ArrowLeft size={16} /></button>
               <div className="min-w-0">
@@ -117,13 +117,13 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
               </div>
             </div>
 
-            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 2xl:flex 2xl:w-auto 2xl:flex-wrap 2xl:justify-end">
+              <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-2 2xl:flex 2xl:flex-wrap">
                 {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-11 w-full justify-center gap-1.5 rounded-lg border border-orange-400/35 bg-orange-500/15 px-3 text-xs font-extrabold text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 sm:h-9 sm:w-auto"><Plus size={14} strokeWidth={2.5} /><span className="hidden xs:inline">Novo lançamento</span><span className="xs:hidden">Novo</span></Button>}
                 <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-11 w-full justify-center gap-1.5 text-xs sm:h-9 sm:w-auto"><RefreshCw size={14} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-2 2xl:flex 2xl:flex-wrap">
                 <Button type="button" variant="outline" onClick={() => setMonthEditor(true)} className="h-11 w-full justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/15 text-xs font-extrabold text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 sm:h-9 sm:w-auto"><CalendarDays size={14} /> Novo mês</Button>
                 <div className="flex h-11 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2.5 sm:h-9">
                   <span className="h-4 w-[2px] shrink-0 rounded-full bg-primary" />
@@ -137,7 +137,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
           </div>
 
 
-          <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          <div className="mt-4 grid min-w-0 gap-3 sm:mt-6 2xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
             <div className={`${card} p-4`}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-primary" />

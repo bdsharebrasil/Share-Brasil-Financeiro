@@ -155,6 +155,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [convertendoEnvioId, setConvertendoEnvioId] = useState<string | null>(null);
   const [etapa, setEtapa] = useState(0);
   const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
   const opcoesVisiveis = apenasCaixaShare ? opcoes.filter((opcao) => opcao.tipo !== "cliente") : opcoes;
@@ -204,6 +205,19 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setErro("Não foi possível carregar os envios de pagamento.");
     } finally {
       setCarregando(false);
+    }
+  };
+
+  const recuperarConversao = async (envio: EnvioPagamento) => {
+    setConvertendoEnvioId(envio.id);
+    try {
+      await converterEnvioPagamento(envio.id);
+      await carregar();
+      toast.success("Lançamento do Caixa Cliente e rateio criados.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível criar o lançamento e o rateio.");
+    } finally {
+      setConvertendoEnvioId(null);
     }
   };
 
@@ -381,7 +395,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Lançamento criado. Revise e envie os e-mails por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
-        setEnvioRecemCriado(registro);
+        setEnvioRecemCriado({ ...registro, tipo });
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
         setCorpoEmail(montarCorpoEmail(registro));
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
@@ -680,6 +694,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
+                      {envio.tipo === "cliente" && String(envio.status).toUpperCase() === "EMAIL_ENVIADO" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar lançamento e rateio"}</Button>}
                       {(envio.status === "email_enviado" || envio.status === "email_nao_enviado" || envio.tipo === "share") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" onClick={() => setMensagem("Pagamento liberado para programação no módulo financeiro.")}>Programar pagamento</Button>}
                     </div>
                   </div>

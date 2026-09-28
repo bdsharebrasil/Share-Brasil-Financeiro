@@ -561,7 +561,7 @@ export default function RelatorioDespesaViagem({
     });
     const resposta = await enviarPdfRelatorio(item.id, arquivo);
     setRelatorio((atual) =>
-      atual ? { ...atual, pdf_url: resposta.pdf_url } : atual,
+      atual ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual,
     );
     return resposta;
   };
@@ -616,8 +616,8 @@ export default function RelatorioDespesaViagem({
     setSalvando(true);
     try {
       const resposta = await gerarPdf(pdfPreview.item, pdfPreview.blob);
-      setRelatorio((atual) => atual ? { ...atual, pdf_url: resposta.pdf_url } : atual);
-      setRelatorios((atuais) => atuais.map((item) => item.id === pdfPreview.item.id ? { ...item, pdf_url: resposta.pdf_url } : item));
+      setRelatorio((atual) => atual ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual);
+      setRelatorios((atuais) => atuais.map((item) => item.id === pdfPreview.item.id ? { ...item, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : item));
       URL.revokeObjectURL(pdfPreview.url);
       setPdfPreview(null);
       setMensagem({ tipo: "ok", texto: "PDF gerado e salvo com sucesso." });
@@ -696,7 +696,7 @@ export default function RelatorioDespesaViagem({
   };
   const confirmarReembolso = async () => {
     if (!relatorio || !reembolsoForm.vencimento) return;
-    if (!reembolsoForm.prefill?.pdf_url) {
+    if (!reembolsoForm.prefill?.pdf_path && !reembolsoForm.prefill?.pdf_url) {
       setMensagem({ tipo: "erro", texto: "Gere o PDF do relatório antes de enviar por e-mail." });
       return;
     }

@@ -17,6 +17,7 @@ export interface Lancamento {
   data: string; // ISO date
   descricao: string;
   documento: string | null;
+  documentoUrl?: string | null;
   fornecedor: string | null; // texto livre, usado quando fornecedorId é nulo
   fornecedorId: string | null; // FK -> fornecedores_favoritos
   categoria: string; // texto livre, usado quando categoriaId é nulo

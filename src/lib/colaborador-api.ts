@@ -1159,6 +1159,7 @@ export type RelatorioDespesaViagem = Record<string, any> & {
   nome_tripulante_2: string | null;
   anexos?: RelatorioDespesaViagemAnexo[];
   pdf_url?: string | null;
+  pdf_path?: string | null;
 };
 export type RelatorioDespesaViagemAnexo = { id: string; relatorio_despesa_viagem_id: string; indice_despesa: number; nome_arquivo: string; caminho_arquivo: string; url_arquivo: string; tipo_arquivo: string | null; tamanho_arquivo: number | null };
 export type OpcoesRelatorioViagem = {
@@ -1194,7 +1195,7 @@ export async function baixarPdfRelatorio(id: string) {
   if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data?.error || `api_${response.status}`); }
   return response.blob();
 }
-export function buscarProgramacaoReembolsoRelatorio(id: string) { return colaboradorRequest<{ descricao: string; valor: number; fornecedor: string; grupo_categoria_id: string; subcategoria: string; aeronave_id: string; aeronave_matricula: string | null; cliente_id: string | null; socio_id: string | null; periodicidade: string; tipo_rateio: string; pdf_url: string | null }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/programacao-reembolso`); }
+export function buscarProgramacaoReembolsoRelatorio(id: string) { return colaboradorRequest<{ descricao: string; valor: number; fornecedor: string; grupo_categoria_id: string; subcategoria: string; aeronave_id: string; aeronave_matricula: string | null; cliente_id: string | null; socio_id: string | null; periodicidade: string; tipo_rateio: string; pdf_url: string | null; pdf_path: string | null }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/programacao-reembolso`); }
 export function enviarDespesaAoCliente(id: string, payload: { data_vencimento: string; periodicidade?: string; tipo_rateio?: string; email_enviado_id?: string }) { return colaboradorRequest<{ success: boolean; status: string; message: string; relatorio?: Record<string, any> }>(`/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(id)}/enviar-cliente`, { method: "POST", body: JSON.stringify(payload) }); }
 
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────

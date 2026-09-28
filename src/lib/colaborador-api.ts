@@ -497,6 +497,8 @@ export type MovimentacaoFinanceira = {
   email_enviado_id?: string | null;
   email_status?: string | null;
   status_email?: string | null;
+  justificativa_reativacao?: string | null;
+  reativado_em?: string | null;
   criado_em: string;
 };
 
@@ -859,6 +861,8 @@ function normalizarMovimentacao(
     email_enviado_id: textoFinanceiro(registro.email_enviado_id),
     email_status: textoFinanceiro(registro.email_status),
     status_email: textoFinanceiro(registro.status_email),
+    justificativa_reativacao: textoFinanceiro(registro.justificativa_reativacao),
+    reativado_em: textoFinanceiro(registro.reativado_em),
     criado_em: textoFinanceiro(registro.criado_em) || "",
   };
 }
@@ -1395,7 +1399,10 @@ export function gerarRecibosDemonstrativo(grupos: GrupoReciboDemonstrativo[]) {
 export function confirmarReembolsoRecibo(id: string, payload?: { data?: string; observacoes?: string }) {
   return colaboradorRequest<{ ok: boolean; id: string; lancamento_share_id: string; lancamento_cliente_id: string; conta_receber_id: string; status: string; idempotent?: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reembolso`, { method: "POST", body: JSON.stringify(payload || {}) });
 }
-export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
+export function cancelarRecibo(id: string) { return colaboradorRequest<{ ok: boolean; status: StatusRecibo }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/cancelar`, { method: "POST" }); }
+export function reativarRecibo(id: string, justificativa: string) {
+  return colaboradorRequest<{ ok: boolean; id: string; status: StatusRecibo }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/reativar`, { method: "POST", body: JSON.stringify({ justificativa }) });
+}
 export function atualizarStatusRecibo(id: string, status: StatusRecibo) { return colaboradorRequest<{ ok: boolean; status: StatusRecibo }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); }
 export type LinhaProgramacaoRecibo = { cotista_id: string; percentual_uso: number; socio_id?: string | null };
 export type ProgramacaoReciboPayload = { aeronave_id: string; data_vencimento: string; categoria_id?: string | null; categoria_nome?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; tipo_rateio: "FIXO" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA" | "EXTRA"; periodicidade?: string | null; observacoes?: string | null; boleto_url?: string | null; linhas: LinhaProgramacaoRecibo[] };

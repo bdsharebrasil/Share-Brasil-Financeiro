@@ -31,6 +31,7 @@ import {
   buscarRecibos,
   carregarArquivoColaborador,
   cancelarRecibo,
+  reativarRecibo,
   confirmarReembolsoRecibo,
   criarRecibo,
   enviarAnexoRecibo,
@@ -858,6 +859,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     }
   };
 
+  const reativar = async (id: string, justificativa: string) => {
+    await reativarRecibo(id, justificativa);
+    await buscarHistorico({});
+    setMensagem("Recibo reativado corretamente.");
+  };
+
   const programarEmail = (recibo: ReciboFinanceiro) => {
     if (recibo.tipo_recibo === "recibo_pagamento") {
       setReciboProgramacao(recibo);
@@ -955,6 +962,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           onConfirmarReembolso={confirmarReembolso}
           onProgramarEmail={programarEmail}
           onCancelar={cancelar}
+          onReativar={reativar}
         />
       )}
 

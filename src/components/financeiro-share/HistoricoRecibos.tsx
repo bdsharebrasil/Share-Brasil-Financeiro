@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Loader2,
   Mail,
+  RotateCcw,
   Send,
   Search,
   SlidersHorizontal,
@@ -32,6 +33,7 @@ type Props = {
   onBuscar: (filtros: FiltrosHistoricoRecibos) => Promise<void>;
   onConfirmarReembolso: (id: string) => void | Promise<void>;
   onCancelar: (id: string) => void | Promise<void>;
+  onReativar: (id: string, justificativa: string) => void | Promise<void>;
   onVisualizarPdf: (recibo: ReciboFinanceiro) => void | Promise<void>;
   onProgramarEmail: (recibo: ReciboFinanceiro) => void;
   pdfAbrindoId?: string | null;
@@ -124,6 +126,7 @@ export default function HistoricoRecibos({
   onBuscar,
   onConfirmarReembolso: _onConfirmarReembolso,
   onCancelar,
+  onReativar,
   onVisualizarPdf,
   onProgramarEmail,
   pdfAbrindoId,
@@ -134,6 +137,39 @@ export default function HistoricoRecibos({
     data_final: "",
   });
   const [mesAberto, setMesAberto] = useState<string | null>(null);
+  const [reativando, setReativando] = useState<ReciboFinanceiro | null>(null);
+  const [justificativa, setJustificativa] = useState("");
+  const [salvandoReativacao, setSalvandoReativacao] = useState(false);
+  const [erroReativacao, setErroReativacao] = useState<string | null>(null);
+
+  const abrirReativacao = (recibo: ReciboFinanceiro) => {
+    setReativando(recibo);
+    setJustificativa("");
+    setErroReativacao(null);
+  };
+
+  const fecharReativacao = () => {
+    if (!salvandoReativacao) setReativando(null);
+  };
+
+  const confirmarReativacao = async () => {
+    if (!reativando) return;
+    const texto = justificativa.trim();
+    if (texto.length < 5) {
+      setErroReativacao("Informe a justificativa (mínimo de 5 caracteres).");
+      return;
+    }
+    try {
+      setSalvandoReativacao(true);
+      setErroReativacao(null);
+      await onReativar(reativando.id, texto);
+      setReativando(null);
+    } catch (error) {
+      setErroReativacao(error instanceof Error ? error.message : "Não foi possível reativar o recibo.");
+    } finally {
+      setSalvandoReativacao(false);
+    }
+  };
 
   const pastas = useMemo<PastaMes[]>(() => {
     const grupos = new Map<string, ReciboFinanceiro[]>();
@@ -496,6 +532,11 @@ export default function HistoricoRecibos({
                         {recibo.tipo_recibo === "recibo_pagamento" ? <Send size={13} /> : <Mail size={13} />} {recibo.tipo_recibo === "recibo_pagamento" ? "Enviar despesa rateio" : String(recibo.status).toUpperCase() === "EMAIL_ENVIADO" ? "Programar contas a pagar" : "Programar e enviar email"}
                       </Button>
                     )}
+                    {["cancelado", "CANCELADO"].includes(String(recibo.status)) && (
+                      <Button type="button" variant="outline" onClick={() => abrirReativacao(recibo)} className="h-8 gap-1.5 rounded-lg px-2.5 text-[10px]">
+                        <RotateCcw size={13} /> Reativar recibo
+                      </Button>
+                    )}
                     {![
                       "cancelado",
                       "CANCELADO",
@@ -515,6 +556,19 @@ export default function HistoricoRecibos({
                 </div>
               </article>
             ))}
+          </div>
+        </div>
+      )}
+      {reativando && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={fecharReativacao}>
+          <div role="dialog" aria-modal="true" aria-label="Reativar recibo" className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div><h3 className="text-base font-extrabold">Reativar recibo</h3><p className="mt-1 font-mono text-[11px] text-muted-foreground">{reativando.numero_recibo}</p></div>
+              <button type="button" onClick={fecharReativacao} disabled={salvandoReativacao} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+            </div>
+            <label className="mt-4 block"><span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">Justificativa</span><textarea value={justificativa} onChange={(event) => setJustificativa(event.target.value)} rows={4} maxLength={1000} placeholder="Explique o motivo da reativação..." className="w-full resize-none rounded-xl border border-border bg-card/80 p-3 text-[11px] outline-none focus:border-primary/70" /></label>
+            {erroReativacao && <p className="mt-2 text-[10px] font-semibold text-red-400">{erroReativacao}</p>}
+            <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={fecharReativacao} disabled={salvandoReativacao} className="h-9 rounded-xl px-4 text-[10px]">Voltar</Button><Button type="button" onClick={() => void confirmarReativacao()} disabled={salvandoReativacao || justificativa.trim().length < 5} className="h-9 gap-2 rounded-xl px-4 text-[10px] font-bold">{salvandoReativacao ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Salvar e reativar</Button></div>
           </div>
         </div>
       )}

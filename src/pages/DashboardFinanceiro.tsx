@@ -433,6 +433,14 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
           {dataBruta(item.data_pagamento || item.criado_em)}
         </span>
       </div>
+      {item.justificativa_reativacao && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
+          <p className="text-[9px] font-black uppercase tracking-[.12em] text-amber-600 dark:text-amber-300">
+            Recibo reativado{item.reativado_em ? ` · ${dataBruta(item.reativado_em)}` : ""}
+          </p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{item.justificativa_reativacao}</p>
+        </div>
+      )}
     </article>
   );
 }
@@ -459,6 +467,12 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
         <div className="mt-1 text-xs font-medium text-muted-foreground line-clamp-1" title={item.fornecedor || "Sem fornecedor"}>
           {item.fornecedor || "Sem fornecedor"}
         </div>
+        {item.justificativa_reativacao && (
+          <div className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
+            <p className="text-[9px] font-black uppercase tracking-[.12em] text-amber-600 dark:text-amber-300">Recibo reativado{item.reativado_em ? ` · ${dataBruta(item.reativado_em)}` : ""}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{item.justificativa_reativacao}</p>
+          </div>
+        )}
       </td>
       
       {/* CAIXA (Verde para Share, Azul para Cliente) */}

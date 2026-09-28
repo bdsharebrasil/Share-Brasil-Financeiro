@@ -23,8 +23,8 @@ const classesBordaPorFuncao = (colaborador: Pick<ColaboradorGestao, "funcoes" | 
     colaborador.tipo_user || "",
   ].map(normalizarFuncao));
   if (["operacoes", "coordenador_de_voo"].some((funcao) => normalizadas.has(funcao))) return "border-amber-400/50 before:bg-amber-400 hover:border-amber-300/80";
-  if (normalizadas.has("tripulante")) return "border-sky-400/50 before:bg-sky-400 hover:border-sky-300/80";
-  if (["financeiro_master", "admin", "financeiro"].some((funcao) => normalizadas.has(funcao))) return "border-emerald-400/50 before:bg-emerald-400 hover:border-emerald-300/80";
+  if (normalizadas.has("tripulante")) return "border-[rgba(1,43,148,0.98)] before:bg-sky-400 hover:border-sky-300/80";
+  if (["financeiro_master", "admin", "financeiro"].some((funcao) => normalizadas.has(funcao))) return "border-[rgba(13,204,57,1)] before:bg-emerald-400 hover:border-emerald-300/80";
   if (normalizadas.has("gestor_master")) return "border-pink-400/50 before:bg-pink-400 hover:border-pink-300/80";
   return "border-white/[.08] before:bg-slate-600 hover:border-slate-400/40";
 };

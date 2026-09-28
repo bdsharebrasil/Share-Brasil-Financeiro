@@ -6530,8 +6530,17 @@ async function sincronizarTripulacaoColaborador(c: Context<{ Bindings: Bindings 
 app.get('/api/gestor/gestao-colaborador', async c => {
   const user = await shareBrasilUser(c)
   if (!user || !await isColaboradorManager(c, user)) return c.json({ error: 'permissao_necessaria' }, 403)
-  const result = await c.env.SHARE_DB.prepare("SELECT id, email, nome_completo, nome_exibicao, telefone, cidade, uf, data_nascimento, data_admissao, cpf, rg, canac, status, tipo_user, departamento, departamentos_email, exame_admissional_realizado, exame_admissional_data, exame_admissional_local, exame_admissional_empresa, exame_admissional_prazo, exame_admissional_documento_id, data_criacao, data_atualizacao FROM user_profiles WHERE lower(COALESCE(tipo_user, 'colaborador')) = 'colaborador' ORDER BY COALESCE(nome_exibicao, nome_completo), email").all()
-  return c.json(result.results)
+  const [result, funcoes] = await Promise.all([
+    c.env.SHARE_DB.prepare("SELECT id, email, nome_completo, nome_exibicao, telefone, cidade, uf, data_nascimento, data_admissao, cpf, rg, canac, status, tipo_user, departamento, departamentos_email, exame_admissional_realizado, exame_admissional_data, exame_admissional_local, exame_admissional_empresa, exame_admissional_prazo, exame_admissional_documento_id, data_criacao, data_atualizacao FROM user_profiles WHERE lower(COALESCE(tipo_user, 'colaborador')) = 'colaborador' ORDER BY COALESCE(nome_exibicao, nome_completo), email").all<{ id: string } & Record<string, unknown>>(),
+    c.env.SHARE_DB.prepare("SELECT uf.user_id, uf.funcao FROM usuarios_funcoes uf INNER JOIN user_profiles p ON p.id = uf.user_id WHERE lower(COALESCE(p.tipo_user, 'colaborador')) = 'colaborador'").all<{ user_id: string; funcao: string }>(),
+  ])
+  const funcoesPorUsuario = new Map<string, string[]>()
+  for (const { user_id, funcao } of funcoes.results ?? []) {
+    const atribuicoes = funcoesPorUsuario.get(user_id) ?? []
+    atribuicoes.push(funcao)
+    funcoesPorUsuario.set(user_id, atribuicoes)
+  }
+  return c.json((result.results ?? []).map((perfil) => ({ ...perfil, funcoes: funcoesPorUsuario.get(perfil.id) ?? [] })))
 })
 
 app.post('/api/gestor/gestao-colaborador', async c => {

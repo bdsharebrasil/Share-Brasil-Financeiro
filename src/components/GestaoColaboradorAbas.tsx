@@ -19,7 +19,7 @@ type GrupoTemporalProps<T> = {
   compact?: boolean;
 };
 
-export function FichaColaboradorAbas({ ficha, onClose }: { ficha: FichaColaborador; onClose: () => void }) {
+export function FichaColaboradorAbas({ ficha, onClose, onEdit }: { ficha: FichaColaborador; onClose: () => void; onEdit: () => void }) {
   const { perfil } = ficha;
 
   return <section className={`${card} route-enter mt-6 w-full bg-background p-5`}>
@@ -29,7 +29,7 @@ export function FichaColaboradorAbas({ ficha, onClose }: { ficha: FichaColaborad
           <h2 className="mt-1 text-xl font-extrabold">{perfil.nome_exibicao || perfil.nome_completo}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{perfil.departamento || "Departamento não informado"} · {perfil.email}</p>
         </div>
-        <Button type="button" variant="outline" onClick={onClose} className="h-8 gap-1.5 px-3 text-[10px]"><X size={14} /> Voltar para colaboradores</Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={onEdit} className="h-8 gap-1.5 px-3 text-[10px]"><Pencil size={12} /> Editar informações</Button><Button type="button" variant="outline" onClick={onClose} className="h-8 gap-1.5 px-3 text-[10px]"><X size={14} /> Voltar para colaboradores</Button></div>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Info label="CPF" value={perfil.cpf || "—"} />

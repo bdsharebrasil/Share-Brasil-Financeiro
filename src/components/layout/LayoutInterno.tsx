@@ -48,6 +48,7 @@ export default function LayoutInterno() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const navegacaoManual = useRef(false);
   const navegar = useNavigate();
   const localizacao = useLocation();
   const rotaRecibo = localizacao.pathname === "/financeiro/emissao-recibo";
@@ -65,7 +66,7 @@ export default function LayoutInterno() {
   }, []);
 
   useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); }, [tema]);
-  useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo]);
+  useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo, menuAtivo]);
   useEffect(() => {
     if (rotaFinanceiroShare) { setAmbiente("gestor"); setMenuAtivo("financeiro-share"); }
     else if (rotaFinanceiroCotista) { setAmbiente("gestor"); setMenuAtivo("financeiro-cotista"); }
@@ -81,12 +82,13 @@ export default function LayoutInterno() {
   useEffect(() => { if (rotaMovimentacoes) { setAmbiente("financeiro"); setMenuAtivo("movimentacoes"); } }, [rotaMovimentacoes]);
   useEffect(() => { if (salaReuniaoDireta) { setAmbiente("share-brasil"); setMenuAtivo("sala-reuniao"); } }, [salaReuniaoDireta]);
   useEffect(() => { resetarRolagem(); }, [ambiente, menuAtivo, resetarRolagem]);
-  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) setNomeColaborador(nome); setPodeAcessarGestor(permitido); if (permitido && !rotaRecibo && !rotaFinanceiroShare && !rotaFinanceiroCotista && !rotaEnviarPagamento && !rotaMovimentacoes && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo, rotaFinanceiroShare, rotaFinanceiroCotista, rotaEnviarPagamento, rotaMovimentacoes, salaReuniaoDireta]);
+  useEffect(() => { void buscarPerfilColaborador().then((response) => { const permitido = response.funcoes.some((item) => ["admin", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(item.funcao.trim().toLowerCase().replace(/[\s-]+/g, "_"))); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) setNomeColaborador(nome); setPodeAcessarGestor(permitido); if (permitido && !navegacaoManual.current && !rotaRecibo && !rotaFinanceiroShare && !rotaFinanceiroCotista && !rotaEnviarPagamento && !rotaMovimentacoes && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo, rotaFinanceiroShare, rotaFinanceiroCotista, rotaEnviarPagamento, rotaMovimentacoes, salaReuniaoDireta]);
 
   const itens = menusPorAmbiente[ambiente];
   const itemAtivo = useMemo(() => itens.find((item) => item.id === menuAtivo) ?? itens[0], [itens, menuAtivo]);
-  const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/"); setMenuAberto(false); };
+  const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; navegacaoManual.current = true; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/"); setMenuAberto(false); };
   const selecionarMenu = (menu: string) => {
+    navegacaoManual.current = true;
     setMenuAtivo(menu);
     if (menu === "enviar-pagamento") { setAmbiente("financeiro"); navegar("/financeiro/enviar-pagamento"); }
     else if (menu === "movimentacoes") { setAmbiente("financeiro"); navegar("/financeiro/movimentacoes"); }
@@ -95,8 +97,8 @@ export default function LayoutInterno() {
     else if (menu === "recibos") navegar("/financeiro/emissao-recibo");
     else if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/");
   };
-  const abrirPerfil = () => { setMenuAtivo("perfil"); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
-  const abrirMensagens = () => { setAmbiente("financeiro"); setMenuAtivo("email"); setMenuAberto(false); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
+  const abrirPerfil = () => { navegacaoManual.current = true; setMenuAtivo("perfil"); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
+  const abrirMensagens = () => { navegacaoManual.current = true; setAmbiente("financeiro"); setMenuAtivo("email"); setMenuAberto(false); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
   const sair = async () => { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); navegar("/login", { replace: true }); };
 
   const renderConteudo = () => {

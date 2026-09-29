@@ -3,6 +3,7 @@ import {
   Bell,
   Building2,
   CalendarDays,
+  Cake,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -231,6 +232,13 @@ export function DashboardShareBrasil({
     icon: import("lucide-react").LucideIcon;
     tone: string;
   }> = [
+    {
+      menu: "aniversarios",
+      label: "ANIVERSÁRIOS",
+      detail: "Datas comemorativas",
+      icon: Cake,
+      tone: "text-pink-700 dark:text-pink-300 bg-pink-500/10 border-pink-500/25",
+    },
     {
       menu: "documentos",
       label: "DOCUMENTOS",

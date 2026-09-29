@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Building2, Cake, CalendarDays, Pencil, Plus, RefreshCw, Trash2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,19 +21,6 @@ type FiltroAniversario = "mes" | "proximos7" | "todos";
 type FormularioAniversario = { nome: string; data_aniversario: string; empresa: string; categoria: string; url_avatar: string };
 const formularioVazio: FormularioAniversario = { nome: "", data_aniversario: "", empresa: "", categoria: "cliente", url_avatar: "" };
 
-function nomeCategoria(categoria?: string | null) {
-  const categorias: Record<string, string> = { cliente: "Cliente", colaborador: "Colaborador", fornecedor: "Fornecedor", hotel: "Hotel" };
-  return categorias[String(categoria || "").toLowerCase()] || "Contato";
-}
-function classeCategoria(categoria?: string | null) {
-  const classes: Record<string, string> = {
-    cliente: "border-sky-500/20 bg-sky-500/10 text-sky-400",
-    colaborador: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
-    fornecedor: "border-amber-500/20 bg-amber-500/10 text-amber-400",
-    hotel: "border-purple-500/20 bg-purple-500/10 text-purple-400",
-  };
-  return classes[String(categoria || "").toLowerCase()] || "border-border bg-secondary/30 text-muted-foreground";
-}
 function iniciais(nome?: string | null) {
   const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return "AN";
@@ -73,7 +59,7 @@ export default function Aniversarios() {
     if (silencioso) setAtualizando(true); else setCarregando(true);
     try {
       const resposta = await buscarAniversariosShare();
-      setAniversarios(Array.isArray(resposta?.aniversarios) ? resposta.aniversarios : []);
+      setAniversarios(Array.isArray(resposta?.aniversarios) ? resposta.aniversarios.filter((item) => item.origem !== "user_profiles" || item.status?.trim().toLowerCase() === "ativo") : []);
     } catch (error) {
       toast({ title: "Não foi possível carregar aniversários", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
     } finally {
@@ -180,7 +166,7 @@ export default function Aniversarios() {
                 <article key={`${item.origem}:${item.id}`} className="group relative flex min-w-0 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/40 p-4 shadow-sm transition-all hover:border-border/80 hover:bg-card/80">
                   <div className="flex min-w-0 flex-1 items-center gap-3.5">
                     <Avatar className="h-12 w-12 shrink-0 border border-border/60 shadow-inner"><AvatarImage src={item.url_avatar || undefined} alt={item.nome} className="object-cover" /><AvatarFallback className="bg-secondary text-sm font-semibold text-foreground">{iniciais(item.nome)}</AvatarFallback></Avatar>
-                    <div className="min-w-0 flex-1"><h3 className="truncate text-base font-semibold text-foreground">{item.nome}</h3>{item.empresa && <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground"><Building2 className="h-3 w-3 shrink-0" />{item.empresa}</p>}<Badge variant="outline" className={`mt-1.5 text-[10px] ${classeCategoria(item.categoria)}`}>{nomeCategoria(item.categoria)}</Badge>{item.origem === "user_profiles" && <span className="ml-2 text-[10px] text-muted-foreground">Perfil</span>}</div>
+                    <div className="min-w-0 flex-1"><h3 className="truncate text-base font-semibold text-foreground">{item.nome}</h3>{item.empresa && <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground"><Building2 className="h-3 w-3 shrink-0" />{item.empresa}</p>}</div>
                   </div>
                   <div className="shrink-0 pl-2 text-right"><span className="text-base font-bold tracking-tight">{dataCurta(item.data_aniversario)}</span><p className="text-[10px] text-muted-foreground">{diasAteAniversario(item.data_aniversario, hoje) === 0 ? "Hoje" : `em ${diasAteAniversario(item.data_aniversario, hoje)} dias`}</p></div>
                   {item.origem === "aniversarios" && <div className="absolute right-2 top-2 flex items-center gap-1 rounded-lg border border-border/80 bg-card/95 p-1 opacity-100 shadow-lg transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">

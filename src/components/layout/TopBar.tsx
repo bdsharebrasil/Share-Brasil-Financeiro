@@ -145,6 +145,10 @@ export function BarraSuperior({ ambiente, podeAcessarGestor, tema, aoTrocarAmbie
         setAvatar(AVATAR_PADRAO);
         return;
       }
+      if (fotoUrl.startsWith("https://") || fotoUrl.startsWith("http://")) {
+        setAvatar(fotoUrl);
+        return;
+      }
       const blob = await carregarArquivoColaborador(fotoUrl);
       if (!ativo) return;
       objectUrl = URL.createObjectURL(blob);

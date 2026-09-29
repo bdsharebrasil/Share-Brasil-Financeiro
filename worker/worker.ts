@@ -22,6 +22,7 @@ type Bindings = {
   CACHE_KV: KVNamespace
   FILES: R2Bucket
   SHARE_FILES?: R2Bucket
+  R2_PUBLIC_URL?: string
   SHARE_DB: D1Database
   RESEND_API_KEY: string
   INTERNAL_TOKEN: string
@@ -1088,6 +1089,11 @@ function bucketColaborador(c: Context<{ Bindings: Bindings }>): R2Bucket {
 
 function bucketParaChaveColaborador(c: Context<{ Bindings: Bindings }>, key: string): R2Bucket {
   return key.startsWith('avatar_profiles/') || key.startsWith('documentos_colaboradores/') ? bucketColaborador(c) : c.env.FILES
+}
+
+function publicAvatarUrl(c: Context<{ Bindings: Bindings }>, key: string): string | null {
+  const publicBase = String(c.env.R2_PUBLIC_URL ?? '').trim().replace(/\/+$/, '')
+  return publicBase ? `${publicBase}/${key.split('/').map(segment => encodeURIComponent(segment)).join('/')}` : null
 }
 
 async function salvarArquivoColaborador(c: Context<{ Bindings: Bindings }>, userId: string, file: File, pasta: 'avatar_profiles' | 'documentos_colaboradores'): Promise<string> {
@@ -2883,7 +2889,7 @@ app.get('/api/colaborador/perfil', async c => {
     .filter(item => item.status === 'aprovada')
     .reduce((total, item) => total + item.quantidade_dias, 0)
   return c.json({
-    perfil: { ...colaborador, foto_url: colaborador.url_avatar ? '/api/colaborador/foto' : null, dias_ferias_direito: 30 },
+    perfil: { ...colaborador, foto_url: colaborador.url_avatar ? publicAvatarUrl(c, colaborador.url_avatar) || '/api/colaborador/foto' : null, dias_ferias_direito: 30 },
     pagamentos: pagamentos.results,
     documentos: documentos.results.map(row => documentoColaborador(row as Record<string, unknown>)),
     funcoes: funcoes.results,
@@ -2905,7 +2911,7 @@ app.patch('/api/colaborador/perfil', async c => {
   await c.env.SHARE_DB.prepare(`UPDATE user_profiles SET ${assignments}, data_atualizacao = CURRENT_TIMESTAMP WHERE id = ?`).bind(...updates.map(({ value }) => value), colaborador.id).run()
   const updated = await c.env.SHARE_DB.prepare('SELECT * FROM user_profiles WHERE id = ?1').bind(colaborador.id).first<Colaborador>()
   await sincronizarTripulacaoColaborador(c, colaborador.id, updated || {}).catch(error => log.warn('[colaborador/perfil] tripulação não sincronizada', error?.message || error))
-  return c.json({ perfil: { ...updated, foto_url: updated?.url_avatar ? '/api/colaborador/foto' : null, dias_ferias_direito: 30 } })
+  return c.json({ perfil: { ...updated, foto_url: updated?.url_avatar ? publicAvatarUrl(c, updated.url_avatar) || '/api/colaborador/foto' : null, dias_ferias_direito: 30 } })
 })
 
 app.get('/api/colaborador/foto', async c => {

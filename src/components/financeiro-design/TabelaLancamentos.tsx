@@ -1,4 +1,4 @@
-import { CheckCircle2, FileText, Filter, Inbox } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileText, Filter, Inbox } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ export function TabelaLancamentos({
           <Input
             value={filtros.busca}
             onChange={(e) => onFiltrar({ ...filtros, busca: e.target.value })}
-            placeholder="Buscar descrição ou fornecedor"
+            placeholder="Buscar descrição, documento ou fornecedor"
             aria-label="Buscar lançamentos"
             className="h-9 rounded-xl"
           />
@@ -111,7 +111,8 @@ export function TabelaLancamentos({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="whitespace-nowrap">Nº / Descrição</TableHead>
+                <TableHead className="whitespace-nowrap">Documento / emissão</TableHead>
+                <TableHead className="whitespace-nowrap">Descrição</TableHead>
                 <TableHead className="whitespace-nowrap">Categoria</TableHead>
                 <TableHead className="whitespace-nowrap">Vencimento</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Valor</TableHead>
@@ -128,11 +129,13 @@ export function TabelaLancamentos({
                     onClick={onAbrirDetalhe ? () => onAbrirDetalhe(l) : undefined}
                     className={onAbrirDetalhe ? "cursor-pointer" : undefined}
                   >
+                    <TableCell className="min-w-[160px]">
+                      {l.documentoUrl ? <a href={l.documentoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex max-w-[180px] items-center gap-1 truncate font-mono text-sm font-semibold text-primary hover:underline"><span className="truncate">{l.documento || "Abrir documento"}</span><ExternalLink className="h-3 w-3 shrink-0" /></a> : <p className="font-mono text-sm font-semibold">{l.documento || "—"}</p>}
+                      <p className="mt-1 text-[11px] text-muted-foreground">Emissão: {formatarData(l.dataEmissao)}</p>
+                    </TableCell>
                     <TableCell className="max-w-[280px]">
                       <p className="truncate text-sm font-medium text-card-foreground">{l.descricao}</p>
-                      <p className="truncate font-mono text-xs text-muted-foreground">
-                        {l.id} · {l.fornecedor}
-                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">{l.fornecedor}</p>
                     </TableCell>
                     <TableCell>
                       <p className="text-sm text-card-foreground">{l.categoriaNome}</p>

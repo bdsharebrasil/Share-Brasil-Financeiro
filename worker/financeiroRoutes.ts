@@ -210,8 +210,11 @@ async function enriquecerFornecedores(db: D1Database, rows: Record<string, unkno
 }
 
 function mapConta(row: Record<string, unknown>): Record<string, unknown> {
+  const documento = row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null
+  const documentoUrl = row.url_demonstrativo ?? row.url_nf ?? row.url_recibo ?? row.url_boleto ?? row.url_doc ?? row.lancamento_boleto_url ?? row.lancamento_nf_url ?? row.boleto_url ?? row.nf_url ?? null
   return {
     id: row.id,
+    dataEmissao: row.lancamento_data_emissao ?? row.data_emissao ?? row.data ?? null,
     dataVencimento: row.data_vencimento,
     valor: Number(row.valor ?? Number(row.valor_centavos ?? 0) / 100),
     categoriaId: row.categoria_id ?? null,
@@ -228,6 +231,8 @@ function mapConta(row: Record<string, unknown>): Record<string, unknown> {
     dataPagamento: row.data_pagamento ?? row.data_recebimento ?? null,
     bancoPagamento: row.banco_pagamento ?? row.banco_recebimento ?? null,
     comprovantePagamentoUrl: row.comprovante_pagamento_url ?? row.comprovante_recebimento_url ?? null,
+    documento,
+    documentoUrl,
     lancamentoId: row.lancamento_id ?? row.lancamentos_id ?? row.lancamento_receita_id ?? null,
     status: row.status,
     solicitanteNome: row.solicitante_nome ?? null,
@@ -312,7 +317,7 @@ async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber
   const filtros: string[] = []
   const params: unknown[] = []
   const alias = table === 'contas_apagar' ? 'cp' : 'cr'
-  const origem = table === 'contas_apagar' ? ' LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id' : ''
+  const origem = table === 'contas_apagar' ? ' LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id' : ' LEFT JOIN lancamentos l ON l.id = cr.lancamentos_id'
   if (table === 'contas_apagar') {
     filtros.push("COALESCE(UPPER(l.tipo_caixa), 'SHARE') = 'SHARE'")
     filtros.push('COALESCE(l.reembolsavel, 0) = 0')
@@ -323,7 +328,7 @@ async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber
   if (cotistaId && table === 'contas_areceber') { filtros.push(`${alias}.cotista_id = ?`); params.push(cotistaId) }
   if (fornecedorId && table === 'contas_apagar') { filtros.push(`${alias}.fornecedor_id = ?`); params.push(fornecedorId) }
   if (vencidasAte) { filtros.push(`date(${alias}.data_vencimento) <= date(?)`); params.push(vencidasAte) }
-  const rows = await listar(c.env.SHARE_DB, `SELECT ${alias}.* FROM ${table} ${alias}${origem}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(${alias}.data_vencimento) ASC, ${alias}.criado_em DESC LIMIT 500`, ...params)
+  const rows = await listar(c.env.SHARE_DB, `SELECT ${alias}.*, l.data_emissao AS lancamento_data_emissao, l.numero_nf, l.numero_recibo, l.numero_doc, l.numero_demonstrativo, l.url_demonstrativo, l.url_nf, l.url_recibo, l.url_boleto, l.url_doc FROM ${table} ${alias}${origem}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(${alias}.data_vencimento) ASC, ${alias}.criado_em DESC LIMIT 500`, ...params)
   const rowsComFornecedor = await enriquecerFornecedores(c.env.SHARE_DB, rows)
   const mapped = rowsComFornecedor.map(mapConta)
   if (table !== 'contas_areceber') return mapped

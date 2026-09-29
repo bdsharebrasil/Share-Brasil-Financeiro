@@ -41,6 +41,7 @@ export interface Lancamento {
 
 export interface ContaAPagar {
   id: string;
+  dataEmissao: string | null;
   dataVencimento: string;
   valor: number;
   categoriaId: string | null;
@@ -55,6 +56,8 @@ export interface ContaAPagar {
   dataPagamento: string | null;
   bancoPagamento: string | null;
   comprovantePagamentoUrl: string | null;
+  documento: string | null;
+  documentoUrl: string | null;
   lancamentoId: string | null;
   status: StatusContaFinanceira;
   criadoEm: string;
@@ -63,6 +66,7 @@ export interface ContaAPagar {
 
 export interface ContaAReceber {
   id: string;
+  dataEmissao: string | null;
   dataVencimento: string;
   valor: number;
   categoriaId: string | null;
@@ -79,6 +83,8 @@ export interface ContaAReceber {
   dataRecebimento: string | null;
   bancoRecebimento: string | null;
   comprovanteRecebimentoUrl: string | null;
+  documento: string | null;
+  documentoUrl: string | null;
   lancamentoId: string | null;
   status: StatusContaFinanceira;
   criadoEm: string;

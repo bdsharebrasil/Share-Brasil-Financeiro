@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatusBadge } from "@/components/financeiro-design/StatusBadge";
 import { buscarSolicitacoesPagamento, darBaixaContaAPagar, formatarData, formatarMoeda, type ContaBancaria, type ReembolsoColaborador, type SolicitacaoPagamento } from "@/lib/financeiro-share-api";
 
 export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias: ContaBancaria[] }) {
@@ -53,13 +54,13 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     </div>
     <Tabs defaultValue="cotista" className="space-y-4">
       <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
-        <TabsTrigger value="cotista" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Reembolso cotista</TabsTrigger>
+        <TabsTrigger value="cotista" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Solicitações de pagamento · caixa cliente</TabsTrigger>
         <TabsTrigger value="colaborador" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Reembolso colaborador</TabsTrigger>
       </TabsList>
       <TabsContent value="cotista" className="mt-0">
         <div className="financeiro-panel overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-xs"><thead className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3">Solicitação</th><th className="px-4 py-3">Solicitante</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Data</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th></tr></thead>
-            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando envios…</td></tr> : envios.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum envio de pagamento encontrado.</td></tr> : envios.map((item) => <tr key={item.id} className="hover:bg-muted/25"><td className="max-w-[320px] truncate px-4 py-3 font-semibold">{item.descricao}</td><td className="px-4 py-3 text-muted-foreground">{item.solicitante_nome ?? item.criado_por ?? "—"}</td><td className="px-4 py-3">{item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente"}</td><td className="px-4 py-3">{formatarData(item.vencimento ?? item.data_despesa)}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(Number(item.valor ?? 0))}</td><td className="px-4 py-3"><span className="rounded-full bg-muted px-2 py-1 text-[10px]">{String(item.status).replace(/_/g, " ")}</span></td></tr>)}</tbody>
+            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando envios…</td></tr> : envios.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum envio de pagamento encontrado.</td></tr> : envios.map((item) => <tr key={item.id} className="hover:bg-muted/25"><td className="max-w-[320px] truncate px-4 py-3 font-semibold">{item.descricao}</td><td className="px-4 py-3 text-muted-foreground">{item.solicitante_nome ?? item.criado_por ?? "—"}</td><td className="px-4 py-3">{item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente"}</td><td className="px-4 py-3">{formatarData(item.vencimento ?? item.data_despesa)}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(Number(item.valor ?? 0))}</td><td className="px-4 py-3"><StatusBadge status={String(item.status).toUpperCase()} /></td></tr>)}</tbody>
           </table>
         </div>
       </TabsContent>
@@ -72,7 +73,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
               <td className="px-4 py-3 text-muted-foreground">{item.solicitanteNome ?? "Colaborador não identificado"}</td>
               <td className="whitespace-nowrap px-4 py-3">{formatarData(item.dataVencimento)}</td>
               <td className="whitespace-nowrap px-4 py-3 text-right font-mono">{formatarMoeda(item.valor)}</td>
-              <td className="px-4 py-3"><span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">{String(item.status).replace(/_/g, " ")}</span></td>
+              <td className="px-4 py-3"><StatusBadge status={String(item.status).toUpperCase()} /></td>
               <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => { setAlvo(item); setDataPagamento(new Date().toISOString().slice(0, 10)); setBancoId(contasBancarias[0]?.id ?? ""); }}>Dar baixa</Button></td>
             </tr>)}</tbody>
           </table>

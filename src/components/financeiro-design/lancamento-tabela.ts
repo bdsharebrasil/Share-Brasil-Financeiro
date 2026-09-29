@@ -11,12 +11,14 @@ export interface LancamentoTabela {
   grupoCategoria: string;
   aeronaveId: string | null;
   aeronavePrefixo: string | null;
+  dataEmissao: string | null;
   dataVencimento: string;
   dataPagamento: string | null;
   valor: number;
   fluxo: FluxoTabela;
   status: string;
   documento: string | null;
+  documentoUrl: string | null;
 }
 
 export interface FiltrosTabela {
@@ -52,12 +54,14 @@ export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
     grupoCategoria: "DESPESA",
     aeronaveId: conta.aeronaveId,
     aeronavePrefixo: null,
+    dataEmissao: conta.dataEmissao,
     dataVencimento: conta.dataVencimento,
     dataPagamento: conta.dataPagamento,
     valor: conta.valor,
     fluxo: "SAIDA",
     status: vencida ? "EM_ATRASO" : statusTabela(conta.status),
-    documento: null,
+    documento: conta.documento,
+    documentoUrl: conta.documentoUrl,
   };
 }
 
@@ -72,12 +76,14 @@ export function mapearContaAReceber(conta: ContaAReceber): LancamentoTabela {
     grupoCategoria: "RECEITA",
     aeronaveId: conta.aeronaveId,
     aeronavePrefixo: null,
+    dataEmissao: conta.dataEmissao,
     dataVencimento: conta.dataVencimento,
     dataPagamento: conta.dataRecebimento,
     valor: conta.valor,
     fluxo: "ENTRADA",
     status: vencida ? "EM_ATRASO" : statusTabela(conta.status),
-    documento: null,
+    documento: conta.documento,
+    documentoUrl: conta.documentoUrl,
   };
 }
 

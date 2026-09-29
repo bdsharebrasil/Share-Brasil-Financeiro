@@ -58,7 +58,7 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
     return itens.filter((l) => {
       if (filtros.busca) {
         const busca = filtros.busca.toLowerCase();
-        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca)) return false;
+        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca) && !(l.documento ?? "").toLowerCase().includes(busca)) return false;
       }
       if (filtros.status !== "TODOS" && l.status !== filtros.status) return false;
       if (filtros.grupo !== "TODOS" && l.grupoCategoria !== filtros.grupo) return false;

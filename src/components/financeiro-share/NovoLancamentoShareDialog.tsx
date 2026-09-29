@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,11 +16,12 @@ type Props = {
   categorias: CategoriaCaixaShare[];
   contas: ContaBancaria[];
   aoCriar: (lancamento: Lancamento) => void;
+  somenteDespesa?: boolean;
 };
 
 const FORMAS_PAGAMENTO = ["PIX", "TED", "BOLETO", "CARTÃO DE CRÉDITO", "DÉBITO AUTOMÁTICO", "DINHEIRO"];
 
-export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas, aoCriar }: Props) {
+export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas, aoCriar, somenteDespesa = false }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [fluxo, setFluxo] = useState("saida");
   const [descricao, setDescricao] = useState("");
@@ -34,6 +35,10 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
   const [fornecedor, setFornecedor] = useState("");
   const [numeroDoc, setNumeroDoc] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
+  useEffect(() => {
+    if (somenteDespesa) setFluxo("saida");
+  }, [somenteDespesa]);
 
   const gruposCategoria = useMemo(() => {
     const mapa = new Map<string, CategoriaCaixaShare[]>();
@@ -93,7 +98,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
     <Dialog open={aberto} onOpenChange={(estado) => { if (!estado) aoFechar(); }}>
       <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto rounded-2xl border-border bg-card/95 backdrop-blur">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold tracking-[-.02em]">Novo lançamento · Caixa Share</DialogTitle>
+          <DialogTitle className="text-lg font-bold tracking-[-.02em]">{somenteDespesa ? "Nova conta a pagar · Caixa Share" : "Novo lançamento · Caixa Share"}</DialogTitle>
           <DialogDescription className="text-[11px] text-muted-foreground">
             Despesas e entradas da própria Share Brasil. Lançamentos de cotista não entram aqui.
           </DialogDescription>
@@ -105,7 +110,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
             <Input value={descricao} onChange={(evento) => setDescricao(evento.target.value)} placeholder="Ex.: Aluguel sede setembro" />
           </div>
 
-          <div className="space-y-2">
+          {!somenteDespesa && <div className="space-y-2">
             <Label>Fluxo</Label>
             <Select value={fluxo} onValueChange={setFluxo}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -114,7 +119,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, contas
                 <SelectItem value="entrada">Entrada (receita)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </div>}
 
           <div className="space-y-2">
             <Label>Valor (R$)</Label>

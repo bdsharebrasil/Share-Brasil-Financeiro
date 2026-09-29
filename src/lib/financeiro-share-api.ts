@@ -118,7 +118,7 @@ export type CategoriaCaixaShare = {
   reembolsavel: boolean;
 };
 
-export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null };
+export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null };
 export type EmpresaShare = { id: string; razao_social: string | null; cnpj: string | null };
 
 export type LancamentoShare = {
@@ -260,6 +260,85 @@ export async function buscarOpcoesFinanceiroShare() {
   };
 }
 
+export type SolicitacaoPagamento = {
+  id: string;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  data_despesa: string | null;
+  vencimento: string | null;
+  status: string;
+  criado_por: string | null;
+  criado_em: string;
+  solicitante_nome: string | null;
+  lancamento_id?: string | null;
+};
+
+export type ReembolsoColaborador = {
+  id: string;
+  dataVencimento: string;
+  valor: number;
+  descricao: string | null;
+  aeronaveId: string | null;
+  fornecedorId: string | null;
+  status: string;
+  lancamentoId: string | null;
+  solicitanteNome?: string | null;
+};
+
+export type MovimentoHoldingPendente = {
+  id: string;
+  holding_id: string | null;
+  holding_nome: string | null;
+  socio_id: string | null;
+  socio_nome: string | null;
+  aeronave_id: string | null;
+  aeronave: string | null;
+  data_emissao: string | null;
+  data_vencimento: string | null;
+  descricao: string;
+  categoria_nome: string | null;
+  valor_centavos: number;
+  status: string;
+  fornecedor_nome: string | null;
+  rateado_centavos: number;
+  pago_centavos: number;
+};
+
+export async function buscarSolicitacoesPagamento() {
+  return financeiroRequest<{ envios: SolicitacaoPagamento[]; reembolsos: ReembolsoColaborador[] }>("/api/financeiro/solicitacoes-pagamento");
+}
+
+export async function buscarMovimentosHoldingPendentes() {
+  const resposta = await financeiroRequest<{ movimentos?: MovimentoHoldingPendente[] }>("/api/financeiro/movimentos-holding/pendentes");
+  return resposta.movimentos ?? [];
+}
+
+export function darBaixaMovimentoHolding(id: string, dados: { dataPagamento: string; contaBancariaId: string; formaPagamento?: string; comprovanteUrl?: string }) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/movimentos-holding/${encodeURIComponent(id)}/baixa`, {
+    method: "POST",
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId, forma_pagamento: dados.formaPagamento, comprovante_url: dados.comprovanteUrl }),
+  });
+}
+
+export async function buscarContasBancariasHolding() {
+  const resposta = await financeiroRequest<{ contas_bancarias?: ContaBancaria[] }>("/api/financeiro/share/opcoes?tipo_caixa=HOLDING");
+  return resposta.contas_bancarias ?? [];
+}
+
+export async function buscarEnviosCompraShare() {
+  const resposta = await financeiroRequest<{ envios?: SolicitacaoPagamento[] }>("/api/financeiro/envios-pagamento?tipo=share");
+  return resposta.envios ?? [];
+}
+
+export function aprovarEnvioCompra(id: string) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${encodeURIComponent(id)}/aprovar`, { method: "POST" });
+}
+
+export function converterEnvioCompra(id: string) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${encodeURIComponent(id)}/converter`, { method: "POST" });
+}
+
 function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | undefined): OpcoesLancamento {
   return {
     categorias: Array.isArray(payload?.categorias) ? payload.categorias : [],
@@ -399,10 +478,6 @@ export function anexarDocumentoLancamento(id: string, dados: { nome: string; url
 export function gerarReembolso(dados: Record<string, unknown>) {
   return financeiroRequest<Record<string, unknown>>("/api/financeiro/reembolsos", { method: "POST", body: JSON.stringify(dados) });
 }
-
-export type ReembolsoPendente = { id: string; conta_receber_id: string; descricao: string | null; aeronave: string | null; cotista_nome: string | null; valor_total_centavos: number; valor_devido_centavos: number; valor_recebido_centavos: number; valor_pendente_centavos: number; status: string; data_vencimento: string | null };
-export function buscarReembolsosPendentes() { return financeiroRequest<ReembolsoPendente[]>("/api/financeiro/reembolsos/pendentes"); }
-export function baixarReembolsosConsolidados(dados: Record<string, unknown>) { return financeiroRequest<Record<string, unknown>>("/api/financeiro/reembolsos/baixa-consolidada", { method: "POST", body: JSON.stringify(dados) }); }
 
 export type ResumoSalarios = { disponivel: boolean; folha: Record<string, unknown> | null; itens: Array<Record<string, unknown>>; resumo: { folha_mes: number; salarios_pagos: number; salarios_pendentes: number; beneficios: number; encargos: number; impostos: number; total_folha: number } };
 export function buscarResumoSalarios() { return financeiroRequest<ResumoSalarios>("/api/financeiro/salarios/resumo"); }

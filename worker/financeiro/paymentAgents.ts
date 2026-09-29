@@ -83,7 +83,7 @@ export async function convertPaymentRequest(db: D1Database, request: Row, create
   const lancamento = await createExpense(db, { idempotency_key: `envio:${request.id}`, tipo: request.tipo, descricao: request.descricao, valor_centavos: Math.round(Number(request.valor || 0) * 100), data: request.data_despesa, data_vencimento: request.vencimento, aeronave_id: request.aeronave_id, categoria_id: request.categoria_id, fornecedor_id: request.fornecedor_id, observacoes: request.observacoes, rateio_linhas: linhas, anexos_json: JSON.stringify(anexos), periodicidade: request.periodicidade, tipo_rateio: request.tipo_rateio, pago_diretamente: request.tipo === 'cliente', tipo_caixa: request.tipo === 'cliente' ? 'CLIENTE' : 'SHARE', reembolsavel: request.tipo === 'reembolso' }, userId)
   const lancamentoId = String(lancamento.lancamento_id ?? lancamento.id)
   await db.batch([
-    db.prepare('UPDATE envio_despesas SET lancamento_id = ?, movimentacao_id = ?, status = ? WHERE id = ? AND lancamento_id IS NULL').bind(lancamentoId, lancamentoId, 'CONVERTIDO', request.id),
+    db.prepare('UPDATE envio_despesas SET lancamento_id = ?, movimentacao_id = ?, status = ? WHERE id = ? AND lancamento_id IS NULL').bind(lancamentoId, lancamentoId, request.tipo === 'share' ? 'APROVADO' : 'CONVERTIDO', request.id),
     db.prepare(`INSERT OR IGNORE INTO financeiro_vinculos (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo) VALUES (?, 'ENVIO_DESPESA', ?, 'LANCAMENTO', ?, 'CONVERSAO')`).bind(crypto.randomUUID(), request.id, lancamentoId),
   ])
   return { id: request.id, lancamento_id: lancamentoId, movimentacao_id: lancamentoId, idempotent: false }

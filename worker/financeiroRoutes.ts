@@ -17,6 +17,7 @@ import {
   validateFinanceSchema,
 } from './financeiro/FinanceiroKernel'
 import { createPaymentRequest, convertPaymentRequest, validatePaymentRequest } from './financeiro/paymentAgents'
+import { mensagemFinanceiraStatements } from './financeiro/financeiroNotifications'
 
 type Bindings = {
   SHARE_DB: D1Database
@@ -113,22 +114,22 @@ financeiroRoutes.post('/configuracoes/:tipo', async (c) => {
     if (table === 'fornecedores_favoritos') {
       const nome = configText(body.nome_completo ?? body.nome)
       if (!nome) return c.json({ error: 'nome_fornecedor_obrigatorio' }, 400)
-      columns = ['id', 'nome_completo', 'apelido', 'documento', 'telefone', 'endereco', 'cidade', 'uf', 'pessoa_contato', 'categoria_fornecedor']
+      columns = ['id','nome_completo','apelido','documento','telefone','endereco','cidade','uf','pessoa_contato','categoria_fornecedor']
       values = [id, nome, configText(body.apelido) || null, configText(body.documento) || null, configText(body.telefone) || null, configText(body.endereco) || null, configText(body.cidade) || null, configText(body.uf) || null, configText(body.pessoa_contato) || null, configText(body.categoria_fornecedor, 'nenhum')]
     } else if (table === 'contas_bancarias') {
       const banco = configText(body.banco); const nome = configText(body.nome || body.razao_social, banco)
       if (!banco || !nome) return c.json({ error: 'banco_e_nome_obrigatorios' }, 400)
-      columns = ['id', 'razao_social', 'cnpj', 'chave_pix', 'nome', 'banco', 'numero_conta', 'tipo_caixa', 'cliente_id', 'holding_id', 'ativo']
+      columns = ['id','razao_social','cnpj','chave_pix','nome','banco','numero_conta','tipo_caixa','cliente_id','holding_id','ativo']
       values = [id, configText(body.razao_social, nome), configText(body.cnpj, 'NAO_INFORMADO'), configText(body.chave_pix, 'NAO_INFORMADO'), nome, banco, configText(body.numero_conta) || null, configText(body.tipo_caixa, 'SHARE').toUpperCase(), configText(body.cliente_id) || null, configText(body.holding_id) || null, body.ativo === false ? 0 : 1]
     } else if (table === 'categoria_movimentacao_share') {
       const nome = configText(body.nome)
       if (!nome) return c.json({ error: 'nome_categoria_obrigatorio' }, 400)
-      columns = ['id', 'nome', 'tipo', 'grupo_categoria', 'tipo_despesa', 'reembolsavel', 'categoria_cliente_id', 'criado_por']
+      columns = ['id','nome','tipo','grupo_categoria','tipo_despesa','reembolsavel','categoria_cliente_id','criado_por']
       values = [id, nome, configText(body.tipo).toLowerCase() || null, configText(body.grupo_categoria) || null, configText(body.tipo_despesa) || null, body.reembolsavel ? 1 : 0, configText(body.categoria_cliente_id) || null, userId]
     } else {
       const nome = configText(body.nome)
       if (!nome) return c.json({ error: 'nome_categoria_obrigatorio' }, 400)
-      columns = ['id', 'nome', 'subcategoria_1', 'subcategoria_2', 'subcategoria_3', 'subcategoria_4']
+      columns = ['id','nome','subcategoria_1','subcategoria_2','subcategoria_3','subcategoria_4']
       values = [id, nome, configText(body.subcategoria_1) || null, configText(body.subcategoria_2) || null, configText(body.subcategoria_3) || null, configText(body.subcategoria_4) || null]
     }
     const placeholders = columns.map(() => '?').join(', ')
@@ -226,6 +227,7 @@ function mapConta(row: Record<string, unknown>): Record<string, unknown> {
     comprovantePagamentoUrl: row.comprovante_pagamento_url ?? row.comprovante_recebimento_url ?? null,
     lancamentoId: row.lancamento_id ?? row.lancamentos_id ?? row.lancamento_receita_id ?? null,
     status: row.status,
+    solicitanteNome: row.solicitante_nome ?? null,
     criadoEm: row.criado_em,
     atualizadoEm: row.atualizado_em,
   }
@@ -266,7 +268,7 @@ async function dashboardShare(c: any) {
   const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : ''
   const [lancamentos, pagar, receber, reembolsos, categorias] = await Promise.all([
     listar(db, `SELECT l.*, a.matricula_registro AS aeronave, cb.banco AS banco_pagamento_nome FROM lancamentos l LEFT JOIN aeronave a ON a.id = l.aeronave_id LEFT JOIN contas_bancarias cb ON cb.id = l.conta_bancaria_id ${where} ORDER BY date(COALESCE(l.data_emissao, l.criado_em)) DESC LIMIT 1000`, ...params),
-    listar(db, `SELECT cp.*, l.fornecedor_nome, l.numero_doc, l.numero_nf, l.aeronave_id, a.matricula_registro AS aeronave, l.cotista_aeronave_id, l.descricao AS lancamento_descricao FROM contas_apagar cp LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id LEFT JOIN aeronave a ON a.id = cp.aeronave_id ${aeronave && aeronave !== 'Todas as aeronaves' ? 'WHERE a.matricula_registro = ?' : ''} ORDER BY date(cp.data_vencimento) ASC LIMIT 500`, ...(aeronave && aeronave !== 'Todas as aeronaves' ? [aeronave] : [])),
+    listar(db, `SELECT cp.*, l.fornecedor_nome, l.numero_doc, l.numero_nf, l.aeronave_id, a.matricula_registro AS aeronave, l.cotista_aeronave_id, l.descricao AS lancamento_descricao FROM contas_apagar cp LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id LEFT JOIN aeronave a ON a.id = cp.aeronave_id WHERE COALESCE(UPPER(l.tipo_caixa), 'SHARE') = 'SHARE' AND COALESCE(l.reembolsavel, 0) = 0 AND UPPER(COALESCE(cp.origem_tipo, '')) <> 'RELATORIO_DESPESA_VIAGEM' AND UPPER(COALESCE(cp.categoria_nome, '')) NOT LIKE '%REEMBOLS%' ${aeronave && aeronave !== 'Todas as aeronaves' ? 'AND a.matricula_registro = ?' : ''} ORDER BY date(cp.data_vencimento) ASC LIMIT 500`, ...(aeronave && aeronave !== 'Todas as aeronaves' ? [aeronave] : [])),
     listar(db, `SELECT cr.*, l.numero_doc, l.numero_nf, l.aeronave_id, a.matricula_registro AS aeronave, COALESCE(l.descricao, cr.descricao) AS descricao_real FROM contas_areceber cr LEFT JOIN lancamentos l ON l.id = cr.lancamentos_id LEFT JOIN aeronave a ON a.id = cr.aeronave_id ${aeronave && aeronave !== 'Todas as aeronaves' ? 'WHERE a.matricula_registro = ?' : ''} ORDER BY date(cr.data_vencimento) ASC LIMIT 500`, ...(aeronave && aeronave !== 'Todas as aeronaves' ? [aeronave] : [])),
     listar(db, `SELECT r.*, l.descricao, l.aeronave_id, a.matricula_registro AS aeronave, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente, r.cotista_id) AS cotista_nome, COALESCE((SELECT SUM(rp.valor_centavos) FROM rateio_pagamentos rp WHERE rp.conta_receber_id = r.conta_receber_id AND rp.status = 'CONFIRMADO'), 0) AS valor_recebido_centavos FROM reembolsos r LEFT JOIN lancamentos l ON l.id = r.lancamento_origem_id LEFT JOIN aeronave a ON a.id = l.aeronave_id LEFT JOIN cotista_aeronave ca ON ca.id = r.cotista_id LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id ORDER BY r.criado_em DESC LIMIT 500`),
     listar(db, `SELECT COALESCE(l.categoria_nome, 'Sem categoria') AS nome, SUM(CASE WHEN l.fluxo IN ('SAIDA','DESPESA') THEN l.valor_centavos ELSE 0 END) AS valor FROM lancamentos l LEFT JOIN aeronave a ON a.id = l.aeronave_id ${where} GROUP BY COALESCE(l.categoria_nome, 'Sem categoria') ORDER BY valor DESC LIMIT 12`, ...params),
@@ -288,15 +290,13 @@ async function dashboardShare(c: any) {
   const payables = pagar.map((row) => ({ id: row.id, vencimento: row.data_vencimento, descricao: row.descricao ?? row.lancamento_descricao, fornecedor: row.fornecedor_nome ?? 'Não informado', categoria: row.categoria_nome ?? 'Sem categoria', aeronave: row.aeronave ?? 'Todas', cotistaCliente: row.cotista_aeronave_id ?? 'Share Brasil', valor: valorReais(row), status: statusFinanceiro(row.status), documento: row.numero_nf ?? row.numero_doc ?? '', banco: row.banco_pagamento_nome ?? null }))
   const receivables = receber.map((row) => ({ id: row.id, vencimento: row.data_vencimento, descricao: row.descricao_real ?? 'Recebimento', cliente: row.cotista_id ?? 'Cliente não informado', categoria: row.categoria_nome ?? 'Sem categoria', aeronave: row.aeronave ?? 'Todas', valor: valorReais(row), status: statusFinanceiro(row.status), banco: row.banco_recebimento ?? null, nf: row.numero_nf ?? row.numero_doc ?? null }))
   const reimbursements = reembolsos.map((row) => { const totalCentavos = Number(row.valor_centavos ?? 0); const recebidoCentavos = Number(row.valor_recebido_centavos ?? 0); return { id: row.id, despesa: row.descricao ?? 'Reembolso', aeronave: row.aeronave ?? 'Todas', clienteCotista: row.cotista_nome ?? row.cotista_id ?? 'Não informado', valorTotal: totalCentavos / 100, valorDevido: totalCentavos / 100, valorRecebido: recebidoCentavos / 100, valorPendente: Math.max(0, totalCentavos - recebidoCentavos) / 100, status: statusFinanceiro(row.status), pagoPor: 'Share Brasil', origem: 'D1 / reembolsos' } })
-  return c.json({
-    live: true, kpis: [
-      { label: 'A pagar', value: total(pagar).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${pagar.length} títulos`, helper: 'obrigações no D1', tone: 'warning' },
-      { label: 'A receber', value: total(receber).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${receber.length} títulos`, helper: 'recebíveis no D1', tone: 'info' },
-      { label: 'Reembolsos pendentes', value: total(reembolsos.filter((row) => !['RECEBIDO', 'REEMBOLSADO'].includes(String(row.status).toUpperCase()))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${reembolsos.length} registros`, helper: 'aptos para acompanhamento', tone: 'special' },
-      { label: 'Entradas no período', value: total(entradas).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${entradas.length} lançamentos`, helper: 'caixa realizado', tone: 'success' },
-      { label: 'Saídas no período', value: total(saidas).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${saidas.length} lançamentos`, helper: 'despesas registradas', tone: 'default' },
-    ], cashFlow: [...porMes.values()].sort((a, b) => a.mes.localeCompare(b.mes)), categories: categorias.map((row, index) => ({ name: row.nome, value: Number(row.valor ?? 0) / 100, fill: ['var(--chart-cyan)', 'var(--chart-blue)', 'var(--chart-indigo)', 'var(--chart-violet)', 'var(--chart-slate)'][index % 5] })), payables, receivables, reimbursements, salaries: []
-  })
+  return c.json({ live: true, kpis: [
+    { label: 'A pagar', value: total(pagar).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${pagar.length} títulos`, helper: 'obrigações no D1', tone: 'warning' },
+    { label: 'A receber', value: total(receber).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${receber.length} títulos`, helper: 'recebíveis no D1', tone: 'info' },
+    { label: 'Reembolsos pendentes', value: total(reembolsos.filter((row) => !['RECEBIDO', 'REEMBOLSADO'].includes(String(row.status).toUpperCase()))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${reembolsos.length} registros`, helper: 'aptos para acompanhamento', tone: 'special' },
+    { label: 'Entradas no período', value: total(entradas).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${entradas.length} lançamentos`, helper: 'caixa realizado', tone: 'success' },
+    { label: 'Saídas no período', value: total(saidas).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), delta: `${saidas.length} lançamentos`, helper: 'despesas registradas', tone: 'default' },
+  ], cashFlow: [...porMes.values()].sort((a, b) => a.mes.localeCompare(b.mes)), categories: categorias.map((row, index) => ({ name: row.nome, value: Number(row.valor ?? 0) / 100, fill: ['var(--chart-cyan)', 'var(--chart-blue)', 'var(--chart-indigo)', 'var(--chart-violet)', 'var(--chart-slate)'][index % 5] })), payables, receivables, reimbursements, salaries: [] })
 }
 
 async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber') {
@@ -306,11 +306,19 @@ async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber
   const vencidasAte = c.req.query('vencidasAte')
   const filtros: string[] = []
   const params: unknown[] = []
-  if (status) { filtros.push('status = ?'); params.push(status) }
-  if (cotistaId && table === 'contas_areceber') { filtros.push('cotista_id = ?'); params.push(cotistaId) }
-  if (fornecedorId && table === 'contas_apagar') { filtros.push('fornecedor_id = ?'); params.push(fornecedorId) }
-  if (vencidasAte) { filtros.push("date(data_vencimento) <= date(?)"); params.push(vencidasAte) }
-  const rows = await listar(c.env.SHARE_DB, `SELECT * FROM ${table}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(data_vencimento) ASC, criado_em DESC LIMIT 500`, ...params)
+  const alias = table === 'contas_apagar' ? 'cp' : 'cr'
+  const origem = table === 'contas_apagar' ? ' LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id' : ''
+  if (table === 'contas_apagar') {
+    filtros.push("COALESCE(UPPER(l.tipo_caixa), 'SHARE') = 'SHARE'")
+    filtros.push('COALESCE(l.reembolsavel, 0) = 0')
+    filtros.push("UPPER(COALESCE(cp.origem_tipo, '')) <> 'RELATORIO_DESPESA_VIAGEM'")
+    filtros.push("UPPER(COALESCE(cp.categoria_nome, '')) NOT LIKE '%REEMBOLS%'")
+  }
+  if (status) { filtros.push(`${alias}.status = ?`); params.push(status) }
+  if (cotistaId && table === 'contas_areceber') { filtros.push(`${alias}.cotista_id = ?`); params.push(cotistaId) }
+  if (fornecedorId && table === 'contas_apagar') { filtros.push(`${alias}.fornecedor_id = ?`); params.push(fornecedorId) }
+  if (vencidasAte) { filtros.push(`date(${alias}.data_vencimento) <= date(?)`); params.push(vencidasAte) }
+  const rows = await listar(c.env.SHARE_DB, `SELECT ${alias}.* FROM ${table} ${alias}${origem}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(${alias}.data_vencimento) ASC, ${alias}.criado_em DESC LIMIT 500`, ...params)
   const rowsComFornecedor = await enriquecerFornecedores(c.env.SHARE_DB, rows)
   const mapped = rowsComFornecedor.map(mapConta)
   if (table !== 'contas_areceber') return mapped
@@ -366,6 +374,74 @@ financeiroRoutes.get('/contas-apagar', async (c) => {
 
 financeiroRoutes.get('/contas-areceber', async (c) => {
   try { return c.json(await consultarContas(c, 'contas_areceber')) } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.get('/solicitacoes-pagamento', async (c) => {
+  try {
+    const db = c.env.SHARE_DB
+    const [envios, reembolsos] = await Promise.all([
+      listar(db, `SELECT e.*, COALESCE(u.nome_exibicao, u.nome_completo, u.email, e.criado_por) AS solicitante_nome
+        FROM envio_despesas e LEFT JOIN user_profiles u ON u.id = e.criado_por
+        WHERE e.tipo IN ('cliente', 'reembolso') ORDER BY e.criado_em DESC LIMIT 500`),
+      listar(db, `SELECT cp.*, l.fornecedor_nome, l.numero_doc, l.numero_nf, l.aeronave_id,
+          a.matricula_registro AS aeronave, l.cotista_aeronave_id, l.descricao AS lancamento_descricao,
+          COALESCE(u.nome_exibicao, u.nome_completo, u.email, cp.colaborador_id) AS solicitante_nome
+        FROM contas_apagar cp
+        LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id
+        LEFT JOIN aeronave a ON a.id = cp.aeronave_id
+        LEFT JOIN user_profiles u ON u.id = cp.colaborador_id
+        WHERE (COALESCE(l.reembolsavel, 0) = 1
+          OR UPPER(COALESCE(cp.origem_tipo, '')) = 'RELATORIO_DESPESA_VIAGEM'
+          OR UPPER(COALESCE(cp.categoria_nome, '')) LIKE '%REEMBOLS%')
+          AND UPPER(cp.status) NOT IN ('PAGO', 'CANCELADO')
+        ORDER BY date(cp.data_vencimento) ASC LIMIT 500`),
+    ])
+    return c.json({ envios, reembolsos: reembolsos.map(mapConta) })
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.get('/movimentos-holding/pendentes', async (c) => {
+  try {
+    const movimentos = await listar(c.env.SHARE_DB, `SELECT mh.id, mh.holding_id, h.nome AS holding_nome,
+        mh.socio_id, hs.nome AS socio_nome, mh.aeronave_id, a.matricula_registro AS aeronave,
+        mh.data_emissao, mh.data_vencimento, mh.descricao, mh.categoria_nome, mh.valor_centavos,
+        mh.status, mh.fornecedor_nome,
+        COALESCE((SELECT SUM(rh.valor_rateado_centavos) FROM rateio_hold rh WHERE rh.movimento_holding_id = mh.id AND rh.status <> 'CANCELADO'), 0) AS rateado_centavos,
+        COALESCE((SELECT SUM(rh.valor_pago_real_centavos) FROM rateio_hold rh WHERE rh.movimento_holding_id = mh.id AND rh.status <> 'CANCELADO'), 0) AS pago_centavos
+      FROM movimentos_holding mh
+      LEFT JOIN holdings h ON h.id = mh.holding_id
+      LEFT JOIN hold_socios hs ON hs.id = mh.socio_id
+      LEFT JOIN aeronave a ON a.id = mh.aeronave_id
+      WHERE mh.tipo_caixa = 'HOLD' AND UPPER(mh.fluxo) = 'SAIDA'
+        AND UPPER(mh.status) IN ('EM_ABERTO', 'EM_ATRASO', 'AGUARDANDO_REEMBOLSO')
+        AND COALESCE(mh.pago_diretamente, 0) = 0
+      ORDER BY date(mh.data_vencimento) ASC, mh.criado_em DESC LIMIT 500`)
+    return c.json({ movimentos })
+  } catch (error) { return errorResponse(c, error) }
+})
+
+financeiroRoutes.post('/movimentos-holding/:id/baixa', async (c) => {
+  try {
+    const db = c.env.SHARE_DB
+    const movimentoId = c.req.param('id')
+    const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>))
+    const dataPagamento = String(body.data_pagamento ?? '').trim()
+    const bancoId = String(body.conta_bancaria_id ?? '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento) || !bancoId) return c.json({ error: 'data_e_conta_bancaria_obrigatorias' }, 400)
+    const movimento = await db.prepare('SELECT * FROM movimentos_holding WHERE id = ?').bind(movimentoId).first<Record<string, unknown>>()
+    if (!movimento) return c.json({ error: 'movimento_holding_nao_encontrado' }, 404)
+    if (String(movimento.status).toUpperCase() === 'PAGO') return c.json({ ...movimento, idempotent: true })
+    if (String(movimento.status).toUpperCase() === 'CANCELADO') return c.json({ error: 'movimento_holding_cancelado' }, 409)
+    const conta = await db.prepare("SELECT id FROM contas_bancarias WHERE id = ? AND tipo_caixa = 'HOLDING' AND holding_id = ? AND ativo = 1").bind(bancoId, movimento.holding_id).first()
+    if (!conta) return c.json({ error: 'conta_bancaria_holding_invalida' }, 400)
+    await db.batch([
+      db.prepare("UPDATE movimentos_holding SET status = 'PAGO', data_pagamento = ?, conta_bancaria_id = ?, forma_pagamento = ?, comprovante_url = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(dataPagamento, bancoId, body.forma_pagamento ?? null, body.comprovante_url ?? null, movimentoId),
+      db.prepare("UPDATE rateio_hold SET status = 'PAGO', data_pagamento = ?, valor_pago_real_centavos = valor_rateado_centavos, atualizado_em = CURRENT_TIMESTAMP WHERE movimento_holding_id = ? AND status <> 'CANCELADO'")
+        .bind(dataPagamento, movimentoId),
+    ])
+    return c.json({ ...(await db.prepare('SELECT * FROM movimentos_holding WHERE id = ?').bind(movimentoId).first()), idempotent: false })
+  } catch (error) { return errorResponse(c, error) }
 })
 
 financeiroRoutes.get('/recibos-saida', async (c) => {
@@ -538,7 +614,7 @@ financeiroRoutes.get('/lancamentos/opcoes', async (c) => {
     const opcional = async (sql: string) => (await db.prepare(sql).all().catch(() => ({ results: [] }))).results ?? []
     const [categorias, contas, cotistas, holdings] = await Promise.all([
       opcional('SELECT id, nome, grupo_categoria, tipo_despesa FROM categoria_movimentacao_share ORDER BY nome'),
-      opcional('SELECT id, banco, numero_conta, tipo_conta FROM contas_bancarias ORDER BY banco'),
+      opcional('SELECT id, banco, numero_conta, NULL AS tipo_conta, holding_id FROM contas_bancarias WHERE ativo = 1 ORDER BY banco'),
       opcional("SELECT ca.id, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente) AS nome, ca.aeronave_id, ca.percentual_sociedade FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id ORDER BY nome"),
       opcional('SELECT id, nome, conta_bancaria FROM holdings ORDER BY nome'),
     ])
@@ -549,11 +625,18 @@ financeiroRoutes.get('/lancamentos/opcoes', async (c) => {
 financeiroRoutes.get('/share/opcoes', async (c) => {
   try {
     const db = c.env.SHARE_DB
-    const [categorias, contas, empresas] = await Promise.all([
-      listar(db, 'SELECT id, nome, tipo, grupo_categoria AS grupo, tipo_despesa AS classificacao, empresa_id, 0 AS reembolsavel FROM categoria_movimentacao_share ORDER BY nome'),
-      listar(db, 'SELECT id, banco, numero_conta, tipo_conta FROM contas_bancarias ORDER BY banco'),
+    const tipoCaixa = c.req.query('tipo_caixa')
+    const holdingId = c.req.query('holding_id')
+    const filtroConta = tipoCaixa === 'HOLDING' || tipoCaixa === 'SHARE' ? `WHERE tipo_caixa = ? AND ativo = 1${holdingId && tipoCaixa === 'HOLDING' ? ' AND holding_id = ?' : ''}` : ''
+    const parametrosConta = tipoCaixa === 'HOLDING' && holdingId ? [tipoCaixa, holdingId] : [tipoCaixa]
+    const consultas = [
+      listar(db, 'SELECT id, nome, tipo, grupo_categoria AS grupo, tipo_despesa AS classificacao, NULL AS empresa_id, COALESCE(reembolsavel, 0) AS reembolsavel FROM categoria_movimentacao_share ORDER BY nome'),
+      filtroConta
+        ? listar(db, `SELECT id, banco, numero_conta, NULL AS tipo_conta, holding_id FROM contas_bancarias ${filtroConta} ORDER BY banco`, ...parametrosConta)
+        : listar(db, 'SELECT id, banco, numero_conta, NULL AS tipo_conta, holding_id FROM contas_bancarias WHERE ativo = 1 ORDER BY banco'),
       listar(db, 'SELECT id, razao_social, cnpj FROM empresa ORDER BY razao_social'),
-    ])
+    ]
+    const [categorias, contas, empresas] = await Promise.all(consultas)
     return c.json({ categorias, contas_bancarias: contas, empresas })
   } catch (error) { return errorResponse(c, error) }
 })
@@ -661,16 +744,14 @@ financeiroRoutes.get('/dashboard/financeiro', async (c) => {
     })
     const contasPendentes = pagar.filter(contaPendente)
     const contasEmAberto = new Set(contasPendentes.flatMap((row) => [row.id, row.lancamentos_id].filter(Boolean).map(String)))
-    return c.json({
-      resumo: { total_a_receber: totalAReceber, total_pago: totalPago, pendencias: contasPendentes.length, pagamentos_confirmados: pagar.filter((row) => String(row.status).toUpperCase() === 'PAGO').length }, movimentacoes: movimentacoesComFornecedor.map((row) => ({
-        ...row,
-        fornecedor: row.fornecedor_nome ?? row.fornecedor ?? null,
-        valor: Number(row.valor_centavos || 0) / 100,
-        pendencia: [row.id, row.origem_id].filter(Boolean).some((id) => contasEmAberto.has(String(id))),
-        justificativa_reativacao: reativacaoPorLancamento.get(String(row.id))?.justificativa ?? null,
-        reativado_em: reativacaoPorLancamento.get(String(row.id))?.reativado_em ?? null,
-      })), emails_enviados: emailsEnviados
-    })
+    return c.json({ resumo: { total_a_receber: totalAReceber, total_pago: totalPago, pendencias: contasPendentes.length, pagamentos_confirmados: pagar.filter((row) => String(row.status).toUpperCase() === 'PAGO').length }, movimentacoes: movimentacoesComFornecedor.map((row) => ({
+      ...row,
+      fornecedor: row.fornecedor_nome ?? row.fornecedor ?? null,
+      valor: Number(row.valor_centavos || 0) / 100,
+      pendencia: [row.id, row.origem_id].filter(Boolean).some((id) => contasEmAberto.has(String(id))),
+      justificativa_reativacao: reativacaoPorLancamento.get(String(row.id))?.justificativa ?? null,
+      reativado_em: reativacaoPorLancamento.get(String(row.id))?.reativado_em ?? null,
+    })), emails_enviados: emailsEnviados })
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -785,40 +866,6 @@ financeiroRoutes.post('/reembolsos', async (c) => {
     const body = await c.req.json()
     const result = await createReimbursement(c.env.SHARE_DB, body, c.get('userId') || null)
     return c.json(result, result.idempotent ? 200 : 201)
-  } catch (error) { return errorResponse(c, error) }
-})
-
-financeiroRoutes.get('/reembolsos/pendentes', async (c) => {
-  try {
-    const rows = await listar(c.env.SHARE_DB, `SELECT r.id, r.conta_receber_id, r.lancamento_origem_id, r.cotista_id, r.valor_centavos, r.status, r.criado_em, cr.data_vencimento, cr.data_recebimento, cr.banco_recebimento, l.descricao, a.matricula_registro AS aeronave, COALESCE(cl.razao_social, hs.nome, ca.codigo_cliente, r.cotista_id) AS cotista_nome, COALESCE((SELECT SUM(rp.valor_centavos) FROM rateio_pagamentos rp WHERE rp.conta_receber_id = r.conta_receber_id AND rp.status = 'CONFIRMADO'), 0) AS valor_recebido_centavos FROM reembolsos r LEFT JOIN contas_areceber cr ON cr.id = r.conta_receber_id LEFT JOIN lancamentos l ON l.id = r.lancamento_origem_id LEFT JOIN aeronave a ON a.id = l.aeronave_id LEFT JOIN cotista_aeronave ca ON ca.id = r.cotista_id LEFT JOIN cliente cl ON cl.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id WHERE UPPER(COALESCE(r.status, '')) NOT IN ('REEMBOLSADO', 'CANCELADO') ORDER BY date(COALESCE(cr.data_vencimento, r.criado_em)) ASC, r.criado_em DESC LIMIT 500`)
-    return c.json(rows.map((row) => { const total = Number(row.valor_centavos ?? 0); const recebido = Number(row.valor_recebido_centavos ?? 0); return { ...row, valor_total_centavos: total, valor_devido_centavos: total, valor_recebido_centavos: recebido, valor_pendente_centavos: Math.max(0, total - recebido) } }))
-  } catch (error) { return errorResponse(c, error) }
-})
-
-financeiroRoutes.post('/reembolsos/baixa-consolidada', async (c) => {
-  try {
-    const body = await c.req.json<Record<string, any>>()
-    const ids = Array.isArray(body.reembolso_ids) ? body.reembolso_ids.map(String).filter(Boolean) : []
-    if (!ids.length) return c.json({ error: 'reembolso_ids_obrigatorio' }, 400)
-    if (!body.tipo_pagador || !body.data_pagamento) return c.json({ error: 'pagador_e_data_obrigatorios' }, 400)
-    const db = c.env.SHARE_DB; const placeholders = ids.map(() => '?').join(',')
-    const reembolsos = await db.prepare(`SELECT id, conta_receber_id FROM reembolsos WHERE id IN (${placeholders})`).bind(...ids).all<{ id: string; conta_receber_id: string | null }>()
-    const contas = (reembolsos.results ?? []).filter((row) => row.conta_receber_id)
-    if (contas.length !== ids.length) return c.json({ error: 'reembolso_ou_conta_receber_nao_encontrado' }, 404)
-    const pendentes = await Promise.all(contas.map(async (row) => {
-      const conta = await db.prepare('SELECT id, valor_centavos, lancamentos_id FROM contas_areceber WHERE id = ?').bind(row.conta_receber_id).first<{ id: string; valor_centavos: number; lancamentos_id: string }>()
-      const pago = await db.prepare("SELECT COALESCE(SUM(valor_centavos), 0) AS total FROM rateio_pagamentos WHERE conta_receber_id = ? AND status = 'CONFIRMADO'").bind(row.conta_receber_id).first<{ total: number }>()
-      return { ...row, conta, pendente: Math.max(0, Number(conta?.valor_centavos ?? 0) - Number(pago?.total ?? 0)) }
-    }))
-    const total = pendentes.reduce((sum, row) => sum + row.pendente, 0); const informado = Number(body.valor_centavos ?? Math.round(Number(body.valor ?? 0) * 100))
-    if (!Number.isInteger(informado) || informado !== total) return c.json({ error: 'valor_consolidado_invalido', esperado_centavos: total }, 400)
-    const resultados = []
-    for (const row of pendentes) {
-      const rateios = await db.prepare("SELECT id, valor_rateado_centavos, valor_pago_real_centavos FROM rateio_despesas WHERE lancamento_id = ? AND status NOT IN ('CANCELADO')").bind(row.conta?.lancamentos_id).all<{ id: string; valor_rateado_centavos: number; valor_pago_real_centavos: number }>()
-      let restante = row.pendente; const distribuicao = (rateios.results ?? []).map((rateio) => { const saldo = Math.max(0, Number(rateio.valor_rateado_centavos) - Number(rateio.valor_pago_real_centavos ?? 0)); const valor = Math.min(restante, saldo); restante -= valor; return { rateio_id: rateio.id, valor_centavos: valor } }).filter((item) => item.valor_centavos > 0)
-      resultados.push(await settleReceivable(db, String(row.conta_receber_id), { data_recebimento: body.data_pagamento, conta_bancaria_id: body.conta_bancaria_id ?? body.banco, comprovante_url: body.comprovante_url ?? body.comprovante, idempotency_key: `${body.idempotency_key ?? `reembolso-consolidado:${body.data_pagamento}`}:${row.id}`, pagamentos: [{ tipo_pagador: body.tipo_pagador, pagador_cotista_id: body.pagador_cotista_id ?? null, pagador_holding_id: body.pagador_holding_id ?? null, valor_centavos: row.pendente, data_pagamento: body.data_pagamento, conta_bancaria_id: body.conta_bancaria_id ?? body.banco, comprovante_url: body.comprovante_url ?? body.comprovante, rateios: distribuicao }] }, c.get('userId') || null))
-    }
-    return c.json({ ok: true, valor_centavos: total, contas_baixadas: resultados.length, resultados })
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -1015,35 +1062,35 @@ financeiroRoutes.post('/recibos/leitura-demonstrativo', async (c) => {
     const payload = { imageBase64: base64, mimeType, tipo }
     const resposta = c.env.GEMINI_API_KEY
       ? await (async () => {
-        const modelos = ['gemini-flash-latest', 'gemini-3.6-flash']
-        let aiRes: Response | null = null
-        const maxAttempts = 3
-        for (const modelo of modelos) {
-          let attempts = 0
-          while (attempts < maxAttempts) {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(c.env.GEMINI_API_KEY as string)}`
-            aiRes = await fetch(apiUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                systemInstruction: { parts: [{ text: DEMONSTRATIVO_IA_PROMPT(tipo) }] },
-                contents: [{ role: 'user', parts: [{ text: `Tipo do demonstrativo: ${tipo}. Extraia os dados para revisão manual; não crie nem altere registros.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-                generationConfig: { response_mime_type: 'application/json' },
-              }),
-            })
-            if (aiRes.status !== 503) return aiRes
-            attempts++
-            if (attempts < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 2000 * attempts))
+          const modelos = ['gemini-flash-latest', 'gemini-3.6-flash']
+          let aiRes: Response | null = null
+          const maxAttempts = 3
+          for (const modelo of modelos) {
+            let attempts = 0
+            while (attempts < maxAttempts) {
+              const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(c.env.GEMINI_API_KEY as string)}`
+              aiRes = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  systemInstruction: { parts: [{ text: DEMONSTRATIVO_IA_PROMPT(tipo) }] },
+                  contents: [{ role: 'user', parts: [{ text: `Tipo do demonstrativo: ${tipo}. Extraia os dados para revisão manual; não crie nem altere registros.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+                  generationConfig: { response_mime_type: 'application/json' },
+                }),
+              })
+              if (aiRes.status !== 503) return aiRes
+              attempts++
+              if (attempts < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 2000 * attempts))
+            }
           }
-        }
-        return aiRes
-      })()
+          return aiRes
+        })()
       : c.env.SUPABASE_URL && c.env.SUPABASE_ANON_KEY
         ? await fetch(`${c.env.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/demonstrativo-ocr`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: c.env.SUPABASE_ANON_KEY, Authorization: c.req.header('Authorization') || '' },
-          body: JSON.stringify(payload),
-        })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: c.env.SUPABASE_ANON_KEY, Authorization: c.req.header('Authorization') || '' },
+            body: JSON.stringify(payload),
+          })
         : null
     if (!resposta) return c.json({ error: 'servico_de_leitura_ia_nao_configurado' }, 503)
     if (!resposta.ok) return c.json({ error: 'falha_na_leitura_por_ia', details: await resposta.text() }, 502)
@@ -1157,24 +1204,22 @@ financeiroRoutes.get('/recibos', async (c) => {
     lista.push(rateio)
     rateiosPorRecibo.set(String(rateio.recibo_id), lista)
   }
-  return c.json({
-    recibos: recibos.map((recibo) => {
-      const cotista = cotistaPorId.get(String(recibo.pagador_id ?? ''))
-      return {
-        ...recibo,
-        pdf_anexo_id: pdfAnexoPorRecibo.get(String(recibo.id))?.id ?? null,
-        pdf_url: recibo.url_recibo ?? null,
-        nome_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.nome ?? recibo.nome_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.nome ?? recibo.nome_pagador ?? null : 'Share Brasil',
-        documento_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.documento ?? recibo.documento_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.documento ?? recibo.documento_pagador ?? null : recibo.documento_pagador ?? null,
-        endereco_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.endereco ?? recibo.endereco_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.endereco ?? recibo.endereco_pagador ?? null : recibo.endereco_pagador ?? null,
-        cidade_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.cidade ?? recibo.cidade_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.cidade ?? recibo.cidade_pagador ?? null : recibo.cidade_pagador ?? null,
-        uf_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.uf ?? recibo.uf_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.uf ?? recibo.uf_pagador ?? null : recibo.uf_pagador ?? null,
-        rateio_linhas: rateiosPorRecibo.get(String(recibo.id)) ?? [],
-        conta_pagar_id: contaProgramadaPorRecibo.get(String(recibo.id)) ?? null,
-        despesa_programada: contaProgramadaPorRecibo.has(String(recibo.id)) || rateioCriadoPorRecibo.has(String(recibo.id)),
-      }
-    })
-  })
+  return c.json({ recibos: recibos.map((recibo) => {
+    const cotista = cotistaPorId.get(String(recibo.pagador_id ?? ''))
+    return {
+      ...recibo,
+      pdf_anexo_id: pdfAnexoPorRecibo.get(String(recibo.id))?.id ?? null,
+      pdf_url: recibo.url_recibo ?? null,
+      nome_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.nome ?? recibo.nome_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.nome ?? recibo.nome_pagador ?? null : 'Share Brasil',
+      documento_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.documento ?? recibo.documento_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.documento ?? recibo.documento_pagador ?? null : recibo.documento_pagador ?? null,
+      endereco_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.endereco ?? recibo.endereco_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.endereco ?? recibo.endereco_pagador ?? null : recibo.endereco_pagador ?? null,
+      cidade_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.cidade ?? recibo.cidade_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.cidade ?? recibo.cidade_pagador ?? null : recibo.cidade_pagador ?? null,
+      uf_pagador: recibo.pagador_tipo === 'cotista_aeronave' ? cotista?.uf ?? recibo.uf_pagador ?? null : recibo.pagador_tipo === 'cliente' ? clientePorId.get(String(recibo.pagador_id))?.uf ?? recibo.uf_pagador ?? null : recibo.uf_pagador ?? null,
+      rateio_linhas: rateiosPorRecibo.get(String(recibo.id)) ?? [],
+      conta_pagar_id: contaProgramadaPorRecibo.get(String(recibo.id)) ?? null,
+      despesa_programada: contaProgramadaPorRecibo.has(String(recibo.id)) || rateioCriadoPorRecibo.has(String(recibo.id)),
+    }
+  }) })
 })
 
 financeiroRoutes.get('/recibos/opcoes', async (c) => {
@@ -1450,7 +1495,9 @@ financeiroRoutes.post('/envios-pagamento', async (c) => {
 
 financeiroRoutes.get('/envios-pagamento', async (c) => {
   const tipo = c.req.query('tipo')
-  const query = tipo ? 'SELECT * FROM envio_despesas WHERE tipo = ? ORDER BY criado_em DESC LIMIT 200' : 'SELECT * FROM envio_despesas ORDER BY criado_em DESC LIMIT 200'
+  const query = `SELECT e.*, COALESCE(u.nome_exibicao, u.nome_completo, u.email, e.criado_por) AS solicitante_nome
+    FROM envio_despesas e LEFT JOIN user_profiles u ON u.id = e.criado_por
+    ${tipo ? 'WHERE e.tipo = ?' : ''} ORDER BY e.criado_em DESC LIMIT 200`
   const result = tipo ? await c.env.SHARE_DB.prepare(query).bind(tipo).all() : await c.env.SHARE_DB.prepare(query).all()
   return c.json({ envios: result.results ?? [] })
 })
@@ -1525,16 +1572,25 @@ financeiroRoutes.patch('/envios-pagamento/:id', async (c) => {
 })
 
 financeiroRoutes.post('/envios-pagamento/:id/aprovar', async (c) => {
-  const result = await c.env.SHARE_DB.prepare("UPDATE envio_despesas SET status = 'APROVADO', atualizado_em = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PENDENTE'").bind(c.req.param('id')).run()
+  const db = c.env.SHARE_DB
+  const id = c.req.param('id')
+  const request = await db.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(id).first<Record<string, unknown>>()
+  if (!request) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
+  if (request.tipo !== 'share') return c.json({ error: 'somente_solicitacoes_de_compra_share_podem_ser_aprovadas' }, 409)
+  const result = await db.prepare("UPDATE envio_despesas SET status = 'APROVADO', atualizado_em = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PENDENTE'").bind(id).run()
   if (!result.meta.changes) return c.json({ error: 'solicitacao_nao_pendente' }, 409)
-  return c.json({ ok: true, id: c.req.param('id'), status: 'APROVADO' })
+  const userId = c.get('userId') || null
+  const statements = mensagemFinanceiraStatements(db, String(request.criado_por ?? '') || null, userId, 'Solicitação de compra aprovada', `Sua solicitação “${String(request.descricao ?? '')}” foi aprovada e está aguardando o pagamento.`)
+  if (statements.length) await db.batch(statements)
+  return c.json({ ok: true, id, status: 'APROVADO' })
 })
 
 financeiroRoutes.post('/envios-pagamento/:id/converter', async (c) => {
   try {
     const request = await c.env.SHARE_DB.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(c.req.param('id')).first<Record<string, unknown>>()
     if (!request) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
-    if (!['PENDENTE', 'APROVADO', 'EMAIL_ENVIADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
+    if (request.tipo === 'share' && !['APROVADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
+    if (request.tipo !== 'share' && !['PENDENTE', 'APROVADO', 'EMAIL_ENVIADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
     return c.json(await convertPaymentRequest(c.env.SHARE_DB, request, createExpense, c.get('userId') || null))
   } catch (error) { return errorResponse(c, error) }
 })

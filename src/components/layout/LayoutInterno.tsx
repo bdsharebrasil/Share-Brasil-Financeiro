@@ -87,12 +87,12 @@ export default function LayoutInterno() {
   const itens = menusPorAmbiente[ambiente];
   const itemAtivo = useMemo(() => itens.find((item) => item.id === menuAtivo) ?? itens[0], [itens, menuAtivo]);
   const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; navegacaoManual.current = true; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/"); setMenuAberto(false); };
-  const selecionarMenu = (menu: string) => {
+  const selecionarMenu = (menu: string, aba?: string) => {
     navegacaoManual.current = true;
     setMenuAtivo(menu);
     if (menu === "enviar-pagamento") { setAmbiente("financeiro"); navegar("/financeiro/enviar-pagamento"); }
     else if (menu === "movimentacoes") { setAmbiente("financeiro"); navegar("/financeiro/movimentacoes"); }
-    else if (ambiente === "gestor" && menu === "financeiro-share") navegar("/gestor/financeiro-share");
+    else if (ambiente === "gestor" && menu === "financeiro-share") navegar(`/gestor/financeiro-share${aba ? `?aba=${encodeURIComponent(aba)}` : ""}`);
     else if (ambiente === "gestor" && menu === "financeiro-cotista") navegar("/gestor/financeiro-cotista");
     else if (menu === "recibos") navegar("/financeiro/emissao-recibo");
     else if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/");

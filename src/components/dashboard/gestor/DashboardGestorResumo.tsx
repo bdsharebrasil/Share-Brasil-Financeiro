@@ -63,7 +63,7 @@ type ResumoGestor = {
   periodosAquisitivos: number;
 };
 
-export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu: string) => void }) {
+export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu: string, aba?: string) => void }) {
   const [nomeColaborador, setNomeColaborador] = useState("Gestor");
   const [dados, setDados] = useState<ResumoGestor | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -84,7 +84,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
       const [pagar, receber, envios, feriasResp] = await Promise.all([
         buscarContasAPagar({ vencidasAte: limite7 }),
         buscarContasAReceber({ vencidasAte: dataLimite }),
-        buscarEnviosPagamento("reembolso"),
+        buscarEnviosPagamento(),
         buscarFeriasCorporativas(dataLimite).catch(() => null),
       ]);
 
@@ -96,9 +96,11 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         .filter((c) => c.status !== "PAGO" && c.status !== "CANCELADO" && diasAte(c.dataVencimento) < 0)
         .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
 
-      const enviosPendentes = (envios.envios || []).filter(
-        (e) => e.status === "pendente" || e.status === "aberto",
-      );
+      const enviosPendentes = (envios.envios || []).filter((e) => {
+        const statusPendente = e.status === "pendente" || e.status === "aberto";
+        const caixa = String(e.tipo_caixa || e.tipo || "").trim().toLowerCase();
+        return statusPendente && (e.tipo === "cliente" || caixa === "cliente");
+      });
 
       const feriasProximas = (feriasResp?.registros || [])
         .filter((r) => {
@@ -192,6 +194,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           detail={`${dados?.contasPagarProximas?.length ?? 0} conta(s) vencendo nos próximos 7 dias`}
           tone="amber"
           icon={<TrendingDown size={16} />}
+          onClick={() => aoNavegar("financeiro-share", "contas-apagar")}
         />
         <CartaoKpi
           label="Contas a receber em atraso"
@@ -199,6 +202,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           detail={`${dados?.contasReceberAtraso?.length ?? 0} conta(s) vencidas não recebidas`}
           tone="red"
           icon={<TrendingUp size={16} />}
+          onClick={() => aoNavegar("financeiro-share", "contas-areceber")}
         />
         <CartaoKpi
           label="Solicitações de pagamento"
@@ -226,7 +230,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           icone={<Wallet size={15} />}
           expandida={secaoExpandida === "pagar"}
           aoAlternar={() => expandir("pagar")}
-          onVerTodos={() => aoNavegar("financeiro-share")}
+          onVerTodos={() => aoNavegar("financeiro-share", "contas-apagar")}
         >
           {carregando ? <SkeletonLinhas /> : (dados?.contasPagarProximas?.length ?? 0) > 0 ? (
             <TabelaCompacta
@@ -253,7 +257,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
           icone={<TrendingUp size={15} />}
           expandida={secaoExpandida === "receber"}
           aoAlternar={() => expandir("receber")}
-          onVerTodos={() => aoNavegar("financeiro-share")}
+          onVerTodos={() => aoNavegar("financeiro-share", "contas-areceber")}
         >
           {carregando ? <SkeletonLinhas /> : (dados?.contasReceberAtraso?.length ?? 0) > 0 ? (
             <TabelaCompacta
@@ -276,7 +280,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
         <SecaoExpansivel
           id="envios"
           titulo="Solicitações de pagamento recebidas"
-          detalhe={`${dados?.enviosPendentes?.length ?? 0} pendente(s) · ${formatarMoeda(totais.envios)}`}
+          detalhe={`${dados?.enviosPendentes?.length ?? 0} do caixa cliente · ${formatarMoeda(totais.envios)}`}
           icone={<Inbox size={15} />}
           expandida={secaoExpandida === "envios"}
           aoAlternar={() => expandir("envios")}

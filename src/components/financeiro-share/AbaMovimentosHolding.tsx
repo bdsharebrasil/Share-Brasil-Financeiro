@@ -48,7 +48,7 @@ export function AbaMovimentosHolding() {
 
   return <div className="space-y-4">
     <header className="financeiro-panel-header rounded-xl border border-border bg-card">
-      <div><h2 className="text-sm font-bold">Solicitações de pagamento · Holdings</h2><p className="mt-1 text-xs text-muted-foreground">Baixas gravadas em movimentos_holding e rateio_hold, sem criar lançamentos Share.</p></div>
+      <div><h2 className="text-sm font-bold">Solicitações de pagamento · Holdings</h2></div>
       <Button variant="outline" size="sm" onClick={() => void carregar()}><RefreshCw size={14} className="mr-2" /> Atualizar</Button>
     </header>
     {erro && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</p>}

@@ -22,7 +22,6 @@ type Bindings = {
   CACHE_KV: KVNamespace
   FILES: R2Bucket
   SHARE_FILES?: R2Bucket
-  R2_PUBLIC_URL?: string
   SHARE_DB: D1Database
   RESEND_API_KEY: string
   INTERNAL_TOKEN: string
@@ -1089,11 +1088,6 @@ function bucketColaborador(c: Context<{ Bindings: Bindings }>): R2Bucket {
 
 function bucketParaChaveColaborador(c: Context<{ Bindings: Bindings }>, key: string): R2Bucket {
   return key.startsWith('avatar_profiles/') || key.startsWith('documentos_colaboradores/') ? bucketColaborador(c) : c.env.FILES
-}
-
-function publicAvatarUrl(c: Context<{ Bindings: Bindings }>, key: string): string | null {
-  const publicBase = String(c.env.R2_PUBLIC_URL ?? '').trim().replace(/\/+$/, '')
-  return publicBase ? `${publicBase}/${key.split('/').map(segment => encodeURIComponent(segment)).join('/')}` : null
 }
 
 async function salvarArquivoColaborador(c: Context<{ Bindings: Bindings }>, userId: string, file: File, pasta: 'avatar_profiles' | 'documentos_colaboradores'): Promise<string> {
@@ -2889,7 +2883,7 @@ app.get('/api/colaborador/perfil', async c => {
     .filter(item => item.status === 'aprovada')
     .reduce((total, item) => total + item.quantidade_dias, 0)
   return c.json({
-    perfil: { ...colaborador, foto_url: colaborador.url_avatar ? publicAvatarUrl(c, colaborador.url_avatar) || '/api/colaborador/foto' : null, dias_ferias_direito: 30 },
+    perfil: { ...colaborador, foto_url: colaborador.url_avatar ? '/api/colaborador/foto' : null, dias_ferias_direito: 30 },
     pagamentos: pagamentos.results,
     documentos: documentos.results.map(row => documentoColaborador(row as Record<string, unknown>)),
     funcoes: funcoes.results,
@@ -2911,7 +2905,7 @@ app.patch('/api/colaborador/perfil', async c => {
   await c.env.SHARE_DB.prepare(`UPDATE user_profiles SET ${assignments}, data_atualizacao = CURRENT_TIMESTAMP WHERE id = ?`).bind(...updates.map(({ value }) => value), colaborador.id).run()
   const updated = await c.env.SHARE_DB.prepare('SELECT * FROM user_profiles WHERE id = ?1').bind(colaborador.id).first<Colaborador>()
   await sincronizarTripulacaoColaborador(c, colaborador.id, updated || {}).catch(error => log.warn('[colaborador/perfil] tripulação não sincronizada', error?.message || error))
-  return c.json({ perfil: { ...updated, foto_url: updated?.url_avatar ? publicAvatarUrl(c, updated.url_avatar) || '/api/colaborador/foto' : null, dias_ferias_direito: 30 } })
+  return c.json({ perfil: { ...updated, foto_url: updated?.url_avatar ? '/api/colaborador/foto' : null, dias_ferias_direito: 30 } })
 })
 
 app.get('/api/colaborador/foto', async c => {
@@ -3549,6 +3543,10 @@ app.patch('/api/interno/tripulacao/:id', async c => {
   return c.json({ success: true })
 })
 
+function ehCma(tipo: string | null | undefined) {
+  return String(tipo || '').trim().toUpperCase() === 'CMA'
+}
+
 app.post('/api/interno/tripulacao/:id/habilitacoes', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const body = await c.req.json<{ tipo_habilitacao?: string; data_validade?: string; classe_cma?: string; validade_cma?: string; fs_rh?: string }>().catch(() => ({} as any))
@@ -3556,14 +3554,25 @@ app.post('/api/interno/tripulacao/:id/habilitacoes', async c => {
   const tripulante = await c.env.SHARE_DB.prepare('SELECT id FROM tripulacao WHERE id = ?1').bind(c.req.param('id')).first()
   if (!tripulante) return c.notFound()
   const id = uuid()
-  await c.env.SHARE_DB.prepare('INSERT INTO habilitacoes_tripulante (id, tripulacao_id, tipo_habilitacao, data_validade, classe_cma, validade_cma, fs_rh) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, c.req.param('id'), body.tipo_habilitacao.trim(), body.data_validade || null, body.classe_cma?.trim() || null, body.validade_cma || null, body.fs_rh?.trim() || null).run()
+  const tipo = body.tipo_habilitacao.trim()
+  const cma = ehCma(tipo)
+  await c.env.SHARE_DB.prepare('INSERT INTO habilitacoes_tripulante (id, tripulacao_id, tipo_habilitacao, data_validade, classe_cma, validade_cma, fs_rh) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, c.req.param('id'), cma ? 'CMA' : tipo, cma ? null : body.data_validade || null, cma ? body.classe_cma?.trim() || null : null, cma ? body.validade_cma || body.data_validade || null : null, body.fs_rh?.trim() || null).run()
   return c.json({ id, ...body }, 201)
 })
 
 app.patch('/api/interno/tripulacao/habilitacoes/:id', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const body = await c.req.json<{ tipo_habilitacao?: string; data_validade?: string | null; classe_cma?: string | null; validade_cma?: string | null; fs_rh?: string | null }>().catch(() => ({} as any))
-  const result = await c.env.SHARE_DB.prepare('UPDATE habilitacoes_tripulante SET tipo_habilitacao = COALESCE(?1, tipo_habilitacao), data_validade = ?2, classe_cma = ?3, validade_cma = ?4, fs_rh = ?5 WHERE id = ?6').bind(body.tipo_habilitacao?.trim() || null, body.data_validade || null, body.classe_cma?.trim() || null, body.validade_cma || null, body.fs_rh?.trim() || null, c.req.param('id')).run()
+  const current = await c.env.SHARE_DB.prepare('SELECT tipo_habilitacao, data_validade, classe_cma, validade_cma, fs_rh FROM habilitacoes_tripulante WHERE id = ?1').bind(c.req.param('id')).first<{ tipo_habilitacao: string; data_validade: string | null; classe_cma: string | null; validade_cma: string | null; fs_rh: string | null }>()
+  if (!current) return c.notFound()
+  const tipo = body.tipo_habilitacao?.trim() || current.tipo_habilitacao
+  const cma = ehCma(tipo)
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key)
+  const dataValidade = cma ? null : has('data_validade') ? body.data_validade || null : current.data_validade
+  const classeCma = cma ? (has('classe_cma') ? body.classe_cma?.trim() || null : current.classe_cma) : null
+  const validadeCma = cma ? (has('validade_cma') ? body.validade_cma || null : current.validade_cma) : null
+  const fsRh = has('fs_rh') ? body.fs_rh?.trim() || null : current.fs_rh
+  const result = await c.env.SHARE_DB.prepare('UPDATE habilitacoes_tripulante SET tipo_habilitacao = ?1, data_validade = ?2, classe_cma = ?3, validade_cma = ?4, fs_rh = ?5 WHERE id = ?6').bind(tipo, dataValidade, classeCma, validadeCma, fsRh, c.req.param('id')).run()
   if (!result.meta.changes) return c.notFound()
   return c.json({ success: true })
 })
@@ -4464,7 +4473,7 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
   const db = c.env.SHARE_DB
   const idSolicitacao = c.req.param('id')
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const voo = await db.prepare('SELECT aeronave_id, piloto_id, copiloto_id, data_agendada FROM solicitacoes_reserva_voo WHERE id = ?1').bind(idSolicitacao).first<any>()
+  const voo = await db.prepare('SELECT aeronave_id, piloto_id, copiloto_id, data_agendada, numero_voo FROM solicitacoes_reserva_voo WHERE id = ?1').bind(idSolicitacao).first<any>()
   if (!voo) return c.notFound()
   const tripulantes = (Array.isArray(body.tripulantes) && body.tripulantes.length
     ? body.tripulantes
@@ -4477,12 +4486,19 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
     // Verifica jornada aberta em QUALQUER voo (não só nesta solicitação): um tripulante não pode
     // estar em duas jornadas simultâneas, senão os limites de 9h/44h/176h ficam furados enquanto
     // a jornada duplicada nunca é encerrada (e por isso nunca soma nos acumulados).
-    const aberta = await db.prepare("SELECT id, solicitacao_id FROM jornadas_voo WHERE tripulante_id = ?1 AND status <> 'encerrada' LIMIT 1")
-      .bind(item.tripulante_id).first<{ id: string; solicitacao_id: string }>()
+    const aberta = await db.prepare(`SELECT j.id, j.solicitacao_id, s.numero_voo,
+        COALESCE(t.nome_completo, f.nome_completo) AS tripulante_nome
+      FROM jornadas_voo j
+      LEFT JOIN solicitacoes_reserva_voo s ON s.id = j.solicitacao_id
+      LEFT JOIN tripulacao t ON t.id = j.tripulante_id
+      LEFT JOIN tripulacao_freelancer f ON f.id = j.tripulante_id
+      WHERE j.tripulante_id = ?1 AND j.status <> 'encerrada' LIMIT 1`)
+      .bind(item.tripulante_id).first<{ id: string; solicitacao_id: string; numero_voo: string | null; tripulante_nome: string | null }>()
     if (aberta) {
       return c.json({
         error: aberta.solicitacao_id === idSolicitacao ? 'jornada_ja_iniciada' : 'tripulante_em_jornada_outro_voo',
         tripulante_id: item.tripulante_id, jornada_id: aberta.id, solicitacao_id: aberta.solicitacao_id,
+        numero_voo: aberta.numero_voo || voo.numero_voo || null, tripulante_nome: aberta.tripulante_nome || null,
         detail: aberta.solicitacao_id === idSolicitacao ? undefined : 'Este tripulante já tem uma jornada em aberto em outro voo. Encerre-a antes de iniciar uma nova.',
       }, 409)
     }
@@ -4522,9 +4538,9 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
   }
   await db.prepare(`UPDATE solicitacoes_reserva_voo
     SET horario_previsto_agendamento = ?1,
-        status = CASE WHEN status = 'aprovada' THEN 'em_voo' ELSE status END,
+        status = CASE WHEN ?2 IS NOT NULL AND lower(trim(status)) IN ('aprovada', 'em_rota', 'em rota', 'em_voo', 'em voo') THEN 'em_voo' ELSE status END,
         atualizado_em = CURRENT_TIMESTAMP
-    WHERE id = ?2`).bind(acionamento, idSolicitacao).run()
+    WHERE id = ?3`).bind(acionamento, horarioDep, idSolicitacao).run()
   const pernas = await db.prepare('SELECT * FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero').bind(principalId).all<any>()
   const principal = criadas[0]
   return c.json({
@@ -6571,6 +6587,75 @@ async function isMeetingManager(c: Context<{ Bindings: Bindings }>, user: Colabo
   return Boolean(result)
 }
 
+type AniversarioPayload = { nome: string; data_aniversario: string; empresa: string | null; categoria: string; url_avatar: string | null }
+const CATEGORIAS_ANIVERSARIO = new Set(['cliente', 'colaborador', 'fornecedor', 'hotel'])
+function validarAniversarioPayload(body: Record<string, unknown>): { payload?: AniversarioPayload; error?: string } {
+  const nome = String(body.nome || '').trim()
+  if (!nome || nome.length > 160) return { error: 'nome_obrigatorio_ou_invalido' }
+  const data = String(body.data_aniversario || '').trim().slice(0, 10)
+  const partesData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data)
+  if (!partesData) return { error: 'data_aniversario_invalida' }
+  const [ano, mes, dia] = partesData.slice(1).map(Number)
+  const dataValidada = new Date(Date.UTC(ano, mes - 1, dia))
+  if (dataValidada.getUTCFullYear() !== ano || dataValidada.getUTCMonth() !== mes - 1 || dataValidada.getUTCDate() !== dia) return { error: 'data_aniversario_invalida' }
+  const categoria = String(body.categoria || 'cliente').trim().toLowerCase()
+  if (!CATEGORIAS_ANIVERSARIO.has(categoria)) return { error: 'categoria_invalida' }
+  const empresaValor = String(body.empresa || '').trim()
+  if (empresaValor.length > 160) return { error: 'empresa_invalida' }
+  const avatarValor = String(body.url_avatar || '').trim()
+  let url_avatar: string | null = null
+  if (avatarValor) {
+    try {
+      const url = new URL(avatarValor)
+      if (!['http:', 'https:'].includes(url.protocol) || avatarValor.length > 500) return { error: 'url_avatar_invalida' }
+      url_avatar = url.toString()
+    } catch {
+      return { error: 'url_avatar_invalida' }
+    }
+  }
+  return { payload: { nome, data_aniversario: data, empresa: empresaValor || null, categoria, url_avatar } }
+}
+
+app.get('/api/interno/aniversarios', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const db = c.env.SHARE_DB
+  const [manuais, perfis] = await Promise.all([
+    db.prepare("SELECT id, nome, data_aniversario, empresa, categoria, url_avatar, criado_em, atualizado_em, 'aniversarios' AS origem FROM aniversarios ORDER BY nome COLLATE NOCASE").all(),
+    db.prepare("SELECT 'user_profiles:' || id AS id, COALESCE(NULLIF(trim(nome_exibicao), ''), NULLIF(trim(nome_completo), ''), email) AS nome, data_nascimento AS data_aniversario, departamento AS empresa, 'colaborador' AS categoria, url_avatar, data_criacao AS criado_em, data_atualizacao AS atualizado_em, 'user_profiles' AS origem FROM user_profiles WHERE data_nascimento IS NOT NULL AND trim(data_nascimento) <> '' ORDER BY COALESCE(NULLIF(trim(nome_exibicao), ''), NULLIF(trim(nome_completo), ''), email) COLLATE NOCASE").all(),
+  ])
+  return c.json({ aniversarios: [...(perfis.results || []), ...(manuais.results || [])] })
+})
+
+app.post('/api/interno/aniversarios', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}))
+  const validacao = validarAniversarioPayload(body)
+  if (!validacao.payload) return c.json({ error: validacao.error || 'aniversario_invalido' }, 400)
+  const id = uuid()
+  const item = validacao.payload
+  await c.env.SHARE_DB.prepare('INSERT INTO aniversarios (id, nome, data_aniversario, empresa, categoria, url_avatar) VALUES (?, ?, ?, ?, ?, ?)').bind(id, item.nome, item.data_aniversario, item.empresa, item.categoria, item.url_avatar).run()
+  return c.json({ aniversario: { id, ...item, origem: 'aniversarios' } }, 201)
+})
+
+const atualizarAniversario = async (c: Context<{ Bindings: Bindings }>) => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}))
+  const validacao = validarAniversarioPayload(body)
+  if (!validacao.payload) return c.json({ error: validacao.error || 'aniversario_invalido' }, 400)
+  const item = validacao.payload
+  const result = await c.env.SHARE_DB.prepare('UPDATE aniversarios SET nome = ?, data_aniversario = ?, empresa = ?, categoria = ?, url_avatar = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?').bind(item.nome, item.data_aniversario, item.empresa, item.categoria, item.url_avatar, c.req.param('id')).run()
+  if (!result.meta.changes) return c.notFound()
+  return c.json({ aniversario: { id: c.req.param('id'), ...item, origem: 'aniversarios' }, success: true })
+}
+app.patch('/api/interno/aniversarios/:id', atualizarAniversario)
+app.put('/api/interno/aniversarios/:id', atualizarAniversario)
+app.delete('/api/interno/aniversarios/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const result = await c.env.SHARE_DB.prepare('DELETE FROM aniversarios WHERE id = ?1').bind(c.req.param('id')).run()
+  if (!result.meta.changes) return c.notFound()
+  return c.json({ success: true })
+})
+
 app.get('/api/interno/aerodromos', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const q = (c.req.query('q') || '').trim(); const termo = `%${q}%`
@@ -8497,6 +8582,132 @@ for (const [slug, config] of Object.entries(CTM_READ_TABLES)) {
     return c.json({ data: rows.results })
   })
 }
+
+const CTM_MIMES_DOCUMENTOS = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+function ctmTipoArquivoDocumento(file: File): string | null {
+  const type = String(file.type || '').toLowerCase()
+  if (CTM_MIMES_DOCUMENTOS.has(type)) return type
+  const extensao = file.name.toLowerCase().split('.').pop()
+  const porExtensao: Record<string, string> = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }
+  return porExtensao[extensao || ''] || null
+}
+function ctmDataDocumento(value: unknown): string | null | undefined {
+  const raw = String(value ?? '').trim().slice(0, 10)
+  if (!raw) return null
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (!partes) return undefined
+  const [ano, mes, dia] = partes.slice(1).map(Number)
+  const data = new Date(Date.UTC(ano, mes - 1, dia))
+  if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) return undefined
+  return raw
+}
+function ctmDiasAlerta(value: unknown): number | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+  const dias = Number(raw)
+  return Number.isInteger(dias) && dias >= 0 && dias <= 3650 ? dias : null
+}
+function ctmNomeDocumento(value: unknown, fallback = ''): string {
+  return String(value ?? fallback).trim().slice(0, 180)
+}
+app.get('/api/ctm/aeronaves/:aeronaveId/documentos', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const aeronaveId = c.req.param('aeronaveId')
+  const existe = await c.env.SHARE_DB.prepare('SELECT id FROM aeronave WHERE id = ?1').bind(aeronaveId).first()
+  if (!existe) return c.notFound()
+  const rows = await c.env.SHARE_DB.prepare(`SELECT id, nome, descricao, tipo_arquivo, tamanho_arquivo, enviado_por, criado_em, aeronave_id, tipo_documento, data_validade, atualizado_em, dias_alerta
+    FROM documentos_aeronave WHERE aeronave_id = ?1
+    ORDER BY CASE WHEN data_validade IS NULL OR trim(data_validade) = '' THEN 1 ELSE 0 END, date(data_validade), lower(nome)`).bind(aeronaveId).all()
+  return c.json({ documentos: rows.results.map((row: any) => ({ ...row, arquivo_url: `/api/ctm/aeronaves/${encodeURIComponent(aeronaveId)}/documentos/${encodeURIComponent(String(row.id))}/arquivo` })) })
+})
+app.post('/api/ctm/aeronaves/:aeronaveId/documentos', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const aeronaveId = c.req.param('aeronaveId')
+  const existe = await c.env.SHARE_DB.prepare('SELECT id FROM aeronave WHERE id = ?1').bind(aeronaveId).first()
+  if (!existe) return c.notFound()
+  const form = await c.req.formData().catch((): FormData | null => null)
+  if (!form) return c.json({ error: 'formulario_invalido' }, 400)
+  const arquivoValor = form.get('arquivo') as unknown
+  if (!arquivoValor || typeof arquivoValor !== 'object' || !('size' in arquivoValor) || Number(arquivoValor.size) <= 0) return c.json({ error: 'arquivo_obrigatorio' }, 400)
+  const arquivo = arquivoValor as File
+  if (arquivo.size > 25 * 1024 * 1024) return c.json({ error: 'arquivo_excede_25mb' }, 413)
+  const tipoArquivo = ctmTipoArquivoDocumento(arquivo)
+  if (!tipoArquivo) return c.json({ error: 'somente_pdf_ou_imagem_jpg_png_webp_gif_permitidos' }, 415)
+  const nome = ctmNomeDocumento(form.get('nome'), arquivo.name.replace(/\.[^.]+$/, ''))
+  if (!nome) return c.json({ error: 'nome_obrigatorio' }, 400)
+  const descricao = String(form.get('descricao') || '').trim()
+  if (descricao.length > 2000) return c.json({ error: 'descricao_excede_limite' }, 400)
+  const tipoDocumento = String(form.get('tipo_documento') || 'outro').trim().slice(0, 100) || 'outro'
+  const dataValidade = ctmDataDocumento(form.get('data_validade'))
+  if (dataValidade === undefined) return c.json({ error: 'data_validade_invalida' }, 400)
+  const diasAlerta = form.has('dias_alerta') ? ctmDiasAlerta(form.get('dias_alerta')) : 30
+  if (diasAlerta === null) return c.json({ error: 'dias_alerta_invalido' }, 400)
+  const userId = extractSupabaseUserId(c) || 'interno'
+  const arquivoComTipo = new File([arquivo], arquivo.name, { type: tipoArquivo })
+  let caminho: string | null = null
+  try {
+    caminho = await salvarArquivoShareBrasil(c, userId, arquivoComTipo, `ctm/documentos_aeronaves/${aeronaveId}`)
+    const id = uuid()
+    await c.env.SHARE_DB.prepare(`INSERT INTO documentos_aeronave
+      (id, nome, descricao, caminho_arquivo, tipo_arquivo, tamanho_arquivo, enviado_por, aeronave_id, tipo_documento, data_validade, dias_alerta)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, nome, descricao || null, caminho, tipoArquivo, arquivo.size, userId, aeronaveId, tipoDocumento, dataValidade, diasAlerta).run()
+    const row = await c.env.SHARE_DB.prepare(`SELECT id, nome, descricao, tipo_arquivo, tamanho_arquivo, enviado_por, criado_em, aeronave_id, tipo_documento, data_validade, atualizado_em, dias_alerta
+      FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2`).bind(id, aeronaveId).first<any>()
+    return c.json({ documento: { ...row, arquivo_url: `/api/ctm/aeronaves/${encodeURIComponent(aeronaveId)}/documentos/${encodeURIComponent(id)}/arquivo` } }, 201)
+  } catch (error) {
+    if (caminho) await shareBrasilBucket(c).delete(caminho).catch(() => undefined)
+    log.error('[ctm/documentos-aeronave] upload falhou', error)
+    return c.json({ error: 'falha_ao_salvar_documento_aeronave' }, 500)
+  }
+})
+app.patch('/api/ctm/aeronaves/:aeronaveId/documentos/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const aeronaveId = c.req.param('aeronaveId')
+  const id = c.req.param('id')
+  const db = c.env.SHARE_DB
+  const atual = await db.prepare('SELECT id, nome, descricao, tipo_documento, data_validade, dias_alerta FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2').bind(id, aeronaveId).first<any>()
+  if (!atual) return c.notFound()
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>))
+  const nome = body.nome === undefined ? String(atual.nome || '') : ctmNomeDocumento(body.nome)
+  if (!nome) return c.json({ error: 'nome_obrigatorio' }, 400)
+  const descricao = body.descricao === undefined ? atual.descricao : String(body.descricao || '').trim() || null
+  if (descricao && String(descricao).length > 2000) return c.json({ error: 'descricao_excede_limite' }, 400)
+  const tipoDocumento = body.tipo_documento === undefined ? atual.tipo_documento : String(body.tipo_documento || 'outro').trim().slice(0, 100) || 'outro'
+  const dataValidade = ctmDataDocumento(body.data_validade === undefined ? atual.data_validade : body.data_validade)
+  if (dataValidade === undefined) return c.json({ error: 'data_validade_invalida' }, 400)
+  const diasAlerta = body.dias_alerta === undefined ? Number(atual.dias_alerta ?? 30) : ctmDiasAlerta(body.dias_alerta)
+  if (!Number.isInteger(diasAlerta) || Number(diasAlerta) < 0 || Number(diasAlerta) > 3650) return c.json({ error: 'dias_alerta_invalido' }, 400)
+  await db.prepare(`UPDATE documentos_aeronave SET nome = ?, descricao = ?, tipo_documento = ?, data_validade = ?, dias_alerta = ?, atualizado_em = datetime('now')
+    WHERE id = ? AND aeronave_id = ?`).bind(nome, descricao, tipoDocumento, dataValidade, diasAlerta, id, aeronaveId).run()
+  const documento = await db.prepare(`SELECT id, nome, descricao, tipo_arquivo, tamanho_arquivo, enviado_por, criado_em, aeronave_id, tipo_documento, data_validade, atualizado_em, dias_alerta
+    FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2`).bind(id, aeronaveId).first<any>()
+  return c.json({ documento: { ...documento, arquivo_url: `/api/ctm/aeronaves/${encodeURIComponent(aeronaveId)}/documentos/${encodeURIComponent(id)}/arquivo` }, success: true })
+})
+app.delete('/api/ctm/aeronaves/:aeronaveId/documentos/:id', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const aeronaveId = c.req.param('aeronaveId')
+  const id = c.req.param('id')
+  const db = c.env.SHARE_DB
+  const atual = await db.prepare('SELECT caminho_arquivo FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2').bind(id, aeronaveId).first<{ caminho_arquivo: string }>()
+  if (!atual) return c.notFound()
+  await db.prepare('DELETE FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2').bind(id, aeronaveId).run()
+  await shareBrasilBucket(c).delete(atual.caminho_arquivo).catch(error => log.warn('[ctm/documentos-aeronave] arquivo R2 não removido', error))
+  return c.json({ success: true })
+})
+app.get('/api/ctm/aeronaves/:aeronaveId/documentos/:id/arquivo', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const row = await c.env.SHARE_DB.prepare('SELECT caminho_arquivo, nome, tipo_arquivo FROM documentos_aeronave WHERE id = ?1 AND aeronave_id = ?2').bind(c.req.param('id'), c.req.param('aeronaveId')).first<{ caminho_arquivo: string; nome: string; tipo_arquivo: string | null }>()
+  if (!row) return c.notFound()
+  const object = await shareBrasilBucket(c).get(row.caminho_arquivo)
+  if (!object) return c.notFound()
+  const headers = new Headers()
+  object.writeHttpMetadata(headers)
+  headers.set('Content-Type', row.tipo_arquivo || object.httpMetadata?.contentType || 'application/octet-stream')
+  headers.set('Content-Disposition', `inline; filename="${shareBrasilFileName(row.nome)}"`)
+  headers.set('Cache-Control', 'private, no-store')
+  headers.set('X-Content-Type-Options', 'nosniff')
+  return new Response(object.body, { headers })
+})
 
 const PREFETCH_ICAOS = ['SBGR', 'SBSP', 'SBRJ', 'SBCY', 'SBCF', 'SBBR']
 const WORKER_URL = 'https://api.share-brasil.com'

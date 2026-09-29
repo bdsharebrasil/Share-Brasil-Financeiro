@@ -1,18 +1,30 @@
+type Database = D1Database
+
+/**
+ * Cria mensagens internas para o usuário que originou a operação.
+ * A função retorna statements para ser incluída no mesmo batch da operação.
+ */
 export function mensagemFinanceiraStatements(
-  db: D1Database,
+  db: Database,
   destinatarioId: string | null,
   remetenteId: string | null,
   assunto: string,
   conteudo: string,
 ): D1PreparedStatement[] {
   if (!destinatarioId || !remetenteId || destinatarioId === remetenteId) return []
-  const id = crypto.randomUUID()
+  const mensagemId = crypto.randomUUID()
   return [
-    db.prepare('INSERT INTO mensagens (id, remetente_id, destinatario_id, assunto, conteudo, anexos_mensagens) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(id, remetenteId || destinatarioId, destinatarioId, assunto, conteudo, '[]'),
-    db.prepare("INSERT INTO mensagens_usuario (mensagem_id, usuario_id, papel, lida) VALUES (?, ?, 'remetente', 1)")
-      .bind(id, remetenteId || destinatarioId),
-    db.prepare("INSERT INTO mensagens_usuario (mensagem_id, usuario_id, papel, lida) VALUES (?, ?, 'destinatario', 0)")
-      .bind(id, destinatarioId),
+    db.prepare(`
+      INSERT INTO mensagens (id, remetente_id, destinatario_id, assunto, conteudo, lida)
+      VALUES (?, ?, ?, ?, ?, 0)
+    `).bind(mensagemId, remetenteId, destinatarioId, assunto, conteudo),
+    db.prepare(`
+      INSERT OR IGNORE INTO mensagens_usuario (mensagem_id, usuario_id, papel, lida)
+      VALUES (?, ?, 'remetente', 1)
+    `).bind(mensagemId, remetenteId),
+    db.prepare(`
+      INSERT OR IGNORE INTO mensagens_usuario (mensagem_id, usuario_id, papel, lida)
+      VALUES (?, ?, 'destinatario', 0)
+    `).bind(mensagemId, destinatarioId),
   ]
 }

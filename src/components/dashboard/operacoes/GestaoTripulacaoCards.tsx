@@ -176,10 +176,12 @@ function useCrewAvatar(crew: TripulanteGestao) {
 export function CrewCard({
   crew,
   situacao,
+  fsRh,
   onClick,
 }: {
   crew: TripulanteGestao;
   situacao: HabSituacao;
+  fsRh?: string | null;
   onClick: () => void;
 }) {
   const avatar = useCrewAvatar(crew);
@@ -222,6 +224,7 @@ export function CrewCard({
             {crew.tipo_licenca}
           </span>
         )}
+        {fsRh && <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">FS/RH {fsRh}</span>}
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3">
         <HabSituacaoBadge situacao={situacao} />
@@ -976,7 +979,7 @@ function HabilitacoesTab({
         <div className="flex items-center gap-2"><Award size={16} className="text-primary" /><div><h2 className="text-base font-extrabold">Habilitações</h2><p className="mt-0.5 text-[10px] text-muted-foreground">Licenças, habilitações e CMA do tripulante.</p></div></div>
         <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">{habilitations.length}</span><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "habilitacao" ? null : "habilitacao")} className="h-9 gap-2 text-xs"><Plus size={14} /> Nova habilitação</Button><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "cma" ? null : "cma")} className="h-9 gap-2 text-xs"><Plus size={14} /> Novo CMA</Button></div>
       </div>
-      {formOpen === "habilitacao" && <div className="mt-5 rounded-xl border border-border/70 bg-muted/20 p-4"><p className="text-xs font-extrabold">Adicionar habilitação</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newHab.tipo_habilitacao} onChange={(e) => setNewHab({ ...newHab, tipo_habilitacao: e.target.value })} placeholder="Tipo de habilitação" className={field} /><Input type="date" value={newHab.data_validade} onChange={(e) => setNewHab({ ...newHab, data_validade: e.target.value })} aria-label="Validade da habilitação" className={field} /></div><Button type="button" variant="outline" onClick={() => void addHabilitation()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar habilitação</Button></div>}
+      {formOpen === "habilitacao" && <div className="mt-5 rounded-xl border border-border/70 bg-muted/20 p-4"><p className="text-xs font-extrabold">Adicionar habilitação</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newHab.tipo_habilitacao} onChange={(e) => setNewHab({ ...newHab, tipo_habilitacao: e.target.value })} placeholder="Tipo de habilitação" className={field} /><Input type="date" value={newHab.data_validade} onChange={(e) => setNewHab({ ...newHab, data_validade: e.target.value })} aria-label="Validade da habilitação" className={field} /><Input value={newHab.fs_rh} onChange={(e) => setNewHab({ ...newHab, fs_rh: e.target.value })} placeholder="FS/RH" aria-label="FS/RH" className={field} /></div><Button type="button" variant="outline" onClick={() => void addHabilitation()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar habilitação</Button></div>}
       {formOpen === "cma" && <div className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-xs font-extrabold">Adicionar CMA</p><p className="mt-1 text-[10px] text-muted-foreground">Certificado de Exame Médico: classe e validade são armazenadas separadamente das habilitações.</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newCma.classe_cma} onChange={(e) => setNewCma({ ...newCma, classe_cma: e.target.value })} placeholder="Classe do CMA" className={field} /><Input type="date" value={newCma.validade_cma} onChange={(e) => setNewCma({ ...newCma, validade_cma: e.target.value })} aria-label="Validade do CMA" className={field} /></div><Button type="button" variant="outline" onClick={() => void addCma()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar CMA</Button></div>}
       <div className="mt-4 grid gap-3 md:grid-cols-2">{cma || outrasHabilitacoes.length ? <>{cma && <HabilitationCard key={cma.id} item={cma} onSave={(id, payload) => void saveHabilitation(id, payload)} />}{outrasHabilitacoes.map((item) => <HabilitationCard key={item.id} item={item} onSave={(id, payload) => void saveHabilitation(id, payload)} />)}</> : <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground md:col-span-2">Nenhuma habilitação cadastrada.</p>}</div>
     </section>
@@ -1102,10 +1105,11 @@ function HabilitationCard({ item, onSave }: { item: HabilitacaoTripulante; onSav
   const cma = isCma(item);
   const [validity, setValidity] = useState(cma ? item.validade_cma || item.data_validade || "" : item.data_validade || "");
   const [cmaClass, setCmaClass] = useState(item.classe_cma || "");
+  const [fsRh, setFsRh] = useState(item.fs_rh || "");
   const reference = cma ? item.validade_cma || item.data_validade : item.data_validade;
   return <div className={`rounded-xl border p-4 ${dueTone(reference)}`}>
     <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-extrabold">{cma ? "CMA — Certificado de Exame Médico" : item.tipo_habilitacao}</p><p className="mt-1 text-[10px] text-muted-foreground">{cma ? `Classe ${cmaClass || "não informada"} · ` : ""}{dueLabel(reference)}</p></div>{reference && (diasParaVencer(reference)! < 0 ? <AlertTriangle size={16} className="text-red-400" /> : <CheckCircle2 size={16} className="text-emerald-400" />)}</div>
-    <div className="mt-3 flex flex-wrap gap-2">{cma && <Input value={cmaClass} onChange={(e) => setCmaClass(e.target.value)} aria-label="Classe do CMA" placeholder="Classe" className="h-8 w-[120px] text-[10px]" />}<Input type="date" aria-label={cma ? "Validade do CMA" : "Data de vencimento"} value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" /><Button type="button" variant="outline" onClick={() => onSave(item.id, cma ? { tipo_habilitacao: "CMA", data_validade: null, classe_cma: cmaClass || null, validade_cma: validity || null } : { data_validade: validity || null, classe_cma: null, validade_cma: null })} className="h-8 text-[10px]">Atualizar</Button></div>
+    <div className="mt-3 flex flex-wrap gap-2">{cma && <Input value={cmaClass} onChange={(e) => setCmaClass(e.target.value)} aria-label="Classe do CMA" placeholder="Classe" className="h-8 w-[120px] text-[10px]" />}<Input type="date" aria-label={cma ? "Validade do CMA" : "Data de vencimento"} value={validity} onChange={(e) => setValidity(e.target.value)} className="h-8 w-[142px] text-[10px]" />{!cma && <Input value={fsRh} onChange={(e) => setFsRh(e.target.value)} aria-label="FS/RH" placeholder="FS/RH" className="h-8 w-[100px] text-[10px]" />}<Button type="button" variant="outline" onClick={() => onSave(item.id, cma ? { tipo_habilitacao: "CMA", data_validade: null, classe_cma: cmaClass || null, validade_cma: validity || null } : { data_validade: validity || null, classe_cma: null, validade_cma: null, fs_rh: fsRh || null })} className="h-8 text-[10px]">Atualizar</Button></div>
   </div>;
 }
 function Status({ status }: { status: string | null }) {

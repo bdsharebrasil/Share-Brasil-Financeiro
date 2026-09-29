@@ -9,6 +9,8 @@ export type PaymentRequest = {
   aeronave_id: string | null
   rateio_linhas: Array<{ cotista_id: string; percentual: number; percentual_sociedade: number; valor_centavos: number }>
   cotista_responsavel_id: string | null
+  valor_documento_centavos: number
+  modo_cobranca: 'RATEIO' | 'RESPONSAVEL'
   valor_externo_centavos: number
   destino_externo_tipo: 'CLIENTE' | 'HOLDING' | null
   destino_externo_id: string | null
@@ -26,7 +28,10 @@ export type PaymentRequest = {
 
 export function validatePaymentRequest(body: Row): PaymentRequest {
   const tipo = String(body.tipo ?? '').trim()
-  const valor = Number(body.valor_centavos)
+  const valor = Number(body.valor_centavos ?? body.valor_total_despesa_centavos ?? body.valor_despesa_centavos)
+  const valorDocumento = Number(body.valor_documento_centavos ?? body.valor_recibo_centavos ?? body.valor_documento_atual_centavos ?? valor)
+  const modoCobrancaInformado = String(body.modo_cobranca ?? body.modo_cobranca_reembolso ?? body.forma_cobranca ?? 'RATEIO').trim().toUpperCase()
+  const modoCobranca = ['RESPONSAVEL', 'CONSOLIDADO', 'RESPONSAVEL_UNICO', 'COTISTA_RESPONSAVEL'].includes(modoCobrancaInformado) ? 'RESPONSAVEL' : 'RATEIO'
   const linhas = Array.isArray(body.rateio_linhas) ? body.rateio_linhas : []
   const anexos = Array.isArray(body.anexos) ? body.anexos : []
   const categoriaClienteId = body.categoria_cliente_id ? String(body.categoria_cliente_id) : null
@@ -37,6 +42,7 @@ export function validatePaymentRequest(body: Row): PaymentRequest {
   const cotistaResponsavelId = String(body.cotista_responsavel_id ?? body.responsavel_cotista_id ?? '').trim() || null
   if (!['share', 'cliente', 'reembolso'].includes(tipo)) throw new Error('tipo de solicitação inválido')
   if (!String(body.descricao ?? '').trim() || !Number.isInteger(valor) || valor <= 0) throw new Error('descrição e valor_centavos são obrigatórios')
+  if (!Number.isInteger(valorDocumento) || valorDocumento <= 0 || valorDocumento > valor) throw new Error('valor_documento_centavos inválido')
   if (!String(body.data_despesa ?? '').match(/^\d{4}-\d{2}-\d{2}/)) throw new Error('data_despesa inválida')
   if (!String(body.categoria_id ?? '').trim()) throw new Error('categoria_id é obrigatório')
   const rateioLinhas = linhas.map((linha) => ({ cotista_id: String(linha.cotista_id ?? ''), percentual: Number(linha.percentual), valor_centavos: Number(linha.valor_centavos), percentual_sociedade: Number(linha.percentual_sociedade ?? linha.percentual) }))
@@ -52,20 +58,22 @@ export function validatePaymentRequest(body: Row): PaymentRequest {
       !Number.isFinite(linha.percentual) ||
       linha.percentual <= 0 ||
       !Number.isInteger(linha.valor_centavos) ||
-      linha.valor_centavos <= 0,
+      linha.valor_centavos <= 0 ||
+      !Number.isFinite(linha.percentual_sociedade) ||
+      linha.percentual_sociedade < 0,
     )
     if (linhasInvalidas || (rateioLinhas.length && Math.abs(percentualTotal - 100) > 0.01) || valorTotal + valorExternoCentavos !== valor) {
       throw new Error('rateio_linhas + valor_externo_centavos devem corresponder ao total')
     }
-    if (tipo === 'reembolso' && valorTotal > 0 && cotistaResponsavelId && rateioLinhas.every((linha) => linha.cotista_id !== cotistaResponsavelId)) {
-      // O responsável pode ser outro cotista da mesma aeronave; a validação de vínculo ocorre ao persistir.
-    }
+  }
+  if (tipo === 'reembolso' && modoCobranca === 'RESPONSAVEL' && !cotistaResponsavelId) {
+    throw new Error('cotista_responsavel_id é obrigatório para cobrança consolidada')
   }
   return {
     tipo: tipo as PaymentRequest['tipo'], descricao: String(body.descricao).trim(), valor_centavos: valor,
     data_despesa: String(body.data_despesa), data_vencimento: body.data_vencimento ? String(body.data_vencimento) : null,
     aeronave_id: body.aeronave_id ? String(body.aeronave_id) : null, rateio_linhas: rateioLinhas,
-    cotista_responsavel_id: cotistaResponsavelId, valor_externo_centavos: valorExternoCentavos,
+    cotista_responsavel_id: cotistaResponsavelId, valor_documento_centavos: valorDocumento, modo_cobranca: modoCobranca, valor_externo_centavos: valorExternoCentavos,
     destino_externo_tipo: valorExternoCentavos ? destinoExternoTipo as PaymentRequest['destino_externo_tipo'] : null,
     destino_externo_id: valorExternoCentavos ? destinoExternoId : null,
     anexos: anexos.map((anexo) => ({ id: String(anexo.id ?? ''), tipo: String(anexo.tipo ?? 'outro'), numero: String(anexo.numero ?? ''), url: anexo.url ? String(anexo.url) : null, ...(anexo.cotista_id ? { cotista_id: String(anexo.cotista_id) } : {}) })),
@@ -122,10 +130,15 @@ export async function createPaymentRequest(db: D1Database, input: PaymentRequest
   if (input.tipo !== 'share' && input.rateio_linhas.length && !titular) throw new Error('cotista_da_aeronave_nao_encontrado')
   const aeronaveId = input.aeronave_id || titular?.aeronave_id || null
   if (input.tipo !== 'share' && input.rateio_linhas.length && !aeronaveId) throw new Error('aeronave_obrigatoria_para_rateio')
-  if (input.tipo === 'reembolso' && input.rateio_linhas.length) {
-    const responsavelId = input.cotista_responsavel_id || input.rateio_linhas[0].cotista_id
-    const responsavel = await db.prepare('SELECT id, aeronave_id FROM cotista_aeronave WHERE id = ?').bind(responsavelId).first<{ id: string; aeronave_id: string }>()
+  if (input.tipo === 'reembolso' && input.modo_cobranca === 'RESPONSAVEL' && input.rateio_linhas.length) {
+    const responsavel = await db.prepare('SELECT id, aeronave_id FROM cotista_aeronave WHERE id = ?').bind(input.cotista_responsavel_id).first<{ id: string; aeronave_id: string }>()
     if (!responsavel || responsavel.aeronave_id !== aeronaveId) throw new Error('cotista_responsavel_invalido')
+  }
+  if (input.tipo !== 'share' && input.rateio_linhas.length) {
+    const cotistaIds = [...new Set(input.rateio_linhas.map((line) => line.cotista_id))]
+    const placeholders = cotistaIds.map(() => '?').join(', ')
+    const found = await db.prepare(`SELECT id FROM cotista_aeronave WHERE id IN (${placeholders}) AND aeronave_id = ?`).bind(...cotistaIds, aeronaveId).all<{ id: string }>()
+    if ((found.results || []).length !== cotistaIds.length) throw new Error('rateio_cotistas_invalidos')
   }
   if (input.valor_externo_centavos > 0) {
     const destination = input.destino_externo_tipo === 'HOLDING'
@@ -137,24 +150,44 @@ export async function createPaymentRequest(db: D1Database, input: PaymentRequest
   const id = await deterministicUuid(`envio:${input.idempotency_key}`)
   const solicitacaoCompraId = input.tipo === 'share' && userId ? await deterministicUuid(`solicitacao-compra:${input.idempotency_key}`) : null
   const rateioMetadata = JSON.stringify({ version: 2, rateio_linhas: input.rateio_linhas, metadata: {
-    cotista_responsavel_id: input.cotista_responsavel_id || (input.tipo === 'reembolso' ? input.rateio_linhas[0]?.cotista_id || null : null),
+    cotista_responsavel_id: input.cotista_responsavel_id,
+    valor_total_despesa_centavos: input.valor_centavos,
+    valor_documento_centavos: input.valor_documento_centavos,
+    modo_cobranca: input.modo_cobranca,
+    solicitacao_compra_id: solicitacaoCompraId,
     valor_externo_centavos: input.valor_externo_centavos,
     destino_externo_tipo: input.destino_externo_tipo,
     destino_externo_id: input.destino_externo_id,
   } })
+  const envioSchema = await db.prepare("SELECT name FROM pragma_table_info('envio_despesas')").all<{ name: string }>()
+  const availableColumns = new Set((envioSchema.results || []).map((column) => String(column.name)))
+  const values: Row = {
+    id, tipo: input.tipo, descricao: input.descricao, valor: input.valor_centavos / 100,
+    data_despesa: input.data_despesa, vencimento: input.data_vencimento, aeronave_id: aeronaveId,
+    observacoes: input.observacoes, status: 'PENDENTE', criado_por: userId,
+    grupo_categoria: ehHolding ? 'CAIXA HOLDING' : input.tipo === 'cliente' ? 'CAIXA CLIENTE' : input.tipo === 'reembolso' ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA',
+    tipo_caixa: ehHolding ? 'HOLDING' : input.tipo === 'cliente' ? 'CLIENTE' : 'SHARE',
+    pago_diretamente: input.tipo === 'cliente' ? 1 : 0, fornecedor_id: input.fornecedor_id,
+    categoria_id: input.categoria_id, categoria_cliente_id: input.categoria_cliente_id,
+    rateio_linhas_json: rateioMetadata, anexos_json: JSON.stringify(input.anexos),
+    periodicidade: input.periodicidade, tipo_rateio: input.tipo_rateio, colaborador_id: input.colaborador_id,
+    abastecimento_json: input.abastecimento ? JSON.stringify(input.abastecimento) : null,
+    solicitacao_compra_id: solicitacaoCompraId,
+  }
+  const entries = Object.entries(values).filter(([column]) => availableColumns.has(column))
+  for (const required of ['id', 'tipo', 'descricao', 'valor', 'data_despesa', 'rateio_linhas_json']) {
+    if (!availableColumns.has(required)) throw new Error(`coluna_obrigatoria_envio_despesas_ausente:${required}`)
+  }
+  const statementIndex = solicitacaoCompraId ? 1 : 0
   const statements = [
-    db.prepare(`INSERT OR IGNORE INTO envio_despesas (id, tipo, descricao, valor, data_despesa, vencimento, aeronave_id, observacoes, status, criado_por, grupo_categoria, tipo_caixa, pago_diretamente, fornecedor_id, categoria_id, categoria_cliente_id, rateio_linhas_json, anexos_json, periodicidade, tipo_rateio, colaborador_id, abastecimento_json, solicitacao_compra_id, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDENTE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
-      .bind(id, input.tipo, input.descricao, input.valor_centavos / 100, input.data_despesa, input.data_vencimento, aeronaveId, input.observacoes, userId, ehHolding ? 'CAIXA HOLDING' : input.tipo === 'cliente' ? 'CAIXA CLIENTE' : input.tipo === 'reembolso' ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA', ehHolding ? 'HOLDING' : input.tipo === 'cliente' ? 'CLIENTE' : 'SHARE', input.tipo === 'cliente' ? 1 : 0, input.fornecedor_id, input.categoria_id, input.categoria_cliente_id, rateioMetadata, JSON.stringify(input.anexos), input.periodicidade, input.tipo_rateio, input.colaborador_id, input.abastecimento ? JSON.stringify(input.abastecimento) : null, solicitacaoCompraId),
+    ...(solicitacaoCompraId ? [db.prepare(`INSERT OR IGNORE INTO solicitacoes_compra (id, numero_solicitacao, tipo, descricao, observacoes, user_id, data_solicitacao, data_necessaria, status, solicitante_nome) VALUES (?, ?, 'DESPESA', ?, ?, ?, ?, ?, 'RASCUNHO', ?)`).bind(solicitacaoCompraId, `ENV-${id.slice(0, 8).toUpperCase()}`, input.descricao, input.observacoes, userId, input.data_despesa, input.data_vencimento, userId)] : []),
+    db.prepare(`INSERT OR IGNORE INTO envio_despesas (${entries.map(([column]) => column).join(', ')}) VALUES (${entries.map(() => '?').join(', ')})`).bind(...entries.map(([, value]) => value)),
     db.prepare(`INSERT OR IGNORE INTO financeiro_vinculos (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo) VALUES (?, 'IDEMPOTENCY_KEY', ?, 'ENVIO_DESPESA', ?, 'SOLICITACAO')`).bind(crypto.randomUUID(), input.idempotency_key, id),
   ]
-  if (solicitacaoCompraId) {
-    statements.unshift(db.prepare(`INSERT OR IGNORE INTO solicitacoes_compra (id, numero_solicitacao, tipo, descricao, observacoes, user_id, data_solicitacao, data_necessaria, status, solicitante_nome) VALUES (?, ?, 'DESPESA', ?, ?, ?, ?, ?, 'RASCUNHO', ?)`)
-      .bind(solicitacaoCompraId, `ENV-${id.slice(0, 8).toUpperCase()}`, input.descricao, input.observacoes, userId, input.data_despesa, input.data_vencimento, userId))
-  }
   const results = await db.batch(statements)
   const request = await db.prepare('SELECT * FROM envio_despesas WHERE id = ?').bind(id).first<Row>()
   if (!request) throw new Error('solicitacao_pagamento_nao_encontrada')
-  return { ...request, idempotent: !results[statements.length - (solicitacaoCompraId ? 3 : 2)]?.meta?.changes }
+  return { ...request, idempotent: !results[statementIndex]?.meta?.changes }
 }
 
 export async function convertPaymentRequest(
@@ -166,13 +199,16 @@ export async function convertPaymentRequest(
   createExternalReceivable?: (db: D1Database, body: Row, userId: string | null) => Promise<Row>,
   createDirectExternalExpense?: (db: D1Database, body: Row, userId: string | null) => Promise<Row>,
 ): Promise<Row> {
-  const existing = await db.prepare('SELECT lancamento_id, movimentacao_id FROM envio_despesas WHERE id = ?').bind(request.id).first<Row>()
-  if (existing?.lancamento_id || existing?.movimentacao_id) return { ...existing, idempotent: true }
+  const existing = await db.prepare('SELECT lancamento_id, movimentacao_id, movimentos_holding_id FROM envio_despesas WHERE id = ?').bind(request.id).first<Row>()
+  if (existing?.lancamento_id || existing?.movimentacao_id || existing?.movimentos_holding_id) return { ...existing, idempotent: true }
   const { linhas, metadata } = decodeRateioMetadata(request.rateio_linhas_json)
   const anexos = JSON.parse(String(request.anexos_json || '[]'))
   const shareCents = linhas.reduce((sum, line) => sum + Number(line.valor_centavos || 0), 0)
+  const totalExpenseCents = Math.round(Number(request.valor || 0) * 100)
+  const receiptCents = Number(metadata.valor_documento_centavos || totalExpenseCents)
   const externalCents = Number(metadata.valor_externo_centavos || 0)
-  const cotistaResponsavelId = String(metadata.cotista_responsavel_id || linhas[0]?.cotista_id || '').trim() || null
+  const cotistaResponsavelId = String(metadata.cotista_responsavel_id || '').trim() || null
+  const modoCobranca = String(metadata.modo_cobranca || 'RATEIO').toUpperCase()
   const cotistaAeronaveId = String(linhas[0]?.cotista_id || cotistaResponsavelId || request.cotista_id || '').trim() || null
   const titular = cotistaAeronaveId
     ? await db.prepare(`
@@ -184,7 +220,8 @@ export async function convertPaymentRequest(
       `).bind(cotistaAeronaveId).first<{ aeronave_id: string; cliente_id: string | null; socio_id: string | null; holding_id: string | null }>()
     : null
   const ehHolding = Boolean(titular?.socio_id || String(request.tipo_caixa || '').toUpperCase() === 'HOLDING')
-  if (shareCents + externalCents !== Math.round(Number(request.valor || 0) * 100) && request.tipo !== 'share') throw new Error('rateio_e_valor_externo_nao_correspondem_ao_total')
+  if (shareCents + externalCents !== totalExpenseCents && request.tipo !== 'share') throw new Error('rateio_e_valor_externo_nao_correspondem_ao_total')
+  if (!Number.isInteger(receiptCents) || receiptCents <= 0 || receiptCents > totalExpenseCents) throw new Error('valor_documento_centavos_invalido')
   let abastecimentoId: string | null = null
   if (request.tipo !== 'share' && request.abastecimento_json) {
     const abastecimento = JSON.parse(String(request.abastecimento_json)) as Row
@@ -196,34 +233,54 @@ export async function convertPaymentRequest(
     const classes = await Promise.all(linhas.map(async (line) => Boolean((await db.prepare('SELECT socio_id FROM cotista_aeronave WHERE id = ?').bind(line.cotista_id).first<{ socio_id: string | null }>())?.socio_id)))
     if (classes.some(Boolean) && classes.some((isHolding) => !isHolding)) throw new Error('rateio_misto_cliente_holding_nao_suportado')
   }
-  const sourceCents = request.tipo === 'cliente' ? shareCents : Math.round(Number(request.valor || 0) * 100)
+  const sourceCents = request.tipo === 'cliente' ? shareCents : totalExpenseCents
   const lancamento = sourceCents > 0 || request.tipo !== 'cliente'
-    ? await createExpense(db, { idempotency_key: `envio:${request.id}`, tipo: request.tipo, descricao: request.descricao, valor_centavos: sourceCents, data: request.data_despesa, data_vencimento: request.vencimento, aeronave_id: request.aeronave_id || titular?.aeronave_id, cotista_aeronave_id: cotistaAeronaveId, socio_id: request.tipo === 'cliente' ? titular?.socio_id || null : null, holding_id: request.tipo === 'cliente' ? titular?.holding_id || null : null, categoria_id: request.categoria_id, categoria_cliente_id: request.categoria_cliente_id, colaborador_id: request.colaborador_id, fornecedor_id: request.fornecedor_id, observacoes: request.observacoes, abastecimentos_id: abastecimentoId, rateio_linhas: linhas, sem_rateio: request.tipo === 'reembolso' || request.tipo === 'share', anexos_json: anexos, periodicidade: request.periodicidade, tipo_rateio: request.tipo_rateio, pago_diretamente: request.tipo === 'cliente', tipo_caixa: request.tipo === 'cliente' ? (ehHolding ? 'HOLDING' : 'CLIENTE') : 'SHARE', reembolsavel: request.tipo === 'reembolso' }, userId, { internal: true })
+    ? await createExpense(db, {
+      idempotency_key: `envio:${request.id}`, tipo: request.tipo, descricao: request.descricao,
+      valor_centavos: sourceCents, data: request.data_despesa, data_vencimento: request.vencimento,
+      aeronave_id: request.aeronave_id || titular?.aeronave_id,
+      // A antecipação de reembolso é sempre uma única despesa Share. A lista de
+      // cotistas fica no rateio; não use o primeiro cotista para converter caixa.
+      cotista_aeronave_id: request.tipo === 'cliente' ? cotistaAeronaveId : null,
+      socio_id: request.tipo === 'cliente' ? titular?.socio_id || null : null,
+      holding_id: request.tipo === 'cliente' ? titular?.holding_id || null : null,
+      categoria_id: request.categoria_id, categoria_cliente_id: request.categoria_cliente_id,
+      colaborador_id: request.colaborador_id, fornecedor_id: request.fornecedor_id,
+      observacoes: request.observacoes, abastecimentos_id: abastecimentoId,
+      rateio_linhas: request.tipo === 'cliente' ? linhas : [],
+      sem_rateio: request.tipo !== 'cliente', anexos_json: anexos,
+      periodicidade: request.periodicidade, tipo_rateio: request.tipo_rateio,
+      pago_diretamente: request.tipo === 'cliente',
+      tipo_caixa: request.tipo === 'cliente' ? (ehHolding ? 'HOLDING' : 'CLIENTE') : 'SHARE',
+      reembolsavel: request.tipo === 'reembolso',
+    }, userId, { internal: true })
     : null
   const sourceLancamentoId = String(lancamento?.lancamento_id ?? lancamento?.id ?? '') || null
   let reimbursement: Row | null = null
   if (request.tipo === 'reembolso' && shareCents > 0 && createReimbursement) {
     if (!sourceLancamentoId) throw new Error('lancamento_origem_obrigatorio')
-    const responsible = cotistaResponsavelId ? await db.prepare(`SELECT ca.id, ca.aeronave_id, ca.cliente_id, ca.socio_id, hs.holding_id
-      FROM cotista_aeronave ca LEFT JOIN hold_socios hs ON hs.id = ca.socio_id WHERE ca.id = ? LIMIT 1`).bind(cotistaResponsavelId).first<Row>() : null
-    if (!responsible || responsible.aeronave_id !== (request.aeronave_id || titular?.aeronave_id)) throw new Error('cotista_responsavel_invalido')
     reimbursement = await createReimbursement(db, {
       idempotency_key: `reembolso:${request.id}`,
       lancamento_origem_id: sourceLancamentoId,
       lancamento_id: sourceLancamentoId,
       descricao: request.descricao,
       valor_centavos: shareCents,
+      valor_total_despesa_centavos: totalExpenseCents,
+      valor_documento_centavos: receiptCents,
       rateio_linhas: linhas,
+      cotista_responsavel_id: cotistaResponsavelId,
+      modo_cobranca: modoCobranca,
       data: request.data_despesa,
       data_vencimento: request.vencimento,
       aeronave_id: request.aeronave_id || titular?.aeronave_id,
-      cotista_aeronave_id: cotistaResponsavelId,
-      socio_id: responsible.socio_id || null,
-      holding_id: responsible.holding_id || null,
       categoria_id: request.categoria_id,
       categoria_cliente_id: request.categoria_cliente_id,
       categoria_cliente_nome: request.categoria_cliente_nome,
+      categoria_nome: request.categoria_nome,
+      tipo_rateio: request.tipo_rateio,
+      periodicidade: request.periodicidade,
       colaborador_id: request.colaborador_id,
+      anexos_json: anexos,
     }, userId)
   }
   let external: Row | null = null
@@ -233,7 +290,8 @@ export async function convertPaymentRequest(
       destino_id: metadata.destino_externo_id, valor_centavos: externalCents, descricao: request.descricao,
       data: request.data_despesa, data_vencimento: request.vencimento, aeronave_id: request.aeronave_id || titular?.aeronave_id,
       categoria_id: request.categoria_id, categoria_cliente_id: request.categoria_cliente_id,
-      cotista_aeronave_id: cotistaResponsavelId, origem_tipo: 'ENVIO_DESPESA_EXTERNO', origem_id: request.id,
+      cotista_aeronave_id: cotistaResponsavelId, lancamento_origem_id: sourceLancamentoId,
+      origem_tipo: 'ENVIO_DESPESA_EXTERNO', origem_id: request.id,
     }
     if (request.tipo === 'cliente') {
       if (!createDirectExternalExpense) throw new Error('registro_externo_direto_indisponivel')
@@ -243,16 +301,21 @@ export async function convertPaymentRequest(
       external = await createExternalReceivable(db, externalBody, userId)
     }
   }
-  const lancamentoId = String(lancamento?.lancamento_id ?? lancamento?.id ?? '') || null
-  const movimentacaoId = String(lancamento?.movimentacao_id ?? lancamento?.movimento_holding_id ?? external?.movimentacao_id ?? external?.movimento_holding_id ?? lancamentoId ?? '') || null
-  const holdingMovement = Boolean(lancamento?.movimento_holding_id || external?.movimento_holding_id || (lancamento && ehHolding))
+  const sourceMovementId = String(lancamento?.movimentacao_id ?? lancamento?.movimento_holding_id ?? (request.tipo === 'cliente' && ehHolding ? lancamento?.id : '') ?? '') || null
+  const sourceLedgerId = String(lancamento?.lancamento_id ?? (sourceMovementId ? '' : lancamento?.id) ?? '') || null
+  const externalMovementId = String(external?.movimentacao_id ?? external?.movimento_holding_id ?? '') || null
+  const externalLedgerId = String(external?.lancamento_id ?? (externalMovementId ? '' : external?.id) ?? '') || null
+  const holdingMovement = Boolean(sourceMovementId || (!lancamento && externalMovementId))
+  const movimentacaoId = sourceMovementId || (!lancamento ? externalMovementId : null)
+  const lancamentoId = sourceLedgerId || (!lancamento ? externalLedgerId : null)
+  const primaryId = movimentacaoId || lancamentoId
   const destinoTipo = holdingMovement ? 'MOVIMENTO_HOLDING' : 'LANCAMENTO'
-  if (lancamentoId || movimentacaoId) await db.batch([
+  if (primaryId) await db.batch([
     db.prepare('UPDATE envio_despesas SET lancamento_id = ?, movimentacao_id = ?, movimentos_holding_id = ?, status = ? WHERE id = ? AND lancamento_id IS NULL AND movimentacao_id IS NULL')
-      .bind(holdingMovement ? null : lancamentoId, movimentacaoId, holdingMovement ? movimentacaoId : null, 'CONVERTIDO', request.id),
+      .bind(holdingMovement ? null : lancamentoId, primaryId, holdingMovement ? primaryId : null, 'CONVERTIDO', request.id),
     db.prepare(`INSERT OR IGNORE INTO financeiro_vinculos (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo) VALUES (?, 'ENVIO_DESPESA', ?, ?, ?, 'CONVERSAO')`)
-      .bind(crypto.randomUUID(), request.id, destinoTipo, movimentacaoId || lancamentoId),
+      .bind(crypto.randomUUID(), request.id, destinoTipo, primaryId),
   ])
   const updated = await db.prepare('SELECT lancamento_id, movimentacao_id FROM envio_despesas WHERE id = ?').bind(request.id).first<Row>()
-  return { id: request.id, ...updated, reimbursement, external, idempotent: Boolean(lancamento?.idempotent && (!reimbursement || reimbursement.idempotent) && (!external || external.idempotent)) }
+  return { id: request.id, ...updated, reimbursement, external, valor_total_despesa_centavos: totalExpenseCents, valor_documento_centavos: receiptCents, idempotent: Boolean(lancamento?.idempotent && (!reimbursement || reimbursement.idempotent) && (!external || external.idempotent)) }
 }

@@ -59,7 +59,7 @@ export default function Aniversarios() {
     if (silencioso) setAtualizando(true); else setCarregando(true);
     try {
       const resposta = await buscarAniversariosShare();
-      setAniversarios(Array.isArray(resposta?.aniversarios) ? resposta.aniversarios : []);
+      setAniversarios(Array.isArray(resposta?.aniversarios) ? resposta.aniversarios.filter((item) => item.origem !== "user_profiles" || item.status?.trim().toLowerCase() === "ativo") : []);
     } catch (error) {
       toast({ title: "Não foi possível carregar aniversários", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
     } finally {

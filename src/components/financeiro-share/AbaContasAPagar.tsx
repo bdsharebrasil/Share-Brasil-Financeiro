@@ -58,9 +58,10 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
     return itens.filter((l) => {
       if (filtros.busca) {
         const busca = filtros.busca.toLowerCase();
-        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca)) return false;
+        if (![l.descricao, l.fornecedor, l.categoriaNome, l.id, l.documento].some((valor) => String(valor ?? "").toLowerCase().includes(busca))) return false;
       }
-      if (filtros.status !== "TODOS" && l.status !== filtros.status) return false;
+      if (filtros.status === "LIQUIDADO" && !["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(l.status)) return false;
+      if (filtros.status !== "TODOS" && filtros.status !== "LIQUIDADO" && l.status !== filtros.status) return false;
       if (filtros.grupo !== "TODOS" && l.grupoCategoria !== filtros.grupo) return false;
       return true;
     });

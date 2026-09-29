@@ -49,9 +49,15 @@ export interface ContaAPagar {
   criadoPor: string | null;
   aeronaveId: string | null;
   fornecedorId: string | null;
+  fornecedor?: string | null;
   cotistaId: string | null;
   boletoUrl: string | null;
   nfUrl: string | null;
+  reciboUrl?: string | null;
+  demonstrativoUrl?: string | null;
+  documentoUrl?: string | null;
+  documentoNumero?: string | null;
+  dataEmissao?: string | null;
   dataPagamento: string | null;
   bancoPagamento: string | null;
   comprovantePagamentoUrl: string | null;
@@ -75,6 +81,11 @@ export interface ContaAReceber {
   cotistaId: string | null;
   boletoUrl: string | null;
   nfUrl: string | null;
+  reciboUrl?: string | null;
+  demonstrativoUrl?: string | null;
+  documentoUrl?: string | null;
+  documentoNumero?: string | null;
+  dataEmissao?: string | null;
   nfSaidaId: string | null;
   dataRecebimento: string | null;
   bancoRecebimento: string | null;

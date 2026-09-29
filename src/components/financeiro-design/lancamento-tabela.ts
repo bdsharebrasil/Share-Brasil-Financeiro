@@ -17,6 +17,10 @@ export interface LancamentoTabela {
   fluxo: FluxoTabela;
   status: string;
   documento: string | null;
+  dataEmissao?: string | null;
+  documentoUrl?: string | null;
+  documentos?: Array<{ nome: string; url: string }>;
+  rateios?: ContaAReceber["rateios"];
 }
 
 export interface FiltrosTabela {
@@ -47,7 +51,7 @@ export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
     id: conta.id,
     lancamentoId: conta.lancamentoId,
     descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a pagar",
-    fornecedor: conta.fornecedorId ?? "—",
+    fornecedor: conta.fornecedor ?? conta.fornecedorId ?? "—",
     categoriaNome: conta.categoriaNome ?? "Sem categoria",
     grupoCategoria: "DESPESA",
     aeronaveId: conta.aeronaveId,
@@ -57,7 +61,16 @@ export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
     valor: conta.valor,
     fluxo: "SAIDA",
     status: vencida ? "EM_ATRASO" : statusTabela(conta.status),
-    documento: null,
+    documento: conta.documentoNumero ?? null,
+    dataEmissao: conta.dataEmissao ?? conta.criadoEm,
+    documentoUrl: conta.nfUrl ?? conta.reciboUrl ?? conta.demonstrativoUrl ?? conta.boletoUrl ?? conta.documentoUrl ?? null,
+    documentos: [
+      { nome: "Nota fiscal", url: conta.nfUrl },
+      { nome: "Recibo", url: conta.reciboUrl },
+      { nome: "Demonstrativo", url: conta.demonstrativoUrl },
+      { nome: "Boleto", url: conta.boletoUrl },
+      { nome: "Documento", url: conta.documentoUrl },
+    ].filter((item): item is { nome: string; url: string } => Boolean(item.url)),
   };
 }
 
@@ -77,7 +90,17 @@ export function mapearContaAReceber(conta: ContaAReceber): LancamentoTabela {
     valor: conta.valor,
     fluxo: "ENTRADA",
     status: vencida ? "EM_ATRASO" : statusTabela(conta.status),
-    documento: null,
+    documento: conta.documentoNumero ?? null,
+    dataEmissao: conta.dataEmissao ?? conta.criadoEm,
+    documentoUrl: conta.nfUrl ?? conta.reciboUrl ?? conta.demonstrativoUrl ?? conta.boletoUrl ?? conta.documentoUrl ?? null,
+    documentos: [
+      { nome: "Nota fiscal", url: conta.nfUrl },
+      { nome: "Recibo", url: conta.reciboUrl },
+      { nome: "Demonstrativo", url: conta.demonstrativoUrl },
+      { nome: "Boleto", url: conta.boletoUrl },
+      { nome: "Documento", url: conta.documentoUrl },
+    ].filter((item): item is { nome: string; url: string } => Boolean(item.url)),
+    rateios: conta.rateios,
   };
 }
 

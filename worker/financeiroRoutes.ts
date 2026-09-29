@@ -210,6 +210,7 @@ async function enriquecerFornecedores(db: D1Database, rows: Record<string, unkno
 }
 
 function mapConta(row: Record<string, unknown>): Record<string, unknown> {
+  const firstPresent = (...values: unknown[]) => values.find((value) => value !== null && value !== undefined && String(value).trim() !== '') ?? null
   return {
     id: row.id,
     dataVencimento: row.data_vencimento,
@@ -222,8 +223,13 @@ function mapConta(row: Record<string, unknown>): Record<string, unknown> {
     fornecedorId: row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
     fornecedor: row.fornecedor_nome ?? row.fornecedor ?? null,
     cotistaId: row.cotista_id ?? null,
-    boletoUrl: row.boleto_url ?? null,
-    nfUrl: row.nf_url ?? null,
+    boletoUrl: firstPresent(row.boleto_url, row.url_boleto, row.lancamento_url_boleto),
+    nfUrl: firstPresent(row.nf_url, row.url_nf, row.lancamento_url_nf),
+    reciboUrl: firstPresent(row.url_recibo, row.lancamento_url_recibo),
+    demonstrativoUrl: firstPresent(row.url_demonstrativo, row.lancamento_url_demonstrativo),
+    documentoUrl: firstPresent(row.url_doc, row.lancamento_url_doc),
+    documentoNumero: firstPresent(row.numero_nf, row.numero_recibo, row.numero_doc, row.numero_demonstrativo, row.lancamento_numero_nf, row.lancamento_numero_recibo, row.lancamento_numero_doc, row.lancamento_numero_demonstrativo),
+    dataEmissao: row.data_emissao ?? row.lancamento_data_emissao ?? row.lancamento_criado_em ?? row.criado_em ?? null,
     nfSaidaId: row.nf_saida_id ?? null,
     dataPagamento: row.data_pagamento ?? row.data_recebimento ?? null,
     bancoPagamento: row.banco_pagamento ?? row.banco_recebimento ?? null,
@@ -312,7 +318,7 @@ async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber
   const filtros: string[] = []
   const params: unknown[] = []
   const alias = table === 'contas_apagar' ? 'cp' : 'cr'
-  const origem = table === 'contas_apagar' ? ' LEFT JOIN lancamentos l ON l.id = cp.lancamentos_id' : ''
+  const origem = ` LEFT JOIN lancamentos l ON l.id = ${alias}.lancamentos_id`
   if (table === 'contas_apagar') {
     filtros.push("COALESCE(UPPER(l.tipo_caixa), 'SHARE') = 'SHARE'")
     filtros.push('COALESCE(l.reembolsavel, 0) = 0')
@@ -323,7 +329,14 @@ async function consultarContas(c: any, table: 'contas_apagar' | 'contas_areceber
   if (cotistaId && table === 'contas_areceber') { filtros.push(`${alias}.cotista_id = ?`); params.push(cotistaId) }
   if (fornecedorId && table === 'contas_apagar') { filtros.push(`${alias}.fornecedor_id = ?`); params.push(fornecedorId) }
   if (vencidasAte) { filtros.push(`date(${alias}.data_vencimento) <= date(?)`); params.push(vencidasAte) }
-  const rows = await listar(c.env.SHARE_DB, `SELECT ${alias}.* FROM ${table} ${alias}${origem}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(${alias}.data_vencimento) ASC, ${alias}.criado_em DESC LIMIT 500`, ...params)
+  const rows = await listar(c.env.SHARE_DB, `SELECT ${alias}.*,
+      l.numero_nf AS lancamento_numero_nf, l.numero_recibo AS lancamento_numero_recibo,
+      l.numero_doc AS lancamento_numero_doc, l.numero_demonstrativo AS lancamento_numero_demonstrativo,
+      l.url_nf AS lancamento_url_nf, l.url_recibo AS lancamento_url_recibo,
+      l.url_demonstrativo AS lancamento_url_demonstrativo, l.url_boleto AS lancamento_url_boleto,
+      l.url_doc AS lancamento_url_doc, l.data_emissao AS lancamento_data_emissao,
+      l.criado_em AS lancamento_criado_em, l.fornecedor_nome
+    FROM ${table} ${alias}${origem}${filtros.length ? ` WHERE ${filtros.join(' AND ')}` : ''} ORDER BY date(${alias}.data_vencimento) ASC, ${alias}.criado_em DESC LIMIT 500`, ...params)
   const rowsComFornecedor = await enriquecerFornecedores(c.env.SHARE_DB, rows)
   const mapped = rowsComFornecedor.map(mapConta)
   if (table !== 'contas_areceber') return mapped

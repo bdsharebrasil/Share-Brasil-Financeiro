@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,20 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [bancoId, setBancoId] = useState("");
   const [comprovante, setComprovante] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("TODOS");
+  const [ordem, setOrdem] = useState("vencimento");
+
+  const enviosFiltrados = useMemo(() => envios.filter((item) => {
+    const termo = busca.trim().toLowerCase();
+    const correspondeBusca = !termo || [item.descricao, item.solicitante_nome, item.criado_por, item.id, item.tipo].some((valor) => String(valor ?? "").toLowerCase().includes(termo));
+    return correspondeBusca && (statusFiltro === "TODOS" || String(item.status).toUpperCase() === statusFiltro);
+  }).sort((a, b) => ordem === "maior" ? Number(b.valor) - Number(a.valor) : ordem === "menor" ? Number(a.valor) - Number(b.valor) : ordem === "vencimento-desc" ? String(b.vencimento ?? b.data_despesa ?? "").localeCompare(String(a.vencimento ?? a.data_despesa ?? "")) : String(a.vencimento ?? a.data_despesa ?? "").localeCompare(String(b.vencimento ?? b.data_despesa ?? ""))), [envios, busca, statusFiltro, ordem]);
+  const reembolsosFiltrados = useMemo(() => reembolsos.filter((item) => {
+    const termo = busca.trim().toLowerCase();
+    const correspondeBusca = !termo || [item.descricao, item.solicitanteNome, item.fornecedorId, item.id].some((valor) => String(valor ?? "").toLowerCase().includes(termo));
+    return correspondeBusca && (statusFiltro === "TODOS" || String(item.status).toUpperCase() === statusFiltro);
+  }).sort((a, b) => ordem === "maior" ? b.valor - a.valor : ordem === "menor" ? a.valor - b.valor : ordem === "vencimento-desc" ? b.dataVencimento.localeCompare(a.dataVencimento) : a.dataVencimento.localeCompare(b.dataVencimento)), [reembolsos, busca, statusFiltro, ordem]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -48,8 +62,11 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
 
   return <div className="space-y-5">
     {erro && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</p>}
-    <div className="flex justify-end">
-      <Button variant="outline" size="sm" onClick={() => void carregar()}><RefreshCw size={14} className="mr-2" /> Atualizar</Button>
+    <div className="grid gap-2 md:grid-cols-[1fr_190px_230px_auto]">
+      <Input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar descrição, solicitante ou documento…" aria-label="Buscar solicitações" />
+      <Select value={statusFiltro} onValueChange={setStatusFiltro}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os status</SelectItem><SelectItem value="PENDENTE">Pendente</SelectItem><SelectItem value="APROVADO">Aprovado</SelectItem><SelectItem value="EM_ABERTO">Em aberto</SelectItem><SelectItem value="PAGO">Pago</SelectItem><SelectItem value="CANCELADO">Cancelado</SelectItem></SelectContent></Select>
+      <Select value={ordem} onValueChange={setOrdem}><SelectTrigger><SelectValue placeholder="Ordenar" /></SelectTrigger><SelectContent><SelectItem value="vencimento">Vencimento mais próximo</SelectItem><SelectItem value="vencimento-desc">Vencimento mais distante</SelectItem><SelectItem value="maior">Maior valor</SelectItem><SelectItem value="menor">Menor valor</SelectItem></SelectContent></Select>
+      <Button className="h-10" variant="outline" size="sm" onClick={() => void carregar()}><RefreshCw size={14} className="mr-2" /> Atualizar</Button>
     </div>
     <Tabs defaultValue="cotista" className="space-y-4">
       <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
@@ -59,7 +76,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       <TabsContent value="cotista" className="mt-0">
         <div className="financeiro-panel overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-xs"><thead className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3">Solicitação</th><th className="px-4 py-3">Solicitante</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Data</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th></tr></thead>
-            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando envios…</td></tr> : envios.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum envio de pagamento encontrado.</td></tr> : envios.map((item) => <tr key={item.id} className="hover:bg-muted/25"><td className="max-w-[320px] truncate px-4 py-3 font-semibold">{item.descricao}</td><td className="px-4 py-3 text-muted-foreground">{item.solicitante_nome ?? item.criado_por ?? "—"}</td><td className="px-4 py-3">{item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente"}</td><td className="px-4 py-3">{formatarData(item.vencimento ?? item.data_despesa)}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(Number(item.valor ?? 0))}</td><td className="px-4 py-3"><span className="rounded-full bg-muted px-2 py-1 text-[10px]">{String(item.status).replace(/_/g, " ")}</span></td></tr>)}</tbody>
+            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando envios…</td></tr> : enviosFiltrados.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum envio de pagamento encontrado.</td></tr> : enviosFiltrados.map((item) => <tr key={item.id} className="hover:bg-muted/25"><td className="max-w-[320px] truncate px-4 py-3 font-semibold">{item.descricao}</td><td className="px-4 py-3 text-muted-foreground">{item.solicitante_nome ?? item.criado_por ?? "—"}</td><td className="px-4 py-3">{item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente"}</td><td className="px-4 py-3">{formatarData(item.vencimento ?? item.data_despesa)}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(Number(item.valor ?? 0))}</td><td className="px-4 py-3"><span className="rounded-full bg-muted px-2 py-1 text-[10px]">{String(item.status).replace(/_/g, " ")}</span></td></tr>)}</tbody>
           </table>
         </div>
       </TabsContent>
@@ -67,7 +84,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         <div className="financeiro-panel overflow-x-auto">
           <table className="w-full min-w-[800px] text-left text-xs">
             <thead className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3">Descrição</th><th className="px-4 py-3">Colaborador</th><th className="px-4 py-3">Vencimento</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead>
-            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando reembolsos…</td></tr> : reembolsos.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum reembolso pendente.</td></tr> : reembolsos.map((item) => <tr key={item.id} className="hover:bg-muted/25">
+            <tbody className="divide-y divide-border/70">{carregando ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando reembolsos…</td></tr> : reembolsosFiltrados.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum reembolso pendente.</td></tr> : reembolsosFiltrados.map((item) => <tr key={item.id} className="hover:bg-muted/25">
               <td className="max-w-[340px] px-4 py-3"><p className="truncate font-semibold">{item.descricao ?? "Despesa reembolsável"}</p><p className="mt-1 font-mono text-[10px] text-muted-foreground">{item.aeronaveId ?? "Relatório de viagem"}</p></td>
               <td className="px-4 py-3 text-muted-foreground">{item.solicitanteNome ?? "Colaborador não identificado"}</td>
               <td className="whitespace-nowrap px-4 py-3">{formatarData(item.dataVencimento)}</td>

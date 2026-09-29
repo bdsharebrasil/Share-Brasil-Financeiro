@@ -284,6 +284,8 @@ export type ReembolsoColaborador = {
   status: string;
   lancamentoId: string | null;
   solicitanteNome?: string | null;
+  documentoNumero?: string | null;
+  dataEmissao?: string | null;
 };
 
 export type MovimentoHoldingPendente = {

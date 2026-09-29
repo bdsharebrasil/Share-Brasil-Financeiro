@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, ArrowDownToLine, CalendarDays, CheckCircle2, Clock3, Eye, FileCheck2, FileText, Image as ImageIcon, Loader2, Pencil, Plus, RefreshCw, ShieldAlert, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, CalendarDays, CheckCircle2, Clock3, Eye, FileCheck2, FileText, Image as ImageIcon, Loader2, Pencil, Plus, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -219,17 +219,11 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
   const filtroBotao = (id: FiltroDocumento, label: string, quantidade?: number) => <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id} className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${filtro === id ? "border-primary/50 bg-primary/10 text-primary shadow-sm" : "border-border/70 bg-background/40 text-muted-foreground hover:bg-secondary/60 hover:text-foreground"}`}>{label}{quantidade !== undefined && <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px] tabular-nums">{quantidade}</span>}</button>;
 
   return <div className="space-y-5">
-    <section className="relative isolate overflow-hidden rounded-[26px] border border-slate-700/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-5 text-white shadow-2xl shadow-slate-950/15 sm:p-7">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,0.2),_transparent_48%)]" />
-      <div className="absolute -right-10 -top-16 -z-10 text-white/[0.035]"><FileCheck2 className="h-72 w-72" strokeWidth={0.7} /></div>
-      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-        <div className="min-w-0"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-sky-200/80"><span className="h-1.5 w-1.5 rounded-full bg-sky-300 shadow-[0_0_12px_rgba(125,211,252,.9)]" /> Dossiê técnico individual</div><h2 className="mt-2 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">Documentos da aeronave</h2><p className="mt-1 truncate text-sm text-slate-300">{aeronaveSelecionada ? nomeAeronave(aeronaveSelecionada) : `Matrícula ${aeronaveId}`} <span className="mx-1 text-slate-600">/</span> arquivos, validade e alertas</p></div>
-        <div className="flex shrink-0 items-center gap-2"><Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-10 gap-2 rounded-xl border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"><RefreshCw className={`h-4 w-4 ${atualizando ? "animate-spin" : ""}`} />Atualizar</Button><Button type="button" onClick={abrirNovo} className="h-10 gap-2 rounded-xl bg-sky-400 px-4 font-bold text-slate-950 hover:bg-sky-300"><Plus className="h-4 w-4" />Adicionar documento</Button></div>
-      </div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <ResumoDocumento icon={<FileText className="h-4 w-4" />} label="Arquivos no dossiê" valor={resumo.total} detalhe="Somente desta aeronave" tone="blue" />
-        <ResumoDocumento icon={<ShieldCheck className="h-4 w-4" />} label="Em dia" valor={resumo.emDia} detalhe="Mais de 60 dias para vencer" tone="green" />
-        <ResumoDocumento icon={<ShieldAlert className="h-4 w-4" />} label="Atenção / crítico" valor={resumo.atencao + resumo.criticos} detalhe={`${resumo.atencao} em atenção · ${resumo.criticos} críticos`} tone={resumo.criticos ? "red" : "amber"} />
+    <section className="relative isolate overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 px-4 py-3 text-white shadow-md shadow-slate-950/10 sm:px-5 sm:py-4">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,0.08),_transparent_48%)]" />
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0"><h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">Documentos da aeronave</h2><p className="mt-0.5 truncate text-xs text-slate-300">{aeronaveSelecionada ? nomeAeronave(aeronaveSelecionada) : `Matrícula ${aeronaveId}`} <span className="mx-1 text-slate-600">/</span> arquivos, validade e alertas</p></div>
+        <div className="flex shrink-0 items-center gap-2"><Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-9 gap-2 rounded-lg border-white/15 bg-white/5 px-3 text-xs text-white hover:bg-white/10 hover:text-white"><RefreshCw className={`h-3.5 w-3.5 ${atualizando ? "animate-spin" : ""}`} />Atualizar</Button><Button type="button" onClick={abrirNovo} className="h-9 gap-2 rounded-lg bg-sky-400 px-3 text-xs font-semibold text-slate-950 hover:bg-sky-300"><Plus className="h-3.5 w-3.5" />Adicionar documento</Button></div>
       </div>
     </section>
 
@@ -238,7 +232,7 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
     {erro && <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-200"><span>{erro}</span><Button type="button" variant="outline" size="sm" onClick={() => void carregar()} className="border-rose-400/30">Tentar novamente</Button></div>}
 
     <section className="overflow-hidden rounded-[24px] border border-border/80 bg-card/45 shadow-xl">
-      <div className="flex flex-col gap-4 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><div><h3 className="text-base font-bold tracking-tight">Dossiê documental</h3><p className="mt-1 text-xs text-muted-foreground">Pré-visualize PDFs e imagens sem sair desta tela.</p></div><div className="flex flex-wrap gap-2">{filtroBotao("todos", "Todos", documentosVisuais.length)}{filtroBotao("em_dia", "Em dia", resumo.emDia)}{filtroBotao("atencao", "Atenção", resumo.atencao)}{filtroBotao("criticos", "Críticos", resumo.criticos)}</div></div>
+      <div className="flex justify-end border-b border-border/70 p-3 sm:p-4"><div className="flex flex-wrap gap-2">{filtroBotao("todos", "Todos", documentosVisuais.length)}{filtroBotao("em_dia", "Em dia", resumo.emDia)}{filtroBotao("atencao", "Atenção", resumo.atencao)}{filtroBotao("criticos", "Críticos", resumo.criticos)}</div></div>
       {carregando ? <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl border border-border/70 bg-secondary/35" />)}</div> : visiveis.length ? <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 sm:p-5">{visiveis.map((item) => <CartaoDocumento key={item.id} documento={item} onVisualizar={() => void visualizar(item)} onEditar={() => abrirEdicao(item)} onExcluir={() => setExclusaoPendente(item)} visualizando={carregandoPreview === item.id} />)}</div> : <div className="flex flex-col items-center px-5 py-14 text-center"><span className="mb-4 rounded-2xl border border-sky-400/15 bg-sky-400/10 p-4 text-sky-300"><FileCheck2 className="h-7 w-7" /></span><h4 className="text-base font-bold">{documentos.length ? "Nenhum documento nesta faixa" : "Este dossiê ainda está vazio"}</h4><p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">{documentos.length ? "Altere o filtro para visualizar outros documentos." : "Adicione o certificado, seguro ou outro arquivo técnico desta aeronave. Os documentos das demais matrículas permanecem separados."}</p>{!documentos.length && <Button type="button" onClick={abrirNovo} className="mt-5 gap-2 rounded-xl"><Plus className="h-4 w-4" />Enviar primeiro documento</Button>}</div>}
     </section>
 
@@ -269,10 +263,6 @@ export default function CtmDocumentosAeronave({ aeronaveId, aeronaves, onSelecio
   </div>;
 }
 
-function ResumoDocumento({ icon, label, valor, detalhe, tone }: { icon: React.ReactNode; label: string; valor: number; detalhe: string; tone: "blue" | "green" | "amber" | "red" }) {
-  const estilos = { blue: "border-sky-300/15 bg-sky-300/[0.07] text-sky-200", green: "border-emerald-300/15 bg-emerald-300/[0.07] text-emerald-200", amber: "border-amber-300/15 bg-amber-300/[0.07] text-amber-100", red: "border-rose-300/15 bg-rose-300/[0.07] text-rose-200" };
-  return <div className={`rounded-2xl border p-4 backdrop-blur-sm ${estilos[tone]}`}><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-slate-300">{label}</span><span className="rounded-lg bg-white/[0.07] p-2">{icon}</span></div><div className="mt-2 text-3xl font-extrabold tabular-nums text-white">{valor}</div><p className="mt-1 text-[10px] text-slate-400">{detalhe}</p></div>;
-}
 function Legenda({ tom, label }: { tom: "green" | "amber" | "red"; label: string }) {
   const cor = { green: "bg-emerald-400", amber: "bg-amber-300", red: "bg-rose-400" }[tom];
   return <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/55 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground"><span className={`h-1.5 w-1.5 rounded-full ${cor}`} />{label}</span>;

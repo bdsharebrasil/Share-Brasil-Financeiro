@@ -27,6 +27,7 @@ import ConfiguracoesGestor from "@/components/dashboard/gestor/ConfiguracoesGest
 import RelatorioDespesaViagem from "@/pages/RelatorioDespesaViagem";
 import Emails from "@/pages/Emails";
 import Aerodromos from "@/pages/Aerodromos";
+import Aniversarios from "@/pages/Aniversarios";
 import CTM from "@/pages/CTM";
 import AeronavesShareBrasil from "@/pages/AeronavesShareBrasil";
 import { DashboardShareBrasil, PontoShareBrasil, DocumentosShareBrasil, TarefasShareBrasil, ContatosClientesShareBrasil } from "@/pages/ShareBrasil";
@@ -122,6 +123,7 @@ export default function LayoutInterno() {
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "configuracoes") return <ConfiguracoesGestor />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
+    if (ambiente === "share-brasil" && menuAtivo === "aniversarios") return <Aniversarios />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasPastas />;

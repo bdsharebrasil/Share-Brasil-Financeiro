@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Cake,
   CircleDollarSign,
   Clock3,
   CreditCard,
@@ -93,6 +94,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   ],
   "share-brasil": [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
+    { id: "aniversarios", label: "Aniversários", icon: Cake },
     { id: "aeronaves", label: "Aeronaves", icon: Plane },
     { id: "centro-treinamento", label: "CENTRO TREINAMENTO", icon: GraduationCap },
     { id: "sala-reuniao", label: "Sala de reunião", icon: Video },

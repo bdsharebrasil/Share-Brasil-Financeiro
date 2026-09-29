@@ -1503,3 +1503,9 @@ export type AeronavePayload = Partial<Omit<AeronaveShare, "id" | "performance_id
 export function buscarAeronavesShare(status: "ativa" | "inativa" = "ativa") { return colaboradorRequest<{ aeronaves: AeronaveShare[] }>(`/api/sharebrasil/aeronaves?status=${status}`); }
 export function buscarAeronaveShare(id: string) { return colaboradorRequest<{ aeronave: AeronaveShare }>(`/api/sharebrasil/aeronaves/${encodeURIComponent(id)}`); }
 export function criarAeronaveShare(payload: AeronavePayload) { return colaboradorRequest<{ aeronave: AeronaveShare; performance_id: string | null }>("/api/sharebrasil/aeronaves", { method: "POST", body: JSON.stringify(payload) }); }
+export type AniversarioShare = { id: string; nome: string; data_aniversario: string; empresa: string | null; categoria: string | null; url_avatar: string | null; origem: "user_profiles" | "aniversarios"; criado_em?: string | null; atualizado_em?: string | null };
+export type AniversarioSharePayload = { nome: string; data_aniversario: string; empresa?: string | null; categoria?: string | null; url_avatar?: string | null };
+export function buscarAniversariosShare() { return colaboradorRequest<{ aniversarios: AniversarioShare[] }>("/api/interno/aniversarios"); }
+export function criarAniversarioShare(payload: AniversarioSharePayload) { return colaboradorRequest<{ aniversario: AniversarioShare }>("/api/interno/aniversarios", { method: "POST", body: JSON.stringify(payload) }); }
+export function atualizarAniversarioShare(id: string, payload: AniversarioSharePayload) { return colaboradorRequest<{ aniversario: AniversarioShare; success: boolean }>(`/api/interno/aniversarios/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirAniversarioShare(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aniversarios/${encodeURIComponent(id)}`, { method: "DELETE" }); }

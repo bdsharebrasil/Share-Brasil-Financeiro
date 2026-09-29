@@ -369,7 +369,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       const idempotency_key = crypto.randomUUID();
       const payload = tipo === "share" ? {
         idempotency_key,
-        tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_vencimento: form.vencimento,
+        tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
         fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id, categoria_id: form.categoria_id,
         categoria_nome: form.categoria_nome, grupo_categoria: "DESPESAS EMPRESA", periodicidade: form.periodicidade,
         aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),

@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
-import { Wallet } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AbaSolicitacoesCompra } from "./AbaSolicitacoesCompra";
 import { toast } from "sonner";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import type { ContaAPagar } from "./tipos";
@@ -20,7 +23,7 @@ function formatarBRLLocal(valor: number): string {
   return formatarBRL(valor);
 }
 
-export function AbaContasAPagar() {
+export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAPagar({});
 
   async function editar(lancamento: LancamentoTabela) {
@@ -64,13 +67,13 @@ export function AbaContasAPagar() {
   }, [itens, filtros]);
 
   const emAberto = useMemo(
-    () => contas.filter((c) => c.status === "PENDENTE" || c.status === "EM_ABERTO").reduce((s, c) => s + c.valor, 0),
+    () => contas.filter((c) => !["PAGO", "CANCELADO"].includes(c.status)).reduce((s, c) => s + c.valor, 0),
     [contas],
   );
-  const atrasado = useMemo(
-    () => contas.filter((c) => c.status === "PENDENTE" && new Date(c.dataVencimento) < new Date()).reduce((s, c) => s + c.valor, 0),
-    [contas],
-  );
+  const atrasado = useMemo(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return contas.filter((c) => !["PAGO", "CANCELADO"].includes(c.status) && c.dataVencimento.slice(0, 10) < hoje).reduce((s, c) => s + c.valor, 0);
+  }, [contas]);
   const totalPago = useMemo(
     () => contas.filter((c) => c.status === "PAGO").reduce((s, c) => s + c.valor, 0),
     [contas],
@@ -88,7 +91,14 @@ export function AbaContasAPagar() {
   }
 
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue="contas" className="space-y-4">
+      <TabsList className="h-auto rounded-xl border border-border bg-card p-1">
+        <TabsTrigger value="contas" className="rounded-lg px-4 py-2 text-xs">Contas da Share</TabsTrigger>
+        <TabsTrigger value="compras" className="rounded-lg px-4 py-2 text-xs">Solicitações de compra</TabsTrigger>
+      </TabsList>
+      <TabsContent value="compras" className="mt-0"><AbaSolicitacoesCompra /></TabsContent>
+      <TabsContent value="contas" className="mt-0">
+      <div className="space-y-4">
       {erro && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {erro}
@@ -135,6 +145,7 @@ export function AbaContasAPagar() {
         onAgendar={(l) => void agendar(l)}
         onAnexar={(l) => void anexar(l)}
         carregando={carregando}
+        acoes={<Button size="sm" className="gap-2" onClick={onNovaConta}><Plus size={14} /> Nova conta</Button>}
       />
 
       <DarBaixaDialog
@@ -148,6 +159,8 @@ export function AbaContasAPagar() {
         onFechar={() => setDetalheId(null)}
         onBaixar={darBaixa}
       />
-    </div>
+      </div>
+      </TabsContent>
+    </Tabs>
   );
 }

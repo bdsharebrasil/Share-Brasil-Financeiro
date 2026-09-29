@@ -41,7 +41,8 @@ function statusTabela(status: string): string {
 }
 
 export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
-  const vencida = conta.status === "PENDENTE" && new Date(conta.dataVencimento) < new Date();
+  const pendente = ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(conta.status);
+  const vencida = pendente && conta.dataVencimento.slice(0, 10) < hojeISO();
   return {
     id: conta.id,
     lancamentoId: conta.lancamentoId,

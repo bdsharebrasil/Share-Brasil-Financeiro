@@ -49,8 +49,10 @@ function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefine
   const porId = new Map<string, SolicitacaoVooInterna>();
   for (const item of Array.isArray(itens) ? itens : []) {
     if (!item?.id) continue;
-    const existente = porId.get(item.id);
-    if (!existente || String(item.atualizado_em || item.criado_em) >= String(existente.atualizado_em || existente.criado_em)) porId.set(item.id, item);
+    const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const normalizado = status === "em_rota" ? { ...item, status: "em_voo" } : item;
+    const existente = porId.get(normalizado.id);
+    if (!existente || String(normalizado.atualizado_em || normalizado.criado_em) >= String(existente.atualizado_em || existente.criado_em)) porId.set(normalizado.id, normalizado);
   }
   return [...porId.values()];
 }
@@ -82,16 +84,16 @@ function formatarData(valor: string | null | undefined) {
 }
 function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
   if (status === "aprovada") return "green";
-  if (status === "em_voo") return "blue";
+  if (status === "em_voo" || status === "em_rota") return "blue";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 function statusLabel(status: string) {
-  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_rota: "Em voo", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
-  const prioridadeStatus: Record<string, number> = { em_voo: 0, aprovada: 1, pendente: 2 };
+  const prioridadeStatus: Record<string, number> = { em_voo: 0, em_rota: 0, aprovada: 1, pendente: 2 };
   return [...itens].sort((a, b) => {
     const prioridadeA = prioridadeStatus[a.status] ?? 3;
     const prioridadeB = prioridadeStatus[b.status] ?? 3;
@@ -306,9 +308,9 @@ export default function Agendamentos() {
     {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} visao={visaoEscala} aoMudarVisao={setVisaoEscala} aoMarcar={() => setMostrarDisponibilidade((atual) => !atual)} />}
     {aba === "cronograma" && <Cronograma selecionada={selecionada} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
-    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando}aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }}aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
+    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
     {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} />}
-    {selecionada && ["aprovada", "em_voo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async () => { await carregar(true); setSelecionada((atual) => atual ? { ...atual, status: "em_voo" } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
+    {selecionada && ["aprovada", "em_rota", "em_voo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async () => { await carregar(true); setSelecionada((atual) => atual ? { ...atual, status: "em_voo" } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
   </div>;
 }
 
@@ -483,8 +485,8 @@ function Cronograma({ selecionada, solicitacoes, nomesTripulantes, busca, filtro
 
 function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { item: SolicitacaoVooInterna; nomesTripulantes: Map<string, string>; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
   const cliente = item.voo_emprestado !== "nao" && item.socio_emprestimo_nome ? item.socio_emprestimo_nome : item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cliente não informado";
-  const podeAbrirJornada = ["aprovada", "em_voo", "encerrada"].includes(item.status);
-  const bordaStatus = item.status === "em_voo"
+  const podeAbrirJornada = ["aprovada", "em_rota", "em_voo", "encerrada"].includes(item.status);
+  const bordaStatus = item.status === "em_voo" || item.status === "em_rota"
     ? "border-blue-400/70"
     : item.status === "aprovada"
       ? "border-green-400/70"

@@ -17,6 +17,7 @@ type Allocation = CotistaRow & {
 }
 
 const uuid = () => crypto.randomUUID()
+const FORNECEDOR_RELATORIO_VIAGEM = 'SHARE BRASIL'
 
 function text(value: unknown): string {
   return value == null ? '' : String(value).trim()
@@ -65,14 +66,13 @@ function expensesFromReport(report: ReportRow): Array<Record<string, any>> {
 }
 
 function payerDescription(report: ReportRow, payer: Payer): string {
-  const label = payer === 'tripulante_1'
-    ? 'Tripulante 1'
-    : payer === 'tripulante_2'
-      ? 'Tripulante 2'
-      : payer === 'cliente'
-        ? 'Cliente'
-        : 'ShareBrasil'
-  return `Relatório de despesa de viagem ${text(report.numero_relatorio) || text(report.id)} · ${label}`
+  const matricula = text(report.matricula_aeronave) || text(report.aeronave_matricula)
+  const nomeTripulante = payer === 'tripulante_2'
+    ? text(report.nome_tripulante_2)
+    : payer === 'tripulante_1'
+      ? text(report.nome_tripulante)
+      : ''
+  return ['Relatório Despesa de Viagem', matricula, nomeTripulante].filter(Boolean).join(' - ')
 }
 
 function categoryDescription(expenses: Array<Record<string, any>>): string | null {
@@ -114,7 +114,7 @@ async function selectCotistas(db: D1Database, report: ReportRow): Promise<{ kind
        LIMIT 1`).bind(text(report.aeronave_id), text(report.cliente_id)).all<CotistaRow>()
   }
   const rows = (result.results || []).filter((row) => text(row.id))
-  if (!rows.length) throw new Error(kind === 'HOLDING' ? 'cotistas_holding_nao_encontrados' : 'cotistas_cliente_nao_encontrados')
+  if (!rows.length && kind === 'HOLDING') throw new Error('cotistas_holding_nao_encontrados')
   return { kind, rows }
 }
 
@@ -215,30 +215,31 @@ async function addRateiosHolding(
   const direct = false
   const movimentoStatus = 'EM_ABERTO'
   const rateioStatus = 'EM_ABERTO'
+  const movimentoId = uuid()
+  statements.push(await prepareInsert(db, 'movimentos_holding', {
+    id: movimentoId,
+    holding_id: allocations[0]?.holding_id,
+    socio_id: allocations[0]?.socio_id,
+    aeronave_id: text(report.aeronave_id),
+    tipo_caixa: 'HOLD',
+    data_emissao: dateValue(report.data_inicio, new Date().toISOString().slice(0, 10)),
+    data_vencimento: dateValue(report.data_vencimento_reembolso, dateValue(report.data_fim, dateValue(report.data_inicio, new Date().toISOString().slice(0, 10)))),
+    data_pagamento: null,
+    descricao: description,
+    categoria_nome: direct && payer === 'cliente' ? 'DESPESAS PAGAS DIRETAMENTE PELO CLIENTE' : payer === 'sharebrasil' ? 'DESPESAS EMPRESA' : 'DESPESAS REEMBOLSÁVEIS',
+    grupo_categoria: payer === 'sharebrasil' ? 'DESPESAS EMPRESA' : 'DESPESAS REEMBOLSÁVEIS',
+    fluxo: 'SAIDA',
+    valor_centavos: amountCentavos,
+    status: movimentoStatus,
+    pago_diretamente: direct ? 1 : 0,
+    colaborador_id: payer === 'tripulante_1' || payer === 'tripulante_2' ? await findTripulanteUserId(db, payer === 'tripulante_1' ? report.tripulacao_id : report.tripulante_id_2) : null,
+    criado_por: userId,
+    observacoes: `Origem: relatório ${text(report.numero_relatorio) || text(report.id)}`,
+  }))
+  await addLinkStatements(db, statements, text(report.id), 'MOVIMENTO_HOLDING', movimentoId, 'RELATORIO_MOVIMENTO_HOLDING')
   for (const allocation of allocations) {
     if (!allocation.socio_id) continue
-    const movimentoId = uuid()
     const rateioId = uuid()
-    statements.push(await prepareInsert(db, 'movimentos_holding', {
-      id: movimentoId,
-      holding_id: allocation.holding_id,
-      socio_id: allocation.socio_id,
-      aeronave_id: text(report.aeronave_id),
-      tipo_caixa: 'HOLD',
-      data_emissao: dateValue(report.data_inicio, new Date().toISOString().slice(0, 10)),
-      data_vencimento: dateValue(report.data_fim, dateValue(report.data_inicio, new Date().toISOString().slice(0, 10))),
-      data_pagamento: null,
-      descricao: description,
-      categoria_nome: direct && payer === 'cliente' ? 'DESPESAS PAGAS DIRETAMENTE PELO CLIENTE' : payer === 'sharebrasil' ? 'DESPESAS EMPRESA' : 'DESPESAS REEMBOLSÁVEIS',
-      grupo_categoria: payer === 'sharebrasil' ? 'DESPESAS EMPRESA' : 'DESPESAS REEMBOLSÁVEIS',
-      fluxo: 'SAIDA',
-      valor_centavos: allocation.valor_rateado_centavos,
-      status: movimentoStatus,
-      pago_diretamente: direct ? 1 : 0,
-      colaborador_id: payer === 'tripulante_1' || payer === 'tripulante_2' ? await findTripulanteUserId(db, payer === 'tripulante_1' ? report.tripulacao_id : report.tripulante_id_2) : null,
-      criado_por: userId,
-      observacoes: `Origem: relatório ${text(report.numero_relatorio) || text(report.id)}`,
-    }))
     statements.push(await prepareInsert(db, 'rateio_hold', {
       id: rateioId,
       movimento_holding_id: movimentoId,
@@ -260,9 +261,9 @@ async function addRateiosHolding(
       descricao_despesa: description,
       observacoes: `Origem: relatório ${text(report.numero_relatorio) || text(report.id)}`,
     }))
-    await addLinkStatements(db, statements, text(report.id), 'MOVIMENTO_HOLDING', movimentoId, 'RELATORIO_MOVIMENTO_HOLDING')
     await addLinkStatements(db, statements, text(report.id), 'RATEIO_HOLD', rateioId, 'RELATORIO_RATEIO_HOLD')
   }
+  return movimentoId
 }
 
 export async function sincronizarRelatorioViagemFinanceiro(
@@ -280,10 +281,17 @@ export async function sincronizarRelatorioViagemFinanceiro(
     const payer = normalizePayer(expense.pago_por ?? expense.paid_by)
     grouped.set(payer, [...(grouped.get(payer) || []), expense])
   }
-  const existing = payerOnly
-    ? await db.prepare(`SELECT id AS destino_id, 'LANCAMENTO' AS destino_tipo
-        FROM lancamentos WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM'
-        AND origem_id = ?1 AND idempotency_key = ?2`).bind(reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payerOnly}`).all<{ destino_tipo: string; destino_id: string }>()
+  const { kind, rows } = await selectCotistas(db, report)
+  const existing = payerOnly && kind === 'HOLDING'
+    ? await db.prepare(`SELECT fv.destino_id, fv.destino_tipo
+        FROM financeiro_vinculos fv
+        INNER JOIN movimentos_holding mh ON mh.id = fv.destino_id
+        WHERE fv.origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND fv.origem_id = ?1
+          AND fv.destino_tipo = 'MOVIMENTO_HOLDING' AND mh.descricao = ?2`).bind(reportId, payerDescription(report, payerOnly)).all<{ destino_tipo: string; destino_id: string }>()
+    : payerOnly
+      ? await db.prepare(`SELECT id AS destino_id, 'LANCAMENTO' AS destino_tipo
+          FROM lancamentos WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM'
+          AND origem_id = ?1 AND idempotency_key = ?2`).bind(reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payerOnly}`).all<{ destino_tipo: string; destino_id: string }>()
     : await db.prepare(`SELECT destino_tipo, destino_id
         FROM financeiro_vinculos
         WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?1
@@ -294,19 +302,24 @@ export async function sincronizarRelatorioViagemFinanceiro(
       if (payerOnly && payer !== payerOnly) continue
       const amountCentavos = Math.round(payerExpenses.reduce((sum, expense) => sum + numberValue(expense.valor), 0) * 100)
       const description = payerDescription(report, payer)
-      await db.prepare(`UPDATE lancamentos SET valor_centavos = ?, descricao = ?, data_vencimento = ?
-        WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND idempotency_key = ?`)
-        .bind(amountCentavos, description, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}`).run()
-      if (payer === 'tripulante_1' || payer === 'tripulante_2') {
-        await db.prepare(`UPDATE contas_apagar SET valor_centavos = ?, descricao = ?, data_vencimento = ?
+      if (kind === 'HOLDING') {
+        await db.prepare(`UPDATE movimentos_holding SET valor_centavos = ?, descricao = ?, fornecedor_nome = ?, numero_doc = ?, url_doc = ?, data_vencimento = ?
+          WHERE id IN (SELECT destino_id FROM financeiro_vinculos WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND destino_tipo = 'MOVIMENTO_HOLDING')
+            AND descricao = ?`).bind(amountCentavos, description, FORNECEDOR_RELATORIO_VIAGEM, text(report.numero_relatorio), text(report.pdf_path) || null, existingDueDate, reportId, description).run()
+      } else {
+        await db.prepare(`UPDATE lancamentos SET valor_centavos = ?, descricao = ?, fornecedor_nome = ?, numero_doc = ?, url_doc = ?, cotista_aeronave_id = ?, cliente_id = ?, data_vencimento = ?
           WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND idempotency_key = ?`)
-          .bind(amountCentavos, description, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}:CONTA_PAGAR`).run()
+          .bind(amountCentavos, description, FORNECEDOR_RELATORIO_VIAGEM, text(report.numero_relatorio), text(report.pdf_path) || null, rows[0]?.id || null, text(report.cliente_id) || null, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}`).run()
+        if (payer === 'tripulante_1' || payer === 'tripulante_2') {
+          await db.prepare(`UPDATE contas_apagar SET valor_centavos = ?, descricao = ?, data_vencimento = ?
+            WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND idempotency_key = ?`)
+            .bind(amountCentavos, description, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}:CONTA_PAGAR`).run()
+        }
       }
     }
     return { idempotent: true, destinos: (existing.results || []).map((item) => ({ tipo: item.destino_tipo, id: item.destino_id })) }
   }
 
-  const { kind, rows } = await selectCotistas(db, report)
   const statements: D1PreparedStatement[] = []
   const destinos: Array<{ tipo: string; id: string }> = []
   const fallbackDate = dateValue(report.data_fim, dateValue(report.data_inicio, new Date().toISOString().slice(0, 10)))
@@ -322,7 +335,7 @@ export async function sincronizarRelatorioViagemFinanceiro(
     if (amountCentavos <= 0) continue
     const description = payerDescription(report, payer)
     const allocations = allocate(amountCentavos, rows, kind === 'HOLDING')
-    if (!allocations.length) continue
+    if (!allocations.length && kind === 'HOLDING') continue
 
     let lancamentoId: string | null = null
     let contaPagarId: string | null = null
@@ -332,7 +345,7 @@ export async function sincronizarRelatorioViagemFinanceiro(
         ? await findTripulanteUserId(db, report.tripulante_id_2)
         : null
 
-    if (payer !== 'cliente') {
+    if (payer !== 'cliente' && kind === 'CLIENTE') {
       lancamentoId = uuid()
       const reembolsavel = payer === 'tripulante_1' || payer === 'tripulante_2'
       statements.push(await prepareInsert(db, 'lancamentos', {
@@ -343,6 +356,11 @@ export async function sincronizarRelatorioViagemFinanceiro(
         data_vencimento: dueDate,
         data_pagamento: null,
         descricao: description,
+        fornecedor_nome: FORNECEDOR_RELATORIO_VIAGEM,
+        numero_doc: text(report.numero_relatorio),
+        url_doc: text(report.pdf_path) || null,
+        cotista_aeronave_id: allocations[0]?.id || null,
+        cliente_id: kind === 'CLIENTE' ? text(report.cliente_id) || null : null,
         categoria_nome: reembolsavel ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA',
         grupo_categoria: reembolsavel ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA',
         status: 'EM_ABERTO',
@@ -387,8 +405,9 @@ export async function sincronizarRelatorioViagemFinanceiro(
 
     if (kind === 'CLIENTE' && !payerOnly) {
       await addRateiosCliente(db, statements, report, allocations, amountCentavos, lancamentoId, payer, description, userId)
-    } else if (!payerOnly) {
-      await addRateiosHolding(db, statements, report, allocations, amountCentavos, payer, description, userId)
+    } else {
+      const movimentoId = await addRateiosHolding(db, statements, report, allocations, amountCentavos, payer, description, userId)
+      destinos.push({ tipo: 'MOVIMENTO_HOLDING', id: movimentoId })
     }
   }
 

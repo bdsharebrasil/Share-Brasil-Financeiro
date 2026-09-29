@@ -81,7 +81,7 @@ function HistoricoJornadas({ jornadas }: { jornadas: Jornada[] }) {
 }
 function HistoricoDetalhe({ label, valor, icon }: { label: string; valor: string; icon?: ReactNode }) { return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><div className="flex items-center gap-1 text-[9px] text-muted-foreground">{icon}{label}</div><p className="mt-1.5 truncate text-[10px] font-semibold">{valor}</p></div>; }
 
-export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInterna; aoFechar?: () => void }) {
+export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: { item: SolicitacaoVooInterna; aoFechar?: () => void; aoAtualizarAgendamento?: () => void | Promise<void> }) {
   const [jornada, setJornada] = useState<Jornada | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -139,7 +139,7 @@ export default function JornadaVoo({ item, aoFechar }: { item: SolicitacaoVooInt
     const horarioAcionamento = utc(data, acionamento);
     const horarioDep = utc(data, perna.horario_dep);
     if (!horarioApresentacao || !horarioAcionamento || !horarioDep) { setErro("Os horários informados não são válidos em UTC."); return; }
-    try { await iniciarJornadaVoo(item.id, { data, data_jornada: data, horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep, origem: perna.origem, aerodromo_partida: perna.origem, destino: perna.destino, aerodromo_chegada: perna.destino, numero_passageiros: Number(perna.numero_passageiros), tripulante_id: item.piloto_id, tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) }); await carregar(); setMensagem("Check-in, AC e DEP salvos. Volte depois para registrar POU e COR."); }
+    try { await iniciarJornadaVoo(item.id, { data, data_jornada: data, horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep, origem: perna.origem, aerodromo_partida: perna.origem, destino: perna.destino, aerodromo_chegada: perna.destino, numero_passageiros: Number(perna.numero_passageiros), tripulante_id: item.piloto_id, tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) }); await carregar(); await aoAtualizarAgendamento?.(); setMensagem("Check-in, AC e DEP salvos. Volte depois para registrar POU e COR."); }
     catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível iniciar a jornada."); } finally { setSalvando(false); }
   };
   const salvarCorte = async () => {

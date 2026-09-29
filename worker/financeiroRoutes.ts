@@ -2,6 +2,9 @@ import { Hono } from 'hono'
 import {
   createExpense,
   createReimbursement,
+  createSubmittedReimbursement,
+  createExternalReceivable,
+  createDirectExternalExpense,
   enqueueFinance,
   FinanceError,
   issueRevenue,
@@ -1495,7 +1498,8 @@ financeiroRoutes.post('/envios-pagamento', async (c) => {
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : 'dados_de_envio_invalidos', code: 'dados_de_envio_invalidos' }, 400)
     }
-    return c.json(await createPaymentRequest(c.env.SHARE_DB, input, c.get('userId') || null), 201)
+    const result = await createPaymentRequest(c.env.SHARE_DB, input, c.get('userId') || null)
+    return c.json(result, result.idempotent ? 200 : 201)
   } catch (error) { return errorResponse(c, error) }
 })
 
@@ -1597,7 +1601,15 @@ financeiroRoutes.post('/envios-pagamento/:id/converter', async (c) => {
     if (!request) return c.json({ error: 'solicitacao_nao_encontrada' }, 404)
     if (request.tipo === 'share' && !['APROVADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
     if (request.tipo !== 'share' && !['PENDENTE', 'APROVADO', 'EMAIL_ENVIADO', 'CONVERTIDO'].includes(String(request.status))) return c.json({ error: 'solicitacao_nao_aprovada' }, 409)
-    return c.json(await convertPaymentRequest(c.env.SHARE_DB, request, (db, body, uid, options) => createExpense(db, body, uid, options), c.get('userId') || null, createReimbursement))
+    return c.json(await convertPaymentRequest(
+      c.env.SHARE_DB,
+      request,
+      (db, body, uid, options) => createExpense(db, body, uid, options),
+      c.get('userId') || null,
+      createSubmittedReimbursement,
+      createExternalReceivable,
+      createDirectExternalExpense,
+    ))
   } catch (error) { return errorResponse(c, error) }
 })
 

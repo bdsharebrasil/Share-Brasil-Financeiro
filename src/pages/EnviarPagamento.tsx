@@ -13,6 +13,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
 import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -142,9 +143,7 @@ function formatarValor(valor: number) {
 }
 
 function converterValor(valor: string) {
-  const limpo = valor.trim();
-  if (!limpo) return 0;
-  return Number(limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo) || 0;
+  return parseReaisToCentavos(valor) / 100;
 }
 
 export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCaixaShare?: boolean }) {
@@ -244,7 +243,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const selecionada = opcoes.find((opcao) => opcao.tipo === tipo) ?? null;
   const recentes = useMemo(() => envios.slice(0, 8), [envios]);
   const valorInformado = converterValor(form.valor);
-  const valorCentavos = Math.round(valorInformado * 100);
+  const valorCentavos = parseReaisToCentavos(form.valor);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
@@ -273,14 +272,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       percentual: Number(linha.percentual) || 0,
       percentual_sociedade: Number(cotistas.find((cotista) => cotista.id === linha.cotista_id)?.percentual_sociedade || 0),
     })).filter((linha) => linha.percentual > 0)
-    let distribuido = 0
-    return linhas.map((linha, index) => {
-      const valor = index === linhas.length - 1
-        ? valorCentavos - distribuido
-        : Math.round(valorCentavos * linha.percentual / 100)
-      distribuido += valor
-      return { ...linha, valor_centavos: valor }
-    })
+    return allocateCentavos(valorCentavos, linhas.map((linha) => linha.percentual)).map((valor, index) => ({ ...linhas[index], valor_centavos: valor }))
   };
 
   const validarRateio = () => {

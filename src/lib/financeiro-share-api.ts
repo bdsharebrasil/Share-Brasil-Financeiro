@@ -10,6 +10,7 @@ import type {
   FornecedorFavorito,
   Lancamento,
 } from "@/components/financeiro-share/tipos";
+import { formatCentavos, formatReais, parseReaisToCentavos } from "@/lib/money";
 
 async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -417,17 +418,15 @@ export async function criarLancamentoEconomico(dados: Record<string, unknown>) {
 }
 
 export function parseValorReais(valor: string): number {
-  const limpo = String(valor || "").replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3},)/g, "").replace(",", ".");
-  const numero = Number(limpo);
-  return Number.isFinite(numero) ? Math.round(numero * 100) : 0;
+  return parseReaisToCentavos(valor);
 }
 
 export function formatarMoeda(valor: number | null | undefined) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(valor || 0));
+  return formatReais(valor);
 }
 
 export function formatarCentavos(valorCentavos: number | null | undefined) {
-  return formatarMoeda(Number(valorCentavos || 0) / 100);
+  return formatCentavos(valorCentavos);
 }
 
 export function formatarData(valor: string | null | undefined) {

@@ -41,6 +41,7 @@ import {
   type OpcoesRecibos,
   type Recibo as ReciboFinanceiro,
 } from "@/lib/colaborador-api";
+import { parseReaisToCentavos } from "@/lib/money";
 
 // ---------------------------------------------------------------------------
 // Dados fixos da Share (usados como emissor/recebedor/pagador conforme o
@@ -185,12 +186,7 @@ function moeda(valor: number) {
 }
 
 function valorNumerico(valor: string) {
-  const limpo = valor.trim();
-  return (
-    Number(
-      limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo,
-    ) || 0
-  );
+  return parseReaisToCentavos(valor) / 100;
 }
 
 function dataPorExtenso(valor: string) {

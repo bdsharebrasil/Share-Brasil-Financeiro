@@ -11,6 +11,7 @@ import {
   type CotistaAeronave,
   type Recibo,
 } from "@/lib/colaborador-api";
+import { allocateCentavos } from "@/lib/money";
 
 const tipos = ["FIXO", "VARIAVEL_POR_VOO", "VARIAVEL_POR_HORA", "EXTRA"] as const;
 const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"];
@@ -102,19 +103,15 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           setErro("Informe aeronave, vencimento e percentuais dos cotistas somando 100%.");
           return;
         }
-        let restanteCentavos = Number(recibo.valor || 0);
+        const valoresRateados = allocateCentavos(Number(recibo.valor || 0), selecionadosRateio.map((cotista) => Number(percentuais[cotista.id])));
         const rateioLinhas = selecionadosRateio.map((cotista, index) => {
           const percentual = Number(percentuais[cotista.id]);
-          const valorCentavos = index === selecionadosRateio.length - 1
-            ? restanteCentavos
-            : Math.round(Number(recibo.valor || 0) * percentual / totalPercentual);
-          restanteCentavos -= valorCentavos;
           return {
             cotista_id: cotista.id,
             socio_id: cotista.socio_id,
             percentual,
             percentual_sociedade: Number(cotista.percentual_sociedade || 0),
-            valor_centavos: valorCentavos,
+            valor_centavos: valoresRateados[index],
           };
         });
         const payload: RateioDiretoPayload = {

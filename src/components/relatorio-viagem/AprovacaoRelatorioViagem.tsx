@@ -312,7 +312,7 @@ export default function AprovacaoRelatorioViagem() {
       .then(async (response) => {
         const json = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(json?.error || "Link inválido ou expirado.");
+          throw new Error(json?.message || json?.error || "Link inválido ou expirado.");
         }
         if (!ativo) return;
 
@@ -657,7 +657,7 @@ export default function AprovacaoRelatorioViagem() {
 
       if (!response.ok) {
         throw new Error(
-          json?.error || "Não foi possível registrar sua decisão.",
+          json?.message || json?.error || "Não foi possível registrar sua decisão.",
         );
       }
 

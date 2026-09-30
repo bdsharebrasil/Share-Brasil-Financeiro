@@ -44,7 +44,6 @@ import {
   buscarRelatorioDespesaViagem,
   buscarRelatoriosDespesaViagem,
   criarRelatorioDespesaViagem,
-  decidirAprovacaoRelatorio,
   enviarAnexoRelatorio,
   enviarDespesaAoCliente,
   buscarProgramacaoReembolsoRelatorio,
@@ -534,6 +533,15 @@ export default function RelatorioDespesaViagem({
     }
   };
   const prepararPdf = async (item: Relatorio) => {
+    const despesasDoRelatorio: Despesa[] = (Array.isArray(item.despesas) ? item.despesas : []).map((despesa: any, indice: number) => ({
+      id: String(despesa.id || `${item.id}-despesa-${indice + 1}`),
+      data: String(despesa.data || ""),
+      categoria: String(despesa.categoria || "Outros"),
+      descricao: String(despesa.descricao || ""),
+      valor: Number(despesa.valor) || 0,
+      observacoes: String(despesa.observacoes || ""),
+      pago_por: normalizarPagoPor(despesa.pago_por || despesa.paid_by),
+    }));
     const anexos = await Promise.all(
       (item.anexos || []).map(async (anexo) => ({
         nome_arquivo: anexo.nome_arquivo,
@@ -542,28 +550,47 @@ export default function RelatorioDespesaViagem({
         arquivo: await baixarAnexoRelatorio(item.id, anexo.id),
       })),
     );
+    const aeronave = opcoes.aeronaves.find((opcao) => opcao.id === item.aeronave_id);
+    const cliente = opcoes.clientes.find((opcao) => opcao.id === item.cliente_id);
+    const tripulante1 = opcoes.tripulantes.find((opcao) => opcao.id === item.tripulacao_id);
+    const tripulante2 = opcoes.tripulantes.find((opcao) => opcao.id === item.tripulante_id_2);
     const blob = await gerarPdfRelatorioViagem({
       ...item,
-      cliente_nome: item.cliente_nome || clienteSelecionado?.razao_social,
-      aeronave_matricula: item.aeronave_matricula || aeronaveSelecionada?.matricula_registro,
-      nome_tripulante: item.nome_tripulante || form.nome_tripulante,
-      nome_tripulante_2: item.nome_tripulante_2 || form.nome_tripulante_2,
-      despesas,
-      total_valor: total,
+      cliente_nome: item.cliente_nome || cliente?.razao_social || item.holding_nome || clienteSelecionado?.razao_social,
+      aeronave_matricula: item.aeronave_matricula || item.matricula_aeronave || aeronave?.matricula_registro || aeronaveSelecionada?.matricula_registro,
+      nome_tripulante: item.nome_tripulante || tripulante1?.nome_completo || form.nome_tripulante,
+      nome_tripulante_2: item.nome_tripulante_2 || tripulante2?.nome_completo || form.nome_tripulante_2,
+      despesas: despesasDoRelatorio,
+      total_valor: Number(item.total_valor) || despesasDoRelatorio.reduce((soma, despesa) => soma + despesa.valor, 0),
       anexos,
     });
     return blob;
   };
   const gerarPdf = async (item: Relatorio, blob?: Blob) => {
     const pdfBlob = blob || await prepararPdf(item);
-    const arquivo = new File([pdfBlob], `relatorio-${item.numero_relatorio}.pdf`, {
+    const nomeSeguro = String(item.numero_relatorio || item.id).replace(/[^a-zA-Z0-9._-]+/g, "_");
+    const arquivo = new File([pdfBlob], `relatorio-${nomeSeguro}.pdf`, {
       type: "application/pdf",
     });
     const resposta = await enviarPdfRelatorio(item.id, arquivo);
-    setRelatorio((atual) =>
-      atual ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual,
-    );
+    setRelatorio((atual) => atual?.id === item.id ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual);
+    setRelatorios((atuais) => atuais.map((atual) => atual.id === item.id ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual));
     return resposta;
+  };
+  const baixarPdf = async (item: Relatorio) => {
+    try {
+      const url = URL.createObjectURL(await baixarPdfRelatorio(item.id));
+      const link = document.createElement("a");
+      const nomeSeguro = String(item.numero_relatorio || item.id).replace(/[^a-zA-Z0-9._-]+/g, "_");
+      link.href = url;
+      link.download = `relatorio-${nomeSeguro}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível baixar o PDF." });
+    }
   };
   const abrirPdf = async (id: string) => {
     try {
@@ -586,18 +613,23 @@ export default function RelatorioDespesaViagem({
     setSalvando(true);
     try {
       const resposta = await finalizarRelatorioDespesaViagem(salvo.id);
-      setRelatorio(resposta.relatorio);
+      const relatorioFinalizado = resposta.relatorio;
+      setRelatorio(relatorioFinalizado);
       setRelatorios((atuais) =>
         atuais.map((item) =>
-          item.id === salvo.id ? resposta.relatorio : item,
+          item.id === salvo.id ? relatorioFinalizado : item,
         ),
       );
-      const blob = await prepararPdf(resposta.relatorio);
+      const blob = await prepararPdf(relatorioFinalizado);
+      const pdf = await gerarPdf(relatorioFinalizado, blob);
+      const relatorioComPdf = { ...relatorioFinalizado, pdf_url: pdf.pdf_url, pdf_path: pdf.pdf_path };
+      setRelatorio(relatorioComPdf);
+      setRelatorios((atuais) => atuais.map((item) => item.id === relatorioComPdf.id ? relatorioComPdf : item));
       const url = URL.createObjectURL(blob);
-      setPdfPreview({ item: resposta.relatorio, blob, url });
+      setPdfPreview({ item: relatorioComPdf, blob, url });
       setMensagem({
         tipo: "ok",
-        texto: "Relatório finalizado. Confira a prévia e clique em Gerar PDF para salvar.",
+        texto: "Relatório finalizado e PDF salvo. Você já pode baixá-lo ou enviá-lo para aprovação.",
       });
     } catch (error) {
       setMensagem({
@@ -611,24 +643,25 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
-  const confirmarGeracaoPdf = async () => {
-    if (!pdfPreview) return;
+  const gerarPdfDoRelatorio = async () => {
+    if (!relatorio) return;
     setSalvando(true);
     try {
-      const resposta = await gerarPdf(pdfPreview.item, pdfPreview.blob);
-      setRelatorio((atual) => atual ? { ...atual, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : atual);
-      setRelatorios((atuais) => atuais.map((item) => item.id === pdfPreview.item.id ? { ...item, pdf_url: resposta.pdf_url, pdf_path: resposta.pdf_path } : item));
-      URL.revokeObjectURL(pdfPreview.url);
-      setPdfPreview(null);
-      setMensagem({ tipo: "ok", texto: "PDF gerado e salvo com sucesso." });
+      await gerarPdf(relatorio);
+      setMensagem({ tipo: "ok", texto: "PDF gerado e salvo. Use Baixar PDF para fazer o download." });
     } catch (error) {
       setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível gerar o PDF." });
     } finally { setSalvando(false); }
+  };
+  const fecharPdfPreview = () => {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
+    setPdfPreview(null);
   };
   const enviarAprovacao = async (pos: 1 | 2) => {
     if (!relatorio) return;
     setSalvando(true);
     try {
+      if (!relatorio.pdf_path && !relatorio.pdf_url) await gerarPdf(relatorio);
       const resposta = await enviarRelatorioParaAprovacao(relatorio.id, pos);
       setRelatorio(resposta.relatorio);
       setRelatorios((atuais) =>
@@ -893,15 +926,33 @@ export default function RelatorioDespesaViagem({
           <span className="min-w-0 text-xs text-muted-foreground">
             Última atualização: {dataBr(relatorio.atualizado_em)}
           </span>
-          {relatorio.pdf_url && (
+          {relatorio.pdf_url || relatorio.pdf_path ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void baixarPdf(relatorio)}
+                className="inline-flex w-full shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline sm:ml-auto sm:w-auto"
+              >
+                <FileDown size={14} /> Baixar PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => void abrirPdf(relatorio.id)}
+                className="inline-flex w-full shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline sm:w-auto"
+              >
+                <FileText size={14} /> Visualizar PDF
+              </button>
+            </>
+          ) : relatorio.status !== "rascunho" ? (
             <button
               type="button"
-              onClick={() => void abrirPdf(relatorio.id)}
-              className="inline-flex w-full shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline sm:ml-auto sm:w-auto"
+              onClick={() => void gerarPdfDoRelatorio()}
+              disabled={salvando}
+              className="inline-flex w-full shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline sm:ml-auto sm:w-auto disabled:opacity-50"
             >
-              <FileDown size={14} /> Abrir PDF
+              <FileDown size={14} /> Gerar PDF
             </button>
-          )}
+          ) : null}
         </div>
       )}
       <Card>
@@ -1331,16 +1382,16 @@ export default function RelatorioDespesaViagem({
             </div>
           </div>
         )}
-      <Dialog open={Boolean(pdfPreview)} onOpenChange={(open) => { if (!open && pdfPreview) { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); } }}>
+      <Dialog open={Boolean(pdfPreview)} onOpenChange={(open) => { if (!open) fecharPdfPreview(); }}>
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-5xl flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>Prévia do relatório em PDF</DialogTitle>
-            <DialogDescription>Revise o documento antes de salvá-lo. O arquivo só será anexado ao relatório após clicar em Gerar PDF.</DialogDescription>
+            <DialogDescription>O PDF foi salvo no relatório. Você pode conferir a prévia e baixar uma cópia agora.</DialogDescription>
           </DialogHeader>
           {pdfPreview && <iframe src={pdfPreview.url} title="Prévia do relatório" className="h-[min(70dvh,720px)] min-h-[320px] w-full min-w-0 flex-1 rounded-md border bg-white" />}
           <DialogFooter className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => { if (pdfPreview) URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}>Voltar</Button>
-            <Button type="button" onClick={() => void confirmarGeracaoPdf()} disabled={salvando}><FileDown size={15} /> Gerar PDF</Button>
+            <Button type="button" variant="outline" onClick={fecharPdfPreview}>Fechar</Button>
+            {pdfPreview && <Button type="button" onClick={() => void baixarPdf(pdfPreview.item)}><FileDown size={15} /> Baixar PDF</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

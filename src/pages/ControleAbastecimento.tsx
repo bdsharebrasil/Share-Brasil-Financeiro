@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Download, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -98,18 +98,25 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     return () => window.clearTimeout(timer);
   }, [error]);
 
-  const resumoMensalCotistas = useMemo(() => {
-    const resumo = new Map<string, { id: string; nome: string; mes: string; quantidade: number }>();
-    records.forEach((item) => {
-      const id = item.cliente_id || item.socio_id || "sem-cotista";
-      const nome = item.cliente_nome || item.socio_nome || "Cotista não informado";
-      const mes = String(item.data || "").slice(0, 7) || "sem-data";
-      const key = `${id}:${mes}`;
-      const atual = resumo.get(key);
-      resumo.set(key, atual ? { ...atual, quantidade: atual.quantidade + 1 } : { id, nome, mes, quantidade: 1 });
+  const cotistasDisponiveis = useMemo(() => {
+    const mapa = new Map<string, { id: string; nome: string; quantidade: number }>();
+    (options?.clientes || []).forEach((cotista) => {
+      if (cotista.id) mapa.set(cotista.id, { id: cotista.id, nome: cotista.nome || "Cotista sem nome", quantidade: 0 });
     });
-    return Array.from(resumo.values()).sort((a, b) => b.mes.localeCompare(a.mes) || a.nome.localeCompare(b.nome));
-  }, [records]);
+    (options?.socios || []).forEach((cotista) => {
+      if (cotista.id && !mapa.has(cotista.id)) mapa.set(cotista.id, { id: cotista.id, nome: cotista.nome || "Cotista sem nome", quantidade: 0 });
+    });
+    records.forEach((item) => {
+      const id = item.cliente_id || item.socio_id;
+      if (!id) return;
+      const atual = mapa.get(id);
+      if (atual) atual.quantidade += 1;
+      else mapa.set(id, { id, nome: item.cliente_nome || item.socio_nome || "Cotista sem nome", quantidade: 1 });
+    });
+    return Array.from(mapa.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [options, records]);
+
+  const cotistasFiltrados = useMemo(() => cotistasDisponiveis.filter((cotista) => cotista.nome.toLowerCase().includes(buscaCliente.toLowerCase())), [cotistasDisponiveis, buscaCliente]);
 
   const registrosCliente = useMemo(() => {
     if (!clienteSelecionado) return [];
@@ -118,11 +125,20 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       const termo = filters.busca.toLowerCase();
       itens = itens.filter((item) => item.trecho?.toLowerCase().includes(termo) || item.local?.toLowerCase().includes(termo) || item.numero_comanda?.toLowerCase().includes(termo) || item.numero_nf?.toLowerCase().includes(termo));
     }
-    if (filters.status) {
-      itens = itens.filter((item) => item.status === filters.status);
-    }
+    if (filters.status) itens = itens.filter((item) => item.status === filters.status);
     return itens.sort((a, b) => new Date(b.data || "").getTime() - new Date(a.data || "").getTime());
   }, [clienteSelecionado, records, filters]);
+
+  const registrosClientePorMes = useMemo(() => {
+    const grupos = new Map<string, Abastecimento[]>();
+    registrosCliente.forEach((item) => {
+      const mes = String(item.data || "").slice(0, 7) || "sem-data";
+      grupos.set(mes, [...(grupos.get(mes) || []), item]);
+    });
+    return Array.from(grupos.entries()).sort(([a], [b]) => b.localeCompare(a));
+  }, [registrosCliente]);
+
+  const nomeClienteSelecionado = cotistasDisponiveis.find((cotista) => cotista.id === clienteSelecionado)?.nome || "Cotista";
 
   const totalLitrosCliente = useMemo(() => registrosCliente.reduce((sum, item) => sum + Number(item.litros || 0), 0), [registrosCliente]);
   const totalValorCliente = useMemo(() => registrosCliente.reduce((sum, item) => sum + Number(item.valor_total || 0), 0), [registrosCliente]);
@@ -308,31 +324,31 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
             <div className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Contagem mensal por cotista</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">O histórico e os totais ficam disponíveis individualmente ao selecionar um cotista.</p>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Cotistas</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Todos os cotistas cadastrados aparecem aqui. A organização mensal fica dentro do perfil.</p>
                 </div>
                 <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
                   <Search size={13} className="text-muted-foreground" />
-                  <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cliente..." className="w-full bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground sm:w-48" />
+                  <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cotista..." className="w-full bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground sm:w-48" />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {loading ? (
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
-                ) : resumoMensalCotistas.filter((item) => item.nome.toLowerCase().includes(buscaCliente.toLowerCase())).length ? (
-                  resumoMensalCotistas.filter((item) => item.nome.toLowerCase().includes(buscaCliente.toLowerCase())).map((item) => (
-                    <button key={`${item.id}:${item.mes}`} type="button" onClick={() => setClienteSelecionado(item.id)} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                ) : cotistasFiltrados.length ? (
+                  cotistasFiltrados.map((item) => (
+                    <button key={item.id} type="button" onClick={() => setClienteSelecionado(item.id)} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
                       <div className="mb-4 flex items-start justify-between">
                         <span className="rounded-lg bg-primary/10 p-2 text-primary">
                           <Building2 size={16} />
                         </span>
                         <span className="rounded-md border border-border bg-secondary/50 px-2 py-1 font-mono text-[9px] font-bold text-muted-foreground">
-                          {item.mes === "sem-data" ? "SEM DATA" : new Date(`${item.mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()}
+                          {item.quantidade} registro{item.quantidade === 1 ? "" : "s"}
                         </span>
                       </div>
                       <h3 className="truncate text-sm font-bold text-foreground">{item.nome}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.quantidade} abastecimento{item.quantidade === 1 ? "" : "s"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{item.quantidade ? `${item.quantidade} abastecimento${item.quantidade === 1 ? "" : "s"}` : "Nenhum abastecimento ainda"}</p>
                       <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-primary">
                         <span>Ver histórico</span>
                         <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />
@@ -341,7 +357,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   ))
                 ) : (
                   <div className="col-span-full">
-                    <EstadoVazio label="Nenhum cliente encontrado" />
+                    <EstadoVazio label="Nenhum cotista encontrado" />
                   </div>
                 )}
               </div>
@@ -350,14 +366,15 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button type="button" onClick={() => setClienteSelecionado(null)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
-                  <ChevronLeft size={14} /> Voltar para clientes
+                  <ChevronLeft size={14} /> Voltar para cotistas
                 </button>
                 <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-9 gap-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-extrabold">
                   <Plus size={13} /> Novo registro
                 </Button>
               </div>
 
-              {/* RESUMO DO CLIENTE */}
+              {/* RESUMO DO COTISTA */}
+              <div className="mb-1"><h2 className="text-lg font-bold">{nomeClienteSelecionado}</h2><p className="text-xs text-muted-foreground">Histórico separado por mês</p></div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <StatTile label="Registros encontrados" value={String(registrosCliente.length)} icon={<FolderOpen size={14} />} />
                 <StatTile label="Volume total" value={`${totalLitrosCliente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
@@ -401,8 +418,11 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                     </thead>
                     <tbody className="text-foreground">
                       {registrosCliente.length ? (
-                        registrosCliente.map((record) => (
-                          <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />
+                        registrosClientePorMes.map(([mes, registros]) => (
+                          <Fragment key={mes}>
+                            <tr><td colSpan={11} className="border-y border-primary/20 bg-primary/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}</td></tr>
+                            {registros.map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />)}
+                          </Fragment>
                         ))
                       ) : (
                         <tr>
@@ -413,7 +433,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   </table>
                 </div>
                 <div className="space-y-2 md:hidden">
-                  {registrosCliente.length ? registrosCliente.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />) : <EstadoVazio label="Nenhum registro encontrado para este cliente." />}
+                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />)}</section>) : <EstadoVazio label="Nenhum registro encontrado para este cotista." />}
                 </div>
               </section>
             </div>

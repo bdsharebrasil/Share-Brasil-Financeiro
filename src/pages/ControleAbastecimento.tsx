@@ -75,7 +75,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       setOptions({
         clientes: Array.isArray(op?.clientes) ? op.clientes : [],
         socios: Array.isArray(op?.socios) ? op.socios : [],
-        aeronaves: Array.isArray(op?.aeronaves) ? op.aeronaves : Array.isArray((op as any)?.aeronave) ? (op as any).aeronave : [],
+        aeronaves: Array.isArray(op?.aeronaves) ? op.aeronaves : [],
         fornecedores: Array.isArray(op?.fornecedores) ? op.fornecedores : [],
         diarios: Array.isArray(op?.diarios) ? op.diarios : [],
       });

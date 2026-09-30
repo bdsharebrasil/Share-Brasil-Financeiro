@@ -4,7 +4,7 @@
 // única de verdade dos tipos.
 
 export type FluxoLancamento = 'ENTRADA' | 'SAIDA';
-export type CaixaLancamento = 'SHARE' | 'CLIENTE';
+export type CaixaLancamento = 'SHARE' | 'CLIENTE' | 'HOLDING';
 export type StatusLancamento = 'EM_ABERTO' | 'PENDENTE' | 'PAGO' | 'RECEBIDO' | 'ATRASADO' | 'EM_ATRASO' | 'CANCELADO';
 export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO' | 'EM_ATRASO';
 /** @deprecated use StatusContaFinanceira — mantido para não quebrar imports existentes */

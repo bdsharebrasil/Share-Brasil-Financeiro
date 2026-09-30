@@ -98,8 +98,8 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
 
       const enviosPendentes = (envios.envios || []).filter((e) => {
         const statusPendente = e.status === "pendente" || e.status === "aberto";
-        const caixa = String(e.tipo_caixa || e.tipo || "").trim().toLowerCase();
-        return statusPendente && (e.tipo === "cliente" || caixa === "cliente");
+        const caixa = String(e.tipo_caixa || e.tipo || "").trim().toUpperCase();
+        return statusPendente && (e.tipo === "cliente" || caixa === "CLIENTE");
       });
 
       const feriasProximas = (feriasResp?.registros || [])

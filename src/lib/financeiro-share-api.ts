@@ -33,6 +33,11 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
 }
 
 function normalizarLancamentoCaixa(row: any): Lancamento {
+  const anexos = (() => {
+    const valor = row.anexos ?? row.anexos_json;
+    if (Array.isArray(valor)) return valor;
+    try { return valor ? JSON.parse(String(valor)) : []; } catch { return []; }
+  })();
   return {
     id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null, cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
     data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
@@ -47,6 +52,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
     observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
     criadoEm: String(row.criadoEm ?? row.criado_em ?? ""), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ""),
+    anexos: anexos.filter((item: any) => item && item.url).map((item: any) => ({ id: String(item.id ?? crypto.randomUUID()), nome: String(item.nome ?? "Documento"), url: String(item.url), tipo: item.tipo ?? null, numero: item.numero ?? null })),
   };
 }
 
@@ -469,6 +475,9 @@ export const getCotistaFinance = (periodo: string, visao: string, cotista: strin
 
 export function editarLancamento(id: string, dados: Record<string, unknown>) {
   return financeiroRequest<Lancamento>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(dados) });
+}
+export function alterarStatusLancamento(id: string, status: "PAGO" | "RECEBIDO" | "CANCELADO") {
+  return editarLancamento(id, { status, data_pagamento: status === "PAGO" || status === "RECEBIDO" ? new Date().toISOString().slice(0, 10) : null });
 }
 
 export function duplicarLancamento(id: string, dados: Record<string, unknown> = {}) {

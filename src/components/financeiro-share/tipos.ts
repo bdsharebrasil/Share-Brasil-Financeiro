@@ -37,6 +37,13 @@ export interface Lancamento {
   criadoPor: string | null;
   criadoEm: string;
   atualizadoEm: string;
+  anexos: Array<{
+    id: string;
+    nome: string;
+    url: string;
+    tipo?: string | null;
+    numero?: string | null;
+  }>;
 }
 
 export interface ContaAPagar {

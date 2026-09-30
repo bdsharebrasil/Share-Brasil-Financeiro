@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Download, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes, type FornecedorCombustivel } from "@/lib/colaborador-api";
@@ -10,8 +11,7 @@ const money = (value: number) => Number(value || 0).toLocaleString("pt-BR", { st
 const date = (value?: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
 const emptyForm = {
-  cliente_id: "",
-  socio_id: "",
+  abastecimento_id: "",
   aeronave_id: "",
   data: new Date().toISOString().slice(0, 10),
   tipo_combustivel: "JET A1",
@@ -30,11 +30,8 @@ const emptyForm = {
   data_vencimento_boleto: "",
   lancamento_diario_id: "",
   data_pagamento: "",
-  banco: "",
   voo_emprestado: false,
   numero_voo: "",
-  prazo_envio_cliente_dias: "",
-  prazo_envio_cliente_em: "",
 };
 
 type Form = typeof emptyForm;
@@ -53,7 +50,6 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     inicio: "",
     fim: "",
     aeronave_id: "",
-    cliente_id: "",
     fornecedor_id: "",
     status: "",
     valor_min: "",
@@ -78,6 +74,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
         aeronaves: Array.isArray(op?.aeronaves) ? op.aeronaves : [],
         fornecedores: Array.isArray(op?.fornecedores) ? op.fornecedores : [],
         diarios: Array.isArray(op?.diarios) ? op.diarios : [],
+        aerodromos: Array.isArray(op?.aerodromos) ? op.aerodromos : [],
       });
       setRecords(Array.isArray(list?.abastecimentos) ? list.abastecimentos : []);
     } catch (reason) {
@@ -101,29 +98,18 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     return () => window.clearTimeout(timer);
   }, [error]);
 
-  const totalLitros = useMemo(() => records.reduce((sum, item) => sum + Number(item.litros || 0), 0), [records]);
-  const totalValor = useMemo(() => records.reduce((sum, item) => sum + Number(item.valor_total || 0), 0), [records]);
-
-  const clientesDisponiveis = useMemo(() => {
-    const mapa = new Map<string, { id: string; nome: string; codigo?: string | null }>();
-    (options?.clientes || []).forEach((cliente) => {
-      if (cliente.id && cliente.nome) {
-        mapa.set(cliente.id, { id: cliente.id, nome: cliente.nome, codigo: cliente.codigo_cliente });
-      }
-    });
-
+  const resumoMensalCotistas = useMemo(() => {
+    const resumo = new Map<string, { id: string; nome: string; mes: string; quantidade: number }>();
     records.forEach((item) => {
-      const id = item.cliente_id || item.socio_id;
-      const nome = item.cliente_nome || item.socio_nome || "Cliente sem nome";
-      if (id && !mapa.has(id)) {
-        mapa.set(id, { id, nome, codigo: item.numero_voo || item.numero_comanda || null });
-      }
+      const id = item.cliente_id || item.socio_id || "sem-cotista";
+      const nome = item.cliente_nome || item.socio_nome || "Cotista não informado";
+      const mes = String(item.data || "").slice(0, 7) || "sem-data";
+      const key = `${id}:${mes}`;
+      const atual = resumo.get(key);
+      resumo.set(key, atual ? { ...atual, quantidade: atual.quantidade + 1 } : { id, nome, mes, quantidade: 1 });
     });
-
-    return Array.from(mapa.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [options, records]);
-
-  const clientesFiltrados = useMemo(() => clientesDisponiveis.filter((cliente) => cliente.nome.toLowerCase().includes(buscaCliente.toLowerCase())), [clientesDisponiveis, buscaCliente]);
+    return Array.from(resumo.values()).sort((a, b) => b.mes.localeCompare(a.mes) || a.nome.localeCompare(b.nome));
+  }, [records]);
 
   const registrosCliente = useMemo(() => {
     if (!clienteSelecionado) return [];
@@ -171,8 +157,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const save = async () => {
     const litros = Number(form.litros);
     const valorTotal = Number(form.valor_total || litros * Number(form.valor_unitario || 0));
-    if (!form.data || !form.local || !form.aeronave_id || (!form.cliente_id && !form.socio_id) || !Number.isFinite(litros) || litros <= 0 || !Number.isFinite(valorTotal) || valorTotal <= 0) {
-      setError("Informe data, local, aeronave, cliente ou sócio, litros e valor total válidos.");
+    if (!form.data || !form.local || !form.aeronave_id || !Number.isFinite(litros) || litros <= 0 || !Number.isFinite(valorTotal) || valorTotal <= 0) {
+      setError("Informe data, local, aeronave, litros e valor total válidos.");
       return;
     }
     if (form.status === "pago" && !form.data_pagamento) {
@@ -186,13 +172,11 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     try {
       const payload = {
         ...form,
-        cliente_id: form.socio_id ? null : form.cliente_id || null,
-        socio_id: form.cliente_id ? null : form.socio_id || null,
+        abastecimento_id: undefined,
         litros,
         valor_unitario: Number(form.valor_unitario || valorTotal / litros),
         valor_total: valorTotal,
         desconto: form.desconto ? Number(form.desconto) : null,
-        prazo_envio_cliente_dias: form.prazo_envio_cliente_dias ? Number(form.prazo_envio_cliente_dias) : null,
         voo_emprestado: Boolean(form.voo_emprestado),
       };
 
@@ -270,8 +254,6 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     }
   };
 
-  const clienteAtual = clientesDisponiveis.find((cliente) => cliente.id === clienteSelecionado);
-
   return (
     <div className="diario-bordo route-enter space-y-6">
       {/* HEADER PRINCIPAL */}
@@ -293,13 +275,6 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Atualizar
           </Button>
         </div>
-      </div>
-
-      {/* MÉTRICAS RÁPIDAS */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatTile label="Registros" value={String(records.length)} icon={<FolderOpen size={14} />} />
-        <StatTile label="Volume Total" value={`${totalLitros.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
-        <StatTile label="Valor Total" value={money(totalValor)} icon={<FileText size={14} />} accent="text-emerald-400" className="col-span-2 sm:col-span-1" />
       </div>
 
       {/* ALERTAS */}
@@ -333,8 +308,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
             <div className="space-y-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Selecione um cliente</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Escolha um cliente para visualizar o histórico de abastecimentos.</p>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Contagem mensal por cotista</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">O histórico e os totais ficam disponíveis individualmente ao selecionar um cotista.</p>
                 </div>
                 <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
                   <Search size={13} className="text-muted-foreground" />
@@ -345,18 +320,19 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {loading ? (
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
-                ) : clientesFiltrados.length ? (
-                  clientesFiltrados.map((cliente) => (
-                    <button key={cliente.id} type="button" onClick={() => setClienteSelecionado(cliente.id)} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                ) : resumoMensalCotistas.filter((item) => item.nome.toLowerCase().includes(buscaCliente.toLowerCase())).length ? (
+                  resumoMensalCotistas.filter((item) => item.nome.toLowerCase().includes(buscaCliente.toLowerCase())).map((item) => (
+                    <button key={`${item.id}:${item.mes}`} type="button" onClick={() => setClienteSelecionado(item.id)} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
                       <div className="mb-4 flex items-start justify-between">
                         <span className="rounded-lg bg-primary/10 p-2 text-primary">
                           <Building2 size={16} />
                         </span>
                         <span className="rounded-md border border-border bg-secondary/50 px-2 py-1 font-mono text-[9px] font-bold text-muted-foreground">
-                          {cliente.codigo || "CÓDIGO GERAL"}
+                          {item.mes === "sem-data" ? "SEM DATA" : new Date(`${item.mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()}
                         </span>
                       </div>
-                      <h3 className="truncate text-sm font-bold text-foreground">{cliente.nome}</h3>
+                      <h3 className="truncate text-sm font-bold text-foreground">{item.nome}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{item.quantidade} abastecimento{item.quantidade === 1 ? "" : "s"}</p>
                       <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-primary">
                         <span>Ver histórico</span>
                         <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />
@@ -520,8 +496,6 @@ function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { 
 
 function AbastecimentoForm({ form, options, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
   const aeronaves = Array.isArray(options?.aeronaves) ? options.aeronaves : [];
-  const clientes = Array.isArray(options?.clientes) ? options.clientes : [];
-  const socios = Array.isArray(options?.socios) ? options.socios : [];
   const fornecedores = Array.isArray(options?.fornecedores) ? options.fornecedores : [];
   const diarios = (options?.diarios || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
   const addFile = (type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => setFiles((current) => ({ ...current, [type]: file || null }));
@@ -534,16 +508,13 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Aeronave *</span><SearchableCombobox items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.fabricante || ""} ${a.modelo || ""}` }))} value={form.aeronave_id} onChange={(value) => { setField("aeronave_id", value); setField("lancamento_diario_id", ""); setField("abastecimento_id", ""); setField("numero_voo", ""); setField("trecho", ""); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave encontrada." icon={<Plane size={14} />} /></div>
+        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Número do voo</span><SearchableCombobox items={diarios.filter((d: any) => d.numero_voo).map((d: any) => ({ id: d.id, label: `${d.numero_voo} · ${date(d.data_registro)} · ${d.trecho || `${d.aerodromo_partida} X ${d.aerodromo_chegada}`}` }))} value={form.lancamento_diario_id} onChange={(value) => { const diario = diarios.find((item: any) => item.id === value) as any; setField("lancamento_diario_id", value); if (!diario) return; setField("numero_voo", diario.numero_voo || ""); setField("data", String(diario.data_registro || "").slice(0, 10)); setField("trecho", diario.trecho || `${diario.aerodromo_partida || ""} X ${diario.aerodromo_chegada || ""}`); setField("local", diario.local_combustivel || diario.aerodromo_partida || ""); setField("voo_emprestado", Boolean(diario.voo_emprestado)); setField("abastecimento_id", diario.abastecimento_id || ""); setField("numero_comanda", diario.abastecimento_numero_comanda || ""); setField("numero_nf", diario.abastecimento_numero_nf || ""); setField("litros", diario.abastecimento_litros == null ? "" : String(diario.abastecimento_litros)); setField("valor_unitario", diario.abastecimento_valor_unitario == null ? "" : String(diario.abastecimento_valor_unitario)); setField("valor_total", diario.abastecimento_valor_total == null ? "" : String(diario.abastecimento_valor_total)); setField("desconto", diario.abastecimento_desconto == null ? "" : String(diario.abastecimento_desconto)); setField("fornecedor_id", diario.abastecimento_fornecedor_id || ""); setField("tipo_combustivel", diario.abastecimento_tipo_combustivel || form.tipo_combustivel); }} placeholder={form.aeronave_id ? "Selecione o voo (opcional)" : "Selecione primeiro a aeronave"} searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado para a aeronave." icon={<Plane size={14} />} disabled={!form.aeronave_id} clearable /></div>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data *</span><input type="date" value={form.data} onChange={(e) => setField("data", e.target.value)} className="campo font-mono" /></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Local *</span><input placeholder="Local" value={form.local} onChange={(e) => setField("local", e.target.value)} className="campo" /></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Trecho</span><input placeholder="Trecho" value={form.trecho} onChange={(e) => setField("trecho", e.target.value)} className="campo font-mono" /></label>
+        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Local / aeródromo *</span><SearchableCombobox items={(options?.aerodromos || []).map((a: any) => ({ id: a.id, label: `${a.designativo_icao || a.id} · ${a.nome || ""}` }))} value={form.local} onChange={(value) => setField("local", value)} placeholder="Selecione o aeródromo" searchPlaceholder="Buscar ICAO ou nome" emptyMessage="Nenhum aeródromo encontrado." icon={<MapPin size={14} />} /></div>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Trecho</span><input readOnly placeholder="Preenchido pelo número do voo" value={form.trecho} className="campo font-mono bg-muted/30" /></label>
+        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Fornecedor</span><SearchableCombobox items={fornecedores.map((f) => ({ id: f.id, label: `${f.nome_fornecedor} · ${f.nome_cidade}${f.codigo_icao ? ` · ${f.codigo_icao}` : ""}` }))} value={form.fornecedor_id} onChange={(value) => setField("fornecedor_id", value)} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor de combustível encontrado." icon={<Building2 size={14} />} /></div>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Combustível</span><select value={form.tipo_combustivel} onChange={(e) => setField("tipo_combustivel", e.target.value)} className="campo"><option>JET A1</option><option>AVGAS</option></select></label>
-
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Aeronave *</span><select value={form.aeronave_id} onChange={(e) => { setField("aeronave_id", e.target.value); setField("lancamento_diario_id", ""); }} className="campo"><option value="">Selecionar aeronave</option>{aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula_registro} · {a.modelo}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Cliente cotista</span><select value={form.cliente_id} onChange={(e) => { setField("cliente_id", e.target.value); if (e.target.value) setField("socio_id", ""); }} className="campo"><option value="">Selecionar cliente</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Sócio / holding</span><select value={form.socio_id} onChange={(e) => { setField("socio_id", e.target.value); if (e.target.value) setField("cliente_id", ""); }} className="campo"><option value="">Selecionar sócio</option>{socios.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Fornecedor</span><select value={form.fornecedor_id} onChange={(e) => setField("fornecedor_id", e.target.value)} className="campo"><option value="">Selecionar fornecedor</option>{fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome_fornecedor} · {f.nome_cidade}</option>)}</select></label>
-
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Nº Comanda</span><input placeholder="Comanda" value={form.numero_comanda} onChange={(e) => setField("numero_comanda", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Nº NF</span><input placeholder="NF" value={form.numero_nf} onChange={(e) => setField("numero_nf", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Litros</span><input type="number" step="0.01" value={form.litros} onChange={(e) => setField("litros", e.target.value)} className="campo font-mono" /></label>
@@ -554,30 +525,8 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Forma de pagamento</span><select value={form.forma_pagamento} onChange={(e) => setField("forma_pagamento", e.target.value)} className="campo"><option value="">Selecionar</option><option value="PIX">PIX</option><option value="Cartão de crédito">Cartão de crédito</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vencimento do boleto</span><input type="date" value={form.data_vencimento_boleto} onChange={(e) => setField("data_vencimento_boleto", e.target.value)} className="campo font-mono" /></label>
         {form.status === "pago" && <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data do pagamento</span><input type="date" value={form.data_pagamento} onChange={(e) => setField("data_pagamento", e.target.value)} className="campo font-mono" /></label>}
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Banco</span><input value={form.banco} onChange={(e) => setField("banco", e.target.value)} className="campo" /></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Prazo de envio ao cliente (dias)</span><input type="number" min="0" step="1" value={form.prazo_envio_cliente_dias} onChange={(e) => setField("prazo_envio_cliente_dias", e.target.value)} className="campo font-mono" /></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Enviar até</span><input type="date" value={form.prazo_envio_cliente_em} onChange={(e) => setField("prazo_envio_cliente_em", e.target.value)} className="campo font-mono" /></label>
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Número do voo</span><input value={form.numero_voo} onChange={(e) => setField("numero_voo", e.target.value)} className="campo font-mono" /></label>
         <label className="flex items-center gap-2 pt-6 text-[10px] font-bold uppercase text-muted-foreground"><input type="checkbox" checked={Boolean(form.voo_emprestado)} onChange={(e) => setField("voo_emprestado", e.target.checked)} />Voo emprestado</label>
       </div>
-
-      <div className="rounded-xl border border-border p-4">
-        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vincular ao diário de bordo</span><select value={form.lancamento_diario_id} onChange={(e) => {
-          const diario = diarios.find((item: any) => item.id === e.target.value) as any;
-          setField("lancamento_diario_id", e.target.value);
-          if (!diario) return;
-          setField("aeronave_id", diario.aeronave_id || form.aeronave_id);
-          setField("cliente_id", diario.cliente_id || "");
-          setField("socio_id", diario.cliente_id ? "" : diario.socio_id || "");
-          setField("data", String(diario.data_registro || "").slice(0, 10));
-          setField("trecho", diario.trecho || `${diario.aerodromo_partida || ""} X ${diario.aerodromo_chegada || ""}`);
-          setField("local", diario.local_combustivel || diario.aerodromo_partida || form.local);
-          setField("numero_voo", diario.numero_voo || "");
-          setField("voo_emprestado", Boolean(diario.voo_emprestado));
-        }} className="campo"><option value="">Sem vínculo</option>{diarios.map((d: any) => <option key={d.id} value={d.id}>{d.numero_voo || d.id.slice(0, 8)} · {date(d.data_registro)} · {d.trecho || `${d.aerodromo_partida} X ${d.aerodromo_chegada}`}</option>)}</select></label>
-        {form.lancamento_diario_id && <p className="mt-2 text-[10px] text-muted-foreground">O abastecimento será associado ao voo selecionado.</p>}
-      </div>
-
       <div className="grid gap-3 sm:grid-cols-2">
         {(["comanda", "nota", "boleto", "comprovante"] as const).map((type) => {
           const existingUrl = type === "comanda" ? editing?.comanda_url : type === "nota" ? editing?.nota_url : type === "boleto" ? editing?.boleto_url : editing?.comprovante_url;

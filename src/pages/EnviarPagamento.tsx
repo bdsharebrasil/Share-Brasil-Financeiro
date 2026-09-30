@@ -248,10 +248,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
   const subcategorias = [categoriaSelecionada?.subcategoria_1, categoriaSelecionada?.subcategoria_2, categoriaSelecionada?.subcategoria_3, categoriaSelecionada?.subcategoria_4].filter((item): item is string => Boolean(item));
-  const anexosDaOrigem = fontesAnexos[origemAnexo];
-  const anexosEncontrados = anexosDaOrigem
-    .filter((item: any) => Number(item.quantidade_anexos || 0) > 0)
-    .filter((item) => JSON.stringify(item).toLowerCase().includes(buscaAnexo.trim().toLowerCase()));
+  const anexosEncontrados = useMemo(() => {
+    const registros = origemAnexo === "recibos"
+      ? fontesAnexos.recibos
+      : origemAnexo === "relatorios"
+        ? fontesAnexos.relatorios
+        : fontesAnexos.abastecimentos;
+    const termo = buscaAnexo.trim().toLowerCase();
+    return registros
+      .filter((item: any) => Number(item.quantidade_anexos || 0) > 0)
+      .filter((item) => !termo || JSON.stringify(item).toLowerCase().includes(termo));
+  }, [buscaAnexo, fontesAnexos, origemAnexo]);
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
   const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
@@ -445,7 +452,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null }] : [])
       : origemAnexo === "relatorios"
         ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null }] : [])
-        : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: fonte.numero_voo || fonte.numero_comanda || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null }));
+        : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: tipo === "nota" ? fonte.numero_nf || "" : fonte.numero_comanda || fonte.numero_nf || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null }));
     setForm((atual) => ({ ...atual, anexos: [...atual.anexos.filter((anexo) => !novos.some((novo) => novo.id === anexo.id)), ...novos] }));
     setDialogoAnexos(false);
     setBuscaAnexo("");
@@ -698,12 +705,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle className="text-base font-bold">Vincular anexo dos arquivos</DialogTitle><DialogDescription className="text-[11px]">Escolha a origem, pesquise o documento e selecione o registro. Somente os documentos selecionados serão vinculados ao lançamento.</DialogDescription></DialogHeader>
           <div className="space-y-4">
-            <SearchableCombobox items={[{ id: "recibos", label: "RECIBOS" }, { id: "relatorios", label: "RELATORIO DE VIAGEM" }, { id: "abastecimentos", label: "ABASTECIMENTOS" }]} value={origemAnexo} onChange={(id) => { setOrigemAnexo(id as typeof origemAnexo); setBuscaAnexo(""); }} placeholder="Escolha a origem do arquivo" searchPlaceholder="Buscar origem" />
+            <SearchableCombobox key={origemAnexo} items={[{ id: "recibos", label: "RECIBOS" }, { id: "relatorios", label: "RELATORIO DE VIAGEM" }, { id: "abastecimentos", label: "ABASTECIMENTOS" }]} value={origemAnexo} onChange={(id) => { setOrigemAnexo(id as typeof origemAnexo); setBuscaAnexo(""); }} placeholder="Escolha a origem do arquivo" searchPlaceholder="Buscar origem" />
             <Input value={buscaAnexo} onChange={(event) => setBuscaAnexo(event.target.value)} placeholder={origemAnexo === "abastecimentos" ? "Buscar por voo, trecho, cotista, data ou documento" : origemAnexo === "relatorios" ? "Buscar por número do voo ou número do relatório" : "Buscar por número do recibo"} className="campo" />
-            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            <div key={origemAnexo} className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
               {anexosEncontrados.map((item: any) => {
                 const texto = origemAnexo === "abastecimentos" ? `ABASTECIMENTO VOO ${item.numero_voo || "—"} TRECHO ${item.trecho || "—"} ${dataBr(item.data)} - ${item.cotista_nome || "Cotista não informado"}` : origemAnexo === "relatorios" ? `RELATORIO DESPESA DE VIAGEM VOO ${item.numero_voo || "—"} ${item.numero_relatorio || "—"} ${item.matricula_registro || ""}` : `RECIBO ${item.numero_recibo || "—"}`;
-                const temAnexo = origemAnexo === "abastecimentos" ? Boolean(item.comanda_url || item.nota_url || item.boleto_url) : Boolean(item.arquivo_url);
+                const temAnexo = Number(item.quantidade_anexos || 0) > 0;
                 return <button key={item.id} type="button" disabled={!temAnexo} onClick={() => selecionarFonteAnexo(item)} className="flex w-full items-center justify-between gap-3 rounded border border-border p-3 text-left text-[11px] hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{texto}</span><span className="mt-1 block text-[10px] text-muted-foreground">{temAnexo ? `${Number(item.quantidade_anexos || 0)} anexo(s) disponível(is) · ${origemAnexo === "abastecimentos" ? "conforme cadastro" : item.nome_arquivo || "arquivo"}` : "Nenhum anexo disponível"}</span></span><span className="shrink-0 text-primary">Selecionar</span></button>;
               })}
               {!anexosEncontrados.length && <p className="py-8 text-center text-xs text-muted-foreground">Nenhum documento encontrado.</p>}

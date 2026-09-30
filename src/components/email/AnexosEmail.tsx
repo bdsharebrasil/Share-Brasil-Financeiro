@@ -58,7 +58,7 @@ export function AnexosEmail({
   const nomeAnexo = (id: string) => anexos.find((item) => item.id === id)?.nome || id;
 
   return (
-    <div className="-my-[41px] flex flex-col gap-2 py-[14px]">
+    <div className="flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border/60 bg-card/30 p-3">
       {/* Chips compactos — não empurram mais o corpo da mensagem para baixo */}
       {totalSelecionado > 0 && (
         <div className="flex max-h-16 flex-wrap items-center gap-1.5 overflow-y-auto pr-1">

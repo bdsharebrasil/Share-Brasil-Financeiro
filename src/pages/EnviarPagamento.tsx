@@ -249,7 +249,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
   const subcategorias = [categoriaSelecionada?.subcategoria_1, categoriaSelecionada?.subcategoria_2, categoriaSelecionada?.subcategoria_3, categoriaSelecionada?.subcategoria_4].filter((item): item is string => Boolean(item));
   const anexosDaOrigem = fontesAnexos[origemAnexo];
-  const anexosEncontrados = anexosDaOrigem.filter((item) => JSON.stringify(item).toLowerCase().includes(buscaAnexo.trim().toLowerCase()));
+  const anexosEncontrados = anexosDaOrigem
+    .filter((item: any) => Number(item.quantidade_anexos || 0) > 0)
+    .filter((item) => JSON.stringify(item).toLowerCase().includes(buscaAnexo.trim().toLowerCase()));
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = exigeDadosAeronave ? 3 : 2;
   const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
@@ -371,7 +373,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
         cliente_id: "", socio_id: "", aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
-        categoria_id: form.categoria_id, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente",
+        categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente", cotista_pagador_id: tipo === "cliente" ? form.cotista_ids[0] : undefined,
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url, cotista_id }) => ({ id, tipo: anexoTipo, numero, url, cotista_id })),
@@ -449,13 +451,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setBuscaAnexo("");
   };
 
-  const anexosFiltrados = useMemo(() => {
-    if (!envioRecemCriado?.cliente_id) return anexosEmail;
-    return anexosEmail.filter((a) => {
-      if (a.origem === "recibo") return true;
-      return true;
-    });
-  }, [anexosEmail, envioRecemCriado]);
 
   const dispararEmail = async () => {
     if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
@@ -640,7 +635,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="rounded-sm border border-border/70 bg-background/30 p-3"><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} />
+                  <div className="space-y-4 rounded-sm border border-border/70 bg-background/30 p-3"><div><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} /></div>
 
 
                 </div>
@@ -709,7 +704,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               {anexosEncontrados.map((item: any) => {
                 const texto = origemAnexo === "abastecimentos" ? `ABASTECIMENTO VOO ${item.numero_voo || "—"} TRECHO ${item.trecho || "—"} ${dataBr(item.data)} - ${item.cotista_nome || "Cotista não informado"}` : origemAnexo === "relatorios" ? `RELATORIO DESPESA DE VIAGEM VOO ${item.numero_voo || "—"} ${item.numero_relatorio || "—"} ${item.matricula_registro || ""}` : `RECIBO ${item.numero_recibo || "—"}`;
                 const temAnexo = origemAnexo === "abastecimentos" ? Boolean(item.comanda_url || item.nota_url || item.boleto_url) : Boolean(item.arquivo_url);
-                return <button key={item.id} type="button" disabled={!temAnexo} onClick={() => selecionarFonteAnexo(item)} className="flex w-full items-center justify-between gap-3 rounded border border-border p-3 text-left text-[11px] hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{texto}</span><span className="mt-1 block text-[10px] text-muted-foreground">{temAnexo ? (origemAnexo === "abastecimentos" ? "Comanda · Nota fiscal · Boleto disponíveis conforme cadastro" : `Anexo: ${item.nome_arquivo || "arquivo"}`) : "Nenhum anexo disponível"}</span></span><span className="shrink-0 text-primary">Selecionar</span></button>;
+                return <button key={item.id} type="button" disabled={!temAnexo} onClick={() => selecionarFonteAnexo(item)} className="flex w-full items-center justify-between gap-3 rounded border border-border p-3 text-left text-[11px] hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{texto}</span><span className="mt-1 block text-[10px] text-muted-foreground">{temAnexo ? `${Number(item.quantidade_anexos || 0)} anexo(s) disponível(is) · ${origemAnexo === "abastecimentos" ? "conforme cadastro" : item.nome_arquivo || "arquivo"}` : "Nenhum anexo disponível"}</span></span><span className="shrink-0 text-primary">Selecionar</span></button>;
               })}
               {!anexosEncontrados.length && <p className="py-8 text-center text-xs text-muted-foreground">Nenhum documento encontrado.</p>}
             </div>

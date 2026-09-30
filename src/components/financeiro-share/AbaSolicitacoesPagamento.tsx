@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/financeiro-design/StatusBadge";
-import { buscarSolicitacoesPagamento, darBaixaContaAPagar, formatarData, formatarMoeda, type ContaBancaria, type ReembolsoColaborador, type SolicitacaoPagamento } from "@/lib/financeiro-share-api";
+import { buscarContasBancariasHolding, buscarSolicitacoesPagamento, darBaixaContaAPagar, formatarData, formatarMoeda, type ContaBancaria, type ReembolsoColaborador, type SolicitacaoPagamento } from "@/lib/financeiro-share-api";
 
 export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias: ContaBancaria[] }) {
   const [envios, setEnvios] = useState<SolicitacaoPagamento[]>([]);
@@ -20,6 +20,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [bancoId, setBancoId] = useState("");
   const [comprovante, setComprovante] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -33,6 +34,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
+
+  useEffect(() => {
+    let ativo = true;
+    if (!alvo || String(alvo.tipoCaixa).toUpperCase() !== "HOLDING") {
+      setContasParaPagamento(contasBancarias);
+      return () => { ativo = false; };
+    }
+    void buscarContasBancariasHolding().then((contas) => {
+      if (ativo) setContasParaPagamento(contas.filter((conta) => !alvo.holdingId || conta.holding_id === alvo.holdingId));
+    }).catch(() => { if (ativo) setContasParaPagamento([]); });
+    return () => { ativo = false; };
+  }, [alvo, contasBancarias]);
 
   async function confirmarBaixa() {
     if (!alvo?.id || !bancoId) return;
@@ -74,7 +87,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
               <td className="whitespace-nowrap px-4 py-3">{formatarData(item.dataVencimento)}</td>
               <td className="whitespace-nowrap px-4 py-3 text-right font-mono">{formatarMoeda(item.valor)}</td>
               <td className="px-4 py-3"><StatusBadge status={String(item.status).toUpperCase()} /></td>
-              <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => { setAlvo(item); setDataPagamento(new Date().toISOString().slice(0, 10)); setBancoId(contasBancarias[0]?.id ?? ""); }}>Dar baixa</Button></td>
+              <td className="px-4 py-3 text-right"><Button size="sm" variant="outline" onClick={() => { setAlvo(item); setDataPagamento(new Date().toISOString().slice(0, 10)); setBancoId(""); }}>Dar baixa</Button></td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -87,7 +100,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         <div className="space-y-4">
           <div className="rounded-lg bg-muted/40 p-3"><p className="text-sm font-semibold">{alvo?.descricao}</p><p className="mt-1 text-xs text-muted-foreground">{formatarMoeda(alvo?.valor ?? 0)}</p></div>
           <div className="grid gap-2"><Label htmlFor="reembolso-data">Data do pagamento</Label><Input id="reembolso-data" type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></div>
-          <div className="grid gap-2"><Label>Conta Share</Label><Select value={bancoId} onValueChange={setBancoId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contasBancarias.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-2"><Label>Conta {String(alvo?.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"}</Label><Select value={bancoId} onValueChange={setBancoId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contasParaPagamento.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
           <div className="grid gap-2"><Label htmlFor="reembolso-comprovante">Comprovante (URL)</Label><Input id="reembolso-comprovante" value={comprovante} onChange={(e) => setComprovante(e.target.value)} placeholder="https://…" /></div>
         </div>
         <DialogFooter><Button variant="outline" onClick={() => setAlvo(null)}>Cancelar</Button><Button disabled={salvando || !bancoId} onClick={() => void confirmarBaixa()}><CheckCircle2 size={15} className="mr-2" />{salvando ? "Salvando…" : "Confirmar pagamento"}</Button></DialogFooter>

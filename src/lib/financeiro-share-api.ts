@@ -289,6 +289,9 @@ export type ReembolsoColaborador = {
   status: string;
   lancamentoId: string | null;
   solicitanteNome?: string | null;
+  tipoCaixa?: "SHARE" | "HOLDING" | string | null;
+  holdingId?: string | null;
+  movimentoHoldingId?: string | null;
 };
 
 export type MovimentoHoldingPendente = {

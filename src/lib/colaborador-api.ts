@@ -427,6 +427,7 @@ export type TripulanteAgendamento = {
   status: string | null;
   tipo_licenca: string | null;
   url_avatar?: string | null;
+  foto_url?: string | null;
   origem: "tripulacao" | "freelancer";
 };
 
@@ -1111,9 +1112,16 @@ export function excluirAerodromoCadastro(id: string) { return colaboradorRequest
 export type NivelAlertaJornada = "normal" | "atencao" | "critico" | "excedido";
 export type FaixaLimiteJornada = { minutos: number; limite: number; restante: number; nivel: NivelAlertaJornada };
 export type LimitesJornada = { jornada_id: string; tripulante_id: string | null; data: string; minutos_jornada: number; limite_jornada_minutos: number; restante_minutos: number; nivel_alerta: NivelAlertaJornada; semana: FaixaLimiteJornada; mes: FaixaLimiteJornada; pernas_abertas: number };
-export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; tripulante_nome?: string | null; funcao_tripulante: "PIC" | "SIC"; jornada_principal_id: string | null; numero_jornada: number; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_pouso: string | null; horario_corte: string | null; minutos_pos_corte: number; minutos_jornada: number | null; nivel_alerta: NivelAlertaJornada; status: string; observacoes: string | null; pernas: Array<{ id: string; jornada_id?: string; numero: number; origem: string; destino: string; numero_passageiros: number; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id?: string | null }>; tripulantes?: JornadaTripulante[]; historico?: JornadaVoo[] };
+export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; tripulante_nome?: string | null; numero_voo?: string | null; origem?: string | null; destino?: string | null; matricula_registro?: string | null; modelo?: string | null; funcao_tripulante: "PIC" | "SIC"; jornada_principal_id: string | null; numero_jornada: number; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_pouso: string | null; horario_corte: string | null; minutos_pos_corte: number; minutos_jornada: number | null; nivel_alerta: NivelAlertaJornada; status: string; observacoes: string | null; pernas: Array<{ id: string; jornada_id?: string; numero: number; origem: string; destino: string; numero_passageiros: number; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id?: string | null }>; tripulantes?: JornadaTripulante[]; historico?: JornadaVoo[] };
 export type JornadaTripulante = JornadaVoo & { funcao_tripulante: "PIC" | "SIC"; limites: LimitesJornada };
 export function buscarJornadaVoo(id: string) { return colaboradorRequest<JornadaVoo | null>(`/api/interno/agendamento/${id}/jornada`); }
+export function buscarExtratoJornadaTripulante(id: string, inicio?: string, fim?: string) {
+  const params = new URLSearchParams();
+  if (inicio) params.set("inicio", inicio);
+  if (fim) params.set("fim", fim);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return colaboradorRequest<{ tripulante_id: string; tripulante_nome: string; canac: string | null; inicio: string; fim: string; jornadas: JornadaVoo[] }>(`/api/interno/tripulacao/${encodeURIComponent(id)}/jornadas${query}`);
+}
 export type PreenchimentoJornadaDiario = { jornada_id: string; solicitacao_id: string; aeronave_id: string; pernas: Array<Partial<DiarioLancamento> & { jornada_id: string; aeronave_id: string; perna_id: string; ja_lancado: boolean }> };
 export function buscarPreenchimentoJornadaDiario(id: string) { return colaboradorRequest<PreenchimentoJornadaDiario>(`/api/interno/diario-bordo/preenchimento-jornada/${encodeURIComponent(id)}`); }
 

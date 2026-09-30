@@ -64,7 +64,11 @@ export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Pro
 }
 
 function valorCentavosDoPayload(payload: Record<string, unknown>): number {
-  if (Number.isFinite(Number(payload.valorCentavos))) return Math.round(Number(payload.valorCentavos));
+  const centavosInformados = payload.valorCentavos ?? payload.valor_centavos;
+  if (centavosInformados !== undefined && centavosInformados !== null && centavosInformados !== "") {
+    const centavos = Number(centavosInformados);
+    if (Number.isFinite(centavos)) return Math.round(centavos);
+  }
   const bruto = payload.valor_total ?? payload.valor ?? 0;
   const valor = typeof bruto === "number" ? bruto : Number(String(bruto).replace(/\./g, "").replace(",", "."));
   return Math.round((Number.isFinite(valor) ? valor : 0) * 100);

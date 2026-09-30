@@ -1354,15 +1354,17 @@ export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
     recebedores,
   };
 }
-export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string }) {
+export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tipo?: "cliente" | "colaborador" | "freelancer" | "fornecedor"; q?: string; data_inicial?: string; data_final?: string; limit?: number; offset?: number }) {
   const params = new URLSearchParams();
   if (filtro?.status) params.set("status", filtro.status);
   if (filtro?.beneficiario_tipo) params.set("beneficiario_tipo", filtro.beneficiario_tipo);
   if (filtro?.q?.trim()) params.set("q", filtro.q.trim());
   if (filtro?.data_inicial) params.set("data_inicial", filtro.data_inicial);
   if (filtro?.data_final) params.set("data_final", filtro.data_final);
+  if (filtro?.limit !== undefined) params.set("limit", String(filtro.limit));
+  if (filtro?.offset !== undefined) params.set("offset", String(filtro.offset));
   const query = params.toString();
-  return colaboradorRequest<{ recibos: Recibo[] }>(`/api/financeiro/recibos${query ? `?${query}` : ""}`);
+  return colaboradorRequest<{ recibos: Recibo[]; pagina?: { limit: number; offset: number; total: number; has_more: boolean } }>(`/api/financeiro/recibos${query ? `?${query}` : ""}`);
 }
 export function buscarRecibo(id: string) { return colaboradorRequest<{ recibo: Recibo; rateio: RateioLinhaRecibo[] }>(`/api/financeiro/recibos/${encodeURIComponent(id)}`); }
 export function criarRecibo(payload: CriarReciboPayload) {

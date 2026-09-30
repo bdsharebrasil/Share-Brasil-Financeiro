@@ -171,6 +171,7 @@ export type RateioEconomico = {
 export type LancamentoEconomico = {
   id: string;
   aeronaveId?: string | null;
+  participanteId?: string | null;
   data: string;
   descricao: string;
   documento: string | null;
@@ -181,6 +182,7 @@ export type LancamentoEconomico = {
   prazo: string | null;
   fluxo: "ENTRADA" | "SAIDA";
   valorCentavos: number;
+  valorPagoCentavos?: number;
   pagoPor: string;
   caixa: string;
   pagoDiretamente: boolean;
@@ -458,7 +460,7 @@ export function buscarDashboardShare(periodo?: string, aeronave?: string): Promi
 }
 
 export async function buscarDashboardCotistaReal(filtros: DashboardCotistaRequest = {}) {
-  const query = paraQueryString({ inicio: filtros.periodo?.match(/^\\d{4}-\\d{2}$/) ? `${filtros.periodo}-01` : undefined, aeronave_id: filtros.aeronave && filtros.aeronave !== "Todas as aeronaves" ? filtros.aeronave : undefined, cotista_id: filtros.cotista && filtros.cotista !== "Todos os cotistas" ? filtros.cotista : undefined });
+  const query = paraQueryString({ inicio: filtros.periodo?.match(/^\d{4}-\d{2}$/) ? `${filtros.periodo}-01` : undefined, aeronave_id: filtros.aeronave && filtros.aeronave !== "Todas as aeronaves" ? filtros.aeronave : undefined, cotista_id: filtros.cotista && filtros.cotista !== "Todos os cotistas" ? filtros.cotista : undefined });
   return financeiroRequest<Record<string, unknown>>(`/api/financeiro/cotista/dashboard${query}`);
 }
 

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Download, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
+import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
@@ -61,6 +61,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; mime: string; tipo: string } | null>(null);
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
   const [buscaCliente, setBuscaCliente] = useState("");
 
@@ -256,20 +257,18 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     }
   };
 
-  const download = async (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => {
+  const previewFile = async (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => {
     try {
       const blob = await baixarArquivoAbastecimento(id, type);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `abastecimento-${id}-${type}`;
-      link.click();
-      URL.revokeObjectURL(url);
+      setPreview({ url: URL.createObjectURL(blob), mime: blob.type, tipo: type });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível baixar o arquivo.");
+      setError(reason instanceof Error ? reason.message : "Não foi possível abrir o anexo.");
     }
   };
-
+  const closePreview = () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  };
   return (
     <div className="diario-bordo route-enter space-y-6">
       {/* HEADER PRINCIPAL */}
@@ -388,28 +387,18 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Buscar</span>
                     <input value={filters.busca} onChange={(e) => setFilters({ ...filters, busca: e.target.value })} placeholder="Trecho, local, comanda..." className="campo" />
                   </label>
-                  <label className="block">
-                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-                    <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="campo">
-                      <option value="">Todos</option>
-                      <option value="pendente">Pendente</option>
-                      <option value="pago">Pago</option>
-                      <option value="cancelado">Cancelado</option>
-                    </select>
-                  </label>
                 </div>
 
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
+                <div className="hidden md:block">
+                  <table className="w-full table-fixed border-collapse text-left text-[11px]">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         <th className="px-4 py-3">Data</th>
                         <th className="px-4 py-3">Voo / Matrícula</th>
                         <th className="px-4 py-3">Trecho</th>
                         <th className="px-4 py-3">Local</th>
-                        <th className="px-4 py-3">Comanda</th>
-                        <th className="px-4 py-3">N.F.</th>
-                        <th className="px-4 py-3">Status</th>
+                        <th className="hidden px-3 py-3 xl:table-cell">Comanda</th>
+                        <th className="hidden px-3 py-3 xl:table-cell">N.F.</th>
                         <th className="px-4 py-3 text-right">Litros</th>
                         <th className="px-4 py-3 text-right">Valor Unit.</th>
                         <th className="px-4 py-3 text-right">Total</th>
@@ -420,25 +409,35 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       {registrosCliente.length ? (
                         registrosClientePorMes.map(([mes, registros]) => (
                           <Fragment key={mes}>
-                            <tr><td colSpan={11} className="border-y border-primary/20 bg-primary/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}</td></tr>
-                            {registros.map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />)}
+                            <tr><td colSpan={9} className="border-y border-primary/20 bg-primary/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}</td></tr>
+                            {registros.map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}
                           </Fragment>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={11} className="py-8 text-center text-muted-foreground">Nenhum registro encontrado para este cliente.</td>
+                          <td colSpan={9} className="py-8 text-center text-muted-foreground">Nenhum registro encontrado para este cliente.</td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
                 <div className="space-y-2 md:hidden">
-                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onDownload={download} />)}</section>) : <EstadoVazio label="Nenhum registro encontrado para este cotista." />}
+                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}</section>) : <EstadoVazio label="Nenhum registro encontrado para este cotista." />}
                 </div>
               </section>
             </div>
           )}
         </>
+      )}
+
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" onClick={closePreview}>
+          <div className="relative flex max-h-[90vh] max-w-5xl flex-col rounded-xl border border-border bg-card p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <button type="button" onClick={closePreview} className="absolute right-3 top-3 z-10 rounded-full bg-black/70 p-2 text-white hover:bg-black" aria-label="Fechar anexo"><X size={16} /></button>
+            {preview.mime.startsWith("image/") ? <img src={preview.url} alt={`Anexo ${preview.tipo}`} className="max-h-[82vh] max-w-full rounded-lg object-contain" /> : <iframe src={preview.url} title={`Anexo ${preview.tipo}`} className="h-[80vh] w-[min(88vw,900px)] rounded-lg bg-white" />}
+            <p className="pt-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{preview.tipo}</p>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -456,64 +455,21 @@ function StatTile({ label, value, icon, accent = "text-foreground", className = 
   );
 }
 
-function AbastecimentoCard({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
-  const pago = record.status === "pago";
-  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : record.boleto_url ? "boleto" : "comprovante";
-  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] font-bold text-primary">{record.numero_voo || record.matricula_registro || "Abastecimento"}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{record.trecho || "Trecho não informado"}</p></div><span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${pago ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : record.status === "cancelado" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-400/30 bg-amber-400/10 text-amber-400"}`}>{pago ? "Pago" : record.status === "cancelado" ? "Cancelado" : "Pendente"}</span></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Data / local</span><strong>{date(record.data)} · {record.local || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Volume</span><strong className="font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</strong></div><div><span className="block text-[9px] text-muted-foreground">Comanda / NF</span><strong className="font-mono">{record.numero_comanda || "—"} · {record.numero_nf || "—"}</strong></div><div><span className="block text-[9px] text-muted-foreground">Total</span><strong className="font-mono text-emerald-400">{money(record.valor_total)}</strong></div></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onEdit(record)} className="min-h-9 flex-1 rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary">Editar</button>{record.comanda_url || record.nota_url || record.boleto_url ? <button type="button" onClick={() => void onDownload(record.id, fileType)} className="min-h-9 rounded-lg border border-border px-3 py-2 text-[10px] font-bold">Baixar</button> : <label className="flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-lg border border-border px-3 py-2 text-[10px] font-bold"><Upload size={12} className="mr-1" /> Anexar<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(event) => void onUpload(record.id, "comanda", event.target.files?.[0])} /></label>}<button type="button" onClick={() => void onDelete(record.id)} className="min-h-9 rounded-lg border border-destructive/30 px-3 py-2 text-[10px] font-bold text-destructive">Excluir</button></div></article>;
+function AttachmentLink({ record, type, label, onPreview }: { record: Abastecimento; type: "comanda" | "nota" | "boleto" | "comprovante"; label: string; onPreview: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
+  const field = `${type}_url` as keyof Abastecimento;
+  if (!record[field]) return null;
+  return <button type="button" onClick={() => void onPreview(record.id, type)} className="font-semibold text-sky-400 underline decoration-sky-400/50 underline-offset-2 hover:text-sky-300">{label}</button>;
 }
-
-function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onDownload }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onDownload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
+function StatusBorder({ record }: { record: Abastecimento }) {
+  return record.status === "pago" ? "border border-emerald-400/40" : record.status === "cancelado" ? "border border-destructive/40" : "border border-amber-400/40";
+}
+function AbastecimentoCard({ record, onEdit, onDelete, onUpload, onPreview }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onPreview: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
+  return <article className={`rounded-xl border border-border/70 bg-background/30 p-3 ${StatusBorder({ record })}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] font-bold text-primary">{record.numero_voo || record.matricula_registro || "Abastecimento"}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{record.trecho || "Trecho não informado"}</p></div></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Data / local</span><strong>{date(record.data)} · {record.aerodromo_nome || record.local || "—"}{record.fornecedor_nome ? ` · ${record.fornecedor_nome}` : ""}</strong></div><div><span className="block text-[9px] text-muted-foreground">Volume</span><strong className="font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</strong></div><div><span className="block text-[9px] text-muted-foreground">Comanda / NF</span><strong className="font-mono"><AttachmentLink record={record} type="comanda" label={record.numero_comanda || "Comanda"} onPreview={onPreview} /> · <AttachmentLink record={record} type="nota" label={record.numero_nf || "NF"} onPreview={onPreview} /></strong></div><div><span className="block text-[9px] text-muted-foreground">Total</span><strong className="font-mono text-emerald-400">{money(record.valor_total)}</strong></div></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onEdit(record)} className="min-h-9 flex-1 rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary">Editar</button>{!record.comanda_url && <label className="flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border px-3 py-2 text-[10px] font-bold"><Upload size={12} className="mr-1" /> Comanda<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(event) => void onUpload(record.id, "comanda", event.target.files?.[0])} /></label>}{!record.nota_url && <label className="flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border px-3 py-2 text-[10px] font-bold"><Upload size={12} className="mr-1" /> NF<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(event) => void onUpload(record.id, "nota", event.target.files?.[0])} /></label>}<button type="button" onClick={() => void onDelete(record.id)} className="min-h-9 rounded-lg border border-destructive/30 px-3 py-2 text-[10px] font-bold text-destructive">Excluir</button></div></article>;
+}
+function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onPreview }: { record: Abastecimento; onEdit: (record: Abastecimento) => void; onDelete: (id: string) => void; onUpload: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante", file?: File) => void; onPreview: (id: string, type: "comanda" | "nota" | "boleto" | "comprovante") => void }) {
   const [menuAberto, setMenuAberto] = useState(false);
-  const pago = record.status === "pago";
-  const fileType = record.comanda_url ? "comanda" : record.nota_url ? "nota" : record.boleto_url ? "boleto" : "comprovante";
-
-  return (
-    <tr className="border-b border-border/60 bg-card/40 hover:bg-primary/5">
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{date(record.data)}</td>
-      <td className="px-4 py-3 font-mono text-xs font-bold text-primary">{record.numero_voo || record.matricula_registro || "—"}</td>
-      <td className="px-4 py-3 font-mono text-xs">{record.trecho || "—"}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground"><div className="flex items-center gap-1"><MapPin size={12} />{record.local || "—"}</div></td>
-      <td className="px-4 py-3 font-mono text-xs">{record.numero_comanda || "—"}</td>
-      <td className="px-4 py-3 font-mono text-xs">{record.numero_nf || "—"}</td>
-      <td className="px-4 py-3">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${pago ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : record.status === "cancelado" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-400/30 bg-amber-400/10 text-amber-400"}`}>
-          {pago ? "Pago" : record.status === "cancelado" ? "Cancelado" : "Pendente"}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right font-mono text-xs">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</td>
-      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{money(record.valor_unitario)}</td>
-      <td className="px-4 py-3 text-right font-mono text-xs font-bold text-emerald-400">{money(record.valor_total)}</td>
-      <td className="relative px-4 py-3 text-right">
-        <div className="flex justify-end">
-          <button type="button" onClick={() => setMenuAberto(!menuAberto)} className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground">
-            <MoreVertical size={14} />
-          </button>
-          {menuAberto && (
-            <div className="absolute right-4 top-10 z-20 w-40 flex flex-col rounded-xl border border-border bg-card p-1 text-left shadow-xl">
-              <button type="button" onClick={() => { setMenuAberto(false); onEdit(record); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary">
-                <Edit3 size={13} /> Editar
-              </button>
-              {record.comanda_url || record.nota_url || record.boleto_url || record.comprovante_url ? (
-                <button type="button" onClick={() => { setMenuAberto(false); void onDownload(record.id, fileType); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary">
-                  <Download size={13} /> Baixar arquivo
-                </button>
-              ) : (
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary">
-                  <Upload size={13} /> Anexar comanda
-                  <input className="hidden" type="file" accept="application/pdf,image/*" onChange={(e) => { setMenuAberto(false); void onUpload(record.id, "comanda", e.target.files?.[0]); }} />
-                </label>
-              )}
-              <button type="button" onClick={() => { setMenuAberto(false); void onDelete(record.id); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive hover:bg-destructive/10">
-                <X size={13} /> Excluir
-              </button>
-            </div>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
+  return <tr className={`border-b border-border/60 bg-card/40 hover:bg-primary/5 ${StatusBorder({ record })}`}><td className="whitespace-nowrap px-3 py-3 font-mono">{date(record.data)}</td><td className="px-3 py-3 font-mono font-bold text-primary">{record.numero_voo || record.matricula_registro || "—"}</td><td className="px-3 py-3 font-mono">{record.trecho || "—"}</td><td className="px-3 py-3 text-muted-foreground"><div className="flex items-center gap-1"><MapPin size={12} />{record.aerodromo_nome || record.local || "—"}{record.fornecedor_nome ? ` · ${record.fornecedor_nome}` : ""}</div></td><td className="hidden px-3 py-3 font-mono xl:table-cell">{record.numero_comanda || "—"}</td><td className="hidden px-3 py-3 font-mono xl:table-cell">{record.numero_nf || "—"}</td><td className="px-3 py-3 text-right font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</td><td className="hidden px-3 py-3 text-right font-mono text-muted-foreground lg:table-cell">{money(record.valor_unitario)}</td><td className="px-3 py-3 text-right font-mono font-bold text-emerald-400">{money(record.valor_total)}</td><td className="relative px-3 py-3 text-right"><div className="flex items-center justify-end gap-2"><div className="hidden items-center gap-2 text-[10px] sm:flex"><AttachmentLink record={record} type="comanda" label="Comanda" onPreview={onPreview} /><AttachmentLink record={record} type="nota" label="NF" onPreview={onPreview} /></div><button type="button" onClick={() => setMenuAberto(!menuAberto)} className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"><MoreVertical size={14} /></button></div>{menuAberto && <div className="absolute right-4 top-10 z-20 w-32 flex flex-col rounded-xl border border-border bg-card p-1 text-left shadow-xl"><button type="button" onClick={() => { setMenuAberto(false); onEdit(record); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Edit3 size={13} /> Editar</button>{!record.comanda_url && <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Upload size={13} /> Comanda<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(e) => { setMenuAberto(false); void onUpload(record.id, "comanda", e.target.files?.[0]); }} /></label>}{!record.nota_url && <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Upload size={13} /> NF<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(e) => { setMenuAberto(false); void onUpload(record.id, "nota", e.target.files?.[0]); }} /></label>}<button type="button" onClick={() => { setMenuAberto(false); void onDelete(record.id); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive hover:bg-destructive/10"><X size={13} /> Excluir</button></div>}</td></tr>;
 }
-
 function AbastecimentoForm({ form, options, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
   const aeronaves = Array.isArray(options?.aeronaves) ? options.aeronaves : [];
   const fornecedores = Array.isArray(options?.fornecedores) ? options.fornecedores : [];

@@ -281,15 +281,34 @@ export default function Agendamentos() {
   };
   const salvarDisponibilidade = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!novaDisponibilidade.tripulante_id) { toast({ title: "Tripulante obrigatório", description: "Selecione o piloto ou copiloto.", variant: "destructive" }); return; }
+    const dataInicio = novaDisponibilidade.data_inicio.trim();
+    const dataFim = (novaDisponibilidade.data_fim || dataInicio).trim();
+    const tripulante = painel?.tripulacao.find((item) => item.id === novaDisponibilidade.tripulante_id);
+    if (!tripulante) { toast({ title: "Tripulante obrigatório", description: "Selecione um tripulante ativo da lista.", variant: "destructive" }); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInicio) || !/^\d{4}-\d{2}-\d{2}$/.test(dataFim) || dataFim < dataInicio) { toast({ title: "Período inválido", description: "Informe datas válidas e com o fim igual ou posterior ao início.", variant: "destructive" }); return; }
+    const voosNoPeriodo = (painel?.escala || []).filter((item) => {
+      const pertence = item.piloto_id === tripulante.id || item.copiloto_id === tripulante.id;
+      const sobrepoe = dataInicio <= (item.data_fim || item.data_agendada) && dataFim >= item.data_agendada;
+      return pertence && sobrepoe;
+    });
+    if (novaDisponibilidade.status !== "disponivel" && voosNoPeriodo.length) {
+      toast({ title: "Conflito com agendamento", description: `${tripulante.nome_completo} já está escalado em ${voosNoPeriodo.length} voo(s) aprovado(s) no período informado.`, variant: "destructive" });
+      return;
+    }
     setProcessando(true);
     try {
-      await definirDisponibilidadeTripulacao(novaDisponibilidade);
+      await definirDisponibilidadeTripulacao({ ...novaDisponibilidade, data_inicio: dataInicio, data_fim: dataFim });
       toast({ title: "Disponibilidade registrada", description: "A informação foi salva na escala da tripulação." });
       setMostrarDisponibilidade(false);
       await carregar(true);
     } catch (error) { toast({ title: "Não foi possível salvar", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" }); }
     finally { setProcessando(false); }
+  };
+  const abrirCriacaoEscala = () => {
+    const inicio = visaoEscala === "mensal" ? dataIso(mesEscala) : dataIso(new Date());
+    const fim = visaoEscala === "mensal" ? dataIso(ultimoDiaMes(mesEscala)) : inicio;
+    setNovaDisponibilidade({ tripulante_id: "", data_inicio: inicio, data_fim: fim, status: "aviso", observacoes: "" });
+    setMostrarDisponibilidade(true);
   };
   const mudarMes = (delta: number) => setMes((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
   const mudarMesEscala = (delta: number) => setMesEscala((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
@@ -307,7 +326,7 @@ export default function Agendamentos() {
     {erro && <div className="rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
     <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">{abas.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Icon size={14} />{item.label}</button>; })}</nav>
     {aba === "calendario" && <CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={[...confirmados, ...encerrados]} pendentes={pendentes} aeronaves={painel?.aeronaves || []} buscaVoo={buscaCalendario} aoMudarBuscaVoo={setBuscaCalendario} aoNavegarParaData={navegarParaDataCalendario} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao} />}
-    {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} mes={mesEscala} visao={visaoEscala} aoMudarMes={mudarMesEscala} aoMudarVisao={setVisaoEscala} aoMarcar={() => setMostrarDisponibilidade((atual) => !atual)} />}
+    {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} mes={mesEscala} visao={visaoEscala} aoMudarMes={mudarMesEscala} aoMudarVisao={setVisaoEscala} aoMarcar={abrirCriacaoEscala} />}
     {aba === "cronograma" && <Cronograma selecionada={selecionada} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}

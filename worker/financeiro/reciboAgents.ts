@@ -7,6 +7,9 @@ type ReceiptInput = {
   pagador_id: string
   valor_centavos: number
   categoria_movimentacao_id: string
+  categoria_nome?: string | null
+  numero_voo?: string | null
+  subcategoria_1?: string | null
   descricao: string
   data_emissao: string
   data_vencimento?: string | null
@@ -29,7 +32,7 @@ type ReceiptInput = {
   recebedor_uf?: string | null
 }
 
-const RECEIPT_STATUSES: readonly StatusRecibo[] = ['CRIADO', 'ANEXO_PENDENTE', 'PDF_PENDENTE', 'EMITIDO', 'ERRO_ANEXO', 'ERRO_PDF', 'CANCELADO']
+const RECEIPT_STATUSES: readonly StatusRecibo[] = ['CRIADO', 'ANEXO_PENDENTE', 'PDF_PENDENTE', 'EMITIDO', 'EMAIL_ENVIADO', 'ERRO_ANEXO', 'ERRO_PDF', 'CANCELADO']
 
 export function validateReceiptCommand(body: Row): ReceiptInput {
   const tipo = String(body.tipo_recibo ?? '').trim()
@@ -47,6 +50,9 @@ export function validateReceiptCommand(body: Row): ReceiptInput {
     pagador_id: pagadorId,
     valor_centavos: valor,
     categoria_movimentacao_id: categoria,
+    categoria_nome: body.categoria_nome ? String(body.categoria_nome) : null,
+    numero_voo: body.numero_voo ? String(body.numero_voo) : null,
+    subcategoria_1: body.subcategoria_1 ? String(body.subcategoria_1) : null,
     descricao: String(body.descricao ?? body.descricao_servico ?? '').trim(),
     data_emissao: String(body.data_emissao ?? '').trim(),
     data_vencimento: body.data_vencimento ? String(body.data_vencimento) : null,
@@ -55,6 +61,10 @@ export function validateReceiptCommand(body: Row): ReceiptInput {
     cliente_id: body.cliente_id ? String(body.cliente_id) : null,
     colaborador_id: body.colaborador_id ? String(body.colaborador_id) : null,
     recebedor_nome: body.recebedor_nome ? String(body.recebedor_nome) : null,
+    recebedor_cpf: body.recebedor_cpf ? String(body.recebedor_cpf) : null,
+    recebedor_endereco: body.recebedor_endereco ? String(body.recebedor_endereco) : null,
+    recebedor_cidade: body.recebedor_cidade ? String(body.recebedor_cidade) : null,
+    recebedor_uf: body.recebedor_uf ? String(body.recebedor_uf) : null,
     observacoes: body.observacoes ? String(body.observacoes) : null,
     grupo_categoria: body.grupo_categoria ? String(body.grupo_categoria) : null,
   }
@@ -65,30 +75,18 @@ export function receiptStatusIsValid(status: string): boolean {
 }
 
 export async function allocateReceiptNumber(db: D1Database, cotistaId: string | null, codigo: string, ano: string): Promise<string> {
-  const anoCurto = ano.slice(-2)
-  const existentes = await db.prepare('SELECT numero_recibo FROM recibos WHERE numero_recibo LIKE ?').bind(`REC-${codigo}%`).all<{ numero_recibo: string }>()
-  const padrao = new RegExp(`^REC-${codigo}(\\d+)/(?:${ano}|${anoCurto})$`)
-  const maiorExistente = (existentes.results ?? []).reduce((maior, item) => {
-    const match = String(item.numero_recibo ?? '').match(padrao)
-    return Math.max(maior, match ? Number(match[1]) : 0)
-  }, 0)
-  const existente = cotistaId ? await db.prepare(
-    'SELECT id, proximo_numero FROM sequencia_numeros_recibos WHERE codigo_cliente = ? AND ano = ?',
-  ).bind(codigo, ano).first<{ id: string; proximo_numero: number }>() : null
-  const numero = Math.max(Number(existente?.proximo_numero || 1), maiorExistente + 1)
-
-  if (existente) {
-    await db.prepare(
-      'UPDATE sequencia_numeros_recibos SET proximo_numero = ?, cotista_aeronave_id = ? WHERE id = ?',
-    ).bind(numero + 1, cotistaId, existente.id).run()
-  } else if (cotistaId) {
-    await db.prepare(`
-      INSERT INTO sequencia_numeros_recibos (id, cotista_aeronave_id, codigo_cliente, ano, proximo_numero)
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(crypto.randomUUID(), cotistaId, codigo, ano, numero + 1).run()
-  }
-
-  return `REC-${codigo}${String(numero).padStart(3, '0')}/${anoCurto}`
+  const codigoCliente = String(codigo || 'SHARE').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || 'SHARE'
+  const anoCompleto = String(ano)
+  const row = await db.prepare(`
+    INSERT INTO sequencia_numeros_recibos (id, cotista_aeronave_id, codigo_cliente, ano, proximo_numero)
+    VALUES (?1, ?2, ?3, ?4, 2)
+    ON CONFLICT(codigo_cliente, ano) DO UPDATE SET
+      proximo_numero = sequencia_numeros_recibos.proximo_numero + 1,
+      cotista_aeronave_id = COALESCE(excluded.cotista_aeronave_id, sequencia_numeros_recibos.cotista_aeronave_id)
+    RETURNING proximo_numero - 1 AS numero
+  `).bind(crypto.randomUUID(), cotistaId, codigoCliente, anoCompleto).first<{ numero: number }>()
+  if (!row) throw new Error('falha_ao_gerar_sequencia_numeros_recibos')
+  return `REC-${codigoCliente}${String(row.numero).padStart(3, '0')}/${anoCompleto.slice(-2)}`
 }
 
 export async function createReceiptRecord(db: D1Database, input: ReceiptInput, id: string, number: string, userId: string | null): Promise<void> {
@@ -100,8 +98,8 @@ export async function createReceiptRecord(db: D1Database, input: ReceiptInput, i
       id, numero_recibo, tipo_recibo, colaborador_id, aeronave_id, rateado,
       pagador_tipo, pagador_id, nome_pagador, documento_pagador, endereco_pagador, cidade_pagador, uf_pagador,
       valor, descricao, data_emissao, data_vencimento, forma_pagamento, tipo_caixa,
-      categoria_movimentacao_id, grupo_categoria, status, recebedor_nome, observacoes, criado_por
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CRIADO', ?, ?, ?)
+      categoria_movimentacao_id, grupo_categoria, status, recebedor_nome, observacoes, criado_por, categoria_nome, numero_voo
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CRIADO', ?, ?, ?, ?, ?)
   `).bind(
     id, number, input.tipo_recibo, input.colaborador_id, input.aeronave_id,
     input.rateado ? 1 : 0, input.pagador_tipo, input.pagador_id,
@@ -110,7 +108,7 @@ export async function createReceiptRecord(db: D1Database, input: ReceiptInput, i
     input.data_emissao, input.data_vencimento, input.forma_pagamento,
     ['cotista_aeronave', 'cliente'].includes(input.pagador_tipo) ? 'cliente' : 'share',
     input.categoria_movimentacao_id, input.grupo_categoria, recebedorNome,
-    input.observacoes, userId,
+    input.observacoes, userId, input.categoria_nome, input.numero_voo,
   ).run()
 }
 

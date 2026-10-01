@@ -210,9 +210,9 @@ export function EnviarEmailClienteDialog({
 
             {anexos.length > 0 && (
               <div className="space-y-1.5">
-                {anexos.map((anexo) => (
+                {anexos.map((anexo, indice) => (
                   <div
-                    key={anexo.id || anexo.url}
+                    key={`${anexo.id || anexo.url || "anexo"}-${indice}`}
                     className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[.06] px-3 py-2.5"
                   >
                     <Paperclip size={14} className="shrink-0 text-sky-400" />

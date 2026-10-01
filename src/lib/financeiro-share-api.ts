@@ -196,6 +196,7 @@ export type LancamentoEconomico = {
   reembolsoQuitado: boolean;
   status: string;
   observacoes: string | null;
+  local?: string | null;
   rateios: RateioEconomico[];
 };
 

@@ -138,6 +138,13 @@ function dataBr(valor?: string | null) {
   return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
 }
 
+function quantidadeAnexosFonte(item: any, origem: "recibos" | "relatorios" | "abastecimentos") {
+  const quantidadeInformada = Number(item.quantidade_anexos || 0);
+  if (quantidadeInformada > 0) return quantidadeInformada;
+  if (origem === "abastecimentos") return [item.comanda_url, item.nota_url, item.boleto_url].filter(Boolean).length;
+  return Number(Boolean(item.anexo_id && item.arquivo_url));
+}
+
 function formatarValor(valor: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor);
 }
@@ -256,7 +263,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         : fontesAnexos.abastecimentos;
     const termo = buscaAnexo.trim().toLowerCase();
     return registros
-      .filter((item: any) => Number(item.quantidade_anexos || 0) > 0)
+      .filter((item: any) => quantidadeAnexosFonte(item, origemAnexo) > 0)
       .filter((item) => !termo || JSON.stringify(item).toLowerCase().includes(termo));
   }, [buscaAnexo, fontesAnexos, origemAnexo]);
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
@@ -710,8 +717,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             <div key={origemAnexo} className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
               {anexosEncontrados.map((item: any) => {
                 const texto = origemAnexo === "abastecimentos" ? `ABASTECIMENTO VOO ${item.numero_voo || "—"} TRECHO ${item.trecho || "—"} ${dataBr(item.data)} - ${item.cotista_nome || "Cotista não informado"}` : origemAnexo === "relatorios" ? `RELATORIO DESPESA DE VIAGEM VOO ${item.numero_voo || "—"} ${item.numero_relatorio || "—"} ${item.matricula_registro || ""}` : `RECIBO ${item.numero_recibo || "—"}`;
-                const temAnexo = Number(item.quantidade_anexos || 0) > 0;
-                return <button key={item.id} type="button" disabled={!temAnexo} onClick={() => selecionarFonteAnexo(item)} className="flex w-full items-center justify-between gap-3 rounded border border-border p-3 text-left text-[11px] hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{texto}</span><span className="mt-1 block text-[10px] text-muted-foreground">{temAnexo ? `${Number(item.quantidade_anexos || 0)} anexo(s) disponível(is) · ${origemAnexo === "abastecimentos" ? "conforme cadastro" : item.nome_arquivo || "arquivo"}` : "Nenhum anexo disponível"}</span></span><span className="shrink-0 text-primary">Selecionar</span></button>;
+                const quantidade = quantidadeAnexosFonte(item, origemAnexo);
+                const temAnexo = quantidade > 0;
+                const tiposAnexos = origemAnexo === "abastecimentos"
+                  ? [item.comanda_url && "Comanda", item.nota_url && "N.F.", item.boleto_url && "Boleto"].filter(Boolean).join(", ")
+                  : item.nome_arquivo || "arquivo";
+                return <button key={item.id} type="button" disabled={!temAnexo} onClick={() => selecionarFonteAnexo(item)} className="flex w-full items-center justify-between gap-3 rounded border border-border p-3 text-left text-[11px] hover:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{texto}</span><span className="mt-1 block text-[10px] text-muted-foreground">{temAnexo ? `${quantidade} anexo(s) disponível(is) · ${tiposAnexos}` : "Nenhum anexo disponível"}</span></span><span className="shrink-0 text-primary">Selecionar</span></button>;
               })}
               {!anexosEncontrados.length && <p className="py-8 text-center text-xs text-muted-foreground">Nenhum documento encontrado.</p>}
             </div>

@@ -3407,9 +3407,11 @@ app.post('/api/interno/diario-bordo/lancamentos', async c => {
   const abastecimento = body.abastecimento && typeof body.abastecimento === 'object' ? body.abastecimento : null
   if (abastecimento && diarioNumber(abastecimento.litros) > 0) {
     await garantirTabelaAbastecimentos(c)
+    const titularAbastecimentoCliente = diarioBoolean(body.voo_emprestado) ? (body.cliente_tomador_emprestimo_id || abastecimento.cliente_id || null) : (abastecimento.cliente_id || null)
+    const titularAbastecimentoSocio = diarioBoolean(body.voo_emprestado) ? (body.socio_tomador_emprestimo_id || abastecimento.socio_id || null) : (abastecimento.socio_id || null)
     const abastecimentoLocal = await normalizarLocalAbastecimento(db, abastecimento.local || row.local_combustivel || String(body.aerodromo_partida || ''))
     if (!abastecimentoLocal) return c.json({ error: 'local_abastecimento_invalido' }, 400)
-    await db.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, status, observacao, criado_por, lancamento_diario_id, voo_emprestado, numero_voo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(uuid(), abastecimento.cliente_id || null, abastecimento.socio_id || null, aeronaveId, abastecimento.data || data, abastecimento.tipo_combustivel || null, abastecimento.trecho || row.trecho, abastecimentoLocal, abastecimento.numero_comanda || null, abastecimento.numero_nf || null, diarioNumber(abastecimento.litros), diarioNumber(abastecimento.valor_unitario), diarioNumber(abastecimento.valor_total), abastecimento.status || 'pendente', abastecimento.observacao || 'Criado no Diário de Bordo', extractSupabaseUserId(c), id, diarioBoolean(body.voo_emprestado), row.numero_voo || null).run()
+    await db.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, status, observacao, criado_por, lancamento_diario_id, voo_emprestado, numero_voo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(uuid(), titularAbastecimentoCliente, titularAbastecimentoSocio, aeronaveId, abastecimento.data || data, abastecimento.tipo_combustivel || null, abastecimento.trecho || row.trecho, abastecimentoLocal, abastecimento.numero_comanda || null, abastecimento.numero_nf || null, diarioNumber(abastecimento.litros), diarioNumber(abastecimento.valor_unitario), diarioNumber(abastecimento.valor_total), abastecimento.status || 'pendente', abastecimento.observacao || 'Criado no Diário de Bordo', extractSupabaseUserId(c), id, diarioBoolean(body.voo_emprestado), row.numero_voo || null).run()
   }
   await recalcularDiarioMes(c, diarioMesId)
   const inserted = await db.prepare('SELECT * FROM lancamentos_diario_bordo WHERE id = ?1').bind(id).first()
@@ -5819,13 +5821,19 @@ async function statementFinanceiroAbastecimento(c: Context<{ Bindings: Bindings 
         .bind(uuid(), socio.holding_id, socio.id, aeronaveId, userId, data, vencimento, pago ? body.data_pagamento || null : null, descricao, abastecimentoId, null, fornecedor?.nome || null, valorCentavos, pago ? 'PAGO' : 'EM_ABERTO', body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, comprovanteUrl, body.observacao || null, userId)
     }
 
-    const cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE aeronave_id = ?1 AND socio_id = ?2 ORDER BY id LIMIT 1').bind(aeronaveId, socio.id).first<{ id: string }>()
+    let cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE aeronave_id = ?1 AND socio_id = ?2 ORDER BY id LIMIT 1').bind(aeronaveId, socio.id).first<{ id: string }>()
+    if (!cotista && ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())) {
+      cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE socio_id = ?1 ORDER BY id LIMIT 1').bind(socio.id).first<{ id: string }>()
+    }
     if (!cotista) throw new Error('socio_nao_vinculado_a_aeronave')
   return db.prepare(`INSERT INTO lancamentos (id, aeronave_id, cotista_aeronave_id, periodicidade, data_emissao, data_vencimento, data_pagamento, descricao, fornecedores_favoritos_id, fornecedor_nome, abastecimentos_id, status, categoria_nome, fluxo, tipo_caixa, valor_centavos, numero_nf, numero_doc, url_nf, url_doc, url_boleto, comprovante_url, forma_pagamento, observacoes, criado_por, origem_tipo, origem_id, cliente_id) VALUES (?, ?, ?, 'EVENTUAL', ?, ?, ?, ?, ?, ?, ?, ?, 'Combustível', 'DESPESA', 'CLIENTE', ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, 'ABASTECIMENTO', ?, NULL)`)
       .bind(uuid(), aeronaveId, cotista.id, data, vencimento, pago ? body.data_pagamento || null : null, descricao, null, fornecedor?.nome || null, abastecimentoId, pago ? 'PAGO' : 'EM_ABERTO', valorCentavos, body.numero_nf || null, body.numero_comanda || null, comprovanteUrl, body.forma_pagamento || null, body.observacao || null, userId, abastecimentoId)
   }
 
-  const cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE aeronave_id = ?1 AND cliente_id = ?2 ORDER BY id LIMIT 1').bind(aeronaveId, body.cliente_id).first<{ id: string }>()
+  let cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE aeronave_id = ?1 AND cliente_id = ?2 ORDER BY id LIMIT 1').bind(aeronaveId, body.cliente_id).first<{ id: string }>()
+  if (!cotista && ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())) {
+    cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE cliente_id = ?1 ORDER BY id LIMIT 1').bind(body.cliente_id).first<{ id: string }>()
+  }
   if (!cotista) throw new Error('cliente_nao_vinculado_a_aeronave')
   return db.prepare(`INSERT INTO lancamentos (id, aeronave_id, cotista_aeronave_id, periodicidade, data_emissao, data_vencimento, data_pagamento, descricao, fornecedores_favoritos_id, fornecedor_nome, abastecimentos_id, status, categoria_nome, fluxo, tipo_caixa, valor_centavos, numero_nf, numero_doc, url_nf, url_doc, url_boleto, comprovante_url, forma_pagamento, observacoes, criado_por, origem_tipo, origem_id, cliente_id) VALUES (?, ?, ?, 'EVENTUAL', ?, ?, ?, ?, ?, ?, ?, ?, 'Combustível', 'DESPESA', 'CLIENTE', ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, 'ABASTECIMENTO', ?, ?)`)
     .bind(uuid(), aeronaveId, cotista.id, data, vencimento, pago ? body.data_pagamento || null : null, descricao, null, fornecedor?.nome || null, abastecimentoId, pago ? 'PAGO' : 'EM_ABERTO', valorCentavos, body.numero_nf || null, body.numero_comanda || null, comprovanteUrl, body.forma_pagamento || null, body.observacao || null, userId, abastecimentoId, body.cliente_id)
@@ -5851,8 +5859,8 @@ app.post('/api/interno/abastecimentos', async c => {
   const data = String(body?.data || '').trim()
   const localInformado = String(body?.local || '').trim()
   const aeronaveId = String(body?.aeronave_id || '').trim()
-  const clienteId = String(body?.cliente_id || '').trim() || null
-  const socioId = String(body?.socio_id || '').trim() || null
+  let clienteId = String(body?.cliente_id || '').trim() || null
+  let socioId = String(body?.socio_id || '').trim() || null
   const litros = Number(body?.litros)
   const valorUnitario = Number(body?.valor_unitario || 0)
   const valorTotal = Number(body?.valor_total ?? litros * valorUnitario)
@@ -5866,13 +5874,23 @@ app.post('/api/interno/abastecimentos', async c => {
   const userId = authenticated?.id || extractSupabaseUserId(c) || null
   const diarioId = String(body?.lancamento_diario_id || '').trim() || null
   const diario = diarioId
-    ? await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id, numero_voo, data_registro, trecho, local_combustivel, voo_emprestado FROM lancamentos_diario_bordo WHERE id = ?1').bind(diarioId).first<any>()
+    ? await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id, numero_voo, data_registro, trecho, local_combustivel, voo_emprestado FROM lancamentos_diario_bordo WHERE id = ?1').bind(diarioId).first<any>()
     : null
   if (diarioId && (!diario || diario.aeronave_id !== aeronaveId)) return c.json({ error: 'lancamento_diario_invalido_para_aeronave' }, 409)
-  if ((diario?.cliente_id && diario.cliente_id !== clienteId) || (diario?.socio_id && diario.socio_id !== socioId)) return c.json({ error: 'titular_nao_corresponde_ao_lancamento_diario' }, 409)
   const vooEmprestado = body?.voo_emprestado == null
     ? Boolean(diario?.voo_emprestado)
     : ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())
+  if (diario) {
+    if (vooEmprestado) {
+      const tomadorClienteId = diario.cliente_tomador_emprestimo_id || null
+      const tomadorSocioId = diario.socio_tomador_emprestimo_id || null
+      if (tomadorClienteId && clienteId && tomadorClienteId !== clienteId || tomadorSocioId && socioId && tomadorSocioId !== socioId) return c.json({ error: 'titular_nao_corresponde_ao_tomador_do_emprestimo' }, 409)
+      if (!clienteId && !socioId) { clienteId = tomadorClienteId; socioId = tomadorSocioId }
+    } else {
+      if (diario.cliente_id) clienteId = diario.cliente_id
+      if (diario.socio_id) socioId = diario.socio_id
+    }
+  }
   const abastecimentoStatement = db.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, desconto, fornecedor_id, status, observacao, forma_pagamento, data_vencimento_boleto, criado_por, lancamento_diario_id, voo_emprestado, numero_voo, prazo_envio_cliente) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
   .bind(id, clienteId, socioId, aeronaveId, data, body?.tipo_combustivel || null, body?.trecho || diario?.trecho || null, local, body?.numero_comanda || null, body?.numero_nf || null, litros, Number.isFinite(valorUnitario) ? valorUnitario : 0, valorTotal, body?.desconto == null ? null : Number(body.desconto), body?.fornecedor_id || null, body?.status || 'pendente', body?.observacao || null, body?.forma_pagamento || null, body?.data_vencimento_boleto || null, userId, diarioId, vooEmprestado ? 1 : 0, body?.numero_voo || diario?.numero_voo || null, body?.prazo_envio_cliente || null)
   const financeiroStatement = await statementFinanceiroAbastecimento(c, id, {
@@ -5921,14 +5939,18 @@ app.patch('/api/interno/abastecimentos/:id', async c => {
     ? await db.prepare('SELECT id, holding_id FROM hold_socios WHERE id = ?1').bind(socioId).first<{ id: string; holding_id: string | null }>()
     : null
   if (socioId && !titularSocio) throw new Error('socio_nao_encontrado')
+  const vooEmprestado = ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())
   const destinoHolding = Boolean(titularSocio?.holding_id)
   const destinoTabela: 'lancamentos' | 'movimentos_holding' = destinoHolding ? 'movimentos_holding' : 'lancamentos'
   const registroFinanceiroAtual = atualLancamento || atualMovimento
   const tabelaAtual: 'lancamentos' | 'movimentos_holding' | null = atualLancamento ? 'lancamentos' : atualMovimento ? 'movimentos_holding' : null
   const comprovanteAtual = atualLancamento?.comprovante_url || atualMovimento?.comprovante_url || null
-  const cotista = !destinoHolding
+  let cotista = !destinoHolding
     ? await db.prepare('SELECT id FROM cotista_aeronave WHERE aeronave_id = ?1 AND ' + (socioId ? 'socio_id' : 'cliente_id') + ' = ?2 ORDER BY id LIMIT 1').bind(aeronaveId, socioId || clienteId).first<{ id: string }>()
     : null
+  if (!destinoHolding && !cotista && vooEmprestado) {
+    cotista = await db.prepare('SELECT id FROM cotista_aeronave WHERE ' + (socioId ? 'socio_id' : 'cliente_id') + ' = ?1 ORDER BY id LIMIT 1').bind(socioId || clienteId).first<{ id: string }>()
+  }
   if (!destinoHolding && !cotista) throw new Error(socioId ? 'socio_nao_vinculado_a_aeronave' : 'cliente_nao_vinculado_a_aeronave')
   const mudandoTabela = Boolean(tabelaAtual && tabelaAtual !== destinoTabela)
   const vinculoLancamentoMudou = Boolean(atualLancamento && (atualLancamento.aeronave_id !== aeronaveId || atualLancamento.cotista_aeronave_id !== cotista?.id || (atualLancamento.cliente_id || null) !== (socioId ? null : clienteId)))

@@ -387,6 +387,28 @@ export async function buscarBalancoEconomico(inicio?: string, fim?: string) {
   return normalizarBalanco(await financeiroRequest<Partial<BalancoEconomico>>(`/api/financeiro/balanco${sufixo}`));
 }
 
+export type VooEmprestimo = {
+  id: string;
+  numero_voo: string | null;
+  data: string | null;
+  trecho: string | null;
+  local: string | null;
+  local_icao: string | null;
+  litros: number | null;
+  valor_total: number | null;
+  status: string | null;
+  numero_comanda: string | null;
+  numero_nf: string | null;
+  aeronave_id: string;
+  matricula_registro: string | null;
+  fabricante: string | null;
+  modelo: string | null;
+};
+export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string) {
+  const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId });
+  const payload = await financeiroRequest<{ voos_emprestimos?: VooEmprestimo[] }>(`/api/financeiro/cotista/voos-emprestimos${query}`);
+  return Array.isArray(payload.voos_emprestimos) ? payload.voos_emprestimos : [];
+}
 export async function buscarDashboardCotista(inicio?: string, fim?: string, aeronaveId?: string, cotistaId?: string) {
   const parametros = new URLSearchParams();
   if (inicio) parametros.set("inicio", inicio);

@@ -80,6 +80,7 @@ export interface NotaSaidaPayload {
 	descricao_servico: string;
 	status: StatusDocumentoSaida;
 	arquivo_pdf_url: string | null;
+	idempotency_key?: string;
 }
 export interface ReciboSaidaPayload {
 	cotista_aeronave_id: string;

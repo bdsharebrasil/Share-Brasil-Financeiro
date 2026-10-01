@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -183,6 +183,7 @@ export default function NFSaidaTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const notaIdempotencyKey = useRef<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [cotistas, setCotistas] = useState<CotistaOpcao[]>([]);
@@ -408,8 +409,8 @@ export default function NFSaidaTab() {
     return match?.optionId ?? "";
   }, [despesaOptions, form.categoria_despesa_id, form.categoria_despesa_subcategoria]);
 
-  const openNew = () => { setForm(emptyForm); setEditingId(null); setDocumentType("nota"); setShowForm(true); };
-  const openNewReceipt = () => { setForm(emptyForm); setEditingId(null); setDocumentType("recibo"); setShowForm(true); };
+  const openNew = () => { notaIdempotencyKey.current = null; setForm(emptyForm); setEditingId(null); setDocumentType("nota"); setShowForm(true); };
+  const openNewReceipt = () => { notaIdempotencyKey.current = null; setForm(emptyForm); setEditingId(null); setDocumentType("recibo"); setShowForm(true); };
   const openEdit = (n: NFSaida) => {
     if (n.origem === "recibo_saida") {
       setToast({ type: "err", text: "Recibos de saída não são editáveis por aqui — exclua e emita novamente se necessário." });
@@ -426,9 +427,10 @@ export default function NFSaidaTab() {
       categoria_despesa_id: "", categoria_despesa_subcategoria: "",
       arquivo_pdf_url: n.arquivo_pdf_url ?? "",
     });
+    notaIdempotencyKey.current = null;
     setEditingId(n.id); setDocumentType("nota"); setShowForm(true);
   };
-  const closeForm = () => { setShowForm(false); setEditingId(null); setDocumentType("nota"); setForm(emptyForm); };
+  const closeForm = () => { notaIdempotencyKey.current = null; setShowForm(false); setEditingId(null); setDocumentType("nota"); setForm(emptyForm); };
 
   // Ao escolher o cotista, deriva automaticamente aeronave/cliente_nome/cliente_cnpj —
   // no D1 cada linha de cotista_aeronave já é o par (cliente ou sócio, aeronave).
@@ -518,7 +520,8 @@ export default function NFSaidaTab() {
           });
           setToast({ type: "ok", text: "Nota fiscal atualizada. (Lançamentos financeiros já existentes não são recalculados na edição — avise se precisar ajustar valor/categoria de uma nota já sincronizada.)" });
         } else {
-          await nfSaidaApi.criarNotaSaida({
+          notaIdempotencyKey.current ??= crypto.randomUUID();
+          const { nota } = await nfSaidaApi.criarNotaSaida({
             numero: form.numero.trim(),
             cotista_aeronave_id: form.cotista_aeronave_id,
             aeronave_id: form.aircraft_id,
@@ -533,7 +536,9 @@ export default function NFSaidaTab() {
             descricao_servico: form.descricao.trim() || "Serviços aeronáuticos",
             status: form.status,
             arquivo_pdf_url: form.arquivo_pdf_url.trim() || null,
+            idempotency_key: notaIdempotencyKey.current,
           });
+          if (!nota?.id) throw new Error("O servidor não confirmou a gravação da nota fiscal.");
           setToast({ type: "ok", text: "Nota fiscal criada e lançamentos financeiros gerados (contas a receber Share + despesa do cliente)." });
         }
         fetchNotas();

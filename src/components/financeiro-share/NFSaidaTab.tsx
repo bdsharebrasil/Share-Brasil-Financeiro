@@ -625,6 +625,16 @@ export default function NFSaidaTab() {
         conta_bancaria: baixaForm.conta_bancaria || null,
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
+        pagamentos: [{
+          tipo_pagador: baixaTarget.socio_id ? "HOLDING" : "COTISTA",
+          pagador_cotista_id: baixaTarget.socio_id ? null : baixaTarget.cotista_aeronave_id,
+          pagador_holding_id: baixaTarget.socio_id ? baixaTarget.socio_id : null,
+          valor_centavos: Math.round(Number(baixaTarget.valor ?? 0) * 100),
+          data_pagamento: baixaForm.data_pagamento,
+          conta_bancaria_id: baixaForm.conta_bancaria || null,
+          forma_pagamento: baixaForm.forma_pagamento || null,
+          comprovante_url: baixaForm.comprovante_url || null,
+        }],
       });
 
       setToast({ type: "ok", text: "Baixa registrada: receita da Share recebida e despesa do cliente quitada." });

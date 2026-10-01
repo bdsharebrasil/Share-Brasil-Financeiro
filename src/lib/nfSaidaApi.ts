@@ -102,6 +102,16 @@ export interface BaixaDocumentoSaidaPayload {
 	conta_bancaria: string | null;
 	forma_pagamento: string | null;
 	comprovante_url: string | null;
+	pagamentos?: Array<{
+		tipo_pagador: "COTISTA" | "SHARE" | "HOLDING";
+		pagador_cotista_id?: string | null;
+		pagador_holding_id?: string | null;
+		valor_centavos: number;
+		data_pagamento: string;
+		conta_bancaria_id?: string | null;
+		forma_pagamento?: string | null;
+		comprovante_url?: string | null;
+	}>;
 }
 export interface OpcoesNotasSaida {
 	cotistas: CotistaOpcao[];

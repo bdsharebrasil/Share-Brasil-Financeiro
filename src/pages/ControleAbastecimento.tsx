@@ -187,9 +187,12 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     setError(null);
 
     try {
+      const socioSelecionado = options?.socios.find((socio) => socio.id === clienteSelecionado) || null;
       const payload = {
         ...form,
         abastecimento_id: undefined,
+        cliente_id: socioSelecionado ? null : clienteSelecionado,
+        socio_id: socioSelecionado?.id || null,
         litros,
         valor_unitario: Number(form.valor_unitario || valorTotal / litros),
         valor_total: valorTotal,

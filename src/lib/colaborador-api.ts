@@ -478,7 +478,7 @@ export type PainelOperacoesResponse = {
 
 export type MovimentacaoFinanceira = {
   id: string;
-  origem_tipo: "lancamentos" | "rateio_hold";
+  origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold";
   origem_id: string;
   referencias: string[];
   tipo_caixa: "CLIENTE" | "SHARE" | "HOLDING" | string | null;
@@ -505,7 +505,7 @@ export type MovimentacaoFinanceira = {
   categoria_nome?: string | null;
 };
 
-export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "rateio_hold"; origem_id: string; valor_centavos: number; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
+export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold"; origem_id: string; valor_centavos: number; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
 
 export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
@@ -825,7 +825,7 @@ function numeroDocumento(registro: RegistroFinanceiro) {
 
 function normalizarMovimentacao(
   registro: RegistroFinanceiro,
-  origemTipo: "lancamentos" | "rateio_hold",
+  origemTipo: "lancamentos" | "movimentos_holding" | "rateio_hold",
 ): MovimentacaoFinanceira | null {
   const origemId = textoFinanceiro(registro.id) || textoFinanceiro(registro.movimento_holding_id);
   if (!origemId) return null;
@@ -939,11 +939,14 @@ export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse
   )
     .map((registro) => normalizarMovimentacao(registro, "lancamentos"))
     .filter((item): item is MovimentacaoFinanceira => Boolean(item));
-  const rateiosHold = consolidarRateioHold(
-    primeiraFonteFinanceira(payload?.rateio_hold, payload?.movimentos_holding),
-  )
-    .map((registro) => normalizarMovimentacao(registro, "rateio_hold"))
-    .filter((item): item is MovimentacaoFinanceira => Boolean(item));
+  const movimentosHoldingDiretos = primeiraFonteFinanceira(payload?.movimentos_holding);
+  const rateiosHold = movimentosHoldingDiretos.length
+    ? movimentosHoldingDiretos
+        .map((registro) => normalizarMovimentacao(registro, "movimentos_holding"))
+        .filter((item): item is MovimentacaoFinanceira => Boolean(item))
+    : consolidarRateioHold(registrosFinanceiros(payload?.rateio_hold))
+        .map((registro) => normalizarMovimentacao(registro, "rateio_hold"))
+        .filter((item): item is MovimentacaoFinanceira => Boolean(item));
   const emails = registrosFinanceiros(payload?.emails_enviados);
   const movimentacoes = [...lancamentos, ...rateiosHold].map((movimentacao) => {
     const email = emails.find((registro) =>

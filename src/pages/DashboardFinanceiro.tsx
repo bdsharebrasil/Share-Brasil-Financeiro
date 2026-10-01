@@ -436,7 +436,7 @@ function CartaoMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinan
       
       <div className="mt-3 min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
-        <p className="break-words text-xs font-medium text-foreground">{item.cliente_nome || "Não informado"}</p>
+        <p className="break-words text-xs font-medium text-foreground">{item.codigo_cliente || "Não informado"}</p>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2.5">
@@ -494,8 +494,8 @@ function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanc
       </td>
       
       <td className="px-3 py-3.5 align-middle">
-        <div className="truncate text-sm text-foreground" title={item.cliente_nome || "Não informado"}>
-          {item.cliente_nome || "Não informado"}
+        <div className="truncate text-sm text-foreground" title={item.codigo_cliente || "Não informado"}>
+          {item.codigo_cliente || "Não informado"}
         </div>
       </td>
 

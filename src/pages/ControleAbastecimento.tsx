@@ -124,8 +124,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     if (!clienteSelecionado) return [];
     let itens = records.filter((item) => {
       const pertenceAoCotista = item.cliente_id === clienteSelecionado || item.socio_id === clienteSelecionado;
-      const temVinculoComAeronave = Boolean(item.cotista_vinculado_a_aeronave);
-      return pertenceAoCotista && temVinculoComAeronave === (tabCliente === "vinculados");
+      const vooEmprestado = Number(item.voo_emprestado) === 1;
+      return pertenceAoCotista && vooEmprestado === (tabCliente === "emprestimo");
     });
     if (filters.busca) {
       const termo = filters.busca.toLowerCase();

@@ -3448,10 +3448,13 @@ app.patch('/api/interno/diario-bordo/lancamentos/:id', async c => {
   } else if (body.abastecimento && diarioNumber(body.abastecimento.litros) > 0) {
     await garantirTabelaAbastecimentos(c)
     const abastecimento = body.abastecimento
+    const vooEmprestadoAtual = diarioBoolean(body.voo_emprestado ?? current.voo_emprestado)
+    const titularAbastecimentoCliente = vooEmprestadoAtual ? (current.cliente_tomador_emprestimo_id || abastecimento.cliente_id || null) : (abastecimento.cliente_id || null)
+    const titularAbastecimentoSocio = vooEmprestadoAtual ? (current.socio_tomador_emprestimo_id || abastecimento.socio_id || null) : (abastecimento.socio_id || null)
     const existente = await db.prepare('SELECT id FROM abastecimentos WHERE lancamento_diario_id = ?1 ORDER BY date(data) DESC, id DESC LIMIT 1').bind(id).first<{ id: string }>()
     const abastecimentoLocal = await normalizarLocalAbastecimento(db, abastecimento.local || row.local_combustivel || row.aerodromo_partida)
     if (!abastecimentoLocal) return c.json({ error: 'local_abastecimento_invalido' }, 400)
-    const valores = [abastecimento.cliente_id || null, abastecimento.socio_id || null, current.aeronave_id, abastecimento.data || row.data_registro, abastecimento.tipo_combustivel || null, abastecimento.trecho || row.trecho, abastecimentoLocal, abastecimento.numero_comanda || null, abastecimento.numero_nf || null, diarioNumber(abastecimento.litros), diarioNumber(abastecimento.valor_unitario), diarioNumber(abastecimento.valor_total), abastecimento.status || 'pendente', abastecimento.observacao || 'Atualizado no Diário de Bordo', extractSupabaseUserId(c), diarioBoolean(body.voo_emprestado ?? current.voo_emprestado), row.numero_voo || current.numero_voo || null]
+    const valores = [titularAbastecimentoCliente, titularAbastecimentoSocio, current.aeronave_id, abastecimento.data || row.data_registro, abastecimento.tipo_combustivel || null, abastecimento.trecho || row.trecho, abastecimentoLocal, abastecimento.numero_comanda || null, abastecimento.numero_nf || null, diarioNumber(abastecimento.litros), diarioNumber(abastecimento.valor_unitario), diarioNumber(abastecimento.valor_total), abastecimento.status || 'pendente', abastecimento.observacao || 'Atualizado no Diário de Bordo', extractSupabaseUserId(c), diarioBoolean(body.voo_emprestado ?? current.voo_emprestado), row.numero_voo || current.numero_voo || null]
     if (existente) {
       await db.prepare('UPDATE abastecimentos SET cliente_id=?, socio_id=?, aeronave_id=?, data=?, tipo_combustivel=?, trecho=?, local=?, numero_comanda=?, numero_nf=?, litros=?, valor_unitario=?, valor_total=?, status=?, observacao=?, criado_por=?, voo_emprestado=?, numero_voo=? WHERE id=?').bind(...valores, existente.id).run()
     } else {
@@ -3518,6 +3521,36 @@ async function validarElegibilidadeTripulante(c: Context<{ Bindings: Bindings }>
   return null
 }
 
+app.get('/api/interno/tripulacao/:id/jornadas', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const db = c.env.SHARE_DB
+  const tripulanteId = c.req.param('id')
+  const inicio = c.req.query('inicio') || '2000-01-01'
+  const fim = c.req.query('fim') || '2099-12-31'
+  const tripulante = await db.prepare(`SELECT COALESCE(t.nome_completo, f.nome_completo) AS nome_completo,
+      COALESCE(t.canac, f.canac) AS canac
+    FROM (SELECT ?1 AS id) x
+    LEFT JOIN tripulacao t ON t.id = x.id
+    LEFT JOIN tripulacao_freelancer f ON f.id = x.id`).bind(tripulanteId).first<{ nome_completo: string | null; canac: string | null }>()
+  if (!tripulante?.nome_completo) return c.notFound()
+  const jornadas = await db.prepare(`SELECT j.id, j.solicitacao_id, j.aeronave_id, j.tripulante_id, j.funcao_tripulante,
+      j.jornada_principal_id, j.numero_jornada, j.data, j.horario_acionamento, j.horario_apresentacao,
+      j.horario_pouso, j.horario_corte, j.minutos_pos_corte, j.minutos_jornada, j.nivel_alerta, j.status,
+      j.observacoes, s.numero_voo, s.origem, s.destino, a.matricula_registro, a.modelo
+    FROM jornadas_voo j
+    LEFT JOIN solicitacoes_reserva_voo s ON s.id = j.solicitacao_id
+    LEFT JOIN aeronave a ON a.id = j.aeronave_id
+    WHERE j.tripulante_id = ?1 AND date(j.data) BETWEEN date(?2) AND date(?3)
+    ORDER BY date(j.data) DESC, j.numero_jornada DESC`).bind(tripulanteId, inicio, fim).all<any>()
+  const resultado = await Promise.all((jornadas.results || []).map(async (jornada: any) => {
+    const pernas = await db.prepare(`SELECT id, jornada_id, numero, origem, destino, 0 AS numero_passageiros,
+        horario_ac, horario_dep, horario_pouso, horario_corte, status, lancamento_diario_id
+      FROM pernas_jornada_voo WHERE jornada_id = ?1 ORDER BY numero`).bind(jornada.id).all<any>()
+    return { ...jornada, tripulante_nome: tripulante.nome_completo, pernas: pernas.results || [], historico: [] }
+  }))
+  return c.json({ tripulante_id: tripulanteId, tripulante_nome: tripulante.nome_completo, canac: tripulante.canac, inicio, fim, jornadas: resultado })
+})
+
 app.get('/api/interno/tripulacao/gestao', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   const db = c.env.SHARE_DB
@@ -3529,11 +3562,35 @@ app.get('/api/interno/tripulacao/gestao', async c => {
   ])
   return c.json({ tripulantes: tripulantes.results, habilitacoes: habilitacoes.results, freelancers: freelancers.results, aeronaves: aeronave.results })
 })
+app.get('/api/interno/tripulacao-freelancer/:id/foto', async c => {
+  if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
+  const row = await c.env.SHARE_DB.prepare('SELECT url_avatar FROM tripulacao_freelancer WHERE id = ?1').bind(c.req.param('id')).first<{ url_avatar: string | null }>()
+  if (!row?.url_avatar) return c.notFound()
+  if (/^https?:\/\//i.test(row.url_avatar)) return c.redirect(row.url_avatar, 302)
+  const object = await bucketParaChaveColaborador(c, row.url_avatar).get(row.url_avatar)
+  if (!object) return c.notFound()
+  const headers = new Headers()
+  object.writeHttpMetadata(headers)
+  headers.set('Cache-Control', 'private, max-age=300')
+  return new Response(object.body, { headers })
+})
+
 app.get('/api/interno/tripulacao/:id/foto', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  const row = await c.env.SHARE_DB.prepare('SELECT up.url_avatar FROM tripulacao t LEFT JOIN user_profiles up ON up.id = t.user_id WHERE t.id = ?1').bind(c.req.param('id')).first<{ url_avatar: string | null }>()
-  if (!row?.url_avatar) return c.notFound()
-  const object = await bucketParaChaveColaborador(c, row.url_avatar).get(row.url_avatar)
+  const row = await c.env.SHARE_DB.prepare(`SELECT up.url_avatar
+    FROM tripulacao t
+    LEFT JOIN user_profiles up ON up.id = COALESCE(t.user_id, (
+      SELECT p.id FROM user_profiles p
+      WHERE (NULLIF(trim(t.canac), '') IS NOT NULL AND lower(trim(p.canac)) = lower(trim(t.canac)))
+         OR lower(trim(p.nome_completo)) = lower(trim(t.nome_completo))
+      ORDER BY CASE WHEN NULLIF(trim(t.canac), '') IS NOT NULL AND lower(trim(p.canac)) = lower(trim(t.canac)) THEN 0 ELSE 1 END, p.id
+      LIMIT 1
+    ))
+    WHERE t.id = ?1`).bind(c.req.param('id')).first<{ url_avatar: string | null }>()
+  const avatar = row?.url_avatar?.trim() || ''
+  if (!avatar) return c.notFound()
+  if (/^https?:\/\//i.test(avatar)) return c.redirect(avatar, 302)
+  const object = await bucketParaChaveColaborador(c, avatar).get(avatar)
   if (!object) return c.notFound()
   const headers = new Headers()
   object.writeHttpMetadata(headers)
@@ -3694,7 +3751,7 @@ app.get('/api/interno/abastecimentos/precos', async c => {
 app.get('/api/interno/planos-voo', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
   await garantirTabelaPlanosVoo(c)
-  await garantirTabelaChecklistPlano(c)
+  await validarTabelaChecklistPlano(c)
   const rows = await c.env.SHARE_DB.prepare(`SELECT p.id, p.numero_voo, p.adep, p.ades, p.data_voo, p.eobt, p.payload_json, p.criado_em AS created_at, cp.status AS checklist_status
     FROM planos_voo p LEFT JOIN checklists_planos_voo cp ON cp.plano_voo_id = p.id
     ORDER BY p.criado_em DESC LIMIT 50`).all<any>()
@@ -3718,24 +3775,13 @@ app.post('/api/interno/planos-voo', async c => {
   return c.json({ id, created_at: new Date().toISOString() }, 201)
 })
 
-async function garantirTabelaChecklistPlano(c: Context<{ Bindings: Bindings }>) {
-  await c.env.SHARE_DB.prepare(`CREATE TABLE IF NOT EXISTS checklists_planos_voo (
-    id TEXT PRIMARY KEY NOT NULL,
-    plano_voo_id TEXT NOT NULL UNIQUE,
-    itens_json TEXT NOT NULL DEFAULT '{}',
-    observacoes TEXT NULL,
-    status TEXT NOT NULL DEFAULT 'rascunho',
-    executado_por TEXT NULL,
-    executado_por_nome TEXT NULL,
-    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    concluido_em TEXT NULL
-  )`).run()
+async function validarTabelaChecklistPlano(c: Context<{ Bindings: Bindings }>) {
+  await validateWorkerSchema(c, [{ table: 'checklists_planos_voo', columns: ['id', 'plano_voo_id', 'itens_json', 'status'] }])
 }
 
 app.get('/api/interno/planos-voo/:id/checklist', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  await garantirTabelaChecklistPlano(c)
+  await validarTabelaChecklistPlano(c)
   const row = await c.env.SHARE_DB.prepare('SELECT id, plano_voo_id, itens_json, observacoes, status, executado_por AS usuario_id, executado_por_nome, criado_em, atualizado_em, concluido_em FROM checklists_planos_voo WHERE plano_voo_id = ?1').bind(c.req.param('id')).first<any>()
   if (!row) return c.json(null)
   return c.json({ ...row, itens: JSON.parse(row.itens_json || '{}') })
@@ -3743,7 +3789,7 @@ app.get('/api/interno/planos-voo/:id/checklist', async c => {
 
 app.post('/api/interno/planos-voo/:id/checklist', async c => {
   if (!(await requireShareInternal(c))) return c.json({ error: 'internal_auth_required' }, 401)
-  await garantirTabelaChecklistPlano(c)
+  await validarTabelaChecklistPlano(c)
   const plano = await c.env.SHARE_DB.prepare('SELECT id FROM planos_voo WHERE id = ?1').bind(c.req.param('id')).first()
   if (!plano) return c.notFound()
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as any))
@@ -3832,8 +3878,8 @@ app.get('/api/interno/agendamento', async c => {
       FROM aeronave a
       LEFT JOIN performance_aeronave p ON p.id = COALESCE(a.performance_aeronave_id, (SELECT p2.id FROM performance_aeronave p2 WHERE lower(p2.modelo) = lower(a.modelo) ORDER BY p2.atualizado_em DESC LIMIT 1))
       ORDER BY a.matricula_registro`).all().catch(error => { log.error('[agendamento] aeronaves indisponíveis', error); return { results: [] } }),
-    db.prepare("SELECT t.id, t.nome_completo, t.canac, t.status, t.tipo_licenca, up.url_avatar AS url_avatar, 'tripulacao' AS origem FROM tripulacao t LEFT JOIN user_profiles up ON up.id = t.user_id WHERE lower(COALESCE(t.status, 'ativo')) = 'ativo' AND lower(COALESCE(up.status, 'ativo')) NOT IN ('inativo', 'inactive') ORDER BY t.nome_completo").all().catch(error => { log.error('[agendamento] tripulação indisponível', error); return { results: [] } }),
-    db.prepare("SELECT id, nome_completo, canac, status, NULL AS tipo_licenca, url_avatar, 'freelancer' AS origem FROM tripulacao_freelancer WHERE lower(COALESCE(status, 'ativo')) = 'ativo' ORDER BY nome_completo").all().catch(error => { log.error('[agendamento] freelancers indisponíveis', error); return { results: [] } }),
+    db.prepare("SELECT t.id, t.nome_completo, t.canac, t.status, t.tipo_licenca, up.url_avatar AS url_avatar, CASE WHEN up.url_avatar IS NOT NULL THEN '/api/interno/tripulacao/' || t.id || '/foto' ELSE NULL END AS foto_url, 'tripulacao' AS origem FROM tripulacao t LEFT JOIN user_profiles up ON up.id = COALESCE(t.user_id, (SELECT p.id FROM user_profiles p WHERE (NULLIF(trim(t.canac), '') IS NOT NULL AND lower(trim(p.canac)) = lower(trim(t.canac))) OR lower(trim(p.nome_completo)) = lower(trim(t.nome_completo)) ORDER BY CASE WHEN NULLIF(trim(t.canac), '') IS NOT NULL AND lower(trim(p.canac)) = lower(trim(t.canac)) THEN 0 ELSE 1 END, p.id LIMIT 1)) WHERE lower(COALESCE(t.status, 'ativo')) = 'ativo' AND lower(COALESCE(up.status, 'ativo')) NOT IN ('inativo', 'inactive') ORDER BY t.nome_completo").all().catch(error => { log.error('[agendamento] tripulação indisponível', error); return { results: [] } }),
+    db.prepare("SELECT id, nome_completo, canac, status, NULL AS tipo_licenca, url_avatar, CASE WHEN url_avatar IS NOT NULL THEN '/api/interno/tripulacao-freelancer/' || id || '/foto' ELSE NULL END AS foto_url, 'freelancer' AS origem FROM tripulacao_freelancer WHERE lower(COALESCE(status, 'ativo')) = 'ativo' ORDER BY nome_completo").all().catch(error => { log.error('[agendamento] freelancers indisponíveis', error); return { results: [] } }),
     db.prepare(`SELECT e.id, e.tripulacao_id AS tripulante_id,
         CASE WHEN EXISTS (SELECT 1 FROM tripulacao t WHERE t.id = e.tripulacao_id) THEN 'tripulacao' ELSE 'freelancer' END AS tripulante_origem,
         e.data_inicio, e.data_fim, e.status, e.observacoes
@@ -3844,7 +3890,7 @@ app.get('/api/interno/agendamento', async c => {
   const tripulantes = [...tripulacao.results, ...freelancers.results]
   const nomes = new Map(tripulantes.map((item: any) => [item.id, item.nome_completo]))
   const escala = agendamentos.results
-    .filter((item: any) => item.status === 'aprovada' && (item.piloto_id || item.copiloto_id))
+    .filter((item: any) => ['aprovada', 'em_voo', 'em_rota'].includes(String(item.status || '').toLowerCase()) && (item.piloto_id || item.copiloto_id))
     .map((item: any) => ({
       id: item.id,
       data_agendada: item.data_agendada,
@@ -4000,10 +4046,10 @@ app.post('/api/interno/agendamento/:id/checklist', async c => {
       if (!trecho) return c.json({ error: 'trecho_diario_invalido', detail: 'O último trecho informado não pertence à aeronave deste agendamento.' }, 400)
       pagador = { cliente_id: trecho.cliente_id, socio_id: trecho.socio_id }
     }
-    const valores = [pagador.cliente_id, pagador.socio_id, agendamento.aeronave_id, a.data, a.tipo_combustivel, a.trecho || `${agendamento.origem} X ${agendamento.destino}`, localIcao, a.numero_comanda || null, Number(a.litros), Number(a.valor_unitario), Math.max(0, Number(a.litros) * Number(a.valor_unitario) - Number(a.desconto || 0)), Number(a.desconto || 0), a.fornecedor_id || null, 'pendente', null, userId, a.lancamento_diario_id || null, agendamento.voo_emprestado === 'sim' ? 1 : 0, agendamento.numero_voo || null, a.prazo_envio_cliente || null]
-    const valoresInsert = [pagador.cliente_id, pagador.socio_id, agendamento.aeronave_id, a.data, a.tipo_combustivel, a.trecho || `${agendamento.origem} X ${agendamento.destino}`, localIcao, a.numero_comanda || null, null, Number(a.litros), Number(a.valor_unitario), Math.max(0, Number(a.litros) * Number(a.valor_unitario) - Number(a.desconto || 0)), Number(a.desconto || 0), a.fornecedor_id || null, 'pendente', null, userId, a.lancamento_diario_id || null, agendamento.voo_emprestado === 'sim' ? 1 : 0, agendamento.numero_voo || null, a.prazo_envio_cliente || null]
+    const valores = [pagador.cliente_id, pagador.socio_id, agendamento.aeronave_id, a.data, a.tipo_combustivel, a.trecho || `${agendamento.origem} X ${agendamento.destino}`, localIcao, a.numero_comanda || null, a.numero_nf || null, Number(a.litros), Number(a.valor_unitario), Math.max(0, Number(a.litros) * Number(a.valor_unitario) - Number(a.desconto || 0)), Number(a.desconto || 0), a.fornecedor_id || null, 'pendente', null, userId, a.lancamento_diario_id || null, agendamento.voo_emprestado === 'sim' ? 1 : 0, agendamento.numero_voo || null, a.prazo_envio_cliente || null]
+    const valoresInsert = [pagador.cliente_id, pagador.socio_id, agendamento.aeronave_id, a.data, a.tipo_combustivel, a.trecho || `${agendamento.origem} X ${agendamento.destino}`, localIcao, a.numero_comanda || null, a.numero_nf || null, Number(a.litros), Number(a.valor_unitario), Math.max(0, Number(a.litros) * Number(a.valor_unitario) - Number(a.desconto || 0)), Number(a.desconto || 0), a.fornecedor_id || null, 'pendente', null, userId, a.lancamento_diario_id || null, agendamento.voo_emprestado === 'sim' ? 1 : 0, agendamento.numero_voo || null, a.prazo_envio_cliente || null]
     if (abastecimentoId) {
-      await c.env.SHARE_DB.prepare(`UPDATE abastecimentos SET cliente_id=?, socio_id=?, aeronave_id=?, data=?, tipo_combustivel=?, trecho=?, local=?, numero_comanda=?, litros=?, valor_unitario=?, valor_total=?, desconto=?, fornecedor_id=?, status=?, observacao=?, criado_por=?, lancamento_diario_id=?, voo_emprestado=?, numero_voo=?, prazo_envio_cliente=? WHERE id=?`).bind(...valores, abastecimentoId).run()
+      await c.env.SHARE_DB.prepare(`UPDATE abastecimentos SET cliente_id=?, socio_id=?, aeronave_id=?, data=?, tipo_combustivel=?, trecho=?, local=?, numero_comanda=?, numero_nf=?, litros=?, valor_unitario=?, valor_total=?, desconto=?, fornecedor_id=?, status=?, observacao=?, criado_por=?, lancamento_diario_id=?, voo_emprestado=?, numero_voo=?, prazo_envio_cliente=? WHERE id=?`).bind(...valores, abastecimentoId).run()
     } else {
       abastecimentoId = uuid()
       await c.env.SHARE_DB.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, desconto, fornecedor_id, status, observacao, criado_por, lancamento_diario_id, voo_emprestado, numero_voo, prazo_envio_cliente) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(abastecimentoId, ...valoresInsert).run()
@@ -4301,7 +4347,15 @@ app.get('/api/interno/agendamento/:id/jornada', async c => {
   }
   const idSolicitacao = c.req.param('id')
   const jornadas = await c.env.SHARE_DB.prepare('SELECT * FROM jornadas_voo WHERE solicitacao_id = ?1 ORDER BY numero_jornada DESC').bind(idSolicitacao).all<any>()
-  const registros = (jornadas.results || []).map(normalizarJornadaRegistro)
+  const registrosBase = (jornadas.results || []).map(normalizarJornadaRegistro)
+  const registros = await Promise.all(registrosBase.map(async (registro: any) => {
+    if (!registro.tripulante_id) return registro
+    const tripulante = await c.env.SHARE_DB.prepare(`SELECT COALESCE(t.nome_completo, f.nome_completo) AS tripulante_nome
+      FROM (SELECT ?1 AS id) x
+      LEFT JOIN tripulacao t ON t.id = x.id
+      LEFT JOIN tripulacao_freelancer f ON f.id = x.id`).bind(registro.tripulante_id).first<{ tripulante_nome: string | null }>()
+    return { ...registro, tripulante_nome: tripulante?.tripulante_nome || null }
+  }))
   const principal = registros.find((j: any) => j.status !== 'encerrada' && !j.jornada_principal_id)
     || registros.find((j: any) => j.status !== 'encerrada')
     || registros[0]
@@ -4478,8 +4532,10 @@ app.post('/api/interno/agendamento/:id/jornada', async c => {
   const db = c.env.SHARE_DB
   const idSolicitacao = c.req.param('id')
   const body = await c.req.json<Record<string, any>>().catch(() => ({} as Record<string, any>))
-  const voo = await db.prepare('SELECT aeronave_id, piloto_id, copiloto_id, data_agendada, numero_voo FROM solicitacoes_reserva_voo WHERE id = ?1').bind(idSolicitacao).first<any>()
+  const voo = await db.prepare('SELECT aeronave_id, piloto_id, copiloto_id, data_agendada, numero_voo, status FROM solicitacoes_reserva_voo WHERE id = ?1').bind(idSolicitacao).first<any>()
   if (!voo) return c.notFound()
+  const statusVoo = String(voo.status || '').trim().toLowerCase()
+  if (statusVoo === 'encerrada' || statusVoo === 'concluida') return c.json({ error: 'agendamento_encerrado', detail: 'Operações encerradas são somente leitura e não podem receber nova jornada.' }, 409)
   const tripulantes = (Array.isArray(body.tripulantes) && body.tripulantes.length
     ? body.tripulantes
     : [{ tripulante_id: voo.piloto_id, funcao: 'PIC' }, { tripulante_id: voo.copiloto_id, funcao: 'SIC' }]
@@ -4635,7 +4691,7 @@ app.post('/api/interno/agendamento/:id/finalizar', async c => {
   const id = c.req.param('id')
   const agendamento = await c.env.SHARE_DB.prepare('SELECT id, status, numero_voo FROM solicitacoes_reserva_voo WHERE id = ?1').bind(id).first<any>()
   if (!agendamento) return c.notFound()
-  if (agendamento.status === 'encerrada') return c.json({ success: true, status: 'encerrada', id, numero_voo: agendamento.numero_voo })
+  if (['encerrada', 'concluida'].includes(String(agendamento.status || '').trim().toLowerCase())) return c.json({ error: 'agendamento_ja_encerrado', detail: 'A operação já está encerrada e não pode ser concluída novamente.' }, 409)
   const jornadas = await c.env.SHARE_DB.prepare('SELECT status FROM jornadas_voo WHERE solicitacao_id = ?1').bind(id).all<any>()
   if (!jornadas.results?.length) return c.json({ error: 'jornada_obrigatoria', detail: 'Registre pelo menos uma jornada antes de finalizar o agendamento.' }, 409)
   if (jornadas.results.some((j: any) => j.status !== 'encerrada')) return c.json({ error: 'jornadas_pendentes', detail: 'Encerre todas as jornadas antes de finalizar o agendamento.' }, 409)
@@ -4931,14 +4987,14 @@ async function persistirMetadadosFinanceirosRelatorio(
   dataVencimento?: string | null,
 ) {
   const prefixo = `RELATORIO_DESPESA_VIAGEM:${relatorioId}`
+  // contas_apagar não tem origem_id; os dois reembolsos usam chaves idempotentes próprias.
   const contas = await db.prepare(`SELECT
       MAX(CASE WHEN idempotency_key = ?1 THEN id END) AS conta_tripulante_1,
       MAX(CASE WHEN idempotency_key = ?2 THEN id END) AS conta_tripulante_2
     FROM contas_apagar
-    WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?3`).bind(
+    WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND idempotency_key IN (?1, ?2)`).bind(
     `${prefixo}:tripulante_1:CONTA_PAGAR`,
     `${prefixo}:tripulante_2:CONTA_PAGAR`,
-    relatorioId,
   ).first<{ conta_tripulante_1: string | null; conta_tripulante_2: string | null }>()
   await db.prepare(`UPDATE relatorio_despesa_viagem SET
       gerado_por_usuario_id = COALESCE(gerado_por_usuario_id, ?1),
@@ -5394,15 +5450,16 @@ app.post('/api/financeiro/relatorios-despesa-viagem/:id/aprovacao', async c => {
         ? 'aprovado'
         : 'aguardando_aprovacao'
     const segundoAplicavel = requerAprovacaoTripulanteRelatorio(report.despesas, 2)
-    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.observacoes?.trim() || null, segundoAplicavel ? 1 : 0, decision, nextReportStatus, id).run()
+    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN COALESCE(${dateColumn}, CURRENT_TIMESTAMP) ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN COALESCE(aprovado_tripulante_em, CURRENT_TIMESTAMP) WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.observacoes?.trim() || null, segundoAplicavel ? 1 : 0, decision, nextReportStatus, id).run()
     const updated = await buscarRelatorioViagemComNomes(c, id)
     if (!updated) return c.notFound()
-    if (body.aprovado) {
+    if (body.aprovado && updated.status === 'aprovado') {
       try {
-        await sincronizarRelatorioViagemFinanceiro(c.env.SHARE_DB, updated, colaborador.id, pos === 1 ? 'tripulante_1' : 'tripulante_2')
+        await sincronizarRelatorioViagemFinanceiro(c.env.SHARE_DB, updated, colaborador.id)
         await persistirMetadadosFinanceirosRelatorio(c.env.SHARE_DB, id, colaborador.id)
       } catch (error: any) {
-        log.warn('[relatorio-despesa-viagem:aprovacao-direta-financeiro]', error?.message || error)
+        log.error('[relatorio-despesa-viagem:aprovacao-direta-financeiro]', error?.message || error)
+        return c.json({ error: 'aprovacao_registrada_falha_conta_a_pagar', message: 'A aprovação foi registrada, mas a conta a pagar não pôde ser gerada. Reenvie a aprovação para tentar novamente.' }, 500)
       }
     }
     if (!body.aprovado) await notifyReportRejection(c, updated, String(body.observacoes || '').trim(), colaborador.id)
@@ -5424,6 +5481,15 @@ app.get('/api/financeiro/relatorios-despesa-viagem/:id/programacao-reembolso', a
     } else {
       return c.json({ error: 'aguarde_aprovacao_de_todos_os_tripulantes' }, 409)
     }
+  }
+  const relatorioAprovado = await buscarRelatorioViagemComNomes(c, row.id)
+  if (!relatorioAprovado) return c.notFound()
+  try {
+    await sincronizarRelatorioViagemFinanceiro(c.env.SHARE_DB, relatorioAprovado, user.id)
+    await persistirMetadadosFinanceirosRelatorio(c.env.SHARE_DB, row.id, user.id)
+  } catch (error: any) {
+    log.error('[relatorio-despesa-viagem:programacao-financeira]', error?.message || error)
+    return c.json({ error: 'aprovacao_registrada_falha_conta_a_pagar', message: 'O relatório está aprovado, mas a conta a pagar não pôde ser gerada. Tente novamente.' }, 500)
   }
   return c.json({ descricao: `Relatório Despesa de Viagem - ${row.numero_relatorio}`, valor: Math.max(0, Number(row.total_valor || 0) - Number(row.total_cliente || 0)), fornecedor: 'Share Brasil', grupo_categoria_id: 'b4016b98-7b4c-4f18-9f8d-d7b03cd4d300', subcategoria: 'RELATORIO DE VIAGEM', aeronave_id: row.aeronave_id, aeronave_matricula: row.aeronave_matricula, cliente_id: row.cliente_id, socio_id: row.socio_id, periodicidade: '', tipo_rateio: '', pdf_url: row.pdf_url, pdf_path: row.pdf_path })
 })
@@ -5502,7 +5568,6 @@ app.post('/api/financeiro/relatorios-despesa-viagem/:id/enviar-cliente', async c
       }
       await db.batch([
         db.prepare("UPDATE lancamentos SET cotista_aeronave_id = ?, cliente_id = ?, periodicidade = 'EVENTUAL', fornecedor_nome = ?, numero_doc = ?, numero_voo = ?, data_vencimento = ?, url_doc = ?, pago_por = NULL WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?").bind(cotista.id, report.cliente_id || null, 'SHARE BRASIL', report.numero_relatorio, numeroVooId, body.data_vencimento, report.pdf_path || null, id),
-        db.prepare("UPDATE contas_apagar SET data_vencimento = ? WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?").bind(body.data_vencimento, id),
         db.prepare("UPDATE relatorio_despesa_viagem SET status = 'enviado_cliente', data_vencimento_reembolso = ?, enviado_para_cliente_em = COALESCE(enviado_para_cliente_em, CURRENT_TIMESTAMP), programado_pagamento_em = COALESCE(programado_pagamento_em, CURRENT_TIMESTAMP), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?").bind(body.data_vencimento, id),
       ])
       await persistirMetadadosFinanceirosRelatorio(db, id, user.id, body.email_enviado_id || null, true, body.data_vencimento)
@@ -5518,7 +5583,6 @@ app.post('/api/financeiro/relatorios-despesa-viagem/:id/enviar-cliente', async c
           AND id IN (?, ?)`)
         .bind(body.email_enviado_id, id, clienteLancamentoId, shareLancamentoId) : null,
       db.prepare("UPDATE lancamentos SET cotista_aeronave_id = ?, cliente_id = ?, periodicidade = 'EVENTUAL', fornecedor_nome = ?, numero_doc = ?, numero_voo = ?, data_vencimento = ?, url_doc = ?, pago_por = NULL WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?").bind(cotista.id, report.cliente_id || null, 'SHARE BRASIL', report.numero_relatorio, numeroVooId, body.data_vencimento, report.pdf_path || null, id),
-      db.prepare("UPDATE contas_apagar SET data_vencimento = ? WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ?").bind(body.data_vencimento, id),
       db.prepare("UPDATE relatorio_despesa_viagem SET status = 'enviado_cliente', enviado_para_cliente_em = CURRENT_TIMESTAMP, data_vencimento_reembolso = ?, programado_pagamento_em = COALESCE(programado_pagamento_em, CURRENT_TIMESTAMP), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?").bind(body.data_vencimento, id),
     ].filter(Boolean) as D1PreparedStatement[])
     await persistirMetadadosFinanceirosRelatorio(db, id, user.id, body.email_enviado_id || null, true, body.data_vencimento)
@@ -5547,7 +5611,7 @@ app.post('/api/public/relatorios-despesa-viagem/aprovacao/:token', async c => {
       : nextTripulante1Status === 'aprovado' && (!requiredSecond || nextTripulante2Status === 'aprovado')
         ? 'aprovado'
         : 'aguardando_aprovacao'
-    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN CURRENT_TIMESTAMP ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN CURRENT_TIMESTAMP WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.motivo?.trim() || null, requiredSecond ? 1 : 0, decision, nextReportStatus, row.id).run()
+    await c.env.SHARE_DB.prepare(`UPDATE relatorio_despesa_viagem SET ${statusColumn} = ?, ${dateColumn} = CASE WHEN ? = 'aprovado' THEN COALESCE(${dateColumn}, CURRENT_TIMESTAMP) ELSE NULL END, aprovado_tripulante_em = CASE WHEN ? = 1 AND ? = 'aprovado' THEN COALESCE(aprovado_tripulante_em, CURRENT_TIMESTAMP) WHEN ? = 1 THEN NULL ELSE aprovado_tripulante_em END, ${reasonColumn} = ?, status_aprovacao_tripulante_2 = CASE WHEN ? = 0 AND ? = 'aprovado' THEN 'nao_aplicavel' ELSE status_aprovacao_tripulante_2 END, status = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`).bind(decision, decision, pos, decision, pos, body.motivo?.trim() || null, requiredSecond ? 1 : 0, decision, nextReportStatus, row.id).run()
     const decidedBy = pos === 1 ? row.user1_id : row.user2_id || ''
     const updatedForNotification = await buscarRelatorioViagemComNomes(c, row.id)
     if (updatedForNotification) {
@@ -5557,14 +5621,15 @@ app.post('/api/public/relatorios-despesa-viagem/aprovacao/:token', async c => {
         log.warn('[relatorio-despesa-viagem:aprovacao-publica-notificacao]', error?.message || error)
       }
     }
-    if (body.aprovado) {
+    if (body.aprovado && updatedForNotification?.status === 'aprovado') {
       const updated = await buscarRelatorioViagemComNomes(c, row.id)
       if (!updated) return c.notFound()
       try {
-        await sincronizarRelatorioViagemFinanceiro(c.env.SHARE_DB, updated, extractSupabaseUserId(c), pos === 1 ? 'tripulante_1' : 'tripulante_2')
+        await sincronizarRelatorioViagemFinanceiro(c.env.SHARE_DB, updated, extractSupabaseUserId(c))
         await persistirMetadadosFinanceirosRelatorio(c.env.SHARE_DB, row.id, extractSupabaseUserId(c))
       } catch (error: any) {
-        log.warn('[relatorio-despesa-viagem:aprovacao-publica-financeiro]', error?.message || error)
+        log.error('[relatorio-despesa-viagem:aprovacao-publica-financeiro]', error?.message || error)
+        return c.json({ error: 'aprovacao_registrada_falha_conta_a_pagar', message: 'A aprovação foi registrada, mas a conta a pagar não pôde ser gerada. Reenvie a aprovação para tentar novamente.' }, 500)
       }
     }
     return c.json({ relatorio: await buscarRelatorioViagemComNomes(c, row.id), aprovado: body.aprovado })
@@ -5710,16 +5775,17 @@ app.get('/api/interno/abastecimentos/opcoes', async c => {
   const db = c.env.SHARE_DB
   const aeronaveId = c.req.query('aeronave_id') || ''
   await garantirTabelaFornecedoresCombustivel(c)
-  const [clientes, socios, aeronave, fornecedores, diarios] = await Promise.all([
+  const [clientes, socios, aeronave, fornecedores, aerodromos, diarios] = await Promise.all([
     db.prepare("SELECT id, razao_social AS nome, codigo_cliente FROM cliente WHERE lower(COALESCE(status, 'ativo')) NOT IN ('inativo', 'cancelado') ORDER BY razao_social").all(),
     db.prepare('SELECT id, nome, cotista_id, holding_id FROM hold_socios ORDER BY nome').all(),
     db.prepare('SELECT id, matricula_registro, fabricante, modelo, status FROM aeronave ORDER BY matricula_registro').all(),
     db.prepare('SELECT * FROM fornecedores_combustivel ORDER BY nome_cidade, nome_fornecedor').all(),
+    db.prepare('SELECT id, nome, designativo_icao FROM aerodromo ORDER BY designativo_icao').all(),
     aeronaveId
-      ? db.prepare('SELECT l.id, l.data_registro, l.numero_voo, l.aeronave_id, l.cliente_id, l.socio_id, l.aerodromo_partida, l.aerodromo_chegada, l.trecho, l.local_combustivel, l.voo_emprestado, c.razao_social AS cliente_nome, s.nome AS socio_nome FROM lancamentos_diario_bordo l LEFT JOIN cliente c ON c.id = l.cliente_id LEFT JOIN hold_socios s ON s.id = l.socio_id WHERE l.aeronave_id = ?1 ORDER BY date(l.data_registro) DESC, l.id DESC LIMIT 100').bind(aeronaveId).all()
-      : db.prepare('SELECT id, data_registro, numero_voo, aeronave_id, cliente_id, socio_id, aerodromo_partida, aerodromo_chegada, trecho, local_combustivel, voo_emprestado FROM lancamentos_diario_bordo ORDER BY date(data_registro) DESC LIMIT 100').all(),
+      ? db.prepare('SELECT l.id, l.data_registro, l.numero_voo, l.aeronave_id, l.cliente_id, l.holding_id, l.socio_id, l.socio_tomador_emprestimo_id, l.cliente_tomador_emprestimo_id, l.aerodromo_partida, l.aerodromo_chegada, l.trecho, l.local_combustivel, l.voo_emprestado, c.razao_social AS cliente_nome, s.nome AS socio_nome, h.nome AS holding_nome, ct.razao_social AS cliente_tomador_nome, st.nome AS socio_tomador_nome, ab.id AS abastecimento_id, ab.numero_comanda AS abastecimento_numero_comanda, ab.numero_nf AS abastecimento_numero_nf, ab.litros AS abastecimento_litros, ab.valor_unitario AS abastecimento_valor_unitario, ab.valor_total AS abastecimento_valor_total, ab.desconto AS abastecimento_desconto, ab.fornecedor_id AS abastecimento_fornecedor_id, ab.tipo_combustivel AS abastecimento_tipo_combustivel FROM lancamentos_diario_bordo l LEFT JOIN abastecimentos ab ON ab.lancamento_diario_id = l.id LEFT JOIN cliente c ON c.id = l.cliente_id LEFT JOIN hold_socios s ON s.id = l.socio_id LEFT JOIN holdings h ON h.id = l.holding_id LEFT JOIN cliente ct ON ct.id = l.cliente_tomador_emprestimo_id LEFT JOIN hold_socios st ON st.id = l.socio_tomador_emprestimo_id WHERE l.aeronave_id = ?1 ORDER BY date(l.data_registro) DESC, l.id DESC').bind(aeronaveId).all()
+      : db.prepare('SELECT l.id, l.data_registro, l.numero_voo, l.aeronave_id, l.cliente_id, l.holding_id, l.socio_id, l.socio_tomador_emprestimo_id, l.cliente_tomador_emprestimo_id, l.aerodromo_partida, l.aerodromo_chegada, l.trecho, l.local_combustivel, l.voo_emprestado, c.razao_social AS cliente_nome, h.nome AS holding_nome, so.nome AS socio_nome, ct.razao_social AS cliente_tomador_nome, st.nome AS socio_tomador_nome, ab.id AS abastecimento_id, ab.numero_comanda AS abastecimento_numero_comanda, ab.numero_nf AS abastecimento_numero_nf, ab.litros AS abastecimento_litros, ab.valor_unitario AS abastecimento_valor_unitario, ab.valor_total AS abastecimento_valor_total, ab.desconto AS abastecimento_desconto, ab.fornecedor_id AS abastecimento_fornecedor_id, ab.tipo_combustivel AS abastecimento_tipo_combustivel FROM lancamentos_diario_bordo l LEFT JOIN cliente c ON c.id = l.cliente_id LEFT JOIN holdings h ON h.id = l.holding_id LEFT JOIN hold_socios so ON so.id = l.socio_id LEFT JOIN cliente ct ON ct.id = l.cliente_tomador_emprestimo_id LEFT JOIN hold_socios st ON st.id = l.socio_tomador_emprestimo_id LEFT JOIN abastecimentos ab ON ab.lancamento_diario_id = l.id ORDER BY date(l.data_registro) DESC').all(),
   ])
-  return c.json({ clientes: clientes.results, socios: socios.results, aeronaves: aeronave.results, fornecedores: fornecedores.results, diarios: diarios.results })
+  return c.json({ clientes: clientes.results, socios: socios.results, aeronaves: aeronave.results, fornecedores: fornecedores.results, aerodromos: aerodromos.results, diarios: diarios.results })
 })
 
 app.get('/api/fornecedores-favoritos', async c => {
@@ -5778,8 +5844,9 @@ app.get('/api/interno/abastecimentos', async c => {
   if (valorMin && Number.isFinite(Number(valorMin))) { conditions.push(`a.valor_total >= ?${index++}`); binds.push(Number(valorMin)) }
   if (valorMax && Number.isFinite(Number(valorMax))) { conditions.push(`a.valor_total <= ?${index++}`); binds.push(Number(valorMax)) }
   if (busca) { conditions.push(`(lower(COALESCE(a.local, '')) LIKE ?${index} OR lower(COALESCE(a.trecho, '')) LIKE ?${index} OR lower(COALESCE(a.numero_comanda, '')) LIKE ?${index} OR lower(COALESCE(a.numero_nf, '')) LIKE ?${index})`); binds.push(`%${busca.toLowerCase()}%`); index++ }
-  const result = await c.env.SHARE_DB.prepare(`SELECT a.*, COALESCE((SELECT l.comprovante_url FROM lancamentos l WHERE l.abastecimentos_id = a.id LIMIT 1), (SELECT mh.comprovante_url FROM movimentos_holding mh WHERE mh.abastecimentos_id = a.id LIMIT 1)) AS comprovante_url, c.razao_social AS cliente_nome, s.nome AS socio_nome, ar.matricula_registro, ar.fabricante, ar.modelo, f.nome_fornecedor AS fornecedor_nome, u.nome_completo AS criado_por_nome FROM abastecimentos a LEFT JOIN cliente c ON c.id = a.cliente_id LEFT JOIN hold_socios s ON s.id = a.socio_id LEFT JOIN aeronave ar ON ar.id = a.aeronave_id LEFT JOIN fornecedores_combustivel f ON f.id = a.fornecedor_id LEFT JOIN user_profiles u ON u.id = a.criado_por WHERE ${conditions.join(' AND ')} ORDER BY date(a.data) DESC, a.id DESC`).bind(...binds).all()
-  return c.json({ abastecimentos: result.results })
+  const result = await c.env.SHARE_DB.prepare(`SELECT a.*, CASE WHEN EXISTS (SELECT 1 FROM cotista_aeronave ca WHERE ca.aeronave_id = a.aeronave_id AND ((a.cliente_id IS NOT NULL AND ca.cliente_id = a.cliente_id) OR (a.socio_id IS NOT NULL AND ca.socio_id = a.socio_id))) THEN 1 ELSE 0 END AS cotista_vinculado_a_aeronave, COALESCE((SELECT l.comprovante_url FROM lancamentos l WHERE l.abastecimentos_id = a.id LIMIT 1), (SELECT mh.comprovante_url FROM movimentos_holding mh WHERE mh.abastecimentos_id = a.id LIMIT 1)) AS comprovante_url, c.razao_social AS cliente_nome, s.nome AS socio_nome, ar.matricula_registro, ar.fabricante, ar.modelo, f.nome_fornecedor AS fornecedor_nome, ad.nome AS aerodromo_nome, ad.designativo_icao AS aerodromo_icao, u.nome_completo AS criado_por_nome FROM abastecimentos a LEFT JOIN cliente c ON c.id = a.cliente_id LEFT JOIN hold_socios s ON s.id = a.socio_id LEFT JOIN aeronave ar ON ar.id = a.aeronave_id LEFT JOIN fornecedores_combustivel f ON f.id = a.fornecedor_id LEFT JOIN aerodromo ad ON ad.id = a.local LEFT JOIN user_profiles u ON u.id = a.criado_por WHERE ${conditions.join(' AND ')} ORDER BY date(a.data) DESC, a.id DESC`).bind(...binds).all()
+  const resumoMensal = await c.env.SHARE_DB.prepare(`SELECT strftime('%Y-%m', a.data) AS mes, COALESCE(a.cliente_id, a.socio_id) AS cotista_id, COALESCE(c.razao_social, s.nome, 'Cotista não informado') AS cotista_nome, COUNT(*) AS quantidade FROM abastecimentos a LEFT JOIN cliente c ON c.id = a.cliente_id LEFT JOIN hold_socios s ON s.id = a.socio_id WHERE ${conditions.join(' AND ')} GROUP BY strftime('%Y-%m', a.data), COALESCE(a.cliente_id, a.socio_id), COALESCE(c.razao_social, s.nome, 'Cotista não informado') ORDER BY mes DESC, cotista_nome`).bind(...binds).all()
+  return c.json({ abastecimentos: result.results, resumo_mensal: resumoMensal.results })
 })
 
 function dataAbastecimentoValida(value: unknown): value is string {
@@ -5795,12 +5862,14 @@ function respostaErroAbastecimento(c: Context<{ Bindings: Bindings }>, error: un
     socio_nao_vinculado_a_aeronave: { detalhe: 'O sócio não está vinculado à aeronave selecionada.', status: 409 },
     cliente_nao_vinculado_a_aeronave: { detalhe: 'O cliente não está vinculado à aeronave selecionada.', status: 409 },
     abastecimento_com_rateio_nao_pode_mudar_titular: { detalhe: 'Não é possível alterar o titular ou a aeronave de um abastecimento cujo lançamento já possui rateio.', status: 409 },
+    abastecimento_duplicado: { detalhe: 'Já existe um abastecimento para este voo e aeronave.', status: 409 },
   }
   const conhecido = errosConhecidos[codigo]
   if (!conhecido) console.error(`[abastecimentos:${operacao}]`, error)
+  const detalheTecnico = codigo && /SQLITE|D1|constraint|column|table|bind|FOREIGN/i.test(codigo) ? codigo : null
   return c.json({
     error: conhecido ? codigo : `falha_ao_${operacao}_abastecimento`,
-    detail: conhecido?.detalhe || `Não foi possível ${operacao === 'criar' ? 'criar' : 'atualizar'} o abastecimento.`,
+    detail: conhecido?.detalhe || detalheTecnico || `Não foi possível ${operacao === 'criar' ? 'criar' : 'atualizar'} o abastecimento.`,
   }, conhecido?.status || 500)
 }
 
@@ -5863,34 +5932,52 @@ app.post('/api/interno/abastecimentos', async c => {
   const valorTotal = Number(body?.valor_total ?? litros * valorUnitario)
   const statusPago = String(body?.status || '').toLowerCase() === 'pago'
   const local = await normalizarLocalAbastecimento(c.env.SHARE_DB, localInformado)
-  if (!dataAbastecimentoValida(data) || !local || !aeronaveId || Boolean(clienteId) === Boolean(socioId)) return c.json({ error: 'data_local_aeronave_e_titular_obrigatorios' }, 400)
+  if (!dataAbastecimentoValida(data) || !local || !aeronaveId) return c.json({ error: 'data_local_aeronave_obrigatorios' }, 400)
   if (!Number.isFinite(litros) || litros <= 0 || !Number.isFinite(valorTotal) || valorTotal <= 0 || Math.round(valorTotal * 100) <= 0) return c.json({ error: 'litros_e_valor_total_invalidos' }, 400)
   if (statusPago && !dataAbastecimentoValida(body?.data_pagamento)) return c.json({ error: 'data_pagamento_obrigatoria' }, 400)
   const db = c.env.SHARE_DB
   const id = uuid()
   const userId = authenticated?.id || extractSupabaseUserId(c) || null
-  const diarioId = String(body?.lancamento_diario_id || '').trim() || null
-  const diario = diarioId
+  const numeroVooSolicitado = String(body?.numero_voo || '').trim() || null
+  let diarioId = String(body?.lancamento_diario_id || '').trim() || null
+  let diario = diarioId
     ? await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id, numero_voo, data_registro, trecho, local_combustivel, voo_emprestado FROM lancamentos_diario_bordo WHERE id = ?1').bind(diarioId).first<any>()
     : null
+  if (!diario && numeroVooSolicitado) {
+    diario = await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id, numero_voo, data_registro, trecho, local_combustivel, voo_emprestado FROM lancamentos_diario_bordo WHERE aeronave_id = ?1 AND lower(trim(numero_voo)) = lower(trim(?2)) ORDER BY date(data_registro) DESC, id DESC LIMIT 1').bind(aeronaveId, numeroVooSolicitado).first<any>()
+    diarioId = diario?.id || null
+  }
   if (diarioId && (!diario || diario.aeronave_id !== aeronaveId)) return c.json({ error: 'lancamento_diario_invalido_para_aeronave' }, 409)
   const vooEmprestado = body?.voo_emprestado == null
     ? Boolean(diario?.voo_emprestado)
     : ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())
   if (diario) {
     if (vooEmprestado) {
+      // Em voo de empréstimo, o pagador é o tomador (a pasta em que a
+      // operação foi registrada), não o cotista proprietário da aeronave.
       const tomadorClienteId = diario.cliente_tomador_emprestimo_id || null
       const tomadorSocioId = diario.socio_tomador_emprestimo_id || null
-      if (tomadorClienteId && clienteId && tomadorClienteId !== clienteId || tomadorSocioId && socioId && tomadorSocioId !== socioId) return c.json({ error: 'titular_nao_corresponde_ao_tomador_do_emprestimo' }, 409)
+      if (tomadorClienteId && clienteId && tomadorClienteId !== clienteId) return c.json({ error: 'titular_nao_corresponde_ao_tomador_do_emprestimo' }, 409)
+      if (tomadorSocioId && socioId && tomadorSocioId !== socioId) return c.json({ error: 'titular_nao_corresponde_ao_tomador_do_emprestimo' }, 409)
       if (!clienteId && !socioId) { clienteId = tomadorClienteId; socioId = tomadorSocioId }
     } else {
       if (diario.cliente_id) clienteId = diario.cliente_id
       if (diario.socio_id) socioId = diario.socio_id
     }
   }
+  if (!vooEmprestado && ((diario?.cliente_id && body?.cliente_id && diario.cliente_id !== body.cliente_id) || (diario?.socio_id && body?.socio_id && diario.socio_id !== body.socio_id))) return c.json({ error: 'titular_nao_corresponde_ao_lancamento_diario' }, 409)
+  const numeroVooGravado = diario ? (String(diario.numero_voo || '').trim() || null) : numeroVooSolicitado
+  if (!clienteId && !socioId && diario) {
+    const vinculos = await db.prepare('SELECT cliente_id, socio_id FROM cotista_aeronave WHERE aeronave_id = ?1 ORDER BY id').bind(aeronaveId).all<{ cliente_id: string | null; socio_id: string | null }>()
+    if (vinculos.results.length === 1) { clienteId = vinculos.results[0].cliente_id || null; socioId = vinculos.results[0].socio_id || null }
+  }
+  const existentePorVoo = numeroVooSolicitado
+    ? await db.prepare('SELECT id FROM abastecimentos WHERE aeronave_id = ?1 AND lower(trim(numero_voo)) = lower(trim(?2)) LIMIT 1').bind(aeronaveId, numeroVooSolicitado).first<{ id: string }>()
+    : diarioId ? await db.prepare('SELECT id FROM abastecimentos WHERE lancamento_diario_id = ?1 LIMIT 1').bind(diarioId).first<{ id: string }>() : null
+  if (existentePorVoo) throw new Error('abastecimento_duplicado')
   const abastecimentoStatement = db.prepare(`INSERT INTO abastecimentos (id, cliente_id, socio_id, aeronave_id, data, tipo_combustivel, trecho, local, numero_comanda, numero_nf, litros, valor_unitario, valor_total, desconto, fornecedor_id, status, observacao, forma_pagamento, data_vencimento_boleto, criado_por, lancamento_diario_id, voo_emprestado, numero_voo, prazo_envio_cliente) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  .bind(id, clienteId, socioId, aeronaveId, data, body?.tipo_combustivel || null, body?.trecho || diario?.trecho || null, local, body?.numero_comanda || null, body?.numero_nf || null, litros, Number.isFinite(valorUnitario) ? valorUnitario : 0, valorTotal, body?.desconto == null ? null : Number(body.desconto), body?.fornecedor_id || null, body?.status || 'pendente', body?.observacao || null, body?.forma_pagamento || null, body?.data_vencimento_boleto || null, userId, diarioId, vooEmprestado ? 1 : 0, body?.numero_voo || diario?.numero_voo || null, body?.prazo_envio_cliente || null)
-  const financeiroStatement = await statementFinanceiroAbastecimento(c, id, {
+  .bind(id, clienteId, socioId, aeronaveId, data, body?.tipo_combustivel || null, body?.trecho || diario?.trecho || null, local, body?.numero_comanda || null, body?.numero_nf || null, litros, Number.isFinite(valorUnitario) ? valorUnitario : 0, valorTotal, body?.desconto == null ? null : Number(body.desconto), body?.fornecedor_id || null, body?.status || 'pendente', body?.observacao || null, body?.forma_pagamento || null, body?.data_vencimento_boleto || null, userId, diarioId, vooEmprestado ? 1 : 0, numeroVooGravado, body?.prazo_envio_cliente || null)
+  const financeiroStatement = (clienteId || socioId) ? await statementFinanceiroAbastecimento(c, id, {
     ...body,
     cliente_id: clienteId,
     socio_id: socioId,
@@ -5899,8 +5986,8 @@ app.post('/api/interno/abastecimentos', async c => {
     valor_total: valorTotal,
     trecho: body?.trecho || diario?.trecho || '',
     voo_emprestado: vooEmprestado,
-  }, userId)
-  await db.batch([abastecimentoStatement, financeiroStatement])
+  }, userId) : null
+  await db.batch([abastecimentoStatement, ...(financeiroStatement ? [financeiroStatement] : [])])
   return c.json({ id, success: true }, 201)
   } catch (error) {
     return respostaErroAbastecimento(c, error, 'criar')
@@ -5919,25 +6006,40 @@ app.patch('/api/interno/abastecimentos/:id', async c => {
   const data = String(body.data || '').trim()
   const localInformado = String(body.local || '').trim()
   const aeronaveId = String(body.aeronave_id || '').trim()
-  const clienteId = String(body.cliente_id || '').trim() || null
-  const socioId = String(body.socio_id || '').trim() || null
+  let clienteId = String(body.cliente_id || '').trim() || null
+  let socioId = String(body.socio_id || '').trim() || null
   const litros = Number(body.litros)
   const valorUnitario = Number(body.valor_unitario || 0)
   const valorTotal = Number(body.valor_total ?? litros * valorUnitario)
   const statusPago = String(body.status || '').toLowerCase() === 'pago'
+  const local = await normalizarLocalAbastecimento(db, localInformado)
   if (!dataAbastecimentoValida(data) || !local || !aeronaveId || Boolean(clienteId) === Boolean(socioId)) return c.json({ error: 'data_local_aeronave_e_titular_obrigatorios' }, 400)
   if (!Number.isFinite(litros) || litros <= 0 || !Number.isFinite(valorTotal) || valorTotal <= 0 || Math.round(valorTotal * 100) <= 0) return c.json({ error: 'litros_e_valor_total_invalidos' }, 400)
   if (statusPago && !dataAbastecimentoValida(body.data_pagamento)) return c.json({ error: 'data_pagamento_obrigatoria' }, 400)
 
   const anterior = await db.prepare('SELECT id FROM abastecimentos WHERE id = ?1').bind(id).first<{ id: string }>()
   if (!anterior) return c.notFound()
+  const diarioId = String(body.lancamento_diario_id || '').trim() || null
+  const diario = diarioId
+    ? await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id, voo_emprestado FROM lancamentos_diario_bordo WHERE id = ?1').bind(diarioId).first<any>()
+    : null
+  if (diarioId && (!diario || diario.aeronave_id !== aeronaveId)) return c.json({ error: 'lancamento_diario_invalido_para_aeronave' }, 409)
+  const vooEmprestado = body.voo_emprestado == null ? Boolean(diario?.voo_emprestado) : diarioBoolean(body.voo_emprestado)
+  if (diario && vooEmprestado) {
+    const tomadorClienteId = diario.cliente_tomador_emprestimo_id || null
+    const tomadorSocioId = diario.socio_tomador_emprestimo_id || null
+    if (tomadorClienteId && clienteId && tomadorClienteId !== clienteId || tomadorSocioId && socioId && tomadorSocioId !== socioId) return c.json({ error: 'titular_nao_corresponde_ao_tomador_do_emprestimo' }, 409)
+    if (!clienteId && !socioId) { clienteId = tomadorClienteId; socioId = tomadorSocioId }
+  } else if (diario) {
+    if (diario.cliente_id) clienteId = diario.cliente_id
+    if (diario.socio_id) socioId = diario.socio_id
+  }
   const atualLancamento = await db.prepare('SELECT id, comprovante_url, aeronave_id, cotista_aeronave_id, cliente_id FROM lancamentos WHERE abastecimentos_id = ?1 LIMIT 1').bind(id).first<{ id: string; comprovante_url: string | null; aeronave_id: string | null; cotista_aeronave_id: string | null; cliente_id: string | null }>()
   const atualMovimento = await db.prepare('SELECT id, comprovante_url, aeronave_id, socio_id, holding_id FROM movimentos_holding WHERE abastecimentos_id = ?1 LIMIT 1').bind(id).first<{ id: string; comprovante_url: string | null; aeronave_id: string | null; socio_id: string | null; holding_id: string | null }>()
   const titularSocio = socioId
     ? await db.prepare('SELECT id, holding_id FROM hold_socios WHERE id = ?1').bind(socioId).first<{ id: string; holding_id: string | null }>()
     : null
   if (socioId && !titularSocio) throw new Error('socio_nao_encontrado')
-  const vooEmprestado = ['1', 'true', 'sim', 'yes'].includes(String(body.voo_emprestado).toLowerCase())
   const destinoHolding = Boolean(titularSocio?.holding_id)
   const destinoTabela: 'lancamentos' | 'movimentos_holding' = destinoHolding ? 'movimentos_holding' : 'lancamentos'
   const registroFinanceiroAtual = atualLancamento || atualMovimento
@@ -5955,17 +6057,11 @@ app.patch('/api/interno/abastecimentos/:id', async c => {
     if (rateio) throw new Error('abastecimento_com_rateio_nao_pode_mudar_titular')
   }
   if (atualMovimento && (mudandoTabela || vinculoMovimentoMudou)) {
-    const rateio = await db.prepare('SELECT id FROM rateio_hold WHERE movimento_holding_id = ?1 LIMIT 1').bind(atualMovimento!.id).first<{ id: string }>()
+    const rateio = await db.prepare('SELECT id FROM rateio_hold WHERE movimento_id = ?1 LIMIT 1').bind(atualMovimento!.id).first<{ id: string }>()
     if (rateio) throw new Error('abastecimento_com_rateio_nao_pode_mudar_titular')
   }
 
   const userId = extractSupabaseUserId(c) || null
-  const diarioId = String(body.lancamento_diario_id || '').trim() || null
-  if (diarioId) {
-    const diario = await db.prepare('SELECT id, aeronave_id, cliente_id, socio_id FROM lancamentos_diario_bordo WHERE id = ?1').bind(diarioId).first<any>()
-    if (!diario || diario.aeronave_id !== aeronaveId) return c.json({ error: 'lancamento_diario_invalido_para_aeronave' }, 409)
-    if ((diario.cliente_id && diario.cliente_id !== clienteId) || (diario.socio_id && diario.socio_id !== socioId)) return c.json({ error: 'titular_nao_corresponde_ao_lancamento_diario' }, 409)
-  }
   const bodyFinanceiro = { ...body, cliente_id: clienteId, socio_id: socioId, aeronave_id: aeronaveId, data, valor_total: valorTotal }
   const aeronaveFinanceira = await db.prepare('SELECT matricula_registro FROM aeronave WHERE id = ?1').bind(aeronaveId).first<{ matricula_registro: string | null }>()
   const trechoFinanceiro = String(body.trecho || '').trim().toUpperCase()
@@ -5978,9 +6074,9 @@ app.patch('/api/interno/abastecimentos/:id', async c => {
       const descricao = descricaoFinanceira
       const fornecedorId = body.fornecedor_id || null
       if (destinoTabela === 'lancamentos') {
-        return db.prepare(`UPDATE lancamentos SET aeronave_id = ?, cotista_aeronave_id = ?, cliente_id = ?, data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedores_favoritos_id = NULL, fornecedor_nome = (SELECT nome_fornecedor FROM fornecedores_combustivel WHERE id = ?), status = ?, categoria_cliente_id = ?, categoria_nome = ?, grupo_categoria = ?, fluxo = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(aeronaveId, vooEmprestado ? null : cotista?.id || null, socioId ? null : clienteId, data, vencimento, statusPago ? body.data_pagamento : null, descricao, fornecedorId, statusPago ? 'PAGO' : 'EM_ABERTO', categoriaClienteId, 'COMBUSTÍVEIS', 'COMBUSTÍVEIS', 'SAIDA', Math.round(valorTotal * 100), body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id)
+        return db.prepare(`UPDATE lancamentos SET aeronave_id = ?, cotista_aeronave_id = ?, cliente_id = ?, data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedores_favoritos_id = ?, fornecedor_nome = (SELECT nome_fornecedor FROM fornecedores_combustivel WHERE id = ?), status = ?, categoria_cliente_id = ?, categoria_nome = ?, grupo_categoria = ?, fluxo = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(aeronaveId, vooEmprestado ? null : cotista?.id || null, socioId ? null : clienteId, data, vencimento, statusPago ? body.data_pagamento : null, descricao, fornecedorId, fornecedorId, statusPago ? 'PAGO' : 'EM_ABERTO', categoriaClienteId, 'COMBUSTÍVEIS', 'COMBUSTÍVEIS', 'SAIDA', Math.round(valorTotal * 100), body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id)
       }
-      return db.prepare(`UPDATE movimentos_holding SET holding_id = ?, socio_id = ?, aeronave_id = ?, data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedor_id = NULL, fornecedor_nome = (SELECT nome_fornecedor FROM fornecedores_combustivel WHERE id = ?), status = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(titularSocio!.holding_id, socioId, aeronaveId, data, vencimento, statusPago ? body.data_pagamento : null, descricao, fornecedorId, statusPago ? 'PAGO' : 'EM_ABERTO', Math.round(valorTotal * 100), body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id)
+      return db.prepare(`UPDATE movimentos_holding SET holding_id = ?, socio_id = ?, aeronave_id = ?, data_emissao = ?, data_vencimento = ?, data_pagamento = ?, descricao = ?, fornecedor_id = ?, fornecedor_nome = (SELECT nome_fornecedor FROM fornecedores_combustivel WHERE id = ?), status = ?, valor_centavos = ?, forma_pagamento = ?, numero_nf = ?, numero_doc = ?, observacoes = ? WHERE abastecimentos_id = ?`).bind(titularSocio!.holding_id, socioId, aeronaveId, data, vencimento, statusPago ? body.data_pagamento : null, descricao, fornecedorId, fornecedorId, statusPago ? 'PAGO' : 'EM_ABERTO', Math.round(valorTotal * 100), body.forma_pagamento || null, body.numero_nf || null, body.numero_comanda || null, body.observacao || null, id)
     })()
     : await statementFinanceiroAbastecimento(c, id, bodyFinanceiro, userId, comprovanteAtual)
 
@@ -6001,7 +6097,7 @@ app.delete('/api/interno/abastecimentos/:id', async c => {
   const id = c.req.param('id')
   const exists = await db.prepare('SELECT id FROM abastecimentos WHERE id = ?1').bind(id).first<{ id: string }>()
   if (!exists) return c.notFound()
-  const rateios = await db.prepare('SELECT id FROM rateio_despesas WHERE lancamento_id IN (SELECT id FROM lancamentos WHERE abastecimentos_id = ?1) UNION ALL SELECT id FROM rateio_hold WHERE movimento_holding_id IN (SELECT id FROM movimentos_holding WHERE abastecimentos_id = ?1) LIMIT 1').bind(id).first<{ id: string }>()
+  const rateios = await db.prepare('SELECT id FROM rateio_despesas WHERE lancamento_id IN (SELECT id FROM lancamentos WHERE abastecimentos_id = ?1) UNION ALL SELECT id FROM rateio_hold WHERE movimento_id IN (SELECT id FROM movimentos_holding WHERE abastecimentos_id = ?1) LIMIT 1').bind(id).first<{ id: string }>()
   if (rateios) return c.json({ error: 'abastecimento_com_rateio_nao_pode_ser_excluido' }, 409)
   await db.batch([
     db.prepare('DELETE FROM lancamentos WHERE abastecimentos_id = ?1').bind(id),
@@ -7510,101 +7606,6 @@ function regraFinanceira(tipo: string, grupoInformado?: string) {
   return { grupo: gruposShare.includes(String(grupoInformado)) ? String(grupoInformado) : 'DESPESAS EMPRESA', caixa: 'SHARE', rateio: false, pagoDiretamente: 0, reembolsavel: 0 }
 }
 
-async function inserirRateioFinanceiro(c: Context<{ Bindings: Bindings }>, body: Record<string, any>, user: any, lancamentoId: string | null, regra: ReturnType<typeof regraFinanceira>) {
-  if (!regra.rateio) return null
-  const id = uuid(); const cotistas = Array.isArray(body.cotista_ids) && body.cotista_ids.length ? body.cotista_ids : [body.cotista_id]
-  const valor = Number(body.valor); const aeronave = body.aeronave_id ? await c.env.SHARE_DB.prepare('SELECT matricula_registro FROM aeronave WHERE id=?').bind(body.aeronave_id).first<any>() : null
-  const rows = await c.env.SHARE_DB.prepare(`SELECT ca.id, ca.socio_id, hs.holding_id, hs.cotista_id, ca.percentual_sociedade, COALESCE(cl.razao_social, hs.nome) nome FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id=ca.cliente_id LEFT JOIN hold_socios hs ON hs.id=ca.socio_id WHERE ca.id IN (${cotistas.map(() => '?').join(',')})`).bind(...cotistas).all<any>()
-  if (!rows.results.length) throw new Error('cotistas_invalidos_para_aeronave')
-  const linhasInformadas = Array.isArray(body.rateio_linhas) ? body.rateio_linhas : []
-  const percentuais = new Map(linhasInformadas.map((linha: any) => [String(linha.cotista_id), Math.max(0, Number(linha.percentual) || 0)]))
-  const base = rows.results.map((r: any) => percentuais.has(String(r.id)) ? Number(percentuais.get(String(r.id))) : Number(r.percentual_sociedade || 0))
-  const totalBase = base.reduce((n: number, item: number) => n + item, 0) || 100
-  const percentuaisNormalizados = base.map((item: number) => +(item / totalBase * 100).toFixed(6))
-  const diferenca = +(100 - percentuaisNormalizados.reduce((n: number, item: number) => n + item, 0)).toFixed(6)
-  if (percentuaisNormalizados.length) percentuaisNormalizados[percentuaisNormalizados.length - 1] = +(percentuaisNormalizados[percentuaisNormalizados.length - 1] + diferenca).toFixed(6)
-  const ids: string[] = []
-  for (const [index, row] of (rows.results as any[]).entries()) {
-    const rateioLinhaId = uuid();
-    ids.push(rateioLinhaId);
-    const pct = cotistas.length === 1 ? 100 : percentuaisNormalizados[index];
-    const valorTotalCentavos = Math.round(valor * 100);
-    const valorRateadoCentavos = Math.round(valor * pct / 100 * 100);
-    await inserirLinhaDinamica(c.env.SHARE_DB, 'rateio_despesas', {
-      id: rateioLinhaId,
-      lancamento_id: lancamentoId,
-      aeronave_id: body.aeronave_id,
-      cotista_id: row.id,
-      data_emissao: body.data_despesa || null,
-      data_vencimento: body.vencimento || null,
-      categoria_id: body.categoria_id || null,
-      categoria_nome: body.categoria_nome || regra.grupo,
-      subcategoria_1: body.subcategoria_1 || null,
-      subcategoria_2: body.subcategoria_2 || null,
-      subcategoria_3: body.subcategoria_3 || null,
-      subcategoria_4: body.subcategoria_4 || null,
-      tipo_rateio: body.tipo_rateio || 'FIXO',
-      percentual_sociedade: Number(row.percentual_sociedade || 0),
-      percentual_uso: pct,
-      valor_total_centavos: valorTotalCentavos,
-      valor_rateado_centavos: valorRateadoCentavos,
-      pago_por_cotista_id: body.tipo === 'cliente' ? row.id : (body.pago_por || null),
-      pago_diretamente: regra.pagoDiretamente ? 1 : 0,
-      status: regra.pagoDiretamente ? 'PAGO_DIRETAMENTE' : 'EM_ABERTO',
-      data_pagamento: regra.pagoDiretamente ? (body.data_despesa || null) : null,
-      descricao_despesa: body.descricao,
-      observacoes: body.observacoes || null,
-    });
-
-    if (regra.pagoDiretamente) {
-      await inserirLinhaDinamica(c.env.SHARE_DB, 'rateio_pagamentos', {
-        id: uuid(),
-        rateio_id: rateioLinhaId,
-        recibo_id: body.recibo_id || null,
-        conta_receber_id: null,
-        tipo_pagador: 'COTISTA',
-        pagador_cotista_id: row.id,
-        pagador_holding_id: null,
-        valor_centavos: valorRateadoCentavos,
-        data_pagamento: body.data_despesa || new Date().toISOString().slice(0, 10),
-        conta_bancaria_id: body.conta_bancaria_id || null,
-        comprovante_url: body.comprovante_url || null,
-        forma_pagamento: body.forma_pagamento || null,
-        status: 'CONFIRMADO',
-        observacoes: body.observacoes || null,
-        idempotency_key: `LEGACY_DIRETO:${body.idempotency_key || lancamentoId || rateioLinhaId}:${rateioLinhaId}`,
-      });
-    }
-  }
-
-  if (body.tipo === 'cliente') {
-    for (const [index, row] of (rows.results as any[]).entries()) if (row.holding_id && row.socio_id) {
-      const movimentoId = uuid();
-      const pct = cotistas.length === 1 ? 100 : percentuaisNormalizados[index];
-      await inserirMovimentoHolding(c.env.SHARE_DB, {
-        id: movimentoId, holding_id: row.holding_id, socio_id: row.socio_id,
-        cotista_id: row.cotista_id || row.id, aeronave_id: body.aeronave_id || null,
-        data_movimento: body.data_despesa || new Date().toISOString().slice(0, 10),
-        descricao: body.descricao, fornecedor_nome: body.fornecedor || null,
-        categoria_nome: body.categoria_nome || regra.grupo, grupo_categoria: regra.grupo,
-        natureza: 'DESPESA', fluxo: 'SAIDA', valor_centavos: Math.round(valor * pct / 100 * 100),
-        pago_diretamente: 1, status: 'PAGO_DIRETAMENTE', observacoes: body.observacoes || null,
-        criado_por: user.id,
-      })
-      await inserirRateioHolding(c.env.SHARE_DB, {
-        id: uuid(), movimento_holding_id: movimentoId, holding_id: row.holding_id, socio_id: row.socio_id,
-        cotista_id: row.cotista_id || row.id, categoria_nome: body.categoria_nome || regra.grupo,
-        categoria_id: body.categoria_id || null, aeronave_id: body.aeronave_id || null,
-        tipo_rateio: body.tipo_rateio, pago_por: row.socio_id || row.id, pago_diretamente: 1,
-        percentual_sociedade: Number(row.percentual_sociedade || 0), percentual_uso: pct,
-        valor_total: valor, valor_rateado: +(valor * pct / 100).toFixed(2), status: 'PENDENTE',
-        descricao_despesa: body.descricao, observacoes: body.observacoes || null,
-      })
-    }
-  }
-  return ids[0] || null
-}
-
 // ─── Financeiro: central de e-mail ───────────────────────────────────────────
 async function garantirTabelaEmails(c: Context<{ Bindings: Bindings }>) {
   await validateWorkerSchema(c, [
@@ -8063,254 +8064,6 @@ async function garantirTabelasNfSaida(c: Context<{ Bindings: Bindings }>) {
     { table: 'recibo_anexos', columns: ['id'] },
   ])
 }
-
-async function inserirLinhaDinamica(db: any, table: string, row: Record<string, any>) {
-  const info = await db.prepare(`SELECT name FROM pragma_table_info('${table}')`).all() as any
-  const cols = new Set((info.results || []).map((x: any) => x.name))
-  const incompatible = Object.keys(row).filter((key) => !cols.has(key) && row[key] !== undefined)
-  if (incompatible.length) throw new Error(`colunas_incompativeis_${table}:${incompatible.join(',')}`)
-  const entries = Object.entries(row).filter(([k, value]) => cols.has(k) && value !== undefined)
-  if (!entries.length) throw new Error(`tabela_${table}_sem_colunas`)
-  const names = entries.map(([k]) => k); const vals = entries.map(([, v]) => v ?? null)
-  await db.prepare(`INSERT INTO ${table} (${names.join(',')}) VALUES (${names.map((_, i) => `?${i + 1}`).join(',')})`).bind(...vals).run()
-}
-
-function tipoRateioHolding(value: unknown): 'FIXO' | 'VARIAVEL_POR_VOO' | 'VARIAVEL_POR_HORA' | 'EXTRA' {
-  const tipo = String(value || '').trim().toUpperCase()
-  if (tipo === 'FIXO' || tipo === 'VARIAVEL_POR_VOO' || tipo === 'VARIAVEL_POR_HORA' || tipo === 'EXTRA') return tipo
-  if (tipo.includes('VOO')) return 'VARIAVEL_POR_VOO'
-  if (tipo.includes('HORA') || tipo.includes('USO')) return 'VARIAVEL_POR_HORA'
-  return 'FIXO'
-}
-
-async function inserirRateioHolding(db: any, row: Record<string, any>) {
-  const valorTotalCentavos = row.valor_total_centavos != null ? Number(row.valor_total_centavos) : Math.round(Number(row.valor_total || 0) * 100)
-  const valorRateadoCentavos = row.valor_rateado_centavos != null ? Number(row.valor_rateado_centavos) : Math.round(Number(row.valor_rateado || 0) * 100)
-  await inserirLinhaDinamica(db, 'rateio_hold', {
-    id: row.id,
-    movimento_holding_id: row.movimentos_holding_id ?? row.movimento_holding_id,
-    aeronave_id: row.aeronave_id,
-    holding_id: row.holding_id,
-    socio_id: row.socio_id,
-    cotista_id: row.cotista_id,
-    categoria_id: row.categoria_id ?? row.categoria_custo_id,
-    categoria_nome: row.categoria_nome,
-    tipo_rateio: tipoRateioHolding(row.tipo_rateio),
-    periodicidade: row.periodicidade ?? 'MENSAL',
-    percentual_sociedade: row.percentual_sociedade,
-    percentual_uso: row.percentual_uso,
-    valor_total_centavos: valorTotalCentavos,
-    valor_rateado_centavos: valorRateadoCentavos,
-    valor_pago_real_centavos: row.valor_pago_real_centavos ?? 0,
-    pago_por_socio_id: row.pago_por_socio_id ?? row.pago_por,
-    pago_diretamente: row.pago_diretamente,
-    status: String(row.status || 'EM_ABERTO').toUpperCase() === 'PENDENTE' ? 'EM_ABERTO' : String(row.status || 'EM_ABERTO').toUpperCase(),
-    data_pagamento: row.data_pagamento,
-    descricao_despesa: row.descricao_despesa,
-    observacoes: row.observacoes,
-  })
-}
-
-function naturezaMovimentoHolding(value: unknown): 'RECEITA' | 'DESPESA' | 'REEMBOLSO' | 'APORTE' | 'RETIRADA' | 'AJUSTE' {
-  const natureza = String(value || '').trim().toUpperCase()
-  if (natureza === 'RECEITA' || natureza === 'DESPESA' || natureza === 'REEMBOLSO' || natureza === 'APORTE' || natureza === 'RETIRADA' || natureza === 'AJUSTE') return natureza
-  if (natureza.includes('REEMBOLSO')) return 'REEMBOLSO'
-  if (natureza.includes('APORTE') || natureza.includes('DEPOSITO')) return 'APORTE'
-  if (natureza.includes('RETIRADA')) return 'RETIRADA'
-  return 'DESPESA'
-}
-
-async function inserirMovimentoHolding(db: any, row: Record<string, any>) {
-  await inserirLinhaDinamica(db, 'movimentos_holding', {
-    id: row.id,
-    holding_id: row.holding_id,
-    socio_id: row.socio_id,
-    cotista_id: row.cotista_id,
-    aeronave_id: row.aeronave_id,
-    data_movimento: row.data_movimento ?? row.data,
-    data_vencimento: row.data_vencimento ?? row.prazo,
-    data_pagamento: row.data_pagamento,
-    descricao: row.descricao,
-    fornecedor_id: row.fornecedor_id,
-    fornecedor_nome: row.fornecedor_nome ?? row.fornecedor,
-    categoria_id: row.categoria_id,
-    categoria_nome: row.categoria_nome ?? row.categoria,
-    grupo_categoria: row.grupo_categoria,
-    fluxo: String(row.fluxo || 'SAIDA').toUpperCase(),
-    natureza: naturezaMovimentoHolding(row.natureza ?? row.tipo),
-    valor_centavos: row.valor_centavos,
-    status: String(row.status || 'EM_ABERTO').toUpperCase(),
-    pago_diretamente: row.pago_diretamente ?? 0,
-    conta_bancaria_id: row.conta_bancaria_id,
-    forma_pagamento: row.forma_pagamento,
-    comprovante_url: row.comprovante_url,
-    observacoes: row.observacoes,
-    criado_por: row.criado_por,
-  })
-}
-
-const TIPOS_RATEIO_D1 = new Set(['FIXO', 'VARIAVEL POR VOO', 'VARIAVEL POR HORA', 'EXTRA'])
-function normalizarTipoRateioD1(value: unknown): string {
-  const tipo = String(value || '').trim().toUpperCase()
-  return TIPOS_RATEIO_D1.has(tipo) ? tipo : 'FIXO'
-}
-
-async function contextoNfSaida(c: Context<{ Bindings: Bindings }>, cotistaId: string) {
-  return c.env.SHARE_DB.prepare(`SELECT ca.id cotista_id,ca.aeronave_id,ca.cliente_id,ca.socio_id,hs.holding_id,COALESCE(ca.codigo_cliente,cl.codigo_cliente,'CLI') codigo_cliente,COALESCE(cl.razao_social,hs.nome) nome,COALESCE(cl.cnpj,hs.cpf) documento,COALESCE(cl.endereco,hs.endereco) endereco,COALESCE(cl.cidade,hs.cidade) cidade,COALESCE(cl.uf,hs.uf) uf FROM cotista_aeronave ca LEFT JOIN cliente cl ON cl.id=ca.cliente_id LEFT JOIN hold_socios hs ON hs.id=ca.socio_id WHERE ca.id=?1`).bind(cotistaId).first<any>()
-}
-
-async function gerarFinanceiroNfSaida(
-  c: Context<{ Bindings: Bindings }>,
-  ctx: any,
-  body: any,
-  origem: 'nf_saida' | 'recibo_saida',
-  documentoId: string,
-) {
-  const db = c.env.SHARE_DB
-  const valor = Number(body.valor ?? body.valor_total)
-  if (!(valor > 0)) throw new Error('valor_invalido')
-
-  const isRecibo = origem === 'recibo_saida'
-  const categoriaShareId = resolverCategoriaReceitaShare(body, isRecibo)
-  const nomeCategoriaShare = CATEGORIAS_RECEITA_SHARE[categoriaShareId]
-  const descricao = String(body.descricao || body.descricao_servico || `${isRecibo ? 'Recibo' : 'Nota fiscal'} de saída ${body.numero || ''}`).trim()
-  const usuario = await shareBrasilUser(c)
-  const dataEmissao = String(body.data_criacao || body.data_emissao || '').trim()
-  const dataVencimento = String(body.data_vencimento || dataEmissao || '').trim()
-
-  // Cliente direto gera lancamentos; cotista de holding gera movimentos_holding.
-  let lancamentoId: string | null = null
-  let lancamentoClienteId: string | null = null
-  const movimentoHoldingId = ctx.socio_id ? uuid() : null
-  if (!ctx.socio_id) {
-    lancamentoId = uuid()
-    await inserirLinhaDinamica(db, 'lancamentos', {
-      id: lancamentoId, aeronave_id: ctx.aeronave_id || null, data: dataEmissao, data_emissao: dataEmissao,
-      descricao, categoria: nomeCategoriaShare, categoria_nome: nomeCategoriaShare, categoria_id: categoriaShareId,
-      grupo_categoria: 'RECEITAS OPERACIONAIS', tipo: 'receita', prazo: dataVencimento, data_vencimento: dataVencimento,
-      fluxo: 'ENTRADA', valor_centavos: Math.round(valor * 100), valor_total: valor, pago_por: ctx.cotista_id,
-      caixa: 'SHARE', tipo_caixa: 'SHARE', pago_diretamente: 0, reembolsavel: 0, reembolso_quitado: 0,
-      status: 'EM_ABERTO', criado_por: usuario?.id, numero_nf: isRecibo ? null : body.numero,
-      numero_recibo: isRecibo ? body.numero : null,
-    })
-    lancamentoClienteId = uuid()
-    await inserirLinhaDinamica(db, 'lancamentos', {
-      id: lancamentoClienteId, aeronave_id: ctx.aeronave_id || null, data: dataEmissao, data_emissao: dataEmissao,
-      descricao, categoria: CATEGORIA_CLIENTE_NF_SAIDA_NOME, categoria_nome: CATEGORIA_CLIENTE_NF_SAIDA_NOME,
-      categoria_id: null, categoria_cliente_id: CATEGORIA_CLIENTE_NF_SAIDA,
-      grupo_categoria: 'CAIXA CLIENTE', tipo: 'DESPESA', prazo: dataVencimento, data_vencimento: dataVencimento,
-      cotista_aeronave_id: ctx.cotista_id, fluxo: 'SAIDA', valor_centavos: Math.round(valor * 100), valor_total: valor,
-      pago_por_cotista_aeronave_id: ctx.cotista_id, caixa: 'CLIENTE', tipo_caixa: 'CLIENTE', pago_diretamente: 0,
-      reembolsavel: 0, reembolso_quitado: 0, status: 'EM_ABERTO', criado_por: usuario?.id,
-      origem_tipo: 'RECEITA_CLIENTE', origem_id: lancamentoId,
-      numero_nf: isRecibo ? null : body.numero, numero_recibo: isRecibo ? body.numero : null,
-    })
-  }
-  // 2) Contas a receber do cotista dono do recibo/NF.
-  const contaId = uuid()
-  await inserirLinhaDinamica(db, 'contas_areceber', {
-    id: contaId,
-    data_vencimento: dataVencimento,
-    valor_centavos: Math.round(valor * 100),
-    categoria_id: categoriaShareId,
-    categoria_nome: nomeCategoriaShare,
-    descricao,
-    criado_por: usuario?.id,
-    aeronave_id: ctx.aeronave_id,
-    cotista_id: ctx.cotista_id,
-    nf_saida_id: origem === 'nf_saida' ? documentoId : null,
-    recibos_saida_id: origem === 'recibo_saida' ? documentoId : null,
-    lancamentos_id: ctx.socio_id ? null : lancamentoId,
-    movimentos_id: movimentoHoldingId,
-    status: 'EM_ABERTO',
-  })
-
-  // 3) Espelho na tabela de rateio — SEMPRE categoria_movimentacao_cliente
-  //    "ADM SHARE BRASIL" (928cc6be-...), tipo_rateio FIXO, fornecedor/pagador
-  //    "SHARE BRASIL", percentual_uso 100%. Antes só existia pra holding
-  //    (rateio_hold); agora existe também pro cliente direto (rateio_despesas).
-  const subcategoriaRateio = isRecibo ? CATEGORIA_CLIENTE_NF_SAIDA_SUB_RECIBO : CATEGORIA_CLIENTE_NF_SAIDA_SUB_NF
-  const rateioId = uuid()
-
-  if (ctx.socio_id) {
-    // Cotista é sócio de holding → movimentos_holding + rateio_hold
-    const movimentoId = movimentoHoldingId as string
-    await inserirMovimentoHolding(db, {
-      id: movimentoId,
-      holding_id: ctx.holding_id || null,
-      socio_id: ctx.socio_id || null,
-      cotista_id: ctx.cotista_id || null,
-      aeronave_id: ctx.aeronave_id,
-      data_movimento: dataEmissao,
-      descricao,
-      fornecedor_nome: FORNECEDOR_SHARE_BRASIL_NOME,
-      categoria_nome: CATEGORIA_CLIENTE_NF_SAIDA_NOME,
-      grupo_categoria: 'RECEITAS OPERACIONAIS',
-      natureza: 'DESPESA',
-      fluxo: 'SAIDA',
-      valor_centavos: Math.round(valor * 100),
-      pago_diretamente: 0,
-      status: 'PENDENTE',
-      criado_por: usuario?.id,
-    })
-    lancamentoId = movimentoId
-    await inserirRateioHolding(db, {
-      id: rateioId,
-      movimento_holding_id: movimentoId,
-      holding_id: ctx.holding_id,
-      socio_id: ctx.socio_id,
-      cotista_id: ctx.cotista_id,
-      categoria_id: CATEGORIA_CLIENTE_NF_SAIDA,
-      categoria_nome: CATEGORIA_CLIENTE_NF_SAIDA_NOME,
-      aeronave_id: ctx.aeronave_id,
-      tipo_rateio: 'FIXO',
-      periodicidade: 'MENSAL',
-      pago_por_socio_id: ctx.socio_id,
-      pago_diretamente: 1,
-      percentual_sociedade: 100,
-      percentual_uso: 100,
-      valor_total: valor,
-      valor_rateado: valor,
-      status: 'PENDENTE',
-      descricao_despesa: descricao,
-    })
-  } else {
-    // Cliente direto (sem holding) → rateio_despesas ligado ao próprio lançamento.
-    await inserirLinhaDinamica(db, 'rateio_despesas', {
-      id: rateioId,
-      lancamento_id: lancamentoClienteId,
-      categoria_custo_id: CATEGORIA_CLIENTE_NF_SAIDA,
-      categoria_nome: CATEGORIA_CLIENTE_NF_SAIDA_NOME,
-      subcategoria_1: subcategoriaRateio,
-      cotista_id: ctx.cotista_id,
-      cotista_nome: ctx.nome,
-      aeronave_id: ctx.aeronave_id,
-      tipo_rateio: 'FIXO',
-      periodicidade: 'MENSAL',
-      data_vencimento: dataVencimento,
-      data_emissao_nf: dataEmissao,
-      descricao_despesa: descricao,
-      pago_por: ctx.cotista_id,
-      pago_diretamente: 1,
-      percentual_sociedade: 100,
-      percentual_uso: 100,
-      valor_total: valor,
-      valor_rateado: valor,
-      status: 'PENDENTE',
-      numero_recibo: isRecibo ? body.numero : null,
-      recibo_url: body.pdf_url || null,
-    })
-  }
-
-  return { lancamentoId: ctx.socio_id ? movimentoHoldingId : lancamentoId, lancamentoClienteId, contaId, rateioId, categoriaId: categoriaShareId, categoriaNome: nomeCategoriaShare }
-}
-
-
-
-
-
-
-
 
 // Cliente reembolsa a Share pelo valor que ela antecipou: fecha o ciclo de
 // DESPESAS REEMBOLSÁVEIS gerando a entrada REEMBOLSOS ENTRADAS (tipo_caixa=share) e marcando a
@@ -8772,26 +8525,11 @@ app.get('/api/ctm/aeronaves/:aeronaveId/documentos/:id/arquivo', async c => {
   return new Response(object.body, { headers })
 })
 
-const PREFETCH_ICAOS = ['SBGR', 'SBSP', 'SBRJ', 'SBCY', 'SBCF', 'SBBR']
-const WORKER_URL = 'https://api.share-brasil.com'
-
 export default {
   fetch: app.fetch,
   async scheduled(_event: any, _env: Bindings, ctx: ExecutionContext) {
-    const tasks = [
-      // Processa a fila financeira no próprio Worker. A fila usa somente
-      // tabelas existentes; migrations são a única forma de alterar o D1.
-      _env.SHARE_DB
-        ? processFinanceQueue(_env.SHARE_DB, null, 50)
-        : Promise.resolve([]),
-      // Aquece weather e notam dos principais aeródromos
-      ...PREFETCH_ICAOS.flatMap(icao => [
-        fetch(`${WORKER_URL}/api/weather/${icao}`),
-        fetch(`${WORKER_URL}/api/notam/${icao}`),
-      ]),
-      // Aquece o rotaer-all para /nearest e /geiloc/nearby responderem do cache
-      fetch(`${WORKER_URL}/api/nearest?lat=-23.5&lon=-46.6`),
-    ]
-    ctx.waitUntil(Promise.allSettled(tasks))
+    // O cron executa apenas jobs locais: chamadas HTTP ao próprio Worker
+    // criavam latência e duplicavam autenticação sem garantir consistência.
+    if (_env.SHARE_DB) ctx.waitUntil(processFinanceQueue(_env.SHARE_DB, null, 50))
   },
 }

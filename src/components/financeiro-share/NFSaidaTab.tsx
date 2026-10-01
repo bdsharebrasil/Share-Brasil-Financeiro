@@ -9,12 +9,10 @@ import {
   Download,
   CheckCircle2,
   Clock,
-  DollarSign,
   Upload,
-  ReceiptText,
   Banknote,
   Filter,
-  SlidersHorizontal,
+  Search,
   Mail,
   ArrowLeft,
 } from "lucide-react";
@@ -193,13 +191,14 @@ export default function NFSaidaTab() {
   const [despesaOptions, setDespesaOptions] = useState<DespesaOption[]>([]);
   const [contasBancarias, setContasBancarias] = useState<{ id: string; banco: string; numero_conta: string | null }[]>([]);
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
+  const [documentTab, setDocumentTab] = useState<"nota" | "recibo">("recibo");
   const [uploading, setUploading] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
   const [anoSelecionado, setAnoSelecionado] = useState<string | null>(null);
 
   // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "EM_ABERTO" | "PAGO">("");
@@ -336,26 +335,19 @@ export default function NFSaidaTab() {
     [aeronaves],
   );
 
-  const summary = useMemo(() => {
-    const total = notas.length;
-    const totalPendente = notas
-      .filter((n) => ["pendente", "em_aberto", "aberto", "atrasado", "em_atraso"].includes((n.status ?? "").toLowerCase()))
-      .reduce((s, n) => s + num(n.valor), 0);
-    const totalRecebido = notas
-      .filter((n) => ["pago", "recebido"].includes((n.status ?? "").toLowerCase()))
-      .reduce((s, n) => s + num(n.valor), 0);
-    return { total, totalPendente, totalRecebido };
-  }, [notas]);
-
-  const hasActiveFilters = !!dateFrom || !!dateTo || !!statusFilter;
+  const totalRecibos = useMemo(() => notas.filter((documento) => documento.origem === "recibo_saida").length, [notas]);
+  const totalNotas = notas.length - totalRecibos;
+  const hasActiveFilters = !!searchTerm.trim() || !!dateFrom || !!dateTo || !!statusFilter;
 
   const filteredNotas = useMemo(() => {
-    let result = notas;
+    let result = notas.filter((documento) => documentTab === "recibo" ? documento.origem === "recibo_saida" : documento.origem !== "recibo_saida");
+    const termo = searchTerm.trim().toLowerCase();
+    if (termo) result = result.filter((documento) => [documento.numero, documento.cliente_nome, documento.aeronave].some((value) => value?.toLowerCase().includes(termo)));
     if (dateFrom) result = result.filter((n) => (n.data_criacao ?? "") >= dateFrom);
     if (dateTo) result = result.filter((n) => (n.data_criacao ?? "") <= dateTo);
     if (statusFilter) result = result.filter((n) => statusFilter === "PAGO" ? ["pago", "recebido"].includes((n.status ?? "").toLowerCase()) : ["em_aberto", "aberto", "pendente"].includes((n.status ?? "").toLowerCase()));
 
-    const sorted = [...result].sort((a, b) => {
+    return result.sort((a, b) => {
       let cmp = 0;
       if (sortBy === "data") {
         cmp = (a.data_criacao ?? "").localeCompare(b.data_criacao ?? "");
@@ -364,8 +356,7 @@ export default function NFSaidaTab() {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-    return sorted;
-  }, [notas, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
+  }, [notas, documentTab, searchTerm, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
 
   const selecionarCliente = (clientName: string) => {
     setClienteSelecionado(clientName);
@@ -402,7 +393,7 @@ export default function NFSaidaTab() {
     return groups;
   }, [filteredNotas]);
 
-  const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
+  const clearFilters = () => { setSearchTerm(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); };
 
   const gruposVisiveis = useMemo(() => Object.entries(groupedNotas), [groupedNotas]);
   const anosDoCliente = clienteSelecionado ? groupedNotas[clienteSelecionado] ?? {} : {};
@@ -650,37 +641,29 @@ export default function NFSaidaTab() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-foreground">Notas Fiscais de Saída</h2>
-          <p className="text-xs text-muted-foreground">Notas fiscais emitidas para clientes.</p>
+          <h2 className="text-lg font-bold text-foreground">NF e recibo de saída</h2>
+          <p className="text-xs text-muted-foreground">Cobranças mensais da administração Share enviadas a cada cotista.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchNotas} className="border border-border bg-card/70 text-foreground hover:bg-card-secondary rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
             <RefreshCw className="h-4 w-4" /> Atualizar
           </button>
-          <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
-            <Plus className="h-4 w-4" /> Nova Nota
+          <button onClick={documentTab === "recibo" ? openNewReceipt : openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
+            <Plus className="h-4 w-4" /> {documentTab === "recibo" ? "Emitir recibo de saída" : "Criar nova nota"}
           </button>
         </div>
       </div>
 
-      {/* summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[
-          { label: "Total Notas", value: String(summary.total), icon: FileText, color: "#38bdf8" },
-          { label: "Total em Aberto", value: formatBRL(summary.totalPendente), icon: Clock, color: "#fbbf24" },
-          { label: "Total Recebido", value: formatBRL(summary.totalRecebido), icon: DollarSign, color: "#4ade80" },
-        ].map((c) => {
-          const Icon = c.icon;
-          return (
-            <div key={c.label} className="rounded-2xl p-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</span>
-                <Icon className="h-4 w-4" style={{ color: c.color }} />
-              </div>
-              <div className="text-lg font-bold mt-1" style={{ color: c.color }}>{c.value}</div>
-            </div>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-xl border border-border/70 bg-card/70 p-1" role="tablist" aria-label="Tipo de documento de saída">
+          <button type="button" role="tab" aria-selected={documentTab === "recibo"} disabled={showForm} onClick={() => { setDocumentTab("recibo"); setClienteSelecionado(null); setAnoSelecionado(null); }} className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${documentTab === "recibo" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+            Recibos ({totalRecibos})
+          </button>
+          <button type="button" role="tab" aria-selected={documentTab === "nota"} disabled={showForm} onClick={() => { setDocumentTab("nota"); setClienteSelecionado(null); setAnoSelecionado(null); }} className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${documentTab === "nota" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+            Notas fiscais ({totalNotas})
+          </button>
+        </div>
+        <span className="text-xs text-muted-foreground">{filteredNotas.length} documentos encontrados</span>
       </div>
 
       {toast && (
@@ -698,8 +681,6 @@ export default function NFSaidaTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-bold text-foreground">{editingId ? "Editar Nota Fiscal" : documentType === "recibo" ? "Novo Recibo de Saída" : "Nova Nota Fiscal"}</h3>
-              {!editingId && documentType === "nota" && <button onClick={openNewReceipt} className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"><ReceiptText className="h-3.5 w-3.5" /> Novo Recibo</button>}
-              {!editingId && documentType === "recibo" && <button type="button" onClick={openNew} className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"><ArrowLeft className="h-3.5 w-3.5" /> Voltar para Nota Fiscal</button>}
             </div>
             <button onClick={closeForm} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
           </div>
@@ -778,65 +759,38 @@ export default function NFSaidaTab() {
 
       {/* filtros e ordenação */}
       <div className="rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-border text-foreground hover:bg-card-secondary"}`}>
-              <Filter className="h-3.5 w-3.5" /> Filtros{hasActiveFilters ? " •" : ""}
-            </button>
-            <div className="relative">
-              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-border text-foreground hover:bg-card-secondary"}`}>
-                <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
-              </button>
-              {showSortMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-card shadow-xl py-1">
-                    {([
-                      { by: "data" as const, dir: "desc" as const, label: "Data — Mais recente" },
-                      { by: "data" as const, dir: "asc" as const, label: "Data — Mais antiga" },
-                      { by: "nome" as const, dir: "asc" as const, label: "Cliente — A a Z" },
-                      { by: "nome" as const, dir: "desc" as const, label: "Cliente — Z a A" },
-                    ]).map((opt) => {
-                      const active = sortBy === opt.by && sortDir === opt.dir;
-                      return (
-                        <button
-                          key={`${opt.by}-${opt.dir}`}
-                          onClick={() => { setSortBy(opt.by); setSortDir(opt.dir); setShowSortMenu(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs ${active ? "text-cyan-300 bg-cyan-500/10" : "text-foreground hover:bg-card-secondary"}`}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <span className="text-[11px] text-muted-foreground">{filteredNotas.length} de {notas.length} nota(s)</span>
+        <div className="grid grid-cols-1 gap-2 px-4 py-3 md:grid-cols-[minmax(240px,1fr)_180px_210px_auto]">
+          <label className="relative block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar número, cotista ou aeronave" className="w-full rounded-lg border border-border bg-background/70 py-2 pl-9 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-cyan-400" />
+          </label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="rounded-lg border border-border bg-background/70 px-3 py-2 text-xs text-foreground outline-none focus:border-cyan-400">
+            <option value="">Todos os status</option>
+            {STATUS_OPCOES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+          </select>
+          <select value={`${sortBy}:${sortDir}`} onChange={(e) => { const [by, dir] = e.target.value.split(":") as [SortBy, SortDir]; setSortBy(by); setSortDir(dir); }} className="rounded-lg border border-border bg-background/70 px-3 py-2 text-xs text-foreground outline-none focus:border-cyan-400">
+            <option value="data:desc">Emissão mais recente</option>
+            <option value="data:asc">Emissão mais antiga</option>
+            <option value="nome:asc">Cotista A–Z</option>
+            <option value="nome:desc">Cotista Z–A</option>
+          </select>
+          <button onClick={() => setShowFilterPanel(!showFilterPanel)} className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-border text-foreground hover:bg-card-secondary"}`}>
+            <Filter className="h-3.5 w-3.5" /> Período{dateFrom || dateTo ? " •" : ""}
+          </button>
         </div>
         {showFilterPanel && (
-          <div className="px-5 py-4 border-t space-y-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-3 border-t px-4 py-4" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data De</label>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Data De</label>
                 <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data Até</label>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Data Até</label>
                 <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400" />
               </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-border bg-card-secondary/60 px-3 py-1.5 text-xs text-foreground outline-none focus:border-cyan-400">
-                  <option value="">Todos</option>
-                  {STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
             </div>
-            {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Limpar filtros</button>
-            )}
+            {hasActiveFilters && <button onClick={clearFilters} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Limpar filtros</button>}
           </div>
         )}
       </div>
@@ -846,7 +800,7 @@ export default function NFSaidaTab() {
         <div className="rounded-2xl border border-border/70 bg-card/40 px-6 py-14 text-center text-sm text-muted-foreground">Carregando documentos...</div>
       ) : filteredNotas.length === 0 ? (
         <div className="rounded-2xl border border-border/70 bg-card/40 p-12 text-center text-sm text-muted-foreground">
-          {hasActiveFilters ? "Nenhum documento encontrado para os filtros aplicados." : "Nenhuma nota fiscal ou recibo cadastrado."}
+          {hasActiveFilters ? "Nenhum documento encontrado para os filtros aplicados." : documentTab === "recibo" ? "Nenhum recibo de saída cadastrado." : "Nenhuma nota fiscal cadastrada."}
         </div>
       ) : !clienteSelecionado ? (
         <section className="rounded-2xl border border-border/70 bg-card/35 p-5 shadow-sm md:p-7">
@@ -856,7 +810,7 @@ export default function NFSaidaTab() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {gruposVisiveis.sort(([a], [b]) => a.localeCompare(b, "pt-BR")).map(([nome, anos]) => (
-              <FolderCard key={nome} name={nome} description="Notas e recibos de saída" count={Object.values(anos).reduce((total, items) => total + items.length, 0)} onClick={() => selecionarCliente(nome)} />
+              <FolderCard key={nome} name={nome} description={documentTab === "recibo" ? "Recibos de saída" : "Notas fiscais de saída"} count={Object.values(anos).reduce((total, items) => total + items.length, 0)} onClick={() => selecionarCliente(nome)} />
             ))}
           </div>
         </section>

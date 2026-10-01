@@ -301,16 +301,25 @@ export default function DashboardFinanceiro({
           <>
           {/* Tabela Desktop */}
           <div className="hidden max-w-full overflow-x-auto lg:block">
-            <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
+            <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[150px]" />
+                <col className="w-[330px]" />
+                <col className="w-[220px]" />
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
+                <col className="w-[130px]" />
+                <col className="w-[150px]" />
+              </colgroup>
               <thead className="bg-muted/5">
                 <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="w-[10%] px-3 py-4">ID / Data</th>
-                  <th className="w-[25%] px-3 py-4">Descrição / Fornecedor</th>
-                  <th className="w-[19%] px-3 py-4">Cliente</th>
-                  <th className="w-[12%] px-3 py-4 text-center">Caixa</th>
-                  <th className="w-[13%] px-3 py-4 text-right">Valor (R$)</th>
-                  <th className="w-[11%] px-3 py-4 text-center">Status</th>
-                  <th className="w-[10%] px-3 py-4 text-center">E-mail</th>
+                  <th className="whitespace-nowrap px-3 py-4">ID / Data</th>
+                  <th className="whitespace-nowrap px-3 py-4">Descrição / Fornecedor</th>
+                  <th className="whitespace-nowrap px-3 py-4">Cliente</th>
+                  <th className="whitespace-nowrap px-3 py-4 text-center">Caixa</th>
+                  <th className="whitespace-nowrap px-3 py-4 text-right">Valor (R$)</th>
+                  <th className="whitespace-nowrap px-3 py-4 text-center">Status</th>
+                  <th className="whitespace-nowrap px-3 py-4 text-center">E-mail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">

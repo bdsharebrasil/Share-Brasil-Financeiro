@@ -312,6 +312,7 @@ export default function FinanceiroCotista() {
   const entradas = dashboard?.resumo?.entradas ?? 0;
   const saidas = dashboard?.resumo?.saidas ?? 0;
   const saldo = dashboard?.resumo?.saldo ?? 0;
+  const possuiHolding = cotistasAeronave.some((cotista) => Boolean(cotista.eh_holding));
   const [abaAtiva, setAbaAtiva] = useState<"resumo" | "lancamentos" | "graficos" | "ranking" | "emprestimos">("resumo");
 
   const despesas = useMemo(
@@ -342,6 +343,12 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) => formatarMoeda(valor).replace(",00", "");
   const coresCategorias = ["#22d3ee", "#60a5fa", "#a78bfa", "#fbbf24", "#34d399", "#94a3b8"];
+  const cardsResumo = [
+    ...(possuiHolding ? [["Entradas", entradas, "text-emerald-400"] as const] : []),
+    ["Saídas", saidas, "text-red-400"] as const,
+    ["Saldo", saldo, "text-foreground"] as const,
+    ["Custo rateado", dashboard?.resumo?.custo_rateado ?? 0, "text-amber-400"] as const,
+  ];
 
   return (
     <div className="financeiro-shell route-enter space-y-5">
@@ -384,7 +391,7 @@ export default function FinanceiroCotista() {
         <>
           {abaAtiva === "resumo" && <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[['Entradas', entradas, 'text-emerald-400'], ['Saídas', saidas, 'text-red-400'], ['Saldo', saldo, 'text-foreground'], ['Custo rateado', dashboard?.resumo?.custo_rateado ?? 0, 'text-amber-400']].map(([titulo, valor, cor]) => <div key={titulo as string} className="financeiro-kpi"><p className="financeiro-kpi-label">{titulo}</p><p className={`mt-1 text-lg font-bold ${cor}`}>{formatarCentavos(valor as number)}</p></div>)}
+              {cardsResumo.map(([titulo, valor, cor]) => <div key={titulo} className="financeiro-kpi"><p className="financeiro-kpi-label">{titulo}</p><p className={`mt-1 text-lg font-bold ${cor}`}>{formatarCentavos(valor)}</p></div>)}
             </div>
             <div className="grid gap-4 xl:grid-cols-3">
               <div className="financeiro-panel xl:col-span-2"><div className="mb-5 flex items-center gap-2"><LayoutDashboard size={15} className="text-primary" /><div><p className="text-sm font-bold">Composição dos custos</p><p className="text-[10px] text-muted-foreground">Custos fixos e variáveis das despesas lançadas</p></div></div><div className="grid gap-4 p-4 sm:grid-cols-2"><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos fixos</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoFixo)}</p><p className="mt-1 text-[10px] text-muted-foreground">Hangar, seguro e recorrências</p></div><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos variáveis</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoVariavel)}</p><p className="mt-1 text-[10px] text-muted-foreground">Operação, combustível e demais despesas</p></div></div></div>

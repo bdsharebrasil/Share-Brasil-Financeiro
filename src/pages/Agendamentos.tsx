@@ -505,11 +505,20 @@ function Escala({ tripulacao, escala, disponibilidades, mes, visao, aoMudarMes, 
     ? Array.from({ length: ultimoDiaMes(mes).getDate() }, (_, indice) => new Date(mes.getFullYear(), mes.getMonth(), indice + 1))
     : Array.from({ length: 7 }, (_, indice) => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - ((hoje.getDay() + 6) % 7) + indice));
   const periodo = visao === "mensal" ? `${nomesMeses[mes.getMonth()]} ${mes.getFullYear()}` : `${diasVisao[0].getDate()} ${nomesMeses[diasVisao[0].getMonth()]} – ${diasVisao[6].getDate()} ${nomesMeses[diasVisao[6].getMonth()]}`;
-  const statusDoDia = (dia: Date, tripulanteId?: string) => disponibilidades.filter((item) => { const chave = dataIso(dia); return (!tripulanteId || item.tripulante_id === tripulanteId) && chave >= item.data_inicio && chave <= item.data_fim; }).at(-1);
-  const statusLabel = (status?: string) => ({ aviso: "Aviso", ferias: "Férias", folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", disponivel: "Disponível" } as Record<string, string>)[status || ""] || "Sem status";
+  const vooDoDia = (dia: Date, tripulanteId: string) => escala.find((item) => { const chave = dataIso(dia); return chave >= item.data_agendada && chave <= (item.data_fim || item.data_agendada) && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId); });
+  const statusDoDia = (dia: Date, tripulanteId?: string) => {
+    const chave = dataIso(dia);
+    const voo = tripulanteId ? vooDoDia(dia, tripulanteId) : undefined;
+    if (voo) return { id: `voo-${voo.id}`, tripulante_id: tripulanteId, data_inicio: voo.data_agendada, data_fim: voo.data_fim || voo.data_agendada, status: voo.status === "em_voo" ? "em_voo" : "escalado", observacoes: null } as DisponibilidadeTripulacao;
+    return disponibilidades.filter((item) => (!tripulanteId || item.tripulante_id === tripulanteId) && chave >= item.data_inicio && chave <= item.data_fim).at(-1);
+  };
+  const statusLabel = (status?: string) => ({ aviso: "Aviso", ferias: "Férias", folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", disponivel: "Disponível", escalado: "Escalado", em_voo: "Em voo" } as Record<string, string>)[status || ""] || "Sem status";
   const inicioPeriodo = dataIso(diasVisao[0]);
   const fimPeriodo = dataIso(diasVisao[diasVisao.length - 1]);
   const statusDoPeriodo = (tripulanteId: string) => {
+    const voos = escala.filter((item) => item.data_agendada <= fimPeriodo && (item.data_fim || item.data_agendada) >= inicioPeriodo && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId));
+    if (voos.some((item) => item.status === "em_voo")) return "em_voo";
+    if (voos.length) return "escalado";
     const registros = disponibilidades.filter((item) => item.tripulante_id === tripulanteId && item.data_inicio <= fimPeriodo && item.data_fim >= inicioPeriodo).sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
     return registros.at(-1)?.status || "disponivel";
   };
@@ -521,7 +530,7 @@ function Escala({ tripulacao, escala, disponibilidades, mes, visao, aoMudarMes, 
     } catch (error) { setErroExtrato(error instanceof Error ? error.message : "Não foi possível carregar o extrato de jornada."); }
     finally { setCarregandoExtrato(false); }
   };
-  const statusTone = (status?: string) => status === "atestado_medico" ? "border-red-300/20 bg-red-300/10 text-red-200" : status === "treinamento" ? "border-violet-300/20 bg-violet-300/10 text-violet-200" : status === "acompanhando_manutencao" ? "border-sky-300/20 bg-sky-300/10 text-sky-200" : status === "folga" ? "border-slate-300/20 bg-slate-300/10 text-slate-200" : status === "atestado_medico" ? "border-red-300/20 bg-red-300/10 text-red-200" : status === "treinamento" ? "border-violet-300/20 bg-violet-300/10 text-violet-200" : status === "acompanhando_manutencao" ? "border-sky-300/20 bg-sky-300/10 text-sky-200" : status === "folga" ? "border-slate-300/20 bg-slate-300/10 text-slate-200" : status === "ferias" ? "border-rose-300/20 bg-rose-300/10 text-rose-200" : status === "aviso" ? "border-amber-300/20 bg-amber-300/10 text-amber-200" : status === "disponivel" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : "border-white/[.08] bg-white/[.04] text-slate-500";
+  const statusTone = (status?: string) => status === "atestado_medico" ? "border-red-300/20 bg-red-300/10 text-red-200" : status === "treinamento" ? "border-violet-300/20 bg-violet-300/10 text-violet-200" : status === "acompanhando_manutencao" ? "border-sky-300/20 bg-sky-300/10 text-sky-200" : status === "folga" ? "border-slate-300/20 bg-slate-300/10 text-slate-200" : status === "ferias" ? "border-rose-300/20 bg-rose-300/10 text-rose-200" : status === "aviso" ? "border-amber-300/20 bg-amber-300/10 text-amber-200" : status === "em_voo" ? "border-blue-300/25 bg-blue-300/10 text-blue-200" : status === "escalado" ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-200" : status === "disponivel" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : "border-white/[.08] bg-white/[.04] text-slate-500";
   const voosDoTripulante = (tripulanteId: string, dia: Date) => escala.filter((item) => { const chave = dataIso(dia); return chave >= item.data_agendada && chave <= (item.data_fim || item.data_agendada) && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId); });
   const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
   const tripulacaoVisivel = tripulacao.filter((item) => {

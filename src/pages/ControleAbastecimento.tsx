@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -379,6 +379,13 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                 <StatTile label="Volume total" value={`${totalLitrosCliente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
                 <StatTile label="Valor total" value={money(totalValorCliente)} icon={<FileText size={14} />} accent="text-emerald-400" />
               </div>
+              <div className="flex flex-wrap gap-2">
+                {registrosClientePorMes.map(([mes, registros]) => (
+                  <div key={mes} className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}
+                  </div>
+                ))}
+              </div>
 
               {/* FILTROS E TABELA */}
               <section className={`${card} overflow-hidden p-4`}>
@@ -419,12 +426,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                     </thead>
                     <tbody className="text-foreground">
                       {registrosCliente.length ? (
-                        registrosClientePorMes.map(([mes, registros]) => (
-                          <Fragment key={mes}>
-                            <tr><td colSpan={10} className="border-y border-primary/20 bg-primary/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}</td></tr>
-                            {registros.map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}
-                          </Fragment>
-                        ))
+                        registrosClientePorMes.flatMap(([, registros]) => registros).map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)
                       ) : (
                         <tr>
                           <td colSpan={10} className="py-8 text-center text-muted-foreground">Nenhum registro encontrado para este cliente.</td>

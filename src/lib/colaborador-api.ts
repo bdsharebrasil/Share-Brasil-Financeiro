@@ -498,7 +498,14 @@ export type MovimentacaoFinanceira = {
   justificativa_reativacao?: string | null;
   reativado_em?: string | null;
   criado_em: string;
+  anexos?: Array<{ id: string; nome?: string | null; filename?: string | null }>;
+  destinatario_email?: string | null;
+  reembolsavel?: boolean | null;
+  grupo_categoria?: string | null;
+  categoria_nome?: string | null;
 };
+
+export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "rateio_hold"; origem_id: string; valor_centavos: number; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
 
 export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
@@ -846,6 +853,11 @@ function normalizarMovimentacao(
       "Movimentação sem descrição",
     fornecedor: primeiroTexto(registro.fornecedor, registro.fornecedor_nome),
     status: textoFinanceiro(registro.status),
+    reembolsavel: booleanoFinanceiro(registro.reembolsavel),
+    grupo_categoria: textoFinanceiro(registro.grupo_categoria),
+    categoria_nome: textoFinanceiro(registro.categoria_nome),
+    anexos: Array.isArray(registro.anexos) ? registro.anexos.filter((item): item is { id: string; nome?: string | null; filename?: string | null } => Boolean(item && typeof item === "object" && typeof (item as Record<string, unknown>).id === "string")) : [],
+    destinatario_email: textoFinanceiro(registro.destinatario_email ?? registro.socio_email),
     data_pagamento: primeiroTexto(
       registro.data_pagamento,
       registro.data_emissao,
@@ -915,6 +927,9 @@ function emailRelacionaMovimentacao(
   ].filter(Boolean);
   return referencias.some((referencia) => identificadores.includes(referencia));
 }
+
+export function buscarOpcoesRateioMovimentacao(origemTipo: MovimentacaoFinanceira["origem_tipo"], origemId: string) { return colaboradorRequest<OpcoesRateioMovimentacao>(`/api/financeiro/dashboard/financeiro/movimentacoes/${encodeURIComponent(origemTipo)}/${encodeURIComponent(origemId)}/rateio-opcoes`); }
+export function criarRateioMovimentacao(origemTipo: MovimentacaoFinanceira["origem_tipo"], origemId: string, payload: { data_vencimento: string; periodicidade: string; tipo_rateio: string; linhas: Array<{ cotista_id: string; percentual: number }> }) { return colaboradorRequest<{ ok: boolean; rateio_ids: string[] }>(`/api/financeiro/dashboard/financeiro/movimentacoes/${encodeURIComponent(origemTipo)}/${encodeURIComponent(origemId)}/rateio`, { method: "POST", body: JSON.stringify(payload) }); }
 
 export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse> {
   const payload = await colaboradorRequest<PainelFinanceiroPayload>("/api/financeiro/dashboard/financeiro");

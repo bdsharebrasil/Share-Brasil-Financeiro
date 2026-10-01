@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
+import { DespesaDestinoDialog } from "@/components/dashboard/DespesaDestinoDialog";
 import {
   AcaoRapida,
   CabecalhoSecao,
@@ -136,6 +137,7 @@ export default function DashboardFinanceiro({
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
+  const [despesaDestino, setDespesaDestino] = useState<MovimentacaoFinanceira | null>(null);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (silencioso) setAtualizando(true);
@@ -312,7 +314,7 @@ export default function DashboardFinanceiro({
               </thead>
               <tbody className="divide-y divide-border/60">
                 {movimentacoesDaPagina.map((item) => (
-                  <LinhaMovimentacao key={item.id} item={item} />
+                  <LinhaMovimentacao key={item.id} item={item} onEmailPendente={setDespesaDestino} />
                 ))}
               </tbody>
             </table>
@@ -351,7 +353,7 @@ export default function DashboardFinanceiro({
           {/* Cards Mobile */}
           <div className="space-y-3 p-4 lg:hidden">
             {movimentacoesDaPagina.map((item) => (
-              <CartaoMovimentacao key={item.id} item={item} />
+              <CartaoMovimentacao key={item.id} item={item} onEmailPendente={setDespesaDestino} />
             ))}
             {totalPaginas > 1 && (
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 pb-1 pt-4">
@@ -391,6 +393,8 @@ export default function DashboardFinanceiro({
         )}
       </section>
 
+      <DespesaDestinoDialog item={despesaDestino} open={Boolean(despesaDestino)} onOpenChange={(open) => { if (!open) setDespesaDestino(null); }} onCompleted={() => void carregar(true)} />
+
       <div className="mt-5 w-full min-w-0">
         <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
       </div>
@@ -398,8 +402,19 @@ export default function DashboardFinanceiro({
   );
 }
 
+function podeIniciarFluxoEmail(item: MovimentacaoFinanceira) {
+  const texto = `${item.grupo_categoria || ""} ${item.categoria_nome || ""}`.toLowerCase();
+  const eReembolso = item.reembolsavel === true || texto.includes("reembols") || ["reembolso", "reembolsos"].includes(String(item.origem_tipo || "").toLowerCase());
+  return statusEmail(item) === "NÃO ENVIADO" && !eReembolso;
+}
+function StatusEmail({ item, onClick }: { item: MovimentacaoFinanceira; onClick?: () => void }) {
+  const status = statusEmail(item); const clicavel = podeIniciarFluxoEmail(item);
+  const content = <><span className="h-1.5 w-1.5 rounded-full bg-current" />{status}</>;
+  return clicavel ? <button type="button" className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(status)} cursor-pointer underline decoration-dotted underline-offset-2 hover:opacity-80`} onClick={onClick} title="Definir destino da despesa">{content}</button> : <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(status)}`}>{content}</span>;
+}
+
 // COMPONENTE: Cartão Mobile
-function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
+function CartaoMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanceira; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
   return (
     <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
       <div className="flex items-start justify-between gap-3">
@@ -425,10 +440,7 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
         <EtiquetaStatus tone={tomStatus(item.status)}>
           {statusLabel(item.status)}
         </EtiquetaStatus>
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(statusEmail(item))}`}>
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          {statusEmail(item)}
-        </span>
+        <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
         <span className="ml-auto text-xs font-medium text-muted-foreground">
           {dataBruta(item.data_pagamento || item.criado_em)}
         </span>
@@ -446,7 +458,7 @@ function CartaoMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
 }
 
 // COMPONENTE: Linha Desktop
-function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
+function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanceira; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
   return (
     <tr className="transition-colors hover:bg-muted/30">
       {/* ID / DATA Combinados */}
@@ -496,10 +508,7 @@ function LinhaMovimentacao({ item }: { item: MovimentacaoFinanceira }) {
       
       {/* EMAIL */}
       <td className="px-5 py-3.5 align-middle text-center">
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(statusEmail(item))}`}>
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          {statusEmail(item)}
-        </span>
+        <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
       </td>
     </tr>
   );

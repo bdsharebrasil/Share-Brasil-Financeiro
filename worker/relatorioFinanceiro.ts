@@ -272,6 +272,9 @@ export async function sincronizarRelatorioViagemFinanceiro(
   userId: string | null,
   payerOnly: Payer | null = null,
 ): Promise<{ idempotent: boolean; destinos: Array<{ tipo: string; id: string }> }> {
+  const numeroVooId = text(report.numero_voo)
+    ? (await db.prepare('SELECT id FROM solicitacoes_reserva_voo WHERE numero_voo = ?1 LIMIT 1').bind(text(report.numero_voo)).first<{ id: string }>())?.id || null
+    : null
   const reportId = text(report.id)
   if (!reportId) throw new Error('relatorio_id_obrigatorio')
   const expenses = expensesFromReport(report)
@@ -307,9 +310,9 @@ export async function sincronizarRelatorioViagemFinanceiro(
           WHERE id IN (SELECT destino_id FROM financeiro_vinculos WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND destino_tipo = 'MOVIMENTO_HOLDING')
             AND descricao = ?`).bind(amountCentavos, description, FORNECEDOR_RELATORIO_VIAGEM, text(report.numero_relatorio), text(report.pdf_path) || null, existingDueDate, reportId, description).run()
       } else {
-        await db.prepare(`UPDATE lancamentos SET valor_centavos = ?, descricao = ?, fornecedor_nome = ?, numero_doc = ?, url_doc = ?, cotista_aeronave_id = ?, cliente_id = ?, data_vencimento = ?
+        await db.prepare(`UPDATE lancamentos SET valor_centavos = ?, descricao = ?, fornecedor_nome = ?, numero_doc = ?, numero_voo = ?, periodicidade = 'EVENTUAL', url_doc = ?, cotista_aeronave_id = ?, cliente_id = ?, data_vencimento = ?
           WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND idempotency_key = ?`)
-          .bind(amountCentavos, description, FORNECEDOR_RELATORIO_VIAGEM, text(report.numero_relatorio), text(report.pdf_path) || null, rows[0]?.id || null, text(report.cliente_id) || null, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}`).run()
+          .bind(amountCentavos, description, FORNECEDOR_RELATORIO_VIAGEM, text(report.numero_relatorio), numeroVooId, text(report.pdf_path) || null, rows[0]?.id || null, text(report.cliente_id) || null, existingDueDate, reportId, `RELATORIO_DESPESA_VIAGEM:${reportId}:${payer}`).run()
         if (payer === 'tripulante_1' || payer === 'tripulante_2') {
           await db.prepare(`UPDATE contas_apagar SET valor_centavos = ?, descricao = ?, data_vencimento = ?
             WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id = ? AND idempotency_key = ?`)
@@ -354,10 +357,12 @@ export async function sincronizarRelatorioViagemFinanceiro(
         colaborador_id: tripulanteUserId,
         data_emissao: dateValue(report.data_inicio, fallbackDate),
         data_vencimento: dueDate,
+        periodicidade: 'EVENTUAL',
         data_pagamento: null,
         descricao: description,
         fornecedor_nome: FORNECEDOR_RELATORIO_VIAGEM,
         numero_doc: text(report.numero_relatorio),
+        numero_voo: numeroVooId,
         url_doc: text(report.pdf_path) || null,
         cotista_aeronave_id: allocations[0]?.id || null,
         cliente_id: kind === 'CLIENTE' ? text(report.cliente_id) || null : null,
@@ -367,7 +372,7 @@ export async function sincronizarRelatorioViagemFinanceiro(
         fluxo: 'SAIDA',
         tipo_caixa: 'SHARE',
         valor_centavos: amountCentavos,
-        pago_por: tripulanteUserId,
+        pago_por: null,
         pago_diretamente: 0,
         reembolsavel: reembolsavel ? 1 : 0,
         reembolso_quitado: 0,

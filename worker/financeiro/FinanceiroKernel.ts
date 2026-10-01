@@ -1998,7 +1998,7 @@ export async function settlePayable(db: Database, payableId: string, body: Row, 
   const purchase = await db.prepare("SELECT id, descricao, criado_por FROM envio_despesas WHERE lancamento_id = ? AND tipo = 'share' AND status = 'APROVADO' LIMIT 1").bind(lancamentoId).first<Row>()
   const statements: D1PreparedStatement[] = [
     updateStatement(db, schema, 'contas_apagar', { status: 'PAGO', data_pagamento: paymentDate, banco_pagamento: bank, comprovante_pagamento_url: nullableText(body.comprovante_url ?? body.comprovante_pagamento_url ?? body.comprovantePagamentoUrl), atualizado_em: now }, 'id = ?', [payableId]),
-    updateStatement(db, schema, 'lancamentos', { status: 'PAGO', data_pagamento: paymentDate, conta_bancaria_id: bank, comprovante_url: nullableText(body.comprovante_url ?? body.comprovantePagamentoUrl), forma_pagamento: nullableText(body.forma_pagamento ?? body.formaPagamento), atualizado_em: now }, 'id = ?', [lancamentoId]),
+    updateStatement(db, schema, 'lancamentos', { status: 'PAGO', pago_por: userId, data_pagamento: paymentDate, conta_bancaria_id: bank, comprovante_url: nullableText(body.comprovante_url ?? body.comprovantePagamentoUrl), forma_pagamento: nullableText(body.forma_pagamento ?? body.formaPagamento), atualizado_em: now }, 'id = ?', [lancamentoId]),
     auditStatement(db, schema, 'contas_apagar', payableId, 'BAIXA', userId, amount, amount, nullableText(body.motivo), idempotencyKey(body)),
     ...(purchase ? [
       db.prepare("UPDATE envio_despesas SET status = 'CONCLUIDO', atualizado_em = CURRENT_TIMESTAMP WHERE id = ? AND status = 'APROVADO'").bind(purchase.id),

@@ -38,6 +38,7 @@ type Form = typeof emptyForm;
 
 export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => void }) {
   const [tab, setTab] = useState<"registros" | "fornecedores">("registros");
+  const [tabCliente, setTabCliente] = useState<"vinculados" | "emprestimo">("vinculados");
   const [options, setOptions] = useState<AbastecimentoOpcoes | null>(null);
   const [records, setRecords] = useState<Abastecimento[]>([]);
   const [form, setForm] = useState<Form>(emptyForm);
@@ -121,14 +122,18 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
 
   const registrosCliente = useMemo(() => {
     if (!clienteSelecionado) return [];
-    let itens = records.filter((item) => item.cliente_id === clienteSelecionado || item.socio_id === clienteSelecionado);
+    let itens = records.filter((item) => {
+      const pertenceAoCotista = item.cliente_id === clienteSelecionado || item.socio_id === clienteSelecionado;
+      const temVinculoComAeronave = Boolean(item.cotista_vinculado_a_aeronave);
+      return pertenceAoCotista && temVinculoComAeronave === (tabCliente === "vinculados");
+    });
     if (filters.busca) {
       const termo = filters.busca.toLowerCase();
       itens = itens.filter((item) => item.trecho?.toLowerCase().includes(termo) || item.local?.toLowerCase().includes(termo) || item.numero_comanda?.toLowerCase().includes(termo) || item.numero_nf?.toLowerCase().includes(termo));
     }
     if (filters.status) itens = itens.filter((item) => item.status === filters.status);
     return itens.sort((a, b) => new Date(b.data || "").getTime() - new Date(a.data || "").getTime());
-  }, [clienteSelecionado, records, filters]);
+  }, [clienteSelecionado, records, filters, tabCliente]);
 
   const registrosClientePorMes = useMemo(() => {
     const grupos = new Map<string, Abastecimento[]>();
@@ -340,7 +345,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
                 ) : cotistasFiltrados.length ? (
                   cotistasFiltrados.map((item) => (
-                    <button key={item.id} type="button" onClick={() => setClienteSelecionado(item.id)} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
                       <div className="mb-4 flex items-start justify-between">
                         <span className="rounded-lg bg-primary/10 p-2 text-primary">
                           <Building2 size={16} />
@@ -367,7 +372,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
           ) : (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <button type="button" onClick={() => setClienteSelecionado(null)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                <button type="button" onClick={() => { setClienteSelecionado(null); setTabCliente("vinculados"); }} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
                   <ChevronLeft size={14} /> Voltar para cotistas
                 </button>
                 <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-9 gap-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-extrabold">
@@ -377,6 +382,14 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
 
               {/* RESUMO DO COTISTA */}
               <div className="mb-1"><h2 className="text-lg font-bold">{nomeClienteSelecionado}</h2><p className="text-xs text-muted-foreground">Histórico separado por mês</p></div>
+              <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl" role="tablist" aria-label="Histórico do cotista">
+                <button type="button" role="tab" aria-selected={tabCliente === "vinculados"} onClick={() => setTabCliente("vinculados")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "vinculados" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                  <Fuel size={13} className="mr-1.5 inline" /> Aeronaves vinculadas
+                </button>
+                <button type="button" role="tab" aria-selected={tabCliente === "emprestimo"} onClick={() => setTabCliente("emprestimo")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "emprestimo" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                  <Plane size={13} className="mr-1.5 inline" /> Voos Empréstimo
+                </button>
+              </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <StatTile label="Registros encontrados" value={String(registrosCliente.length)} icon={<FolderOpen size={14} />} />
                 <StatTile label="Volume total" value={`${totalLitrosCliente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
@@ -432,14 +445,14 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                         registrosClientePorMes.flatMap(([, registros]) => registros).map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)
                       ) : (
                         <tr>
-                          <td colSpan={10} className="py-8 text-center text-muted-foreground">Nenhum registro encontrado para este cliente.</td>
+                          <td colSpan={10} className="py-8 text-center text-muted-foreground">{tabCliente === "emprestimo" ? "Nenhum abastecimento de aeronave emprestada encontrado." : "Nenhum abastecimento de aeronave vinculada encontrado."}</td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
                 <div className="space-y-2 md:hidden">
-                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}</section>) : <EstadoVazio label="Nenhum registro encontrado para este cotista." />}
+                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}</section>) : <EstadoVazio label={tabCliente === "emprestimo" ? "Nenhum abastecimento de aeronave emprestada encontrado." : "Nenhum abastecimento de aeronave vinculada encontrado."} />}
                 </div>
               </section>
             </div>

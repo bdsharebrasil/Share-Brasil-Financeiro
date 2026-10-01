@@ -484,6 +484,7 @@ export type MovimentacaoFinanceira = {
   tipo_caixa: "CLIENTE" | "SHARE" | "HOLDING" | string | null;
   descricao: string;
   fornecedor: string | null;
+  cliente_nome?: string | null;
   status: string | null;
   pendencia?: boolean;
   data_pagamento: string | null;
@@ -852,6 +853,7 @@ function normalizarMovimentacao(
       primeiroTexto(registro.descricao, registro.descricao_despesa) ||
       "Movimentação sem descrição",
     fornecedor: primeiroTexto(registro.fornecedor, registro.fornecedor_nome),
+    cliente_nome: primeiroTexto(registro.cliente_nome, registro.socio_nome, registro.cotista_nome),
     status: textoFinanceiro(registro.status),
     reembolsavel: booleanoFinanceiro(registro.reembolsavel),
     grupo_categoria: textoFinanceiro(registro.grupo_categoria),

@@ -820,7 +820,7 @@ financeiroRoutes.get('/dashboard/financeiro', async (c) => {
     const [receber, pagar, movimentacoes, movimentosHolding, emailsEnviados] = await Promise.all([
       listar(db, "SELECT valor_centavos, status FROM contas_areceber WHERE status <> 'CANCELADO'"),
       listar(db, "SELECT id, lancamentos_id, valor_centavos, status, data_vencimento FROM contas_apagar WHERE status <> 'CANCELADO'"),
-      listar(db, `SELECT l.*, cl.email_principal AS destinatario_email FROM lancamentos l LEFT JOIN cliente cl ON cl.id = l.cliente_id ORDER BY l.criado_em DESC LIMIT 100`),
+      listar(db, `SELECT l.*, cl.email_principal AS destinatario_email, COALESCE(cl.razao_social, cliente_cotista.razao_social, hs.nome, ca.codigo_cliente) AS cliente_nome FROM lancamentos l LEFT JOIN cliente cl ON cl.id = l.cliente_id LEFT JOIN cotista_aeronave ca ON ca.id = l.cotista_aeronave_id LEFT JOIN cliente cliente_cotista ON cliente_cotista.id = ca.cliente_id LEFT JOIN hold_socios hs ON hs.id = ca.socio_id ORDER BY l.criado_em DESC LIMIT 100`),
       listar(db, `SELECT mh.*, h.nome AS holding_nome, hs.nome AS socio_nome FROM movimentos_holding mh LEFT JOIN holdings h ON h.id = mh.holding_id LEFT JOIN hold_socios hs ON hs.id = mh.socio_id ORDER BY mh.criado_em DESC LIMIT 100`),
       listar(db, 'SELECT id, destinatarios, assunto, status, anexos, erro_mensagem AS erro, criado_em, email_enviado_em FROM emails_enviados ORDER BY criado_em DESC LIMIT 200'),
     ])

@@ -301,15 +301,16 @@ export default function DashboardFinanceiro({
           <>
           {/* Tabela Desktop */}
           <div className="hidden max-w-full overflow-x-auto lg:block">
-            <table className="w-full min-w-[1080px] text-left text-sm">
+            <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
               <thead className="bg-muted/5">
                 <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-4">ID / Data</th>
-                  <th className="px-5 py-4">Descrição / Fornecedor</th>
-                  <th className="px-5 py-4">Caixa</th>
-                  <th className="px-5 py-4 text-right">Valor (R$)</th>
-                  <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4 text-center">E-mail</th>
+                  <th className="w-[10%] px-3 py-4">ID / Data</th>
+                  <th className="w-[25%] px-3 py-4">Descrição / Fornecedor</th>
+                  <th className="w-[19%] px-3 py-4">Cliente</th>
+                  <th className="w-[12%] px-3 py-4 text-center">Caixa</th>
+                  <th className="w-[13%] px-3 py-4 text-right">Valor (R$)</th>
+                  <th className="w-[11%] px-3 py-4 text-center">Status</th>
+                  <th className="w-[10%] px-3 py-4 text-center">E-mail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -433,6 +434,11 @@ function CartaoMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinan
         </p>
       </div>
       
+      <div className="mt-3 min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
+        <p className="break-words text-xs font-medium text-foreground">{item.cliente_nome || "Não informado"}</p>
+      </div>
+
       <div className="mt-4 flex flex-wrap items-center gap-2.5">
         <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
           {tipoCaixaLabel(item.tipo_caixa)}
@@ -462,7 +468,7 @@ function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanc
   return (
     <tr className="transition-colors hover:bg-muted/30">
       {/* ID / DATA Combinados */}
-      <td className="whitespace-nowrap px-5 py-3.5 align-middle">
+      <td className="whitespace-nowrap px-3 py-3.5 align-middle">
         <div className="font-medium text-foreground">
           {item.numero_doc || "Sem ID"}
         </div>
@@ -472,7 +478,7 @@ function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanc
       </td>
       
       {/* DESCRIÇÃO / FORNECEDOR Combinados */}
-      <td className="px-5 py-3.5 align-middle">
+      <td className="px-3 py-3.5 align-middle">
         <div className="font-semibold text-foreground line-clamp-1" title={item.descricao || "Movimentação sem descrição"}>
           {item.descricao || "Movimentação sem descrição"}
         </div>
@@ -487,27 +493,33 @@ function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanc
         )}
       </td>
       
+      <td className="px-3 py-3.5 align-middle">
+        <div className="truncate text-sm text-foreground" title={item.cliente_nome || "Não informado"}>
+          {item.cliente_nome || "Não informado"}
+        </div>
+      </td>
+
       {/* CAIXA (Verde para Share, Azul para Cliente) */}
-      <td className="px-5 py-3.5 align-middle">
+      <td className="px-3 py-3.5 text-center align-middle">
         <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
           {tipoCaixaLabel(item.tipo_caixa)}
         </span>
       </td>
-      
+
       {/* VALOR */}
-      <td className="whitespace-nowrap px-5 py-3.5 text-right align-middle font-mono font-bold tabular-nums text-foreground">
+      <td className="whitespace-nowrap px-3 py-3.5 text-right align-middle font-mono font-bold tabular-nums text-foreground">
         {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
       </td>
-      
+
       {/* STATUS */}
-      <td className="px-5 py-3.5 align-middle">
+      <td className="px-3 py-3.5 text-center align-middle">
         <EtiquetaStatus tone={tomStatus(item.status)}>
           {statusLabel(item.status)}
         </EtiquetaStatus>
       </td>
-      
+
       {/* EMAIL */}
-      <td className="px-5 py-3.5 align-middle text-center">
+      <td className="px-3 py-3.5 align-middle text-center">
         <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
       </td>
     </tr>

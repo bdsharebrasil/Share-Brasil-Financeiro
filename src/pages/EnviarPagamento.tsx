@@ -43,7 +43,6 @@ type Formulario = {
   observacoes: string;
   grupo_categoria: Categoria;
   tipo_despesa: "fixo" | "variável";
-  pago_diretamente: boolean;
   pago_por: string;
   anexos: AnexoLinha[];
 };
@@ -86,7 +85,6 @@ const inicial: Formulario = {
   observacoes: "",
   grupo_categoria: "DESPESAS EMPRESA",
   tipo_despesa: "variável",
-  pago_diretamente: false,
   pago_por: "",
   anexos: [],
 };
@@ -338,7 +336,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       ...inicial,
       data_despesa: hoje(),
       grupo_categoria: novoTipo === "cliente" ? "CAIXA CLIENTE" : novoTipo === "reembolso" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA",
-      pago_diretamente: novoTipo === "cliente",
     });
   };
 
@@ -395,9 +392,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
         cliente_id: "", socio_id: "", aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
-        categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: tipo === "cliente", cotista_pagador_id: tipo === "cliente" ? form.cotista_ids[0] : undefined,
+        categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: false,
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
-        pago_por: form.pago_por || (tipo === "cliente" ? form.cliente_id : "share"), periodicidade: form.periodicidade,
+        pago_por: tipo === "cliente" ? null : form.pago_por || "share", periodicidade: form.periodicidade,
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url, cotista_id }) => ({ id, tipo: anexoTipo, numero, url, cotista_id })),
         tipo_rateio: form.tipo_rateio,
         subcategoria_1: form.subcategoria_1,
@@ -699,7 +696,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       <Resumo label="Periodicidade" valor={form.periodicidade} />
                       <Resumo label="Anexos" valor={`${anexos.length} documento(s)`} />
                       <Resumo label="Rateio" valor={exigeCliente ? `${cotistasSelecionados.length} cotista(s)${cotistasSelecionados.some((c) => c.eh_holding) ? " · holding identificado" : ""}` : "Não se aplica"} />
-                      {exigeCliente && <Resumo label="Pagamento direto" valor={tipo === "cliente" ? "Sim" : "Não — Share antecipou"} />}
+                      {tipo === "cliente" && <Resumo label="Status do pagamento" valor="Pendente — em aberto para todos até a baixa" />}
+                      {tipo === "reembolso" && <Resumo label="Pagamento direto" valor="Não — Share antecipou" />}
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>

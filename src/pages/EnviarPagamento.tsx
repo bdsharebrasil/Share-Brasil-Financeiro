@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AnexoEmail, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -58,7 +58,8 @@ type OpcaoEnvio = {
   cor: string;
 };
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+// Data local (evita virar o dia seguinte à noite por causa do UTC)
+const hoje = () => new Date().toLocaleDateString("en-CA");
 const inicial: Formulario = {
   descricao: "",
   valor: "",
@@ -130,7 +131,12 @@ const statusEnvio: Record<string, { label: string; className: string }> = {
   pago: { label: "Pago", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
   cancelado: { label: "Cancelado", className: "bg-red-400/10 text-red-700 dark:text-red-300" },
   enviado: { label: "Enviado", className: "bg-sky-400/10 text-sky-700 dark:text-sky-300" },
+  email_enviado: { label: "E-mail enviado", className: "bg-sky-400/10 text-sky-700 dark:text-sky-300" },
+  email_nao_enviado: { label: "E-mail não enviado", className: "bg-amber-400/10 text-amber-600 dark:text-amber-300" },
+  convertido: { label: "Convertido", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
 };
+
+const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();
 
 function dataBr(valor?: string | null) {
   return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -173,15 +179,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [buscaAnexo, setBuscaAnexo] = useState("");
 
   const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
+  const [envioConvertido, setEnvioConvertido] = useState(false);
   const [modalEmail, setModalEmail] = useState(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
-  const [anexosEmail, setAnexosEmail] = useState<AnexoEmail[]>([]);
   const [assinaturaEmail, setAssinaturaEmail] = useState<AssinaturaEmail | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
   const [bancoSelecionado, setBancoSelecionado] = useState<ContaBancariaEmail | null>(null);
   const [buscaContato, setBuscaContato] = useState("");
   const [destinatario, setDestinatario] = useState("");
-  const [destinatarioInformado, setDestinatarioInformado] = useState(false);
   const [nomeDestinatario, setNomeDestinatario] = useState("");
   const [assunto, setAssunto] = useState("");
   const [corpoEmail, setCorpoEmail] = useState("");
@@ -197,9 +202,28 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [sucessoEmail, setSucessoEmail] = useState("");
   const [carregandoEmail, setCarregandoEmail] = useState(false);
 
-  const carregarOpcoes = async () => { try { const [opcoes, fontes] = await Promise.all([buscarOpcoesEnvioPagamento(), buscarOpcoesAnexosEnvioPagamento()]); setDadosOpcoes(opcoes); setFontesAnexos(fontes); } catch { setErro("Não foi possível carregar as opções financeiras."); } };
+  const carregarOpcoes = async () => {
+    try {
+      const [dadosFinanceiros, fontes] = await Promise.all([buscarOpcoesEnvioPagamento(), buscarOpcoesAnexosEnvioPagamento()]);
+      setDadosOpcoes(dadosFinanceiros);
+      setFontesAnexos(fontes);
+    } catch {
+      setErro("Não foi possível carregar as opções financeiras.");
+    }
+  };
 
-  const carregarCotistas = async (aeronaveId: string) => { if (!aeronaveId) { setCotistas([]); return; } try { const dados = await buscarCotistasAeronave(aeronaveId); setCotistas(dados.cotistas); } catch { setErro("Não foi possível carregar os cotistas da aeronave."); } };
+  const carregarCotistas = async (aeronaveId: string) => {
+    if (!aeronaveId) {
+      setCotistas([]);
+      return;
+    }
+    try {
+      const dados = await buscarCotistasAeronave(aeronaveId);
+      setCotistas(dados.cotistas);
+    } catch {
+      setErro("Não foi possível carregar os cotistas da aeronave.");
+    }
+  };
 
   const carregar = async () => {
     setCarregando(true);
@@ -214,6 +238,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setCarregando(false);
     }
   };
+
+  const atualizarStatusLocal = (id: string, status: string) =>
+    setEnvios((atual) => atual.map((envio) => (envio.id === id ? ({ ...envio, status } as EnvioPagamento) : envio)));
 
   const recuperarConversao = async (envio: EnvioPagamento) => {
     setConvertendoEnvioId(envio.id);
@@ -234,7 +261,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     try {
       const [dados, assinatura, bancos] = await Promise.all([buscarCentralEmail(), buscarMinhaAssinatura(), buscarContasBancariasEmail()]);
       setContatos(dados.contatos);
-      setAnexosEmail(dados.anexos);
       setAssinaturaEmail(assinatura);
       setContasBancarias(bancos.contas);
     } catch {
@@ -258,14 +284,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
   const subcategorias = [categoriaSelecionada?.subcategoria_1, categoriaSelecionada?.subcategoria_2, categoriaSelecionada?.subcategoria_3, categoriaSelecionada?.subcategoria_4].filter((item): item is string => Boolean(item));
   const anexosEncontrados = useMemo(() => {
-    const registros = origemAnexo === "recibos"
+    const registros: any[] = origemAnexo === "recibos"
       ? fontesAnexos.recibos
       : origemAnexo === "relatorios"
         ? fontesAnexos.relatorios
         : fontesAnexos.abastecimentos;
     const termo = buscaAnexo.trim().toLowerCase();
     return registros
-      .filter((item: any) => quantidadeAnexosFonte(item, origemAnexo) > 0)
+      .filter((item) => quantidadeAnexosFonte(item, origemAnexo) > 0)
       .filter((item) => !termo || JSON.stringify(item).toLowerCase().includes(termo));
   }, [buscaAnexo, fontesAnexos, origemAnexo]);
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
@@ -289,19 +315,19 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       cotista_id: linha.cotista_id,
       percentual: Number(linha.percentual) || 0,
       percentual_sociedade: Number(cotistas.find((cotista) => cotista.id === linha.cotista_id)?.percentual_sociedade || 0),
-    })).filter((linha) => linha.percentual > 0)
-    return allocateCentavos(valorCentavos, linhas.map((linha) => linha.percentual)).map((valor, index) => ({ ...linhas[index], valor_centavos: valor }))
+    })).filter((linha) => linha.percentual > 0);
+    return allocateCentavos(valorCentavos, linhas.map((linha) => linha.percentual)).map((valor, index) => ({ ...linhas[index], valor_centavos: valor }));
   };
 
   const validarRateio = () => {
-    if (!exigeCliente) return true
-    if (!form.aeronave_id) return false
-    const idsValidos = new Set(cotistas.map((cotista) => cotista.id))
-    const linhas = montarRateioLinhas()
-    const percentual = linhas.reduce((total, linha) => total + linha.percentual, 0)
-    const valor = linhas.reduce((total, linha) => total + linha.valor_centavos, 0)
+    if (!exigeCliente) return true;
+    if (!form.aeronave_id) return false;
+    const idsValidos = new Set(cotistas.map((cotista) => cotista.id));
+    const linhas = montarRateioLinhas();
+    const percentual = linhas.reduce((total, linha) => total + linha.percentual, 0);
+    const valor = linhas.reduce((total, linha) => total + linha.valor_centavos, 0);
     const anexosValidos = tipo !== "cliente" || form.anexos.every((anexo) => Boolean(anexo.cotista_id) && idsValidos.has(anexo.cotista_id!));
-    return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && anexosValidos && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos
+    return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && anexosValidos && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos;
   };
 
   const contatosFiltrados = useMemo(() => {
@@ -359,6 +385,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       };
     });
   };
+
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
     if (etapa === 1) {
@@ -367,7 +394,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       return (tipo !== "share" || vincularAeronave !== null) && dadosDeRateioValidos && valorDiretoValido;
     }
     if (etapa === 2) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? Boolean(form.vencimento) : true));
-    return true;
+    // Etapa final: revalida valor, rateio e vínculo dos anexos com os cotistas
+    return valorInformado > 0 && validarRateio();
   };
 
   const proxima = () => {
@@ -386,7 +414,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const enviar = async () => {
     if (!tipo || !podeAvancar()) {
-      setErro("Revise os campos obrigatórios antes de criar o lançamento.");
+      setErro("Revise os campos obrigatórios antes de criar o lançamento. Se houver anexos, associe cada um a um cotista.");
       return;
     }
     if (uploadsPendentes) {
@@ -426,6 +454,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
       if (exigeCliente) {
         setEnvioRecemCriado({ ...registro, tipo });
+        setEnvioConvertido(false);
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
         setCorpoEmail(montarCorpoEmail(registro));
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
@@ -442,13 +471,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         }])));
         setEmailsEnviados([]);
         setDestinatario("");
-        setDestinatarioInformado(false);
         setNomeDestinatario("");
         setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
           setDestinatario(contatoInicial.email);
-          setDestinatarioInformado(false);
           setNomeDestinatario(contatoInicial.nome);
         }
         setModalEmail(true);
@@ -468,7 +495,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const fecharModalEmail = () => {
     setModalEmail(false);
     setDestinatario("");
-    setDestinatarioInformado(false);
     setNomeDestinatario("");
     setAssunto("");
     setCorpoEmail("");
@@ -483,6 +509,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSucessoEmail("");
     setBancoSelecionado(null);
     setEnvioRecemCriado(null);
+    setEnvioConvertido(false);
   };
 
   const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
@@ -494,12 +521,23 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
       : origemAnexo === "relatorios"
         ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio_pdf:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
-        : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: tipo === "nota" ? fonte.numero_nf || "" : fonte.numero_comanda || fonte.numero_nf || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null, cotista_id: cotistaIdPadrao }));
+        : (["comanda", "nota", "boleto"] as const)
+          .filter((chave) => fonte[`${chave}_url`])
+          .map((chave) => {
+            const tipoAnexo = (chave === "nota" ? "nf" : chave) as AnexoLinha["tipo"];
+            return {
+              id: `abastecimento:${fonte.id}:${chave}`,
+              tipo: tipoAnexo,
+              numero: chave === "nota" ? fonte.numero_nf || "" : fonte.numero_comanda || fonte.numero_nf || "",
+              url: fonte[`${chave}_url`],
+              file: null,
+              cotista_id: cotistaIdPadrao,
+            } as AnexoLinha;
+          });
     setForm((atual) => ({ ...atual, anexos: [...atual.anexos.filter((anexo) => !novos.some((novo) => novo.id === anexo.id)), ...novos] }));
     setDialogoAnexos(false);
     setBuscaAnexo("");
   };
-
 
   const dispararEmail = async (cotistaId?: string) => {
     const envioPorCotista = envioRecemCriado?.tipo === "cliente";
@@ -529,9 +567,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       if (!gruposComAnexo.length) throw new Error("Selecione ao menos um documento para enviar a um cotista.");
       const email = (cotistaAlvo ? emailsPorCotista[cotistaAlvo.id] : destinatario).trim();
       if (!email) throw new Error(`Informe o e-mail de ${cotistaAlvo?.nome || "destino"}.`);
-      if (envioPorCotista && envioRecemCriado) {
+      if (envioPorCotista && envioRecemCriado && !envioConvertido) {
         await converterEnvioPagamento(envioRecemCriado.id);
-        setEnvios((atual) => atual.map((envio) => envio.id === envioRecemCriado.id ? { ...envio, status: "CONVERTIDO" } : envio));
+        setEnvioConvertido(true);
+        atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
       }
       for (const grupo of gruposComAnexo) {
         const chaveDestinatario = grupo.cotista?.id || "__principal__";
@@ -543,7 +582,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           anexos: grupo.anexos.map((anexo) => anexo.id),
           referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
           // O e-mail usa somente arquivos escolhidos no computador.
-          // Em reembolsos, a mesma evidência local é enviada a cada cotista.
+          // Em envios por cotista, cada um recebe apenas os anexos marcados para ele.
           arquivos: envioRecemCriado?.tipo === "cliente"
             ? [...grupo.anexos.flatMap((anexo) => anexo.file ? [anexo.file] : []), ...arquivosAdicionais]
             : arquivosNovos,
@@ -560,7 +599,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
         if (envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
-          setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "CONVERTIDO" } : e));
+          atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
         }
       }
       if (envioPorCotista && cotistaAlvo) {
@@ -661,7 +700,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo === "share" && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
                     <p className="text-[12px] font-bold text-foreground">Deseja vincular uma aeronave nessa despesa?</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {([true, false] as const).map((opcao) => <button key={String(opcao)} type="button" onClick={() => { setVincularAeronave(opcao); if (!opcao) { setForm((atual) => ({ ...atual, aeronave_id: "", cotista_id: "", cotista_ids: [], numero_voo: "" })); setCotistas([]); } }} className={`rounded-sm border px-4 py-2 text-[11px] font-bold transition-colors ${vincularAeronave === opcao ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary/50"}`}>{opcao ? "Sim, vincular" : "Não, seguir sem aeronave"}</button>)}
+                      {([true, false] as const).map((opcao) => <button key={String(opcao)} type="button" onClick={() => { setVincularAeronave(opcao); if (!opcao) { setForm((atual) => ({ ...atual, aeronave_id: "", cotista_ids: [], rateio_linhas: [], numero_voo: "" })); setCotistas([]); } }} className={`rounded-sm border px-4 py-2 text-[11px] font-bold transition-colors ${vincularAeronave === opcao ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary/50"}`}>{opcao ? "Sim, vincular" : "Não, seguir sem aeronave"}</button>)}
                     </div>
                   </div>}
                   {exigeDadosAeronave && <>
@@ -685,18 +724,18 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <p className="mt-1 text-[11px] text-muted-foreground">Aeronave, cotistas e valor foram informados na etapa anterior. A divisão segue os percentuais definidos.</p>
                     <p className="mt-2 text-xs font-semibold">Aeronave: {dadosOpcoes.aeronaves.find((aeronave) => aeronave.id === form.aeronave_id)?.matricula_registro || "Selecionada"}</p>
                     <div className="mt-2 flex flex-wrap gap-2">{cotistasSelecionados.map((cotista) => {
-                      const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id)
-                      return <span key={cotista.id} className="rounded-sm border border-border/70 bg-background/50 px-2 py-1 text-[10px] text-muted-foreground">{cotista.nome} · {Number(linha?.percentual || 0).toFixed(2)}%</span>
+                      const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id);
+                      return <span key={cotista.id} className="rounded-sm border border-border/70 bg-background/50 px-2 py-1 text-[10px] text-muted-foreground">{cotista.nome} · {Number(linha?.percentual || 0).toFixed(2)}%</span>;
                     })}</div>
                   </div>}
                   <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   {tipo !== "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
-                  <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
+                  <Campo label="Vencimento" obrigatorio={tipo === "share"}><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
                   <Campo label="Fornecedor"><SearchableCombobox items={dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id || form.fornecedor} onChange={(id, label) => { const cadastrado = dadosOpcoes.fornecedores.some((fornecedor) => fornecedor.id === id); setForm((atual) => ({ ...atual, fornecedor_id: cadastrado ? id : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
                   {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
-                  {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); }} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
-                  {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => { alterar("categoria_id", id); alterar("categoria_nome", label); alterar("grupo_categoria", "DESPESAS EMPRESA"); }} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
+                  {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
+                  {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={form.subcategoria_1} onChange={(id) => setForm((atual) => ({ ...atual, subcategoria_1: id, subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
                   {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
                   {tipo === "share" && <Campo label="Data da despesa"><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
@@ -728,8 +767,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
                   <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento e distribuídos por cotista no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} /></div>
                   {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
-
-
                 </div>
               )}
             </div>
@@ -763,7 +800,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           ) : recentes.length ? (
             <div className="divide-y divide-border/60">
               {recentes.map((envio) => {
-                const status = statusEnvio[envio.status] || { label: envio.status || "Enviado", className: "bg-secondary text-muted-foreground" };
+                const statusChave = normalizarStatus(envio.status);
+                const status = statusEnvio[statusChave] || { label: envio.status || "Enviado", className: "bg-secondary text-muted-foreground" };
                 return (
                   <div key={envio.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
@@ -773,8 +811,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
-                      {envio.tipo === "cliente" && String(envio.status).toUpperCase() === "EMAIL_ENVIADO" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar lançamento e rateio"}</Button>}
-                      {(envio.status === "email_enviado" || envio.status === "email_nao_enviado" || envio.tipo === "share") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" onClick={() => setMensagem("Pagamento liberado para programação no módulo financeiro.")}>Programar pagamento</Button>}
+                      {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar lançamento e rateio"}</Button>}
+                      {(statusChave === "email_enviado" || statusChave === "email_nao_enviado" || envio.tipo === "share") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" onClick={() => setMensagem("Pagamento liberado para programação no módulo financeiro.")}>Programar pagamento</Button>}
                     </div>
                   </div>
                 );
@@ -830,109 +868,108 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           ) : (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
-              <div className="space-y-4 pb-1">
-              {erroEmail && <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/[.07] p-3 text-[11px] leading-5 text-red-600 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-red-200">{erroEmail}</div>}
-              {sucessoEmail && <div role="status" className="rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] p-3 text-[11px] leading-5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-emerald-200">{sucessoEmail}</div>}
+                <div className="space-y-4 pb-1">
+                  {erroEmail && <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/[.07] p-3 text-[11px] leading-5 text-red-600 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-red-200">{erroEmail}</div>}
+                  {sucessoEmail && <div role="status" className="rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] p-3 text-[11px] leading-5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-emerald-200">{sucessoEmail}</div>}
 
-              {envioRecemCriado?.tipo === "cliente" ? (
-                <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/[.035] p-3 sm:p-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Destinatários e anexos por cotista</p>
-                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Cada cotista receberá uma mensagem separada, somente com os documentos marcados abaixo.</p>
-                  </div>
-                  {cotistasEmail.map((cotista) => {
-                    const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id);
-                    if (!anexosDoCotista.length) return null;
-                    const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
-                    const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
-                    const emailEnviado = emailsEnviados.includes(cotista.id);
-                    return (
-                      <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
-                          <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
-                        </div>
-                        <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" aria-label={`E-mail de ${cotista.nome}`} disabled={emailEnviado} />
-                        <div className="space-y-2">
-                          {anexosDoCotista.map((anexo) => (
-                            <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
-                              <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailEnviado} />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
-                                <span className="mt-0.5 block text-[10px] uppercase text-muted-foreground">{anexo.tipo}</span>
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                        <div className="space-y-2 border-t border-[#172235] pt-4">
-                          <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-                            Assunto deste e-mail
-                            <Input value={rascunho.assunto} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), assunto: event.target.value } }))} className="campo mt-1 !h-10 !rounded-xl border-white/[.08] bg-[#080e19] normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
-                          </label>
-                          <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-                            Mensagem para {cotista.nome}
-                            <Textarea value={rascunho.mensagem} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), mensagem: event.target.value } }))} className="campo mt-1 min-h-28 !rounded-xl border-white/[.08] bg-[#080e19] resize-y normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
-                          </label>
-                          <div className="flex justify-end">
-                            <Button type="button" onClick={() => dispararEmail(cotista.id)} disabled={enviandoEmail || emailEnviado || !emailsPorCotista[cotista.id]?.trim() || selecionados === 0 || !rascunho.assunto.trim() || !rascunho.mensagem.trim()} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
-                              {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                              {emailEnviado ? "E-mail enviado" : `Enviar somente para ${cotista.nome}`}
-                            </Button>
-                          </div>
-                        </div>
+                  {envioRecemCriado?.tipo === "cliente" ? (
+                    <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/[.035] p-3 sm:p-4">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Destinatários e anexos por cotista</p>
+                        <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Cada cotista receberá uma mensagem separada, somente com os documentos marcados abaixo.</p>
                       </div>
-                    );
-                  })}
-                  {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Associe os anexos a um cotista antes de enviar os e-mails.</p>}
-                </section>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
-                  <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setDestinatarioInformado(true); setNomeDestinatario(contato.nome); }} />
-                  <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setDestinatarioInformado(true); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                      {cotistasEmail.map((cotista) => {
+                        const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id);
+                        if (!anexosDoCotista.length) return null;
+                        const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
+                        const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
+                        const emailEnviado = emailsEnviados.includes(cotista.id);
+                        return (
+                          <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
+                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                            </div>
+                            <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" aria-label={`E-mail de ${cotista.nome}`} disabled={emailEnviado} />
+                            <div className="space-y-2">
+                              {anexosDoCotista.map((anexo) => (
+                                <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
+                                  <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailEnviado} />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
+                                    <span className="mt-0.5 block text-[10px] uppercase text-muted-foreground">{anexo.tipo}</span>
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                            <div className="space-y-2 border-t border-[#172235] pt-4">
+                              <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                                Assunto deste e-mail
+                                <Input value={rascunho.assunto} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), assunto: event.target.value } }))} className="campo mt-1 !h-10 !rounded-xl border-white/[.08] bg-[#080e19] normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
+                              </label>
+                              <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                                Mensagem para {cotista.nome}
+                                <Textarea value={rascunho.mensagem} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), mensagem: event.target.value } }))} className="campo mt-1 min-h-28 !rounded-xl border-white/[.08] bg-[#080e19] resize-y normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
+                              </label>
+                              <div className="flex justify-end">
+                                <Button type="button" onClick={() => dispararEmail(cotista.id)} disabled={enviandoEmail || emailEnviado || !emailsPorCotista[cotista.id]?.trim() || selecionados === 0 || !rascunho.assunto.trim() || !rascunho.mensagem.trim()} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
+                                  {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                  {emailEnviado ? "E-mail enviado" : `Enviar somente para ${cotista.nome}`}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Associe os anexos a um cotista antes de enviar os e-mails.</p>}
+                    </section>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
+                      <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setNomeDestinatario(contato.nome); }} />
+                      <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                    </div>
+                  )}
+
+                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
+                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                  </div>}
+
+                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
+                    <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 !rounded-xl border-white/[.08] bg-[#080e19] resize-y shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                  </div>}
+
+                  {assinaturaEmail && <div className="rounded-xl border border-white/[.08] bg-white p-4 font-[Arial,sans-serif] text-[#333] shadow-[0_10px_28px_rgba(0,0,0,.18)]">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
+                    <div className="flex items-center gap-3">
+                      <img src={assinaturaEmail.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
+                      <div className="min-w-0 text-[11px] leading-4">
+                        <strong className="block text-[14px] leading-4 text-black">{assinaturaEmail.nome}</strong>
+                        {assinaturaEmail.cargo && <span className="block text-[10px] leading-3">{assinaturaEmail.cargo}</span>}
+                        {assinaturaEmail.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinaturaEmail.telefone}</span>}
+                        {assinaturaEmail.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinaturaEmail.endereco}</span>}
+                      </div>
+                    </div>
+                  </div>}
+
+                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
+                    <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
+                  </div>}
+
+                  {contasBancarias.length > 0 && <div className="rounded-xl border border-primary/20 bg-primary/[.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
+                    <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
+                    <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded-xl border p-3 text-left text-[10px] transition-all ${bancoSelecionado?.id === conta.id ? "border-primary/70 bg-primary/[.10] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-white/[.07] bg-white/[.025] hover:border-primary/45 hover:bg-white/[.04]"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
+                    {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
+                  </div>}
                 </div>
-              )}
-
-              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
-                <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
-              </div>}
-
-              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
-                <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 !rounded-xl border-white/[.08] bg-[#080e19] resize-y shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
-              </div>}
-
-              {assinaturaEmail && <div className="rounded-xl border border-white/[.08] bg-white p-4 font-[Arial,sans-serif] text-[#333] shadow-[0_10px_28px_rgba(0,0,0,.18)]">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
-                <div className="flex items-center gap-3">
-                  <img src={assinaturaEmail.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
-                  <div className="min-w-0 text-[11px] leading-4">
-                    <strong className="block text-[14px] leading-4 text-black">{assinaturaEmail.nome}</strong>
-                    {assinaturaEmail.cargo && <span className="block text-[10px] leading-3">{assinaturaEmail.cargo}</span>}
-                    {assinaturaEmail.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinaturaEmail.telefone}</span>}
-                    {assinaturaEmail.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinaturaEmail.endereco}</span>}
-                  </div>
-                </div>
-              </div>}
-
-              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
-                <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
-              </div>}
-
-              {contasBancarias.length > 0 && <div className="rounded-xl border border-primary/20 bg-primary/[.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
-                <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
-                <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded-xl border p-3 text-left text-[10px] transition-all ${bancoSelecionado?.id === conta.id ? "border-primary/70 bg-primary/[.10] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-white/[.07] bg-white/[.025] hover:border-primary/45 hover:bg-white/[.04]"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
-                {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
-              </div>}
-
               </div>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
-              <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
-              {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
-            </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
+                <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
+                {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
+              </div>
             </>
           )}
         </DialogContent>

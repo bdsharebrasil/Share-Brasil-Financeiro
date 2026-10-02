@@ -301,7 +301,7 @@ export default function DashboardFinanceiro({
           <>
           {/* Tabela Desktop */}
           <div className="hidden max-w-full overflow-x-auto 2xl:block">
-            <table className="w-full min-w-[925px] table-fixed text-left text-sm">
+            <table className="w-full min-w-[895px] table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[90px]" />
                 <col className="w-[300px]" />
@@ -309,7 +309,7 @@ export default function DashboardFinanceiro({
                 <col className="w-[90px]" />
                 <col className="w-[125px]" />
                 <col className="w-[90px]" />
-                <col className="w-[150px]" />
+                <col className="w-[120px]" />
               </colgroup>
               <thead className="bg-muted/5">
                 <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

@@ -271,7 +271,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = 3;
   const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
-  const tituloEtapa = etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : "Voo, aeronave e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
+  const tituloEtapa = etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : tipo === "cliente" ? "Aeronave, cotistas e valor" : "Voo, aeronave e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
   const alterarPercentual = (cotistaId: string, bruto: string) => setForm((atual) => {
     const valor = Math.min(100, Math.max(0, Number(bruto.replace(",", ".")) || 0));
@@ -361,7 +361,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
   const podeAvancar = () => {
     if (etapa === 0) return Boolean(tipo);
-    if (etapa === 1) return (tipo !== "share" || vincularAeronave !== null) && (!exigeDadosAeronave || Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || validarRateio())));
+    if (etapa === 1) {
+      const dadosDeRateioValidos = !exigeDadosAeronave || Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || validarRateio()));
+      const valorDiretoValido = tipo !== "cliente" || valorInformado > 0;
+      return (tipo !== "share" || vincularAeronave !== null) && dadosDeRateioValidos && valorDiretoValido;
+    }
     if (etapa === 2) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? Boolean(form.vencimento) : true));
     return true;
   };
@@ -369,7 +373,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const proxima = () => {
     setErro("");
     if (!podeAvancar()) {
-      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" && vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : "Selecione a aeronave e pelo menos um cotista.") : "Informe descrição e valor da despesa.");
+      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" && vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : tipo === "cliente" && form.aeronave_id && form.cotista_ids.length && valorInformado <= 0 ? "Informe o valor da despesa depois de selecionar a aeronave e os cotistas." : "Selecione a aeronave e pelo menos um cotista.") : "Informe descrição e valor da despesa.");
       return;
     }
     setEtapa((atual) => Math.min(totalEtapas, atual + 1));
@@ -668,6 +672,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => selecionarVoo(id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
                     <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [], rateio_linhas: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                     <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids[0] || ""} onChange={(id) => { const ids = id === "__todos__" ? cotistas.map((c) => c.id) : [id]; const soma = ids.reduce((total, item) => total + Number(cotistas.find((c) => c.id === item)?.percentual_sociedade || 0), 0) || ids.length; const linhas = ids.map((cotistaId) => ({ cotista_id: cotistaId, percentual: (Number(cotistas.find((c) => c.id === cotistaId)?.percentual_sociedade || 0) / soma * 100).toFixed(2) })); if (linhas.length) { const somaArredondada = linhas.reduce((total, linha) => total + Number(linha.percentual), 0); linhas[linhas.length - 1].percentual = (Number(linhas[linhas.length - 1].percentual) + (100 - somaArredondada)).toFixed(2); } setForm((f) => ({ ...f, cotista_ids: ids, rateio_linhas: linhas })); }} placeholder="Selecione um ou todos" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
+                    {tipo === "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                     {tipo !== "share" && <Campo label="Tipo de rateio" obrigatorio><SearchableCombobox items={["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => ({ id: item, label: item }))} value={form.tipo_rateio} onChange={(id) => alterar("tipo_rateio", id)} placeholder="Selecione o tipo de rateio" searchPlaceholder="Buscar tipo de rateio" /></Campo>}
                     {tipo !== "share" && cotistasSelecionados.length > 0 && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2"><p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Rateio da despesa · {formatarValor(valorInformado)}</p><div className="mt-3 space-y-2">{cotistasSelecionados.map((cotista) => { const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id); return <div key={cotista.id} className="grid grid-cols-[1fr_110px_auto_auto] items-center gap-2"><span className="truncate text-xs">{cotista.nome}</span><Input value={linha?.percentual ?? "0"} inputMode="decimal" onChange={(e) => alterarPercentual(cotista.id, e.target.value)} className="h-9 text-right" placeholder="%" /><span className="text-right text-xs text-muted-foreground">{formatarValor(valorInformado * (Number(linha?.percentual) || 0) / 100)}</span>{cotistasSelecionados.length >= 3 && <button type="button" className="text-xs text-rose-500" onClick={() => setForm((atual) => ({ ...atual, cotista_ids: atual.cotista_ids.filter((id) => id !== cotista.id), rateio_linhas: atual.rateio_linhas.filter((item) => item.cotista_id !== cotista.id) }))}>Retirar</button>}</div>; })}</div><p className={`mt-2 text-right text-[11px] font-bold ${Math.abs(form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0) - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}>Total: {form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0).toFixed(2)}%</p></div>}
                   </>}
@@ -676,8 +681,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               {etapa === 2 && (
                 <div className="space-y-4">
                   {tipo === "cliente" && <div role="status" className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
-                    <p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Rateio direto definido antes do valor</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">A aeronave e os cotistas abaixo foram selecionados na etapa anterior. O valor informado será distribuído conforme estes percentuais.</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Resumo do rateio direto</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Aeronave, cotistas e valor foram informados na etapa anterior. A divisão segue os percentuais definidos.</p>
                     <p className="mt-2 text-xs font-semibold">Aeronave: {dadosOpcoes.aeronaves.find((aeronave) => aeronave.id === form.aeronave_id)?.matricula_registro || "Selecionada"}</p>
                     <div className="mt-2 flex flex-wrap gap-2">{cotistasSelecionados.map((cotista) => {
                       const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id)
@@ -686,7 +691,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   </div>}
                   <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
-                  <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
+                  {tipo !== "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                   <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
                   <Campo label="Fornecedor"><SearchableCombobox items={dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label }))} value={form.fornecedor_id || form.fornecedor} onChange={(id, label) => { const cadastrado = dadosOpcoes.fornecedores.some((fornecedor) => fornecedor.id === id); setForm((atual) => ({ ...atual, fornecedor_id: cadastrado ? id : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText /></Campo>
                   {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}

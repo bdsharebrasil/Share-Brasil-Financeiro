@@ -811,22 +811,25 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       <Dialog open={modalEmail} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
         <DialogContent
           className="
-            max-w-2xl overflow-hidden rounded-2xl
+            flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl
+            flex-col gap-0 overflow-hidden rounded-2xl
             border border-[#1a2638]
             bg-[#080e19]
             p-0
             shadow-[0_24px_70px_rgba(0,0,0,.45)]
+            sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]
           "
         >
-          <DialogHeader className="border-b border-[#172235] bg-[linear-gradient(135deg,#0b1422,#080e19)] px-5 py-5 sm:px-6">
+          <DialogHeader className="shrink-0 border-b border-[#172235] bg-[linear-gradient(135deg,#0b1422,#080e19)] px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
             <DialogTitle className="flex items-center gap-2 text-base font-bold tracking-tight"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
             <DialogDescription className="max-w-xl text-[11px] leading-5 text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O lançamento e o rateio serão criados antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
           </DialogHeader>
 
           {carregandoEmail ? (
-            <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
+            <div className="flex min-h-0 flex-1 items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
           ) : (
-            <div className="space-y-4 px-5 pb-5 pt-5 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+              <div className="space-y-4 pb-1">
               {erroEmail && <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/[.07] p-3 text-[11px] leading-5 text-red-600 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-red-200">{erroEmail}</div>}
               {sucessoEmail && <div role="status" className="rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] p-3 text-[11px] leading-5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-emerald-200">{sucessoEmail}</div>}
 
@@ -923,10 +926,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
               </div>}
 
-              <div className="flex items-center justify-between gap-3 border-t border-[#172235] pt-4">
-                <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
-                {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
               </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
+              <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
+              {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
             </div>
           )}
         </DialogContent>

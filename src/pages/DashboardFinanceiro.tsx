@@ -301,13 +301,13 @@ export default function DashboardFinanceiro({
           <>
           {/* Tabela Desktop */}
           <div className="hidden max-w-full overflow-x-auto 2xl:block">
-            <table className="w-full min-w-[895px] table-fixed text-left text-sm">
+            <table className="w-full min-w-[880px] table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[90px]" />
                 <col className="w-[300px]" />
                 <col className="w-[80px]" />
                 <col className="w-[90px]" />
-                <col className="w-[125px]" />
+                <col className="w-[110px]" />
                 <col className="w-[90px]" />
                 <col className="w-[120px]" />
               </colgroup>
@@ -317,7 +317,7 @@ export default function DashboardFinanceiro({
                   <th className="whitespace-nowrap px-3 py-4">Descrição / Fornecedor</th>
                   <th className="whitespace-nowrap px-3 py-4">Cliente</th>
                   <th className="whitespace-nowrap px-3 py-4 text-center">Caixa</th>
-                  <th className="whitespace-nowrap px-3 py-4 text-right">Valor (R$)</th>
+                  <th className="whitespace-nowrap px-2 py-4 text-right">Valor (R$)</th>
                   <th className="whitespace-nowrap px-3 py-4 text-center">Status</th>
                   <th className="whitespace-nowrap px-3 py-4 text-center">E-mail</th>
                 </tr>
@@ -519,7 +519,7 @@ function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanc
       </td>
 
       {/* VALOR */}
-      <td className="whitespace-nowrap px-3 py-3.5 text-right align-middle font-mono font-bold tabular-nums text-foreground">
+      <td className="whitespace-nowrap px-2 py-3.5 text-right align-middle font-mono font-bold tabular-nums text-foreground">
         {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
       </td>
 

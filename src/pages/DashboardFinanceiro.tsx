@@ -300,15 +300,15 @@ export default function DashboardFinanceiro({
         ) : movimentacoesVisiveis.length ? (
           <>
           {/* Tabela Desktop */}
-          <div className="hidden max-w-full overflow-x-auto lg:block">
-            <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
+          <div className="hidden max-w-full overflow-x-auto 2xl:block">
+            <table className="w-full min-w-[1095px] table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[150px]" />
-                <col className="w-[330px]" />
-                <col className="w-[220px]" />
-                <col className="w-[150px]" />
-                <col className="w-[150px]" />
                 <col className="w-[130px]" />
+                <col className="w-[300px]" />
+                <col className="w-[145px]" />
+                <col className="w-[110px]" />
+                <col className="w-[135px]" />
+                <col className="w-[125px]" />
                 <col className="w-[150px]" />
               </colgroup>
               <thead className="bg-muted/5">
@@ -361,7 +361,7 @@ export default function DashboardFinanceiro({
           </div>
 
           {/* Cards Mobile */}
-          <div className="space-y-3 p-4 lg:hidden">
+          <div className="space-y-3 p-4 2xl:hidden">
             {movimentacoesDaPagina.map((item) => (
               <CartaoMovimentacao key={item.id} item={item} onEmailPendente={setDespesaDestino} />
             ))}
@@ -427,31 +427,34 @@ function StatusEmail({ item, onClick }: { item: MovimentacaoFinanceira; onClick?
 function CartaoMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanceira; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
   return (
     <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-foreground">
-            {item.descricao || "Movimentação sem descrição"}
-          </p>
-          <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
-            <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span> 
-            <span>•</span> 
-            <span>{item.numero_doc || "Sem doc"}</span>
-          </p>
-        </div>
-        <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-foreground">
-          {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-foreground">
+          {item.descricao || "Movimentação sem descrição"}
+        </p>
+        <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
+          <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span>
+          <span>•</span>
+          <span>{item.numero_doc || "Sem doc"}</span>
         </p>
       </div>
-      
-      <div className="mt-3 min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
-        <p className="break-words text-xs font-medium text-foreground">{item.codigo_cliente || "Não informado"}</p>
+
+      <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
+          <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || "Não informado"}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Caixa</p>
+          <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
+            {tipoCaixaLabel(item.tipo_caixa)}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2.5">
-        <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
-          {tipoCaixaLabel(item.tipo_caixa)}
-        </span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="font-mono text-xs font-bold tabular-nums text-foreground">
+          {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
+        </p>
         <EtiquetaStatus tone={tomStatus(item.status)}>
           {statusLabel(item.status)}
         </EtiquetaStatus>

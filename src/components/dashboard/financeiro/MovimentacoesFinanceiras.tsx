@@ -253,22 +253,15 @@ function DespesasTabela({
           ÁREA DE SCROLL
       ===================================================== */}
 
-      <div
-        className="
-          w-full
-          max-w-full
-          overflow-x-auto
-          overscroll-x-contain
-        "
-      >
+      <div className="hidden w-full max-w-full overflow-x-auto 2xl:block">
         {/*
           IMPORTANTE:
 
           table-fixed:
           impede que textos longos redimensionem outras colunas.
 
-          min-w-[1280px]:
-          garante espaço mínimo adequado para desktop menor.
+          min-w-[1115px]:
+          mantém as colunas legíveis quando a tabela estiver visível.
 
           colgroup:
           controla a proporção real de cada coluna.
@@ -277,7 +270,7 @@ function DespesasTabela({
         <table
           className="
             w-full
-            min-w-[1280px]
+            min-w-[1115px]
             table-fixed
             border-collapse
             text-left
@@ -290,25 +283,25 @@ function DespesasTabela({
 
           <colgroup>
             {/* ID / DATA */}
-            <col className="w-[190px]" />
+            <col className="w-[150px]" />
 
             {/* DESCRIÇÃO / FORNECEDOR */}
-            <col className="w-[390px]" />
+            <col className="w-[300px]" />
 
             {/* CLIENTE */}
             <col className="w-[150px]" />
 
             {/* CAIXA */}
-            <col className="w-[150px]" />
+            <col className="w-[110px]" />
 
             {/* VALOR */}
-            <col className="w-[145px]" />
+            <col className="w-[135px]" />
 
             {/* STATUS */}
-            <col className="w-[160px]" />
+            <col className="w-[130px]" />
 
             {/* E-MAIL */}
-            <col className="w-[155px]" />
+            <col className="w-[140px]" />
           </colgroup>
 
           {/* =================================================
@@ -592,6 +585,53 @@ function DespesasTabela({
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="grid w-full gap-3 p-3 2xl:hidden">
+        {despesas.map((item) => {
+          const despesa = item as DespesaExpandida;
+          const cliente = obterCliente(despesa);
+          const email = obterStatusEmail(despesa);
+
+          return (
+            <article key={`${despesa.id}-${despesa.origem || "despesa"}`} className="min-w-0 rounded-lg border border-border bg-card/50 p-3">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-foreground" title={despesa.descricao || "Despesa sem descrição"}>
+                    {despesa.descricao || "Despesa sem descrição"}
+                  </p>
+                  <p className="mt-1 truncate text-[10px] text-muted-foreground" title={obterFornecedor(despesa)}>
+                    {obterFornecedor(despesa)} · {despesa.numero_doc || "Sem ID"} · {dataBruta(despesa.data)}
+                  </p>
+                </div>
+                <p className="shrink-0 text-right font-mono text-xs font-semibold tabular-nums text-foreground">
+                  {formatarMoeda(Number(despesa.valor) || 0)}
+                </p>
+              </div>
+
+              <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-border/60 pt-2">
+                <div className="min-w-0">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
+                  <p className="break-words text-[11px] font-medium text-foreground">{cliente}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Caixa</p>
+                  <span className="inline-flex max-w-full items-center rounded-lg bg-green-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
+                    <span className="truncate">{despesa.tipo_caixa || "—"}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{statusLabel(despesa.status)}</span>
+                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${email.enviado ? "text-emerald-500" : "text-slate-500 dark:text-slate-400"}`}>
+                  {email.enviado ? <MailCheck size={12} /> : <MailX size={12} />}
+                  {email.label}
+                </span>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </div>
   );

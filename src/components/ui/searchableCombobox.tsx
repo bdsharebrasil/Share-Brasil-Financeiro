@@ -68,7 +68,13 @@ export function SearchableCombobox({
   )
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(nextOpen) => {
+      if (!nextOpen && allowFreeText && searchValue.trim() && !selectedItem) {
+        onChange(searchValue.trim(), searchValue.trim())
+        setSearchValue("")
+      }
+      setOpen(nextOpen)
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -164,7 +170,7 @@ export function SearchableCombobox({
                 >
                   <Check className="mr-1 h-4 w-4 shrink-0 opacity-0 scale-75" />
                   <span className="truncate font-medium">
-                    ➕ Usar: <strong>{searchValue}</strong>
+                    <strong>{searchValue}</strong>
                   </span>
                 </CommandItem>
               )}

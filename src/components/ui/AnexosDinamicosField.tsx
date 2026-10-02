@@ -38,15 +38,15 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
       updateLinha(id, { url, uploading: false });
     } catch (error: any) { toast.error(`Erro no upload: ${error?.message || error}`); updateLinha(id, { uploading: false, file: null }); }
   };
-  return <div className={cn("min-w-0 space-y-3", className)}>
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Documentos anexos</span><p className="mt-0.5 text-[10px] text-muted-foreground">Identifique cada arquivo e associe-o ao cotista correto.</p></div><Button type="button" variant="outline" size="sm" onClick={addLinha} className="h-9 shrink-0 gap-1.5 rounded-lg px-3 text-xs"><Plus className="h-3.5 w-3.5" /> Adicionar anexo</Button></div>
+  return <div className={cn("min-w-0 space-y-2", className)}>
+    <div className="flex flex-wrap items-center justify-between gap-2"><div><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Documentos e anexos</span></div><Button type="button" variant="outline" size="sm" onClick={addLinha} className="h-8 shrink-0 gap-1.5 rounded-lg px-3 text-xs"><Plus className="h-3.5 w-3.5" /> Adicionar arquivo</Button></div>
     {!anexos.length && <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-5 text-center text-xs text-muted-foreground">Nenhum anexo adicionado.</div>}
-    <div className="min-w-0 space-y-3">{anexos.map((a) => <div key={a.id} className="min-w-0 rounded-xl border border-border/60 bg-card/50 p-3 shadow-sm sm:p-4"><div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2">
-      <SearchableCombobox items={TIPOS} value={a.tipo} onChange={(id) => updateLinha(a.id, { tipo: (id as AnexoTipoId) || "outro" })} placeholder="Tipo..." searchPlaceholder="Buscar tipo..." />
-      <input value={a.numero} onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Número do documento" className="h-11 w-full min-w-0 rounded-lg border border-border bg-background/50 px-3 text-sm outline-none focus:border-primary/60" />
-      {cotistas.length > 0 && <div className="min-w-0 sm:col-span-2"><SearchableCombobox items={cotistas} value={a.cotista_id || ""} onChange={(id) => updateLinha(a.id, { cotista_id: id || undefined })} placeholder="Cotista do anexo..." searchPlaceholder="Buscar cotista..." /></div>}
-      <AnexosDinamicos file={a.file} onFileChange={(file) => void handleFile(a.id, file)} uploading={Boolean(a.uploading)} existingUrl={a.url} onView={onView} label="Arquivo" className="min-w-0 sm:col-span-2" />
-      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-9 w-9 justify-self-end text-rose-500 sm:col-span-2" title="Remover linha" aria-label="Remover anexo"><Trash2 className="h-4 w-4" /></Button>
+    <div className="min-w-0 space-y-2">{anexos.map((a) => <div key={a.id} className="min-w-0 rounded-xl border border-border/60 bg-card/50 p-2 shadow-sm sm:p-3"><div className="grid min-w-0 grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(190px,1.35fr)_auto]">
+      <SearchableCombobox items={TIPOS} value={a.tipo} onChange={(id) => updateLinha(a.id, { tipo: (id as AnexoTipoId) || "outro" })} placeholder="Tipo..." searchPlaceholder="Buscar tipo..." className="h-10 lg:h-9 text-sm" />
+      {cotistas.length > 0 && <div className="min-w-0"><SearchableCombobox items={cotistas} value={a.cotista_id || ""} onChange={(id) => updateLinha(a.id, { cotista_id: id || undefined })} placeholder="Cotista..." searchPlaceholder="Buscar cotista..." className="h-10 lg:h-9 text-sm" /></div>}
+      <input value={a.numero} onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Nº do documento (opcional)" className="h-10 w-full min-w-0 rounded-lg border border-border bg-background/50 px-3 text-sm outline-none focus:border-primary/60" />
+      <AnexosDinamicos file={a.file} onFileChange={(file) => void handleFile(a.id, file)} uploading={Boolean(a.uploading)} existingUrl={a.url} onView={onView} label="Arquivo" compact className="min-w-0" />
+      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-8 w-8 justify-self-end text-rose-500" title="Remover linha" aria-label="Remover anexo"><Trash2 className="h-4 w-4" /></Button>
     </div></div>)}</div>
   </div>;
 }

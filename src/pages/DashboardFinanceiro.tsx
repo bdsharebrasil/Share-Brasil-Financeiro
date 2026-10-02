@@ -301,14 +301,14 @@ export default function DashboardFinanceiro({
           <>
           {/* Tabela Desktop */}
           <div className="hidden max-w-full overflow-x-auto 2xl:block">
-            <table className="w-full min-w-[1010px] table-fixed text-left text-sm">
+            <table className="w-full min-w-[925px] table-fixed text-left text-sm">
               <colgroup>
-                <col className="w-[100px]" />
-                <col className="w-[300px]" />
                 <col className="w-[90px]" />
-                <col className="w-[110px]" />
-                <col className="w-[135px]" />
+                <col className="w-[300px]" />
+                <col className="w-[80px]" />
+                <col className="w-[90px]" />
                 <col className="w-[125px]" />
+                <col className="w-[90px]" />
                 <col className="w-[150px]" />
               </colgroup>
               <thead className="bg-muted/5">

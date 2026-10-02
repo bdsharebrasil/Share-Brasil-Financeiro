@@ -192,6 +192,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
   const [cotistasEmail, setCotistasEmail] = useState<CotistaAeronave[]>([]);
   const [emailsPorCotista, setEmailsPorCotista] = useState<Record<string, string>>({});
+  const [rascunhosEmailPorCotista, setRascunhosEmailPorCotista] = useState<Record<string, { assunto: string; mensagem: string }>>({});
   const [emailsEnviados, setEmailsEnviados] = useState<string[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [erroEmail, setErroEmail] = useState("");
@@ -421,6 +422,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           cotista.id,
           cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
         ])));
+        setRascunhosEmailPorCotista(Object.fromEntries(cotistasSelecionados.map((cotista) => [cotista.id, {
+          assunto: `Documentos da despesa — ${form.descricao} — ${cotista.nome}`,
+          mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${form.descricao}”.\n\nAtenciosamente,\n${assinaturaEmail?.nome || "Share Brasil"}`,
+        }])));
         setEmailsEnviados([]);
         setDestinatario("");
         setDestinatarioInformado(false);
@@ -458,6 +463,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setAnexosEnvioEmail([]);
     setCotistasEmail([]);
     setEmailsPorCotista({});
+    setRascunhosEmailPorCotista({});
     setEmailsEnviados([]);
     setErroEmail("");
     setSucessoEmail("");
@@ -481,9 +487,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
 
-  const dispararEmail = async () => {
+  const dispararEmail = async (cotistaId?: string) => {
     const envioPorCotista = envioRecemCriado?.tipo === "cliente";
-    if ((!envioPorCotista && !destinatario.trim()) || !assunto.trim() || !corpoEmail.trim()) {
+    const cotistaAlvo = envioPorCotista ? cotistasEmail.find((cotista) => cotista.id === cotistaId) : null;
+    if (envioPorCotista && !cotistaAlvo) {
+      setErroEmail("Selecione o cotista para este envio.");
+      return;
+    }
+    const rascunhoCotista = cotistaAlvo ? rascunhosEmailPorCotista[cotistaAlvo.id] : null;
+    const assuntoEnvio = rascunhoCotista?.assunto ?? assunto;
+    const mensagemEnvio = rascunhoCotista?.mensagem ?? corpoEmail;
+    if ((!envioPorCotista && !destinatario.trim()) || !assuntoEnvio.trim() || !mensagemEnvio.trim()) {
       setErroEmail("Informe destinatário, assunto e mensagem.");
       return;
     }
@@ -493,14 +507,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const enviadosNestaSessao = new Set(emailsEnviados);
     try {
       const arquivosDoFormulario = new Set(anexosEnvioEmail.flatMap((anexo) => anexo.file ? [anexo.file] : []));
-      const arquivosAdicionais = arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
+      const arquivosAdicionais = envioPorCotista ? [] : arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
       const grupos = envioPorCotista
-        ? cotistasEmail.map((cotista) => ({ cotista, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id && anexosSelecionados.includes(anexo.id)) }))
+        ? [{ cotista: cotistaAlvo!, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotistaAlvo!.id && anexosSelecionados.includes(anexo.id)) }]
         : [{ cotista: null, anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)) }];
       const gruposComAnexo = grupos.filter((grupo) => !envioPorCotista || grupo.anexos.length > 0);
       if (!gruposComAnexo.length) throw new Error("Selecione ao menos um documento para enviar a um cotista.");
-      const semEmail = envioPorCotista ? gruposComAnexo.filter((grupo) => !emailsPorCotista[grupo.cotista!.id]?.trim()) : [];
-      if (semEmail.length) throw new Error(`Informe o e-mail de: ${semEmail.map((grupo) => grupo.cotista!.nome).join(", ")}. Nenhuma mensagem foi enviada.`);
+      const email = (cotistaAlvo ? emailsPorCotista[cotistaAlvo.id] : destinatario).trim();
+      if (!email) throw new Error(`Informe o e-mail de ${cotistaAlvo?.nome || "destino"}.`);
       if (envioPorCotista && envioRecemCriado) {
         await converterEnvioPagamento(envioRecemCriado.id);
         setEnvios((atual) => atual.map((envio) => envio.id === envioRecemCriado.id ? { ...envio, status: "CONVERTIDO" } : envio));
@@ -508,12 +522,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       for (const grupo of gruposComAnexo) {
         const chaveDestinatario = grupo.cotista?.id || "__principal__";
         if (enviadosNestaSessao.has(chaveDestinatario)) continue;
-        const email = (grupo.cotista ? emailsPorCotista[grupo.cotista.id] : destinatario).trim();
-        if (!email) throw new Error(`Cotista ${grupo.cotista?.nome || "selecionado"} sem e-mail.`);
         await enviarEmailCliente({
           destinatarios: [email],
-          assunto: assunto.trim(),
-          mensagem: corpoEmail.trim(),
+          assunto: assuntoEnvio.trim(),
+          mensagem: mensagemEnvio.trim(),
           anexos: grupo.anexos.map((anexo) => anexo.id),
           // O e-mail usa somente arquivos escolhidos no computador.
           // Em reembolsos, a mesma evidência local é enviada a cada cotista.
@@ -525,18 +537,28 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         enviadosNestaSessao.add(chaveDestinatario);
         setEmailsEnviados([...enviadosNestaSessao]);
       }
-      if (envioRecemCriado) {
+      const gruposSelecionados = envioPorCotista
+        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id && anexosSelecionados.includes(anexo.id)))
+        : [];
+      const todosEmailsCotistasEnviados = envioPorCotista && gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
+      if (envioRecemCriado && (!envioPorCotista || todosEmailsCotistasEnviados)) {
         await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
         if (envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
           setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "CONVERTIDO" } : e));
         }
       }
-      setSucessoEmail(envioRecemCriado?.tipo === "cliente" || envioRecemCriado?.tipo === "reembolso"
-        ? `E-mail enviado com sucesso para ${gruposComAnexo.length} cotista(s). Lançamento e rateio criados.`
-        : `E-mail enviado com sucesso para ${gruposComAnexo.length} cotista(s).`);
-      setMensagem("Lançamento criado e e-mail enviado ao cliente.");
-      setTimeout(() => fecharModalEmail(), 1800);
+      if (envioPorCotista && cotistaAlvo) {
+        setSucessoEmail(todosEmailsCotistasEnviados
+          ? `E-mail de ${cotistaAlvo.nome} enviado. Todos os e-mails selecionados foram concluídos.`
+          : `E-mail de ${cotistaAlvo.nome} enviado. Revise a mensagem do próximo cotista e envie separadamente.`);
+      } else {
+        setSucessoEmail(envioRecemCriado?.tipo === "reembolso"
+          ? "E-mail enviado. Lançamento e rateio criados."
+          : "E-mail enviado com sucesso.");
+        setMensagem("Lançamento criado e e-mail enviado ao cliente.");
+        setTimeout(() => fecharModalEmail(), 1800);
+      }
     } catch (cause) {
       setEmailsEnviados([...enviadosNestaSessao]);
       setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
@@ -787,23 +809,41 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id);
                     if (!anexosDoCotista.length) return null;
                     const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
+                    const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
+                    const emailEnviado = emailsEnviados.includes(cotista.id);
                     return (
                       <div key={cotista.id} className="min-w-0 space-y-3 rounded-lg border border-border/70 bg-background/55 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
-                          <span className={`text-[10px] ${emailsEnviados.includes(cotista.id) ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailsEnviados.includes(cotista.id) ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                          <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
                         </div>
-                        <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo" aria-label={`E-mail de ${cotista.nome}`} disabled={emailsEnviados.includes(cotista.id)} />
+                        <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo" aria-label={`E-mail de ${cotista.nome}`} disabled={emailEnviado} />
                         <div className="space-y-2">
                           {anexosDoCotista.map((anexo) => (
                             <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border border-border/60 bg-card/40 p-2.5 text-xs transition-colors hover:border-primary/35">
-                              <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailsEnviados.includes(cotista.id)} />
+                              <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailEnviado} />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
                                 <span className="mt-0.5 block text-[10px] uppercase text-muted-foreground">{anexo.tipo}</span>
                               </span>
                             </label>
                           ))}
+                        </div>
+                        <div className="space-y-2 border-t border-border/60 pt-3">
+                          <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                            Assunto deste e-mail
+                            <Input value={rascunho.assunto} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), assunto: event.target.value } }))} className="campo mt-1 normal-case tracking-normal" disabled={emailEnviado} />
+                          </label>
+                          <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                            Mensagem para {cotista.nome}
+                            <Textarea value={rascunho.mensagem} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), mensagem: event.target.value } }))} className="campo mt-1 min-h-28 resize-y normal-case tracking-normal" disabled={emailEnviado} />
+                          </label>
+                          <div className="flex justify-end">
+                            <Button type="button" onClick={() => dispararEmail(cotista.id)} disabled={enviandoEmail || emailEnviado || !emailsPorCotista[cotista.id]?.trim() || selecionados === 0 || !rascunho.assunto.trim() || !rascunho.mensagem.trim()} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
+                              {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                              {emailEnviado ? "E-mail enviado" : `Enviar somente para ${cotista.nome}`}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -818,15 +858,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               )}
 
-              <div className="space-y-2">
+              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
                 <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo" />
-              </div>
+              </div>}
 
-              <div className="space-y-2">
+              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
                 <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 resize-y" />
-              </div>
+              </div>}
 
               {assinaturaEmail && <div className="rounded-sm border border-border/60 bg-white p-3 font-[Arial,sans-serif] text-[#333] shadow-sm">
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
@@ -841,10 +881,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               </div>}
 
-              <div className="space-y-2">
+              {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
                 <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
-              </div>
+              </div>}
 
               {contasBancarias.length > 0 && <div className="rounded-sm border border-primary/20 bg-primary/[.04] p-3">
                 <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
@@ -854,7 +894,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
               <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
                 <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px]"><X size={14} /> Cancelar</Button>
-                <Button type="button" onClick={dispararEmail} disabled={enviandoEmail || (envioRecemCriado?.tipo !== "cliente" && !destinatario.trim()) || !assunto.trim() || !corpoEmail.trim()} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail separado</Button>
+                {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
               </div>
             </div>
           )}

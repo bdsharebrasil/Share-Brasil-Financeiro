@@ -1057,8 +1057,10 @@ export async function createExpense(
           url_nf: (() => { const nf = parseAnexos(command.anexos_json).find((anexo) => anexo.tipo === 'nf'); return nf ? nullableText(nf.url) : null })(),
           url_boleto: (() => { const boleto = parseAnexos(command.anexos_json).find((anexo) => anexo.tipo === 'boleto'); return boleto ? nullableText(boleto.url) : null })(),
           anexos_json: JSON.stringify(parseAnexos(command.anexos_json)),
-          subcategoria_1: nullableText(command.subcategoria_1), subcategoria_2: nullableText(command.subcategoria_2),
-          subcategoria_3: nullableText(command.subcategoria_3), subcategoria_4: nullableText(command.subcategoria_4),
+          subcategoria_1: nullableText(command.subcategoria_1),
+          subcategoria_2: nullableText(command.subcategoria_2),
+          subcategoria_3: nullableText(command.subcategoria_3),
+          subcategoria_4: nullableText(command.subcategoria_4),
           fluxo: 'SAIDA',
           natureza: 'DESPESA',
           tipo_caixa: command.tipo_caixa || 'SHARE',
@@ -1109,7 +1111,8 @@ export async function createExpense(
   }
 
   const lancamentoId = text(command.id) || id()
-  const contaPagarId = id()
+  const ehDespesaCliente = String(command.tipo_caixa || '').toUpperCase() === 'CLIENTE'
+  const contaPagarId = ehDespesaCliente ? null : id()
   const status = 'EM_ABERTO'
   const statements = [
     insertStatement(
@@ -1123,7 +1126,8 @@ export async function createExpense(
         descricao: command.descricao,
         fornecedor_nome: nullableText(command.fornecedor_nome ?? context?.nome),
         fornecedores_favoritos_id: nullableText(command.fornecedor_id),
-        categoria_id: nullableText(command.categoria_id),
+        categoria_id: ehDespesaCliente ? null : nullableText(command.categoria_id),
+        categoria_cliente_id: ehDespesaCliente ? nullableText(command.categoria_cliente_id ?? command.categoria_id) : null,
         categoria_nome: nullableText(
           command.categoria_nome ?? command.categoria ?? 'SEM CATEGORIA',
         ),
@@ -1133,7 +1137,7 @@ export async function createExpense(
         ),
         fluxo: 'SAIDA',
         natureza: 'DESPESA',
-        tipo_caixa: 'SHARE',
+        tipo_caixa: ehDespesaCliente ? 'CLIENTE' : 'SHARE',
         valor_centavos: amount,
         valor_total: amount / 100,
         valor: amount / 100,
@@ -1153,7 +1157,7 @@ export async function createExpense(
       },
       ['id', 'descricao', 'fluxo', 'valor_centavos'],
     ),
-    insertStatement(
+    ...(contaPagarId ? [insertStatement(
       db,
       schema,
       'contas_apagar',
@@ -1179,7 +1183,7 @@ export async function createExpense(
         status,
       },
       ['id', 'data_vencimento', 'valor_centavos', 'lancamentos_id'],
-    ),
+    )] : []),
     ...clientAllocationStatements(
       db,
       schema,
@@ -1230,6 +1234,29 @@ export async function createDirectExternalExpense(
     throw new FinanceError('Despesa direta precisa de rateio', 'rateio_obrigatorio')
   }
 
+  if (body.pago_diretamente !== undefined && !asFlag(body.pago_diretamente)) {
+    const rateioPendente = lines.map((line) => ({
+      cotista_id: line.cotistaId,
+      socio_id: line.socioId,
+      holding_id: line.holdingId,
+      percentual: line.percentual,
+      percentual_sociedade: line.percentualSociedade,
+      valor_centavos: line.valorCentavos,
+      pago_por: null,
+      pago_diretamente: false,
+      valor_pago_real_centavos: 0,
+    }))
+    return createExpense(db, {
+      ...body,
+      rateio_linhas: rateioPendente,
+      cotista_pagador_id: null,
+      pago_por: null,
+      pago_diretamente: false,
+      tipo_caixa: body.tipo_caixa || 'CLIENTE',
+      reembolsavel: false,
+    }, userId, options)
+  }
+
   const total = asPositiveCents(body.valor_centavos ?? body.valorCentavos)
   const pagador = nullableText(body.cotista_pagador_id) || lines[0].cotistaId
   if (!lines.some((line) => line.cotistaId === pagador)) {
@@ -1273,6 +1300,11 @@ export async function issueRevenue(
   body: Row,
   userId: string | null,
   options: NormalizeOptions = {},
+  buildAdditionalStatements?: (context: {
+    lancamentoId: string
+    contaReceberId: string
+    lancamentoClienteId: string | null
+  }) => D1PreparedStatement[],
 ): Promise<Row> {
   const schema = await loadSchema(db)
   const command = normalizeCommand({ ...body, fluxo: 'ENTRADA' }, userId, options)
@@ -1292,6 +1324,8 @@ export async function issueRevenue(
       ? id()
       : null
 
+  const documentoSaida = ['RECIBO_SAIDA', 'NF_SAIDA'].includes(upper(command.origem_tipo))
+
   const statements: D1PreparedStatement[] = [
     insertStatement(
       db,
@@ -1305,7 +1339,7 @@ export async function issueRevenue(
         descricao: command.descricao,
         fornecedor_nome: nullableText(command.fornecedor_nome ?? context?.nome),
         fornecedores_favoritos_id: nullableText(command.fornecedor_id),
-        fluxo: upper(command.origem_tipo) === 'RECIBO_SAIDA' ? 'RECEITA' : 'ENTRADA',
+        fluxo: documentoSaida ? 'RECEITA' : 'ENTRADA',
         natureza: 'RECEITA',
         tipo_caixa: 'SHARE',
         valor_centavos: amount,
@@ -1354,7 +1388,7 @@ export async function issueRevenue(
 
   if (clientLancamentoId) {
     const clientRateioId = id()
-    const reciboSaida = upper(command.origem_tipo) === 'RECIBO_SAIDA'
+    const reciboSaida = documentoSaida
     statements.push(
       insertStatement(
         db,
@@ -1389,7 +1423,7 @@ export async function issueRevenue(
           periodicidade: nullableText(command.periodicidade ?? 'MENSAL'),
           numero_recibo: nullableText(command.numero_recibo),
           url_recibo: nullableText(command.url_recibo),
-          origem_tipo: reciboSaida ? 'RECIBO_SAIDA' : 'RECEITA',
+          origem_tipo: documentoSaida ? upper(command.origem_tipo) : 'RECEITA',
           origem_id: lancamentoId,
           status: 'EM_ABERTO',
           criado_por: userId,
@@ -1426,7 +1460,7 @@ export async function issueRevenue(
           status: reciboSaida ? 'AGUARDANDO_REEMBOLSO' : 'PAGO_DIRETAMENTE',
           numero_recibo: nullableText(command.numero_recibo),
           url_recibo: nullableText(command.url_recibo),
-          origem_tipo: reciboSaida ? 'RECIBO_SAIDA' : 'RECEITA',
+          origem_tipo: documentoSaida ? upper(command.origem_tipo) : 'RECEITA',
           origem_id: lancamentoId,
         },
         ['id', 'lancamento_id'],
@@ -1477,6 +1511,14 @@ export async function issueRevenue(
       nullableText(command.idempotency_key),
     ),
   )
+
+  if (buildAdditionalStatements) {
+    statements.push(...buildAdditionalStatements({
+      lancamentoId,
+      contaReceberId,
+      lancamentoClienteId: clientLancamentoId,
+    }))
+  }
 
   await db.batch(statements)
   return {

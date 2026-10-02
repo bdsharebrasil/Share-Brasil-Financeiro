@@ -828,7 +828,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {carregandoEmail ? (
             <div className="flex min-h-0 flex-1 items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
               <div className="space-y-4 pb-1">
               {erroEmail && <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/[.07] p-3 text-[11px] leading-5 text-red-600 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-red-200">{erroEmail}</div>}
               {sucessoEmail && <div role="status" className="rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] p-3 text-[11px] leading-5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-emerald-200">{sucessoEmail}</div>}
@@ -932,6 +933,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
               {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
             </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

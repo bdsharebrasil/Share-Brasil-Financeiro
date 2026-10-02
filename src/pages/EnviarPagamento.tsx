@@ -524,6 +524,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           assunto: assuntoEnvio.trim(),
           mensagem: mensagemEnvio.trim(),
           anexos: grupo.anexos.map((anexo) => anexo.id),
+          referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
           // O e-mail usa somente arquivos escolhidos no computador.
           // Em reembolsos, a mesma evidência local é enviada a cada cotista.
           arquivos: envioRecemCriado?.tipo === "cliente"

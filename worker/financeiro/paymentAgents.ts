@@ -20,6 +20,13 @@ export type PaymentRequest = {
   categoria_cliente_id: string | null
   colaborador_id: string | null
   fornecedor_id: string | null
+  fornecedor: string | null
+  categoria_nome: string | null
+  grupo_categoria: string | null
+  subcategoria_1: string | null
+  subcategoria_2: string | null
+  subcategoria_3: string | null
+  subcategoria_4: string | null
   observacoes: string | null
   abastecimento: Row | null
   idempotency_key: string
@@ -74,6 +81,8 @@ export function validatePaymentRequest(body: Row): PaymentRequest {
     anexos: anexos.map((anexo) => ({ id: String(anexo.id ?? ''), tipo: String(anexo.tipo ?? 'outro'), numero: String(anexo.numero ?? ''), url: anexo.url ? String(anexo.url) : null, ...(anexo.cotista_id ? { cotista_id: String(anexo.cotista_id) } : {}) })),
     periodicidade: body.periodicidade ? String(body.periodicidade) : null, tipo_rateio: body.tipo_rateio ? String(body.tipo_rateio) : null,
     categoria_id: String(body.categoria_id), categoria_cliente_id: categoriaClienteId, colaborador_id: body.colaborador_id ? String(body.colaborador_id) : null, fornecedor_id: body.fornecedor_id ? String(body.fornecedor_id) : null,
+    fornecedor: (body.fornecedor ?? body.fornecedor_nome) ? String(body.fornecedor ?? body.fornecedor_nome) : null, categoria_nome: body.categoria_nome ? String(body.categoria_nome) : null, grupo_categoria: body.grupo_categoria ? String(body.grupo_categoria) : null,
+    subcategoria_1: body.subcategoria_1 ? String(body.subcategoria_1) : null, subcategoria_2: body.subcategoria_2 ? String(body.subcategoria_2) : null, subcategoria_3: body.subcategoria_3 ? String(body.subcategoria_3) : null, subcategoria_4: body.subcategoria_4 ? String(body.subcategoria_4) : null,
     observacoes: body.observacoes ? String(body.observacoes) : null,
     abastecimento,
     idempotency_key: String(body.idempotency_key ?? '').trim() || crypto.randomUUID(),
@@ -109,8 +118,8 @@ export async function createPaymentRequest(db: D1Database, input: PaymentRequest
   // envio_despesas.pago_por guarda o cotista pagador/responsável.
   const pagador = input.cotista_pagador_id || (input.tipo !== 'share' ? cotistaId : null)
   const statements = [
-    db.prepare(`INSERT INTO envio_despesas (id, tipo, descricao, valor, valor_total_despesa, data_despesa, vencimento, aeronave_id, observacoes, status, criado_por, grupo_categoria, tipo_caixa, pago_diretamente, pago_por, fornecedor_id, categoria_id, categoria_cliente_id, rateio_linhas_json, anexos_json, periodicidade, tipo_rateio, colaborador_id, abastecimento_json, solicitacao_compra_id, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDENTE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
-      .bind(id, input.tipo, input.descricao, input.valor_centavos / 100, input.valor_total_despesa_centavos != null ? input.valor_total_despesa_centavos / 100 : null, input.data_despesa, input.data_vencimento, aeronaveId, input.observacoes, userId, ehHolding ? 'CAIXA HOLDING' : input.tipo === 'cliente' ? 'CAIXA CLIENTE' : input.tipo === 'reembolso' ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA', ehHolding ? 'HOLDING' : input.tipo === 'cliente' ? 'CLIENTE' : 'SHARE', input.tipo === 'cliente' ? 1 : 0, pagador, input.fornecedor_id, input.categoria_id, input.categoria_cliente_id, JSON.stringify(input.rateio_linhas), JSON.stringify(input.anexos), input.periodicidade, input.tipo_rateio, input.colaborador_id, input.abastecimento ? JSON.stringify(input.abastecimento) : null, solicitacaoCompraId),
+    db.prepare(`INSERT INTO envio_despesas (id, tipo, descricao, valor, valor_total_despesa, data_despesa, vencimento, aeronave_id, observacoes, status, criado_por, grupo_categoria, tipo_caixa, pago_diretamente, pago_por, fornecedor_id, categoria_id, categoria_cliente_id, rateio_linhas_json, anexos_json, periodicidade, tipo_rateio, colaborador_id, abastecimento_json, solicitacao_compra_id, criado_em, fornecedor, categoria_nome, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDENTE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, input.tipo, input.descricao, input.valor_centavos / 100, input.valor_total_despesa_centavos != null ? input.valor_total_despesa_centavos / 100 : null, input.data_despesa, input.data_vencimento, aeronaveId, input.observacoes, userId, ehHolding ? 'CAIXA HOLDING' : input.tipo === 'cliente' ? 'CAIXA CLIENTE' : input.tipo === 'reembolso' ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA', ehHolding ? 'HOLDING' : input.tipo === 'cliente' ? 'CLIENTE' : 'SHARE', input.tipo === 'cliente' ? 1 : 0, pagador, input.fornecedor_id, input.categoria_id, input.categoria_cliente_id, JSON.stringify(input.rateio_linhas), JSON.stringify(input.anexos), input.periodicidade, input.tipo_rateio, input.colaborador_id, input.abastecimento ? JSON.stringify(input.abastecimento) : null, solicitacaoCompraId, input.fornecedor, input.categoria_nome, input.subcategoria_1, input.subcategoria_2, input.subcategoria_3, input.subcategoria_4),
     db.prepare(`INSERT INTO financeiro_vinculos (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo) VALUES (?, 'IDEMPOTENCY_KEY', ?, 'ENVIO_DESPESA', ?, 'SOLICITACAO')`).bind(crypto.randomUUID(), input.idempotency_key, id),
   ]
   if (solicitacaoCompraId) {
@@ -191,6 +200,10 @@ export async function convertPaymentRequest(
     categoria_cliente_id: request.categoria_cliente_id,
     colaborador_id: request.colaborador_id,
     fornecedor_id: request.fornecedor_id,
+    fornecedor_nome: request.fornecedor || request.fornecedor_nome,
+    categoria_nome: request.categoria_nome,
+    grupo_categoria: request.grupo_categoria,
+    subcategoria_1: request.subcategoria_1, subcategoria_2: request.subcategoria_2, subcategoria_3: request.subcategoria_3, subcategoria_4: request.subcategoria_4,
     observacoes: request.observacoes,
     abastecimentos_id: abastecimentoId,
     rateio_linhas: linhas,

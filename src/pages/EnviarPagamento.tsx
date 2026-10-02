@@ -674,7 +674,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               )}
               {etapa === 2 && (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                  {tipo === "cliente" && <div role="status" className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Rateio direto definido antes do valor</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">A aeronave e os cotistas abaixo foram selecionados na etapa anterior. O valor informado será distribuído conforme estes percentuais.</p>
+                    <p className="mt-2 text-xs font-semibold">Aeronave: {dadosOpcoes.aeronaves.find((aeronave) => aeronave.id === form.aeronave_id)?.matricula_registro || "Selecionada"}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">{cotistasSelecionados.map((cotista) => {
+                      const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id)
+                      return <span key={cotista.id} className="rounded-sm border border-border/70 bg-background/50 px-2 py-1 text-[10px] text-muted-foreground">{cotista.nome} · {Number(linha?.percentual || 0).toFixed(2)}%</span>
+                    })}</div>
+                  </div>}
+                  <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>
                   <Campo label="Vencimento"><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
@@ -685,6 +695,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={form.subcategoria_1} onChange={(id) => setForm((atual) => ({ ...atual, subcategoria_1: id, subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
                   {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
                   {tipo === "share" && <Campo label="Data da despesa"><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
+                  </div>
                 </div>
               )}
               {etapa === totalEtapas && (

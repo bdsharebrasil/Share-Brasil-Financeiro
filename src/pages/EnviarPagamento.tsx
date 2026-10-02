@@ -191,6 +191,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
   const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
   const [cotistasEmail, setCotistasEmail] = useState<CotistaAeronave[]>([]);
+  const [emailsPorCotista, setEmailsPorCotista] = useState<Record<string, string>>({});
+  const [emailsEnviados, setEmailsEnviados] = useState<string[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
@@ -251,6 +253,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const recentes = useMemo(() => envios.slice(0, 8), [envios]);
   const valorInformado = converterValor(form.valor);
   const valorCentavos = parseReaisToCentavos(form.valor);
+  const uploadsPendentes = form.anexos.some((anexo) => anexo.uploading);
   const exigeCliente = tipo !== null && tipo !== "share";
   const cotistasSelecionados = cotistas.filter((c) => form.cotista_ids.includes(c.id));
   const categoriaSelecionada = dadosOpcoes.categorias_cliente.find((categoria) => categoria.id === form.categoria_id);
@@ -371,6 +374,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setErro("Revise os campos obrigatórios antes de criar o lançamento.");
       return;
     }
+    if (uploadsPendentes) {
+      setErro("Aguarde a conclusão do envio de todos os anexos antes de programar a despesa.");
+      return;
+    }
     setSalvando(true);
     setErro("");
     try {
@@ -400,7 +407,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       };
       const registro = await criarEnvioPagamento(payload);
       setEnvios((atual) => [registro, ...atual]);
-      setMensagem(exigeCliente ? "Lançamento criado. Revise e envie os e-mails por cotista." : "Lançamento criado corretamente em movimentações.");
+      setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
         setEnvioRecemCriado({ ...registro, tipo });
@@ -410,6 +417,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
         setCotistasEmail(cotistasSelecionados);
+        setEmailsPorCotista(Object.fromEntries(cotistasSelecionados.map((cotista) => [
+          cotista.id,
+          cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
+        ])));
+        setEmailsEnviados([]);
         setDestinatario("");
         setDestinatarioInformado(false);
         setNomeDestinatario("");
@@ -445,6 +457,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setArquivosNovos([]);
     setAnexosEnvioEmail([]);
     setCotistasEmail([]);
+    setEmailsPorCotista({});
+    setEmailsEnviados([]);
     setErroEmail("");
     setSucessoEmail("");
     setBancoSelecionado(null);
@@ -455,11 +469,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const adicionarArquivos = (arquivos: File[]) => setArquivosNovos((atual) => [...atual, ...arquivos]);
   const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
   const selecionarFonteAnexo = (fonte: any) => {
+    const cotistaIdPadrao = cotistasSelecionados.length === 1 ? cotistasSelecionados[0].id : undefined;
     const novos: AnexoLinha[] = origemAnexo === "recibos"
-      ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null }] : [])
+      ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
       : origemAnexo === "relatorios"
-        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null }] : [])
-        : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: tipo === "nota" ? fonte.numero_nf || "" : fonte.numero_comanda || fonte.numero_nf || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null }));
+        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio_pdf:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
+        : (["comanda", "nota", "boleto"] as const).filter((tipo) => fonte[`${tipo === "nota" ? "nota" : tipo}_url`]).map((tipo) => ({ id: `abastecimento:${fonte.id}:${tipo}`, tipo: tipo === "comanda" ? "comanda" : tipo === "nota" ? "nf" : "boleto", numero: tipo === "nota" ? fonte.numero_nf || "" : fonte.numero_comanda || fonte.numero_nf || "", url: fonte[`${tipo === "nota" ? "nota" : tipo}_url`], file: null, cotista_id: cotistaIdPadrao }));
     setForm((atual) => ({ ...atual, anexos: [...atual.anexos.filter((anexo) => !novos.some((novo) => novo.id === anexo.id)), ...novos] }));
     setDialogoAnexos(false);
     setBuscaAnexo("");
@@ -467,28 +482,39 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
 
   const dispararEmail = async () => {
-    if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
+    const envioPorCotista = envioRecemCriado?.tipo === "cliente";
+    if ((!envioPorCotista && !destinatario.trim()) || !assunto.trim() || !corpoEmail.trim()) {
       setErroEmail("Informe destinatário, assunto e mensagem.");
       return;
     }
     setEnviandoEmail(true);
     setErroEmail("");
     setSucessoEmail("");
+    const enviadosNestaSessao = new Set(emailsEnviados);
     try {
       const arquivosDoFormulario = new Set(anexosEnvioEmail.flatMap((anexo) => anexo.file ? [anexo.file] : []));
       const arquivosAdicionais = arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
-      const grupos = envioRecemCriado?.tipo === "cliente"
-        ? cotistasEmail.map((cotista) => ({ cotista, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id) }))
-        : [{ cotista: null, anexos: anexosEnvioEmail }];
-      if (!grupos.length) throw new Error("Atribua pelo menos um anexo a um cotista.");
-      for (const grupo of grupos) {
-        const email = (destinatarioInformado ? destinatario : grupo.cotista?.email || destinatario).trim();
+      const grupos = envioPorCotista
+        ? cotistasEmail.map((cotista) => ({ cotista, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id && anexosSelecionados.includes(anexo.id)) }))
+        : [{ cotista: null, anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)) }];
+      const gruposComAnexo = grupos.filter((grupo) => !envioPorCotista || grupo.anexos.length > 0);
+      if (!gruposComAnexo.length) throw new Error("Selecione ao menos um documento para enviar a um cotista.");
+      const semEmail = envioPorCotista ? gruposComAnexo.filter((grupo) => !emailsPorCotista[grupo.cotista!.id]?.trim()) : [];
+      if (semEmail.length) throw new Error(`Informe o e-mail de: ${semEmail.map((grupo) => grupo.cotista!.nome).join(", ")}. Nenhuma mensagem foi enviada.`);
+      if (envioPorCotista && envioRecemCriado) {
+        await converterEnvioPagamento(envioRecemCriado.id);
+        setEnvios((atual) => atual.map((envio) => envio.id === envioRecemCriado.id ? { ...envio, status: "CONVERTIDO" } : envio));
+      }
+      for (const grupo of gruposComAnexo) {
+        const chaveDestinatario = grupo.cotista?.id || "__principal__";
+        if (enviadosNestaSessao.has(chaveDestinatario)) continue;
+        const email = (grupo.cotista ? emailsPorCotista[grupo.cotista.id] : destinatario).trim();
         if (!email) throw new Error(`Cotista ${grupo.cotista?.nome || "selecionado"} sem e-mail.`);
         await enviarEmailCliente({
           destinatarios: [email],
           assunto: assunto.trim(),
           mensagem: corpoEmail.trim(),
-          anexos: grupo.anexos.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
+          anexos: grupo.anexos.map((anexo) => anexo.id),
           // O e-mail usa somente arquivos escolhidos no computador.
           // Em reembolsos, a mesma evidência local é enviada a cada cotista.
           arquivos: envioRecemCriado?.tipo === "cliente"
@@ -496,20 +522,23 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             : arquivosNovos,
           nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
         });
+        enviadosNestaSessao.add(chaveDestinatario);
+        setEmailsEnviados([...enviadosNestaSessao]);
       }
       if (envioRecemCriado) {
         await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
-        if (envioRecemCriado.tipo === "cliente" || envioRecemCriado.tipo === "reembolso") {
+        if (envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
           setEnvios((atual) => atual.map((e) => e.id === envioRecemCriado.id ? { ...e, status: "CONVERTIDO" } : e));
         }
       }
       setSucessoEmail(envioRecemCriado?.tipo === "cliente" || envioRecemCriado?.tipo === "reembolso"
-        ? `E-mail enviado com sucesso para ${grupos.length} cotista(s). Lançamento e rateio criados.`
-        : `E-mail enviado com sucesso para ${grupos.length} cotista(s).`);
+        ? `E-mail enviado com sucesso para ${gruposComAnexo.length} cotista(s). Lançamento e rateio criados.`
+        : `E-mail enviado com sucesso para ${gruposComAnexo.length} cotista(s).`);
       setMensagem("Lançamento criado e e-mail enviado ao cliente.");
       setTimeout(() => fecharModalEmail(), 1800);
     } catch (cause) {
+      setEmailsEnviados([...enviadosNestaSessao]);
       setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
     } finally {
       setEnviandoEmail(false);
@@ -517,14 +546,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   return (
-    <div className="route-enter mx-auto max-w-[760px]">
-      <header className="sr-only">
-        <IndicadorPagina>Financeiro / Enviar pagamento</IndicadorPagina>
-        <h1>Fluxo de envio</h1>
-        <p>Escolha o modo, informe a despesa e envie a solicitação de pagamento.</p>
+    <div className="route-enter mx-auto w-full max-w-[1040px] space-y-5 px-1 sm:px-0">
+      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-5 py-6 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-7 sm:py-7">
+        <div className="relative z-10 max-w-3xl">
+          <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[.14em] text-primary"><ClipboardCheck size={13} /> Fluxo financeiro seguro</div>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">Registre a despesa, defina o rateio por cotista e encaminhe os documentos certos para cada destinatário.</p>
+        </div>
       </header>
 
-      <section className="overflow-hidden rounded-[10px] border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.48)]">
+      <section className="overflow-hidden rounded-2xl border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
         <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-5 py-3.5 md:gap-5 md:px-6">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
@@ -649,7 +681,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="space-y-4 rounded-sm border border-border/70 bg-background/30 p-3"><div><p className="text-[11px] font-semibold">Deseja vincular um anexo dos arquivos?</p><div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Sim, vincular arquivo</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Não</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} /></div>
+                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento e distribuídos por cotista no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} /></div>
+                  {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
 
 
                 </div>
@@ -669,7 +702,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : (
-            <Button type="button" onClick={enviar} disabled={salvando} className="h-9 gap-2 rounded-sm px-5 text-[11px]">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {tipo === "share" ? "Criar lançamento" : "Programar"}</Button>
+            <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
           )}
         </div>
       </section>
@@ -734,7 +767,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
-            <DialogDescription className="text-[11px] text-muted-foreground">Revise o e-mail e envie ao cliente. Após o envio, a solicitação será marcada como "Enviado".</DialogDescription>
+            <DialogDescription className="text-[11px] text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O lançamento e o rateio serão criados antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
           </DialogHeader>
 
           {carregandoEmail ? (
@@ -744,11 +777,46 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               {erroEmail && <div role="alert" className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-600 dark:text-red-200">{erroEmail}</div>}
               {sucessoEmail && <div role="status" className="rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{sucessoEmail}</div>}
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
-                <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setDestinatarioInformado(true); setNomeDestinatario(contato.nome); }} />
-                <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setDestinatarioInformado(true); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo" />
-              </div>
+              {envioRecemCriado?.tipo === "cliente" ? (
+                <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/[.035] p-3 sm:p-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Destinatários e anexos por cotista</p>
+                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Cada cotista receberá uma mensagem separada, somente com os documentos marcados abaixo.</p>
+                  </div>
+                  {cotistasEmail.map((cotista) => {
+                    const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id);
+                    if (!anexosDoCotista.length) return null;
+                    const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
+                    return (
+                      <div key={cotista.id} className="min-w-0 space-y-3 rounded-lg border border-border/70 bg-background/55 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
+                          <span className={`text-[10px] ${emailsEnviados.includes(cotista.id) ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailsEnviados.includes(cotista.id) ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                        </div>
+                        <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo" aria-label={`E-mail de ${cotista.nome}`} disabled={emailsEnviados.includes(cotista.id)} />
+                        <div className="space-y-2">
+                          {anexosDoCotista.map((anexo) => (
+                            <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border border-border/60 bg-card/40 p-2.5 text-xs transition-colors hover:border-primary/35">
+                              <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailsEnviados.includes(cotista.id)} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
+                                <span className="mt-0.5 block text-[10px] uppercase text-muted-foreground">{anexo.tipo}</span>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Associe os anexos a um cotista antes de enviar os e-mails.</p>}
+                </section>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
+                  <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setDestinatarioInformado(true); setNomeDestinatario(contato.nome); }} />
+                  <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setDestinatarioInformado(true); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo" />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
@@ -786,7 +854,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
               <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
                 <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px]"><X size={14} /> Cancelar</Button>
-                <Button type="button" onClick={dispararEmail} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-9 gap-2 rounded-sm px-5 text-[11px]">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>
+                <Button type="button" onClick={dispararEmail} disabled={enviandoEmail || (envioRecemCriado?.tipo !== "cliente" && !destinatario.trim()) || !assunto.trim() || !corpoEmail.trim()} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail separado</Button>
               </div>
             </div>
           )}

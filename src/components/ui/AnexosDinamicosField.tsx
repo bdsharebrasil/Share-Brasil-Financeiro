@@ -38,15 +38,15 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
       updateLinha(id, { url, uploading: false });
     } catch (error: any) { toast.error(`Erro no upload: ${error?.message || error}`); updateLinha(id, { uploading: false, file: null }); }
   };
-  return <div className={cn("space-y-3", className)}>
-    <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Documentos anexos</span><Button type="button" variant="outline" size="sm" onClick={addLinha} className="h-8 gap-1.5 rounded-lg text-xs"><Plus className="h-3.5 w-3.5" /> Adicionar anexo</Button></div>
+  return <div className={cn("min-w-0 space-y-3", className)}>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Documentos anexos</span><p className="mt-0.5 text-[10px] text-muted-foreground">Identifique cada arquivo e associe-o ao cotista correto.</p></div><Button type="button" variant="outline" size="sm" onClick={addLinha} className="h-9 shrink-0 gap-1.5 rounded-lg px-3 text-xs"><Plus className="h-3.5 w-3.5" /> Adicionar anexo</Button></div>
     {!anexos.length && <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-5 text-center text-xs text-muted-foreground">Nenhum anexo adicionado.</div>}
-    <div className="space-y-2">{anexos.map((a) => <div key={a.id} className="rounded-xl border border-border/60 bg-card/40 p-3"><div className={cn("grid grid-cols-1 items-start gap-3", cotistas.length ? "lg:grid-cols-[160px_1fr_190px_minmax(250px,1.3fr)_auto]" : "lg:grid-cols-[160px_1fr_minmax(250px,1.3fr)_auto")}>
+    <div className="min-w-0 space-y-3">{anexos.map((a) => <div key={a.id} className="min-w-0 rounded-xl border border-border/60 bg-card/50 p-3 shadow-sm sm:p-4"><div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-2">
       <SearchableCombobox items={TIPOS} value={a.tipo} onChange={(id) => updateLinha(a.id, { tipo: (id as AnexoTipoId) || "outro" })} placeholder="Tipo..." searchPlaceholder="Buscar tipo..." />
-      <input value={a.numero} inputMode="numeric" onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Número do documento" className="h-9 rounded-lg border border-border bg-background/50 px-3 text-sm outline-none focus:border-primary/60" />
-      {cotistas.length > 0 && <SearchableCombobox items={cotistas} value={a.cotista_id || ""} onChange={(id) => updateLinha(a.id, { cotista_id: id })} placeholder="Cotista do anexo..." searchPlaceholder="Buscar cotista..." />}
-      <AnexosDinamicos file={a.file} onFileChange={(file) => void handleFile(a.id, file)} uploading={Boolean(a.uploading)} existingUrl={a.url} onView={onView} label="Arquivo" />
-      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-9 w-9 text-rose-500" title="Remover linha"><Trash2 className="h-4 w-4" /></Button>
+      <input value={a.numero} onChange={(e) => updateLinha(a.id, { numero: e.target.value })} placeholder="Número do documento" className="h-11 w-full min-w-0 rounded-lg border border-border bg-background/50 px-3 text-sm outline-none focus:border-primary/60" />
+      {cotistas.length > 0 && <div className="min-w-0 sm:col-span-2"><SearchableCombobox items={cotistas} value={a.cotista_id || ""} onChange={(id) => updateLinha(a.id, { cotista_id: id || undefined })} placeholder="Cotista do anexo..." searchPlaceholder="Buscar cotista..." /></div>}
+      <AnexosDinamicos file={a.file} onFileChange={(file) => void handleFile(a.id, file)} uploading={Boolean(a.uploading)} existingUrl={a.url} onView={onView} label="Arquivo" className="min-w-0 sm:col-span-2" />
+      <Button type="button" variant="ghost" size="icon" onClick={() => removeLinha(a.id)} className="h-9 w-9 justify-self-end text-rose-500 sm:col-span-2" title="Remover linha" aria-label="Remover anexo"><Trash2 className="h-4 w-4" /></Button>
     </div></div>)}</div>
   </div>;
 }

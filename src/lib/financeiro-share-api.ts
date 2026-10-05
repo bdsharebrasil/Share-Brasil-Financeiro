@@ -178,6 +178,7 @@ export type LancamentoEconomico = {
   id: string;
   aeronaveId?: string | null;
   participanteId?: string | null;
+  participanteNome?: string | null;
   data: string;
   descricao: string;
   documento: string | null;

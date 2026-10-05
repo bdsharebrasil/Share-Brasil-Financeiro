@@ -481,7 +481,7 @@ export type MovimentacaoFinanceira = {
   origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold";
   origem_id: string;
   referencias: string[];
-  tipo_caixa: "CLIENTE" | "SHARE" | "HOLDING" | string | null;
+  tipo_caixa: "CLIENTE" | "SHARE" | "HOLD" | "HOLDING" | string | null;
   descricao: string;
   fornecedor: string | null;
   codigo_cliente?: string | null;

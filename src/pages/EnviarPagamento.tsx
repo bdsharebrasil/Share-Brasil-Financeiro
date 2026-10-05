@@ -437,6 +437,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
         cliente_id: "", socio_id: "", aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
+        fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id,
         categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: false,
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: tipo === "cliente" ? null : form.pago_por || "share", periodicidade: form.periodicidade,
@@ -520,7 +521,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const novos: AnexoLinha[] = origemAnexo === "recibos"
       ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `recibo:${fonte.anexo_id}`, tipo: "recibo", numero: fonte.numero_recibo || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
       : origemAnexo === "relatorios"
-        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio_pdf:${fonte.anexo_id}`, tipo: "outro", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
+        ? (fonte.anexo_id && fonte.arquivo_url ? [{ id: `relatorio_pdf:${fonte.anexo_id}`, tipo: "demonstrativo", numero: fonte.numero_relatorio || "", url: fonte.arquivo_url, file: null, cotista_id: cotistaIdPadrao }] : [])
         : (["comanda", "nota", "boleto"] as const)
           .filter((chave) => fonte[`${chave}_url`])
           .map((chave) => {

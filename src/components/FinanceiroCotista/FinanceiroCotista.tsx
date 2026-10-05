@@ -314,9 +314,6 @@ export default function FinanceiroCotista() {
     return dashboard.lancamentos.filter((lancamento) => lancamento.aeronaveId === aeronaveSelecionada);
   }, [dashboard, aeronaveSelecionada]);
 
-  const entradas = dashboard?.resumo?.entradas ?? 0;
-  const saidas = dashboard?.resumo?.saidas ?? 0;
-  const saldo = dashboard?.resumo?.saldo ?? 0;
   const possuiHolding = cotistasAeronave.some((cotista) => Boolean(cotista.eh_holding));
   const [abaAtiva, setAbaAtiva] = useState<"resumo" | "lancamentos" | "graficos" | "ranking" | "emprestimos" | "extrato">("resumo");
 
@@ -348,12 +345,6 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) => formatarMoeda(valor).replace(",00", "");
   const coresCategorias = ["#22d3ee", "#60a5fa", "#a78bfa", "#fbbf24", "#34d399", "#94a3b8"];
-  const cardsResumo = [
-    ...(possuiHolding ? [["Entradas", entradas, "text-emerald-400"] as const] : []),
-    ["Saídas", saidas, "text-red-400"] as const,
-    ["Saldo", saldo, "text-foreground"] as const,
-    ["Custo rateado", dashboard?.resumo?.custo_rateado ?? 0, "text-amber-400"] as const,
-  ];
 
   return (
     <div className="financeiro-shell route-enter space-y-5">
@@ -405,11 +396,8 @@ export default function FinanceiroCotista() {
       ) : (
         <>
           {abaAtiva === "resumo" && <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {cardsResumo.map(([titulo, valor, cor]) => <div key={titulo} className="financeiro-kpi"><p className="financeiro-kpi-label">{titulo}</p><p className={`mt-1 text-lg font-bold ${cor}`}>{formatarCentavos(valor)}</p></div>)}
-            </div>
             <div className="grid gap-4 xl:grid-cols-3">
-              <div className="financeiro-panel xl:col-span-2"><div className="mb-5 flex items-center gap-2"><LayoutDashboard size={15} className="text-primary" /><div><p className="text-sm font-bold">Composição dos custos</p><p className="text-[10px] text-muted-foreground">Custos fixos e variáveis das despesas lançadas</p></div></div><div className="grid gap-4 p-4 sm:grid-cols-2"><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos fixos</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoFixo)}</p><p className="mt-1 text-[10px] text-muted-foreground">Hangar, seguro e recorrências</p></div><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos variáveis</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoVariavel)}</p><p className="mt-1 text-[10px] text-muted-foreground">Operação, combustível e demais despesas</p></div></div></div>
+              <div className="financeiro-panel xl:col-span-2"><div className="mb-5 flex items-center gap-2 ml-[18px] mt-[11px]"><div><p className="text-sm font-bold">Composição dos custos</p><p className="text-[10px] text-muted-foreground">Custos fixos e variáveis das despesas lançadas</p></div></div><div className="grid gap-4 p-4 sm:grid-cols-2"><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos fixos</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoFixo)}</p><p className="mt-1 text-[10px] text-muted-foreground">Hangar, seguro e recorrências</p></div><div className="rounded-lg border border-border bg-muted/20 p-4"><p className="text-[10px] font-semibold uppercase text-muted-foreground">Custos variáveis</p><p className="mt-2 text-xl font-bold">{formatarCentavos(custoVariavel)}</p><p className="mt-1 text-[10px] text-muted-foreground">Operação, combustível e demais despesas</p></div></div></div>
               <div className="financeiro-panel p-5"><p className="text-sm font-bold">Indicadores</p><div className="mt-4 space-y-4"><div><p className="text-[10px] text-muted-foreground">Média mensal</p><p className="font-mono text-sm font-bold">{formatarCentavos(dashboard?.resumo?.media_mensal)}</p></div><div><p className="text-[10px] text-muted-foreground">Média por lançamento</p><p className="font-mono text-sm font-bold">{formatarCentavos(dashboard?.resumo?.media_lancamento)}</p></div><div><p className="text-[10px] text-muted-foreground">Pendências</p><p className="font-mono text-sm font-bold text-amber-400">{dashboard?.resumo?.pendentes ?? 0} lançamento(s)</p></div></div></div>
             </div>
             {Array.isArray(dashboard?.saldos) && dashboard.saldos.length > 0 ? <div className="financeiro-panel overflow-hidden"><div className="financeiro-panel-header"><p className="text-xs font-bold">Saldos por cotista</p></div><div className="divide-y divide-border">{dashboard.saldos.map((s, i) => <div key={`${s.cotista}-${i}`} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"><span className="font-medium">{s.cotista}</span><div className="flex gap-4 text-[10px]"><span className="text-muted-foreground">Pago: {formatarCentavos(s.totalPagoCentavos)}</span><span className="text-muted-foreground">Devido: {formatarCentavos(s.totalDevidoCentavos)}</span><span className={s.saldoCentavos >= 0 ? "font-mono font-bold text-emerald-400" : "font-mono font-bold text-red-400"}>{formatarCentavos(s.saldoCentavos)}</span></div></div>)}</div></div> : null}

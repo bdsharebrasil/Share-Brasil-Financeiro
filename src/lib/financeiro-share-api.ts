@@ -11,6 +11,7 @@ import type {
   Lancamento,
 } from "@/components/financeiro-share/tipos";
 import { formatCentavos, formatReais, parseReaisToCentavos } from "@/lib/money";
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
 async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -19,6 +20,7 @@ async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promi
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
+  if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
   const data = await response.json().catch(() => null) as T & { error?: string } | null;
   if (!response.ok) throw new Error(data?.error || `api_${response.status}`);
@@ -214,6 +216,7 @@ export type LancamentoEconomico = {
   status: string;
   observacoes: string | null;
   local?: string | null;
+  periodicidade?: string | null;
   rateios: RateioEconomico[];
 };
 

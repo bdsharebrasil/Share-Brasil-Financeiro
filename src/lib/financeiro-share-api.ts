@@ -129,7 +129,7 @@ export type CategoriaCaixaShare = {
   reembolsavel: boolean;
 };
 
-export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null };
+export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null; tipo_caixa?: string | null; ativo?: number | boolean | null };
 export type EmpresaShare = { id: string; razao_social: string | null; cnpj: string | null };
 
 export type LancamentoShare = {

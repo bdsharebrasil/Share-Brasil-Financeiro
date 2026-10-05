@@ -1,14 +1,61 @@
-import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { buscarResumoSalarios, formatarMoeda, type ResumoSalarios } from "@/lib/financeiro-share-api";
+import { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { buscarResumoSalarios, formatarMoeda, type ResumoSalarios } from '@/lib/financeiro-share-api'
+import { PagamentoSalarioTab } from './PagamentoSalarioTab'
 
 export function AbaSalarios() {
-  const [data, setData] = useState<ResumoSalarios | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-  const carregar = () => { void buscarResumoSalarios().then(setData).catch((e) => setErro(e instanceof Error ? e.message : "Folha indisponível")); };
-  useEffect(carregar, []);
-  const resumo = data?.resumo;
-  const cards = resumo ? [["Folha do mês", resumo.folha_mes], ["Salários pagos", resumo.salarios_pagos], ["Salários pendentes", resumo.salarios_pendentes], ["Benefícios", resumo.beneficios], ["Encargos", resumo.encargos], ["Impostos", resumo.impostos], ["Total da folha", resumo.total_folha]] : [];
-  return <div className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-sm font-bold">Salários</h2><p className="text-xs text-muted-foreground">Leitura da folha e dos itens calculados pelo módulo de RH.</p></div><Button variant="outline" size="sm" onClick={carregar}><RefreshCw size={14} className="mr-2" /> Atualizar</Button></div>{erro && <p className="rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-xs text-amber-700">Não foi possível ler a folha no D1: {erro}</p>}{!data?.folha ? <div className="rounded-xl border border-dashed border-border p-10 text-center text-xs text-muted-foreground">Nenhuma folha de pagamento cadastrada. A tela não cria uma tabela ou folha fictícia.</div> : <><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{cards.map(([label, value]) => <div key={String(label)} className="rounded-xl border border-border bg-card p-4"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 font-mono text-lg font-bold">{formatarMoeda(Number(value))}</p></div>)}</div><div className="overflow-x-auto rounded-xl border border-border"><table className="w-full min-w-[680px] text-xs"><thead className="bg-muted/40"><tr><th className="p-3 text-left">Colaborador</th><th className="p-3 text-right">Salário base</th><th className="p-3 text-right">Líquido</th><th className="p-3 text-right">Encargos</th><th className="p-3 text-left">Status</th></tr></thead><tbody className="divide-y divide-border">{data.itens.map((item) => <tr key={String(item.id)}><td className="p-3 font-medium">{String(item.colaborador || item.user_id)}</td><td className="p-3 text-right">{formatarMoeda(Number(item.salario_base_centavos || 0) / 100)}</td><td className="p-3 text-right">{formatarMoeda(Number(item.total_liquido_centavos || 0) / 100)}</td><td className="p-3 text-right">{formatarMoeda((Number(item.inss_centavos || 0) + Number(item.irrf_centavos || 0) + Number(item.fgts_centavos || 0)) / 100)}</td><td className="p-3">{String(item.status || "—")}</td></tr>)}</tbody></table></div></>}</div>;
+  const [data, setData] = useState<ResumoSalarios | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const carregar = () => {
+    setErro(null)
+    void buscarResumoSalarios().then(setData).catch((cause) => setErro(cause instanceof Error ? cause.message : 'Folha indisponível'))
+  }
+  useEffect(carregar, [])
+  const resumo = data?.resumo
+  const cards = resumo ? [
+    ['Folha do mês', resumo.folha_mes],
+    ['Salários pagos', resumo.salarios_pagos],
+    ['Salários pendentes', resumo.salarios_pendentes],
+    ['Benefícios', resumo.beneficios],
+    ['Encargos', resumo.encargos],
+    ['Impostos', resumo.impostos],
+    ['Total da folha', resumo.total_folha],
+  ] : []
+
+  return <div className="space-y-5">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold">Resumo da folha calculada</h2>
+          <p className="text-xs text-muted-foreground">Leitura dos itens calculados pelo módulo de RH.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={carregar}><RefreshCw size={14} className="mr-2" />Atualizar</Button>
+      </div>
+      {erro && <p role="alert" className="rounded-lg border border-amber-300/30 bg-amber-500/10 p-3 text-xs text-amber-700">Não foi possível ler a folha no D1: {erro}</p>}
+      {!data?.folha
+        ? <div className="rounded-xl border border-dashed border-border p-7 text-center text-xs text-muted-foreground">Nenhuma folha calculada cadastrada. O registro manual abaixo continua disponível.</div>
+        : <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {cards.map(([label, value]) => <div key={String(label)} className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+              <p className="mt-2 font-mono text-lg font-bold">{formatarMoeda(Number(value))}</p>
+            </div>)}
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[680px] text-xs">
+              <thead className="bg-muted/40"><tr><th className="p-3 text-left">Colaborador</th><th className="p-3 text-right">Salário base</th><th className="p-3 text-right">Líquido</th><th className="p-3 text-right">Encargos</th><th className="p-3 text-left">Status</th></tr></thead>
+              <tbody className="divide-y divide-border">{data.itens.map((item) => <tr key={String(item.id)}>
+                <td className="p-3 font-medium">{String(item.colaborador || item.user_id)}</td>
+                <td className="p-3 text-right">{formatarMoeda(Number(item.salario_base_centavos || 0) / 100)}</td>
+                <td className="p-3 text-right">{formatarMoeda(Number(item.total_liquido_centavos || 0) / 100)}</td>
+                <td className="p-3 text-right">{formatarMoeda((Number(item.inss_centavos || 0) + Number(item.irrf_centavos || 0) + Number(item.fgts_centavos || 0)) / 100)}</td>
+                <td className="p-3">{String(item.status || '—')}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </>}
+    </section>
+    <PagamentoSalarioTab />
+  </div>
 }

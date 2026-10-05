@@ -247,9 +247,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     try {
       await converterEnvioPagamento(envio.id);
       await carregar();
-      toast.success("Lançamento do Caixa Cliente e rateio criados.");
+      toast.success("Rateio da despesa do cliente criado.");
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Não foi possível criar o lançamento e o rateio.");
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível criar o rateio da despesa.");
     } finally {
       setConvertendoEnvioId(null);
     }
@@ -812,7 +812,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
-                      {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar lançamento e rateio"}</Button>}
+                      {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar rateio da despesa"}</Button>}
                       {(statusChave === "email_enviado" || statusChave === "email_nao_enviado" || envio.tipo === "share") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" onClick={() => setMensagem("Pagamento liberado para programação no módulo financeiro.")}>Programar pagamento</Button>}
                     </div>
                   </div>
@@ -861,7 +861,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         >
           <DialogHeader className="shrink-0 border-b border-[#172235] bg-[linear-gradient(135deg,#0b1422,#080e19)] px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
             <DialogTitle className="flex items-center gap-2 text-base font-bold tracking-tight"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
-            <DialogDescription className="max-w-xl text-[11px] leading-5 text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O lançamento e o rateio serão criados antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
+            <DialogDescription className="max-w-xl text-[11px] leading-5 text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O rateio da despesa será criado antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
           </DialogHeader>
 
           {carregandoEmail ? (

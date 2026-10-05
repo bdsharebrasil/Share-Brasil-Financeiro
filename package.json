@@ -10,6 +10,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "build:dev": "NODE_OPTIONS=--max-old-space-size=4096 vite build --mode development",
     "lint": "eslint .",
+    "test": "tsx --test tests/*.test.mjs",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "deploy": "wrangler pages deploy app/share-brasil/dist/public"

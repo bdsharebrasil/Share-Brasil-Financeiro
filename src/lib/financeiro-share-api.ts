@@ -273,8 +273,10 @@ export type MediasCotista = {
   media_mensal_horas: number;
   custo_medio_por_voo_centavos: number;
 };
+export type MediasCotistaMensais = MediasCotista & { mes: string };
 export type DashboardCotista = BalancoEconomico & {
   medias: MediasCotista;
+  medias_mensais: MediasCotistaMensais[];
   resumo: {
     entradas: number;
     saidas: number;
@@ -406,6 +408,17 @@ function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined
     holdings: Array.isArray(payload?.holdings) ? payload.holdings.map((holding) => ({ ...holding, saldoContaCentavos: Number(holding.saldoContaCentavos ?? 0), socios: Array.isArray(holding.socios) ? holding.socios : [] })) : [],
   };
 }
+function normalizarMediasCotista(medias: Partial<MediasCotista> | null | undefined): MediasCotista {
+  return {
+    horas_voadas: Number(medias?.horas_voadas ?? 0),
+    total_voos: Number(medias?.total_voos ?? 0),
+    total_pousos: Number(medias?.total_pousos ?? 0),
+    custo_por_hora_centavos: Number(medias?.custo_por_hora_centavos ?? 0),
+    dia_mais_utilizado: medias?.dia_mais_utilizado ? String(medias.dia_mais_utilizado) : null,
+    media_mensal_horas: Number(medias?.media_mensal_horas ?? 0),
+    custo_medio_por_voo_centavos: Number(medias?.custo_medio_por_voo_centavos ?? 0),
+  };
+}
 
 export async function buscarOpcoesLancamento() {
   return normalizarOpcoesLancamento(await financeiroRequest<Partial<OpcoesLancamento>>("/api/financeiro/lancamentos/opcoes"));
@@ -436,8 +449,8 @@ export type VooEmprestimo = {
   fabricante: string | null;
   modelo: string | null;
 };
-export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string) {
-  const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId });
+export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string) {
+  const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId, inicio, fim });
   const payload = await financeiroRequest<{ voos_emprestimos?: VooEmprestimo[] }>(`/api/financeiro/cotista/voos-emprestimos${query}`);
   return Array.isArray(payload.voos_emprestimos) ? payload.voos_emprestimos : [];
 }
@@ -451,15 +464,10 @@ export async function buscarDashboardCotista(inicio?: string, fim?: string, aero
   const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/financeiro/cotista/dashboard${sufixo}`);
   return {
     ...normalizarBalanco(payload),
-    medias: {
-      horas_voadas: Number(payload.medias?.horas_voadas ?? 0),
-      total_voos: Number(payload.medias?.total_voos ?? 0),
-      total_pousos: Number(payload.medias?.total_pousos ?? 0),
-      custo_por_hora_centavos: Number(payload.medias?.custo_por_hora_centavos ?? 0),
-      dia_mais_utilizado: payload.medias?.dia_mais_utilizado ? String(payload.medias.dia_mais_utilizado) : null,
-      media_mensal_horas: Number(payload.medias?.media_mensal_horas ?? 0),
-      custo_medio_por_voo_centavos: Number(payload.medias?.custo_medio_por_voo_centavos ?? 0),
-    },
+    medias: normalizarMediasCotista(payload.medias),
+    medias_mensais: Array.isArray(payload.medias_mensais)
+      ? payload.medias_mensais.map((item) => ({ mes: String(item.mes ?? ''), ...normalizarMediasCotista(item) })).filter((item) => /^\d{4}-\d{2}$/.test(item.mes))
+      : [],
     resumo: {
       entradas: Number(payload.resumo?.entradas ?? 0),
       saidas: Number(payload.resumo?.saidas ?? 0),

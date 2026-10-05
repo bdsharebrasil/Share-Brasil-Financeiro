@@ -210,6 +210,7 @@ export type SaldoCotista = {
 
 export type HoldingSocioResumo = {
   cotistaId: string;
+  nome: string;
   percentual: number;
   totalDepositadoCentavos: number;
   totalConsumidoCentavos: number;
@@ -221,11 +222,31 @@ export type HoldingResumo = {
   id: string;
   nome: string;
   contaBancaria: string | null;
+  saldoContaCentavos: number;
   socios: HoldingSocioResumo[];
+};
+
+export type MovimentoHoldingExtrato = {
+  id: string;
+  holdingId: string | null;
+  holdingNome: string | null;
+  socioId: string | null;
+  socioNome: string | null;
+  aeronaveId: string | null;
+  data: string;
+  dataPagamento: string | null;
+  descricao: string;
+  categoria: string | null;
+  fluxo: string;
+  valorCentavos: number;
+  status: string;
+  contaBancaria: string | null;
+  diretamentePago: boolean;
 };
 
 export type BalancoEconomico = {
   lancamentos: LancamentoEconomico[];
+  movimentos_holding: MovimentoHoldingExtrato[];
   saldos: SaldoCotista[];
   matrizCompensacao: Record<string, Record<string, number>>;
   holdings: HoldingResumo[];
@@ -370,9 +391,10 @@ function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | 
 function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined): BalancoEconomico {
   return {
     lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item) => ({ ...item, rateios: Array.isArray(item.rateios) ? item.rateios : [] })) : [],
+    movimentos_holding: Array.isArray(payload?.movimentos_holding) ? payload.movimentos_holding : [],
     saldos: Array.isArray(payload?.saldos) ? payload.saldos : [],
     matrizCompensacao: payload?.matrizCompensacao && typeof payload.matrizCompensacao === "object" ? payload.matrizCompensacao : {},
-    holdings: Array.isArray(payload?.holdings) ? payload.holdings.map((holding) => ({ ...holding, socios: Array.isArray(holding.socios) ? holding.socios : [] })) : [],
+    holdings: Array.isArray(payload?.holdings) ? payload.holdings.map((holding) => ({ ...holding, saldoContaCentavos: Number(holding.saldoContaCentavos ?? 0), socios: Array.isArray(holding.socios) ? holding.socios : [] })) : [],
   };
 }
 

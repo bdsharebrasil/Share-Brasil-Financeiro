@@ -19,6 +19,7 @@ import {
   Landmark,
   CalendarDays,
   FileText,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
 import type { OpcoesLancamento, DashboardCotista, VooEmprestimo, LancamentoEconomico } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import { buscarOpcoesEnvioPagamento, buscarCotistasAeronave } from "@/lib/colaborador-api";
+import { MediasCotista } from "./MediasCotista";
 
 function hoje() { return new Date().toISOString().slice(0, 10); }
 
@@ -362,7 +364,7 @@ export default function FinanceiroCotista() {
   }, [dashboard, aeronaveSelecionada]);
 
   const possuiHolding = cotistasAeronave.some((cotista) => Boolean(cotista.eh_holding));
-  const [abaAtiva, setAbaAtiva] = useState<"resumo" | "lancamentos" | "graficos" | "ranking" | "emprestimos" | "extrato">("resumo");
+  const [abaAtiva, setAbaAtiva] = useState<"resumo" | "medias" | "lancamentos" | "graficos" | "ranking" | "emprestimos" | "extrato">("resumo");
 
   const despesas = useMemo(
     () => lancamentosFiltrados.filter((lancamento) => lancamento.fluxo === "SAIDA"),
@@ -425,6 +427,7 @@ export default function FinanceiroCotista() {
 
       <div className="financeiro-tabs flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1">
         <button type="button" onClick={() => setAbaAtiva("resumo")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "resumo" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutDashboard size={14} />Resumo geral</button>
+        <button type="button" onClick={() => setAbaAtiva("medias")} className={`flex min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "medias" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Gauge size={14} />MÉDIAS</button>
         <button type="button" onClick={() => setAbaAtiva("lancamentos")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "lancamentos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ReceiptText size={14} />Lançamento de despesas</button>
         <button type="button" onClick={() => setAbaAtiva("graficos")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "graficos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><BarChart3 size={14} />Gráficos</button>
         <button type="button" onClick={() => setAbaAtiva("ranking")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "ranking" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ListOrdered size={14} />Ranking de gastos</button> <button type="button" onClick={() => setAbaAtiva("emprestimos")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "emprestimos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Fuel size={14} />Voos empréstimos</button>
@@ -451,6 +454,7 @@ export default function FinanceiroCotista() {
             {possuiHolding && (dashboard?.holdings ?? []).length > 0 && <div className="space-y-3">{dashboard!.holdings.map((holding) => <section key={holding.id} className="financeiro-panel overflow-hidden"><div className="financeiro-panel-header"><div className="flex items-center gap-2"><Landmark size={15} className="text-primary" /><div><p className="text-xs font-bold">Saldo bancário · {holding.nome}</p><p className="mt-1 text-[10px] text-muted-foreground">{holding.contaBancaria || "Conta bancária não identificada"}</p></div></div><span className="font-mono text-sm font-bold">{formatarCentavos(holding.saldoContaCentavos)}</span></div><div className="divide-y divide-border">{holding.socios.map((socio) => <div key={socio.cotistaId} className="grid gap-2 px-4 py-3 text-[10px] sm:grid-cols-[minmax(120px,1.2fr)_repeat(4,minmax(90px,1fr))] sm:items-center"><div><p className="font-semibold">{socio.nome || cotistasAeronave.find((cotista) => cotista.socio_id === socio.cotistaId)?.nome || socio.cotistaId}</p><p className="text-muted-foreground">Participação: {Number(socio.percentual || 0).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%</p></div><div><span className="text-muted-foreground">Depositado </span><strong className="font-mono">{formatarCentavos(socio.totalDepositadoCentavos)}</strong></div><div><span className="text-muted-foreground">Consumido da conta </span><strong className="font-mono">{formatarCentavos(socio.totalConsumidoCentavos)}</strong></div><div><span className="text-muted-foreground">Pago diretamente </span><strong className="font-mono">{formatarCentavos(socio.despesasPagasDiretamenteCentavos)}</strong></div><div><span className="text-muted-foreground">Saldo atribuído </span><strong className={`font-mono ${socio.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatarCentavos(socio.saldoCentavos)}</strong></div></div>)}</div></section>)}</div>}
           </div>}
 
+          {abaAtiva === "medias" && <MediasCotista medias={dashboard?.medias ?? null} />}
           {abaAtiva === "lancamentos" && <LancamentosDespesa lancamentos={lancamentosFiltrados} aoNovo={() => setAberto(true)} />}
           {abaAtiva === "extrato" && possuiHolding && <div className="financeiro-panel overflow-hidden"><div className="financeiro-panel-header"><div><p className="text-sm font-bold">Extrato da conta Holding</p><p className="text-[10px] text-muted-foreground">Movimentos bancários e aportes; o rateio econômico permanece na aba de lançamentos.</p></div></div>{(dashboard?.movimentos_holding ?? []).length ? <div className="divide-y divide-border">{dashboard!.movimentos_holding.map((movimento) => { const entrada = ["ENTRADA", "APORTE", "ESTORNO"].includes(movimento.fluxo.toUpperCase()); return <div key={movimento.id} className="grid gap-2 px-3 py-3 text-xs sm:grid-cols-[90px_minmax(180px,1.5fr)_minmax(120px,1fr)_minmax(110px,1fr)_100px_120px] sm:items-center sm:px-4"><div className="text-muted-foreground">{formatarData(movimento.data)}</div><div className="min-w-0"><p className="truncate font-semibold">{movimento.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{movimento.categoria || "Sem categoria"} · {movimento.holdingNome || "Holding"}</p></div><div className="text-muted-foreground">{movimento.socioNome || "Sócio não informado"}</div><div className="text-muted-foreground">{movimento.contaBancaria || "Conta não informada"}</div><div className="text-[10px] text-muted-foreground">{movimento.status}</div><div className={`text-right font-mono font-bold ${entrada ? "text-emerald-400" : "text-red-400"}`}>{entrada ? "+" : "−"}{formatarCentavos(movimento.valorCentavos)}</div></div>; })}</div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum movimento bancário encontrado para esta aeronave.</div>}</div>}
 

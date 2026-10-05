@@ -264,8 +264,17 @@ export type FechamentoMensalCotista = {
 
 export type RankingGastoCotista = { categoria: string; grupo: string; valor: number; quantidade: number };
 export type RankingCotista = { cotista: string; devido: number; pago: number; quantidade: number };
-
+export type MediasCotista = {
+  horas_voadas: number;
+  total_voos: number;
+  total_pousos: number;
+  custo_por_hora_centavos: number;
+  dia_mais_utilizado: string | null;
+  media_mensal_horas: number;
+  custo_medio_por_voo_centavos: number;
+};
 export type DashboardCotista = BalancoEconomico & {
+  medias: MediasCotista;
   resumo: {
     entradas: number;
     saidas: number;
@@ -442,6 +451,15 @@ export async function buscarDashboardCotista(inicio?: string, fim?: string, aero
   const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/financeiro/cotista/dashboard${sufixo}`);
   return {
     ...normalizarBalanco(payload),
+    medias: {
+      horas_voadas: Number(payload.medias?.horas_voadas ?? 0),
+      total_voos: Number(payload.medias?.total_voos ?? 0),
+      total_pousos: Number(payload.medias?.total_pousos ?? 0),
+      custo_por_hora_centavos: Number(payload.medias?.custo_por_hora_centavos ?? 0),
+      dia_mais_utilizado: payload.medias?.dia_mais_utilizado ? String(payload.medias.dia_mais_utilizado) : null,
+      media_mensal_horas: Number(payload.medias?.media_mensal_horas ?? 0),
+      custo_medio_por_voo_centavos: Number(payload.medias?.custo_medio_por_voo_centavos ?? 0),
+    },
     resumo: {
       entradas: Number(payload.resumo?.entradas ?? 0),
       saidas: Number(payload.resumo?.saidas ?? 0),

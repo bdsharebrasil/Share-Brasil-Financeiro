@@ -506,7 +506,7 @@ export type MovimentacaoFinanceira = {
   categoria_nome?: string | null;
 };
 
-export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold"; origem_id: string; valor_centavos: number; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
+export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold"; origem_id: string; valor_centavos: number; data_vencimento?: string | null; periodicidade?: string | null; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
 
 export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };

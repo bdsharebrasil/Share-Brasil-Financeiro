@@ -9,6 +9,7 @@ import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbaste
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const money = (value: number) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const date = (value?: string | null) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+const isTrueFlag = (value: unknown) => value === true || value === 1 || ["1", "true", "sim", "yes"].includes(String(value).trim().toLowerCase());
 
 const emptyForm = {
   abastecimento_id: "",
@@ -124,7 +125,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     if (!clienteSelecionado) return [];
     let itens = records.filter((item) => {
       const pertenceAoCotista = item.cliente_id === clienteSelecionado || item.socio_id === clienteSelecionado;
-      const vooEmprestado = Number(item.voo_emprestado) === 1;
+      const vooEmprestado = isTrueFlag(item.voo_emprestado);
       return pertenceAoCotista && vooEmprestado === (tabCliente === "emprestimo");
     });
     if (filters.busca) {
@@ -168,7 +169,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       ...Object.fromEntries(
         Object.entries(item)
           .filter(([key]) => key in emptyForm)
-          .map(([key, value]) => [key, key === "voo_emprestado" ? Boolean(value) : value == null ? "" : String(value)])
+          .map(([key, value]) => [key, key === "voo_emprestado" ? isTrueFlag(value) : value == null ? "" : String(value)])
       ),
     } as Form);
     setFiles({ comanda: null, nota: null, boleto: null, comprovante: null });
@@ -512,6 +513,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
   const diarios = (options?.diarios || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
   const [trechosAberto, setTrechosAberto] = useState(false);
   const [mesTrechos, setMesTrechos] = useState(new Date().toISOString().slice(0, 7));
+  const [confirmarVooEmprestado, setConfirmarVooEmprestado] = useState(false);
   const diariosDoMes = diarios.filter((diario: any) => String(diario.data_registro || "").slice(0, 7) === mesTrechos);
   const selecionarTrecho = (diario: any) => {
     setField("lancamento_diario_id", diario.id);
@@ -545,7 +547,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Forma de pagamento</span><select value={form.forma_pagamento} onChange={(e) => setField("forma_pagamento", e.target.value)} className="campo"><option value="">Selecionar</option><option value="PIX">PIX</option><option value="Cartão de crédito">Cartão de crédito</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vencimento do boleto</span><input type="date" value={form.data_vencimento_boleto} onChange={(e) => setField("data_vencimento_boleto", e.target.value)} className="campo font-mono" /></label>
         {form.status === "pago" && <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data do pagamento</span><input type="date" value={form.data_pagamento} onChange={(e) => setField("data_pagamento", e.target.value)} className="campo font-mono" /></label>}
-        <label className="flex items-center gap-2 pt-6 text-[10px] font-bold uppercase text-muted-foreground"><input type="checkbox" checked={Boolean(form.voo_emprestado)} onChange={(e) => setField("voo_emprestado", e.target.checked)} />Voo emprestado</label>
+        <label className="flex items-center gap-2 pt-6 text-[10px] font-bold uppercase text-muted-foreground"><input type="checkbox" checked={Boolean(form.voo_emprestado)} onChange={(e) => { if (e.target.checked && !form.voo_emprestado) { setConfirmarVooEmprestado(true); return; } setField("voo_emprestado", e.target.checked); }} />Voo emprestado</label>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {(["comanda", "nota", "boleto", "comprovante"] as const).map((type) => {
@@ -561,6 +563,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
         <Button type="button" variant="outline" onClick={onClose} className="h-9">Cancelar</Button>
         <Button type="button" disabled={saving} onClick={onSave} className="h-9 bg-primary text-primary-foreground font-bold">{saving ? "Salvando..." : "Salvar abastecimento"}</Button>
       </div>
+      {confirmarVooEmprestado && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation"><div className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="confirmar-voo-emprestado-titulo"><h2 id="confirmar-voo-emprestado-titulo" className="text-center text-base font-extrabold leading-relaxed text-foreground sm:text-lg">DESEJA CONFIRMAR QUE ESSE VOO É DE EMPRESTIMO ?</h2><div className="mt-5 flex flex-col-reverse justify-center gap-2 sm:flex-row"><Button type="button" variant="outline" onClick={() => setConfirmarVooEmprestado(false)} className="w-full sm:w-36">Cancelar</Button><Button type="button" onClick={() => { setField("voo_emprestado", true); setConfirmarVooEmprestado(false); }} className="w-full font-bold sm:w-36">Confirmar</Button></div></div></div>}
     </section>
   );
 }

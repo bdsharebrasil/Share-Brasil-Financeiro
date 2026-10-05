@@ -182,6 +182,22 @@ export type LancamentoEconomico = {
   data: string;
   descricao: string;
   documento: string | null;
+  numeroNf?: string | null;
+  numeroRecibo?: string | null;
+  numeroDemonstrativo?: string | null;
+  numeroDoc?: string | null;
+  urlDoc?: string | null;
+  urlDemonstrativo?: string | null;
+  urlNf?: string | null;
+  urlRecibo?: string | null;
+  urlBoleto?: string | null;
+  dataPagamento?: string | null;
+  percentualSociedade?: number | null;
+  percentualUso?: number | null;
+  valorRateadoCentavos?: number;
+  valorPagoRealCentavos?: number;
+  emailEnviadoEm?: string | null;
+  aeronaveNome?: string | null;
   fornecedor: string | null;
   categoria: string;
   grupoCategoria: string;
@@ -548,8 +564,17 @@ export const getCotistaFinance = (periodo: string, visao: string, cotista: strin
 export function editarLancamento(id: string, dados: Record<string, unknown>) {
   return financeiroRequest<Lancamento>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(dados) });
 }
+export function darBaixaLancamento(id: string, dados: { dataPagamento?: string; valorPagoRealCentavos?: number; pagoPor?: string | null } = {}) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/baixa`, {
+    method: "POST",
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, valor_pago_real_centavos: dados.valorPagoRealCentavos, pago_por: dados.pagoPor }),
+  });
+}
+export function excluirLancamento(id: string) {
+  return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
 export function alterarStatusLancamento(id: string, status: "PAGO" | "RECEBIDO" | "CANCELADO") {
-  return editarLancamento(id, { status, data_pagamento: status === "PAGO" || status === "RECEBIDO" ? new Date().toISOString().slice(0, 10) : null });
+  return status === "CANCELADO" ? excluirLancamento(id) : darBaixaLancamento(id, { dataPagamento: new Date().toISOString().slice(0, 10) });
 }
 
 export function duplicarLancamento(id: string, dados: Record<string, unknown> = {}) {

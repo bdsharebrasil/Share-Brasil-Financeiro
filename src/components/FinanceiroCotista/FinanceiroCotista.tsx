@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -19,6 +19,11 @@ import {
   Landmark,
   CalendarDays,
   FileText,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  Coins,
   Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +44,9 @@ import {
   formatarCentavos,
   formatarData,
   buscarVoosEmprestimos,
+  editarLancamento,
+  excluirLancamento,
+  darBaixaLancamento,
 } from "@/lib/financeiro-share-api";
 import type { OpcoesLancamento, DashboardCotista, VooEmprestimo, LancamentoEconomico } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -255,34 +263,66 @@ function valorPagoLancamento(lancamento: LancamentoEconomico) {
   return Math.min(lancamento.valorCentavos, pagoInformado);
 }
 
-function LancamentosDespesa({ lancamentos, aoNovo }: { lancamentos: LancamentoEconomico[]; aoNovo: () => void }) {
+function LancamentoExpandido({ lancamento }: { lancamento: LancamentoEconomico }) {
+  const documentos = [
+    ["Documento", lancamento.urlDoc, lancamento.numeroDoc],
+    ["Nota fiscal", lancamento.urlNf, lancamento.numeroNf],
+    ["Recibo", lancamento.urlRecibo, lancamento.numeroRecibo],
+    ["Demonstrativo", lancamento.urlDemonstrativo, lancamento.numeroDemonstrativo],
+    ["Boleto", lancamento.urlBoleto, null],
+  ].filter((item): item is [string, string, string | null | undefined] => Boolean(item[1]));
+  const percentual = lancamento.percentualUso ?? lancamento.percentualSociedade;
+  return <div className="border-t border-border bg-muted/20 px-4 py-4 sm:px-6">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <section>
+        <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.16em] text-primary">Documentos vinculados</h3>
+        {documentos.length ? <div className="flex flex-wrap gap-2">{documentos.map(([nome, url, numero]) => <a key={`${nome}-${url}`} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"><FileText size={14} className="shrink-0 text-primary" /><span className="truncate">{nome}{numero ? ` · ${numero}` : ""}</span></a>)}</div> : <p className="text-xs text-muted-foreground">Nenhum documento vinculado a este lançamento.</p>}
+      </section>
+      <section>
+        <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.16em] text-primary">Rateio e informações do lançamento</h3>
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-3 text-xs sm:grid-cols-3">
+          <div><dt className="text-muted-foreground">Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
+          <div><dt className="text-muted-foreground">Pagamento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.dataPagamento)}</dd></div>
+          <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">% sociedade</dt><dd className="mt-1 font-semibold">{lancamento.percentualSociedade == null ? "—" : `${lancamento.percentualSociedade}%`}</dd></div>
+          <div><dt className="text-muted-foreground">% uso</dt><dd className="mt-1 font-semibold">{lancamento.percentualUso == null ? "—" : `${lancamento.percentualUso}%`}</dd></div>
+          <div><dt className="text-muted-foreground">% aplicado</dt><dd className="mt-1 font-semibold">{percentual == null ? "—" : `${percentual}%`}</dd></div>
+          <div><dt className="text-muted-foreground">Valor pago real</dt><dd className="mt-1 font-mono font-semibold">{formatarCentavos(lancamento.valorPagoRealCentavos || 0)}</dd></div>
+          <div><dt className="text-muted-foreground">Valor rateado</dt><dd className="mt-1 font-mono font-semibold">{formatarCentavos(lancamento.valorRateadoCentavos || lancamento.valorCentavos)}</dd></div>
+          <div><dt className="text-muted-foreground">Pago por</dt><dd className="mt-1 truncate font-semibold">{lancamento.pagoPor || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">E-mail enviado em</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.emailEnviadoEm)}</dd></div>
+        </dl>
+        {lancamento.observacoes && <p className="mt-4 rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground"><strong className="text-foreground">Observações:</strong> {lancamento.observacoes}</p>}
+      </section>
+    </div>
+  </div>;
+}
+function LancamentosDespesa({ lancamentos, aoNovo, aoAtualizar }: { lancamentos: LancamentoEconomico[]; aoNovo: () => void; aoAtualizar: () => Promise<void> }) {
+  const [expandido, setExpandido] = useState<string | null>(null);
   const despesas = lancamentos.filter((lancamento) => lancamento.fluxo === "SAIDA");
   const gruposPorMes = agruparPorMes(despesas);
   const totalLancado = despesas.reduce((total, lancamento) => total + lancamento.valorCentavos, 0);
   const totalPago = despesas.reduce((total, lancamento) => total + valorPagoLancamento(lancamento), 0);
   const totalAberto = Math.max(0, totalLancado - totalPago);
   const totalReembolsos = despesas.reduce((total, lancamento) => total + (lancamento.reembolsavel ? lancamento.valorCentavos : 0), 0);
+  const atualizar = async (acao: () => Promise<unknown>, sucesso: string) => { try { await acao(); await aoAtualizar(); toast.success(sucesso); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o lançamento."); } };
+  const editar = (item: LancamentoEconomico) => { const descricao = window.prompt("Descrição do lançamento", item.descricao); if (!descricao?.trim() || descricao.trim() === item.descricao) return; void atualizar(() => editarLancamento(item.id, { descricao: descricao.trim() }), "Lançamento atualizado."); };
+  const excluir = (item: LancamentoEconomico) => { if (window.confirm("Excluir este lançamento? Ele será removido do fluxo financeiro.")) void atualizar(() => excluirLancamento(item.id), "Lançamento excluído."); };
+  const baixa = (item: LancamentoEconomico) => { if (window.confirm("Registrar a baixa deste lançamento como pago hoje?")) void atualizar(() => darBaixaLancamento(item.id, { dataPagamento: hoje(), valorPagoRealCentavos: item.valorCentavos, pagoPor: item.pagoPor || null }), "Pagamento baixado."); };
   const cards = [
-    { titulo: "Total lançado · período", valor: totalLancado, detalhe: `${despesas.length} itens`, Icon: ReceiptText, tone: "text-sky-100", iconTone: "text-sky-300" },
-    { titulo: "Total pago", valor: totalPago, detalhe: "Despesas liquidadas", Icon: Check, tone: "text-sky-100", iconTone: "text-emerald-300" },
-    { titulo: "Em aberto", valor: totalAberto, detalhe: "Aguardando pagamento", Icon: CalendarDays, tone: "text-sky-100", iconTone: "text-amber-300" },
-    { titulo: "Reembolsos", valor: totalReembolsos, detalhe: totalReembolsos ? "Valores reembolsáveis" : "Nenhum", Icon: FileText, tone: "text-sky-100", iconTone: "text-sky-300" },
-  ];
-
+    ["Total lançado · período", totalLancado, `${despesas.length} itens`, ReceiptText],
+    ["Total pago", totalPago, "Despesas liquidadas", Check],
+    ["Em aberto", totalAberto, "Aguardando pagamento", CalendarDays],
+    ["Reembolsos", totalReembolsos, totalReembolsos ? "Valores reembolsáveis" : "Nenhum", FileText],
+  ] as const;
   return <div className="space-y-3">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(({ titulo, valor, detalhe, Icon, tone, iconTone }) => <div key={titulo} className="financeiro-kpi financeiro-kpi--primary min-h-[112px] p-4">
-        <div className="flex items-start justify-between gap-3"><span className={`financeiro-kpi-icon ${iconTone}`}><Icon size={14} /></span><span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-[9px] font-bold text-primary">{detalhe}</span></div>
-        <p className="mt-3 text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">{titulo}</p><p className={`mt-1 font-mono text-xl font-bold ${tone}`}>{formatarCentavos(valor)}</p>
-      </div>)}
-    </div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([titulo, valor, detalhe, Icon]) => <div key={titulo} className="min-h-[112px] rounded-lg border border-border bg-card p-4"><div className="flex items-start justify-between gap-3"><span className="flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground"><Icon size={14} /></span><span className="rounded-md border border-border px-2 py-1 text-[9px] font-bold text-muted-foreground">{detalhe}</span></div><p className="mt-3 text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground">{titulo}</p><p className="mt-1 font-mono text-xl font-bold text-foreground">{formatarCentavos(valor)}</p></div>)}</div>
     <div className="financeiro-panel overflow-hidden">
       <div className="financeiro-panel-header"><div><p className="text-sm font-bold">Extrato · despesas</p><p className="mt-1 text-[10px] text-muted-foreground">Lançamentos, rateios, documentos e status de pagamento</p></div><Button size="sm" onClick={aoNovo} className="h-8 gap-1.5 text-[10px]"><Plus size={13} /> Novo lançamento</Button></div>
-      {despesas.length ? <div className="overflow-x-auto"><table className="min-w-[920px] w-full text-left"><thead className="border-b border-border bg-muted/20 text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground"><tr><th className="px-3 py-3">Data</th><th className="px-3 py-3">Descrição</th><th className="px-3 py-3">Categoria</th><th className="px-3 py-3">Rateio</th><th className="px-3 py-3">Documento</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Valor</th></tr></thead>{gruposPorMes.map(({ mes, itens }) => <tbody key={mes} className="divide-y divide-border/80"><tr className="bg-primary/[.045]"><td colSpan={7} className="px-3 py-2.5"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] font-bold capitalize text-foreground">{rotuloMesCotista(mes)}</span><span className="font-mono text-[9px] text-muted-foreground">{itens.length} item(ns) · subtotal {formatarCentavos(itens.reduce((total, item) => total + item.valorCentavos, 0))}</span></div></td></tr>{itens.map((lancamento) => { const status = statusLancamento(lancamento.status); const rateio = lancamento.grupoCategoria || lancamento.tipo; return <tr key={lancamento.id} className="transition-colors hover:bg-primary/[.035]"><td className="px-3 py-3 align-top"><p className="font-mono text-[11px] font-bold text-foreground">{formatarData(lancamento.data)}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">LC {lancamento.id.slice(0, 6).toUpperCase()}</p></td><td className="max-w-[270px] px-3 py-3"><p className="truncate text-[11px] font-bold text-foreground">{lancamento.descricao}</p><p className="mt-1 truncate text-[9px] text-muted-foreground">{lancamento.participanteNome || lancamento.fornecedor || "Responsável não informado"}</p></td><td className="px-3 py-3 text-[10px] text-muted-foreground">{lancamento.categoria || "Sem categoria"}</td><td className="px-3 py-3">{rateio ? <span className="inline-flex rounded border border-primary/25 bg-primary/10 px-2 py-1 font-mono text-[9px] font-bold uppercase text-primary">{rateio}</span> : <span className="text-[10px] text-muted-foreground">—</span>}</td><td className="px-3 py-3 font-mono text-[10px] text-muted-foreground">{lancamento.documento || "—"}</td><td className="px-3 py-3"><span className={`inline-flex rounded-md border px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span></td><td className="px-3 py-3 text-right font-mono text-[12px] font-bold text-foreground">{formatarCentavos(lancamento.valorCentavos)}</td></tr>; })}</tbody>)}</table></div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhuma despesa encontrada para o período selecionado.</div>}
+      {despesas.length ? <div className="overflow-x-auto"><table className="min-w-[1080px] w-full text-left"><thead className="border-b border-border bg-muted/20 text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground"><tr><th className="px-3 py-3">Data / documento</th><th className="px-3 py-3">Descrição</th><th className="px-3 py-3">Aeronave</th><th className="px-3 py-3">Cotista</th><th className="px-3 py-3 text-right">Valor</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Ações</th></tr></thead>{gruposPorMes.map(({ mes, itens }) => <tbody key={mes} className="divide-y divide-border/80"><tr className="bg-muted/20"><td colSpan={7} className="px-3 py-2.5"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] font-bold capitalize text-foreground">{rotuloMesCotista(mes)}</span><span className="font-mono text-[9px] text-muted-foreground">{itens.length} item(ns) · subtotal {formatarCentavos(itens.reduce((total, item) => total + item.valorCentavos, 0))}</span></div></td></tr>{itens.map((item) => { const aberto = expandido === item.id; const status = statusLancamento(item.status); const documento = item.numeroNf || item.numeroRecibo || item.numeroDemonstrativo || item.numeroDoc || item.documento; return <Fragment key={item.id}><tr key={item.id} className={`transition-colors hover:bg-muted/20 ${aberto ? "bg-muted/20" : ""}`}><td className="px-3 py-3 align-top"><p className="font-mono text-[11px] font-bold text-foreground">{formatarData(item.data)}</p><p className="mt-1 max-w-[150px] truncate font-mono text-[9px] text-muted-foreground" title={documento || "Sem documento"}>{documento || "—"}</p></td><td className="max-w-[270px] px-3 py-3"><p className="truncate text-[11px] font-bold text-foreground">{item.descricao}</p><p className="mt-1 truncate text-[9px] text-muted-foreground">{item.categoria || "Sem categoria"}</p></td><td className="px-3 py-3 text-[10px] text-muted-foreground">{item.aeronaveNome || item.aeronaveId || "—"}</td><td className="max-w-[170px] truncate px-3 py-3 text-[10px] text-muted-foreground">{item.participanteNome || item.participanteId || "—"}</td><td className="px-3 py-3 text-right font-mono text-[12px] font-bold text-foreground">{formatarCentavos(item.valorCentavos)}</td><td className="px-3 py-3"><span className={`inline-flex rounded-md border px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span></td><td className="px-3 py-3"><div className="flex items-center justify-end gap-1"><Button type="button" variant="ghost" size="icon" className="size-7" onClick={() => setExpandido(aberto ? null : item.id)} aria-label={aberto ? "Fechar detalhes" : "Abrir detalhes"}>{aberto ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</Button><Button type="button" variant="ghost" size="icon" className="size-7" onClick={() => editar(item)} aria-label="Editar lançamento"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => excluir(item)} aria-label="Excluir lançamento"><Trash2 size={14} /></Button><Button type="button" variant="ghost" size="icon" className="size-7 text-emerald-600 hover:text-emerald-700" onClick={() => baixa(item)} aria-label="Dar baixa no pagamento"><Coins size={14} /></Button></div></td></tr>{aberto && <tr key={`${item.id}-detalhe`}><td colSpan={7} className="p-0"><LancamentoExpandido lancamento={item} /></td></tr>}</Fragment>; })}</tbody>)}</table></div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhuma despesa encontrada para o período selecionado.</div>}
     </div>
   </div>;
 }
-
 export default function FinanceiroCotista() {
   const [aberto, setAberto] = useState(false);
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
@@ -522,7 +562,7 @@ export default function FinanceiroCotista() {
           </div>}
 
           {abaAtiva === "medias" && <MediasCotista medias={dashboard?.medias ?? null} mediasMensais={dashboard?.medias_mensais ?? []} />}
-          {abaAtiva === "lancamentos" && <LancamentosDespesa lancamentos={lancamentosFiltrados} aoNovo={() => setAberto(true)} />}
+          {abaAtiva === "lancamentos" && <LancamentosDespesa lancamentos={lancamentosFiltrados} aoNovo={() => setAberto(true)} aoAtualizar={carregar} />}
           {abaAtiva === "extrato" && possuiHolding && <div className="financeiro-panel overflow-hidden"><div className="financeiro-panel-header"><div><p className="text-sm font-bold">Extrato da conta Holding</p><p className="text-[10px] text-muted-foreground">Movimentos bancários e aportes; o rateio econômico permanece na aba de lançamentos.</p></div></div>{(dashboard?.movimentos_holding ?? []).length ? <div className="divide-y divide-border">{dashboard!.movimentos_holding.map((movimento) => { const entrada = ["ENTRADA", "APORTE", "ESTORNO"].includes(movimento.fluxo.toUpperCase()); return <div key={movimento.id} className="grid gap-2 px-3 py-3 text-xs sm:grid-cols-[90px_minmax(180px,1.5fr)_minmax(120px,1fr)_minmax(110px,1fr)_100px_120px] sm:items-center sm:px-4"><div className="text-muted-foreground">{formatarData(movimento.data)}</div><div className="min-w-0"><p className="truncate font-semibold">{movimento.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{movimento.categoria || "Sem categoria"} · {movimento.holdingNome || "Holding"}</p></div><div className="text-muted-foreground">{movimento.socioNome || "Sócio não informado"}</div><div className="text-muted-foreground">{movimento.contaBancaria || "Conta não informada"}</div><div className="text-[10px] text-muted-foreground">{movimento.status}</div><div className={`text-right font-mono font-bold ${entrada ? "text-emerald-400" : "text-red-400"}`}>{entrada ? "+" : "−"}{formatarCentavos(movimento.valorCentavos)}</div></div>; })}</div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum movimento bancário encontrado para esta aeronave.</div>}</div>}
 
           {abaAtiva === "emprestimos" && <div className="financeiro-panel overflow-hidden">

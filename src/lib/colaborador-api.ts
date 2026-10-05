@@ -828,8 +828,9 @@ function normalizarMovimentacao(
   registro: RegistroFinanceiro,
   origemTipo: "lancamentos" | "movimentos_holding" | "rateio_hold",
 ): MovimentacaoFinanceira | null {
-  const origemId = textoFinanceiro(registro.id) || textoFinanceiro(registro.movimento_holding_id);
+  const origemId = textoFinanceiro(registro.origem_id) || textoFinanceiro(registro.id) || textoFinanceiro(registro.movimento_holding_id);
   if (!origemId) return null;
+  const registroId = textoFinanceiro(registro.id) || origemId;
   const valor = registro.valor !== undefined
     ? numeroFinanceiro(registro.valor)
     : numeroFinanceiro(
@@ -838,7 +839,7 @@ function normalizarMovimentacao(
   const emailEnviado = booleanoFinanceiro(registro.email_enviado);
 
   return {
-    id: `${origemTipo}:${origemId}`,
+    id: `${origemTipo}:${registroId}`,
     origem_tipo: origemTipo,
     origem_id: origemId,
     referencias: [

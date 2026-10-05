@@ -236,6 +236,7 @@ export default function FinanceiroCotista() {
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
   const [dashboard, setDashboard] = useState<DashboardCotista | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [erroDashboard, setErroDashboard] = useState<string | null>(null);
   const [aeronaves, setAeronaves] = useState<AeronaveOpcao[]>([]);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>([]);
@@ -246,15 +247,18 @@ export default function FinanceiroCotista() {
   const carregar = useCallback(async () => {
     if (!aeronaveSelecionada) {
       setDashboard(null);
+      setErroDashboard(null);
       setCarregando(false);
       return;
     }
 
     setCarregando(true);
+    setErroDashboard(null);
     try {
       setDashboard(await buscarDashboardCotista(undefined, undefined, aeronaveSelecionada));
-    } catch {
+    } catch (error) {
       setDashboard(null);
+      setErroDashboard(error instanceof Error ? error.message : "Falha inesperada ao carregar o financeiro.");
     } finally {
       setCarregando(false);
     }
@@ -389,7 +393,16 @@ export default function FinanceiroCotista() {
         {possuiHolding && <button type="button" onClick={() => setAbaAtiva("extrato")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "extrato" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Landmark size={14} />Extrato Holding</button>}
       </div>
 
-      {carregando ? <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin" /></div> : (
+      {carregando ? <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin" /></div> : erroDashboard ? (
+        <div role="alert" className="financeiro-panel flex flex-col gap-3 border border-red-500/30 bg-red-500/5 px-4 py-4 sm:flex-row sm:items-center">
+          <CircleAlert className="h-4 w-4 shrink-0 text-red-400" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-red-300">Não foi possível carregar o financeiro desta aeronave.</p>
+            <p className="mt-1 break-words text-xs text-red-200/80">{erroDashboard}</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => void carregar()}>Tentar novamente</Button>
+        </div>
+      ) : (
         <>
           {abaAtiva === "resumo" && <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

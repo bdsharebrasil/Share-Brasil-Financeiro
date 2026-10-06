@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Clock, Download, Plane, TrendingDown, Users, Wallet } from 'lucide-react';
+import { Clock, Download, FileText, Plane, TrendingDown, Users, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/layout/PageHeader';
 import { KpiCard } from '../components/financeiro/KpiCard';
+import { SectionCard } from '../components/financeiro/SectionCard';
+import { StatusBadge } from '../components/financeiro/StatusBadge';
 import { TabelaLancamentos } from '../components/financeiro/TabelaLancamentos';
 import { DarBaixaDialog } from '../components/financeiro/DarBaixaDialog';
 import { RankingUtilizacao } from '../components/financeiro/RankingUtilizacao';
@@ -14,7 +16,6 @@ import {
 import { ContasEmAberto } from '../components/financeiro/ContasEmAberto';
 import { GraficosCustos } from '../components/financeiro/GraficosCustos';
 import { RankingGastos } from '../components/financeiro/RankingGastos';
-import { BalancoMensalCotista } from '../components/financeiro/BalancoMensalCotista';
 import { Avatar, AvatarFallback } from '../components/ui/Avatar';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -161,7 +162,36 @@ export function FinanceiroCotista() {
         </div>
 
         <TabsContent value="balanco" className="space-y-4">
-          <BalancoMensalCotista aeronaveId={aeronave.id} cotistaId={cotista.id} />
+          <GraficoCustoMesCotista cotista={cotista} />
+          <SectionCard
+            titulo="Títulos do cotista"
+            descricao={`${pendentes.length} pendências · ${formatBRL(saldoAberto)}`}
+            Icon={FileText}
+            semPadding>
+
+            {pendentes.length === 0 ?
+            <p className="px-5 py-12 text-center text-sm text-muted-foreground">
+                Nenhum título pendente. Cotista em dia com o rateio.
+              </p> :
+
+            <ul className="divide-y divide-border">
+                {pendentes.map((c) =>
+              <li key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="num text-sm font-medium text-card-foreground">{c.id}</p>
+                      <p className="num text-xs text-muted-foreground">
+                        {c.competencia} · venc. {formatData(c.vencimento)}
+                      </p>
+                    </div>
+                    <p className="num text-sm font-semibold text-card-foreground">
+                      {formatBRL(c.valor)}
+                    </p>
+                    <StatusBadge status={c.status} />
+                  </li>
+              )}
+              </ul>
+            }
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="custos" className="space-y-4">

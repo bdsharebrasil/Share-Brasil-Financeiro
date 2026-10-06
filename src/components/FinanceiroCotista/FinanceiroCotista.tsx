@@ -100,7 +100,7 @@ import {
   buscarCotistasAeronave,
 } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
-import { RelatorioGeralCotista } from "./RelatorioGeralCotista";
+import { BalancoMensalCotista } from "@/components/financeiro/BalancoMensalCotista";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -2788,7 +2788,7 @@ export default function FinanceiroCotista() {
               )}
 
               {abaAtiva === "relatorio" && (
-                <RelatorioGeralCotista aeronaveId={aeronaveSelecionada} />
+                <BalancoMensalCotista aeronaveId={aeronaveSelecionada} />
               )}
               {abaAtiva === "medias" && (
                 <MediasCotista

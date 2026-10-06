@@ -125,7 +125,7 @@ const DESPESAS_ESTILOS = `
   color: #e6eefb; color-scheme: dark;
   font-family: inherit;
 }
-.despesas-shell { padding: 20px; background: rgba(11, 15, 25, 1); border: 1px solid #24334c; border-radius: 20px; }
+.despesas-shell { padding: 7px 10px; background: rgba(11, 15, 25, 1); border: 1px solid #24334c; border-radius: 20px; }
 .despesas-theme .text-muted-foreground { color: #9aadc8; }
 .despesas-theme .text-foreground { color: #e6eefb; }
 .despesas-theme .text-primary { color: #73c5ff; }
@@ -135,7 +135,7 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :is(input, textarea, [role="combobox"]) { border-color: #30415e; background: #0d1729; color: #e6eefb; box-shadow: none; }
 .despesas-theme input::placeholder, .despesas-theme textarea::placeholder { color: #91a4bf; }
 .despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid #73c5ff; outline-offset: 3px; }
-.despesas-theme .despesa-primary { background: #69c3ff; color: #081324; border: 1px solid #8ed2ff; box-shadow: 0 4px 20px #2994db18; font-weight: 700; }
+.despesas-theme .despesa-primary { background: rgba(62, 156, 218, 1); color: #081324; border: 1px solid #8ed2ff; box-shadow: 0 4px 20px #2994db18; font-weight: 700; }
 .despesas-theme .despesa-primary:hover { background: #93d5ff; }
 .despesa-metric { position: relative; border: 1px solid #1c273c; border-radius: 10px; background: #0e1626; padding: 10px 14px; }
 .despesas-theme .text-emerald-700 { color: #5ce0bf; }
@@ -145,7 +145,7 @@ const DESPESAS_ESTILOS = `
 .despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .despesa-ledger { background: #101b2e; border: 1px solid #263650; border-radius: 16px; overflow: hidden; }
 .despesa-heading { background: linear-gradient(115deg, #15243b, #101b2e); }
-.despesa-toolbar { background: #0d1729; }
+.despesa-toolbar { background: rgba(10, 20, 36, 1); padding: 6px 50px; }
 .despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: #3c5475 #101b2e; }
 .despesa-table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
 .despesa-table thead { position: sticky; top: 0; z-index: 2; background: #0c1627; color: #9aadc8; }
@@ -1447,7 +1447,7 @@ function LancamentosDespesa({
   ];
 
   return (
-    <div className="despesas-theme despesas-shell min-w-0 space-y-5">
+    <div className="despesas-theme despesas-shell min-w-0 space-y-5 py-[7px] px-[10px]">
       <style>{DESPESAS_ESTILOS}</style>
       <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ titulo, valor, detalhe, Icon, cor }) => (
@@ -1479,27 +1479,21 @@ function LancamentosDespesa({
       >
         <header className="despesa-heading flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
-              Controle de despesas
-            </p>
             <h3 className="text-xl font-semibold tracking-tight">
               Lançamento de despesas
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Consulte as despesas, os pagamentos e os documentos da aeronave.
-            </p>
           </div>
           <Button
             type="button"
             onClick={aoNovo}
-            className="despesa-primary h-11 w-full shrink-0 gap-2 rounded-lg px-5 sm:w-auto"
+            className="despesa-primary bg-[rgba(62,156,218,1)] h-11 w-full shrink-0 gap-2 rounded-lg px-5 sm:w-auto"
           >
             <Plus size={18} />
             Novo lançamento
           </Button>
         </header>
 
-        <div className="despesa-toolbar space-y-3 border-b border-border p-4 sm:px-6">
+        <div className="despesa-toolbar space-y-3 border-b border-border py-[6px] px-[50px] bg-[rgba(10,20,36,1)]">
           <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-1.5">
               <Label

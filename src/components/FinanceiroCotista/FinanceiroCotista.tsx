@@ -177,6 +177,27 @@ const DESPESAS_ESTILOS = `
 .despesas-theme .despesa-mobile-card { background: hsl(var(--card)); border-color: hsl(var(--border)); }
 .despesas-theme .despesa-mobile-card[data-expanded="true"] { border-color: hsl(var(--primary) / .55); }
 .despesa-dialog { background: hsl(var(--card)); border-color: hsl(var(--border)); }
+.dark .despesas-theme {
+  --background: 222 49% 9%; --foreground: 210 40% 96%;
+  --card: 221 43% 12%; --card-foreground: 210 40% 96%;
+  --popover: 220 40% 14%; --popover-foreground: 210 40% 96%;
+  --muted: 220 35% 17%; --muted-foreground: 215 24% 70%;
+  --border: 218 30% 24%; --input: 218 30% 24%;
+  --primary: 204 94% 64%; --primary-foreground: 222 49% 9%;
+  --accent: 218 35% 21%; --accent-foreground: 210 40% 96%;
+  --ring: 204 94% 64%; --destructive: 0 85% 70%;
+  color: hsl(var(--foreground)); color-scheme: dark;
+}
+.despesas-theme .text-emerald-700 { color: #047857; }
+.despesas-theme .text-amber-700 { color: #b45309; }
+.despesas-theme .text-blue-700 { color: #1d4ed8; }
+.dark .despesas-theme .text-emerald-700 { color: #5ce0bf; }
+.dark .despesas-theme .text-amber-700 { color: #ffd36c; }
+.dark .despesas-theme .text-blue-700 { color: #83bfff; }
+.dark .despesas-theme .despesa-status[data-status="Pago"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
+.dark .despesas-theme .despesa-status[data-status="Pendente"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
+.dark .despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
+.dark .despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
 .despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
 @media (max-width: 639px) {
   .despesas-shell { padding: 10px; border-radius: 14px; }

@@ -134,11 +134,12 @@ async function criarRateioClienteDireto(payload: {
   categoriaId: string;
   categoriaNome: string;
   valorTotalCentavos: number;
+  dataEmissao: string;
   descricaoDespesa: string;
   observacoes?: string;
 }): Promise<void> {
   await criarLancamentoEconomico({
-    fluxo: "SAIDA", data: hoje(), descricao: payload.descricaoDespesa,
+    fluxo: "SAIDA", data: payload.dataEmissao, data_emissao: payload.dataEmissao, descricao: payload.descricaoDespesa,
     categoria_id: payload.categoriaId, categoria_nome: payload.categoriaNome,
     aeronave_id: payload.aeronaveId, cotista_aeronave_id: payload.cotistaAeronaveId,
     valor_centavos: payload.valorTotalCentavos, pago_diretamente: true,
@@ -195,11 +196,12 @@ async function criarDespesaHoldingPagoDireto(payload: {
   categoriaId: string;
   categoriaNome: string;
   valorTotalCentavos: number;
+  dataEmissao: string;
   descricaoDespesa: string;
   observacoes?: string;
 }): Promise<void> {
   await criarLancamentoEconomico({
-    fluxo: "SAIDA", data: hoje(), descricao: payload.descricaoDespesa,
+    fluxo: "SAIDA", data: payload.dataEmissao, data_emissao: payload.dataEmissao, descricao: payload.descricaoDespesa,
     holding_id: payload.holdingId, socio_id: payload.socioPagadorId,
     aeronave_id: payload.aeronaveId, categoria_id: payload.categoriaId,
     categoria_nome: payload.categoriaNome, valor_centavos: payload.valorTotalCentavos,
@@ -350,6 +352,7 @@ function FormularioCliente({
           categoriaId: categoria.id,
           categoriaNome: categoria.nome,
           valorTotalCentavos: valorCentavos,
+          dataEmissao: data,
           descricaoDespesa: descricao.trim(),
           observacoes: observacoes.trim() || undefined,
         });
@@ -422,7 +425,7 @@ function FormularioCliente({
           <Input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
         </div>
         <div className="space-y-2">
-          <Label>Data</Label>
+          <Label>Data de emissão</Label>
           <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
         </div>
         <div className="space-y-2 sm:col-span-2">
@@ -572,6 +575,7 @@ function FormularioHolding({
             categoriaId: categoria.id,
             categoriaNome: categoria.nome,
             valorTotalCentavos: valorCentavos,
+            dataEmissao: data,
             descricaoDespesa: descricao.trim(),
             observacoes: observacoes.trim() || undefined,
           });
@@ -657,7 +661,7 @@ function FormularioHolding({
           <Input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
         </div>
         <div className="space-y-2">
-          <Label>Data</Label>
+          <Label>Data de emissão</Label>
           <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
         </div>
 

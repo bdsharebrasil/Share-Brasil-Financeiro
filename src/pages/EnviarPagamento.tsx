@@ -739,7 +739,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={form.subcategoria_1} onChange={(id) => setForm((atual) => ({ ...atual, subcategoria_1: id, subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
                   {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
-                  {tipo === "share" && <Campo label="Data da despesa"><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>}
+                  <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   </div>
                 </div>
               )}
@@ -756,7 +756,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       <Resumo label="Pagador" valor={selecionada.pagador} />
                       <Resumo label="Destino" valor={selecionada.destino} />
                       <Resumo label="Categoria" valor={form.grupo_categoria} />
-                      {tipo !== "share" && <Resumo label="Data" valor={dataBr(form.data_despesa)} />}
+                      <Resumo label="Data de emissão" valor={dataBr(form.data_despesa)} />
                       <Resumo label="Vencimento" valor={dataBr(form.vencimento)} />
                       <Resumo label="Periodicidade" valor={form.periodicidade} />
                       <Resumo label="Anexos" valor={`${anexos.length} documento(s)`} />

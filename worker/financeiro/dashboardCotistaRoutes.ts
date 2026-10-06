@@ -24,6 +24,8 @@ dashboardCotistaRoutes.get('/cotista/dashboard', async (c) => {
     const fim = c.req.query('fim')
     const aeronaveId = c.req.query('aeronave_id')
     const cotistaId = c.req.query('cotista_id')
+    const mesesParam = c.req.query('meses')
+    const mesesSelecionados = mesesParam === undefined ? null : mesesParam.split(',').filter((mes) => /^\d{4}-(0[1-9]|1[0-2])$/.test(mes))
     const cotistaAeronaveId = cotistaId
     let cotistaClienteId = cotistaId
     let cotistaSocioId: string | undefined
@@ -53,6 +55,7 @@ dashboardCotistaRoutes.get('/cotista/dashboard', async (c) => {
     if (schema.get('movimentos_holding')?.has('escopo_financeiro')) filtrosMovimento.push("COALESCE(mh.escopo_financeiro, 'FINANCEIRO') = 'FINANCEIRO'")
     if (inicio) { filtrosCliente.push('date(r.data_emissao) >= date(?)'); paramsCliente.push(inicio); filtrosHolding.push('date(r.data_emissao) >= date(?)'); paramsHolding.push(inicio); filtrosLancamentos.push('date(l.data_emissao) >= date(?)'); paramsLancamentos.push(inicio) }
     if (fim) { filtrosCliente.push('date(r.data_emissao) <= date(?)'); paramsCliente.push(fim); filtrosHolding.push('date(r.data_emissao) <= date(?)'); paramsHolding.push(fim); filtrosLancamentos.push('date(l.data_emissao) <= date(?)'); paramsLancamentos.push(fim) }
+    if (mesesSelecionados) { const placeholders = mesesSelecionados.map(() => '?').join(', '); const filtro = mesesSelecionados.length ? `strftime('%Y-%m', date(COLUNA)) IN (${placeholders})` : '1 = 0'; filtrosCliente.push(filtro.replace('COLUNA', 'r.data_emissao')); paramsCliente.push(...mesesSelecionados); filtrosHolding.push(filtro.replace('COLUNA', 'r.data_emissao')); paramsHolding.push(...mesesSelecionados); filtrosLancamentos.push(filtro.replace('COLUNA', 'l.data_emissao')); paramsLancamentos.push(...mesesSelecionados) }
     if (aeronaveId) { filtrosCliente.push('r.aeronave_id = ?'); paramsCliente.push(aeronaveId); filtrosHolding.push('r.aeronave_id = ?'); paramsHolding.push(aeronaveId); filtrosLancamentos.push('l.aeronave_id = ?'); paramsLancamentos.push(aeronaveId) }
     if (cotistaClienteId) { filtrosCliente.push('r.cotista_id = ?'); paramsCliente.push(cotistaClienteId) }
     if (cotistaAeronaveId) { filtrosLancamentos.push('l.cotista_aeronave_id = ?'); paramsLancamentos.push(cotistaAeronaveId) }
@@ -61,6 +64,7 @@ dashboardCotistaRoutes.get('/cotista/dashboard', async (c) => {
     if (cotistaSocioId) { filtrosHolding.push('r.socio_id = ?'); paramsHolding.push(cotistaSocioId); filtrosMovimento.push('mh.socio_id = ?'); paramsMovimento.push(cotistaSocioId) }
     if (inicio) { filtrosMovimento.push('date(mh.data_emissao) >= date(?)'); paramsMovimento.push(inicio) }
     if (fim) { filtrosMovimento.push('date(mh.data_emissao) <= date(?)'); paramsMovimento.push(fim) }
+    if (mesesSelecionados) { const placeholders = mesesSelecionados.map(() => '?').join(', '); filtrosMovimento.push(mesesSelecionados.length ? `strftime('%Y-%m', date(mh.data_emissao)) IN (${placeholders})` : '1 = 0'); paramsMovimento.push(...mesesSelecionados) }
     if (aeronaveId) { filtrosMovimento.push('mh.aeronave_id = ?'); paramsMovimento.push(aeronaveId) }
     const lancamentoSemRateio = "NOT EXISTS (SELECT 1 FROM rateio_despesas rd WHERE rd.lancamento_id = l.id AND UPPER(COALESCE(rd.status, '')) <> 'CANCELADO')"
     const movimentoHoldingSemRateio = `NOT EXISTS (SELECT 1 FROM rateio_hold rh WHERE rh.${holdingColumn} = mh.id AND UPPER(COALESCE(rh.status, '')) <> 'CANCELADO')`
@@ -189,6 +193,7 @@ dashboardCotistaRoutes.get('/cotista/dashboard', async (c) => {
     const paramsVoos: unknown[] = [aeronaveId]
     if (inicio) { filtrosVoos.push('date(l.data_registro) >= date(?)'); paramsVoos.push(inicio) }
     if (fim) { filtrosVoos.push('date(l.data_registro) <= date(?)'); paramsVoos.push(fim) }
+    if (mesesSelecionados) { const placeholders = mesesSelecionados.map(() => '?').join(', '); filtrosVoos.push(mesesSelecionados.length ? `strftime('%Y-%m', date(l.data_registro)) IN (${placeholders})` : '1 = 0'); paramsVoos.push(...mesesSelecionados) }
     if (cotistaClienteId) { filtrosVoos.push('l.cliente_id = ?'); paramsVoos.push(cotistaClienteId) }
     if (cotistaSocioId) { filtrosVoos.push('l.socio_id = ?'); paramsVoos.push(cotistaSocioId) }
     const voosMedias = aeronaveId
@@ -214,12 +219,15 @@ dashboardCotistaRoutes.get('/cotista/voos-emprestimos', async (c) => {
     const aeronaveExcluida = String(c.req.query('excluir_aeronave_id') || '').trim()
     const inicio = String(c.req.query('inicio') || '').trim()
     const fim = String(c.req.query('fim') || '').trim()
+    const mesesParam = c.req.query('meses')
+    const mesesSelecionados = mesesParam === undefined ? null : mesesParam.split(',').filter((mes) => /^\d{4}-(0[1-9]|1[0-2])$/.test(mes))
     if (!cotistaId || !['cliente', 'socio'].includes(tipo)) return c.json({ voos_emprestimos: [] })
     const filtros = [`a.voo_emprestado = 1`, `a.${tipo === 'socio' ? 'socio_id' : 'cliente_id'} = ?`]
     const params: unknown[] = [cotistaId]
     if (aeronaveExcluida) { filtros.push('a.aeronave_id <> ?'); params.push(aeronaveExcluida) }
     if (inicio) { filtros.push('date(a.data) >= date(?)'); params.push(inicio) }
     if (fim) { filtros.push('date(a.data) <= date(?)'); params.push(fim) }
+    if (mesesSelecionados) { const placeholders = mesesSelecionados.map(() => '?').join(', '); filtros.push(mesesSelecionados.length ? `strftime('%Y-%m', date(a.data)) IN (${placeholders})` : '1 = 0'); params.push(...mesesSelecionados) }
     const rows = await listar(c.env.SHARE_DB, `SELECT a.id, a.numero_voo, a.data, a.trecho, a.local, a.litros, a.valor_total, a.status, a.numero_comanda, a.numero_nf, a.aeronave_id, ar.matricula_registro, ar.fabricante, ar.modelo, COALESCE(ad.designativo_icao, a.local) AS local_icao FROM abastecimentos a LEFT JOIN aeronave ar ON ar.id = a.aeronave_id LEFT JOIN aerodromo ad ON ad.id = a.local OR upper(trim(ad.designativo_icao)) = upper(trim(a.local)) WHERE ${filtros.join(' AND ')} ORDER BY date(a.data) DESC, a.id DESC`, ...params)
     return c.json({ voos_emprestimos: rows })
   } catch (error) { return errorResponse(c, error) }

@@ -514,17 +514,18 @@ export type VooEmprestimo = {
   fabricante: string | null;
   modelo: string | null;
 };
-export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string) {
-  const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId, inicio, fim });
+export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string, meses?: string[]) {
+  const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId, inicio, fim, meses: meses ? (meses.length ? meses.join(",") : "__nenhum__") : undefined });
   const payload = await financeiroRequest<{ voos_emprestimos?: VooEmprestimo[] }>(`/api/financeiro/cotista/voos-emprestimos${query}`);
   return Array.isArray(payload.voos_emprestimos) ? payload.voos_emprestimos : [];
 }
-export async function buscarDashboardCotista(inicio?: string, fim?: string, aeronaveId?: string, cotistaId?: string) {
+export async function buscarDashboardCotista(inicio?: string, fim?: string, aeronaveId?: string, cotistaId?: string, meses?: string[]) {
   const parametros = new URLSearchParams();
   if (inicio) parametros.set("inicio", inicio);
   if (fim) parametros.set("fim", fim);
   if (aeronaveId) parametros.set("aeronave_id", aeronaveId);
   if (cotistaId) parametros.set("cotista_id", cotistaId);
+  if (meses) parametros.set("meses", meses.length ? meses.join(",") : "__nenhum__");
   const sufixo = parametros.toString() ? `?${parametros.toString()}` : "";
   const payload = await financeiroRequest<Partial<DashboardCotista>>(`/api/financeiro/cotista/dashboard${sufixo}`);
   return {

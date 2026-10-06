@@ -54,6 +54,8 @@ import { buscarOpcoesEnvioPagamento, buscarCotistasAeronave } from "@/lib/colabo
 import { MediasCotista } from "./MediasCotista";
 import { agruparPorMes, mesAtualLocal, periodoDoMes, periodoPersonalizadoValido, rotuloMesCotista, type PeriodoCotista } from "@/lib/financeiro-cotista-periodo";
 
+const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"] as const;
+
 function hoje() {
   const data = new Date();
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
@@ -336,10 +338,13 @@ export default function FinanceiroCotista() {
   const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
   const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
   const [modoPeriodo, setModoPeriodo] = useState<"mes" | "personalizado">("mes");
-  const [mesRascunho, setMesRascunho] = useState(mesAtualLocal);
+  const anoMeses = mesAtualLocal().slice(0, 4);
+  const mesesDisponiveis = useMemo(() => MESES_CURTOS.map((_, indice) => `${anoMeses}-${String(indice + 1).padStart(2, "0")}`), [anoMeses]);
+  const [mesesRascunho, setMesesRascunho] = useState<string[]>(() => MESES_CURTOS.map((_, indice) => `${mesAtualLocal().slice(0, 4)}-${String(indice + 1).padStart(2, "0")}`));
+  const [mesesAplicados, setMesesAplicados] = useState<string[]>(() => MESES_CURTOS.map((_, indice) => `${mesAtualLocal().slice(0, 4)}-${String(indice + 1).padStart(2, "0")}`));
   const [inicioRascunho, setInicioRascunho] = useState(() => periodoDoMes(mesAtualLocal())?.inicio ?? hoje());
   const [fimRascunho, setFimRascunho] = useState(hoje);
-  const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(() => periodoDoMes(mesAtualLocal()) ?? { inicio: hoje(), fim: hoje() });
+  const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(() => ({ inicio: `${mesAtualLocal().slice(0, 4)}-01-01`, fim: `${mesAtualLocal().slice(0, 4)}-12-31` }));
   const dashboardRequestId = useRef(0);
 
   const carregar = useCallback(async () => {
@@ -354,7 +359,7 @@ export default function FinanceiroCotista() {
     setCarregando(true);
     setErroDashboard(null);
     try {
-      const resultado = await buscarDashboardCotista(periodoAplicado.inicio, periodoAplicado.fim, aeronaveSelecionada);
+      const resultado = await buscarDashboardCotista(periodoAplicado.inicio, periodoAplicado.fim, aeronaveSelecionada, undefined, modoPeriodo === "mes" ? mesesAplicados : undefined);
       if (requestId === dashboardRequestId.current) setDashboard(resultado);
     } catch (error) {
       if (requestId === dashboardRequestId.current) {
@@ -364,7 +369,7 @@ export default function FinanceiroCotista() {
     } finally {
       if (requestId === dashboardRequestId.current) setCarregando(false);
     }
-  }, [aeronaveSelecionada, periodoAplicado]);
+  }, [aeronaveSelecionada, periodoAplicado, modoPeriodo, mesesAplicados]);
 
   const carregarAeronaves = useCallback(async () => {
     try {
@@ -409,12 +414,12 @@ export default function FinanceiroCotista() {
     if (!id || (tipo !== "cliente" && tipo !== "socio")) { setVoosEmprestimos([]); setCarregandoEmprestimos(false); return; }
     let cancelada = false;
     setCarregandoEmprestimos(true);
-    void buscarVoosEmprestimos(id, tipo, aeronaveSelecionada, periodoAplicado.inicio, periodoAplicado.fim)
+    void buscarVoosEmprestimos(id, tipo, aeronaveSelecionada, periodoAplicado.inicio, periodoAplicado.fim, modoPeriodo === "mes" ? mesesAplicados : undefined)
       .then((resultado) => { if (!cancelada) setVoosEmprestimos(resultado); })
       .catch(() => { if (!cancelada) setVoosEmprestimos([]); })
       .finally(() => { if (!cancelada) setCarregandoEmprestimos(false); });
     return () => { cancelada = true; };
-  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado]);
+  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado, modoPeriodo, mesesAplicados]);
 
   const lancamentosFiltrados = useMemo(() => {
     if (!aeronaveSelecionada || !dashboard?.lancamentos) return [];
@@ -427,7 +432,7 @@ export default function FinanceiroCotista() {
   const possuiHolding = cotistasAeronave.some((cotista) => Boolean(cotista.eh_holding));
   const [abaAtiva, setAbaAtiva] = useState<"resumo" | "medias" | "lancamentos" | "graficos" | "ranking" | "emprestimos" | "extrato">("resumo");
   const periodoFormularioValido = modoPeriodo === "mes"
-    ? Boolean(periodoDoMes(mesRascunho))
+    ? mesesRascunho.every((mes) => Boolean(periodoDoMes(mes)))
     : periodoPersonalizadoValido(inicioRascunho, fimRascunho);
   const rotuloPeriodoAplicado = periodoAplicado.inicio.slice(0, 7) === periodoAplicado.fim.slice(0, 7)
     && periodoDoMes(periodoAplicado.inicio.slice(0, 7))?.inicio === periodoAplicado.inicio
@@ -435,11 +440,26 @@ export default function FinanceiroCotista() {
     ? rotuloMesCotista(periodoAplicado.inicio.slice(0, 7))
     : `${formatarData(periodoAplicado.inicio)} a ${formatarData(periodoAplicado.fim)}`;
   const aplicarPeriodo = () => {
-    if (!periodoFormularioValido) return;
-    const proximoPeriodo = modoPeriodo === "mes"
-      ? periodoDoMes(mesRascunho)
-      : { inicio: inicioRascunho, fim: fimRascunho };
-    if (proximoPeriodo) setPeriodoAplicado(proximoPeriodo);
+    if (!periodoFormularioValido || modoPeriodo === "mes") return;
+    setPeriodoAplicado({ inicio: inicioRascunho, fim: fimRascunho });
+  };
+  const alternarMes = (mes: string) => {
+    setMesesRascunho((atuais) => {
+      const proximos = atuais.includes(mes) ? atuais.filter((item) => item !== mes) : [...atuais, mes].sort();
+      setMesesAplicados(proximos);
+      setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
+      return proximos;
+    });
+  };
+  const selecionarTodosOsMeses = () => {
+    setMesesRascunho(mesesDisponiveis);
+    setMesesAplicados(mesesDisponiveis);
+    setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
+  };
+  const limparMeses = () => {
+    setMesesRascunho([]);
+    setMesesAplicados([]);
+    setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
   };
 
   const despesas = useMemo(
@@ -537,8 +557,8 @@ export default function FinanceiroCotista() {
             <button type="button" aria-pressed={modoPeriodo === "personalizado"} onClick={() => setModoPeriodo("personalizado")} className={`flex-1 rounded-md px-3 py-2 text-[10px] font-semibold transition-colors ${modoPeriodo === "personalizado" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Data a data</button>
           </div>
         </div>
-        {modoPeriodo === "mes" ? <div className="space-y-1.5"><Label htmlFor="cotista-mes" className="text-[10px]">Selecione o mês</Label><Input id="cotista-mes" type="month" value={mesRascunho} onChange={(evento) => setMesRascunho(evento.target.value)} className="h-10" /></div> : <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="cotista-periodo-inicio" className="text-[10px]">Data inicial</Label><Input id="cotista-periodo-inicio" type="date" value={inicioRascunho} max={fimRascunho || undefined} onChange={(evento) => setInicioRascunho(evento.target.value)} className="h-10" /></div><div className="space-y-1.5"><Label htmlFor="cotista-periodo-fim" className="text-[10px]">Data final</Label><Input id="cotista-periodo-fim" type="date" value={fimRascunho} min={inicioRascunho || undefined} onChange={(evento) => setFimRascunho(evento.target.value)} className="h-10" /></div></div>}
-        <div className="flex flex-wrap items-center gap-2 xl:justify-end"><div className="min-w-[150px] flex-1 rounded-lg border border-primary/20 bg-primary/[.06] px-3 py-2 xl:flex-none"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Aplicado</p><p className="mt-0.5 text-[10px] font-bold capitalize text-primary">{rotuloPeriodoAplicado}</p></div><Button type="button" onClick={aplicarPeriodo} disabled={!periodoFormularioValido || carregando} className="h-10 gap-2 px-4 text-[10px]"><Check size={14} />Aplicar período</Button></div>
+        {modoPeriodo === "mes" ? <div className="space-y-2 xl:col-span-2"><div className="flex items-center justify-between gap-2"><Label className="text-[10px]">Meses:</Label><span className="text-[9px] text-muted-foreground">{mesesRascunho.length} de {mesesDisponiveis.length} selecionado(s)</span></div><div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Selecionar meses"><button type="button" onClick={selecionarTodosOsMeses} aria-pressed={mesesRascunho.length === mesesDisponiveis.length} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Todos</button>{MESES_CURTOS.map((mes, indice) => { const competencia = mesesDisponiveis[indice]; const selecionado = mesesRascunho.includes(competencia); return <button key={competencia} type="button" onClick={() => alternarMes(competencia)} aria-pressed={selecionado} aria-label={`${selecionado ? "Remover" : "Selecionar"} ${mes} ${anoMeses}`} className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors ${selecionado ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>{mes}</button>; })}<button type="button" onClick={limparMeses} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Limpar</button></div></div> : <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="cotista-periodo-inicio" className="text-[10px]">Data inicial</Label><Input id="cotista-periodo-inicio" type="date" value={inicioRascunho} max={fimRascunho || undefined} onChange={(evento) => setInicioRascunho(evento.target.value)} className="h-10" /></div><div className="space-y-1.5"><Label htmlFor="cotista-periodo-fim" className="text-[10px]">Data final</Label><Input id="cotista-periodo-fim" type="date" value={fimRascunho} min={inicioRascunho || undefined} onChange={(evento) => setFimRascunho(evento.target.value)} className="h-10" /></div></div>}
+        <div className="flex flex-wrap items-center gap-2 xl:justify-end"><div className="min-w-[150px] flex-1 rounded-lg border border-primary/20 bg-primary/[.06] px-3 py-2 xl:flex-none"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Aplicado</p><p className="mt-0.5 text-[10px] font-bold capitalize text-primary">{modoPeriodo === "mes" ? `${mesesRascunho.length} mês(es) de ${anoMeses}` : rotuloPeriodoAplicado}</p></div>{modoPeriodo === "personalizado" && <Button type="button" onClick={aplicarPeriodo} disabled={!periodoFormularioValido || carregando} className="h-10 gap-2 px-4 text-[10px]"><Check size={14} />Aplicar período</Button>}</div>
       </section>
 
       {carregando ? <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin" /></div> : erroDashboard ? (

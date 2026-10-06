@@ -8,4 +8,5 @@ test("chamadas do Financeiro Cotista enviam Bearer e apikey Supabase", () => {
   assert.match(source, /headers\.set\("Authorization", `Bearer \$\{session\.access_token\}`\)/);
   assert.match(source, /VITE_SUPABASE_PUBLISHABLE_KEY/);
   assert.match(source, /headers\.set\("apikey", supabasePublishableKey\)/);
+  assert.match(source, /credentials: "omit", cache: "no-store"/);
 });

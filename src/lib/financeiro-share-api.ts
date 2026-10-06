@@ -21,7 +21,7 @@ async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promi
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
   if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit" });
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit", cache: "no-store" });
   const data = await response.json().catch(() => null) as T & { error?: string } | null;
   if (!response.ok) throw new Error(data?.error || `api_${response.status}`);
   return data as T;

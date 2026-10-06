@@ -1,22 +1,18 @@
-import { CheckCircle2, ExternalLink, FileText, Filter, Inbox } from "lucide-react";
-import { SectionCard } from "./SectionCard";
-import { StatusBadge } from "./StatusBadge";
+import { CheckCircle2, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type FiltrosTabela,
   type LancamentoTabela,
   formatarBRL,
   formatarData,
 } from "./lancamento-tabela";
+import { TabelaFinanceiraPremium, type FiltroTabelaFinanceira, type LinhaTabelaFinanceira } from "./TabelaFinanceiraPremium";
 
 interface TabelaLancamentosProps {
   itens: LancamentoTabela[];
@@ -31,9 +27,31 @@ interface TabelaLancamentosProps {
   acoes?: React.ReactNode;
   titulo?: string;
   carregando?: boolean;
+  itensTotais?: LancamentoTabela[];
+  resumo?: string;
 }
 
 const PENDENTES = ["EM_ABERTO", "EM_ATRASO", "PENDENTE", "ATRASADO"];
+const OPCOES_STATUS = [
+  { id: "TODOS", label: "Todos" },
+  { id: "EM_ABERTO", label: "A pagar" },
+  { id: "PAGO", label: "Pagos" },
+  { id: "EM_ATRASO", label: "Vencidos" },
+];
+
+function grupoStatus(status: string): string {
+  if (["EM_ATRASO", "ATRASADO"].includes(status)) return "EM_ATRASO";
+  if (["PENDENTE", "EM_ABERTO"].includes(status)) return "EM_ABERTO";
+  return status;
+}
+
+function rotuloStatus(status: string): { label: string; tone: LinhaTabelaFinanceira["tomStatus"] } {
+  if (status === "PAGO") return { label: "Pago", tone: "emerald" };
+  if (status === "EM_ATRASO" || status === "ATRASADO") return { label: "Vencido", tone: "red" };
+  if (status === "AGENDADO") return { label: "Agendado", tone: "blue" };
+  if (status === "CANCELADO") return { label: "Cancelado", tone: "muted" };
+  return { label: "A pagar", tone: "amber" };
+}
 
 export function TabelaLancamentos({
   itens,
@@ -46,163 +64,83 @@ export function TabelaLancamentos({
   onAgendar,
   onAnexar,
   acoes,
-  titulo = "Tabela de lançamentos",
+  titulo = "Contas a pagar",
   carregando = false,
+  itensTotais = itens,
+  resumo,
 }: TabelaLancamentosProps) {
-  const total = itens.reduce((s, l) => s + l.valor, 0);
+  const counts = new Map<string, number>([["TODOS", itensTotais.length]]);
+  itensTotais.forEach((item) => {
+    const grupo = grupoStatus(item.status);
+    counts.set(grupo, (counts.get(grupo) ?? 0) + 1);
+  });
+  const opcoes: FiltroTabelaFinanceira[] = OPCOES_STATUS.map((opcao) => ({
+    ...opcao,
+    quantidade: counts.get(opcao.id) ?? 0,
+  }));
+  const linhas: LinhaTabelaFinanceira[] = itens.map((lancamento) => {
+    const status = rotuloStatus(lancamento.status);
+    const pendente = PENDENTES.includes(lancamento.status);
+    const menu = onEditar || onDuplicar || onAgendar || onAnexar ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" size="icon" variant="ghost" aria-label={`Mais ações para ${lancamento.descricao}`} className="h-8 w-8 text-muted-foreground">
+            <MoreHorizontal size={16} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {onEditar && <DropdownMenuItem onSelect={() => onEditar(lancamento)}>Editar</DropdownMenuItem>}
+          {onDuplicar && <DropdownMenuItem onSelect={() => onDuplicar(lancamento)}>Duplicar</DropdownMenuItem>}
+          {onAgendar && pendente && <DropdownMenuItem onSelect={() => onAgendar(lancamento)}>Agendar pagamento</DropdownMenuItem>}
+          {onAnexar && <DropdownMenuItem onSelect={() => onAnexar(lancamento)}>Anexar documento</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : null;
+    const acoesLinha = (
+      <div className="flex items-center justify-end gap-1.5">
+        {onAbrirDetalhe && <Button type="button" size="sm" variant="ghost" onClick={() => onAbrirDetalhe(lancamento)} className="h-8 px-2.5 text-[11px]">Detalhes</Button>}
+        {pendente ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => onDarBaixa(lancamento)} className="h-8 gap-1.5 whitespace-nowrap px-2.5 text-[11px]">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Baixar
+          </Button>
+        ) : <span className="whitespace-nowrap px-2 text-[10px] text-muted-foreground">Liquidado</span>}
+        {menu}
+      </div>
+    );
+
+    return {
+      id: lancamento.id,
+      principal: lancamento.fornecedor && lancamento.fornecedor !== "—" ? lancamento.fornecedor : lancamento.descricao,
+      secundaria: lancamento.descricao,
+      categoria: lancamento.categoriaNome,
+      vencimento: formatarData(lancamento.dataVencimento),
+      valor: formatarBRL(lancamento.valor),
+      status: lancamento.status,
+      statusLabel: status.label,
+      tomStatus: status.tone,
+      acoes: acoesLinha,
+    };
+  });
+
+  const filtroAtivo = filtros.status === "TODOS" ? "TODOS" : grupoStatus(filtros.status);
+  const descricao = carregando
+    ? "Carregando lançamentos…"
+    : `${itensTotais.length} ${itensTotais.length === 1 ? "lançamento" : "lançamentos"} · ${resumo ?? `total ${formatarBRL(itensTotais.reduce((total, item) => total + item.valor, 0))}`}`;
 
   return (
-    <SectionCard
+    <TabelaFinanceiraPremium
       titulo={titulo}
-      descricao={carregando ? "Carregando…" : `${itens.length} registros · total ${formatarBRL(total)}`}
-      Icon={FileText}
-      acoes={acoes}
-      semPadding
-    >
-      <div className="border-b border-border px-5 py-3">
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-          Filtros
-        </div>
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          <Input
-            value={filtros.busca}
-            onChange={(e) => onFiltrar({ ...filtros, busca: e.target.value })}
-            placeholder="Buscar descrição, documento ou fornecedor"
-            aria-label="Buscar lançamentos"
-            className="h-9 rounded-xl"
-          />
-          <select
-            value={filtros.status}
-            onChange={(e) => onFiltrar({ ...filtros, status: e.target.value })}
-            className="h-9 rounded-xl border border-input bg-background px-3 text-sm"
-            aria-label="Filtrar por status"
-          >
-            <option value="TODOS">Todos os status</option>
-            <option value="EM_ABERTO">Em aberto</option>
-            <option value="EM_ATRASO">Em atraso</option>
-            <option value="PAGO">Pago</option>
-            <option value="RECEBIDO">Recebido</option>
-            <option value="CANCELADO">Cancelado</option>
-          </select>
-          <select
-            value={filtros.grupo}
-            onChange={(e) => onFiltrar({ ...filtros, grupo: e.target.value })}
-            className="h-9 rounded-xl border border-input bg-background px-3 text-sm"
-            aria-label="Filtrar por grupo"
-          >
-            <option value="TODOS">Todos os grupos</option>
-            <option value="DESPESA">Despesa</option>
-            <option value="RECEITA">Receita</option>
-          </select>
-        </div>
-      </div>
-
-      {itens.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-5 py-16 text-center">
-          <Inbox className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm font-medium text-card-foreground">Nenhum lançamento encontrado</p>
-          <p className="max-w-sm text-xs text-muted-foreground">
-            Ajuste os filtros ou registre um novo lançamento.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Documento / emissão</TableHead>
-                <TableHead className="whitespace-nowrap">Descrição</TableHead>
-                <TableHead className="whitespace-nowrap">Categoria</TableHead>
-                <TableHead className="whitespace-nowrap">Vencimento</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Valor</TableHead>
-                <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itens.map((l) => {
-                const pendente = PENDENTES.includes(l.status);
-                return (
-                  <TableRow
-                    key={l.id}
-                    onClick={onAbrirDetalhe ? () => onAbrirDetalhe(l) : undefined}
-                    className={onAbrirDetalhe ? "cursor-pointer" : undefined}
-                  >
-                    <TableCell className="min-w-[160px]">
-                      {l.documentoUrl ? <a href={l.documentoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex max-w-[180px] items-center gap-1 truncate font-mono text-sm font-semibold text-primary hover:underline"><span className="truncate">{l.documento || "Abrir documento"}</span><ExternalLink className="h-3 w-3 shrink-0" /></a> : <p className="font-mono text-sm font-semibold">{l.documento || "—"}</p>}
-                      <p className="mt-1 text-[11px] text-muted-foreground">Emissão: {formatarData(l.dataEmissao)}</p>
-                    </TableCell>
-                    <TableCell className="max-w-[280px]">
-                      <p className="truncate text-sm font-medium text-card-foreground">{l.descricao}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">{l.fornecedor}</p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm text-card-foreground">{l.categoriaNome}</p>
-                      <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {l.grupoCategoria}
-                      </p>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-sm">
-                      {formatarData(l.dataVencimento)}
-                      {l.dataPagamento && (
-                        <span className="block text-[11px] text-emerald-600">
-                          pago {formatarData(l.dataPagamento)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={`whitespace-nowrap text-right font-mono text-sm font-semibold ${
-                        l.fluxo === "ENTRADA" ? "text-emerald-600" : "text-card-foreground"
-                      }`}
-                    >
-                      {l.fluxo === "ENTRADA" ? "+" : "−"} {formatarBRL(l.valor)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={l.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {onAbrirDetalhe && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAbrirDetalhe(l);
-                            }}
-                          >
-                            Detalhes
-                          </Button>
-                        )}
-                        {onEditar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onEditar(l); }}>Editar</Button>}
-                        {onDuplicar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onDuplicar(l); }}>Duplicar</Button>}
-                        {onAgendar && pendente && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAgendar(l); }}>Agendar</Button>}
-                        {onAnexar && <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAnexar(l); }}>Anexo</Button>}
-                        {pendente ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDarBaixa(l);
-                            }}
-                          >
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                            Dar Baixa
-                          </Button>
-                        ) : (
-                          <span className="self-center text-xs text-muted-foreground">Liquidado</span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </SectionCard>
+      descricao={descricao}
+      linhas={linhas}
+      filtros={opcoes}
+      filtroAtivo={filtroAtivo}
+      aoFiltrar={(id) => onFiltrar({ ...filtros, status: id })}
+      busca={filtros.busca}
+      aoBuscar={(busca) => onFiltrar({ ...filtros, busca })}
+      placeholderBusca="Buscar fornecedor, descrição ou documento"
+      carregando={carregando}
+      mensagemVazia="Nenhuma conta a pagar encontrada."
+      acaoCabecalho={acoes}
+    />
   );
 }

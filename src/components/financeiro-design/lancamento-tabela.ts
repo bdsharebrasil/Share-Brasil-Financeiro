@@ -49,7 +49,7 @@ export function mapearContaAPagar(conta: ContaAPagar): LancamentoTabela {
     id: conta.id,
     lancamentoId: conta.lancamentoId,
     descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a pagar",
-    fornecedor: conta.fornecedorId ?? "—",
+    fornecedor: conta.fornecedor ?? conta.fornecedorId ?? "—",
     categoriaNome: conta.categoriaNome ?? "Sem categoria",
     grupoCategoria: "DESPESA",
     aeronaveId: conta.aeronaveId,

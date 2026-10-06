@@ -1,14 +1,12 @@
 import { useMemo, useState } from "react";
-import { Plus, Wallet } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbaSolicitacoesCompra } from "./AbaSolicitacoesCompra";
 import { toast } from "sonner";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
-import type { ContaAPagar } from "./tipos";
-import { KpiCard } from "@/components/financeiro-design/KpiCard";
-import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
+import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DetalheContaAPagar } from "./DetalheContaAPagar";
 import { agendarContaAPagar, anexarDocumentoLancamento, duplicarLancamento, editarLancamento } from "@/lib/financeiro-share-api";
 import {
@@ -19,25 +17,61 @@ import {
   formatarBRL,
 } from "@/components/financeiro-design/lancamento-tabela";
 
-function formatarBRLLocal(valor: number): string {
-  return formatarBRL(valor);
-}
-
 export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAPagar({});
+  const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
+  const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+  const contaDetalhe = useMemo(() => contas.find((conta) => conta.id === detalheId) || null, [contas, detalheId]);
+  const itens = useMemo(() => contas.map(mapearContaAPagar), [contas]);
+  const filtrados = useMemo(() => itens.filter((lancamento) => {
+    if (filtros.busca) {
+      const busca = filtros.busca.toLocaleLowerCase("pt-BR");
+      const dados = [lancamento.descricao, lancamento.fornecedor, lancamento.id, lancamento.documento ?? ""].join(" ").toLocaleLowerCase("pt-BR");
+      if (!dados.includes(busca)) return false;
+    }
+    if (filtros.status !== "TODOS" && lancamento.status !== filtros.status) return false;
+    if (filtros.grupo !== "TODOS" && lancamento.grupoCategoria !== filtros.grupo) return false;
+    return true;
+  }), [itens, filtros]);
+
+  const emAberto = useMemo(() => contas.filter((conta) => !["PAGO", "CANCELADO"].includes(conta.status)).reduce((total, conta) => total + conta.valor, 0), [contas]);
+  const atrasado = useMemo(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return contas.filter((conta) => !["PAGO", "CANCELADO"].includes(conta.status) && conta.dataVencimento.slice(0, 10) < hoje).reduce((total, conta) => total + conta.valor, 0);
+  }, [contas]);
+  const totalPago = useMemo(() => contas.filter((conta) => conta.status === "PAGO").reduce((total, conta) => total + conta.valor, 0), [contas]);
 
   async function editar(lancamento: LancamentoTabela) {
     const descricao = window.prompt("Descrição da conta", lancamento.descricao);
     if (!descricao?.trim() || descricao.trim() === lancamento.descricao) return;
-    try { await editarLancamento(lancamento.lancamentoId ?? lancamento.id, { descricao: descricao.trim() }); await recarregar(); toast.success("Conta atualizada."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível editar a conta."); }
+    try {
+      await editarLancamento(lancamento.lancamentoId ?? lancamento.id, { descricao: descricao.trim() });
+      await recarregar();
+      toast.success("Conta atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível editar a conta.");
+    }
   }
 
   async function duplicar(lancamento: LancamentoTabela) {
-    try { await duplicarLancamento(lancamento.lancamentoId ?? lancamento.id); await recarregar(); toast.success("Conta duplicada."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível duplicar a conta."); }
+    try {
+      await duplicarLancamento(lancamento.lancamentoId ?? lancamento.id);
+      await recarregar();
+      toast.success("Conta duplicada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível duplicar a conta.");
+    }
   }
 
   async function agendar(lancamento: LancamentoTabela) {
-    try { await agendarContaAPagar(lancamento.id); await recarregar(); toast.success("Pagamento agendado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível agendar o pagamento."); }
+    try {
+      await agendarContaAPagar(lancamento.id);
+      await recarregar();
+      toast.success("Pagamento agendado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível agendar o pagamento.");
+    }
   }
 
   async function anexar(lancamento: LancamentoTabela) {
@@ -45,39 +79,14 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
     if (!url?.trim() || url.trim() === "https://") return;
     const nome = window.prompt("Nome do documento", "documento");
     if (!nome?.trim()) return;
-    try { await anexarDocumentoLancamento(lancamento.lancamentoId ?? lancamento.id, { nome: nome.trim(), url: url.trim() }); await recarregar(); toast.success("Documento anexado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível anexar o documento."); }
+    try {
+      await anexarDocumentoLancamento(lancamento.lancamentoId ?? lancamento.id, { nome: nome.trim(), url: url.trim() });
+      await recarregar();
+      toast.success("Documento anexado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível anexar o documento.");
+    }
   }
-  const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
-  const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
-  const [detalheId, setDetalheId] = useState<string | null>(null);
-  const contaDetalhe = useMemo(() => contas.find((c) => c.id === detalheId) || null, [contas, detalheId]);
-
-  const itens = useMemo(() => contas.map(mapearContaAPagar), [contas]);
-
-  const filtrados = useMemo(() => {
-    return itens.filter((l) => {
-      if (filtros.busca) {
-        const busca = filtros.busca.toLowerCase();
-        if (!l.descricao.toLowerCase().includes(busca) && !l.fornecedor.toLowerCase().includes(busca) && !l.id.toLowerCase().includes(busca) && !(l.documento ?? "").toLowerCase().includes(busca)) return false;
-      }
-      if (filtros.status !== "TODOS" && l.status !== filtros.status) return false;
-      if (filtros.grupo !== "TODOS" && l.grupoCategoria !== filtros.grupo) return false;
-      return true;
-    });
-  }, [itens, filtros]);
-
-  const emAberto = useMemo(
-    () => contas.filter((c) => !["PAGO", "CANCELADO"].includes(c.status)).reduce((s, c) => s + c.valor, 0),
-    [contas],
-  );
-  const atrasado = useMemo(() => {
-    const hoje = new Date().toISOString().slice(0, 10);
-    return contas.filter((c) => !["PAGO", "CANCELADO"].includes(c.status) && c.dataVencimento.slice(0, 10) < hoje).reduce((s, c) => s + c.valor, 0);
-  }, [contas]);
-  const totalPago = useMemo(
-    () => contas.filter((c) => c.status === "PAGO").reduce((s, c) => s + c.valor, 0),
-    [contas],
-  );
 
   async function confirmarBaixa(id: string, dados: DadosBaixaSaida) {
     await darBaixa(id, {
@@ -90,75 +99,34 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
   }
 
   return (
-    <Tabs defaultValue="contas" className="space-y-4">
-      <TabsList className="h-auto rounded-xl border border-border bg-card p-1">
-        <TabsTrigger value="contas" className="rounded-lg px-4 py-2 text-xs">Contas da Share</TabsTrigger>
-        <TabsTrigger value="compras" className="rounded-lg px-4 py-2 text-xs">Solicitações de compra</TabsTrigger>
+    <Tabs defaultValue="contas" className="space-y-3">
+      <TabsList className="h-auto rounded-xl border border-border/70 bg-card/70 p-1">
+        <TabsTrigger value="contas" className="rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Contas da Share</TabsTrigger>
+        <TabsTrigger value="compras" className="rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Solicitações de compra</TabsTrigger>
       </TabsList>
       <TabsContent value="compras" className="mt-0"><AbaSolicitacoesCompra /></TabsContent>
       <TabsContent value="contas" className="mt-0">
-      <div className="space-y-4">
-      {erro && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          {erro}
+        <div className="space-y-3">
+          {erro && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{erro}</div>}
+          <TabelaLancamentos
+            titulo="Contas a pagar"
+            itens={filtrados}
+            itensTotais={itens}
+            filtros={filtros}
+            onFiltrar={setFiltros}
+            onDarBaixa={setBaixaAlvo}
+            onAbrirDetalhe={(lancamento) => setDetalheId(lancamento.id)}
+            onEditar={(lancamento) => void editar(lancamento)}
+            onDuplicar={(lancamento) => void duplicar(lancamento)}
+            onAgendar={(lancamento) => void agendar(lancamento)}
+            onAnexar={(lancamento) => void anexar(lancamento)}
+            carregando={carregando}
+            acoes={<Button type="button" size="sm" className="h-8 gap-2 text-[11px]" onClick={onNovaConta}><Plus size={13} /> Nova conta</Button>}
+            resumo={`Em aberto ${formatarBRL(emAberto)} · vencido ${formatarBRL(atrasado)} · pago ${formatarBRL(totalPago)}`}
+          />
+          <DarBaixaDialog lancamento={baixaAlvo} onFechar={() => setBaixaAlvo(null)} onConfirmar={confirmarBaixa} />
+          <DetalheContaAPagar conta={contaDetalhe} onFechar={() => setDetalheId(null)} onBaixar={darBaixa} />
         </div>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Total a Pagar"
-          valor={formatarBRLLocal(contas.reduce((s, c) => s + c.valor, 0))}
-          detalhe={`${contas.length} registros`}
-          Icon={Wallet}
-          destaque
-        />
-        <KpiCard
-          label="Em Aberto"
-          valor={formatarBRLLocal(emAberto)}
-          detalhe="Pendentes de pagamento"
-          Icon={Wallet}
-        />
-        <KpiCard
-          label="Atrasado"
-          valor={formatarBRLLocal(atrasado)}
-          detalhe={atrasado > 0 ? "Títulos vencidos" : "Nenhum título em atraso"}
-          Icon={Wallet}
-        />
-        <KpiCard
-          label="Pago"
-          valor={formatarBRLLocal(totalPago)}
-          detalhe="Já liquidados"
-          Icon={Wallet}
-        />
-      </div>
-
-      <TabelaLancamentos
-        titulo="Contas a pagar"
-        itens={filtrados}
-        filtros={filtros}
-        onFiltrar={setFiltros}
-        onDarBaixa={setBaixaAlvo}
-        onAbrirDetalhe={(l) => setDetalheId(l.id)}
-        onEditar={(l) => void editar(l)}
-        onDuplicar={(l) => void duplicar(l)}
-        onAgendar={(l) => void agendar(l)}
-        onAnexar={(l) => void anexar(l)}
-        carregando={carregando}
-        acoes={<Button size="sm" className="gap-2" onClick={onNovaConta}><Plus size={14} /> Nova conta</Button>}
-      />
-
-      <DarBaixaDialog
-        lancamento={baixaAlvo}
-        onFechar={() => setBaixaAlvo(null)}
-        onConfirmar={confirmarBaixa}
-      />
-
-      <DetalheContaAPagar
-        conta={contaDetalhe}
-        onFechar={() => setDetalheId(null)}
-        onBaixar={darBaixa}
-      />
-      </div>
       </TabsContent>
     </Tabs>
   );

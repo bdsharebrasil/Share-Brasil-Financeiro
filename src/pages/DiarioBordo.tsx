@@ -38,6 +38,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [modoCelulaCabecalho, setModoCelulaCabecalho] = useState<"celula" | "tvoo">("celula");
 
   const loadList = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true); else setLoading(true);
@@ -94,7 +95,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 
   const openAircraft = (aircraft: DiarioAeronaveResumo) => {
     const nextPeriod = { ano, mes: aircraft.mes_referencia || now.getMonth() + 1 };
-    setSelected(aircraft); setPeriod(nextPeriod); setDetails(null); setMonthEditor(false); setEntryEditor(false); setNotice(null); void loadDetails(aircraft, nextPeriod);
+    setSelected(aircraft); setPeriod(nextPeriod); setDetails(null); setMonthEditor(false); setEntryEditor(false); setNotice(null); setModoCelulaCabecalho("celula"); void loadDetails(aircraft, nextPeriod);
   };
   const backToList = () => { setSelected(null); setDetails(null); setEntryEditor(false); setMonthEditor(false); setNotice(null); void loadList(true); };
   const changePeriod = (value: string) => { const [year, month] = value.split("-").map(Number); const next = { ano: year, mes: month }; setPeriod(next); if (selected) void loadDetails(selected, next); setEntryEditor(false); setMonthEditor(false); };
@@ -193,14 +194,20 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
           <div className={`mt-3 ${card} p-4`}>
             <div className="mb-3 flex items-center gap-2">
               <span className="h-4 w-1 rounded-full bg-violet-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-400">Célula</span>
+              <button type="button" onClick={() => setModoCelulaCabecalho((modo) => modo === "celula" ? "tvoo" : "celula")} className="flex items-center gap-1 rounded-md px-1 text-[10px] font-bold uppercase tracking-[.16em] text-violet-400 transition-colors hover:bg-violet-400/10" title="Alternar entre CÉLULA e CÉLULA TVOO">{modoCelulaCabecalho === "celula" ? "Célula" : "Célula TVOO"}<span className="text-[9px] normal-case tracking-normal opacity-70">(clique para alternar)</span></button>
             </div>
-            <div className="diario-stat-grid gap-3">
-              <StatTile label="Anterior" value={`${decimal(month?.celula_anterior_ttotal)}h`} />
-              <StatTile label="Atual" value={`${decimal(month?.celula_atual_ttotal || selected.celula_atual_ttotal)}h`} accent="text-foreground" />
-              <StatTile label="Próx. revisão" value={`${decimal(month?.celula_prox_revisao_ttotal)}h`} />
-              <StatTile label="Disponível" value={`${decimal(month?.celula_disponivel_ttotal)}h`} accent="text-emerald-500" />
-            </div>
+            {(() => {
+              const usaTvoo = modoCelulaCabecalho === "tvoo";
+              const atual = usaTvoo ? Number(month?.celula_atual_tvoo || 0) : Number(month?.celula_atual_ttotal || selected.celula_atual_ttotal || 0);
+              const revisao = usaTvoo ? Number(month?.celula_prox_revisao_tvoo || 0) : Number(month?.celula_prox_revisao_ttotal || 0);
+              const disponivel = usaTvoo ? Number(month?.celula_disponivel_tvoo ?? (revisao - atual)) : Number(month?.celula_disponivel_ttotal ?? (revisao - atual));
+              return <div className="diario-stat-grid gap-3">
+                <StatTile label="Anterior" value={`${decimal(usaTvoo ? month?.celula_anterior_tvoo : month?.celula_anterior_ttotal)}h`} />
+                <StatTile label="Atual" value={`${decimal(atual)}h`} accent="text-foreground" />
+                <StatTile label="Próx. revisão" value={`${decimal(revisao)}h`} />
+                <StatTile label="Disponível" value={`${decimal(disponivel)}h`} accent={disponivel <= 10 ? "text-amber-400" : "text-emerald-500"} />
+              </div>;
+            })()}
           </div>
         </section>
 
@@ -209,7 +216,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         {optionsError && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-foreground"><span>Os dados do diário foram carregados, mas as opções para incluir/editar voo não estão disponíveis: {optionsError}</span><Button type="button" variant="outline" onClick={() => void loadOptions()} disabled={optionsLoading} className="h-8">Tentar novamente</Button></div>}
         {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : details && !month && <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
         {month && <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-amber-400"><Fuel size={14} /></span><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-400">Consumo de combustível</p><p className="mt-0.5 truncate text-[10px] text-muted-foreground">Histórico registrado no mês <span className="mx-1 text-muted-foreground/60">·</span> {decimal(fuelTotal)} L abastecidos</p></div></div><ChevronDown size={15} className="shrink-0 text-amber-400/70" /></div>}
-        {monthEditor && <CreateMonthDialog open={monthEditor} onOpenChange={setMonthEditor} aircraftId={selected.id} aircraftRegistration={selected.matricula_registro} month={period.mes} year={period.ano} currentModoCelula={month?.modo_celula || null} previousMonthData={month ? { celula_atual_ttotal: month.celula_atual_ttotal, celula_prox_revisao_ttotal: month.celula_prox_revisao_ttotal, horimetro_final: month.horimetro_final, aerodromo_base: month.aerodromo_base, consumo_combustivel: month.consumo_combustivel, tem_tarifa_diaria: Boolean(month.tem_tarifa_diaria), tarifa_diaria: month.tarifa_diaria } : null} onCreate={(payload) => saveMonth(payload)} />}
+        {monthEditor && <CreateMonthDialog open={monthEditor} onOpenChange={setMonthEditor} aircraftId={selected.id} aircraftRegistration={selected.matricula_registro} month={period.mes} year={period.ano} currentModoCelula={month?.modo_celula || null} previousMonthData={month ? { celula_atual_ttotal: month.celula_atual_ttotal, celula_prox_revisao_ttotal: month.celula_prox_revisao_ttotal, celula_atual_tvoo: month.celula_atual_tvoo, celula_prox_revisao_tvoo: month.celula_prox_revisao_tvoo, horimetro_final: month.horimetro_final, aerodromo_base: month.aerodromo_base, consumo_combustivel: month.consumo_combustivel, tem_tarifa_diaria: Boolean(month.tem_tarifa_diaria), tarifa_diaria: month.tarifa_diaria } : null} onCreate={(payload) => saveMonth(payload)} />}
         {entryEditor !== false && month && !closed && options && <DiarioLancamentoFormIntegrado aeronaveId={selected.id} consumoCombustivel={selected.consumo_combustivel} diarioMesId={month.id} opcoes={options} initialData={entryEditor || null} sugestaoTrecho={details?.lancamentos?.length ? details.lancamentos[details.lancamentos.length - 1].trecho || `${details.lancamentos[details.lancamentos.length - 1].aerodromo_partida} X ${details.lancamentos[details.lancamentos.length - 1].aerodromo_chegada}` : undefined} temDiaria={Boolean(month.tem_tarifa_diaria)} onSubmit={saveEntry} onCancel={() => setEntryEditor(false)} saving={saving} />}
         {month && (
           <div className="space-y-4">

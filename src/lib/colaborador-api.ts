@@ -985,6 +985,10 @@ export type DiarioAeronaveResumo = {
   horas_ano: number;
   celula_atual_ttotal: number;
   celula_prox_revisao_ttotal: number;
+  celula_disponivel_ttotal?: number | null;
+  celula_atual_tvoo?: number | null;
+  celula_prox_revisao_tvoo?: number | null;
+  celula_disponivel_tvoo?: number | null;
   mes_referencia: number;
   fechado: number;
 };
@@ -1090,7 +1094,7 @@ export type DiarioLancamento = {
   abastecimento_comanda?: string | null;
   abastecimento_nota?: string | null;
 };
-export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal">>; horas_cotistas?: Array<{ cotista_id: string | null; cotista_nome: string; horas_voo: number }>; horas_emprestadas?: { horas_total: number; quantidade: number } };
+export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal" | "celula_disponivel_ttotal" | "celula_atual_tvoo" | "celula_prox_revisao_tvoo" | "celula_disponivel_tvoo">>; horas_cotistas?: Array<{ cotista_id: string | null; cotista_nome: string; horas_voo: number }>; horas_emprestadas?: { horas_total: number; quantidade: number } };
 
 export function buscarResumoDiario(ano?: number) {
   return colaboradorRequest<{ ano: number; aeronaves: DiarioAeronaveResumo[] }>(`/api/interno/diario-bordo/resumo${ano ? `?ano=${ano}` : ""}`);

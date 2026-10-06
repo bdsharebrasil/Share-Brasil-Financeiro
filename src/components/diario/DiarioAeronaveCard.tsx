@@ -9,7 +9,7 @@ function horas(value: number | string | null | undefined) {
 export default function DiarioAeronaveCard({ aeronave, ano, onOpen }: { aeronave: DiarioAeronaveResumo; ano: number; onOpen: () => void }) {
   const atual = Math.max(Number(aeronave.celula_atual_ttotal || 0), Number(aeronave.horas_ano || 0));
   const revisao = Number(aeronave.celula_prox_revisao_ttotal || 0);
-  const restante = revisao > 0 ? revisao - atual : null;
+  const restante = revisao > 0 ? Number(aeronave.celula_disponivel_ttotal ?? (revisao - atual)) : null;
   const percentual = revisao > 0 ? Math.min(100, Math.max(0, (atual / revisao) * 100)) : 0;
   const urgente = restante !== null && restante <= 10;
   const statusAtivo = (aeronave.status || "").toLowerCase().startsWith("ativ");

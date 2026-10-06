@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { buscarGestaoColaboradores, type ColaboradorGestao } from '@/lib/colaborador-api'
 import { buscarOpcoesFinanceiroShare, type ContaBancaria } from '@/lib/financeiro-share-api'
 import { formatCentavos, parseReaisToCentavos } from '@/lib/money'
+import { type HoleriteLido } from '@/lib/holerite-parser'
+import { lerHoleritePdf } from '@/lib/holerite-pdf'
 import {
   buscarPagamentosFolha,
   carregarAnexoPagamentoFolha,
@@ -54,6 +56,14 @@ const HOJE = () => {
 }
 const valoresVazios = (): Record<Campo, string> => ({ salario: '', ferias: '', decimo1: '', decimo2: '', beneficio: '', horasVoo: '', extra: '' })
 const centavosParaTexto = (valor: number) => (valor ? (valor / 100).toFixed(2) : '')
+const nomesCorrespondem = (primeiro: string, segundo: string) => {
+  const normalizar = (nome: string) => nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter((parte) => parte && !['DA', 'DAS', 'DE', 'DO', 'DOS', 'E'].includes(parte))
+  const a = normalizar(primeiro)
+  const b = normalizar(segundo)
+  const menor = a.length <= b.length ? a : b
+  const maior = a.length <= b.length ? b : a
+  return menor.length > 0 && menor.every((parte) => maior.includes(parte))
+}
 
 function montarLinha(colaborador: ColaboradorGestao, pagamentos: PagamentoFolha[]): Linha {
   const itens = pagamentos.filter((pagamento) => pagamento.user_id === colaborador.id && pagamento.status !== 'CANCELADO')
@@ -219,16 +229,66 @@ export function PagamentoSalarioTab() {
     if (arquivo.size > 10 * 1024 * 1024) return toast.error('O arquivo deve ter até 10 MB.')
     patch(linha.userId, { loading: true })
     try {
-      const { url } = await enviarAnexoPagamentoFolha(arquivo, tipo, linha.userId, Number(ano), Number(mes))
+      let linhaDestino = linha
+      let anoDestino = Number(ano)
+      let mesDestino = Number(mes)
+      let leitura: HoleriteLido | null = null
+      if (tipo === 'holerite' && arquivo.type === 'application/pdf') {
+        try {
+          leitura = await lerHoleritePdf(arquivo)
+        } catch { leitura = null }
+        if (leitura?.nomeColaborador && !nomesCorrespondem(leitura.nomeColaborador, linha.nome)) {
+          throw new Error(`O holerite está em nome de ${leitura.nomeColaborador}, não de ${linha.nome}. Selecione o colaborador correto.`)
+        }
+        if (leitura && (leitura.ano !== anoDestino || leitura.mes !== mesDestino)) {
+          const resposta = await buscarPagamentosFolha(leitura.ano, leitura.mes)
+          const novasLinhas = colaboradores.map((colaborador) => montarLinha(colaborador, resposta.pagamentos))
+          novasLinhas.sort((a, b) => Number(b.registrado) - Number(a.registrado) || a.nome.localeCompare(b.nome, 'pt-BR'))
+          setAno(String(leitura.ano))
+          setMes(String(leitura.mes).padStart(2, '0'))
+          setLinhas(novasLinhas)
+          setExpandido(linha.userId)
+          anoDestino = leitura.ano
+          mesDestino = leitura.mes
+          linhaDestino = novasLinhas.find((item) => item.userId === linha.userId) ?? linha
+        }
+        if (leitura?.nomeColaborador && !nomesCorrespondem(leitura.nomeColaborador, linhaDestino.nome)) {
+          throw new Error(`O colaborador ${linhaDestino.nome} não corresponde ao nome no holerite (${leitura.nomeColaborador}).`)
+        }
+        if (leitura && linhaDestino.status === 'PAGO') {
+          throw new Error('Este pagamento já está marcado como pago e não pode ser alterado.')
+        }
+        if (leitura) {
+          const resumoHolerite = `Holerite lido automaticamente: vencimentos ${formatCentavos(leitura.totalVencimentosCentavos ?? 0)}, descontos ${formatCentavos(leitura.totalDescontosCentavos ?? 0)}, líquido ${formatCentavos(leitura.totalLiquidoCentavos)}, salário-base ${formatCentavos(leitura.salarioBaseCentavos ?? 0)}.`
+          const observacoesAnteriores = linhaDestino.observacoes.replace(/\n?Holerite lido automaticamente:[^\n]*/g, '').trim()
+          patch(linha.userId, {
+            valores: {
+              ...linhaDestino.valores,
+              salario: linhaDestino.valores.salario.trim() || centavosParaTexto(leitura.totalLiquidoCentavos),
+            },
+            observacoes: [observacoesAnteriores, resumoHolerite].filter(Boolean).join('\n').slice(0, 2000),
+            dirty: true,
+            loading: true,
+          })
+        }
+      }
+      const { url } = await enviarAnexoPagamentoFolha(arquivo, tipo, linha.userId, anoDestino, mesDestino)
       patch(linha.userId, {
         [tipo === 'holerite' ? 'holeriteUrl' : 'comprovanteUrl']: url,
         dirty: true,
         loading: false,
       })
-      toast.success(`${tipo === 'holerite' ? 'Holerite' : 'Comprovante'} enviado. Salve a linha para vinculá-lo ao pagamento.`)
+      if (leitura) {
+        toast.success(`Holerite lido e enviado. Líquido preenchido no campo Salário${leitura.ano !== Number(ano) || leitura.mes !== Number(mes) ? `; competência ajustada para ${String(leitura.mes).padStart(2, '0')}/${leitura.ano}` : ''}. Revise os dados e salve a linha.`)
+      } else {
+        toast.success(`${tipo === 'holerite' ? 'Holerite' : 'Comprovante'} enviado. Salve a linha para vinculá-lo ao pagamento.`)
+        if (tipo === 'holerite') {
+          toast.info('Não foi possível identificar os valores automaticamente neste arquivo. O anexo foi mantido; confira e preencha os campos manualmente.')
+        }
+      }
     } catch (cause) {
       patch(linha.userId, { loading: false })
-      toast.error(`Não foi possível enviar o anexo: ${cause instanceof Error ? cause.message : String(cause)}`)
+      toast.error(`Não foi possível processar o anexo: ${cause instanceof Error ? cause.message : String(cause)}`)
     }
   }
 

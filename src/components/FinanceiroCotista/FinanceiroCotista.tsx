@@ -100,6 +100,7 @@ import {
   buscarCotistasAeronave,
 } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
+import { RelatorioGeralCotista } from "./RelatorioGeralCotista";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -2251,6 +2252,7 @@ export default function FinanceiroCotista() {
   const [abaAtiva, setAbaAtiva] = useState<
     | "resumo"
     | "medias"
+    | "relatorio"
     | "lancamentos"
     | "graficos"
     | "ranking"
@@ -2451,6 +2453,14 @@ export default function FinanceiroCotista() {
             >
               <Gauge size={14} />
               MÉDIAS
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva("relatorio")}
+              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "relatorio" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <FileText size={14} />
+              Fechamento Balanço
             </button>
             <button
               type="button"
@@ -2785,6 +2795,9 @@ export default function FinanceiroCotista() {
                 </div>
               )}
 
+              {abaAtiva === "relatorio" && (
+                <RelatorioGeralCotista aeronaveId={aeronaveSelecionada} />
+              )}
               {abaAtiva === "medias" && (
                 <MediasCotista
                   medias={dashboard?.medias ?? null}

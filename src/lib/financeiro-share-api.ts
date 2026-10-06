@@ -212,6 +212,14 @@ export type ResumoShare = {
 export type GrupoShare = { grupo: string; valor: number };
 export type FiltrosLancamentos = { mes?: string; inicio?: string; fim?: string; busca?: string; categoria_id?: string; status?: string };
 
+export type DocumentoVinculado = {
+  id?: string;
+  nome: string;
+  url: string;
+  numero?: string | null;
+  tipo?: string | null;
+};
+
 export type RateioEconomico = {
   id?: string;
   cotistaId?: string | null;
@@ -220,9 +228,15 @@ export type RateioEconomico = {
   valorCentavos: number;
   percentualSociedade?: number | null;
   valorPagoRealCentavos?: number;
+  dataVencimento?: string | null;
+  dataPagamento?: string | null;
+  subcategorias?: string[];
+  tipoRateio?: string | null;
+  periodicidade?: string | null;
   pagoPor?: string | null;
   pagoDiretamente?: boolean;
   status?: string;
+  documentos?: DocumentoVinculado[];
 };
 
 export type LancamentoEconomico = {
@@ -266,6 +280,8 @@ export type LancamentoEconomico = {
   observacoes: string | null;
   local?: string | null;
   periodicidade?: string | null;
+  subcategorias?: string[];
+  documentos?: DocumentoVinculado[];
   rateios: RateioEconomico[];
 };
 

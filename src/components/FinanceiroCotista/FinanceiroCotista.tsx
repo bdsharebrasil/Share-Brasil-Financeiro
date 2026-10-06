@@ -146,7 +146,7 @@ const DESPESAS_ESTILOS = `
 .despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .despesa-ledger { background: #101b2e; border: 1px solid #263650; border-radius: 16px; overflow: hidden; }
 .despesa-heading { background: linear-gradient(115deg, #15243b, #101b2e); }
-.despesa-toolbar { background: rgba(10, 20, 36, 1); padding: 6px 50px; }
+.despesa-toolbar { position: sticky; top: 0; z-index: 4; background: rgba(10, 20, 36, .98); padding: 6px 24px; }
 .despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: #3c5475 #101b2e; }
 .despesa-table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
 .despesa-table thead { position: sticky; top: 0; z-index: 2; background: #0c1627; color: #9aadc8; }
@@ -1002,7 +1002,7 @@ function LancamentoExpandido({
   lancamento: LancamentoEconomico;
   aoAbrirDocumento: (nome: string, url: string) => void;
 }) {
-  const documentos = [
+  const documentosLegados = [
     ["Documento", lancamento.urlDoc, lancamento.numeroDoc],
     ["Nota fiscal", lancamento.urlNf, lancamento.numeroNf],
     ["Recibo", lancamento.urlRecibo, lancamento.numeroRecibo],
@@ -1016,27 +1016,48 @@ function LancamentoExpandido({
     Boolean(item[1]),
   );
 
-  // Uma linha por cotista. Se a API não trouxer rateios, usa os dados do próprio lançamento.
+  // Uma linha por cotista, preservando os documentos anexados àquela parcela.
   const partes =
     lancamento.rateios.length > 0
       ? lancamento.rateios.map((r, i) => ({
           chave: r.id || `${r.cotistaId || r.cotista}-${i}`,
           cota: r.percentualSociedade ?? r.percentual,
+          uso: r.percentual,
           responsavel: r.cotista,
           parcela: r.valorCentavos,
+          valorPagoReal: r.valorPagoRealCentavos ?? 0,
+          dataVencimento: r.dataVencimento,
+          dataPagamento: r.dataPagamento,
+          subcategorias: r.subcategorias ?? [],
+          tipoRateio: r.tipoRateio,
+          periodicidade: r.periodicidade,
+          pagoPor: r.pagoPor,
           pagoDiretamente: Boolean(r.pagoDiretamente),
+          documentos: r.documentos ?? [],
         }))
       : [
           {
             chave: "unico",
             cota: lancamento.percentualSociedade,
+            uso: lancamento.percentualUso ?? lancamento.percentualSociedade ?? 0,
             responsavel:
               lancamento.participanteNome || lancamento.pagoPor || "—",
             parcela:
               lancamento.valorRateadoCentavos || lancamento.valorCentavos,
+            valorPagoReal: lancamento.valorPagoRealCentavos ?? 0,
+            dataVencimento: lancamento.prazo,
+            dataPagamento: lancamento.dataPagamento,
+            subcategorias: lancamento.subcategorias ?? [],
+            tipoRateio: lancamento.tipo,
+            periodicidade: lancamento.periodicidade,
+            pagoPor: lancamento.pagoPor,
             pagoDiretamente: false,
+            documentos: lancamento.documentos ?? [],
           },
         ];
+  const documentosGerais = lancamento.documentos?.length
+    ? lancamento.documentos
+    : documentosLegados;
 
   const fmtPct = (v: number | null | undefined) =>
     v == null
@@ -1048,25 +1069,36 @@ function LancamentoExpandido({
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
           <h3 className="despesa-detail-title">Documentos vinculados</h3>
-          {documentos.length ? (
-            <div className="flex flex-col items-start gap-2">
-              {documentos.map(([nome, url, numero]) => (
+          {partes.some((parte) => parte.documentos.length) || documentosGerais.length ? (
+            <div className="space-y-4">
+              {partes.map((parte) => parte.documentos.length ? (
+                <div key={`docs-${parte.chave}`} className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground">{parte.responsavel}</p>
+                  <div className="flex flex-col items-start gap-2">
+                    {parte.documentos.map((documento) => (
+                      <button
+                        key={`${parte.chave}-${documento.id ?? documento.url}`}
+                        type="button"
+                        onClick={() => aoAbrirDocumento(`${parte.responsavel} · ${documento.nome}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
+                        className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
+                      >
+                        <FileText size={14} className="shrink-0 text-primary" />
+                        <span className="break-words [overflow-wrap:anywhere]">{documento.nome}{documento.numero ? ` · ${documento.numero}` : ""}</span>
+                        <Eye size={13} className="shrink-0 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null)}
+              {!partes.some((parte) => parte.documentos.length) && documentosGerais.map((documento) => (
                 <button
-                  key={`${nome}-${url}`}
+                  key={`${documento.nome}-${documento.url}`}
                   type="button"
-                  onClick={() =>
-                    aoAbrirDocumento(
-                      `${nome}${numero ? ` · ${numero}` : ""}`,
-                      url,
-                    )
-                  }
+                  onClick={() => aoAbrirDocumento(`${documento.nome}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
                   className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
                 >
                   <FileText size={14} className="shrink-0 text-primary" />
-                  <span className="break-words [overflow-wrap:anywhere]">
-                    {nome}
-                    {numero ? ` · ${numero}` : ""}
-                  </span>
+                  <span className="break-words [overflow-wrap:anywhere]">{documento.nome}{documento.numero ? ` · ${documento.numero}` : ""}</span>
                   <Eye size={13} className="shrink-0 text-muted-foreground" />
                 </button>
               ))}
@@ -1084,28 +1116,17 @@ function LancamentoExpandido({
             {partes.map((p) => (
               <dl
                 key={p.chave}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-6 gap-y-1 py-3 text-xs first:pt-0 last:pb-0"
+                className="grid gap-3 border-b border-border py-3 text-xs first:pt-0 last:border-b-0 last:pb-0"
               >
-                <div>
-                  <dt className="text-muted-foreground">Cota</dt>
-                  <dd className="mt-1 font-mono font-bold">{fmtPct(p.cota)}</dd>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div><dt className="text-muted-foreground">Cotista / cota</dt><dd className="mt-1 break-words font-bold">{p.responsavel} · {fmtPct(p.cota)}</dd></div>
+                  <div><dt className="text-muted-foreground">Vencimento / pagamento</dt><dd className="mt-1 font-mono tabular-nums">{p.dataVencimento ? formatarData(p.dataVencimento) : "—"} · {p.dataPagamento ? formatarData(p.dataPagamento) : "—"}</dd></div>
+                  <div><dt className="text-muted-foreground">Tipo / periodicidade</dt><dd className="mt-1">{p.tipoRateio || "—"} · {p.periodicidade || "—"}</dd></div>
                 </div>
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground">Responsável</dt>
-                  <dd className="mt-1 break-words font-bold [overflow-wrap:anywhere]">
-                    {p.responsavel}
-                    {p.pagoDiretamente && (
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        · pago diretamente
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div className="text-right">
-                  <dt className="text-muted-foreground">Parcela</dt>
-                  <dd className="mt-1 font-mono font-bold tabular-nums">
-                    {formatarCentavos(p.parcela)}
-                  </dd>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words">{p.subcategorias.length ? p.subcategorias.join(" · ") : "—"}</dd></div>
+                  <div><dt className="text-muted-foreground">Percentual de uso / valor pago real</dt><dd className="mt-1 font-mono tabular-nums">{fmtPct(p.uso)} · {formatarCentavos(p.valorPagoReal)}</dd></div>
+                  <div><dt className="text-muted-foreground">Pago por / parcela</dt><dd className="mt-1 break-words font-mono">{p.pagoPor || (p.pagoDiretamente ? p.responsavel : "—")} · {formatarCentavos(p.parcela)}</dd></div>
                 </div>
               </dl>
             ))}
@@ -1453,7 +1474,7 @@ function LancamentosDespesa({
         </header>
 
         <div className="despesa-toolbar space-y-3 border-b border-border py-[6px] px-[50px] bg-[rgba(10,20,36,1)]">
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(150px,1fr)_minmax(180px,1fr)_minmax(150px,1fr)]">
             <div className="min-w-0 space-y-1.5">
               <Label
                 htmlFor="despesa-busca"

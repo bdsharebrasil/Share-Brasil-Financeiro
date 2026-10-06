@@ -1,4 +1,4 @@
-const CACHE_NAME = "share-brasil-v1";
+const CACHE_NAME = "share-brasil-v2";
 const APP_SHELL = ["/", "/login", "/manifest.json", "/favicon.ico", "/logo.share.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -17,6 +17,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.pathname === "/api/financeiro" || requestUrl.pathname.startsWith("/api/financeiro/")) return;
 
   event.respondWith(
     fetch(event.request)

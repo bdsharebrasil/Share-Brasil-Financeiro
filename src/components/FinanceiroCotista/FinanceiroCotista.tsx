@@ -1,4 +1,3 @@
-
 import {
   Fragment,
   useCallback,
@@ -126,7 +125,7 @@ const DESPESAS_ESTILOS = `
   color: #e6eefb; color-scheme: dark;
   font-family: inherit;
 }
-.despesas-shell { padding: 20px; background: #0a1221; border: 1px solid #24334c; border-radius: 20px; }
+.despesas-shell { padding: 20px; background: rgba(11, 15, 25, 1); border: 1px solid #24334c; border-radius: 20px; }
 .despesas-theme .text-muted-foreground { color: #9aadc8; }
 .despesas-theme .text-foreground { color: #e6eefb; }
 .despesas-theme .text-primary { color: #73c5ff; }
@@ -138,12 +137,12 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid #73c5ff; outline-offset: 3px; }
 .despesas-theme .despesa-primary { background: #69c3ff; color: #081324; border: 1px solid #8ed2ff; box-shadow: 0 4px 20px #2994db18; font-weight: 700; }
 .despesas-theme .despesa-primary:hover { background: #93d5ff; }
-.despesa-metric { position: relative; border: 1px solid #263650; border-radius: 14px; background: linear-gradient(135deg, #15243b, #101b2e); padding: 18px; }
+.despesa-metric { position: relative; border: 1px solid #1c273c; border-radius: 10px; background: #0e1626; padding: 10px 14px; }
 .despesas-theme .text-emerald-700 { color: #5ce0bf; }
 .despesas-theme .text-amber-700 { color: #ffd36c; }
 .despesas-theme .text-blue-700 { color: #83bfff; }
-.despesa-metric:first-child { border-color: #395778; }
-.despesa-metric-value { font-size: clamp(1.3rem, 2vw, 1.75rem); font-weight: 650; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.despesa-metric:first-child { border-color: #273752; }
+.despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .despesa-ledger { background: #101b2e; border: 1px solid #263650; border-radius: 16px; overflow: hidden; }
 .despesa-heading { background: linear-gradient(115deg, #15243b, #101b2e); }
 .despesa-toolbar { background: #0d1729; }
@@ -179,8 +178,8 @@ const DESPESAS_ESTILOS = `
 .despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
 @media (max-width: 639px) {
   .despesas-shell { padding: 10px; border-radius: 14px; }
-  .despesa-metric { padding: 14px; }
-  .despesa-metric-value { font-size: 1.3rem; }
+  .despesa-metric { padding: 8px 12px; }
+  .despesa-metric-value { font-size: 0.95rem; }
   .despesa-footer-total { width: 100%; justify-content: space-between; }
 }
 @media (prefers-reduced-motion: reduce) { .despesas-theme * { transition: none !important; } }
@@ -1450,26 +1449,26 @@ function LancamentosDespesa({
   return (
     <div className="despesas-theme despesas-shell min-w-0 space-y-5">
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ titulo, valor, detalhe, Icon, cor }) => (
           <section
             key={titulo}
             className="despesa-metric min-w-0"
           >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-muted-foreground">
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="text-[11px] font-medium text-muted-foreground">
                 {titulo}
               </p>
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${cor}`}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${cor}`}
               >
-                <Icon size={18} />
+                <Icon size={13} />
               </span>
             </div>
-            <p className="despesa-metric-value mt-3 break-words [overflow-wrap:anywhere]">
+            <p className="despesa-metric-value mt-1 break-words [overflow-wrap:anywhere]">
               {formatarCentavos(valor)}
             </p>
-            <p className="mt-1.5 text-xs text-muted-foreground">{detalhe}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground/75">{detalhe}</p>
           </section>
         ))}
       </div>
@@ -2598,59 +2597,59 @@ export default function FinanceiroCotista() {
                           </p>
                         </div>
                       </div>
-                      <div className="grid gap-4 p-4 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border bg-muted/20 p-4">
-                          <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      <div className="grid gap-2.5 p-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Custos fixos
                           </p>
-                          <p className="mt-2 text-xl font-bold">
+                          <p className="mt-1 font-mono text-base font-bold text-foreground">
                             {formatarCentavos(custoFixo)}
                           </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
                             Hangar, seguro e recorrências
                           </p>
                         </div>
-                        <div className="rounded-lg border border-border bg-muted/20 p-4">
-                          <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                        <div className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Custos variáveis
                           </p>
-                          <p className="mt-2 text-xl font-bold">
+                          <p className="mt-1 font-mono text-base font-bold text-foreground">
                             {formatarCentavos(custoVariavel)}
                           </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
                             Operação, combustível e demais despesas
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className="financeiro-panel p-5">
-                      <p className="text-sm font-bold">Indicadores</p>
-                      <div className="mt-4 space-y-4">
-                        <div>
+                    <div className="financeiro-panel p-3.5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Indicadores</p>
+                      <div className="mt-2.5 space-y-2">
+                        <div className="flex items-baseline justify-between gap-2">
                           <p className="text-[10px] text-muted-foreground">
                             Média mensal
                           </p>
-                          <p className="font-mono text-sm font-bold">
+                          <p className="font-mono text-xs font-bold">
                             {formatarMoeda(
                               dashboard?.resumo?.media_mensal ?? 0,
                             )}
                           </p>
                         </div>
-                        <div>
+                        <div className="flex items-baseline justify-between gap-2 border-t border-border/40 pt-2">
                           <p className="text-[10px] text-muted-foreground">
                             Média por lançamento
                           </p>
-                          <p className="font-mono text-sm font-bold">
+                          <p className="font-mono text-xs font-bold">
                             {formatarMoeda(
                               dashboard?.resumo?.media_lancamento ?? 0,
                             )}
                           </p>
                         </div>
-                        <div>
+                        <div className="flex items-baseline justify-between gap-2 border-t border-border/40 pt-2">
                           <p className="text-[10px] text-muted-foreground">
                             Pendências
                           </p>
-                          <p className="font-mono text-sm font-bold text-amber-400">
+                          <p className="font-mono text-xs font-bold text-amber-400">
                             {dashboard?.resumo?.pendentes ?? 0} lançamento(s)
                           </p>
                         </div>

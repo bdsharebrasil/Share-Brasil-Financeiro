@@ -1,3 +1,4 @@
+
 import {
   Fragment,
   useCallback,
@@ -31,7 +32,6 @@ import {
   Coins,
   Gauge,
   Eye,
-  Image as ImageIcon,
   MoreHorizontal,
   Search,
   ExternalLink,
@@ -108,6 +108,83 @@ import {
   rotuloMesCotista,
   type PeriodoCotista,
 } from "@/lib/financeiro-cotista-periodo";
+
+
+/* Estilos locais: não alteram o tema das demais abas do financeiro.
+ * Mantém os componentes, APIs e as seis colunas do arquivo original.
+ */
+const DESPESAS_ESTILOS = `
+.despesas-theme {
+  --background: 222 49% 9%; --foreground: 210 40% 96%;
+  --card: 221 43% 12%; --card-foreground: 210 40% 96%;
+  --popover: 220 40% 14%; --popover-foreground: 210 40% 96%;
+  --muted: 220 35% 17%; --muted-foreground: 215 24% 70%;
+  --border: 218 30% 24%; --input: 218 30% 24%;
+  --primary: 204 94% 64%; --primary-foreground: 222 49% 9%;
+  --accent: 218 35% 21%; --accent-foreground: 210 40% 96%;
+  --ring: 204 94% 64%; --destructive: 0 85% 70%;
+  color: #e6eefb; color-scheme: dark;
+  font-family: inherit;
+}
+.despesas-shell { padding: 20px; background: #0a1221; border: 1px solid #24334c; border-radius: 20px; }
+.despesas-theme .text-muted-foreground { color: #9aadc8; }
+.despesas-theme .text-foreground { color: #e6eefb; }
+.despesas-theme .text-primary { color: #73c5ff; }
+.despesas-theme .border-border { border-color: #263650; }
+.despesas-theme .bg-background { background-color: #0d1729; }
+.despesas-theme .bg-card { background-color: #111d32; }
+.despesas-theme :is(input, textarea, [role="combobox"]) { border-color: #30415e; background: #0d1729; color: #e6eefb; box-shadow: none; }
+.despesas-theme input::placeholder, .despesas-theme textarea::placeholder { color: #91a4bf; }
+.despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid #73c5ff; outline-offset: 3px; }
+.despesas-theme .despesa-primary { background: #69c3ff; color: #081324; border: 1px solid #8ed2ff; box-shadow: 0 4px 20px #2994db18; font-weight: 700; }
+.despesas-theme .despesa-primary:hover { background: #93d5ff; }
+.despesa-metric { position: relative; border: 1px solid #263650; border-radius: 14px; background: linear-gradient(135deg, #15243b, #101b2e); padding: 18px; }
+.despesas-theme .text-emerald-700 { color: #5ce0bf; }
+.despesas-theme .text-amber-700 { color: #ffd36c; }
+.despesas-theme .text-blue-700 { color: #83bfff; }
+.despesa-metric:first-child { border-color: #395778; }
+.despesa-metric-value { font-size: clamp(1.3rem, 2vw, 1.75rem); font-weight: 650; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.despesa-ledger { background: #101b2e; border: 1px solid #263650; border-radius: 16px; overflow: hidden; }
+.despesa-heading { background: linear-gradient(115deg, #15243b, #101b2e); }
+.despesa-toolbar { background: #0d1729; }
+.despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: #3c5475 #101b2e; }
+.despesa-table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
+.despesa-table thead { position: sticky; top: 0; z-index: 2; background: #0c1627; color: #9aadc8; }
+.despesa-table thead th { border-bottom: 1px solid #30415e; padding: 14px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.despesa-table .despesa-month th { background: #111f34; border-bottom: 1px solid #263650; }
+.despesa-table .despesa-row td { padding: 16px; vertical-align: middle; border-bottom: 1px solid #263650; }
+.despesa-row { background: #132039; transition: background-color .15s; }
+.despesa-row:nth-of-type(odd) { background: #101b2e; }
+.despesa-row:hover { background: #1a2c46; }
+.despesa-row[data-expanded="true"] { background: #1a2e48; }
+.despesa-row[data-expanded="true"] td:first-child { box-shadow: inset 3px 0 #73c5ff; }
+.despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.65; }
+.despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: #e0f2ff; }
+.despesa-category { display: inline-block; max-width: 100%; margin-top: 7px; border: 1px solid #334866; border-radius: 4px; background: #1b2d46; padding: 2px 6px; font-size: 10px; color: #a6c7e9; letter-spacing: .03em; }
+.despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
+.despesas-theme .despesa-status[data-status="Pago"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
+.despesas-theme .despesa-status[data-status="Pendente"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
+.despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
+.despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
+.despesa-detail { background: #0d182b; border-top: 1px solid #304964; border-bottom: 1px solid #304964; }
+.despesa-detail dl > div { padding: 10px 12px; border: 1px solid #263650; border-radius: 8px; background: #121f34; }
+.despesas-theme .despesa-document { background: #14243b; border-color: #365070; color: #d5eaff; }
+.despesas-theme .despesa-document:hover { background: #1b3351; border-color: #73c5ff; }
+.despesa-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #0c1627; }
+.despesa-footer-total { display: flex; align-items: center; gap: 12px; }
+.despesa-footer-total strong { font: 700 16px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e0f2ff; white-space: nowrap; }
+.despesas-theme .despesa-mobile-card { background: #132039; border-color: #30415e; }
+.despesas-theme .despesa-mobile-card[data-expanded="true"] { border-color: #6099c3; }
+.despesa-dialog { background: #101b2e; border-color: #30415e; }
+.despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
+@media (max-width: 639px) {
+  .despesas-shell { padding: 10px; border-radius: 14px; }
+  .despesa-metric { padding: 14px; }
+  .despesa-metric-value { font-size: 1.3rem; }
+  .despesa-footer-total { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { .despesas-theme * { transition: none !important; } }
+`;
 
 const MESES_CURTOS = [
   "Jan",
@@ -381,7 +458,8 @@ export function NovoLancamentoCotistaDialog({
         if (!estado) fechar();
       }}
     >
-      <DialogContent className="flex max-h-[94dvh] w-[calc(100%-1rem)] max-w-4xl sm:max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
+      <DialogContent className="despesas-theme despesa-dialog flex max-h-[94dvh] w-[calc(100%-1rem)] max-w-4xl sm:max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
+        <style>{DESPESAS_ESTILOS}</style>
         <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-12 sm:px-7">
           <DialogTitle className="flex items-center gap-3 text-xl font-semibold tracking-tight">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -517,7 +595,7 @@ export function NovoLancamentoCotistaDialog({
                       >
                         <SelectValue placeholder="Selecione a categoria" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-72">
+                      <SelectContent className="despesas-theme despesa-dialog max-h-72">
                         {opcoes?.categorias?.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.nome}
@@ -543,7 +621,7 @@ export function NovoLancamentoCotistaDialog({
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="despesas-theme despesa-dialog">
                           <SelectItem value="SAIDA">Saída · despesa</SelectItem>
                           <SelectItem value="ENTRADA">
                             Entrada · aporte / reembolso
@@ -563,7 +641,7 @@ export function NovoLancamentoCotistaDialog({
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="despesas-theme despesa-dialog">
                           <SelectItem value="DESPESA">
                             Saída · despesa da Holding
                           </SelectItem>
@@ -596,7 +674,7 @@ export function NovoLancamentoCotistaDialog({
                       >
                         <SelectValue placeholder="Selecione o cotista" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="despesas-theme despesa-dialog">
                         {cotistasCliente.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.nome}
@@ -615,7 +693,7 @@ export function NovoLancamentoCotistaDialog({
                       >
                         <SelectValue placeholder="Selecione a Holding" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="despesas-theme despesa-dialog">
                         {opcoes?.holdings?.map((h) => (
                           <SelectItem key={h.id} value={h.id}>
                             {h.nome}
@@ -713,7 +791,7 @@ export function NovoLancamentoCotistaDialog({
                             >
                               <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="despesas-theme despesa-dialog">
                               {(modo === "CLIENTE"
                                 ? cotistasCliente
                                 : cotistasHolding
@@ -854,7 +932,7 @@ export function NovoLancamentoCotistaDialog({
                 !opcoes ||
                 !(modo === "CLIENTE" ? possuiCliente : possuiHolding)
               }
-              className="h-11 gap-2 rounded-xl px-5"
+              className="despesa-primary h-11 gap-2 rounded-xl px-5"
             >
               {salvando ? (
                 <Loader2 size={17} className="animate-spin" />
@@ -933,7 +1011,7 @@ function LancamentoExpandido({
     Boolean(item[1]),
   );
   return (
-    <div className="border-t border-border bg-muted/20 px-4 py-4 sm:px-6">
+    <div className="despesa-detail px-4 py-5 sm:px-6">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <section>
           <h3 className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-primary">
@@ -951,9 +1029,9 @@ function LancamentoExpandido({
                       url,
                     )
                   }
-                  className="inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"
+                  className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"
                 >
-                  <ImageIcon size={14} className="shrink-0 text-primary" />
+                  <FileText size={14} className="shrink-0 text-primary" />
                   <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                     {nome}
                     {numero ? ` · ${numero}` : ""}
@@ -1063,7 +1141,8 @@ function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${visual.className}`}
+      data-status={visual.label}
+      className={`despesa-status inline-flex items-center gap-1.5 border ${visual.className}`}
     >
       <span
         className="size-1.5 shrink-0 rounded-full bg-current"
@@ -1246,7 +1325,7 @@ function LancamentosDespesa({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="min-w-[190px] rounded-xl p-1.5"
+        className="despesas-theme despesa-dialog min-w-[190px] rounded-xl p-1.5"
       >
         <DropdownMenuItem
           onSelect={() => abrirAcao("editar", item)}
@@ -1328,12 +1407,13 @@ function LancamentosDespesa({
   ];
 
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="despesas-theme despesas-shell min-w-0 space-y-5">
+      <style>{DESPESAS_ESTILOS}</style>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ titulo, valor, detalhe, Icon, cor }) => (
           <section
             key={titulo}
-            className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm"
+            className="despesa-metric min-w-0"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-muted-foreground">
@@ -1345,7 +1425,7 @@ function LancamentosDespesa({
                 <Icon size={18} />
               </span>
             </div>
-            <p className="mt-3 break-words text-2xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]">
+            <p className="despesa-metric-value mt-3 break-words [overflow-wrap:anywhere]">
               {formatarCentavos(valor)}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground">{detalhe}</p>
@@ -1354,16 +1434,16 @@ function LancamentosDespesa({
       </div>
 
       <section
-        className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+        className="despesa-ledger min-w-0"
         aria-label="Lançamento de despesas"
       >
-        <header className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <header className="despesa-heading flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
               Controle de despesas
             </p>
             <h3 className="text-xl font-semibold tracking-tight">
-              Lançamentos
+              Lançamento de despesas
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Consulte as despesas, os pagamentos e os documentos da aeronave.
@@ -1372,14 +1452,14 @@ function LancamentosDespesa({
           <Button
             type="button"
             onClick={aoNovo}
-            className="h-11 w-full shrink-0 gap-2 rounded-xl px-5 sm:w-auto"
+            className="despesa-primary h-11 w-full shrink-0 gap-2 rounded-lg px-5 sm:w-auto"
           >
             <Plus size={18} />
             Novo lançamento
           </Button>
         </header>
 
-        <div className="space-y-3 border-b border-border bg-muted/10 p-4 sm:px-6">
+        <div className="despesa-toolbar space-y-3 border-b border-border p-4 sm:px-6">
           <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-1.5">
               <Label
@@ -1417,7 +1497,7 @@ function LancamentosDespesa({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="despesas-theme despesa-dialog">
                   <SelectItem value="todos">Todos os status</SelectItem>
                   {["Pendente", "Pago", "Atrasado", "Cancelado"].map(
                     (status) => (
@@ -1446,7 +1526,7 @@ function LancamentosDespesa({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="max-h-72">
+                <SelectContent className="despesas-theme despesa-dialog max-h-72">
                   <SelectItem value="todas">Todas as categorias</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria} value={categoria}>
@@ -1470,7 +1550,7 @@ function LancamentosDespesa({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="despesas-theme despesa-dialog">
                   <SelectItem value="recentes">Mais recentes</SelectItem>
                   <SelectItem value="antigas">Mais antigas</SelectItem>
                   <SelectItem value="maior">Maior valor no mês</SelectItem>
@@ -1498,7 +1578,7 @@ function LancamentosDespesa({
                 Limpar filtros
               </Button>
             ) : (
-              <span>Descrições exibidas por completo</span>
+              <span>Expanda uma despesa para consultar documentos e rateio</span>
             )}
           </div>
         </div>
@@ -1506,19 +1586,19 @@ function LancamentosDespesa({
         {filtradas.length > 0 ? (
           <>
             {/* A tabela reserva a maior coluna para a descrição. Nenhum texto depende de tooltip. */}
-            <div className="hidden overflow-x-auto xl:block">
-              <table className="w-full min-w-[880px] table-fixed text-left text-sm">
+            <div className="despesa-table-scroll hidden lg:block" tabIndex={0} role="region" aria-label="Tabela de despesas, com rolagem">
+              <table className="despesa-table">
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores
                   e status.
                 </caption>
                 <colgroup>
-                  <col className="w-[12%]" />
-                  <col className="w-[34%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[9%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[11%]" />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
@@ -1542,7 +1622,7 @@ function LancamentosDespesa({
                 </thead>
                 {gruposPorMes.map(({ mes, itens }) => (
                   <tbody key={mes} className="divide-y divide-border">
-                    <tr className="bg-muted/30">
+                    <tr className="despesa-month">
                       <th
                         scope="rowgroup"
                         colSpan={6}
@@ -1562,10 +1642,11 @@ function LancamentosDespesa({
                       return (
                         <Fragment key={item.id}>
                           <tr
-                            className={`transition-colors hover:bg-muted/20 ${aberto ? "bg-primary/5" : ""}`}
+                            className="despesa-row"
+                            data-expanded={aberto}
                           >
                             <td className="px-4 py-5 align-top">
-                              <p className="font-medium tabular-nums">
+                              <p className="font-mono text-xs font-semibold tabular-nums">
                                 {formatarData(item.data)}
                               </p>
                               <p
@@ -1576,34 +1657,16 @@ function LancamentosDespesa({
                             </td>
                             <td className="px-4 py-5 align-top">
                               <p
-                                className={`text-sm font-medium leading-7 text-foreground ${TEXTO_COMPLETO}`}
+                                className={`despesa-description text-foreground ${TEXTO_COMPLETO}`}
                               >
                                 {item.descricao}
                               </p>
                               <p
-                                className={`mt-2 text-xs leading-relaxed text-muted-foreground ${TEXTO_COMPLETO}`}
+                                className={`despesa-category ${TEXTO_COMPLETO}`}
                               >
                                 {item.categoria || "Sem categoria"}
                               </p>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() =>
-                                  setExpandido(aberto ? null : item.id)
-                                }
-                                aria-expanded={aberto}
-                                aria-controls={`despesa-desktop-${item.id}`}
-                                className="mt-2 h-9 gap-1.5 px-2 text-xs text-primary"
-                              >
-                                {aberto ? (
-                                  <ChevronUp size={15} />
-                                ) : (
-                                  <ChevronDown size={15} />
-                                )}
-                                {aberto
-                                  ? "Ocultar detalhes"
-                                  : "Documentos e rateio"}
-                              </Button>
+
                             </td>
                             <td className="px-4 py-5 align-top">
                               <p
@@ -1621,7 +1684,7 @@ function LancamentosDespesa({
                               </p>
                             </td>
                             <td className="px-4 py-5 text-right align-top">
-                              <p className="break-words font-semibold tabular-nums [overflow-wrap:anywhere]">
+                              <p className="despesa-money">
                                 {formatarCentavos(item.valorCentavos)}
                               </p>
                               {item.reembolsavel && (
@@ -1634,7 +1697,21 @@ function LancamentosDespesa({
                               <BadgeStatus status={item.status} />
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              {acoesDaLinha(item)}
+                              <div className="flex items-center justify-end gap-1">
+                                {acoesDaLinha(item)}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 shrink-0 rounded-lg text-primary"
+                                  onClick={() => setExpandido(aberto ? null : item.id)}
+                                  aria-expanded={aberto}
+                                  aria-controls={`despesa-desktop-${item.id}`}
+                                  aria-label={`${aberto ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
+                                >
+                                  {aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                           {aberto && (
@@ -1658,7 +1735,7 @@ function LancamentosDespesa({
             </div>
 
             {/* Celular e tablet: leitura vertical, sem precisar arrastar uma tabela larga. */}
-            <div className="divide-y divide-border xl:hidden">
+            <div className="divide-y divide-border lg:hidden">
               {gruposPorMes.map(({ mes, itens }) => (
                 <section key={mes}>
                   <div className="bg-muted/30 px-4 py-4 sm:px-6">
@@ -1676,7 +1753,8 @@ function LancamentosDespesa({
                       return (
                         <article
                           key={item.id}
-                          className="min-w-0 overflow-hidden rounded-xl border border-border bg-background"
+                          data-expanded={aberto}
+                          className="despesa-mobile-card min-w-0 overflow-hidden rounded-xl border"
                         >
                           <div className="p-4 sm:p-5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1812,9 +1890,15 @@ function LancamentosDespesa({
             </Button>
           </div>
         )}
-        <footer className="border-t border-border bg-muted/10 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
-          Os indicadores acima consideram todo o período selecionado. A busca e
-          os filtros alteram apenas a lista e seus subtotais.
+        <footer className="despesa-footer border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6">
+          <div>
+            <p>{filtradas.length} {filtradas.length === 1 ? "lançamento exibido" : "lançamentos exibidos"}</p>
+            <p className="mt-1 text-[11px]">Indicadores: período completo · Total abaixo: lista filtrada</p>
+          </div>
+          <div className="despesa-footer-total">
+            <span className="text-[10px] font-semibold uppercase tracking-widest">Total do extrato</span>
+            <strong>{formatarCentavos(totalFiltrado)}</strong>
+          </div>
         </footer>
       </section>
 
@@ -1824,7 +1908,7 @@ function LancamentosDespesa({
           if (!open && !processandoRef.current) setAcao(null);
         }}
       >
-        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl p-5 sm:p-6">
+        <DialogContent className="despesas-theme despesa-dialog max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {acao?.tipo === "editar"
@@ -1914,7 +1998,7 @@ function LancamentosDespesa({
           if (!open) setDocumentoAberto(null);
         }}
       >
-        <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-5xl sm:max-w-5xl gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
+        <DialogContent className="despesas-theme despesa-dialog max-h-[92dvh] w-[calc(100%-1rem)] max-w-5xl sm:max-w-5xl gap-0 overflow-hidden rounded-2xl border-border bg-background p-0 sm:w-[calc(100%-2rem)]">
           <DialogHeader className="border-b border-border px-5 py-5 pr-12">
             <DialogTitle className={`text-base ${TEXTO_COMPLETO}`}>
               {documentoAberto?.nome || "Documento"}

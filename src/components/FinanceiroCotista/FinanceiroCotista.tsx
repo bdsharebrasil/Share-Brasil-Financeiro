@@ -1112,6 +1112,47 @@ function LancamentoExpandido({
               </dd>
             </div>
           </dl>
+          {lancamento.rateios.length > 0 && (
+            <section className="mt-5 rounded-lg border border-border bg-background/70 p-3">
+              <h4 className="mb-3 text-xs font-bold uppercase tracking-[.12em] text-primary">
+                Detalhamento do rateio
+              </h4>
+              <div className="divide-y divide-border">
+                {lancamento.rateios.map((rateio, index) => (
+                  <div
+                    key={rateio.id || `${rateio.cotistaId || rateio.cotista}-${index}`}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-foreground">
+                        {rateio.cotista}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {rateio.percentual.toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 4,
+                        })}% do rateio
+                        {rateio.percentualSociedade != null
+                          ? ` · ${rateio.percentualSociedade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% da sociedade`
+                          : ""}
+                        {rateio.status ? ` · ${statusLancamento(rateio.status).label}` : ""}
+                        {rateio.pagoDiretamente ? " · Pago diretamente" : ""}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-semibold tabular-nums text-foreground">
+                        {formatarCentavos(rateio.valorCentavos)}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Pago: {formatarCentavos(rateio.valorPagoRealCentavos || 0)}
+                        {rateio.pagoPor ? ` · ${rateio.pagoPor}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {lancamento.observacoes && (
             <p className="mt-4 rounded-lg border border-border bg-background p-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
               <strong className="text-foreground">Observações:</strong>{" "}

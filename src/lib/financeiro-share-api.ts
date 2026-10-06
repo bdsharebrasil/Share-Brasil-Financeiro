@@ -213,9 +213,16 @@ export type GrupoShare = { grupo: string; valor: number };
 export type FiltrosLancamentos = { mes?: string; inicio?: string; fim?: string; busca?: string; categoria_id?: string; status?: string };
 
 export type RateioEconomico = {
+  id?: string;
+  cotistaId?: string | null;
   cotista: string;
   percentual: number;
   valorCentavos: number;
+  percentualSociedade?: number | null;
+  valorPagoRealCentavos?: number;
+  pagoPor?: string | null;
+  pagoDiretamente?: boolean;
+  status?: string;
 };
 
 export type LancamentoEconomico = {

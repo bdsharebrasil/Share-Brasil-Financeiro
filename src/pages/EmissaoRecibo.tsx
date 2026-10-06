@@ -73,6 +73,7 @@ type Formulario = {
 
   // recibo_reembolso / recibo_colaborador(aeronave)
   aeronave_id: string;
+  abastecimentos_id: string;
 
   // pagador (coluna real da tabela)
   pagador_tipo: "empresa" | "cotista_aeronave" | "cliente";
@@ -111,6 +112,7 @@ const inicial = (): Formulario => ({
   natureza_despesa: "",
   colaborador_id: "",
   aeronave_id: "",
+  abastecimentos_id: "",
   pagador_tipo: "empresa",
   pagador_id: "",
   recebedor_nome: "",
@@ -302,6 +304,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     cotistas: [],
     categorias: [],
     categorias_cliente: [],
+    abastecimentos: [],
     recebedores: [],
   });
   const [recibos, setRecibos] = useState<ReciboFinanceiro[]>([]);
@@ -346,6 +349,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         ...dadosOpcoes,
         aeronaves: Array.isArray(dadosOpcoes.aeronaves)
           ? dadosOpcoes.aeronaves
+          : [],
+        abastecimentos: Array.isArray(dadosOpcoes.abastecimentos)
+          ? dadosOpcoes.abastecimentos
           : [],
         recebedores: Array.isArray(dadosOpcoes.recebedores)
           ? dadosOpcoes.recebedores
@@ -463,6 +469,27 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const selecionarClienteDevedor = (id: string) => {
     alterar("pagador_tipo", "cliente");
     alterar("pagador_id", id);
+  };
+
+  const selecionarAbastecimento = (abastecimentosId: string) => {
+    alterar("abastecimentos_id", abastecimentosId);
+    const abastecimento = opcoes.abastecimentos.find(
+      (item) => item.id === abastecimentosId,
+    );
+    if (!abastecimento) return;
+
+    if (form.aeronave_id && form.aeronave_id !== abastecimento.aeronave_id) {
+      alterar("pagador_id", "");
+      alterar("pagador_tipo", "empresa");
+    }
+    alterar("aeronave_id", abastecimento.aeronave_id);
+    alterar(
+      "valor",
+      Number(abastecimento.valor_total || 0).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    );
   };
 
   const categoriaValida =
@@ -682,6 +709,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 form.natureza_despesa === "aeronave"
               ? form.aeronave_id
               : null,
+        abastecimentos_id:
+          form.tipo === "recibo_reembolso"
+            ? form.abastecimentos_id || null
+            : null,
         rateado: false as const,
         ...dadosPagador,
         cliente_id: form.pagador_tipo === "cliente" ? form.pagador_id : null,
@@ -1143,6 +1174,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         }))}
                         value={form.aeronave_id}
                         onChange={(id) => {
+                          alterar("abastecimentos_id", "");
                           alterar("aeronave_id", id);
                           alterar("pagador_id", "");
                           alterar("pagador_tipo", "empresa");
@@ -1150,6 +1182,36 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         placeholder="Selecione a aeronave"
                         searchPlaceholder="Buscar aeronave..."
                         emptyMessage="Nenhuma aeronave encontrada."
+                      />
+                    </Campo>
+                    <Campo label="Abastecimento vinculado (opcional)">
+                      <SearchableCombobox
+                        items={[
+                          { id: "__sem_abastecimento__", label: "Sem vínculo com abastecimento" },
+                          ...opcoes.abastecimentos
+                            .filter((item) => !form.aeronave_id || item.aeronave_id === form.aeronave_id)
+                            .map((item) => {
+                              const data = item.data
+                                ? new Date(`${item.data.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")
+                                : "Data não informada";
+                              return {
+                                id: item.id,
+                                label: [
+                                  data,
+                                  item.matricula_registro || "Aeronave",
+                                  item.tipo_combustivel,
+                                  item.numero_comanda ? `Comanda ${item.numero_comanda}` : null,
+                                  item.numero_nf ? `NF ${item.numero_nf}` : null,
+                                  moeda(Number(item.valor_total || 0)),
+                                ].filter(Boolean).join(" · "),
+                              };
+                            }),
+                        ]}
+                        value={form.abastecimentos_id || "__sem_abastecimento__"}
+                        onChange={(id) => selecionarAbastecimento(id === "__sem_abastecimento__" ? "" : id)}
+                        placeholder="Selecione um abastecimento"
+                        searchPlaceholder="Buscar por comanda, nota ou aeronave..."
+                        emptyMessage="Nenhum abastecimento disponível para esta aeronave."
                       />
                     </Campo>
                     <Campo

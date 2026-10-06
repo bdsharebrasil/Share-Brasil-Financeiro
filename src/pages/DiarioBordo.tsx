@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, BookOpenCheck, CalendarDays, ChevronDown, Edit3, Fuel, List, Plus, RefreshCw, Search, Trash2, PlaneTakeoff } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronDown, Edit3, Fuel, List, Plus, RefreshCw, Search, Trash2, X, PlaneTakeoff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import { CreateMonthDialog } from "@/components/diario/CreateMonthDialog";
 import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
 import DiarioLancamentoFormIntegrado from "@/components/diario/DiarioLancamentoForm";
-import { atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
+import { atualizarHorimetroDiario, atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const monthName = (month: number) => new Date(2000, month - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
 const decimal = (value: number | string | null | undefined, digits = 1) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const duration = (value: number | string | null | undefined) => {
   const totalMinutes = Math.max(0, Math.round(Number(value || 0) * 60));
-  return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, "0")}min`;
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
 };
 const date = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 const time = (value?: string | null) => value ? value.slice(0, 5) : "—";
@@ -39,6 +39,8 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [modoCelulaCabecalho, setModoCelulaCabecalho] = useState<"celula" | "tvoo">("celula");
+  const [editingHorimeter, setEditingHorimeter] = useState(false);
+  const [horimeterDraft, setHorimeterDraft] = useState({ inicio: "", final: "", ativo: "" });
 
   const loadList = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true); else setLoading(true);
@@ -121,6 +123,24 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     finally { setSaving(false); }
   };
 
+  const saveHorimeter = async () => {
+    if (!details?.diario_mes || !selected) return;
+    const inicio = Number(horimeterDraft.inicio);
+    const final = Number(horimeterDraft.final);
+    const ativo = Number(horimeterDraft.ativo);
+    if (![inicio, final, ativo].every(Number.isFinite) || [inicio, final, ativo].some((value) => value < 0)) {
+      setError("Informe valores válidos e não negativos para o horímetro.");
+      return;
+    }
+    setSaving(true); setError(null);
+    try {
+      await atualizarHorimetroDiario(details.diario_mes.id, { horimetro_inicio: inicio, horimetro_final: final, horimetro_ativo: ativo });
+      setEditingHorimeter(false); setNotice("Horímetro atualizado.");
+      await loadDetails(selected, period); await loadList(true);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o horímetro."); }
+    finally { setSaving(false); }
+  };
+
   const removeEntry = async (entry: DiarioLancamento) => {
     if (!window.confirm(`Excluir o lançamento ${entry.numero_sequencial || "selecionado"}? Esta ação não pode ser desfeita.`)) return;
     setError(null);
@@ -182,12 +202,18 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-4 w-1 rounded-full bg-amber-400" />
                 <span className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-400">Horímetro</span>
+                {month && !editingHorimeter && <Button type="button" variant="outline" onClick={() => { setHorimeterDraft({ inicio: String(month.horimetro_inicio ?? 0), final: String(month.horimetro_final ?? 0), ativo: String(month.horimetro_ativo ?? 0) }); setEditingHorimeter(true); }} className="ml-auto h-7 gap-1 px-2 text-[10px]"><Edit3 size={12} /> Editar</Button>}
               </div>
-              <div className="diario-stat-grid gap-2">
+              {editingHorimeter && month ? <div className="space-y-3">
+                <div className="diario-stat-grid gap-2">
+                  {(["inicio", "final", "ativo"] as const).map((field) => <label key={field} className="min-w-0 rounded-lg border border-border bg-card/60 p-2.5"><span className="mb-2 block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">{field === "inicio" ? "Inicial" : field === "final" ? "Final" : "Ativo"}</span><input type="number" min="0" step="0.01" value={horimeterDraft[field]} onChange={(event) => setHorimeterDraft((current) => { const value = event.target.value; if (field === "ativo") return { ...current, ativo: value }; const next = { ...current, [field]: value }; const inicio = Number(field === "inicio" ? value : next.inicio); const final = Number(field === "final" ? value : next.final); next.ativo = String(Number.isFinite(inicio) && Number.isFinite(final) ? Math.max(0, final - inicio).toFixed(2) : 0); return next; })} className="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm text-foreground" /></label>)}
+                </div>
+                <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditingHorimeter(false)} disabled={saving} className="h-8 gap-1 text-xs"><X size={13} /> Cancelar</Button><Button type="button" onClick={() => void saveHorimeter()} disabled={saving} className="h-8 gap-1 text-xs"><Check size={13} /> Salvar</Button></div>
+              </div> : <div className="diario-stat-grid gap-2">
                 <StatTile label="Inicial" value={`${decimal(month?.horimetro_inicio)}h`} />
                 <StatTile label="Final" value={`${decimal(month?.horimetro_final)}h`} />
                 <StatTile label="Ativo" value={`${decimal(month?.horimetro_ativo)}h`} />
-              </div>
+              </div>}
             </div>
           </div>
 

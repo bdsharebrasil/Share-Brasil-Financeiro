@@ -1116,7 +1116,9 @@ export function criarMesDiario(payload: Record<string, unknown>) {
 export function atualizarMesDiario(id: string, payload: Record<string, unknown>) {
   return colaboradorRequest<DiarioMes>(`/api/interno/diario-bordo/mes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
 }
-
+export function atualizarHorimetroDiario(id: string, payload: Pick<DiarioMes, "horimetro_inicio" | "horimetro_final" | "horimetro_ativo">) {
+  return colaboradorRequest<DiarioMes>(`/api/interno/diario-bordo/mes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+}
 export function criarLancamentoDiario(payload: Record<string, unknown>) {
   return colaboradorRequest<DiarioLancamento>("/api/interno/diario-bordo/lancamentos", { method: "POST", body: JSON.stringify(payload) });
 }

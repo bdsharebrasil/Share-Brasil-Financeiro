@@ -163,6 +163,10 @@ export function CreateMonthDialog({
       const aerodromesData = data as { aerodromos?: AerodromeRow[] };
 
       if (data && Array.isArray(aerodromesData.aerodromos)) {
+        setFormData((current) => {
+          const aerodromoAnterior = aerodromesData.aerodromos?.find((a) => a.id === current.aerodromo_base);
+          return aerodromoAnterior ? { ...current, aerodromo_base: aerodromoAnterior.designativo } : current;
+        });
         setAerodromes(
           aerodromesData.aerodromos.map((a) => ({
             id: a.id,
@@ -255,7 +259,7 @@ export function CreateMonthDialog({
             <div className="space-y-2"><Label htmlFor="celula-revisao">Próxima revisão · Célula (h)</Label><Input id="celula-revisao" type="number" min="0" step="0.1" value={formData.celula_prox_revisao || ""} onChange={(event) => setFormData((current) => ({ ...current, celula_prox_revisao: Number(event.target.value) || 0 }))} placeholder="0,0" /><p className="text-[10px] text-muted-foreground">Disponível: {horasDisponiveis.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h{!formData.celula_prox_revisao && revisaoTotalCalculada > 0 ? " · calculada pela TVOO" : ""}</p></div>
             <div className="space-y-2"><Label htmlFor="celula-revisao-tvoo">Próxima revisão · Célula TVOO (h)</Label><Input id="celula-revisao-tvoo" type="number" min="0" step="0.1" value={formData.celula_prox_revisao_tvoo || ""} onChange={(event) => setFormData((current) => ({ ...current, celula_prox_revisao_tvoo: Number(event.target.value) || 0 }))} placeholder="0,0" /><p className="text-[10px] text-muted-foreground">Disponível: {horasDisponiveisTvoo.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h{!formData.celula_prox_revisao_tvoo && revisaoTvooCalculada > 0 ? " · calculada pela CÉLULA" : ""}</p></div>
             <div className="space-y-2"><Label htmlFor="horimetro-inicio">Horímetro inicial</Label><Input id="horimetro-inicio" type="number" min="0" step="0.1" value={formData.horimetro_inicio || ""} onChange={(event) => setFormData((current) => ({ ...current, horimetro_inicio: Number(event.target.value) || 0 }))} placeholder="0,0" /></div>
-            <div className="space-y-2"><Label htmlFor="aerodromo-base">Aeródromo base</Label><SearchableCombobox items={aerodromes.map((aerodrome) => ({ id: aerodrome.id, label: `${aerodrome.designativo} · ${aerodrome.name}` }))} value={formData.aerodromo_base} onChange={(value, label) => setFormData((current) => ({ ...current, aerodromo_base: value || label.split(" · ")[0] }))} placeholder="Selecione o aeródromo" searchPlaceholder="Buscar aeródromo..." emptyMessage="Nenhum aeródromo encontrado." icon={<MapPin size={14} />} />{aerodromesError && <p className="text-[10px] text-destructive">{aerodromesError}</p>}</div>
+            <div className="space-y-2"><Label htmlFor="aerodromo-base">Aeródromo base</Label><SearchableCombobox items={aerodromes.map((aerodrome) => ({ id: aerodrome.designativo, label: `${aerodrome.designativo} · ${aerodrome.name}` }))} value={formData.aerodromo_base} onChange={(value, label) => setFormData((current) => ({ ...current, aerodromo_base: value || label.split(" · ")[0] }))} placeholder="Selecione o aeródromo" searchPlaceholder="Buscar aeródromo..." emptyMessage="Nenhum aeródromo encontrado." icon={<MapPin size={14} />} />{aerodromesError && <p className="text-[10px] text-destructive">{aerodromesError}</p>}</div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

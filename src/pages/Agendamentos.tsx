@@ -204,9 +204,9 @@ export default function Agendamentos() {
   const nomesTripulantes = useMemo(() => new Map((painel?.tripulacao || []).map((tripulante) => [tripulante.id, tripulante.nome_completo])), [painel?.tripulacao]);
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const ativos = agendamentos.filter((item) => filtroStatus === "todos" ? item.status !== "encerrada" : item.status === filtroStatus);
+    const ativos = filtroStatus === "todos" ? agendamentos : agendamentos.filter((item) => item.status === filtroStatus);
     const encontrados = termo
-      ? ativos.filter((item) => [item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
+      ? ativos.filter((item) => [item.id, item.data_agendada, item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
       : ativos;
     return ordenarPorAeronave(encontrados);
   }, [agendamentos, busca, filtroStatus]);

@@ -167,7 +167,8 @@ const DESPESAS_ESTILOS = `
 .despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
 .despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
 .despesa-detail { background: #0d182b; border-top: 1px solid #304964; border-bottom: 1px solid #304964; }
-.despesa-detail dl > div { padding: 10px 12px; border: 1px solid #263650; border-radius: 8px; background: #121f34; }
+.despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #73c5ff; }
+.despesa-detail dt { font-size: 11px; }
 .despesas-theme .despesa-document { background: #14243b; border-color: #365070; color: #d5eaff; }
 .despesas-theme .despesa-document:hover { background: #1b3351; border-color: #73c5ff; }
 .despesa-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #0c1627; }
@@ -990,6 +991,10 @@ function valorPagoLancamento(lancamento: LancamentoEconomico) {
   return Math.min(lancamento.valorCentavos, pagoInformado);
 }
 
+/* Detalhe expandido: duas colunas objetivas.
+ * Esquerda: documentos vinculados. Direita: rateio (Cota · Responsável · Parcela).
+ * Valor, status, categoria, fornecedor e cotista já aparecem na linha, então não se repetem aqui.
+ */
 function LancamentoExpandido({
   lancamento,
   aoAbrirDocumento,
@@ -1010,15 +1015,41 @@ function LancamentoExpandido({
   ].filter((item): item is [string, string, string | null | undefined] =>
     Boolean(item[1]),
   );
+
+  // Uma linha por cotista. Se a API não trouxer rateios, usa os dados do próprio lançamento.
+  const partes =
+    lancamento.rateios.length > 0
+      ? lancamento.rateios.map((r, i) => ({
+          chave: r.id || `${r.cotistaId || r.cotista}-${i}`,
+          cota: r.percentualSociedade ?? r.percentual,
+          responsavel: r.cotista,
+          parcela: r.valorCentavos,
+          pagoDiretamente: Boolean(r.pagoDiretamente),
+        }))
+      : [
+          {
+            chave: "unico",
+            cota: lancamento.percentualSociedade,
+            responsavel:
+              lancamento.participanteNome || lancamento.pagoPor || "—",
+            parcela:
+              lancamento.valorRateadoCentavos || lancamento.valorCentavos,
+            pagoDiretamente: false,
+          },
+        ];
+
+  const fmtPct = (v: number | null | undefined) =>
+    v == null
+      ? "—"
+      : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
+
   return (
     <div className="despesa-detail px-4 py-5 sm:px-6">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-primary">
-            Documentos vinculados
-          </h3>
+          <h3 className="despesa-detail-title">Documentos vinculados</h3>
           {documentos.length ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col items-start gap-2">
               {documentos.map(([nome, url, numero]) => (
                 <button
                   key={`${nome}-${url}`}
@@ -1029,10 +1060,10 @@ function LancamentoExpandido({
                       url,
                     )
                   }
-                  className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"
+                  className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
                 >
                   <FileText size={14} className="shrink-0 text-primary" />
-                  <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                  <span className="break-words [overflow-wrap:anywhere]">
                     {nome}
                     {numero ? ` · ${numero}` : ""}
                   </span>
@@ -1042,125 +1073,52 @@ function LancamentoExpandido({
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Nenhum documento vinculado a este lançamento.
+              Nenhum documento vinculado.
             </p>
           )}
         </section>
+
         <section>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-primary">
-            Rateio e informações do lançamento
-          </h3>
-          <dl className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-3 text-xs sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">Vencimento</dt>
-              <dd className="mt-1 font-semibold">
-                {formatarData(lancamento.prazo)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Pagamento</dt>
-              <dd className="mt-1 font-semibold">
-                {formatarData(lancamento.dataPagamento)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Periodicidade</dt>
-              <dd className="mt-1 font-semibold">
-                {lancamento.periodicidade || "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">% sociedade</dt>
-              <dd className="mt-1 font-semibold">
-                {lancamento.percentualSociedade == null
-                  ? "—"
-                  : `${lancamento.percentualSociedade}%`}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">% uso</dt>
-              <dd className="mt-1 font-semibold">
-                {lancamento.percentualUso == null
-                  ? "—"
-                  : `${lancamento.percentualUso}%`}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Valor pago real</dt>
-              <dd className="mt-1 font-mono font-semibold">
-                {formatarCentavos(lancamento.valorPagoRealCentavos || 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Valor rateado</dt>
-              <dd className="mt-1 font-mono font-semibold">
-                {formatarCentavos(
-                  lancamento.valorRateadoCentavos || lancamento.valorCentavos,
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Pago por</dt>
-              <dd className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-semibold">
-                {lancamento.pagoPor || "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">E-mail enviado em</dt>
-              <dd className="mt-1 font-semibold">
-                {formatarData(lancamento.emailEnviadoEm)}
-              </dd>
-            </div>
-          </dl>
-          {lancamento.rateios.length > 0 && (
-            <section className="mt-5 rounded-lg border border-border bg-background/70 p-3">
-              <h4 className="mb-3 text-xs font-bold uppercase tracking-[.12em] text-primary">
-                Detalhamento do rateio
-              </h4>
-              <div className="divide-y divide-border">
-                {lancamento.rateios.map((rateio, index) => (
-                  <div
-                    key={rateio.id || `${rateio.cotistaId || rateio.cotista}-${index}`}
-                    className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="break-words font-semibold text-foreground">
-                        {rateio.cotista}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {rateio.percentual.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 4,
-                        })}% do rateio
-                        {rateio.percentualSociedade != null
-                          ? ` · ${rateio.percentualSociedade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% da sociedade`
-                          : ""}
-                        {rateio.status ? ` · ${statusLancamento(rateio.status).label}` : ""}
-                        {rateio.pagoDiretamente ? " · Pago diretamente" : ""}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-semibold tabular-nums text-foreground">
-                        {formatarCentavos(rateio.valorCentavos)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Pago: {formatarCentavos(rateio.valorPagoRealCentavos || 0)}
-                        {rateio.pagoPor ? ` · ${rateio.pagoPor}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          {lancamento.observacoes && (
-            <p className="mt-4 rounded-lg border border-border bg-background p-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-              <strong className="text-foreground">Observações:</strong>{" "}
-              {lancamento.observacoes}
-            </p>
-          )}
+          <h3 className="despesa-detail-title">Rateio</h3>
+          <div className="divide-y divide-border">
+            {partes.map((p) => (
+              <dl
+                key={p.chave}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-6 gap-y-1 py-3 text-xs first:pt-0 last:pb-0"
+              >
+                <div>
+                  <dt className="text-muted-foreground">Cota</dt>
+                  <dd className="mt-1 font-mono font-bold">{fmtPct(p.cota)}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-muted-foreground">Responsável</dt>
+                  <dd className="mt-1 break-words font-bold [overflow-wrap:anywhere]">
+                    {p.responsavel}
+                    {p.pagoDiretamente && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        · pago diretamente
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="text-right">
+                  <dt className="text-muted-foreground">Parcela</dt>
+                  <dd className="mt-1 font-mono font-bold tabular-nums">
+                    {formatarCentavos(p.parcela)}
+                  </dd>
+                </div>
+              </dl>
+            ))}
+          </div>
         </section>
       </div>
+
+      {lancamento.observacoes && (
+        <p className="mt-5 whitespace-pre-wrap break-words border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+          <strong className="text-foreground">Observações:</strong>{" "}
+          {lancamento.observacoes}
+        </p>
+      )}
     </div>
   );
 }

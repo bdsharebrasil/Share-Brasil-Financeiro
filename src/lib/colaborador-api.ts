@@ -478,7 +478,7 @@ export type PainelOperacoesResponse = {
 
 export type MovimentacaoFinanceira = {
   id: string;
-  origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold";
+  origem_tipo: "lancamentos" | "abastecimentos" | "movimentos_holding" | "rateio_hold";
   origem_id: string;
   referencias: string[];
   tipo_caixa: "CLIENTE" | "SHARE" | "HOLD" | "HOLDING" | string | null;
@@ -506,7 +506,7 @@ export type MovimentacaoFinanceira = {
   categoria_nome?: string | null;
 };
 
-export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "movimentos_holding" | "rateio_hold"; origem_id: string; valor_centavos: number; data_vencimento?: string | null; periodicidade?: string | null; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
+export type OpcoesRateioMovimentacao = { origem_tipo: "lancamentos" | "abastecimentos" | "movimentos_holding" | "rateio_hold"; origem_id: string; valor_centavos: number; data_vencimento?: string | null; periodicidade?: string | null; cotistas: Array<{ id: string; nome: string; percentual_sugerido: number }> };
 
 export type PainelFinanceiroResponse = {
   resumo: { total_a_receber: number; total_pago: number; pendencias: number; pagamentos_confirmados: number };
@@ -826,7 +826,7 @@ function numeroDocumento(registro: RegistroFinanceiro) {
 
 function normalizarMovimentacao(
   registro: RegistroFinanceiro,
-  origemTipo: "lancamentos" | "movimentos_holding" | "rateio_hold",
+  origemTipo: "lancamentos" | "abastecimentos" | "movimentos_holding" | "rateio_hold",
 ): MovimentacaoFinanceira | null {
   const origemId = textoFinanceiro(registro.origem_id) || textoFinanceiro(registro.id) || textoFinanceiro(registro.movimento_holding_id);
   if (!origemId) return null;
@@ -940,7 +940,7 @@ export async function buscarPainelFinanceiro(): Promise<PainelFinanceiroResponse
     payload?.lancamentos,
     payload?.movimentacoes,
   )
-    .map((registro) => normalizarMovimentacao(registro, "lancamentos"))
+    .map((registro) => normalizarMovimentacao(registro, registro.origem_tipo === "abastecimentos" ? "abastecimentos" : "lancamentos"))
     .filter((item): item is MovimentacaoFinanceira => Boolean(item));
   const movimentosHoldingDiretos = primeiraFonteFinanceira(payload?.movimentos_holding);
   const rateiosHold = movimentosHoldingDiretos.length

@@ -30,11 +30,11 @@ export function MediasCotista({ medias, mediasMensais }: Props) {
         <p className="text-sm font-bold">Médias operacionais</p>
         <p className="mt-1 text-[10px] text-muted-foreground">Indicadores calculados a partir dos diários de bordo e dos custos exibidos nesta aeronave.</p>
       </div>
-      {medias ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {itens.map(({ label, valor, detalhe, Icon }) => <div key={label} className="rounded-xl border border-border bg-muted/20 p-4">
-          <div className="flex items-start justify-between gap-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><Icon size={15} className="shrink-0 text-primary" /></div>
-          <p className="mt-3 break-words font-mono text-xl font-bold text-foreground">{valor}</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">{detalhe}</p>
+      {medias ? <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {itens.map(({ label, valor, detalhe, Icon }) => <div key={label} className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
+          <div className="flex items-start justify-between gap-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><Icon size={13} className="shrink-0 text-primary" /></div>
+          <p className="mt-1 break-words font-mono text-sm font-bold text-foreground">{valor}</p>
+          <p className="mt-0.5 text-[9px] text-muted-foreground">{detalhe}</p>
         </div>)}
       </div> : <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-xs text-muted-foreground">Nenhuma média disponível para esta aeronave.</div>}
     </div>

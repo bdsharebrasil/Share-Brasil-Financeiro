@@ -49,6 +49,7 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null,
     fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
     cotistaId: row.cotistaId ?? row.cotista_id ?? null,
+    cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null,
     boletoUrl: row.boletoUrl ?? row.boleto_url ?? null,
     nfUrl: row.nfUrl ?? row.nf_url ?? null,
     nfSaidaId: row.nfSaidaId ?? row.nf_saida_id ?? null,
@@ -377,6 +378,9 @@ export type SolicitacaoPagamento = {
   status: string;
   criado_por: string | null;
   criado_em: string;
+  fornecedor?: string | null;
+  fornecedor_id?: string | null;
+  fornecedor_nome?: string | null;
   solicitante_nome: string | null;
   lancamento_id?: string | null;
 };

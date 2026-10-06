@@ -56,6 +56,7 @@ export interface ContaAPagar {
   descricao: string | null;
   criadoPor: string | null;
   aeronaveId: string | null;
+  fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;
   boletoUrl: string | null;
@@ -84,6 +85,7 @@ export interface ContaAReceber {
   fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;
+  cotistaNome: string | null;
   boletoUrl: string | null;
   nfUrl: string | null;
   nfSaidaId: string | null;

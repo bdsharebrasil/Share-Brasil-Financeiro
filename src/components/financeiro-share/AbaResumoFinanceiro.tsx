@@ -59,7 +59,7 @@ export function AbaResumoFinanceiro({ aoMudarAba }: { aoMudarAba: (aba: string) 
       tipo: "pagar",
       vencimento: conta.dataVencimento ?? "",
       descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a pagar",
-      responsavel: conta.fornecedorId ?? "Share Brasil",
+      responsavel: conta.fornecedor ?? "Share Brasil",
       valor: conta.valor,
       status: conta.status,
     }));
@@ -68,7 +68,7 @@ export function AbaResumoFinanceiro({ aoMudarAba }: { aoMudarAba: (aba: string) 
       tipo: "receber",
       vencimento: conta.dataVencimento ?? "",
       descricao: conta.descricao ?? conta.categoriaNome ?? "Conta a receber",
-      responsavel: conta.fornecedor ?? conta.cotistaId ?? "Cliente",
+      responsavel: conta.cotistaNome ?? conta.fornecedor ?? "Cliente",
       valor: conta.valor,
       status: conta.status,
     }));

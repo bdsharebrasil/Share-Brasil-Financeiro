@@ -66,6 +66,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const [preview, setPreview] = useState<{ url: string; mime: string; tipo: string } | null>(null);
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
   const [buscaCliente, setBuscaCliente] = useState("");
+  const [mesAberto, setMesAberto] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -144,6 +145,14 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     });
     return Array.from(grupos.entries()).sort(([a], [b]) => b.localeCompare(a));
   }, [registrosCliente]);
+
+  useEffect(() => {
+    if (mesAberto && !registrosClientePorMes.some(([mes]) => mes === mesAberto)) {
+      setMesAberto(null);
+    }
+  }, [mesAberto, registrosClientePorMes]);
+
+  const pastaSelecionada = registrosClientePorMes.find(([mes]) => mes === mesAberto);
 
   const nomeClienteSelecionado = cotistasDisponiveis.find((cotista) => cotista.id === clienteSelecionado)?.nome || "Cotista";
 
@@ -345,8 +354,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                 {loading ? (
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
                 ) : cotistasFiltrados.length ? (
-                  cotistasFiltrados.map((item) => (
-                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                    cotistasFiltrados.map((item) => (
+                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
                       <div className="mb-4 flex items-start justify-between">
                         <span className="rounded-lg bg-primary/10 p-2 text-primary">
                           <Building2 size={16} />
@@ -373,7 +382,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
           ) : (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <button type="button" onClick={() => { setClienteSelecionado(null); setTabCliente("vinculados"); }} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                <button type="button" onClick={() => { setClienteSelecionado(null); setMesAberto(null); setTabCliente("vinculados"); }} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
                   <ChevronLeft size={14} /> Voltar para cotistas
                 </button>
                 <Button type="button" onClick={() => { closeForm(); setFormOpen(true); }} className="h-9 gap-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-extrabold">
@@ -384,10 +393,10 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
               {/* RESUMO DO COTISTA */}
               <div className="mb-1"><h2 className="text-lg font-bold">{nomeClienteSelecionado}</h2><p className="text-xs text-muted-foreground">Histórico separado por mês</p></div>
               <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl" role="tablist" aria-label="Histórico do cotista">
-                <button type="button" role="tab" aria-selected={tabCliente === "vinculados"} onClick={() => setTabCliente("vinculados")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "vinculados" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                <button type="button" role="tab" aria-selected={tabCliente === "vinculados"} onClick={() => { setTabCliente("vinculados"); setMesAberto(null); }} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "vinculados" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                   <Fuel size={13} className="mr-1.5 inline" /> Aeronaves vinculadas
                 </button>
-                <button type="button" role="tab" aria-selected={tabCliente === "emprestimo"} onClick={() => setTabCliente("emprestimo")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "emprestimo" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                <button type="button" role="tab" aria-selected={tabCliente === "emprestimo"} onClick={() => { setTabCliente("emprestimo"); setMesAberto(null); }} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "emprestimo" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                   <Plane size={13} className="mr-1.5 inline" /> Voos Empréstimo
                 </button>
               </div>
@@ -396,15 +405,52 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                 <StatTile label="Volume total" value={`${totalLitrosCliente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
                 <StatTile label="Valor total" value={money(totalValorCliente)} icon={<FileText size={14} />} accent="text-emerald-400" />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {registrosClientePorMes.map(([mes, registros]) => (
-                  <div key={mes} className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} · {registros.length} registro{registros.length === 1 ? "" : "s"}
+              {!pastaSelecionada ? (
+                <div className="grid gap-x-5 gap-y-8 rounded-xl border border-border/70 bg-card/35 p-6 sm:grid-cols-2 lg:grid-cols-3 md:p-8">
+                  {registrosClientePorMes.length ? registrosClientePorMes.map(([mes, registros], indice) => {
+                    const titulo = mes === "sem-data"
+                      ? "Sem data"
+                      : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                    return (
+                      <button
+                        key={mes}
+                        type="button"
+                        onClick={() => setMesAberto(mes)}
+                        aria-label={`Abrir pasta ${titulo}`}
+                        className="group rounded-2xl p-2 text-center transition-all hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                      >
+                        <div className="relative mx-auto h-[130px] w-[174px] max-w-full px-[6px] transition-transform duration-300 group-hover:scale-[1.04]">
+                          <span className="absolute left-2 top-0 z-0 h-6 w-20 rounded-t-[16px] bg-gradient-to-r from-orange-600 to-amber-500" />
+                          <span className="absolute left-3 top-4 z-10 h-4 w-[154px] rounded-t-lg border border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
+                          <span className="absolute inset-x-0 top-5 bottom-0 z-20 overflow-hidden rounded-[15px] border border-amber-300/[.88] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-400">
+                            <span className="absolute inset-x-3 top-2 h-1.5 rounded-full bg-white/25" />
+                            <span className="absolute inset-x-0 bottom-0 h-9 bg-orange-500/10" />
+                            <span className="absolute left-1/2 top-1/2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-white/30 bg-white/25 font-mono text-sm font-black text-amber-950">
+                              {registros.length}
+                            </span>
+                          </span>
+                        </div>
+                        <strong className={`mt-2 block text-[13px] font-extrabold tracking-[-.02em] ${indice === 0 ? "text-primary" : "text-foreground"}`}>
+                          {titulo.charAt(0).toUpperCase() + titulo.slice(1)}
+                        </strong>
+                        <span className="mt-1 block text-[10px] font-medium text-muted-foreground">Clique para abrir</span>
+                      </button>
+                    );
+                  }) : <div className="col-span-full"><EstadoVazio label={tabCliente === "emprestimo" ? "Nenhum abastecimento de aeronave emprestada encontrado." : "Nenhum abastecimento de aeronave vinculada encontrado."} /></div>}
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                    <div className="grid h-10 w-10 place-content-center rounded-xl bg-gradient-to-br from-yellow-300 to-orange-500 text-amber-950 shadow-md"><FolderOpen size={20} /></div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[.15em] text-primary">Pasta aberta</p>
+                      <h3 className="text-base font-extrabold">{pastaSelecionada[0] === "sem-data" ? "Sem data" : new Date(`${pastaSelecionada[0]}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>
+                    </div>
+                    <span className="ml-auto rounded-full border border-primary/20 bg-card/70 px-2.5 py-1 font-mono text-[10px] font-bold">{pastaSelecionada[1].length} registro(s)</span>
+                    <button type="button" onClick={() => setMesAberto(null)} className="basis-full text-left text-[10px] font-bold text-primary hover:underline sm:basis-auto">Ver todas as pastas</button>
                   </div>
-                ))}
-              </div>
 
-              {/* FILTROS E TABELA */}
+                  {/* FILTROS E TABELA */}
               <section className={`${card} overflow-hidden p-4`}>
                 <div className="mb-4 grid gap-3 sm:grid-cols-3">
                   <label className="block">
@@ -442,8 +488,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                       </tr>
                     </thead>
                     <tbody className="text-foreground">
-                      {registrosCliente.length ? (
-                        registrosClientePorMes.flatMap(([, registros]) => registros).map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)
+                      {pastaSelecionada[1].length ? (
+                        pastaSelecionada[1].map((record) => <AbastecimentoRow key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)
                       ) : (
                         <tr>
                           <td colSpan={10} className="py-8 text-center text-muted-foreground">{tabCliente === "emprestimo" ? "Nenhum abastecimento de aeronave emprestada encontrado." : "Nenhum abastecimento de aeronave vinculada encontrado."}</td>
@@ -453,9 +499,11 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
                   </table>
                 </div>
                 <div className="space-y-2 md:hidden">
-                  {registrosCliente.length ? registrosClientePorMes.map(([mes, registros]) => <section key={mes} className="space-y-2"><h3 className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary">{mes === "sem-data" ? "Sem data" : new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h3>{registros.map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />)}</section>) : <EstadoVazio label={tabCliente === "emprestimo" ? "Nenhum abastecimento de aeronave emprestada encontrado." : "Nenhum abastecimento de aeronave vinculada encontrado."} />}
+                  {pastaSelecionada[1].length ? pastaSelecionada[1].map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />) : <EstadoVazio label="Nenhum abastecimento nesta pasta." />}
                 </div>
               </section>
+                </>
+              )}
             </div>
           )}
         </>

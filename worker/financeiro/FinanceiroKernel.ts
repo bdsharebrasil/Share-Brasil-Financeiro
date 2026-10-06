@@ -1,6 +1,7 @@
 type Row = Record<string, unknown>
 type Database = D1Database
 
+import { dateValue, nullableText, text, uuid } from '../lib/strings'
 import { mensagemFinanceiraStatements } from './financeiroNotifications'
 import {
   allocateReceiptNumber,
@@ -26,12 +27,13 @@ export type CotistaKind = 'CLIENTE' | 'HOLDING'
  */
 export type ReembolsoModo = 'RESPONSAVEL_UNICO' | 'RESPONSAVEL_COM_BALANCO' | 'PARTE_PROPRIA'
 
-export const STATUS_LANCAMENTO = ['EM_ABERTO', 'PAGO', 'RECEBIDO', 'ATRASADO', 'EM_ATRASO', 'CANCELADO'] as const
+export { STATUS_LANCAMENTO } from './statuses'
 export const STATUS_CONTA_PAGAR = ['EM_ABERTO', 'EM_ATRASO', 'PAGO', 'CANCELADO'] as const
 export const STATUS_CONTA_RECEBER = ['EM_ABERTO', 'EM_ATRASO', 'RECEBIDO', 'PAGO', 'CANCELADO'] as const
 export const STATUS_RATEIO = ['EM_ABERTO', 'PAGO', 'CANCELADO'] as const
 export const STATUS_REEMBOLSO = ['PENDENTE', 'AGUARDANDO_REEMBOLSO', 'RECEBIDO', 'REEMBOLSADO', 'CANCELADO'] as const
 export const STATUS_FILA = ['PENDENTE', 'PROCESSANDO', 'PROCESSADO', 'ERRO'] as const
+const FILA_BACKOFF_MINUTOS = [1, 5, 15, 60]
 
 export class FinanceError extends Error {
   constructor(
@@ -42,14 +44,6 @@ export class FinanceError extends Error {
     super(message)
     this.name = 'FinanceError'
   }
-}
-
-const text = (value: unknown): string =>
-  value == null ? '' : String(value).trim()
-
-const nullableText = (value: unknown): string | null => {
-  const valueText = text(value)
-  return valueText || null
 }
 
 const asFlag = (value: unknown): boolean =>
@@ -79,14 +73,6 @@ const asNonNegativeCents = (value: unknown): number => {
 const optionalCents = (value: unknown): number | null =>
   value == null || value === '' ? null : asPositiveCents(value)
 
-const dateValue = (value: unknown): string => {
-  const date = text(value) || new Date().toISOString().slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}/.test(date)) {
-    throw new FinanceError('Data inválida', 'data_invalida')
-  }
-  return date
-}
-
 async function resolveContaBancariaId(db: Database, value: unknown): Promise<string | null> {
   const informada = nullableText(value)
   if (!informada) return null
@@ -98,9 +84,21 @@ async function resolveContaBancariaId(db: Database, value: unknown): Promise<str
   return row?.id ?? null
 }
 
-const id = (): string => crypto.randomUUID()
+const id = (): string => uuid()
 
 const upper = (value: unknown): string => text(value).toUpperCase()
+
+export type EscopoFinanceiro = 'FINANCEIRO' | 'CAIXA_SHARE'
+
+// O escopo é uma decisão do servidor: o formulário nunca controla a fronteira.
+function escopoFinanceiro(command: Row): EscopoFinanceiro {
+  const tipo = upper(command.tipo)
+  const caixa = upper(command.tipo_caixa)
+  const origem = upper(command.origem_tipo)
+  if (caixa === 'CLIENTE' || caixa === 'HOLDING' || tipo === 'CLIENTE' || tipo === 'REEMBOLSO') return 'FINANCEIRO'
+  if (['NF_SAIDA', 'RECIBO_SAIDA', 'RECIBO_COLABORADOR', 'PAGAMENTO_FOLHA', 'DESPESA_EMPRESA', 'SOLICITACAO_COMPRA'].includes(origem)) return 'CAIXA_SHARE'
+  return caixa === 'SHARE' ? 'CAIXA_SHARE' : 'FINANCEIRO'
+}
 
 // Valores aceitos pelo CHECK de tipo_rateio em rateio_despesas e rateio_hold.
 const RATEIO_TYPES: readonly string[] = ['FIXO', 'VARIAVEL_POR_VOO', 'VARIAVEL_POR_HORA', 'EXTRA']
@@ -119,6 +117,39 @@ const normalizeRateioType = (value: unknown): string => {
 }
 
 const round3 = (value: number): number => Math.round(value * 1000) / 1000
+const PERCENTUAL_TOTAL_BASIS_POINTS = 10_000
+
+function percentualBasisPoints(percentuais: number[]): number[] {
+  const brutos = percentuais.map((percentual) => percentual * 100)
+  const bases = brutos.map((bruto) => Math.floor(bruto))
+  let restante = PERCENTUAL_TOTAL_BASIS_POINTS - bases.reduce((total, base) => total + base, 0)
+  const ordemDosRestos = brutos.map((bruto, index) => ({ index, resto: bruto - bases[index] }))
+    .sort((a, b) => b.resto - a.resto || a.index - b.index)
+  for (let index = 0; index < ordemDosRestos.length && restante > 0; index += 1) {
+    bases[ordemDosRestos[index].index] += 1
+    restante -= 1
+  }
+  if (restante !== 0) throw new FinanceError('A soma dos percentuais do rateio deve ser 100%', 'rateio_percentual_invalido')
+  return bases
+}
+
+/** Distribui centavos pelo maior resto, preservando exatamente o total. */
+export function allocateCentsByPercentages(amount: number, percentuais: number[]): number[] {
+  if (!Number.isInteger(amount) || amount <= 0 || !percentuais.length || percentuais.some((percentual) => !Number.isFinite(percentual) || percentual < 0)) {
+    throw new FinanceError('Percentuais do rateio inválidos', 'rateio_percentual_invalido')
+  }
+  const basisPoints = percentualBasisPoints(percentuais)
+  const exatos = basisPoints.map((basisPoint) => amount * basisPoint / PERCENTUAL_TOTAL_BASIS_POINTS)
+  const valores = exatos.map(Math.floor)
+  let restante = amount - valores.reduce((total, valor) => total + valor, 0)
+  const ordemDosRestos = exatos.map((exato, index) => ({ index, resto: exato - valores[index] }))
+    .sort((a, b) => b.resto - a.resto || a.index - b.index)
+  for (let index = 0; index < ordemDosRestos.length && restante > 0; index += 1) {
+    valores[ordemDosRestos[index].index] += 1
+    restante -= 1
+  }
+  return valores
+}
 
 function parseAnexos(value: unknown): Row[] {
   if (Array.isArray(value)) return value as Row[]
@@ -127,6 +158,54 @@ function parseAnexos(value: unknown): Row[] {
     return Array.isArray(parsed) ? (parsed as Row[]) : []
   } catch {
     return []
+  }
+}
+
+export function buildDocumentFields(value: unknown, cotistaId?: string | null): Row {
+  const anexos = parseAnexos(value).filter((anexo) => {
+    const anexoCotista = nullableText(anexo.cotista_id)
+    return !cotistaId || !anexoCotista || anexoCotista === cotistaId
+  })
+  const find = (...tipos: string[]) => anexos.find((anexo) => tipos.includes(text(anexo.tipo).toLowerCase()))
+  const nf = find('nf', 'nota', 'nota_fiscal')
+  const recibo = find('recibo')
+  const boleto = find('boleto')
+  const documento = find('comanda', 'doc', 'documento', 'comprovante', 'outro')
+  const demonstrativo = find('demonstrativo')
+  return {
+    numero_nf: nullableText(nf?.numero),
+    numero_recibo: nullableText(recibo?.numero),
+    numero_boleto: nullableText(boleto?.numero),
+    numero_doc: nullableText(documento?.numero),
+    numero_demonstrativo: nullableText(demonstrativo?.numero),
+    url_nf: nullableText(nf?.url),
+    url_recibo: nullableText(recibo?.url),
+    url_boleto: nullableText(boleto?.url),
+    url_doc: nullableText(documento?.url ?? demonstrativo?.url),
+    url_demonstrativo: nullableText(demonstrativo?.url),
+    anexos_json: JSON.stringify(anexos),
+  }
+}
+
+async function resolveLancamentoMetadata(db: Database, command: Row): Promise<Row> {
+  const fornecedorId = nullableText(command.fornecedor_id ?? command.fornecedores_favoritos_id)
+  const fornecedor = fornecedorId
+    ? await db.prepare('SELECT nome_completo FROM fornecedores_favoritos WHERE id = ? LIMIT 1').bind(fornecedorId).first<{ nome_completo: string | null }>()
+    : null
+  const tipoCaixa = upper(command.tipo_caixa)
+  const categoriaId = nullableText(command.categoria_cliente_id ?? command.categoria_id)
+  const categoriaTabela = tipoCaixa === 'CLIENTE' || tipoCaixa === 'HOLDING'
+    ? 'categoria_movimentacao_cliente'
+    : 'categoria_movimentacao_share'
+  const categoria = categoriaId
+    ? await db.prepare(`SELECT nome FROM ${categoriaTabela} WHERE id = ? LIMIT 1`).bind(categoriaId).first<{ nome: string | null }>()
+    : null
+  return {
+    ...command,
+    fornecedor_nome: fornecedor?.nome_completo
+      ? nullableText(fornecedor.nome_completo)
+      : (fornecedorId ? null : nullableText(command.fornecedor_nome ?? command.fornecedor)),
+    categoria_nome: nullableText(categoria?.nome ?? command.categoria_nome ?? command.categoria),
   }
 }
 
@@ -192,7 +271,6 @@ export async function loadSchema(db: Database): Promise<SchemaCache> {
     const result = await db
       .prepare(`SELECT name FROM pragma_table_info('${table}')`)
       .all<{ name: string }>()
-      .catch(() => ({ results: [] as Array<{ name: string }> }))
 
     schema.set(
       table,
@@ -265,24 +343,6 @@ const FRONTEND_CONTRACT_FIELDS = new Set([
   'valor_total_despesa_centavos', 'cotista_pagador_id', 'origem_tipo_conta',
 ])
 
-const OPTIONAL_SCHEMA_COLUMNS = new Set([
-  'idempotency_key', 'aeronave_id', 'cotista_aeronave_id', 'holding_id', 'socio_id',
-  'cliente_id', 'fornecedor_id', 'fornecedores_favoritos_id', 'fornecedor_nome', 'categoria_id', 'categoria_nome',
-  'grupo_categoria', 'categoria_cliente_id', 'data', 'data_lancamento', 'data_emissao', 'data_vencimento',
-  'data_pagamento', 'prazo', 'valor', 'valor_total', 'tipo', 'natureza', 'tipo_caixa',
-  'caixa', 'pago_por', 'pago_por_cotista_id', 'pago_por_socio_id', 'pago_diretamente',
-  'reembolsavel', 'reembolso_quitado', 'forma_pagamento', 'conta_bancaria_id',
-  'comprovante_url', 'observacoes', 'anexos_json', 'criado_por', 'origem_tipo',
-  'origem_id', 'colaborador_ref_id', 'nf_saida_id', 'lancamentos_id', 'lancamento_id',
-  'lancamento_cliente_id', 'movimentos_holding_id', 'movimento_holding_id',
-  'numero_nf', 'url_nf',
-  'periodicidade', 'tipo_rateio', 'percentual_sociedade', 'percentual_uso',
-  'valor_total_centavos', 'valor_rateado_centavos', 'valor_pago_real_centavos',
-  'valor_total', 'valor_rateado', 'descricao_despesa', 'categoria_custo_id',
-  'cotista_nome', 'aeronave_registro', 'recibo_url', 'numero_recibo', 'motivo',
-  'usuario_id', 'valor_anterior_centavos', 'valor_novo_centavos',
-])
-
 function validateFrontendContract(body: Row): void {
   const unknown = Object.keys(body).filter((field) => !FRONTEND_CONTRACT_FIELDS.has(field))
   if (unknown.length) {
@@ -322,9 +382,7 @@ function addKnownColumns(
     }
   }
 
-  const incompatible = Object.keys(values).filter(
-    (column) => !available.has(column) && !OPTIONAL_SCHEMA_COLUMNS.has(column),
-  )
+  const incompatible = Object.keys(values).filter((column) => !available.has(column))
   if (incompatible.length) {
     throw new FinanceError(
       `Colunas incompatíveis em ${table}: ${incompatible.join(', ')}`,
@@ -399,9 +457,7 @@ function updateStatement(
     )
   }
 
-  const incompatible = Object.keys(values).filter(
-    (column) => !available.has(column) && !OPTIONAL_SCHEMA_COLUMNS.has(column),
-  )
+  const incompatible = Object.keys(values).filter((column) => !available.has(column))
   if (incompatible.length) {
     throw new FinanceError(
       `Colunas incompatíveis em ${table}: ${incompatible.join(', ')}`,
@@ -628,10 +684,7 @@ function allocationLines(body: Row): AllocationLine[] {
     holdingId: nullableText(line.holding_id),
     percentual: Number(line.percentual ?? line.percentual_sociedade ?? 0),
     percentualSociedade: Number(line.percentual_sociedade ?? line.percentual ?? 0),
-    valorCentavos:
-      line.valor_centavos != null
-        ? asPositiveCents(line.valor_centavos)
-        : Math.round(amount * Number(line.percentual ?? 0) / 100),
+    valorCentavos: line.valor_centavos != null ? asPositiveCents(line.valor_centavos) : 0,
     pagoPor: nullableText(line.pago_por ?? line.pagoPor),
     pagoDiretamente: asFlag(
       line.pago_diretamente ?? line.pagoDiretamente ?? body.pago_diretamente ?? body.pagoDiretamente,
@@ -647,6 +700,12 @@ function allocationLines(body: Row): AllocationLine[] {
     )
   }
 
+  const percentualTotal = lines.reduce((sum, line) => sum + line.percentual, 0)
+  if (Math.abs(percentualTotal - 100) > 0.01) {
+    throw new FinanceError('A soma dos percentuais do rateio deve ser 100%', 'rateio_percentual_invalido')
+  }
+  const valoresCalculados = allocateCentsByPercentages(amount, lines.map((line) => line.percentual))
+  lines.forEach((line, index) => { line.valorCentavos = valoresCalculados[index] })
   const total = lines.reduce((sum, line) => sum + line.valorCentavos, 0)
   if (total !== amount) {
     throw new FinanceError(
@@ -677,8 +736,8 @@ async function receiptAllocationLines(
     throw new FinanceError('Aeronave obrigatória para rateio', 'rateio_aeronave_obrigatoria')
   }
   const cotistas = await db.prepare(
-    'SELECT id FROM cotista_aeronave WHERE aeronave_id = ? ORDER BY id',
-  ).bind(aeronaveId).all<{ id: string }>()
+    'SELECT id, percentual_sociedade FROM cotista_aeronave WHERE aeronave_id = ? ORDER BY id',
+  ).bind(aeronaveId).all<{ id: string; percentual_sociedade: number | null }>()
   const ids = cotistas.results ?? []
   if (!ids.length) {
     throw new FinanceError('Nenhum cotista encontrado para a aeronave', 'rateio_cotistas_invalidos')
@@ -686,12 +745,12 @@ async function receiptAllocationLines(
 
   const amount = asPositiveCents(input.valor_centavos)
   const percentual = 100 / ids.length
-  const valorBase = Math.floor(amount / ids.length)
-  let restante = amount - valorBase * ids.length
-  return ids.map(({ id: cotistaId }) => ({
+  const valores = allocateCentsByPercentages(amount, ids.map(() => percentual))
+  return ids.map(({ id: cotistaId, percentual_sociedade }, index) => ({
     cotista_id: cotistaId,
     percentual: round3(percentual),
-    valor_centavos: valorBase + (restante-- > 0 ? 1 : 0),
+    percentual_sociedade: percentual_sociedade == null ? null : Number(percentual_sociedade),
+    valor_centavos: valores[index],
   }))
 }
 
@@ -788,7 +847,6 @@ function clientAllocationStatements(
   const anexos = parseAnexos(command.anexos_json)
   return lines.map((line, index) => {
     const rateioId = rateioIds?.[index] ?? id()
-    const nf = anexos.find((anexo) => anexo.cotista_id === line.cotistaId && anexo.tipo === 'nf')
     const anexosDaLinha = anexos.filter((anexo) => !anexo.cotista_id || anexo.cotista_id === line.cotistaId)
     return insertStatement(
       db,
@@ -806,6 +864,10 @@ function clientAllocationStatements(
         categoria_nome: nullableText(
           command.categoria_nome ?? command.categoria,
         ),
+        subcategoria_1: nullableText(command.subcategoria_1),
+        subcategoria_2: nullableText(command.subcategoria_2),
+        subcategoria_3: nullableText(command.subcategoria_3),
+        subcategoria_4: nullableText(command.subcategoria_4),
         tipo_rateio: normalizeRateioType(command.tipo_rateio),
         percentual_sociedade: line.percentualSociedade,
         percentual_uso: line.percentual,
@@ -821,17 +883,30 @@ function clientAllocationStatements(
         observacoes: nullableText(command.observacoes),
         origem_id: nullableText(command.recibo_id),
         origem_tipo: nullableText(command.recibo_id) ? 'RECIBO' : null,
-        numero_recibo: nullableText(command.numero_recibo),
-        url_recibo: nullableText(command.url_recibo),
-        anexos_json: JSON.stringify(anexosDaLinha),
-        numero_nf: nf ? nullableText(nf.numero) : null,
-        url_nf: nf ? nullableText(nf.url) : null,
-        url_boleto: (() => { const boleto = anexos.find((anexo) => anexo.cotista_id === line.cotistaId && anexo.tipo === 'boleto'); return boleto ? nullableText(boleto.url) : null })(),
+        ...buildDocumentFields(anexosDaLinha, line.cotistaId),
         criado_por: userId,
       },
       ['id', 'cotista_id', 'aeronave_id'],
     )
   })
+}
+
+/** Persiste apenas parcelas de cliente; o id do envio é a referência do rateio. */
+export async function createClientExpenseRateios(
+  db: Database,
+  body: Row,
+  userId: string | null,
+  options: NormalizeOptions = {},
+): Promise<Row> {
+  const sourceId = nullableText(body.lancamento_id)
+  if (!sourceId) throw new FinanceError('Envio de despesa obrigatório para o rateio', 'envio_despesa_obrigatorio')
+  const schema = await loadSchema(db)
+  const command = normalizeCommand({ ...body, tipo_caixa: 'CLIENTE', sem_rateio: false }, userId, options)
+  const lines = allocationLines(command)
+  if (!lines.length) throw new FinanceError('Despesa de cliente precisa de rateio', 'rateio_obrigatorio')
+  const rateioIds = lines.map(() => id())
+  await db.batch(clientAllocationStatements(db, schema, command, sourceId, lines, userId, rateioIds))
+  return { id: sourceId, lancamento_id: sourceId, rateio_ids: rateioIds, movimentacao_id: null, status: 'EM_ABERTO', idempotent: false }
 }
 
 function holdingAllocationStatements(
@@ -900,7 +975,8 @@ export async function createExpense(
   options: NormalizeOptions = {},
 ): Promise<Row> {
   const schema = await loadSchema(db)
-  const command = normalizeCommand(body, userId, options)
+  const command = await resolveLancamentoMetadata(db, normalizeCommand(body, userId, options))
+  const escopo = escopoFinanceiro(command)
   const existing = await findExistingByIdempotency(
     db,
     schema,
@@ -950,6 +1026,7 @@ export async function createExpense(
         'movimentos_holding',
         {
           id: movimentoId,
+          escopo_financeiro: escopo,
           holding_id: context.holdingId,
           socio_id: context.socioId,
           aeronave_id: context.aeronaveId || command.aeronave_id,
@@ -959,7 +1036,7 @@ export async function createExpense(
           data_pagamento: direct ? dateValue(command.data_pagamento ?? command.data) : null,
           descricao: command.descricao,
           abastecimentos_id: nullableText(command.abastecimentos_id),
-          fornecedor_nome: nullableText(command.fornecedor_nome ?? context?.nome),
+          fornecedor_nome: nullableText(command.fornecedor_nome ?? command.fornecedor),
           fornecedor_id: nullableText(command.fornecedor_id),
           // movimentos_holding.categoria_id referencia categoria_movimentacao_cliente.
           categoria_id: nullableText(command.categoria_cliente_id),
@@ -1040,6 +1117,7 @@ export async function createExpense(
         'lancamentos',
         {
           id: lancamentoId,
+          escopo_financeiro: escopo,
           aeronave_id: command.aeronave_id,
           cotista_aeronave_id: command.cotista_aeronave_id,
           abastecimentos_id: nullableText(command.abastecimentos_id),
@@ -1053,10 +1131,7 @@ export async function createExpense(
           periodicidade: nullableText(command.periodicidade),
           fornecedores_favoritos_id: nullableText(command.fornecedor_id),
           fornecedor_nome: nullableText(command.fornecedor_nome ?? command.fornecedor),
-          numero_nf: (() => { const nf = parseAnexos(command.anexos_json).find((anexo) => anexo.tipo === 'nf'); return nf ? nullableText(nf.numero) : null })(),
-          url_nf: (() => { const nf = parseAnexos(command.anexos_json).find((anexo) => anexo.tipo === 'nf'); return nf ? nullableText(nf.url) : null })(),
-          url_boleto: (() => { const boleto = parseAnexos(command.anexos_json).find((anexo) => anexo.tipo === 'boleto'); return boleto ? nullableText(boleto.url) : null })(),
-          anexos_json: JSON.stringify(parseAnexos(command.anexos_json)),
+          ...buildDocumentFields(command.anexos_json),
           subcategoria_1: nullableText(command.subcategoria_1),
           subcategoria_2: nullableText(command.subcategoria_2),
           subcategoria_3: nullableText(command.subcategoria_3),
@@ -1121,10 +1196,11 @@ export async function createExpense(
       'lancamentos',
       {
         id: lancamentoId,
+        escopo_financeiro: escopo,
         aeronave_id: command.aeronave_id,
         cotista_aeronave_id: command.cotista_aeronave_id,
         descricao: command.descricao,
-        fornecedor_nome: nullableText(command.fornecedor_nome ?? context?.nome),
+        fornecedor_nome: nullableText(command.fornecedor_nome ?? command.fornecedor),
         fornecedores_favoritos_id: nullableText(command.fornecedor_id),
         categoria_id: ehDespesaCliente ? null : nullableText(command.categoria_id),
         categoria_cliente_id: ehDespesaCliente ? nullableText(command.categoria_cliente_id ?? command.categoria_id) : null,
@@ -1135,6 +1211,12 @@ export async function createExpense(
           command.grupo_categoria ||
           (reembolsavel ? 'DESPESAS REEMBOLSÁVEIS' : 'DESPESAS EMPRESA'),
         ),
+        periodicidade: nullableText(command.periodicidade),
+        ...buildDocumentFields(command.anexos_json),
+        subcategoria_1: nullableText(command.subcategoria_1),
+        subcategoria_2: nullableText(command.subcategoria_2),
+        subcategoria_3: nullableText(command.subcategoria_3),
+        subcategoria_4: nullableText(command.subcategoria_4),
         fluxo: 'SAIDA',
         natureza: 'DESPESA',
         tipo_caixa: ehDespesaCliente ? 'CLIENTE' : 'SHARE',
@@ -1308,6 +1390,7 @@ export async function issueRevenue(
 ): Promise<Row> {
   const schema = await loadSchema(db)
   const command = normalizeCommand({ ...body, fluxo: 'ENTRADA' }, userId, options)
+  const escopo = escopoFinanceiro(command)
   const existing = await findExistingByIdempotency(
     db,
     schema,
@@ -1333,13 +1416,14 @@ export async function issueRevenue(
       'lancamentos',
       {
         id: lancamentoId,
+        escopo_financeiro: escopo,
         aeronave_id: context?.aeronaveId || command.aeronave_id,
         cotista_aeronave_id:
           context?.cotistaAeronaveId || command.cotista_aeronave_id,
         descricao: command.descricao,
         fornecedor_nome: nullableText(command.fornecedor_nome ?? context?.nome),
         fornecedores_favoritos_id: nullableText(command.fornecedor_id),
-        fluxo: documentoSaida ? 'RECEITA' : 'ENTRADA',
+        fluxo: 'ENTRADA',
         natureza: 'RECEITA',
         tipo_caixa: 'SHARE',
         valor_centavos: amount,
@@ -1396,6 +1480,7 @@ export async function issueRevenue(
         'lancamentos',
         {
           id: clientLancamentoId,
+          escopo_financeiro: escopo,
           aeronave_id: context?.aeronaveId || command.aeronave_id,
           cotista_aeronave_id: context?.cotistaAeronaveId,
           cliente_id: context?.clienteId,
@@ -1546,7 +1631,9 @@ export async function createReimbursement(
   options: NormalizeOptions = {},
 ): Promise<Row> {
   const schema = await loadSchema(db)
-  const command = normalizeCommand(body, userId, options)
+  const command = await resolveLancamentoMetadata(db, normalizeCommand(body, userId, options))
+  const origemEscopo = await db.prepare('SELECT escopo_financeiro FROM lancamentos WHERE id = ?').bind(String(command.lancamento_origem_id ?? command.lancamento_id ?? '')).first<{ escopo_financeiro: EscopoFinanceiro }>()
+  const escopo = origemEscopo?.escopo_financeiro || 'FINANCEIRO'
   const originalId = text(
     command.lancamento_origem_id ?? command.lancamento_id,
   )
@@ -1656,19 +1743,29 @@ export async function createReimbursement(
       'lancamentos',
       {
         id: shareLancamentoId,
+        escopo_financeiro: escopo,
         aeronave_id: context.aeronaveId,
         cotista_aeronave_id: context.cotistaAeronaveId,
         descricao: command.descricao || 'Reembolso de despesa',
-        categoria_id: nullableText(command.categoria_id),
-        categoria_nome: 'REEMBOLSOS ENTRADAS',
-        grupo_categoria: 'REEMBOLSOS ENTRADAS',
+        categoria_id: null,
+        categoria_cliente_id: nullableText(command.categoria_cliente_id ?? command.categoria_id),
+        categoria_nome: nullableText(command.categoria_nome ?? 'REEMBOLSOS ENTRADAS'),
+        grupo_categoria: nullableText(command.grupo_categoria ?? 'REEMBOLSOS ENTRADAS'),
+        periodicidade: nullableText(command.periodicidade),
+        fornecedores_favoritos_id: nullableText(command.fornecedor_id),
+        fornecedor_nome: nullableText(command.fornecedor_nome ?? command.fornecedor),
+        ...buildDocumentFields(command.anexos_json),
+        subcategoria_1: nullableText(command.subcategoria_1),
+        subcategoria_2: nullableText(command.subcategoria_2),
+        subcategoria_3: nullableText(command.subcategoria_3),
+        subcategoria_4: nullableText(command.subcategoria_4),
         fluxo: 'ENTRADA',
         natureza: 'REEMBOLSO',
         tipo_caixa: 'SHARE',
         valor_centavos: amount,
         valor_total: amount / 100,
         valor: amount / 100,
-        status: 'AGUARDANDO_REEMBOLSO',
+        status: 'EM_ABERTO',
         data_emissao: command.data,
         data_vencimento: command.data_vencimento || command.data,
         origem_tipo: 'REEMBOLSO',
@@ -1692,9 +1789,17 @@ export async function createReimbursement(
         categoria_id: null,
         categoria_cliente_id: nullableText(command.categoria_cliente_id),
         categoria_nome: nullableText(
-          command.categoria_cliente_nome ?? 'REEMBOLSO',
+          command.categoria_cliente_nome ?? command.categoria_nome ?? 'REEMBOLSO',
         ),
         grupo_categoria: 'REEMBOLSO',
+        periodicidade: nullableText(command.periodicidade),
+        fornecedores_favoritos_id: nullableText(command.fornecedor_id),
+        fornecedor_nome: nullableText(command.fornecedor_nome ?? command.fornecedor),
+        ...buildDocumentFields(command.anexos_json),
+        subcategoria_1: nullableText(command.subcategoria_1),
+        subcategoria_2: nullableText(command.subcategoria_2),
+        subcategoria_3: nullableText(command.subcategoria_3),
+        subcategoria_4: nullableText(command.subcategoria_4),
         fluxo: 'SAIDA',
         natureza: 'DESPESA',
         tipo_caixa: 'CLIENTE',
@@ -1744,6 +1849,11 @@ export async function createReimbursement(
         periodicidade: nullableText(command.periodicidade),
         categoria_id: nullableText(command.categoria_cliente_id),
         categoria_nome: nullableText(command.categoria_cliente_nome ?? command.categoria_nome),
+        subcategoria_1: nullableText(command.subcategoria_1),
+        subcategoria_2: nullableText(command.subcategoria_2),
+        subcategoria_3: nullableText(command.subcategoria_3),
+        subcategoria_4: nullableText(command.subcategoria_4),
+        ...buildDocumentFields(command.anexos_json, line.cotistaId),
         tipo_rateio: normalizeRateioType(command.tipo_rateio),
         percentual_sociedade: line.percentualSociedade,
         percentual_uso: line.percentual,
@@ -1977,6 +2087,7 @@ export async function enqueueFinance(
     'tentativas',
     'erro',
     'processado_em',
+    'proxima_tentativa_em',
   ])
   if (!['DESPESA', 'RECEITA', 'REEMBOLSO'].includes(operation)) {
     throw new FinanceError('Operação de fila inválida', 'operacao_fila_invalida')
@@ -2014,16 +2125,20 @@ export async function processFinanceQueue(
     'tentativas',
     'erro',
     'processado_em',
+    'proxima_tentativa_em',
   ])
   await db.prepare(`UPDATE financeiro_fila
       SET status = CASE WHEN tentativas >= 5 THEN 'ERRO' ELSE 'PENDENTE' END,
-          erro = CASE WHEN tentativas >= 5 THEN 'limite_de_tentativas_excedido' ELSE 'claim_expirado' END
+          erro = CASE WHEN tentativas >= 5 THEN 'limite_de_tentativas_excedido' ELSE 'claim_expirado' END,
+          processando_em = NULL,
+          proxima_tentativa_em = CASE WHEN tentativas >= 5 THEN NULL ELSE datetime('now', '+1 minute') END
     WHERE status = 'PROCESSANDO'
       AND datetime(COALESCE(processando_em, criado_em)) < datetime('now', '-15 minutes')`).run()
   const rows = await db
     .prepare(
       `SELECT * FROM financeiro_fila
         WHERE status = 'PENDENTE' AND tentativas < 5
+          AND (proxima_tentativa_em IS NULL OR datetime(proxima_tentativa_em) <= datetime('now'))
         ORDER BY criado_em
         LIMIT ?`,
     )
@@ -2072,7 +2187,8 @@ export async function processFinanceQueue(
               SET status = 'PROCESSADO',
                   processado_em = CURRENT_TIMESTAMP,
                   processando_em = NULL,
-                  erro = NULL
+                  erro = NULL,
+                  proxima_tentativa_em = NULL
             WHERE id = ?
               AND status = 'PROCESSANDO'`,
         )
@@ -2081,22 +2197,27 @@ export async function processFinanceQueue(
 
       result.push({ id: row.id, status: 'PROCESSADO' })
     } catch (error) {
+      const permanent = error instanceof FinanceError
+      const mensagem = error instanceof Error ? error.message : String(error)
+      const backoff = FILA_BACKOFF_MINUTOS[Math.min(Number(row.tentativas ?? 0), FILA_BACKOFF_MINUTOS.length - 1)]
       await db
         .prepare(
           `UPDATE financeiro_fila
-              SET status = 'ERRO',
+              SET status = CASE WHEN ? = 1 OR tentativas >= 5 THEN 'ERRO' ELSE 'PENDENTE' END,
                   processando_em = NULL,
-                  erro = ?
+                  erro = ?,
+                  proxima_tentativa_em = CASE WHEN ? = 1 OR tentativas >= 5 THEN NULL ELSE datetime('now', '+' || ? || ' minutes') END
             WHERE id = ?
               AND status = 'PROCESSANDO'`,
         )
-        .bind(error instanceof Error ? error.message : String(error), row.id)
+        .bind(permanent ? 1 : 0, mensagem, permanent ? 1 : 0, backoff, row.id)
         .run()
 
       result.push({
         id: row.id,
-        status: 'ERRO',
-        erro: error instanceof Error ? error.message : String(error),
+        status: permanent || Number(row.tentativas ?? 0) >= 5 ? 'ERRO' : 'PENDENTE',
+        erro: mensagem,
+        ...(permanent || Number(row.tentativas ?? 0) >= 5 ? {} : { proxima_tentativa_em: `+${backoff}m` }),
       })
     }
   }
@@ -2501,7 +2622,7 @@ export async function programarReciboReembolso(db: Database, receiptId: string, 
       id: clientLancamentoId, aeronave_id: receipt.aeronave_id, cotista_aeronave_id: cotistaId,
       descricao: receipt.descricao || 'Reembolso de despesa', grupo_categoria: 'REEMBOLSO',
       fluxo: 'SAIDA', natureza: 'DESPESA', tipo_caixa: 'CLIENTE', valor_centavos: amount, valor_total: amount / 100,
-      valor: amount / 100, status: 'AGUARDANDO_REEMBOLSO', data_lancamento: data, data_emissao: data,
+      valor: amount / 100, status: 'EM_ABERTO', data_lancamento: data, data_emissao: data,
       data_vencimento: vencimento, pago_diretamente: 0, reembolsavel: 0, reembolso_quitado: 0,
       categoria_cliente_id: nullableText(body.categoria_id),
       categoria_nome: nullableText(body.categoria_nome ?? 'REEMBOLSO'),

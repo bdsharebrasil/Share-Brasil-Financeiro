@@ -34,6 +34,39 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
   return query ? `?${query}` : "";
 }
 
+function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: any): T {
+  return {
+    ...row,
+    id: String(row.id ?? ""),
+    dataEmissao: row.dataEmissao ?? row.lancamento_data_emissao ?? row.data_emissao ?? row.data ?? null,
+    dataVencimento: row.dataVencimento ?? row.data_vencimento ?? "",
+    valor: Number(row.valor ?? Number(row.valor_centavos ?? 0) / 100),
+    categoriaId: row.categoriaId ?? row.categoria_id ?? null,
+    categoriaNome: row.categoriaNome ?? row.categoria_nome ?? null,
+    descricao: row.descricao ?? null,
+    criadoPor: row.criadoPor ?? row.criado_por ?? null,
+    aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null,
+    fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null,
+    fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
+    cotistaId: row.cotistaId ?? row.cotista_id ?? null,
+    boletoUrl: row.boletoUrl ?? row.boleto_url ?? null,
+    nfUrl: row.nfUrl ?? row.nf_url ?? null,
+    nfSaidaId: row.nfSaidaId ?? row.nf_saida_id ?? null,
+    dataPagamento: row.dataPagamento ?? row.data_pagamento ?? null,
+    bancoPagamento: row.bancoPagamento ?? row.banco_pagamento ?? null,
+    comprovantePagamentoUrl: row.comprovantePagamentoUrl ?? row.comprovante_pagamento_url ?? null,
+    dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
+    bancoRecebimento: row.bancoRecebimento ?? row.banco_recebimento ?? null,
+    comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
+    documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,
+    documentoUrl: row.documentoUrl ?? row.url_demonstrativo ?? row.url_nf ?? row.url_recibo ?? row.url_boleto ?? row.url_doc ?? null,
+    lancamentoId: row.lancamentoId ?? row.lancamento_id ?? row.lancamentos_id ?? null,
+    status: String(row.status ?? "EM_ABERTO").toUpperCase(),
+    criadoEm: row.criadoEm ?? row.criado_em ?? "",
+    atualizadoEm: row.atualizadoEm ?? row.atualizado_em ?? "",
+  } as T;
+}
+
 function normalizarLancamentoCaixa(row: any): Lancamento {
   const anexos = (() => {
     const valor = row.anexos ?? row.anexos_json;
@@ -102,23 +135,31 @@ export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<C
   return financeiroRequest<ContaAPagar[]>(`/api/financeiro/contas-apagar${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, fornecedorId: filtros.fornecedorId })}`);
 }
 
-export function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string; valorPago?: number; formaPagamento?: string; observacoes?: string }): Promise<ContaAPagar> {
-  return financeiroRequest<ContaAPagar>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
+export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string }): Promise<ContaAPagar> {
+  const resposta = await financeiroRequest<Record<string, unknown>>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, {
+    method: "POST",
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, banco_pagamento: dados.bancoPagamento, comprovante_pagamento_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
+  });
+  return normalizarContaFinanceira<ContaAPagar>(resposta);
 }
 
 export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
   return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
 }
 
-export function darBaixaContaAReceber(id: string, dados: { dataRecebimento?: string; bancoRecebimento?: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ idempotency_key?: string; data_pagamento?: string; conta_bancaria_id?: string; comprovante_url?: string | null; forma_pagamento?: string | null; tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {
-  return financeiroRequest<ContaAReceber>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, { method: "POST", body: JSON.stringify(dados) });
+export async function darBaixaContaAReceber(id: string, dados: { dataRecebimento?: string; bancoRecebimento?: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ idempotency_key?: string; data_pagamento?: string; conta_bancaria_id?: string; comprovante_url?: string | null; forma_pagamento?: string | null; tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {
+  const resposta = await financeiroRequest<Record<string, unknown>>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/baixa`, {
+    method: "POST",
+    body: JSON.stringify({ data_recebimento: dados.dataRecebimento, banco_recebimento: dados.bancoRecebimento, forma_pagamento: dados.formaPagamento, pagamentos: dados.pagamentos }),
+  });
+  return normalizarContaFinanceira<ContaAReceber>(resposta);
 }
 
 export function buscarFornecedoresFavoritos(): Promise<FornecedorFavorito[]> { return financeiroRequest<FornecedorFavorito[]>("/api/financeiro/fornecedores-favoritos"); }
 
 export async function buscarCategoriasShare(): Promise<CategoriaMovimentacaoShare[]> {
-  const resposta = await financeiroRequest<{ categorias?: any[] }>("/api/financeiro/lancamentos/opcoes");
-  return (resposta.categorias ?? []).map((categoria) => ({ id: String(categoria.id), nome: String(categoria.nome ?? categoria.descricao ?? ""), tipo: categoria.tipo ?? null, reembolsavel: Boolean(categoria.reembolsavel), grupoCategoria: categoria.grupoCategoria ?? categoria.grupo ?? null, tipoDespesa: categoria.tipoDespesa ?? categoria.classificacao ?? null, categoriaClienteId: categoria.categoriaClienteId ?? null }));
+  const resposta = await financeiroRequest<{ categorias?: any[] }>("/api/financeiro/share/opcoes");
+  return (resposta.categorias ?? []).map((categoria) => ({ id: String(categoria.id), nome: String(categoria.nome ?? categoria.descricao ?? ""), tipo: categoria.tipo ?? null, reembolsavel: Boolean(categoria.reembolsavel), grupoCategoria: categoria.grupoCategoria ?? categoria.grupo_categoria ?? categoria.grupo ?? null, tipoDespesa: categoria.tipoDespesa ?? categoria.tipo_despesa ?? categoria.classificacao ?? null, categoriaClienteId: categoria.categoriaClienteId ?? categoria.categoria_cliente_id ?? null }));
 }
 
 export type CategoriaCaixaShare = {
@@ -410,7 +451,12 @@ export function converterEnvioCompra(id: string) {
 
 function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | undefined): OpcoesLancamento {
   return {
-    categorias: Array.isArray(payload?.categorias) ? payload.categorias : [],
+    categorias: Array.isArray(payload?.categorias) ? payload.categorias.map((categoria) => ({
+      ...categoria,
+      grupo: categoria.grupo ?? (categoria as CategoriaCaixaShare & { grupo_categoria?: string | null }).grupo_categoria ?? null,
+      classificacao: categoria.classificacao ?? (categoria as CategoriaCaixaShare & { tipo_despesa?: string | null }).tipo_despesa ?? null,
+      reembolsavel: categoria.reembolsavel ?? false,
+    })) : [],
     contas_bancarias: Array.isArray(payload?.contas_bancarias) ? payload.contas_bancarias : [],
     cotistas: Array.isArray(payload?.cotistas) ? payload.cotistas : [],
     holdings: Array.isArray(payload?.holdings) ? payload.holdings : [],
@@ -512,10 +558,31 @@ export async function buscarLancamentosEconomicos(inicio?: string, fim?: string)
 }
 
 export async function criarLancamentoEconomico(dados: Record<string, unknown>) {
-  const fluxo = String(dados.fluxo || "SAIDA").toUpperCase() === "ENTRADA" ? "receita" : "despesa";
-  return (await financeiroRequest(`/api/financeiro/lancamentos/${fluxo}`, {
+  const fluxo = String(dados.fluxo || "SAIDA").toUpperCase() === "ENTRADA" ? "ENTRADA" : "SAIDA";
+  const contrato: Record<string, unknown> = { ...dados, fluxo };
+  contrato.grupo_categoria ??= dados.grupoCategoria;
+  contrato.pago_por ??= dados.pagoPor;
+  const caixa = String(dados.tipo_caixa ?? dados.caixa ?? "").toUpperCase();
+  if (caixa) contrato.tipo_caixa = caixa === "COTISTA" ? "CLIENTE" : caixa;
+  delete contrato.grupoCategoria;
+  delete contrato.pagoPor;
+  delete contrato.caixa;
+  delete contrato.status;
+  if (Array.isArray(dados.rateios)) {
+    contrato.rateios = dados.rateios.map((linha) => {
+      if (!linha || typeof linha !== "object") return linha;
+      const item = linha as Record<string, unknown>;
+      const { cotista, cotistaAeronaveId, pagoPor, ...campos } = item;
+      return {
+        ...campos,
+        cotista_id: item.cotista_id ?? cotista ?? cotistaAeronaveId,
+        pago_por: item.pago_por ?? pagoPor,
+      };
+    });
+  }
+  return (await financeiroRequest(`/api/financeiro/lancamentos/${fluxo === "ENTRADA" ? "receita" : "despesa"}`, {
     method: "POST",
-    body: JSON.stringify(dados),
+    body: JSON.stringify(contrato),
   })) as { id: string };
 }
 

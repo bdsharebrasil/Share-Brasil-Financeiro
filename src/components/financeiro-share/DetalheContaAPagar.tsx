@@ -56,7 +56,6 @@ export function DetalheContaAPagar({ conta, onFechar, onBaixar }: Props) {
   );
   const [anexoAtivo, setAnexoAtivo] = useState(0);
   const [dataPagamento, setDataPagamento] = useState(hojeISO());
-  const [valorPago, setValorPago] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("PIX");
   const [banco, setBanco] = useState("");
   const [comprovanteUrl, setComprovanteUrl] = useState("");
@@ -82,7 +81,6 @@ export function DetalheContaAPagar({ conta, onFechar, onBaixar }: Props) {
         dataPagamento,
         bancoPagamento: banco.trim(),
         comprovantePagamentoUrl: comprovanteUrl.trim() || undefined,
-        valorPago: valorPago ? Number(valorPago) : conta.valor,
         formaPagamento,
         observacoes: observacoes.trim() || undefined,
       });
@@ -205,15 +203,8 @@ export function DetalheContaAPagar({ conta, onFechar, onBaixar }: Props) {
                     <Input id="pg-data" type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="pg-valor">Valor pago</Label>
-                    <Input
-                      id="pg-valor"
-                      type="number"
-                      step="0.01"
-                      placeholder={String(conta.valor)}
-                      value={valorPago}
-                      onChange={(e) => setValorPago(e.target.value)}
-                    />
+                    <Label htmlFor="pg-valor">Valor a liquidar</Label>
+                    <Input id="pg-valor" value={formatarBRL(conta.valor)} readOnly />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="pg-forma">Forma de pagamento</Label>

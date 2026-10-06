@@ -143,6 +143,7 @@ export type ConvertHandlers = {
   createExpense: (db: D1Database, body: Row, userId: string | null, options?: ConvertOptions) => Promise<Row>
   createReimbursement?: (db: D1Database, body: Row, userId: string | null, options?: ConvertOptions) => Promise<Row>
   createDirectExternalExpense?: (db: D1Database, body: Row, userId: string | null, options?: ConvertOptions) => Promise<Row>
+  createClientExpenseRateios?: (db: D1Database, body: Row, userId: string | null, options?: ConvertOptions) => Promise<Row>
 }
 
 export async function convertPaymentRequest(
@@ -228,7 +229,19 @@ export async function convertPaymentRequest(
   }
 
   try {
-    // O envio direto cria o rateio em aberto; apenas a baixa pode confirmar pagamento.
+    // Cotista cliente já está representado pelo envio e suas parcelas. Não criar
+    // um segundo lançamento; o id do envio é a referência do rateio.
+    if (request.tipo === 'cliente' && !ehHolding) {
+      if (!handlers.createClientExpenseRateios) throw new Error('handler_de_rateio_cliente_nao_configurado')
+      const rateio = await handlers.createClientExpenseRateios(db, { ...comando, lancamento_id: request.id }, userId, { internal: true })
+      await db.batch([
+        db.prepare('UPDATE envio_despesas SET lancamento_id = ?, movimentacao_id = NULL, status = ? WHERE id = ? AND status = ? AND lancamento_id IS NULL').bind(request.id, 'CONVERTIDO', request.id, 'PROCESSANDO'),
+        ...(Array.isArray(rateio.rateio_ids) ? rateio.rateio_ids.map((rateioId) => db.prepare(`INSERT OR IGNORE INTO financeiro_vinculos (id, origem_tipo, origem_id, destino_tipo, destino_id, tipo_vinculo) VALUES (?, 'ENVIO_DESPESA', ?, 'RATEIO_DESPESAS', ?, 'CONVERSAO')`).bind(crypto.randomUUID(), request.id, rateioId)) : []),
+      ])
+      return { id: request.id, lancamento_id: request.id, movimentacao_id: null, rateio_ids: rateio.rateio_ids ?? [], idempotent: false }
+    }
+
+    // Os demais fluxos mantêm seus destinos financeiros próprios.
     const lancamento = request.tipo === 'cliente' && handlers.createDirectExternalExpense
       ? await handlers.createDirectExternalExpense(db, comando, userId, { internal: true })
       : await handlers.createExpense(db, comando, userId, { internal: true })
@@ -250,10 +263,18 @@ export async function convertPaymentRequest(
       cotista_aeronave_id: cotistaAeronaveId,
       categoria_id: request.categoria_id,
       categoria_cliente_id: request.categoria_cliente_id,
+      categoria_nome: request.categoria_nome,
+      fornecedor_id: request.fornecedor_id,
+      fornecedor: request.fornecedor,
       colaborador_id: request.colaborador_id,
       rateio_linhas: linhas,
+      anexos_json: anexos,
       tipo_rateio: request.tipo_rateio,
       periodicidade: request.periodicidade,
+      subcategoria_1: request.subcategoria_1,
+      subcategoria_2: request.subcategoria_2,
+      subcategoria_3: request.subcategoria_3,
+      subcategoria_4: request.subcategoria_4,
       }, userId, { internal: true })
     }
     const destinoTipo = ehHolding ? 'MOVIMENTO_HOLDING' : 'LANCAMENTO'

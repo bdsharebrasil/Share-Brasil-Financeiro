@@ -1,22 +1,27 @@
 import { copyFile, mkdir } from 'node:fs/promises';
 import path from 'path';
 import react from '@vitejs/plugin-react-swc';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 const port = Number(process.env.PORT || 4175);
+const apiOriginPadrao = 'https://api-workers.sharebrasil.workers.dev';
 // O Cloudflare Pages usa `app/share-brasil` como root directory do projeto.
 // O artefato precisa existir nesse caminho para a etapa de validação do Pages.
 const outputDir = path.resolve(import.meta.dirname, 'app/share-brasil/dist/public');
-const apiProxy = {
-  '/api': {
-    target: 'https://api.share-brasil.com',
-    changeOrigin: true,
-    secure: true,
-    ws: true,
-  },
-};
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = (env.VITE_API_PROXY_TARGET || apiOriginPadrao).trim().replace(/\/+$/, '');
+  const apiProxy = {
+    '/api': {
+      target: apiTarget,
+      changeOrigin: true,
+      secure: true,
+      ws: true,
+    },
+  };
+
+  return {
   plugins: [
     react(),
     {
@@ -72,4 +77,5 @@ export default defineConfig({
       'Access-Control-Allow-Headers': 'Content-Type',
     },
   },
+  };
 });

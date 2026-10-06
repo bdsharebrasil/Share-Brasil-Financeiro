@@ -84,7 +84,6 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
       dataPagamento: dados.dataPagamento,
       bancoPagamento: dados.contaBancaria,
       comprovantePagamentoUrl: undefined,
-      valorPago: dados.valorPago,
       formaPagamento: dados.formaPagamento,
       observacoes: dados.observacoes,
     });

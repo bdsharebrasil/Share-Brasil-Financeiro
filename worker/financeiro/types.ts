@@ -1,4 +1,5 @@
 export type FluxoLancamento = "ENTRADA" | "SAIDA"
+export type NaturezaLancamento = "RECEITA" | "DESPESA" | "REEMBOLSO"
 
 export type CaixaLancamento = "SHARE" | "HOLDING" | "COTISTA" | string
 
@@ -17,6 +18,7 @@ export type RegistrarLancamentoInput = {
   tipo?: string
   prazo?: string
   fluxo: FluxoLancamento
+  natureza: NaturezaLancamento
   valorCentavos: number
   pagoPor: string
   caixa?: CaixaLancamento
@@ -45,6 +47,7 @@ export type LancamentoConsolidado = {
   tipo: string | null
   prazo: string | null
   fluxo: FluxoLancamento
+  natureza: NaturezaLancamento
   valorCentavos: number
   pagoPor: string
   caixa: CaixaLancamento
@@ -58,6 +61,7 @@ export type LancamentoConsolidado = {
 
 export type SaldoCotista = {
   cotista: string
+  cotistaId?: string
   totalPagoCentavos: number
   totalDevidoCentavos: number
   saldoCentavos: number
@@ -65,6 +69,7 @@ export type SaldoCotista = {
 
 export type HoldingSocioResumo = {
   cotistaId: string
+  nome: string
   percentual: number
   totalDepositadoCentavos: number
   totalConsumidoCentavos: number
@@ -76,11 +81,31 @@ export type HoldingResumo = {
   id: string
   nome: string
   contaBancaria: string | null
+  saldoContaCentavos: number
   socios: HoldingSocioResumo[]
+}
+
+export type MovimentoHoldingExtrato = {
+  id: string
+  holdingId: string | null
+  holdingNome: string | null
+  socioId: string | null
+  socioNome: string | null
+  aeronaveId: string | null
+  data: string
+  dataPagamento: string | null
+  descricao: string
+  categoria: string | null
+  fluxo: string
+  valorCentavos: number
+  status: string
+  contaBancaria: string | null
+  diretamentePago: boolean
 }
 
 export type ConsolidadoBalanco = {
   lancamentos: LancamentoConsolidado[]
+  movimentos_holding: MovimentoHoldingExtrato[]
   saldos: SaldoCotista[]
   matrizCompensacao: Record<string, Record<string, number>>
   holdings: HoldingResumo[]
@@ -105,6 +130,7 @@ export type LancamentoApiInput = {
   prazo?: unknown
   data_vencimento?: unknown
   fluxo?: unknown
+  natureza?: unknown
   valorCentavos?: unknown
   valor_centavos?: unknown
   valor?: unknown

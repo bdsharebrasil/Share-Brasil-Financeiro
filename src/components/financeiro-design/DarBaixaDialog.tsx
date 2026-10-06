@@ -18,7 +18,6 @@ import { type LancamentoTabela, formatarBRL, formatarData, hojeISO } from "./lan
 
 export interface DadosBaixaSaida {
   dataPagamento: string;
-  valorPago: number;
   formaPagamento: string;
   contaBancaria: string;
   observacoes: string;
@@ -47,7 +46,6 @@ export function DarBaixaDialog({
 }: DarBaixaDialogProps) {
   const [dados, setDados] = useState<DadosBaixaSaida>({
     dataPagamento: hojeISO(),
-    valorPago: 0,
     formaPagamento: "PIX",
     contaBancaria: "",
     observacoes: "",
@@ -59,7 +57,6 @@ export function DarBaixaDialog({
     if (lancamento) {
       setDados({
         dataPagamento: hojeISO(),
-        valorPago: lancamento.valor,
         formaPagamento: "PIX",
         contaBancaria: contasBancarias[0]?.id ?? "",
         observacoes: "",
@@ -70,14 +67,9 @@ export function DarBaixaDialog({
 
   if (!lancamento) return null;
 
-  const diferenca = dados.valorPago - lancamento.valor;
   const novoStatus = lancamento.fluxo === "ENTRADA" ? "RECEBIDO" : "PAGO";
 
   async function confirmar() {
-    if (dados.valorPago <= 0) {
-      setErro("Informe um valor pago maior que zero.");
-      return;
-    }
     setEnviando(true);
     setErro("");
     try {
@@ -148,24 +140,8 @@ export function DarBaixaDialog({
             />
           </CampoFormulario>
 
-          <CampoFormulario
-            id="valorPago"
-            rotulo="Valor pago"
-            erro={erro || undefined}
-            dica={
-              diferenca === 0
-                ? "Igual ao valor do título."
-                : `${diferenca > 0 ? "Acréscimo" : "Desconto"} de ${formatarBRL(Math.abs(diferenca))} em relação ao título.`
-            }
-          >
-            <Input
-              id="valorPago"
-              type="number"
-              step="0.01"
-              value={dados.valorPago}
-              onChange={(e) => setDados({ ...dados, valorPago: Number(e.target.value) })}
-              aria-label="Valor pago"
-            />
+          <CampoFormulario rotulo="Valor a liquidar" dica="A baixa liquida o valor integral do título.">
+            <Input value={formatarBRL(lancamento.valor)} readOnly aria-label="Valor integral do título" />
           </CampoFormulario>
 
           <CampoFormulario rotulo="Forma de pagamento">

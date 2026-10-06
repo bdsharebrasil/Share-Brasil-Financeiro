@@ -6,7 +6,6 @@ export interface DadosBaixaAPagar {
   dataPagamento: string;
   bancoPagamento: string;
   comprovantePagamentoUrl?: string;
-  valorPago?: number;
   formaPagamento?: string;
   observacoes?: string;
 }
@@ -41,10 +40,10 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
 
   const darBaixa = useCallback(
     async (id: string, dados: DadosBaixaAPagar) => {
-      const contaAtualizada = await darBaixaContaAPagar(id, dados);
-      setContas((atual) => atual.map((c) => (c.id === id ? contaAtualizada : c)));
+      await darBaixaContaAPagar(id, dados);
+      setContas(await buscarContasAPagar(filtros));
     },
-    []
+    [filtros]
   );
 
   return { contas, carregando, erro, darBaixa, recarregar: carregar };

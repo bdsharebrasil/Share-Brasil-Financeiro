@@ -39,10 +39,10 @@ export function useContasAReceber(filtros: FiltrosContasAReceber = {}): RetornoU
       id: string,
       dados: DadosBaixaReceber
     ) => {
-      const contaAtualizada = await darBaixaContaAReceber(id, dados);
-      setContas((atual) => atual.map((c) => (c.id === id ? contaAtualizada : c)));
+      await darBaixaContaAReceber(id, dados);
+      setContas(await buscarContasAReceber(filtros));
     },
-    []
+    [filtros]
   );
 
   return { contas, carregando, erro, darBaixa, recarregar: carregar };

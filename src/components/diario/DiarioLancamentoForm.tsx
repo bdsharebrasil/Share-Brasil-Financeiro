@@ -99,7 +99,6 @@ const normalizarNumeroVoo = (value: unknown) =>
 function formFromEntry(
   entry: Partial<DiarioLancamento> | undefined,
   date: string,
-  celula: number,
   sugestaoTrecho = "",
 ): FormValues {
   const natureza = entry?.natureza_voo || "PV - Privado";
@@ -151,7 +150,6 @@ function formFromEntry(
     ),
     local_combustivel: entry?.local_combustivel || "",
     abastecido: Boolean((entry as any)?.abastecido || (entry as any)?.abastecimento_id),
-    celula: String(entry?.celula ?? celula),
     diarias: String(entry?.diarias ?? "0"),
     passageiros: String(entry?.passageiros ?? 0),
     carga_kg: entry?.carga_kg || "",
@@ -174,7 +172,6 @@ export default function DiarioLancamentoForm({
   diarioMesId,
   opcoes,
   initialData,
-  sugeridaCelula,
   sugestaoTrecho,
   temDiaria,
   onSubmit,
@@ -186,7 +183,6 @@ export default function DiarioLancamentoForm({
   diarioMesId: string;
   opcoes: DiarioOpcoesResponse;
   initialData?: DiarioLancamento | null;
-  sugeridaCelula: number;
   sugestaoTrecho?: string;
   temDiaria?: boolean;
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
@@ -198,7 +194,6 @@ export default function DiarioLancamentoForm({
     formFromEntry(
       initialData || undefined,
       today,
-      sugeridaCelula,
       sugestaoTrecho,
     ),
   );
@@ -225,7 +220,6 @@ export default function DiarioLancamentoForm({
     const next = formFromEntry(
       initialData || undefined,
       today,
-      sugeridaCelula,
       sugestaoTrecho,
     );
     setForm(next);
@@ -233,7 +227,7 @@ export default function DiarioLancamentoForm({
     setJornadaSelecionada(String(next.jornada_id || ""));
     setPernaSelecionada(String(next.perna_jornada_id || ""));
     setError(null);
-  }, [initialData, diarioMesId, sugeridaCelula, sugestaoTrecho]);
+  }, [initialData, diarioMesId, sugestaoTrecho]);
   useEffect(() => {
     if (!initialData?.numero_voo || solicitacaoSelecionada) return;
     const voo = voos.find(
@@ -537,7 +531,6 @@ export default function DiarioLancamentoForm({
       litros_combustivel_abastecido: Boolean(form.abastecido) ? number("abastecimento_litros") : 0,
       local_combustivel: Boolean(form.abastecido) ? value("abastecimento_local") || null : null,
       abastecido: Boolean(form.abastecido),
-      celula: number("celula"),
       diarias: temDiaria ? number("diarias") : null,
       passageiros: number("passageiros"),
       carga_kg: value("carga_kg") || null,

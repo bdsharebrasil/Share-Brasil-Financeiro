@@ -1075,6 +1075,7 @@ export type DiarioLancamento = {
   litros_combustivel_abastecido: number;
   local_combustivel: string | null;
   celula: number;
+  celula_tvoo: number | null;
   passageiros: number;
   carga_kg: string | null;
   natureza_voo: string;

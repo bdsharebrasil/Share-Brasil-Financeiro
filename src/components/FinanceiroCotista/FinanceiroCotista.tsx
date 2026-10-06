@@ -52,7 +52,7 @@ import type { OpcoesLancamento, DashboardCotista, VooEmprestimo, LancamentoEcono
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import { buscarOpcoesEnvioPagamento, buscarCotistasAeronave } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
-import { agruparPorMes, mesAtualLocal, periodoDoMes, periodoPersonalizadoValido, rotuloMesCotista, type PeriodoCotista } from "@/lib/financeiro-cotista-periodo";
+import { agruparPorMes, mesAtualLocal, periodoDoMes, rotuloMesCotista, type PeriodoCotista } from "@/lib/financeiro-cotista-periodo";
 
 const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"] as const;
 
@@ -337,14 +337,12 @@ export default function FinanceiroCotista() {
   const [cotistaEmprestimo, setCotistaEmprestimo] = useState("");
   const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
   const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
-  const [modoPeriodo, setModoPeriodo] = useState<"mes" | "personalizado">("mes");
-  const anoMeses = mesAtualLocal().slice(0, 4);
+  const mesAtual = mesAtualLocal();
+  const anoMeses = mesAtual.slice(0, 4);
   const mesesDisponiveis = useMemo(() => MESES_CURTOS.map((_, indice) => `${anoMeses}-${String(indice + 1).padStart(2, "0")}`), [anoMeses]);
-  const [mesesRascunho, setMesesRascunho] = useState<string[]>(() => MESES_CURTOS.map((_, indice) => `${mesAtualLocal().slice(0, 4)}-${String(indice + 1).padStart(2, "0")}`));
-  const [mesesAplicados, setMesesAplicados] = useState<string[]>(() => MESES_CURTOS.map((_, indice) => `${mesAtualLocal().slice(0, 4)}-${String(indice + 1).padStart(2, "0")}`));
-  const [inicioRascunho, setInicioRascunho] = useState(() => periodoDoMes(mesAtualLocal())?.inicio ?? hoje());
-  const [fimRascunho, setFimRascunho] = useState(hoje);
-  const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(() => ({ inicio: `${mesAtualLocal().slice(0, 4)}-01-01`, fim: `${mesAtualLocal().slice(0, 4)}-12-31` }));
+  const [mesesRascunho, setMesesRascunho] = useState<string[]>([mesAtual]);
+  const [mesesAplicados, setMesesAplicados] = useState<string[]>([mesAtual]);
+  const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(() => periodoDoMes(mesAtual) ?? { inicio: hoje(), fim: hoje() });
   const dashboardRequestId = useRef(0);
 
   const carregar = useCallback(async () => {
@@ -359,7 +357,7 @@ export default function FinanceiroCotista() {
     setCarregando(true);
     setErroDashboard(null);
     try {
-      const resultado = await buscarDashboardCotista(periodoAplicado.inicio, periodoAplicado.fim, aeronaveSelecionada, undefined, modoPeriodo === "mes" ? mesesAplicados : undefined);
+      const resultado = await buscarDashboardCotista(periodoAplicado.inicio, periodoAplicado.fim, aeronaveSelecionada, undefined, mesesAplicados);
       if (requestId === dashboardRequestId.current) setDashboard(resultado);
     } catch (error) {
       if (requestId === dashboardRequestId.current) {
@@ -369,7 +367,7 @@ export default function FinanceiroCotista() {
     } finally {
       if (requestId === dashboardRequestId.current) setCarregando(false);
     }
-  }, [aeronaveSelecionada, periodoAplicado, modoPeriodo, mesesAplicados]);
+  }, [aeronaveSelecionada, periodoAplicado, mesesAplicados]);
 
   const carregarAeronaves = useCallback(async () => {
     try {
@@ -414,12 +412,12 @@ export default function FinanceiroCotista() {
     if (!id || (tipo !== "cliente" && tipo !== "socio")) { setVoosEmprestimos([]); setCarregandoEmprestimos(false); return; }
     let cancelada = false;
     setCarregandoEmprestimos(true);
-    void buscarVoosEmprestimos(id, tipo, aeronaveSelecionada, periodoAplicado.inicio, periodoAplicado.fim, modoPeriodo === "mes" ? mesesAplicados : undefined)
+    void buscarVoosEmprestimos(id, tipo, aeronaveSelecionada, periodoAplicado.inicio, periodoAplicado.fim, mesesAplicados)
       .then((resultado) => { if (!cancelada) setVoosEmprestimos(resultado); })
       .catch(() => { if (!cancelada) setVoosEmprestimos([]); })
       .finally(() => { if (!cancelada) setCarregandoEmprestimos(false); });
     return () => { cancelada = true; };
-  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado, modoPeriodo, mesesAplicados]);
+  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado, mesesAplicados]);
 
   const lancamentosFiltrados = useMemo(() => {
     if (!aeronaveSelecionada || !dashboard?.lancamentos) return [];
@@ -431,36 +429,22 @@ export default function FinanceiroCotista() {
 
   const possuiHolding = cotistasAeronave.some((cotista) => Boolean(cotista.eh_holding));
   const [abaAtiva, setAbaAtiva] = useState<"resumo" | "medias" | "lancamentos" | "graficos" | "ranking" | "emprestimos" | "extrato">("resumo");
-  const periodoFormularioValido = modoPeriodo === "mes"
-    ? mesesRascunho.every((mes) => Boolean(periodoDoMes(mes)))
-    : periodoPersonalizadoValido(inicioRascunho, fimRascunho);
-  const rotuloPeriodoAplicado = periodoAplicado.inicio.slice(0, 7) === periodoAplicado.fim.slice(0, 7)
-    && periodoDoMes(periodoAplicado.inicio.slice(0, 7))?.inicio === periodoAplicado.inicio
-    && periodoDoMes(periodoAplicado.inicio.slice(0, 7))?.fim === periodoAplicado.fim
-    ? rotuloMesCotista(periodoAplicado.inicio.slice(0, 7))
-    : `${formatarData(periodoAplicado.inicio)} a ${formatarData(periodoAplicado.fim)}`;
-  const aplicarPeriodo = () => {
-    if (!periodoFormularioValido || modoPeriodo === "mes") return;
-    setPeriodoAplicado({ inicio: inicioRascunho, fim: fimRascunho });
+
+  const periodoDosMeses = (meses: string[]): PeriodoCotista => {
+    const periodos = meses.map((mes) => periodoDoMes(mes)).filter((periodo): periodo is PeriodoCotista => Boolean(periodo));
+    return periodos.length ? { inicio: periodos[0].inicio, fim: periodos[periodos.length - 1].fim } : (periodoDoMes(mesAtual) ?? { inicio: hoje(), fim: hoje() });
+  };
+  const atualizarMeses = (proximos: string[]) => {
+    const ordenados = [...proximos].sort();
+    setMesesRascunho(ordenados);
+    setMesesAplicados(ordenados);
+    setPeriodoAplicado(periodoDosMeses(ordenados));
   };
   const alternarMes = (mes: string) => {
-    setMesesRascunho((atuais) => {
-      const proximos = atuais.includes(mes) ? atuais.filter((item) => item !== mes) : [...atuais, mes].sort();
-      setMesesAplicados(proximos);
-      setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
-      return proximos;
-    });
+    atualizarMeses(mesesRascunho.includes(mes) ? mesesRascunho.filter((item) => item !== mes) : [...mesesRascunho, mes]);
   };
-  const selecionarTodosOsMeses = () => {
-    setMesesRascunho(mesesDisponiveis);
-    setMesesAplicados(mesesDisponiveis);
-    setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
-  };
-  const limparMeses = () => {
-    setMesesRascunho([]);
-    setMesesAplicados([]);
-    setPeriodoAplicado({ inicio: `${anoMeses}-01-01`, fim: `${anoMeses}-12-31` });
-  };
+  const selecionarTodosOsMeses = () => atualizarMeses(mesesDisponiveis);
+  const limparMeses = () => atualizarMeses([]);
 
   const despesas = useMemo(
     () => lancamentosFiltrados.filter((lancamento) => lancamento.fluxo === "SAIDA"),
@@ -549,16 +533,12 @@ export default function FinanceiroCotista() {
         {possuiHolding && <button type="button" onClick={() => setAbaAtiva("extrato")} className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "extrato" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Landmark size={14} />Extrato Holding</button>}
       </div>
 
-      <section className="financeiro-panel grid gap-4 p-4 xl:grid-cols-[minmax(180px,1fr)_minmax(220px,1.5fr)_auto] xl:items-end">
-        <div className="space-y-2">
-          <div><p className="text-xs font-bold">Período dos dados</p><p className="mt-1 text-[10px] text-muted-foreground">Aplicado ao resumo, gráficos e demais listas desta aeronave.</p></div>
-          <div className="flex rounded-lg border border-border bg-muted/30 p-1" role="group" aria-label="Tipo de período">
-            <button type="button" aria-pressed={modoPeriodo === "mes"} onClick={() => setModoPeriodo("mes")} className={`flex-1 rounded-md px-3 py-2 text-[10px] font-semibold transition-colors ${modoPeriodo === "mes" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><CalendarDays size={13} className="mr-1.5 inline" />Mês</button>
-            <button type="button" aria-pressed={modoPeriodo === "personalizado"} onClick={() => setModoPeriodo("personalizado")} className={`flex-1 rounded-md px-3 py-2 text-[10px] font-semibold transition-colors ${modoPeriodo === "personalizado" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>Data a data</button>
-          </div>
+      <section className="financeiro-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className="text-xs font-bold">Período dos dados</p><p className="mt-1 text-[10px] text-muted-foreground">Selecione um ou mais meses para somar os dados da aeronave.</p></div>
+          <span className="text-[9px] text-muted-foreground">{mesesRascunho.length} de {mesesDisponiveis.length} selecionado(s)</span>
         </div>
-        {modoPeriodo === "mes" ? <div className="space-y-2 xl:col-span-2"><div className="flex items-center justify-between gap-2"><Label className="text-[10px]">Meses:</Label><span className="text-[9px] text-muted-foreground">{mesesRascunho.length} de {mesesDisponiveis.length} selecionado(s)</span></div><div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Selecionar meses"><button type="button" onClick={selecionarTodosOsMeses} aria-pressed={mesesRascunho.length === mesesDisponiveis.length} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Todos</button>{MESES_CURTOS.map((mes, indice) => { const competencia = mesesDisponiveis[indice]; const selecionado = mesesRascunho.includes(competencia); return <button key={competencia} type="button" onClick={() => alternarMes(competencia)} aria-pressed={selecionado} aria-label={`${selecionado ? "Remover" : "Selecionar"} ${mes} ${anoMeses}`} className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors ${selecionado ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>{mes}</button>; })}<button type="button" onClick={limparMeses} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Limpar</button></div></div> : <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="cotista-periodo-inicio" className="text-[10px]">Data inicial</Label><Input id="cotista-periodo-inicio" type="date" value={inicioRascunho} max={fimRascunho || undefined} onChange={(evento) => setInicioRascunho(evento.target.value)} className="h-10" /></div><div className="space-y-1.5"><Label htmlFor="cotista-periodo-fim" className="text-[10px]">Data final</Label><Input id="cotista-periodo-fim" type="date" value={fimRascunho} min={inicioRascunho || undefined} onChange={(evento) => setFimRascunho(evento.target.value)} className="h-10" /></div></div>}
-        <div className="flex flex-wrap items-center gap-2 xl:justify-end"><div className="min-w-[150px] flex-1 rounded-lg border border-primary/20 bg-primary/[.06] px-3 py-2 xl:flex-none"><p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Aplicado</p><p className="mt-0.5 text-[10px] font-bold capitalize text-primary">{modoPeriodo === "mes" ? `${mesesRascunho.length} mês(es) de ${anoMeses}` : rotuloPeriodoAplicado}</p></div>{modoPeriodo === "personalizado" && <Button type="button" onClick={aplicarPeriodo} disabled={!periodoFormularioValido || carregando} className="h-10 gap-2 px-4 text-[10px]"><Check size={14} />Aplicar período</Button>}</div>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Selecionar meses"><button type="button" onClick={selecionarTodosOsMeses} aria-pressed={mesesRascunho.length === mesesDisponiveis.length} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Todos</button>{MESES_CURTOS.map((mes, indice) => { const competencia = mesesDisponiveis[indice]; const selecionado = mesesRascunho.includes(competencia); return <button key={competencia} type="button" onClick={() => alternarMes(competencia)} aria-pressed={selecionado} aria-label={`${selecionado ? "Remover" : "Selecionar"} ${mes} ${anoMeses}`} className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors ${selecionado ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>{mes}</button>; })}<button type="button" onClick={limparMeses} className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Limpar</button></div>
       </section>
 
       {carregando ? <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 size={20} className="animate-spin" /></div> : erroDashboard ? (

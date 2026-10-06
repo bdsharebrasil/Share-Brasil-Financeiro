@@ -115,68 +115,68 @@ import {
  */
 const DESPESAS_ESTILOS = `
 .despesas-theme {
-  --background: 222 49% 9%; --foreground: 210 40% 96%;
-  --card: 221 43% 12%; --card-foreground: 210 40% 96%;
-  --popover: 220 40% 14%; --popover-foreground: 210 40% 96%;
-  --muted: 220 35% 17%; --muted-foreground: 215 24% 70%;
-  --border: 218 30% 24%; --input: 218 30% 24%;
-  --primary: 204 94% 64%; --primary-foreground: 222 49% 9%;
-  --accent: 218 35% 21%; --accent-foreground: 210 40% 96%;
-  --ring: 204 94% 64%; --destructive: 0 85% 70%;
-  color: #e6eefb; color-scheme: dark;
+  --background: 214 36% 96%; --foreground: 215 34% 15%;
+  --card: 0 0% 100%; --card-foreground: 215 34% 15%;
+  --popover: 0 0% 100%; --popover-foreground: 215 34% 15%;
+  --muted: 214 30% 93%; --muted-foreground: 215 18% 47%;
+  --border: 214 24% 86%; --input: 214 24% 82%;
+  --primary: 196 95% 42%; --primary-foreground: 0 0% 100%;
+  --accent: 151 52% 31%; --accent-foreground: 0 0% 100%;
+  --ring: 196 95% 42%; --destructive: 0 70% 48%;
+  color: hsl(var(--foreground)); color-scheme: light;
   font-family: inherit;
 }
-.despesas-shell { padding: 7px 10px; background: rgba(11, 15, 25, 1); border: 1px solid #24334c; border-radius: 20px; }
-.despesas-theme .text-muted-foreground { color: #9aadc8; }
-.despesas-theme .text-foreground { color: #e6eefb; }
-.despesas-theme .text-primary { color: #73c5ff; }
-.despesas-theme .border-border { border-color: #263650; }
-.despesas-theme .bg-background { background-color: #0d1729; }
-.despesas-theme .bg-card { background-color: #111d32; }
-.despesas-theme :is(input, textarea, [role="combobox"]) { border-color: #30415e; background: #0d1729; color: #e6eefb; box-shadow: none; }
-.despesas-theme input::placeholder, .despesas-theme textarea::placeholder { color: #91a4bf; }
-.despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid #73c5ff; outline-offset: 3px; }
-.despesas-theme .despesa-primary { background: rgba(62, 156, 218, 1); color: #081324; border: 1px solid #8ed2ff; box-shadow: 0 4px 20px #2994db18; font-weight: 700; }
-.despesas-theme .despesa-primary:hover { background: #93d5ff; }
-.despesa-metric { position: relative; border: 1px solid #1c273c; border-radius: 10px; background: #0e1626; padding: 10px 14px; }
+.despesas-shell { padding: 7px 10px; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: 20px; }
+.despesas-theme .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+.despesas-theme .text-foreground { color: hsl(var(--foreground)); }
+.despesas-theme .text-primary { color: hsl(var(--primary)); }
+.despesas-theme .border-border { border-color: hsl(var(--border)); }
+.despesas-theme .bg-background { background-color: hsl(var(--background)); }
+.despesas-theme .bg-card { background-color: hsl(var(--card)); }
+.despesas-theme :is(input, textarea, [role="combobox"]) { border-color: hsl(var(--input)); background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: none; }
+.despesas-theme input::placeholder, .despesas-theme textarea::placeholder { color: hsl(var(--muted-foreground)); }
+.despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+.despesas-theme .despesa-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: 1px solid hsl(var(--primary)); box-shadow: 0 4px 20px hsl(var(--primary) / .18); font-weight: 700; }
+.despesas-theme .despesa-primary:hover { background: hsl(var(--primary) / .86); }
+.despesa-metric { position: relative; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: 10px 14px; }
 .despesas-theme .text-emerald-700 { color: #5ce0bf; }
 .despesas-theme .text-amber-700 { color: #ffd36c; }
 .despesas-theme .text-blue-700 { color: #83bfff; }
 .despesa-metric:first-child { border-color: #273752; }
 .despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.despesa-ledger { background: #101b2e; border: 1px solid #263650; border-radius: 16px; overflow: hidden; }
-.despesa-heading { background: linear-gradient(115deg, #15243b, #101b2e); }
-.despesa-toolbar { position: sticky; top: 0; z-index: 4; background: rgba(10, 20, 36, .98); padding: 6px 24px; }
-.despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: #3c5475 #101b2e; }
+.despesa-ledger { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 16px; overflow: hidden; }
+.despesa-heading { background: linear-gradient(115deg, hsl(var(--primary) / .07), hsl(var(--card))); }
+.despesa-toolbar { position: sticky; top: 0; z-index: 4; background: hsl(var(--card) / .98); padding: 6px 24px; }
+.despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: hsl(var(--primary) / .55) hsl(var(--muted)); }
 .despesa-table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
-.despesa-table thead { position: sticky; top: 0; z-index: 2; background: #0c1627; color: #9aadc8; }
-.despesa-table thead th { border-bottom: 1px solid #30415e; padding: 14px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
-.despesa-table .despesa-month th { background: #111f34; border-bottom: 1px solid #263650; }
-.despesa-table .despesa-row td { padding: 16px; vertical-align: middle; border-bottom: 1px solid #263650; }
-.despesa-row { background: #132039; transition: background-color .15s; }
-.despesa-row:nth-of-type(odd) { background: #101b2e; }
-.despesa-row:hover { background: #1a2c46; }
-.despesa-row[data-expanded="true"] { background: #1a2e48; }
-.despesa-row[data-expanded="true"] td:first-child { box-shadow: inset 3px 0 #73c5ff; }
+.despesa-table thead { position: sticky; top: 0; z-index: 2; background: hsl(var(--muted) / .72); color: hsl(var(--muted-foreground)); }
+.despesa-table thead th { border-bottom: 1px solid hsl(var(--border)); padding: 14px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.despesa-table .despesa-month th { background: hsl(var(--primary) / .055); border-bottom: 1px solid hsl(var(--border)); }
+.despesa-table .despesa-row td { padding: 16px; vertical-align: middle; border-bottom: 1px solid hsl(var(--border)); }
+.despesa-row { background: hsl(var(--card)); transition: background-color .15s; }
+.despesa-row:nth-of-type(odd) { background: hsl(var(--muted) / .22); }
+.despesa-row:hover { background: hsl(var(--primary) / .055); }
+.despesa-row[data-expanded="true"] { background: hsl(var(--primary) / .08); }
+.despesa-row[data-expanded="true"] td:first-child { box-shadow: inset 3px 0 hsl(var(--primary)); }
 .despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.65; }
-.despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: #e0f2ff; }
-.despesa-category { display: inline-block; max-width: 100%; margin-top: 7px; border: 1px solid #334866; border-radius: 4px; background: #1b2d46; padding: 2px 6px; font-size: 10px; color: #a6c7e9; letter-spacing: .03em; }
+.despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
+.despesa-category { display: inline-block; max-width: 100%; margin-top: 7px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
 .despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
 .despesas-theme .despesa-status[data-status="Pago"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
 .despesas-theme .despesa-status[data-status="Pendente"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
 .despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
 .despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
-.despesa-detail { background: #0d182b; border-top: 1px solid #304964; border-bottom: 1px solid #304964; }
-.despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #73c5ff; }
+.despesa-detail { background: hsl(var(--muted) / .28); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
+.despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary)); }
 .despesa-detail dt { font-size: 11px; }
-.despesas-theme .despesa-document { background: #14243b; border-color: #365070; color: #d5eaff; }
-.despesas-theme .despesa-document:hover { background: #1b3351; border-color: #73c5ff; }
-.despesa-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #0c1627; }
+.despesas-theme .despesa-document { background: hsl(var(--card)); border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
+.despesas-theme .despesa-document:hover { background: hsl(var(--primary) / .07); border-color: hsl(var(--primary)); }
+.despesa-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: hsl(var(--muted) / .35); }
 .despesa-footer-total { display: flex; align-items: center; gap: 12px; }
-.despesa-footer-total strong { font: 700 16px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e0f2ff; white-space: nowrap; }
-.despesas-theme .despesa-mobile-card { background: #132039; border-color: #30415e; }
-.despesas-theme .despesa-mobile-card[data-expanded="true"] { border-color: #6099c3; }
-.despesa-dialog { background: #101b2e; border-color: #30415e; }
+.despesa-footer-total strong { font: 700 16px ui-monospace, SFMono-Regular, Menlo, monospace; color: hsl(var(--foreground)); white-space: nowrap; }
+.despesas-theme .despesa-mobile-card { background: hsl(var(--card)); border-color: hsl(var(--border)); }
+.despesas-theme .despesa-mobile-card[data-expanded="true"] { border-color: hsl(var(--primary) / .55); }
+.despesa-dialog { background: hsl(var(--card)); border-color: hsl(var(--border)); }
 .despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
 @media (max-width: 639px) {
   .despesas-shell { padding: 10px; border-radius: 14px; }
@@ -1455,12 +1455,12 @@ function LancamentosDespesa({
 
       <section
         className="despesa-ledger min-w-0"
-        aria-label="Lançamento de despesas"
+        aria-label="Lançamentos mensais"
       >
         <header className="despesa-heading flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <h3 className="text-xl font-semibold tracking-tight">
-              Lançamento de despesas
+              Lançamentos mensais
             </h3>
           </div>
           <Button
@@ -2416,66 +2416,56 @@ export default function FinanceiroCotista() {
             </div>
           )}
 
-          <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1">
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("resumo")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "resumo" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <LayoutDashboard size={14} />
-              Resumo geral
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("medias")}
-              className={`flex min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "medias" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Gauge size={14} />
-              MÉDIAS
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("relatorio")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "relatorio" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <FileText size={14} />
-              Fechamento Balanço
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("lancamentos")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "lancamentos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <ReceiptText size={14} />
-              Lançamento de despesas
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("graficos")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "graficos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <BarChart3 size={14} />
-              Gráficos
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("ranking")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "ranking" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <ListOrdered size={14} />
-              Ranking de gastos
-            </button>{" "}
-            <button
-              type="button"
-              onClick={() => setAbaAtiva("emprestimos")}
-              className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "emprestimos" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Fuel size={14} />
-              Voos empréstimos
-            </button>
+          <section className="financeiro-panel overflow-hidden">
+            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div>
+                <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
+                <p className="mt-1 text-base font-semibold">{aeronaves.find((a) => a.id === aeronaveSelecionada)?.matricula_registro || "Aeronave selecionada"}</p>
+                <p className="text-[10px] text-muted-foreground">Consolidação dos lançamentos e rateios no período selecionado.</p>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
+                {[
+                  ["Lançamentos", String(lancamentosFiltrados.length), ""],
+                  ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0), ""],
+                  ["Rateado", formatarMoeda(dashboard?.resumo?.custo_rateado ?? 0), ""],
+                  ["A conferir", formatarMoeda(Math.max(0, (dashboard?.resumo?.saidas ?? 0) - (dashboard?.resumo?.custo_rateado ?? 0))), "text-amber-600"],
+                ].map(([label, value, tone]) => (
+                  <div key={label} className="min-w-[104px] px-3 py-2.5 first:pl-3">
+                    <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p>
+                    <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
+            {([
+              ["lancamentos", "Lançamentos mensais", ReceiptText],
+              ["resumo", "Visão por cotista", LayoutDashboard],
+              ["relatorio", "Balanço mensal", FileText],
+              ["emprestimos", "Voos empréstimo", Fuel],
+              ["medias", "Médias", Gauge],
+              ["graficos", "Gráficos", BarChart3],
+              ["ranking", "Ranking de gastos", ListOrdered],
+            ] as const).map(([id, label, Icon]) => (
+              <button
+                key={id as string}
+                type="button"
+                role="tab"
+                aria-selected={abaAtiva === id}
+                onClick={() => setAbaAtiva(id as typeof abaAtiva)}
+                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
             {possuiHolding && (
               <button
                 type="button"
+                role="tab"
+                aria-selected={abaAtiva === "extrato"}
                 onClick={() => setAbaAtiva("extrato")}
                 className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "extrato" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
@@ -2861,7 +2851,7 @@ export default function FinanceiroCotista() {
                 <div className="financeiro-panel overflow-hidden">
                   <div className="financeiro-panel-header">
                     <div>
-                      <p className="text-sm font-bold">Voos empréstimos</p>
+                      <p className="text-sm font-bold">Voos empréstimo</p>
                       <p className="text-[10px] text-muted-foreground">
                         Abastecimentos em nome deste cotista realizados em
                         outras aeronaves.

@@ -19,10 +19,13 @@ const date = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T
 const time = (value?: string | null) => value ? value.slice(0, 5) : "—";
 
 export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?: () => void; aoAbrirAerodromos?: () => void }) {
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(now.getFullYear());
   const [aeronaves, setAeronaves] = useState<DiarioAeronaveResumo[]>([]);
   const [options, setOptions] = useState<DiarioOpcoesResponse | null>(null);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
+  const optionsRequest = useRef<Promise<boolean> | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,13 +43,36 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     if (silent) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const [summary, opcoes] = await Promise.all([buscarResumoDiario(ano), options ? Promise.resolve(options) : buscarOpcoesDiario()]);
+      const summary = await buscarResumoDiario(ano);
       setAeronaves(Array.isArray(summary.aeronaves) ? summary.aeronaves : []);
-      setOptions(opcoes);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar os diários de bordo.");
     } finally { setLoading(false); setRefreshing(false); }
-  }, [ano, options]);
+  }, [ano]);
+
+  const loadOptions = useCallback(async () => {
+    if (options) return true;
+    if (optionsRequest.current) return optionsRequest.current;
+    setOptionsLoading(true);
+    setOptionsError(null);
+    const request = buscarOpcoesDiario()
+      .then((loaded) => { setOptions(loaded); return true; })
+      .catch((cause) => {
+        setOptionsError(cause instanceof Error ? cause.message : "Não foi possível carregar as opções do formulário.");
+        return false;
+      })
+      .finally(() => {
+        setOptionsLoading(false);
+        optionsRequest.current = null;
+      });
+    optionsRequest.current = request;
+    return request;
+  }, [options]);
+
+  const openEntryEditor = (entry: DiarioLancamento | null = null) => {
+    setEntryEditor(entry);
+    if (!options) void loadOptions();
+  };
 
   const loadDetails = useCallback(async (aircraft: DiarioAeronaveResumo, target = period) => {
     setDetailsLoading(true); setError(null);
@@ -64,7 +90,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     values.set(`${now.getFullYear()}-${now.getMonth() + 1}`, { ano: now.getFullYear(), mes: now.getMonth() + 1 });
     for (const item of details?.meses_disponiveis || []) values.set(`${item.ano}-${item.mes}`, { ano: item.ano, mes: item.mes });
     return [...values.values()].sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-  }, [details?.meses_disponiveis, period]);
+  }, [details?.meses_disponiveis, period, now]);
 
   const openAircraft = (aircraft: DiarioAeronaveResumo) => {
     const nextPeriod = { ano, mes: aircraft.mes_referencia || now.getMonth() + 1 };
@@ -119,7 +145,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 
             <div className="flex w-full flex-wrap gap-2 2xl:w-auto 2xl:justify-end">
               <div className="grid min-w-0 flex-1 basis-auto grid-cols-2 gap-2 sm:basis-[22rem] 2xl:flex 2xl:flex-wrap">
-                {!closed && month && <Button type="button" onClick={() => setEntryEditor(null)} className="h-11 w-full justify-center gap-1.5 rounded-lg border border-orange-400/35 bg-orange-500/15 px-3 text-xs font-extrabold text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 sm:h-9 sm:w-auto"><Plus size={14} strokeWidth={2.5} /><span className="hidden xs:inline">Novo lançamento</span><span className="xs:hidden">Novo</span></Button>}
+                {!closed && month && <Button type="button" onClick={() => openEntryEditor(null)} className="h-11 w-full justify-center gap-1.5 rounded-lg border border-orange-400/35 bg-orange-500/15 px-3 text-xs font-extrabold text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 sm:h-9 sm:w-auto"><Plus size={14} strokeWidth={2.5} /><span className="hidden xs:inline">Novo lançamento</span><span className="xs:hidden">Novo</span></Button>}
                 <Button type="button" variant="outline" onClick={() => selected && void loadDetails(selected)} disabled={detailsLoading} className="h-11 w-full justify-center gap-1.5 text-xs sm:h-9 sm:w-auto"><RefreshCw size={14} className={detailsLoading ? "animate-spin" : ""} /> Atualizar</Button>
               </div>
 
@@ -179,13 +205,15 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         </section>
 
         {(error || notice) && <div className={`rounded-xl border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}
-        {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : !month && <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
+        {optionsLoading && <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">Carregando opções do formulário de voo…</div>}
+        {optionsError && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-foreground"><span>Os dados do diário foram carregados, mas as opções para incluir/editar voo não estão disponíveis: {optionsError}</span><Button type="button" variant="outline" onClick={() => void loadOptions()} disabled={optionsLoading} className="h-8">Tentar novamente</Button></div>}
+        {detailsLoading && !details ? <div className="skeleton h-56 rounded-xl" /> : details && !month && <section className={`${card} flex flex-col items-center justify-center p-10 text-center`}><BookOpenCheck className="mb-3 text-primary" size={28} /><h2 className="text-sm font-bold">Este mês ainda não foi aberto</h2><p className="mt-1 max-w-md text-[11px] text-muted-foreground">Abra o diário de {monthName(period.mes)} para registrar voos, tempos, célula e combustível da aeronave.</p><Button type="button" onClick={() => setMonthEditor(true)} className="mt-4 h-9 gap-2 text-[11px]"><Plus size={13} /> Abrir diário do mês</Button></section>}
         {month && <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-amber-400"><Fuel size={14} /></span><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-400">Consumo de combustível</p><p className="mt-0.5 truncate text-[10px] text-muted-foreground">Histórico registrado no mês <span className="mx-1 text-muted-foreground/60">·</span> {decimal(fuelTotal)} L abastecidos</p></div></div><ChevronDown size={15} className="shrink-0 text-amber-400/70" /></div>}
         {monthEditor && <CreateMonthDialog open={monthEditor} onOpenChange={setMonthEditor} aircraftId={selected.id} aircraftRegistration={selected.matricula_registro} month={period.mes} year={period.ano} currentModoCelula={month?.modo_celula || null} previousMonthData={month ? { celula_atual_ttotal: month.celula_atual_ttotal, celula_prox_revisao_ttotal: month.celula_prox_revisao_ttotal, horimetro_final: month.horimetro_final, aerodromo_base: month.aerodromo_base, consumo_combustivel: month.consumo_combustivel, tem_tarifa_diaria: Boolean(month.tem_tarifa_diaria), tarifa_diaria: month.tarifa_diaria } : null} onCreate={(payload) => saveMonth(payload)} />}
         {entryEditor !== false && month && !closed && options && <DiarioLancamentoFormIntegrado aeronaveId={selected.id} consumoCombustivel={selected.consumo_combustivel} diarioMesId={month.id} opcoes={options} initialData={entryEditor || null} sugeridaCelula={Number(month.celula_atual_ttotal || 0)} sugestaoTrecho={details?.lancamentos?.length ? details.lancamentos[details.lancamentos.length - 1].trecho || `${details.lancamentos[details.lancamentos.length - 1].aerodromo_partida} X ${details.lancamentos[details.lancamentos.length - 1].aerodromo_chegada}` : undefined} temDiaria={Boolean(month.tem_tarifa_diaria)} onSubmit={saveEntry} onCancel={() => setEntryEditor(false)} saving={saving} />}
         {month && (
           <div className="space-y-4">
-            <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => setEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />
+            <LancamentosTableConfigurada lancamentos={details?.lancamentos || []} closed={closed} onEdit={(entry) => openEntryEditor(entry)} onDelete={(entry) => void removeEntry(entry)} />
           </div>
         )}
         {month && <DiarioBancoHoras lancamentos={details?.lancamentos || []} horasCotistas={details?.horas_cotistas} horasEmprestadas={details?.horas_emprestadas} />}

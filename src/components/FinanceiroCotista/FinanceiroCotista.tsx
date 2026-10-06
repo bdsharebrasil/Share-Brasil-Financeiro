@@ -2506,7 +2506,8 @@ export default function FinanceiroCotista() {
             )}
           </div>
 
-          <section className="financeiro-panel p-4">
+          {abaAtiva !== "relatorio" && (
+            <section className="financeiro-panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-xs font-bold">Período dos dados</p>
@@ -2556,7 +2557,8 @@ export default function FinanceiroCotista() {
                 Limpar
               </button>
             </div>
-          </section>
+            </section>
+          )}
 
           {carregando ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">

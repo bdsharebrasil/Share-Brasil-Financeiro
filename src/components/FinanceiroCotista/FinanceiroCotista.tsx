@@ -162,10 +162,10 @@ const DESPESAS_ESTILOS = `
 .despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
 .despesa-category { display: inline-block; max-width: 100%; margin-top: 7px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
 .despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
-.despesas-theme .despesa-status[data-status="Pago"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
-.despesas-theme .despesa-status[data-status="Pendente"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
-.despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
-.despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
+.despesas-theme .despesa-status[data-status="Pago"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.despesas-theme .despesa-status[data-status="Pendente"] { color: #b45309; background: #fffbeb; border-color: #fcd34d; }
+.despesas-theme .despesa-status[data-status="Atrasado"] { color: #b91c1c; background: #fef2f2; border-color: #fca5a5; }
+.despesas-theme .despesa-status[data-status="Cancelado"] { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
 .despesa-detail { background: hsl(var(--muted) / .28); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
 .despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary)); }
 .despesa-detail dt { font-size: 11px; }

@@ -19,25 +19,16 @@ import {
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  normalizarPagador,
+  useCalculadoraRelatorio,
+} from "@/hooks/useCalculadoraRelatorio";
+import type {
+  Despesa,
+  FiltroDespesas,
+} from "@/hooks/useCalculadoraRelatorio";
 
 type TipoAcao = "aprovar" | "rejeitar" | null;
-type Pagador =
-  | "tripulante_1"
-  | "tripulante_2"
-  | "cliente"
-  | "sharebrasil"
-  | "outro";
-
-type Despesa = {
-  id?: string;
-  data?: string;
-  categoria?: string;
-  descricao?: string;
-  valor?: number | string;
-  observacoes?: string;
-  pago_por?: string;
-  paid_by?: string;
-};
 
 type Anexo = {
   id: string;
@@ -77,8 +68,6 @@ type Relatorio = {
   observacoes_aprovacao_tripulante_2?: string | null;
 };
 
-type FiltroDespesas = "tripulante" | "cliente" | "sharebrasil" | "outros";
-
 type ApprovalData = {
   relatorio: Relatorio;
   resumo?: {
@@ -112,27 +101,6 @@ function dataHoraBr(valor: unknown) {
   const [data, hora] = normalizado.split(" ");
   if (!data || !hora) return dataBr(valor);
   return `${dataBr(data)} às ${hora.slice(0, 5)}`;
-}
-
-function normalizarPagador(valor: unknown): Pagador {
-  const normalizado = String(valor || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\s-]+/g, "_");
-
-  if (normalizado === "cliente" || normalizado === "client") return "cliente";
-  if (["share", "sharebrasil", "share_brasil"].includes(normalizado)) {
-    return "sharebrasil";
-  }
-  if (["tripulante_2", "tripulante2"].includes(normalizado)) {
-    return "tripulante_2";
-  }
-  if (["tripulante_1", "tripulante1"].includes(normalizado)) {
-    return "tripulante_1";
-  }
-  return "outro";
 }
 
 function nomePagador(valor: unknown) {
@@ -372,98 +340,19 @@ export default function AprovacaoRelatorioViagem() {
       ? relatorio?.nome_tripulante
       : relatorio?.nome_tripulante_2;
 
-  const pagadorTripulante: Pagador =
-    posicao === 1 ? "tripulante_1" : "tripulante_2";
-
-  const despesasTripulante = useMemo(
-    () =>
-      despesas.filter(
-        (item) =>
-          normalizarPagador(item.pago_por || item.paid_by) ===
-          pagadorTripulante,
-      ),
-    [despesas, pagadorTripulante],
-  );
-
-  const despesasOutroTripulante = useMemo(
-    () =>
-      despesas.filter(
-        (item) =>
-          normalizarPagador(item.pago_por || item.paid_by) !==
-            pagadorTripulante &&
-          normalizarPagador(item.pago_por || item.paid_by) ===
-            (posicao === 1 ? "tripulante_2" : "tripulante_1"),
-      ),
-    [despesas, posicao, pagadorTripulante],
-  );
-
-  const despesasCliente = useMemo(
-    () =>
-      despesas.filter(
-        (item) =>
-          normalizarPagador(item.pago_por || item.paid_by) === "cliente",
-      ),
-    [despesas],
-  );
-
-  const despesasShare = useMemo(
-    () =>
-      despesas.filter(
-        (item) =>
-          normalizarPagador(item.pago_por || item.paid_by) === "sharebrasil",
-      ),
-    [despesas],
-  );
-
-  const despesasOutros = useMemo(
-    () =>
-      despesas.filter(
-        (item) =>
-          normalizarPagador(item.pago_por || item.paid_by) === "outro",
-      ),
-    [despesas],
-  );
-
-  const resumo = data?.resumo || {};
-
-  const totalGeral = useMemo(
-    () =>
-      despesas.reduce(
-        (total, item) => total + (Number(item.valor) || 0),
-        0,
-      ),
-    [despesas],
-  );
-
-  const totalTripulante =
-    Number(resumo.total_a_receber) ||
-    despesasTripulante.reduce(
-      (total, item) => total + (Number(item.valor) || 0),
-      0,
-    );
-
-  const totalCliente =
-    Number(resumo.cliente_pagou) ||
-    despesasCliente.reduce(
-      (total, item) => total + (Number(item.valor) || 0),
-      0,
-    );
-
-  const totalShare =
-    Number(resumo.share_brasil_pagou) ||
-    despesasShare.reduce(
-      (total, item) => total + (Number(item.valor) || 0),
-      0,
-    );
-
-  const totalOutros = useMemo(
-    () =>
-      [...despesasOutroTripulante, ...despesasOutros].reduce(
-        (total, item) => total + (Number(item.valor) || 0),
-        0,
-      ),
-    [despesasOutroTripulante, despesasOutros],
-  );
+  const {
+    despesasTripulante,
+    despesasOutroTripulante,
+    despesasCliente,
+    despesasShare,
+    despesasOutros,
+    despesasOutras,
+    totalGeral,
+    totalTripulante,
+    totalCliente,
+    totalShare,
+    totalOutros,
+  } = useCalculadoraRelatorio(despesas, data?.resumo, posicao);
 
   const despesasFiltradas = useMemo(() => {
     switch (filtroDespesas) {
@@ -472,15 +361,14 @@ export default function AprovacaoRelatorioViagem() {
       case "sharebrasil":
         return despesasShare;
       case "outros":
-        return [...despesasOutroTripulante, ...despesasOutros];
+        return despesasOutras;
       case "tripulante":
       default:
         return despesasTripulante;
     }
   }, [
     despesasCliente,
-    despesasOutroTripulante,
-    despesasOutros,
+    despesasOutras,
     despesasShare,
     despesasTripulante,
     filtroDespesas,

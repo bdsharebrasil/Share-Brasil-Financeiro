@@ -33,6 +33,7 @@ interface SearchableComboboxProps {
   allowFreeText?: boolean;
   clearable?: boolean;
   selectedLabel?: string;
+  selectedValues?: string[];
   wrapSelectedLabel?: boolean;
   wrapItemLabels?: boolean;
   className?: string;
@@ -51,6 +52,7 @@ export function SearchableCombobox({
   allowFreeText = false,
   clearable = false,
   selectedLabel,
+  selectedValues,
   wrapSelectedLabel = false,
   wrapItemLabels = false,
   className,
@@ -92,7 +94,7 @@ export function SearchableCombobox({
           <div className={cn("flex min-w-0 flex-1 items-center gap-2", wrapSelectedLabel && "items-start") }>
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
             <span className={cn("min-w-0 truncate text-base tracking-tight lg:text-sm", wrapSelectedLabel && "overflow-visible whitespace-normal break-words text-left text-clip") }>
-              {selectedItem ? (selectedLabel || selectedItem.label) : (value ? value : placeholder)}
+              {selectedItem ? (selectedLabel || selectedItem.label) : (value ? selectedLabel || value : placeholder)}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -145,14 +147,14 @@ export function SearchableCombobox({
                   <Check
                     className={cn(
                       "mr-1 h-4 w-4 shrink-0 transition-all",
-                      value === item.id ? "opacity-100 text-primary scale-100" : "opacity-0 scale-75"
+                      (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "opacity-100 text-primary scale-100" : "opacity-0 scale-75"
                     )}
                   />
                   <span className={cn(
                     "min-w-0",
                     !wrapItemLabels && "truncate",
                     wrapItemLabels && "whitespace-normal break-words text-left",
-                    value === item.id ? "font-semibold" : "font-medium text-slate-200"
+                    (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "font-semibold" : "font-medium text-slate-200"
                   )}>
                     {item.label}
                   </span>

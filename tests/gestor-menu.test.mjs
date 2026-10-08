@@ -6,6 +6,8 @@ const navigation = await readFile(new URL('../src/types/navegacao.ts', import.me
 const sidebar = await readFile(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8')
 const layout = await readFile(new URL('../src/components/layout/LayoutInterno.tsx', import.meta.url), 'utf8')
 const menu = await readFile(new URL('../src/components/dashboard/gestor/MenuGestor.tsx', import.meta.url), 'utf8')
+const reciboTab = await readFile(new URL('../src/components/financeiro-share/NFSaidaTab.tsx', import.meta.url), 'utf8')
+const reciboModal = await readFile(new URL('../src/components/financeiro-share/ReciboSaidaPreviewModal.tsx', import.meta.url), 'utf8')
 
 test('menu Gestor fica visível somente a admin e gestor master', () => {
   assert.match(navigation, /id: "gestor", label: "Gestor"/)
@@ -37,4 +39,12 @@ test('impressão do contrato mantém o fluxo paginável e não corta o texto', (
   assert.match(menu, /height:auto!important/)
   assert.match(menu, /page-break-inside:auto!important/)
   assert.doesNotMatch(menu, /#contrato-preview\{position:absolute!important/)
+})
+
+test('salvamento do recibo informa falhas de PDF ou de persistência', () => {
+  assert.match(reciboModal, /const blob = await makePdf\(\)/)
+  assert.match(reciboModal, /setGenerationError\(message\)/)
+  assert.match(reciboTab, /O servidor não confirmou a criação do recibo de saída/)
+  assert.match(reciboTab, /O servidor não retornou o número oficial do recibo de saída/)
+  assert.match(reciboTab, /onError=\{\(error\) => setToast/)
 })

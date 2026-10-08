@@ -559,7 +559,9 @@ export default function NFSaidaTab() {
       }
 
       const { recibo } = await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor_total: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
+      if (!recibo?.id) throw new Error("O servidor não confirmou a criação do recibo de saída.");
       const numeroRecibo = String(recibo.numero_recibo || "");
+      if (!numeroRecibo) throw new Error("O servidor não retornou o número oficial do recibo de saída.");
       // O número só é atribuído pelo Worker após a criação. Regerar aqui
       // evita salvar um PDF com o placeholder "Será gerado ao finalizar".
       const pdfOficial = await gerarReciboPdf({
@@ -576,6 +578,7 @@ export default function NFSaidaTab() {
         emissorDocumento: "CNPJ: 30.898.549/0001-06",
       });
       const { url: reciboUrl } = await nfSaidaApi.enviarAnexoDocumentoSaida(pdfOficial, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
+      if (!reciboUrl) throw new Error("O PDF foi gerado, mas o servidor não retornou o endereço do arquivo.");
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
       setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();
@@ -859,6 +862,7 @@ export default function NFSaidaTab() {
         savedUrl={reciboSavedUrl}
         onClose={closeReciboPreview}
         onConfirm={confirmReciboSave}
+        onError={(error) => setToast({ type: "err", text: error instanceof Error ? error.message : "Não foi possível gerar o PDF do recibo." })}
         onSendEmail={() => {
           if (emailTarget) {
             setEmailOpen(true);

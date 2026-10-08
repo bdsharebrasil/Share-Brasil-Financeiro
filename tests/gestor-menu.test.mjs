@@ -33,12 +33,14 @@ test('editor mantém timbre Share Brasil e grava contratos e anexos pelas rotas 
   assert.match(menu, /contrato_cotista/)
 })
 
-test('impressão do contrato mantém o fluxo paginável e não corta o texto', () => {
-  assert.match(menu, /#contrato-preview\{position:static!important/)
-  assert.match(menu, /overflow:visible!important/)
-  assert.match(menu, /height:auto!important/)
-  assert.match(menu, /page-break-inside:auto!important/)
-  assert.doesNotMatch(menu, /#contrato-preview\{position:absolute!important/)
+test('salvar PDF do contrato usa a prévia timbrada e não depende da impressão do navegador', () => {
+  assert.match(menu, /await gerarPdfDaPrevia\(elemento, `contrato-\$\{baseNome\}\.pdf`\)/)
+  assert.match(menu, /html2canvas\(elemento/)
+  assert.match(menu, /new jsPDF\(/)
+  assert.match(menu, /gerandoPdf \? "Gerando PDF…"\s*:\s*"Salvar em PDF"/)
+  assert.match(menu, /pdf\.save\(nomeArquivo\)/)
+  assert.doesNotMatch(menu, /window\.print\(\)/)
+  assert.doesNotMatch(menu, /@media print/)
 })
 
 test('salvamento do recibo informa falhas de PDF ou de persistência', () => {

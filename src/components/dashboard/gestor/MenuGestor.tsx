@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CalendarDays, FileText, Printer, RefreshCw, Save, Search, Upload, WalletCards } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CalendarDays, FileDown, FileText, RefreshCw, Save, Search, Upload, WalletCards } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -111,6 +113,65 @@ const formatarData = (valor?: string | null) => { if (!valor) return "—"; cons
 const valorEmCentavos = (valor: string): number | null => { const bruto = valor.trim().replace(/\s/g, ""); if (!bruto) return null; const numero = bruto.includes(",") ? Number(bruto.replace(/\./g, "").replace(",", ".")) : Number(bruto); return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) : null; };
 const statusAberto = (status: string) => !["PAGO", "RECEBIDO", "CANCELADO"].includes(String(status).toUpperCase());
 
+async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
+  await document.fonts.ready;
+  await Promise.all(Array.from(elemento.querySelectorAll("img")).map((imagem) => imagem.decode()));
+
+  const escala = 2;
+  const canvas = await html2canvas(elemento, {
+    backgroundColor: "#ffffff",
+    imageTimeout: 15_000,
+    logging: false,
+    scale: escala,
+    useCORS: true,
+  });
+  if (!canvas.width || !canvas.height) throw new Error("Não foi possível renderizar a prévia do contrato.");
+
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  const margem = 12;
+  const larguraUtil = pdf.internal.pageSize.getWidth() - margem * 2;
+  const alturaUtil = pdf.internal.pageSize.getHeight() - margem * 2;
+  const alturaMaximaCanvas = Math.floor(canvas.width * alturaUtil / larguraUtil);
+  const elementoTexto = elemento.querySelector<HTMLElement>(".contrato-print-body");
+  const topoElemento = elemento.getBoundingClientRect().top;
+  const escalaRenderizada = canvas.width / elemento.getBoundingClientRect().width;
+  const intervaloTexto = document.createRange();
+  if (elementoTexto) intervaloTexto.selectNodeContents(elementoTexto);
+  const finaisDeLinha = elementoTexto
+    ? Array.from(intervaloTexto.getClientRects())
+      .filter((retangulo) => retangulo.height > 0)
+      .map((retangulo) => Math.round((retangulo.bottom - topoElemento) * escalaRenderizada))
+      .filter((final) => final > 0 && final < canvas.height)
+      .sort((a, b) => a - b)
+    : [];
+
+  let inicio = 0;
+  let primeiraPagina = true;
+  while (inicio < canvas.height) {
+    let fim = Math.min(inicio + alturaMaximaCanvas, canvas.height);
+    if (fim < canvas.height) {
+      const quebrasSeguras = finaisDeLinha.filter((final) => final > inicio && final <= fim);
+      const quebraSegura = quebrasSeguras[quebrasSeguras.length - 1];
+      if (quebraSegura && quebraSegura - inicio >= alturaMaximaCanvas * 0.75) fim = quebraSegura;
+    }
+
+    const pagina = document.createElement("canvas");
+    pagina.width = canvas.width;
+    pagina.height = fim - inicio;
+    const contexto = pagina.getContext("2d");
+    if (!contexto) throw new Error("Não foi possível preparar uma página do PDF.");
+    contexto.drawImage(canvas, 0, inicio, canvas.width, pagina.height, 0, 0, pagina.width, pagina.height);
+
+    if (!primeiraPagina) pdf.addPage();
+    const alturaImagem = pagina.height * larguraUtil / pagina.width;
+    pdf.addImage(pagina.toDataURL("image/jpeg", 0.96), "JPEG", margem, margem, larguraUtil, alturaImagem, undefined, "FAST");
+    primeiraPagina = false;
+    inicio = fim;
+  }
+
+  pdf.save(nomeArquivo);
+}
+
 export default function MenuGestor() {
   const [aba, setAba] = useState("caixa");
   return <div className="route-enter space-y-5">
@@ -210,6 +271,7 @@ function Contratos() {
   const [opcoes, setOpcoes] = useState<OpcoesContrato>({ empresa: null, colaboradores: [], cotistas: [] });
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [busca, setBusca] = useState("");
   const [contratoId, setContratoId] = useState<string | null>(null);
   const [tipoVinculo, setTipoVinculo] = useState<TipoVinculo>("COLABORADOR");
@@ -357,11 +419,28 @@ function Contratos() {
       const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = anexo.nome; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível baixar o anexo."); }
   };
+  const salvarComoPdf = async () => {
+    const elemento = document.getElementById("contrato-preview");
+    if (!elemento) { toast.error("Não foi possível localizar a prévia do contrato."); return; }
+    setGerandoPdf(true);
+    try {
+      const baseNome = (form.numero.trim() || form.titulo || "contrato")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9-]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80) || "contrato";
+      await gerarPdfDaPrevia(elemento, `contrato-${baseNome}.pdf`);
+      toast.success("PDF do contrato salvo.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível gerar o PDF do contrato.");
+    } finally { setGerandoPdf(false); }
+  };
   const atribuirForm = (campo: keyof FormContrato, valor: string) => setForm((atual) => ({ ...atual, [campo]: valor }));
   const atribuirParte = (setParte: (parte: ParteFormulario | ((atual: ParteFormulario) => ParteFormulario)) => void, campo: keyof ParteFormulario, valor: string) => setParte((atual) => ({ ...atual, [campo]: valor }));
 
   return <div className="space-y-5">
-    <style>{`@page{size:A4;margin:12mm}.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}@media print{body *{visibility:hidden!important}#contrato-preview,#contrato-preview *{visibility:visible!important}#contrato-preview{position:static!important;display:block!important;left:auto!important;top:auto!important;width:auto!important;max-width:none!important;min-height:0!important;height:auto!important;overflow:visible!important;margin:0!important;border:1px solid #174f78!important;box-shadow:none!important;background:white!important;color:#111!important;break-inside:auto!important;page-break-inside:auto!important}.contrato-print-header{border-bottom:1px solid #174f78!important}.contrato-print-body{font-size:11pt!important;line-height:1.55!important}button,.no-print{display:none!important}}`}</style>
+    <style>{`.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}`}</style>
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/70 p-4"><div><h2 className="text-sm font-bold">Contratos</h2><p className="mt-1 text-xs text-muted-foreground">Minutas editáveis vinculadas ao cadastro de colaborador ou cotista.</p></div><Button type="button" variant="outline" onClick={() => void carregar()} disabled={carregando} className="gap-2 text-xs"><RefreshCw size={14} className={carregando ? "animate-spin" : ""} /> Atualizar lista</Button></div>
     <div className="grid min-w-0 gap-5 xl:grid-cols-[270px_minmax(0,1fr)]">
       <aside className="space-y-3 rounded-xl border border-border bg-card/60 p-3 no-print"><div className="flex items-center justify-between gap-2"><h3 className="text-xs font-bold">Contratos salvos</h3><Button type="button" size="sm" onClick={novoContrato} className="h-8 gap-1.5 text-[10px]"><FileText size={13} /> Novo</Button></div><div className="relative"><Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar contrato" className="h-8 pl-8 text-[10px]" /></div><div className="max-h-[70vh] space-y-1 overflow-y-auto">{carregando ? <p className="py-5 text-center text-[10px] text-muted-foreground">Carregando…</p> : contratosFiltrados.length ? contratosFiltrados.map((contrato) => <button type="button" key={contrato.id} onClick={() => editarContrato(contrato)} className={`w-full rounded-lg border p-3 text-left transition-colors ${contratoId === contrato.id ? "border-primary/40 bg-primary/10" : "border-transparent hover:border-border hover:bg-background/70"}`}><span className="block truncate text-[11px] font-bold">{contrato.titulo}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.numero || contrato.id.slice(0, 8)} · {contrato.status.replace(/_/g, " ")}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.partes.find((parte) => parte.papel !== "CONTRATANTE")?.nome || contrato.tipo}</span></button>) : <p className="py-5 text-center text-[10px] text-muted-foreground">Nenhum contrato cadastrado.</p>}</div></aside>
@@ -394,7 +473,7 @@ function Contratos() {
           {tipoVinculo === "COLABORADOR" && <p className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-[10px] leading-5 text-muted-foreground">O contrato será relacionado ao registro existente em <code>contratos_trabalho</code>, quando houver. A página não cria um segundo vínculo empregatício.</p>}
         </section>
         <section className="min-w-0 space-y-3">
-          <div className="flex items-center justify-between gap-3 no-print"><div><h3 className="text-sm font-bold">Pré-visualização timbrada</h3><p className="mt-1 text-[10px] text-muted-foreground">Substitua os campos entre colchetes, revise a minuta e imprima em papel ou PDF.</p></div><Button type="button" variant="outline" onClick={() => window.print()} className="gap-2 text-xs"><Printer size={14} /> Imprimir</Button></div>
+          <div className="flex items-center justify-between gap-3 no-print"><div><h3 className="text-sm font-bold">Pré-visualização timbrada</h3><p className="mt-1 text-[10px] text-muted-foreground">Substitua os campos entre colchetes, revise a minuta e salve uma cópia em PDF.</p></div><Button type="button" variant="outline" onClick={() => void salvarComoPdf()} disabled={gerandoPdf} className="gap-2 text-xs"><FileDown size={14} /> {gerandoPdf ? "Gerando PDF…" : "Salvar em PDF"}</Button></div>
           <article id="contrato-preview" className="contrato-preview mx-auto min-h-[900px] w-full max-w-[780px] border border-[#174f78] bg-white p-7 pb-20 pt-20 text-slate-900 shadow-sm sm:p-10 sm:pb-20 sm:pt-20">
             <header className="contrato-print-header mb-7 flex items-center justify-between gap-4 border-b border-[#174f78] pb-4"><img src="/logo.share.png" alt="Share Brasil" className="h-14 max-w-[220px] object-contain object-left" /><div className="text-right text-[9px] leading-4 text-slate-600"><p className="font-bold text-[#174f78]">{EMPRESA_TIMBRADA}</p></div></header>
             <div className="contrato-print-body whitespace-pre-wrap break-words font-serif text-[11px] leading-6 text-slate-800">{textoPreview}</div>

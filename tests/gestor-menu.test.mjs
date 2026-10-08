@@ -35,12 +35,13 @@ test('editor mantém timbre Share Brasil e grava contratos e anexos pelas rotas 
 
 test('salvar PDF do contrato usa a prévia timbrada e não depende da impressão do navegador', () => {
   assert.match(menu, /await gerarPdfDaPrevia\(elemento, `contrato-\$\{baseNome\}\.pdf`\)/)
-  assert.match(menu, /html2canvas\(elemento/)
+  assert.match(menu, /html2canvas\(pagina/)
   assert.match(menu, /new jsPDF\(/)
-  assert.match(menu, /pagina\.height = alturaMaximaCanvas/)
-  assert.match(menu, /desenharFaixasTimbradas\(contexto, pagina\.width, pagina\.height\)/)
-  assert.match(menu, /pdf\.rect\(margem, margem, larguraUtil, alturaUtil\)/)
-  assert.match(menu, /\.contrato-preview\.pdf-export-source::before/)
+  assert.match(menu, /while \(indiceSegmento < segmentos\.length \|\| numeroPagina === 0\)/)
+  assert.match(menu, /corpo\.getBoundingClientRect\(\)\.bottom > limiteInferior/)
+  assert.match(menu, /segmentos\[indiceSegmento\] = segmento\.slice\(tamanhoValido\)/)
+  assert.match(menu, /cabecalhoOriginal\.cloneNode\(true\)/)
+  assert.doesNotMatch(menu, /contexto\.drawImage\(canvas/)
   assert.match(menu, /gerandoPdf \? "Gerando PDF…"\s*:\s*"Salvar em PDF"/)
   assert.match(menu, /pdf\.save\(nomeArquivo\)/)
   assert.doesNotMatch(menu, /window\.print\(\)/)

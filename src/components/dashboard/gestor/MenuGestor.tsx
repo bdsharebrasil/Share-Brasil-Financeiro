@@ -113,99 +113,92 @@ const formatarData = (valor?: string | null) => { if (!valor) return "—"; cons
 const valorEmCentavos = (valor: string): number | null => { const bruto = valor.trim().replace(/\s/g, ""); if (!bruto) return null; const numero = bruto.includes(",") ? Number(bruto.replace(/\./g, "").replace(",", ".")) : Number(bruto); return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) : null; };
 const statusAberto = (status: string) => !["PAGO", "RECEBIDO", "CANCELADO"].includes(String(status).toUpperCase());
 
-function desenharFaixasTimbradas(contexto: CanvasRenderingContext2D, largura: number, altura: number) {
-  const faixa = (lado: "superior" | "inferior", profundidade: number, cor: string) => {
-    contexto.beginPath();
-    if (lado === "superior") {
-      contexto.moveTo(0, 0);
-      contexto.bezierCurveTo(largura * 0.24, profundidade * 0.72, largura * 0.62, profundidade * 0.94, largura, profundidade * 0.78);
-      contexto.lineTo(largura, 0);
-    } else {
-      contexto.moveTo(0, altura);
-      contexto.bezierCurveTo(largura * 0.24, altura - profundidade * 0.72, largura * 0.62, altura - profundidade * 0.94, largura, altura - profundidade * 0.78);
-      contexto.lineTo(largura, altura);
-    }
-    contexto.closePath();
-    contexto.fillStyle = cor;
-    contexto.fill();
-  };
-
-  for (const lado of ["superior", "inferior"] as const) {
-    faixa(lado, 74, "#007ac7");
-    faixa(lado, 54, "#123b96");
-    faixa(lado, 36, "#000b67");
-  }
-}
-
 async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
   await document.fonts.ready;
   await Promise.all(Array.from(elemento.querySelectorAll("img")).map((imagem) => imagem.decode()));
 
-  const escala = 2;
-  const canvas = await html2canvas(elemento, {
-    backgroundColor: "#ffffff",
-    imageTimeout: 15_000,
-    logging: false,
-    onclone: (documentoClonado) => {
-      const previaClonada = documentoClonado.getElementById("contrato-preview");
-      previaClonada?.classList.add("pdf-export-source");
-      previaClonada?.style.setProperty("border", "0", "important");
-    },
-    scale: escala,
-    useCORS: true,
-  });
-  if (!canvas.width || !canvas.height) throw new Error("Não foi possível renderizar a prévia do contrato.");
-
+  const textoOriginal = elemento.querySelector<HTMLElement>(".contrato-print-body");
+  if (!textoOriginal) throw new Error("Não foi possível localizar o texto do contrato.");
+  const segmentos = (textoOriginal.textContent || "").match(/[\s\S]*?(?:\n{2,}|$)/g)?.filter(Boolean) || [""];
+  const cabecalhoOriginal = elemento.querySelector<HTMLElement>(".contrato-print-header");
+  const rodapeOriginal = elemento.querySelector<HTMLElement>("footer");
+  const larguraCss = elemento.getBoundingClientRect().width;
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const margem = 12;
   const larguraUtil = pdf.internal.pageSize.getWidth() - margem * 2;
   const alturaUtil = pdf.internal.pageSize.getHeight() - margem * 2;
-  const alturaMaximaCanvas = Math.floor(canvas.width * alturaUtil / larguraUtil);
-  const pixelsPorMilimetro = canvas.width / larguraUtil;
-  const faixaSuperior = Math.round(10 * pixelsPorMilimetro);
-  const faixaInferior = Math.round(18 * pixelsPorMilimetro);
-  const elementoTexto = elemento.querySelector<HTMLElement>(".contrato-print-body");
-  const topoElemento = elemento.getBoundingClientRect().top;
-  const escalaRenderizada = canvas.width / elemento.getBoundingClientRect().width;
-  const intervaloTexto = document.createRange();
-  if (elementoTexto) intervaloTexto.selectNodeContents(elementoTexto);
-  const finaisDeLinha = elementoTexto
-    ? Array.from(intervaloTexto.getClientRects())
-      .filter((retangulo) => retangulo.height > 0)
-      .map((retangulo) => Math.round((retangulo.bottom - topoElemento) * escalaRenderizada))
-      .filter((final) => final > 0 && final < canvas.height)
-      .sort((a, b) => a - b)
-    : [];
+  const alturaCss = larguraCss * alturaUtil / larguraUtil;
+  const stage = document.createElement("div");
+  stage.style.cssText = `position:fixed;top:0;left:-10000px;width:${larguraCss}px;z-index:-1;pointer-events:none`;
+  document.body.appendChild(stage);
 
-  let inicio = 0;
-  let primeiraPagina = true;
-  while (inicio < canvas.height) {
-    const recuoSuperior = primeiraPagina ? 0 : faixaSuperior;
-    const capacidadeTexto = alturaMaximaCanvas - recuoSuperior - faixaInferior;
-    let fim = Math.min(inicio + capacidadeTexto, canvas.height);
-    if (fim < canvas.height) {
-      const quebrasSeguras = finaisDeLinha.filter((final) => final > inicio && final <= fim);
-      const quebraSegura = quebrasSeguras[quebrasSeguras.length - 1];
-      if (quebraSegura && quebraSegura - inicio >= capacidadeTexto * 0.75) fim = quebraSegura;
+  try {
+    let indiceSegmento = 0;
+    let numeroPagina = 0;
+    while (indiceSegmento < segmentos.length || numeroPagina === 0) {
+      const pagina = elemento.cloneNode(false) as HTMLElement;
+      pagina.removeAttribute("id");
+      pagina.style.setProperty("position", "relative", "important");
+      pagina.style.setProperty("width", `${larguraCss}px`, "important");
+      pagina.style.setProperty("max-width", "none", "important");
+      pagina.style.setProperty("height", `${alturaCss}px`, "important");
+      pagina.style.setProperty("min-height", "0", "important");
+      pagina.style.setProperty("margin", "0", "important");
+      pagina.style.setProperty("overflow", "hidden", "important");
+      pagina.style.setProperty("box-shadow", "none", "important");
+      if (numeroPagina === 0 && cabecalhoOriginal) pagina.appendChild(cabecalhoOriginal.cloneNode(true));
+      const corpo = textoOriginal.cloneNode(false) as HTMLElement;
+      corpo.textContent = "";
+      pagina.appendChild(corpo);
+      stage.appendChild(pagina);
+
+      const estiloPagina = getComputedStyle(pagina);
+      const limiteInferior = pagina.getBoundingClientRect().bottom
+        - Number.parseFloat(estiloPagina.paddingBottom || "0")
+        - Number.parseFloat(estiloPagina.borderBottomWidth || "0")
+        - (rodapeOriginal ? rodapeOriginal.getBoundingClientRect().height + Number.parseFloat(getComputedStyle(rodapeOriginal).marginTop || "0") : 0);
+
+      while (indiceSegmento < segmentos.length) {
+        const segmento = segmentos[indiceSegmento];
+        const textoAnterior = corpo.textContent || "";
+        corpo.textContent = textoAnterior + segmento;
+        if (corpo.getBoundingClientRect().bottom > limiteInferior) {
+          corpo.textContent = textoAnterior;
+          if (textoAnterior) break;
+
+          let minimo = 1;
+          let maximo = segmento.length;
+          let tamanhoValido = 0;
+          while (minimo <= maximo) {
+            const meio = Math.floor((minimo + maximo) / 2);
+            corpo.textContent = segmento.slice(0, meio);
+            if (corpo.getBoundingClientRect().bottom <= limiteInferior) {
+              tamanhoValido = meio;
+              minimo = meio + 1;
+            } else maximo = meio - 1;
+          }
+          if (!tamanhoValido) throw new Error("Não foi possível ajustar um trecho do contrato à página A4.");
+          if (tamanhoValido < segmento.length) {
+            const limitePalavra = Math.max(segmento.lastIndexOf(" ", tamanhoValido - 1), segmento.lastIndexOf("\n", tamanhoValido - 1));
+            if (limitePalavra > 0) tamanhoValido = limitePalavra + 1;
+          }
+          corpo.textContent = segmento.slice(0, tamanhoValido);
+          segmentos[indiceSegmento] = segmento.slice(tamanhoValido);
+          break;
+        }
+        indiceSegmento += 1;
+      }
+
+      if (indiceSegmento >= segmentos.length && rodapeOriginal) pagina.appendChild(rodapeOriginal.cloneNode(true));
+      const canvas = await html2canvas(pagina, { backgroundColor: "#ffffff", imageTimeout: 15_000, logging: false, scale: 2, useCORS: true });
+      if (!canvas.width || !canvas.height) throw new Error("Não foi possível renderizar uma página do contrato.");
+      if (numeroPagina > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", margem, margem, larguraUtil, alturaUtil, undefined, "FAST");
+      numeroPagina += 1;
+      pagina.remove();
     }
-
-    const pagina = document.createElement("canvas");
-    pagina.width = canvas.width;
-    pagina.height = alturaMaximaCanvas;
-    const contexto = pagina.getContext("2d");
-    if (!contexto) throw new Error("Não foi possível preparar uma página do PDF.");
-    contexto.fillStyle = "#ffffff";
-    contexto.fillRect(0, 0, pagina.width, pagina.height);
-    contexto.drawImage(canvas, 0, inicio, canvas.width, fim - inicio, 0, recuoSuperior, pagina.width, fim - inicio);
-    desenharFaixasTimbradas(contexto, pagina.width, pagina.height);
-
-    if (!primeiraPagina) pdf.addPage();
-    pdf.addImage(pagina.toDataURL("image/jpeg", 0.96), "JPEG", margem, margem, larguraUtil, alturaUtil, undefined, "FAST");
-    pdf.setDrawColor(23, 79, 120);
-    pdf.setLineWidth(0.35);
-    pdf.rect(margem, margem, larguraUtil, alturaUtil);
-    primeiraPagina = false;
-    inicio = fim;
+  } finally {
+    stage.remove();
   }
 
   pdf.save(nomeArquivo);
@@ -479,7 +472,7 @@ function Contratos() {
   const atribuirParte = (setParte: (parte: ParteFormulario | ((atual: ParteFormulario) => ParteFormulario)) => void, campo: keyof ParteFormulario, valor: string) => setParte((atual) => ({ ...atual, [campo]: valor }));
 
   return <div className="space-y-5">
-    <style>{`.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}.contrato-preview.pdf-export-source{border:0!important}.contrato-preview.pdf-export-source::before,.contrato-preview.pdf-export-source::after{display:none!important}`}</style>
+    <style>{`.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}`}</style>
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/70 p-4"><div><h2 className="text-sm font-bold">Contratos</h2><p className="mt-1 text-xs text-muted-foreground">Minutas editáveis vinculadas ao cadastro de colaborador ou cotista.</p></div><Button type="button" variant="outline" onClick={() => void carregar()} disabled={carregando} className="gap-2 text-xs"><RefreshCw size={14} className={carregando ? "animate-spin" : ""} /> Atualizar lista</Button></div>
     <div className="grid min-w-0 gap-5 xl:grid-cols-[270px_minmax(0,1fr)]">
       <aside className="space-y-3 rounded-xl border border-border bg-card/60 p-3 no-print"><div className="flex items-center justify-between gap-2"><h3 className="text-xs font-bold">Contratos salvos</h3><Button type="button" size="sm" onClick={novoContrato} className="h-8 gap-1.5 text-[10px]"><FileText size={13} /> Novo</Button></div><div className="relative"><Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar contrato" className="h-8 pl-8 text-[10px]" /></div><div className="max-h-[70vh] space-y-1 overflow-y-auto">{carregando ? <p className="py-5 text-center text-[10px] text-muted-foreground">Carregando…</p> : contratosFiltrados.length ? contratosFiltrados.map((contrato) => <button type="button" key={contrato.id} onClick={() => editarContrato(contrato)} className={`w-full rounded-lg border p-3 text-left transition-colors ${contratoId === contrato.id ? "border-primary/40 bg-primary/10" : "border-transparent hover:border-border hover:bg-background/70"}`}><span className="block truncate text-[11px] font-bold">{contrato.titulo}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.numero || contrato.id.slice(0, 8)} · {contrato.status.replace(/_/g, " ")}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.partes.find((parte) => parte.papel !== "CONTRATANTE")?.nome || contrato.tipo}</span></button>) : <p className="py-5 text-center text-[10px] text-muted-foreground">Nenhum contrato cadastrado.</p>}</div></aside>

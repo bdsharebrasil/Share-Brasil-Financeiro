@@ -113,6 +113,30 @@ const formatarData = (valor?: string | null) => { if (!valor) return "—"; cons
 const valorEmCentavos = (valor: string): number | null => { const bruto = valor.trim().replace(/\s/g, ""); if (!bruto) return null; const numero = bruto.includes(",") ? Number(bruto.replace(/\./g, "").replace(",", ".")) : Number(bruto); return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) : null; };
 const statusAberto = (status: string) => !["PAGO", "RECEBIDO", "CANCELADO"].includes(String(status).toUpperCase());
 
+function desenharFaixasTimbradas(contexto: CanvasRenderingContext2D, largura: number, altura: number) {
+  const faixa = (lado: "superior" | "inferior", profundidade: number, cor: string) => {
+    contexto.beginPath();
+    if (lado === "superior") {
+      contexto.moveTo(0, 0);
+      contexto.bezierCurveTo(largura * 0.24, profundidade * 0.72, largura * 0.62, profundidade * 0.94, largura, profundidade * 0.78);
+      contexto.lineTo(largura, 0);
+    } else {
+      contexto.moveTo(0, altura);
+      contexto.bezierCurveTo(largura * 0.24, altura - profundidade * 0.72, largura * 0.62, altura - profundidade * 0.94, largura, altura - profundidade * 0.78);
+      contexto.lineTo(largura, altura);
+    }
+    contexto.closePath();
+    contexto.fillStyle = cor;
+    contexto.fill();
+  };
+
+  for (const lado of ["superior", "inferior"] as const) {
+    faixa(lado, 74, "#007ac7");
+    faixa(lado, 54, "#123b96");
+    faixa(lado, 36, "#000b67");
+  }
+}
+
 async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
   await document.fonts.ready;
   await Promise.all(Array.from(elemento.querySelectorAll("img")).map((imagem) => imagem.decode()));
@@ -122,6 +146,11 @@ async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
     backgroundColor: "#ffffff",
     imageTimeout: 15_000,
     logging: false,
+    onclone: (documentoClonado) => {
+      const previaClonada = documentoClonado.getElementById("contrato-preview");
+      previaClonada?.classList.add("pdf-export-source");
+      previaClonada?.style.setProperty("border", "0", "important");
+    },
     scale: escala,
     useCORS: true,
   });
@@ -132,6 +161,9 @@ async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
   const larguraUtil = pdf.internal.pageSize.getWidth() - margem * 2;
   const alturaUtil = pdf.internal.pageSize.getHeight() - margem * 2;
   const alturaMaximaCanvas = Math.floor(canvas.width * alturaUtil / larguraUtil);
+  const pixelsPorMilimetro = canvas.width / larguraUtil;
+  const faixaSuperior = Math.round(10 * pixelsPorMilimetro);
+  const faixaInferior = Math.round(18 * pixelsPorMilimetro);
   const elementoTexto = elemento.querySelector<HTMLElement>(".contrato-print-body");
   const topoElemento = elemento.getBoundingClientRect().top;
   const escalaRenderizada = canvas.width / elemento.getBoundingClientRect().width;
@@ -148,23 +180,30 @@ async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
   let inicio = 0;
   let primeiraPagina = true;
   while (inicio < canvas.height) {
-    let fim = Math.min(inicio + alturaMaximaCanvas, canvas.height);
+    const recuoSuperior = primeiraPagina ? 0 : faixaSuperior;
+    const capacidadeTexto = alturaMaximaCanvas - recuoSuperior - faixaInferior;
+    let fim = Math.min(inicio + capacidadeTexto, canvas.height);
     if (fim < canvas.height) {
       const quebrasSeguras = finaisDeLinha.filter((final) => final > inicio && final <= fim);
       const quebraSegura = quebrasSeguras[quebrasSeguras.length - 1];
-      if (quebraSegura && quebraSegura - inicio >= alturaMaximaCanvas * 0.75) fim = quebraSegura;
+      if (quebraSegura && quebraSegura - inicio >= capacidadeTexto * 0.75) fim = quebraSegura;
     }
 
     const pagina = document.createElement("canvas");
     pagina.width = canvas.width;
-    pagina.height = fim - inicio;
+    pagina.height = alturaMaximaCanvas;
     const contexto = pagina.getContext("2d");
     if (!contexto) throw new Error("Não foi possível preparar uma página do PDF.");
-    contexto.drawImage(canvas, 0, inicio, canvas.width, pagina.height, 0, 0, pagina.width, pagina.height);
+    contexto.fillStyle = "#ffffff";
+    contexto.fillRect(0, 0, pagina.width, pagina.height);
+    contexto.drawImage(canvas, 0, inicio, canvas.width, fim - inicio, 0, recuoSuperior, pagina.width, fim - inicio);
+    desenharFaixasTimbradas(contexto, pagina.width, pagina.height);
 
     if (!primeiraPagina) pdf.addPage();
-    const alturaImagem = pagina.height * larguraUtil / pagina.width;
-    pdf.addImage(pagina.toDataURL("image/jpeg", 0.96), "JPEG", margem, margem, larguraUtil, alturaImagem, undefined, "FAST");
+    pdf.addImage(pagina.toDataURL("image/jpeg", 0.96), "JPEG", margem, margem, larguraUtil, alturaUtil, undefined, "FAST");
+    pdf.setDrawColor(23, 79, 120);
+    pdf.setLineWidth(0.35);
+    pdf.rect(margem, margem, larguraUtil, alturaUtil);
     primeiraPagina = false;
     inicio = fim;
   }
@@ -440,7 +479,7 @@ function Contratos() {
   const atribuirParte = (setParte: (parte: ParteFormulario | ((atual: ParteFormulario) => ParteFormulario)) => void, campo: keyof ParteFormulario, valor: string) => setParte((atual) => ({ ...atual, [campo]: valor }));
 
   return <div className="space-y-5">
-    <style>{`.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}`}</style>
+    <style>{`.contrato-preview{position:relative;overflow:hidden;border:1px solid #174f78}.contrato-preview::before,.contrato-preview::after{content:"";position:absolute;z-index:0;pointer-events:none;left:-8%;width:116%;height:128px;background:radial-gradient(120% 100% at 0% 0%,transparent 0 48%,#000b67 49% 57%,#123b96 58% 66%,#007ac7 67% 75%,transparent 76%)}.contrato-preview::before{top:-56px}.contrato-preview::after{bottom:-56px;transform:rotate(180deg);transform-origin:center}.contrato-preview> *{position:relative;z-index:1}.contrato-preview.pdf-export-source{border:0!important}.contrato-preview.pdf-export-source::before,.contrato-preview.pdf-export-source::after{display:none!important}`}</style>
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/70 p-4"><div><h2 className="text-sm font-bold">Contratos</h2><p className="mt-1 text-xs text-muted-foreground">Minutas editáveis vinculadas ao cadastro de colaborador ou cotista.</p></div><Button type="button" variant="outline" onClick={() => void carregar()} disabled={carregando} className="gap-2 text-xs"><RefreshCw size={14} className={carregando ? "animate-spin" : ""} /> Atualizar lista</Button></div>
     <div className="grid min-w-0 gap-5 xl:grid-cols-[270px_minmax(0,1fr)]">
       <aside className="space-y-3 rounded-xl border border-border bg-card/60 p-3 no-print"><div className="flex items-center justify-between gap-2"><h3 className="text-xs font-bold">Contratos salvos</h3><Button type="button" size="sm" onClick={novoContrato} className="h-8 gap-1.5 text-[10px]"><FileText size={13} /> Novo</Button></div><div className="relative"><Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar contrato" className="h-8 pl-8 text-[10px]" /></div><div className="max-h-[70vh] space-y-1 overflow-y-auto">{carregando ? <p className="py-5 text-center text-[10px] text-muted-foreground">Carregando…</p> : contratosFiltrados.length ? contratosFiltrados.map((contrato) => <button type="button" key={contrato.id} onClick={() => editarContrato(contrato)} className={`w-full rounded-lg border p-3 text-left transition-colors ${contratoId === contrato.id ? "border-primary/40 bg-primary/10" : "border-transparent hover:border-border hover:bg-background/70"}`}><span className="block truncate text-[11px] font-bold">{contrato.titulo}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.numero || contrato.id.slice(0, 8)} · {contrato.status.replace(/_/g, " ")}</span><span className="mt-1 block truncate text-[9px] text-muted-foreground">{contrato.partes.find((parte) => parte.papel !== "CONTRATANTE")?.nome || contrato.tipo}</span></button>) : <p className="py-5 text-center text-[10px] text-muted-foreground">Nenhum contrato cadastrado.</p>}</div></aside>

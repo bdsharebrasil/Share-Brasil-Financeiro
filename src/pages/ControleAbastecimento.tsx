@@ -32,6 +32,7 @@ const emptyForm = {
   lancamento_diario_id: "",
   data_pagamento: "",
   voo_emprestado: false,
+  rateio_entre_cotistas: false,
   numero_voo: "",
 };
 
@@ -178,7 +179,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       ...Object.fromEntries(
         Object.entries(item)
           .filter(([key]) => key in emptyForm)
-          .map(([key, value]) => [key, key === "voo_emprestado" ? isTrueFlag(value) : value == null ? "" : String(value)])
+          .map(([key, value]) => [key, key === "voo_emprestado" || key === "rateio_entre_cotistas" ? isTrueFlag(value) : value == null ? "" : String(value)])
       ),
     } as Form);
     setFiles({ comanda: null, nota: null, boleto: null, comprovante: null });
@@ -592,6 +593,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Valor Unitário</span><input type="number" step="0.01" value={form.valor_unitario} onChange={(e) => setField("valor_unitario", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Desconto (R$)</span><input type="number" step="0.01" value={form.desconto} onChange={(e) => setField("desconto", e.target.value)} className="campo font-mono" /></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Valor Total (R$) *</span><input type="number" step="0.01" value={form.valor_total} onChange={(e) => setField("valor_total", e.target.value)} className="campo font-mono" /></label>
+        <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Responsabilidade financeira</span><select value={form.rateio_entre_cotistas ? "rateado" : "cotista"} onChange={(e) => setField("rateio_entre_cotistas", e.target.value === "rateado")} className="campo"><option value="cotista">Somente o cotista selecionado</option><option value="rateado">Rateado entre cotistas</option></select><span className="mt-1 block text-[10px] text-muted-foreground">O vínculo operacional do cotista é mantido; no modo rateado, o total não é lançado como despesa individual integral.</span></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Forma de pagamento</span><select value={form.forma_pagamento} onChange={(e) => setField("forma_pagamento", e.target.value)} className="campo"><option value="">Selecionar</option><option value="PIX">PIX</option><option value="Cartão de crédito">Cartão de crédito</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></label>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Vencimento do boleto</span><input type="date" value={form.data_vencimento_boleto} onChange={(e) => setField("data_vencimento_boleto", e.target.value)} className="campo font-mono" /></label>
         {form.status === "pago" && <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data do pagamento</span><input type="date" value={form.data_pagamento} onChange={(e) => setField("data_pagamento", e.target.value)} className="campo font-mono" /></label>}

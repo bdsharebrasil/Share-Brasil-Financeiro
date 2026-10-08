@@ -6,6 +6,7 @@ import DashboardFinanceiro from "@/pages/DashboardFinanceiro";
 import MovimentacoesFinanceiras from "@/components/dashboard/financeiro/MovimentacoesFinanceiras";
 import DashboardGestorFinanceiro from "@/components/dashboard/gestor/DashboardGestorFinanceiro";
 import DashboardGestorResumo from "@/components/dashboard/gestor/DashboardGestorResumo";
+import MenuGestor from "@/components/dashboard/gestor/MenuGestor";
 import FinanceiroCotista from "@/components/FinanceiroCotista/FinanceiroCotista";
 import { PaginaFinanceiroShare } from "@/components/financeiro-share/FinanceiroShare";
 import EmissaoRecibo from "@/pages/EmissaoRecibo";
@@ -43,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export default function LayoutInterno() {
   const [ambiente, setAmbiente] = useState<Ambiente>("share-brasil");
   const [podeAcessarGestor, setPodeAcessarGestor] = useState(false);
+  const [podeAcessarMenuGestor, setPodeAcessarMenuGestor] = useState(false);
   const [nomeColaborador, setNomeColaborador] = useState<string | null>(null);
   const [menuAtivo, setMenuAtivo] = useState("overview");
   const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme") as Tema) || "dark");
@@ -83,12 +85,13 @@ export default function LayoutInterno() {
   useEffect(() => { if (rotaMovimentacoes) { setAmbiente("financeiro"); setMenuAtivo("movimentacoes"); } }, [rotaMovimentacoes]);
   useEffect(() => { if (salaReuniaoDireta) { setAmbiente("share-brasil"); setMenuAtivo("sala-reuniao"); } }, [salaReuniaoDireta]);
   useEffect(() => { resetarRolagem(); }, [ambiente, menuAtivo, resetarRolagem]);
-  useEffect(() => { void buscarPerfilColaborador().then((response) => { const papeis = [response.perfil.tipo_user || "", ...response.funcoes.map((item) => item.funcao)]; const permitido = papeis.some((papel) => ["admin", "administrador", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(papel.trim().toLowerCase().replace(/[\s-]+/g, "_"))); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) setNomeColaborador(nome); setPodeAcessarGestor(permitido); if (permitido && !navegacaoManual.current && !rotaRecibo && !rotaFinanceiroShare && !rotaFinanceiroCotista && !rotaEnviarPagamento && !rotaMovimentacoes && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => setPodeAcessarGestor(false)); }, [rotaRecibo, rotaFinanceiroShare, rotaFinanceiroCotista, rotaEnviarPagamento, rotaMovimentacoes, salaReuniaoDireta]);
+  useEffect(() => { void buscarPerfilColaborador().then((response) => { const papeisDashboard = [response.perfil.tipo_user || "", ...response.funcoes.map((item) => item.funcao)].map((papel) => papel.trim().toLowerCase().replace(/[\s-]+/g, "_")); const papeisMenu = [...papeisDashboard, (response.perfil.departamento || "").trim().toLowerCase().replace(/[\s-]+/g, "_")]; const permitido = papeisDashboard.some((papel) => ["admin", "administrador", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(papel)); const menuGestorPermitido = papeisMenu.some((papel) => ["admin", "administrador", "gestor_master"].includes(papel)); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) setNomeColaborador(nome); setPodeAcessarGestor(permitido); setPodeAcessarMenuGestor(menuGestorPermitido); if (permitido && !navegacaoManual.current && !rotaRecibo && !rotaFinanceiroShare && !rotaFinanceiroCotista && !rotaEnviarPagamento && !rotaMovimentacoes && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => { setPodeAcessarGestor(false); setPodeAcessarMenuGestor(false); }); }, [rotaRecibo, rotaFinanceiroShare, rotaFinanceiroCotista, rotaEnviarPagamento, rotaMovimentacoes, salaReuniaoDireta]);
 
   const itens = menusPorAmbiente[ambiente];
   const itemAtivo = useMemo(() => itens.find((item) => item.id === menuAtivo) ?? itens[0], [itens, menuAtivo]);
   const trocarAmbiente = (proximo: Ambiente) => { if (proximo === "gestor" && !podeAcessarGestor) return; navegacaoManual.current = true; setAmbiente(proximo); setMenuAtivo(menuInicial(proximo)); if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/"); setMenuAberto(false); };
   const selecionarMenu = (menu: string, aba?: string) => {
+    if (ambiente === "gestor" && menu === "gestor" && !podeAcessarMenuGestor) return;
     navegacaoManual.current = true;
     setMenuAtivo(menu);
     if (menu === "enviar-pagamento") { setAmbiente("financeiro"); navegar("/financeiro/enviar-pagamento"); }
@@ -112,6 +115,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
+    if (ambiente === "gestor" && menuAtivo === "gestor" && podeAcessarMenuGestor) return <MenuGestor />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-share") return <PaginaFinanceiroShare />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <FinanceiroCotista />;
 
@@ -142,5 +146,5 @@ export default function LayoutInterno() {
     return podeAcessarGestor ? <DashboardGestorResumo aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
-  return <div className="app-noise flex min-h-[100dvh] min-w-0 max-w-[100vw] overflow-x-hidden bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirMensagens={abrirMensagens} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll h-[calc(100dvh-var(--app-header-height))]"><main className="mx-auto -my-[5px] min-w-0 w-full max-w-[1500px] px-3 py-4 sm:px-4 sm:py-6 md:px-7 md:py-8">{renderConteudo()}</main></ScrollArea></div>{nomeColaborador && <WelcomeToast name={nomeColaborador} />}</div>;
+  return <div className="app-noise flex min-h-[100dvh] min-w-0 max-w-[100vw] overflow-x-hidden bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="min-w-0 flex-1 bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirMensagens={abrirMensagens} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll h-[calc(100dvh-var(--app-header-height))]"><main className="mx-auto -my-[5px] min-w-0 w-full max-w-[1500px] px-3 py-4 sm:px-4 sm:py-6 md:px-7 md:py-8">{renderConteudo()}</main></ScrollArea></div>{nomeColaborador && <WelcomeToast name={nomeColaborador} />}</div>;
 }

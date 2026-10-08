@@ -1160,6 +1160,8 @@ export function ContatosClientesShareBrasil() {
   const currentSocio = selectedClientSocios.find(
     (item) => item.id === selectedSocio,
   );
+  const currentSocioLinks = links.filter((item) => item.socio_id === selectedSocio);
+  const currentSocioInactive = currentSocioLinks.length > 0 && currentSocioLinks.every((item) => item.status === "inativo");
   const clientDocuments = documents.filter(
     (item) => item.cliente_id === selectedClient && !item.socio_id,
   );
@@ -1384,6 +1386,16 @@ export function ContatosClientesShareBrasil() {
       setError(
         e instanceof Error ? e.message : "Não foi possível atualizar o sócio.",
       );
+    }
+  };
+  const toggleSocioStatus = async () => {
+    if (!selectedSocio || !currentSocio) return;
+    try {
+      await atualizarSocioShare(selectedSocio, { status: currentSocioInactive ? "ativo" : "inativo" });
+      setOk(currentSocioInactive ? "Sócio reativado." : "Sócio movido para inativos.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível atualizar o status do sócio.");
     }
   };
   const linkAircraft = async () => {
@@ -2458,6 +2470,9 @@ export function ContatosClientesShareBrasil() {
                     Sócio da holding · dados e documentos individuais
                   </p>
                 </div>
+                <span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${currentSocioInactive ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}>
+                  {currentSocioInactive ? "Inativo" : "Ativo"}
+                </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {profileField("Nome completo", currentSocio.nome, <UserRound size={13} />)}
@@ -2506,6 +2521,10 @@ export function ContatosClientesShareBrasil() {
                     </Button>
                   </>
                 )}
+                <Button type="button" variant="outline" onClick={() => void toggleSocioStatus()} className="h-9 gap-2 text-xs">
+                  {currentSocioInactive ? <CheckCircle2 size={13} /> : <ShieldCheck size={13} />}
+                  {currentSocioInactive ? "Reativar" : "Tornar inativo"}
+                </Button>
                 {categorySelect(
                   socioDocumentCategory,
                   setSocioDocumentCategory,

@@ -30,3 +30,11 @@ test('editor mantém timbre Share Brasil e grava contratos e anexos pelas rotas 
   assert.match(menu, /contrato_anexos/)
   assert.match(menu, /contrato_cotista/)
 })
+
+test('impressão do contrato mantém o fluxo paginável e não corta o texto', () => {
+  assert.match(menu, /#contrato-preview\{position:static!important/)
+  assert.match(menu, /overflow:visible!important/)
+  assert.match(menu, /height:auto!important/)
+  assert.match(menu, /page-break-inside:auto!important/)
+  assert.doesNotMatch(menu, /#contrato-preview\{position:absolute!important/)
+})

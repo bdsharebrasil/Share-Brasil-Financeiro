@@ -91,6 +91,7 @@ const categorias = [
   "Combustível",
   "Outros",
 ];
+const BASE_LINK_APROVACAO_RELATORIO = "https://gestao.share-brasil.com/aprovar-relatorio";
 const vazioFormulario = (): Formulario => ({
   numero_relatorio: "",
   numero_voo: "",
@@ -136,9 +137,28 @@ function dataAgendadaBr(data?: string | null) {
 }
 function dataHoraBr(data?: string | null) {
   if (!data) return "—";
-  const [dataParte, horaParte] = data.trim().replace("T", " ").split(" ");
-  const [ano, mes, dia] = dataParte.slice(0, 10).split("-");
-  return ano && mes && dia && horaParte ? `${dia}/${mes}/${ano} ${horaParte.slice(0, 5)}` : data;
+  const valor = data.trim().replace(" ", "T");
+  const dataComFuso = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(valor) ? valor : `${valor}Z`;
+  const instante = new Date(dataComFuso);
+  if (!Number.isFinite(instante.getTime())) return data;
+  const partes = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instante);
+  const parte = (tipo: string) => partes.find((item) => item.type === tipo)?.value || "";
+  return `${parte("day")}/${parte("month")}/${parte("year")} ${parte("hour")}:${parte("minute")}`;
+}
+function linkAprovacaoRelatorio(relatorio: Relatorio | null | undefined, pos: 1 | 2) {
+  if (!relatorio?.numero_relatorio) return undefined;
+  const token = pos === 1
+    ? relatorio.token_aprovacao_tripulante_1
+    : relatorio.token_aprovacao_tripulante_2;
+  if (!token) return undefined;
+  return `${BASE_LINK_APROVACAO_RELATORIO}?${encodeURI(relatorio.numero_relatorio)}#${encodeURIComponent(String(token))}`;
 }
 function calcularQuantidadeDias(dataInicio: string, dataFim: string) {
   if (!dataInicio || !dataFim) return 1;
@@ -232,7 +252,6 @@ export default function RelatorioDespesaViagem({
   );
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
-  const [linksAprovacao, setLinksAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [mensagensAprovacao, setMensagensAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
@@ -529,7 +548,6 @@ export default function RelatorioDespesaViagem({
       setRelatorio(atualizado);
       setForm((atual) => ({ ...atual, numero_relatorio: atualizado.numero_relatorio || atual.numero_relatorio }));
       setRelatorios((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
-      setLinksAprovacao({});
       setMensagensAprovacao({});
       setPdfPreview((atual) => { if (atual) URL.revokeObjectURL(atual.url); return null; });
       setMensagem({ tipo: "ok", texto: "Relatório retornou a rascunho. O PDF anterior foi invalidado; será gerado novamente ao finalizar." });
@@ -700,7 +718,6 @@ export default function RelatorioDespesaViagem({
           item.id === relatorio.id ? resposta.relatorio : item,
         ),
       );
-      setLinksAprovacao((atuais) => ({ ...atuais, [pos]: resposta.link }));
       setMensagensAprovacao((atuais) => ({ ...atuais, [pos]: resposta.mensagem }));
       setMensagem({
         tipo: "ok",
@@ -1316,7 +1333,7 @@ export default function RelatorioDespesaViagem({
               enviado={relatorio?.enviado_para_tripulante_em}
               aprovadoEm={relatorio?.aprovado_tripulante_1_em || relatorio?.aprovado_tripulante_em}
               onEnviar={() => void enviarAprovacao(1)}
-              link={linksAprovacao[1]}
+              link={linkAprovacaoRelatorio(relatorio, 1)}
               onCopiar={copiarLinkAprovacao}
               mensagem={mensagensAprovacao[1]}
               onCopiarMensagem={copiarMensagemAprovacao}
@@ -1339,7 +1356,7 @@ export default function RelatorioDespesaViagem({
               aprovadoEm={relatorio?.aprovado_tripulante_2_em}
               naoAplicavel={Boolean(relatorio?.tripulante_id_2 && totaisPorPagador.tripulante_2 <= 0)}
               onEnviar={() => void enviarAprovacao(2)}
-              link={linksAprovacao[2]}
+              link={linkAprovacaoRelatorio(relatorio, 2)}
               onCopiar={copiarLinkAprovacao}
               mensagem={mensagensAprovacao[2]}
               onCopiarMensagem={copiarMensagemAprovacao}
@@ -1945,24 +1962,14 @@ function AprovacaoLinha({
           type="button"
           size="sm"
           variant="outline"
-          onClick={onEnviar}
+          onClick={() => enviado && link ? onCopiar(link) : onEnviar()}
           disabled={disabled}
           className="w-full justify-center gap-1.5 whitespace-normal text-center sm:w-auto sm:whitespace-nowrap"
         >
-          <Send size={13} /> Enviar para aprovação tripulação
+          {enviado && link
+            ? <><Copy size={14} /> COPIAR LINK APROVAÇÃO</>
+            : <><Send size={13} /> Enviar para aprovação tripulação</>}
         </Button>}
-      {link && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          title="Copiar link de aprovação"
-          onClick={() => onCopiar(link)}
-          className="w-full justify-center gap-1.5 sm:w-auto"
-        >
-          <Copy size={14} /> Copiar link
-        </Button>
-      )}
       {mensagem && (
         <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs sm:basis-full">
           <p className="font-semibold text-primary">Mensagem automática para envio</p>

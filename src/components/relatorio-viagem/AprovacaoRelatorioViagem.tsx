@@ -204,10 +204,14 @@ function TituloSecao({
 
 export default function AprovacaoRelatorioViagem() {
   const token = useMemo(
-    () =>
-      new URLSearchParams(window.location.search).get("token") ||
-      window.location.pathname.split("/").filter(Boolean).pop() ||
-      "",
+    () => {
+      const fragmento = window.location.hash.slice(1);
+      const tokenDoFragmento = new URLSearchParams(fragmento).get("token") || fragmento;
+      return new URLSearchParams(window.location.search).get("token") ||
+        tokenDoFragmento ||
+        window.location.pathname.split("/").filter(Boolean).pop() ||
+        "";
+    },
     [],
   );
 

@@ -305,9 +305,14 @@ export default function RelatorioDespesaViagem({
         voos: Array.isArray(options?.voos) ? options.voos : [],
         socios: Array.isArray(options?.socios) ? options.socios : [],
       });
-      setRelatorios(
-        Array.isArray(reports?.relatorios) ? reports.relatorios : [],
-      );
+      const lista = Array.isArray(reports?.relatorios) ? reports.relatorios : [];
+      setRelatorios(lista);
+      const relatorioNotificado = window.sessionStorage.getItem("share:relatorio-notificacao");
+      if (relatorioNotificado) {
+        window.sessionStorage.removeItem("share:relatorio-notificacao");
+        const item = lista.find((relatorio) => relatorio.id === relatorioNotificado);
+        if (item) void abrirRelatorio(item);
+      }
     } catch (error) {
       setMensagem({
         tipo: "erro",
@@ -930,7 +935,7 @@ export default function RelatorioDespesaViagem({
     );
   const aprovado = relatorio?.status === "aprovado";
   const podeVoltarParaRascunho = relatorio?.status === "finalizado" && !relatorio.token_aprovacao_tripulante_1 && !relatorio.token_aprovacao_tripulante_2;
-  const bloqueado = Boolean(relatorio && (
+  const bloqueado = Boolean(relatorio && relatorio.status !== "ajuste_necessario" && (
     !["rascunho", "finalizado"].includes(relatorio.status) ||
     ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status) ||
     relatorio.enviado_para_tripulante_em || relatorio.enviado_para_tripulante_2_em ||
@@ -1349,7 +1354,7 @@ export default function RelatorioDespesaViagem({
               disabled={salvando || bloqueado}
               className="gap-2"
             >
-              <Save size={15} /> Salvar rascunho
+              <Save size={15} /> {relatorio?.status === "ajuste_necessario" ? "Salvar ajustes" : "Salvar rascunho"}
             </Button>
             {relatorio && (
               <Button

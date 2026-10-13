@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleAlert,
   Copy,
   FileDown,
@@ -214,6 +216,7 @@ function statusLabel(status?: string) {
         finalizado: "Finalizado",
         aguardando_aprovacao: "Aguardando aprovação",
         ajuste_necessario: "Ajuste necessário",
+        ajuste_concluido: "Ajuste concluído",
         aprovado: "Aprovado",
         enviado_cliente: "Enviado ao cliente",
       } as Record<string, string>
@@ -227,6 +230,8 @@ function statusClass(status?: string) {
     ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
     : status === "ajuste_necessario"
       ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+      : status === "ajuste_concluido"
+        ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-200"
       : status === "aguardando_aprovacao"
         ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
         : "border-border bg-secondary/50 text-muted-foreground";
@@ -290,6 +295,7 @@ export default function RelatorioDespesaViagem({
   const [comentarioTripulacao, setComentarioTripulacao] = useState("");
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [mensagensAprovacao, setMensagensAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
+  const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
   const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
@@ -1412,6 +1418,7 @@ export default function RelatorioDespesaViagem({
                 ![
                   "finalizado",
                   "ajuste_necessario",
+                  "ajuste_concluido",
                   "aguardando_aprovacao",
                 ].includes(relatorio.status) ||
                 salvando ||
@@ -1435,6 +1442,7 @@ export default function RelatorioDespesaViagem({
                 ![
                   "finalizado",
                   "ajuste_necessario",
+                  "ajuste_concluido",
                   "aguardando_aprovacao",
                 ].includes(relatorio.status) ||
                 salvando ||
@@ -1447,9 +1455,11 @@ export default function RelatorioDespesaViagem({
               relatorio?.observacoes_aprovacao_tripulante_2 ||
               relatorio?.anexos_rejeicao) && (
               <div className="rounded-lg border border-rose-400/25 bg-rose-400/5 p-3 text-xs">
-                <p className="font-bold text-rose-300">
-                  Ajustes solicitados pela tripulação
-                </p>
+                <button type="button" onClick={() => setAjustesAbertos((aberto) => !aberto)} className="flex w-full items-center justify-between gap-3 text-left font-bold text-rose-300">
+                  <span>Ajustes solicitados pela tripulação</span>
+                  {ajustesAbertos ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+                {ajustesAbertos && <div>
                 {(relatorio.motivo_reprovacao_tripulante_1 || relatorio.observacoes_aprovacao_tripulante) && (
                   <p className="mt-2 text-muted-foreground">
                     <strong>Tripulante 1:</strong>{" "}
@@ -1467,6 +1477,7 @@ export default function RelatorioDespesaViagem({
                   try { const parsed = typeof relatorio.anexos_rejeicao === "string" ? JSON.parse(relatorio.anexos_rejeicao) : relatorio.anexos_rejeicao; if (Array.isArray(parsed)) anexos = parsed; } catch { /* campo legado ou inválido */ }
                   return anexos.map((anexo) => <ImagemAnexoRejeicao key={anexo.id} relatorioId={relatorio.id} anexo={anexo} />);
                 })()}
+                </div>}
               </div>
             )}
             <Textarea
@@ -2026,6 +2037,7 @@ function AprovacaoLinha({
   };
   const aprovado = status === "aprovado";
   const reprovado = status === "reprovado";
+  const relatorioAjustado = status === "ajuste_concluido";
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/30 p-3 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="min-w-0 flex-1">
@@ -2072,8 +2084,8 @@ function AprovacaoLinha({
           {enviado && link
             ? linkCopiado
               ? <><CheckCircle2 size={14} /> LINK COPIADO</>
-              : <><Copy size={14} /> COPIAR LINK APROVAÇÃO</>
-            : <><Send size={13} /> Enviar para aprovação tripulação</>}
+              : <><Copy size={14} /> COPIAR LINK</>
+            : <><Send size={13} /> {relatorioAjustado ? "ENVIAR RELATORIO AJUSTADO" : "Enviar para aprovação tripulação"}</>}
         </Button>}
       {linkCopiado && <span role="status" className="text-xs font-semibold text-emerald-300">Link copiado para a área de transferência.</span>}
       {mensagem && (

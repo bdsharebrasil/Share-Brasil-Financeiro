@@ -590,10 +590,20 @@ export function buscarSolicitacoesInternas(status?: string) {
   return colaboradorRequest<SolicitacaoVooInterna[]>(`/api/interno/solicitacoes${query}`);
 }
 
-export function aprovarSolicitacaoVoo(id: string, pilotoId: string, copilotoId?: string) {
+export type AlteracoesAgendamentoConfirmacao = {
+  aeronave_id: string;
+  data_agendada: string;
+  data_fim: string;
+  horario_previsto_agendamento: string | null;
+  numero_passageiros: number;
+  cliente_emprestimo_id: string | null;
+  socio_emprestimo_id: string | null;
+};
+
+export function aprovarSolicitacaoVoo(id: string, pilotoId: string, copilotoId?: string, alteracoes?: AlteracoesAgendamentoConfirmacao) {
   return colaboradorRequest<{ success: boolean; status: string; solicitacao_id: string; numero_voo: string }>(`/api/interno/solicitacoes/${id}/aprovar`, {
     method: "POST",
-    body: JSON.stringify({ piloto_id: pilotoId, copiloto_id: copilotoId || undefined }),
+    body: JSON.stringify({ piloto_id: pilotoId, copiloto_id: copilotoId || undefined, ...alteracoes }),
   });
 }
 

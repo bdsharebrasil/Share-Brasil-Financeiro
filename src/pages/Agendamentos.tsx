@@ -21,6 +21,7 @@ import {
   definirDisponibilidadeTripulacao,
   reprovarSolicitacaoVoo,
   type AeronaveAgendamento,
+  type AlteracoesAgendamentoConfirmacao,
   type DisponibilidadeTripulacao,
   excluirAgendamento,
   finalizarAgendamento,
@@ -229,17 +230,17 @@ export default function Agendamentos() {
     setCopilotoId(item.copiloto_id || "");
     setMotivo("");
   };
-  const navegarParaDataCalendario = (data: string) => {
+  const navegarParaDataCalendario = useCallback((data: string) => {
     const dataVoo = new Date(`${data}T00:00:00`);
     if (Number.isNaN(dataVoo.getTime())) return;
     setMes(primeiroDiaMes(dataVoo));
     setSemanaCalendario(inicioSemana(dataVoo));
-  };
-  const aprovar = async () => {
+  }, []);
+  const aprovar = async (alteracoes: AlteracoesAgendamentoConfirmacao) => {
     if (!selecionada || !pilotoId) { toast({ title: "Piloto comandante obrigatório", description: "Selecione o comandante para gerar o número do voo.", variant: "destructive" }); return; }
     setProcessando(true);
     try {
-      const resposta = await aprovarSolicitacaoVoo(selecionada.id, pilotoId, copilotoId || undefined);
+      const resposta = await aprovarSolicitacaoVoo(selecionada.id, pilotoId, copilotoId || undefined, alteracoes);
       toast({ title: "Solicitação aprovada", description: `Número de voo gerado: ${resposta.numero_voo}.` });
       setSelecionada(null);
       await carregar(true);
@@ -351,7 +352,7 @@ export default function Agendamentos() {
     {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} mes={mesEscala} visao={visaoEscala} aoMudarMes={mudarMesEscala} aoMudarVisao={setVisaoEscala} aoMarcar={abrirCriacaoEscala} />}
     {aba === "cronograma" && <Cronograma selecionada={selecionada} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
-    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={() => void aprovar()} aoReprovar={() => void reprovar()} />}
+    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
     {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} />}
     {selecionada && ["aprovada", "em_rota", "em_voo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async () => { await carregar(true); setSelecionada((atual) => atual ? { ...atual, status: "em_voo" } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
     <Dialog open={Boolean(agendamentoParaExcluir)} onOpenChange={(aberto) => { if (!aberto && !excluindo) setAgendamentoParaExcluir(null); }}>
@@ -474,10 +475,16 @@ function formatarHorarioAgendamento(valor: string | null | undefined) {
     if (!partes) return new Date(NaN);
     return new Date(Date.UTC(1970, 0, 1, Number(partes[1]), Number(partes[2]), Number(partes[3] || 0)));
   })();
-  if (!Number.isFinite(instante.getTime())) return { utc: texto, brasilia: "—" };
+  if (!Number.isFinite(instante.getTime())) return { utc: "—", brasilia: "—" };
   const utc = instante.toISOString().slice(11, 16);
   const brasilia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(instante);
   return { utc, brasilia };
+}
+
+function horaParaCampo(valor: string | null | undefined) {
+  if (!valor) return "";
+  const parte = String(valor).trim().match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
+  return parte ? `${parte[1].padStart(2, "0")}:${parte[2]}` : "";
 }
 
 type CalendarioAgendamentoProps = {
@@ -507,7 +514,7 @@ function CalendarioAgendamento({ mes, semana, dias, visao, confirmados, pendente
   const resultadoPrincipal = resultadosBusca[0];
   useEffect(() => {
     if (termoVoo.length >= 2 && resultadoPrincipal?.data_agendada) aoNavegarParaData(resultadoPrincipal.data_agendada);
-  }, [termoVoo, resultadoPrincipal?.data_agendada]);
+  }, [termoVoo, resultadoPrincipal?.data_agendada, aoNavegarParaData]);
   const eventosPorDia = new Map<string, SolicitacaoVooInterna[]>();
   todosEventos
     .filter((item) => !termoVoo || [item.numero_voo, item.codigo_cliente, item.cliente_razao_social, item.socio_nome, item.origem, item.destino].filter(Boolean).join(" ").toLowerCase().includes(termoVoo))
@@ -613,7 +620,145 @@ function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJorn
   </article>;
 }
 
- function DetalhesSolicitacao({ selecionada, tripulacao, pilotoId, copilotoId, motivo, processando, aoFechar, aoPiloto, aoCopiloto, aoMotivo, aoAprovar, aoReprovar }: { selecionada: SolicitacaoVooInterna; tripulacao: TripulanteAgendamento[]; pilotoId: string; copilotoId: string; motivo: string; processando: boolean; aoFechar: () => void; aoPiloto: (valor: string) => void; aoCopiloto: (valor: string) => void; aoMotivo: (valor: string) => void; aoAprovar: () => void; aoReprovar: () => void }) { return <section id="detalhes-solicitacao" className="overflow-visible rounded-xl border border-primary/25 bg-card"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Detalhes da solicitação" detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} action={<button type="button" onClick={aoFechar} aria-label="Fechar detalhes" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} /><div className="grid gap-5 p-5 lg:grid-cols-[1fr_.9fr]"><div className="grid grid-cols-2 gap-3 text-[10px] sm:grid-cols-4"><Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} /><Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} /><Detalhe label="Horário" valor={(() => { const horario = formatarHorarioAgendamento(selecionada.horario_previsto_agendamento); return `UTC: ${horario.utc} · Brasília: ${horario.brasilia}`; })()} /><Detalhe label="Período" valor={`${formatarData(selecionada.data_agendada)}${selecionada.data_fim && selecionada.data_fim !== selecionada.data_agendada ? ` até ${formatarData(selecionada.data_fim)}` : ""}`} /><Detalhe label="Passageiros" valor={String(selecionada.numero_passageiros || 1)} /><Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} /><Detalhe label="Status" valor={statusLabel(selecionada.status)} /><Detalhe label="Horário UTC" valor={selecionada.horario_previsto_agendamento || "A definir"} /><Detalhe label="Empréstimo" valor={selecionada.voo_emprestado === "sim" ? `Sim · ${selecionada.cliente_emprestimo_nome || selecionada.socio_emprestimo_nome || "Cedente não informado"}` : "Não"} /></div>{selecionada.status === "pendente" ? <div className="rounded-xl border border-border bg-secondary/20 p-4"><p className="text-[11px] font-bold">Confirmar solicitação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">A aprovação gera o número com o código de cotista e confirma os tripulantes selecionados.</p><div className="mt-4 space-y-3"><div className="space-y-1.5"><Label className="text-[10px]">PIC (piloto em comando)</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={pilotoId} onChange={(valor) => aoPiloto(valor)} placeholder="Selecione o comandante" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div><div className="space-y-1.5"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.filter((item) => item.id !== pilotoId).map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={copilotoId} onChange={(valor) => aoCopiloto(valor)} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div><div className="space-y-1.5"><Label htmlFor="motivo-reprovacao" className="text-[10px]">Motivo da reprovação</Label><Textarea id="motivo-reprovacao" value={motivo} onChange={(event) => aoMotivo(event.target.value)} placeholder="Preencha apenas se for reprovar" className="min-h-16 text-[11px]" /></div><div className="flex flex-wrap gap-2 pt-1"><Button type="button" onClick={aoAprovar} disabled={processando} className="gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5]"><Check size={14} /> Aprovar e gerar voo</Button><Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="gap-2 border-[#e77b80]/40 bg-transparent text-[#ed8c90] hover:bg-[#e77b80]/10"><X size={14} /> Reprovar</Button></div></div></div> : <div className="rounded-xl border border-border bg-secondary/20 p-4"><p className="text-[11px] font-bold">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação aprovada"}</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>{selecionada.status === "aprovada" && <div className="mt-4 grid gap-3"><div className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p><textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div><div className="rounded-lg border border-sky-300/20 bg-sky-300/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-sky-300">Mensagem para o tripulante</p><textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${formatarHorarioAgendamento(selecionada.horario_previsto_agendamento).utc} UTC.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div></div>}</div>}</div>{selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}</section>; }
+type EdicaoConfirmacao = {
+  aeronave_id: string;
+  data_agendada: string;
+  data_fim: string;
+  horario: string;
+  numero_passageiros: number;
+  emprestimo: boolean;
+  cliente_emprestimo_id: string;
+  socio_emprestimo_id: string;
+};
+
+function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfirmacao {
+  return {
+    aeronave_id: selecionada.aeronave_id || "",
+    data_agendada: selecionada.data_agendada,
+    data_fim: selecionada.data_fim || selecionada.data_agendada,
+    horario: horaParaCampo(selecionada.horario_previsto_agendamento),
+    numero_passageiros: Number(selecionada.numero_passageiros) || 1,
+    emprestimo: selecionada.voo_emprestado === "sim" || Boolean(selecionada.cliente_emprestimo_id || selecionada.socio_emprestimo_id),
+    cliente_emprestimo_id: selecionada.cliente_emprestimo_id || "",
+    socio_emprestimo_id: selecionada.socio_emprestimo_id || "",
+  };
+}
+
+function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilotoId, motivo, processando, aoFechar, aoPiloto, aoCopiloto, aoMotivo, aoAprovar, aoReprovar }: {
+  selecionada: SolicitacaoVooInterna;
+  opcoes: OpcoesAgendamentoResponse;
+  tripulacao: TripulanteAgendamento[];
+  pilotoId: string;
+  copilotoId: string;
+  motivo: string;
+  processando: boolean;
+  aoFechar: () => void;
+  aoPiloto: (valor: string) => void;
+  aoCopiloto: (valor: string) => void;
+  aoMotivo: (valor: string) => void;
+  aoAprovar: (alteracoes: AlteracoesAgendamentoConfirmacao) => void;
+  aoReprovar: () => void;
+}) {
+  const [edicao, setEdicao] = useState<EdicaoConfirmacao>(() => criarEdicaoConfirmacao(selecionada));
+
+  useEffect(() => {
+    setEdicao(criarEdicaoConfirmacao(selecionada));
+  }, [selecionada]);
+
+  const clienteTitularId = selecionada.cliente_id || opcoes.socios.find((socio) => socio.id === selecionada.socio_id)?.cliente_id;
+  const aeronaveDoTitular = Boolean(edicao.aeronave_id && opcoes.vinculos.some((vinculo) =>
+    vinculo.aeronave_id === edicao.aeronave_id && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
+  ));
+  const cedentes = (() => {
+    const ids = new Set<string>();
+    return opcoes.vinculos.filter((vinculo) => vinculo.aeronave_id === edicao.aeronave_id).flatMap((vinculo) => {
+      const itens: { id: string; label: string }[] = [];
+      if (vinculo.cliente_id) {
+        const cliente = opcoes.clientes.find((item) => item.id === vinculo.cliente_id);
+        const id = `cliente:${vinculo.cliente_id}`;
+        if (cliente && id !== (selecionada.cliente_id ? `cliente:${selecionada.cliente_id}` : "") && !ids.has(id)) {
+          ids.add(id);
+          itens.push({ id, label: `${cliente.nome}${cliente.codigo_cliente ? ` · ${cliente.codigo_cliente}` : ""}` });
+        }
+      }
+      if (vinculo.socio_id) {
+        const socio = opcoes.socios.find((item) => item.id === vinculo.socio_id);
+        const id = `socio:${vinculo.socio_id}`;
+        if (socio && id !== (selecionada.socio_id ? `socio:${selecionada.socio_id}` : "") && !ids.has(id)) {
+          ids.add(id);
+          itens.push({ id, label: socio.nome });
+        }
+      }
+      return itens;
+    });
+  })();
+  const aeronaves = opcoes.aeronaves.map((aeronave) => ({
+    id: aeronave.id,
+    label: `${aeronave.matricula_registro} · ${[aeronave.fabricante, aeronave.modelo].filter(Boolean).join(" ")}`,
+  }));
+  const editarAeronave = (aeronaveId: string) => {
+    const vinculadaAoTitular = opcoes.vinculos.some((vinculo) =>
+      vinculo.aeronave_id === aeronaveId && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
+    );
+    setEdicao((atual) => ({ ...atual, aeronave_id: aeronaveId, emprestimo: !vinculadaAoTitular, cliente_emprestimo_id: "", socio_emprestimo_id: "" }));
+  };
+  const editarCedente = (valor: string) => {
+    const [tipo, id] = valor.split(":");
+    setEdicao((atual) => ({ ...atual, cliente_emprestimo_id: tipo === "cliente" ? id : "", socio_emprestimo_id: tipo === "socio" ? id : "" }));
+  };
+  const cedenteSelecionado = edicao.cliente_emprestimo_id ? `cliente:${edicao.cliente_emprestimo_id}` : edicao.socio_emprestimo_id ? `socio:${edicao.socio_emprestimo_id}` : "";
+  const horarioFormatado = formatarHorarioAgendamento(edicao.horario ? horarioUtc(edicao.data_agendada, edicao.horario) || null : null);
+  const emprestimoValido = !edicao.emprestimo || Boolean(cedenteSelecionado);
+  const formularioValido = Boolean(edicao.aeronave_id && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_agendada) && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_fim) && edicao.data_fim >= edicao.data_agendada && Number.isInteger(edicao.numero_passageiros) && edicao.numero_passageiros >= 1 && emprestimoValido && (aeronaveDoTitular || edicao.emprestimo));
+  const confirmar = () => aoAprovar({
+    aeronave_id: edicao.aeronave_id,
+    data_agendada: edicao.data_agendada,
+    data_fim: edicao.data_fim,
+    horario_previsto_agendamento: edicao.horario ? horarioUtc(edicao.data_agendada, edicao.horario) || null : null,
+    numero_passageiros: edicao.numero_passageiros,
+    cliente_emprestimo_id: edicao.emprestimo ? edicao.cliente_emprestimo_id || null : null,
+    socio_emprestimo_id: edicao.emprestimo ? edicao.socio_emprestimo_id || null : null,
+  });
+  const horarioAtual = formatarHorarioAgendamento(selecionada.horario_previsto_agendamento);
+  const emprestimoAtual = selecionada.voo_emprestado === "sim" ? `Sim · ${selecionada.cliente_emprestimo_nome || selecionada.socio_emprestimo_nome || "Cedente não informado"}` : "Não";
+
+  return <section id="detalhes-solicitacao" className="overflow-visible rounded-xl border border-primary/25 bg-card">
+    <CabecalhoSecao icon={<ClipboardList size={15} />} title="Detalhes da solicitação" detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} action={<button type="button" onClick={aoFechar} aria-label="Fechar detalhes" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} />
+    <div className="grid gap-5 p-5 lg:grid-cols-[1fr_.9fr]">
+      <div className="grid grid-cols-2 gap-3 text-[10px] sm:grid-cols-4">
+        <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
+        <Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} />
+        <Detalhe label="Horário / UTC" valor={`Brasília ${horarioAtual.brasilia} · UTC ${horarioAtual.utc}`} />
+        <Detalhe label="Período" valor={`${formatarData(selecionada.data_agendada)}${selecionada.data_fim && selecionada.data_fim !== selecionada.data_agendada ? ` até ${formatarData(selecionada.data_fim)}` : ""}`} />
+        <Detalhe label="Passageiros" valor={String(selecionada.numero_passageiros || 1)} />
+        <Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} />
+        <Detalhe label="Status" valor={statusLabel(selecionada.status)} />
+        <Detalhe label="Empréstimo" valor={emprestimoAtual} />
+      </div>
+      {selecionada.status === "pendente" ? <div className="rounded-xl border border-border bg-secondary/20 p-4">
+        <p className="text-[11px] font-bold">Confirmar solicitação</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Revise ou altere os dados do voo antes de confirmar. As mudanças serão gravadas junto com a aprovação.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Aeronave</Label><SearchableCombobox items={aeronaves} value={edicao.aeronave_id} onChange={editarAeronave} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave cadastrada." icon={<Plane size={14} />} /></div>
+          <div className="space-y-1.5"><Label htmlFor="emprestimo-agendamento" className="text-[10px]">Empréstimo da aeronave</Label><select id="emprestimo-agendamento" value={edicao.emprestimo ? "sim" : "nao"} onChange={(event) => setEdicao((atual) => ({ ...atual, emprestimo: event.target.value === "sim", cliente_emprestimo_id: "", socio_emprestimo_id: "" }))} className="h-10 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="nao" disabled={!aeronaveDoTitular}>Não emprestada</option><option value="sim">Emprestada</option></select></div>
+          {edicao.emprestimo && <div className="space-y-1.5"><Label className="text-[10px]">Cedente</Label><SearchableCombobox items={cedentes} value={cedenteSelecionado} onChange={editarCedente} placeholder="Selecione quem empresta" searchPlaceholder="Buscar cliente ou sócio" emptyMessage="Nenhum cotista vinculado a esta aeronave." icon={<Users size={14} />} /></div>}
+          <PeriodoAgendamento inicio={edicao.data_agendada} fim={edicao.data_fim} aoAlterarInicio={(valor) => setEdicao((atual) => ({ ...atual, data_agendada: valor }))} aoAlterarFim={(valor) => setEdicao((atual) => ({ ...atual, data_fim: valor }))} />
+          <div className="rounded-lg border border-border/70 bg-background/25 p-3 sm:col-span-2"><Label htmlFor="horario-confirmacao" className="text-[10px]">Horário e Horário UTC</Label><div className="mt-1.5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><Input id="horario-confirmacao" type="time" value={edicao.horario} onChange={(event) => setEdicao((atual) => ({ ...atual, horario: event.target.value }))} className="h-10 text-xs" /><p className="text-[10px] font-semibold text-foreground">Brasília {horarioFormatado.brasilia} · UTC {horarioFormatado.utc}</p></div></div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="passageiros-confirmacao" className="text-[10px]">Passageiros</Label><Input id="passageiros-confirmacao" type="number" min={1} step={1} value={edicao.numero_passageiros} onChange={(event) => setEdicao((atual) => ({ ...atual, numero_passageiros: Number(event.target.value) }))} className="h-10 text-xs" /></div>
+        </div>
+        {edicao.emprestimo && !cedentes.length && <p className="mt-2 text-[10px] text-amber-300">Não há cedentes vinculados à aeronave selecionada.</p>}
+        <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+          <p className="text-[10px] font-bold">Tripulação</p>
+          <div className="space-y-1.5"><Label className="text-[10px]">PIC (piloto em comando)</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={pilotoId} onChange={aoPiloto} placeholder="Selecione o comandante" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
+          <div className="space-y-1.5"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.filter((item) => item.id !== pilotoId).map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={copilotoId} onChange={aoCopiloto} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
+          <div className="space-y-1.5"><Label htmlFor="motivo-reprovacao" className="text-[10px]">Motivo da reprovação</Label><Textarea id="motivo-reprovacao" value={motivo} onChange={(event) => aoMotivo(event.target.value)} placeholder="Preencha apenas se for reprovar" className="min-h-16 text-[11px]" /></div>
+          <div className="flex flex-wrap gap-2 pt-1"><Button type="button" onClick={confirmar} disabled={processando || !pilotoId || !formularioValido} className="gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5]"><Check size={14} /> {processando ? "Confirmando..." : "Aprovar e gerar voo"}</Button><Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="gap-2 border-[#e77b80]/40 bg-transparent text-[#ed8c90] hover:bg-[#e77b80]/10"><X size={14} /> Reprovar</Button></div>
+        </div>
+      </div> : <div className="rounded-xl border border-border bg-secondary/20 p-4"><p className="text-[11px] font-bold">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação aprovada"}</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>{selecionada.status === "aprovada" && <div className="mt-4 grid gap-3"><div className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p><textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div><div className="rounded-lg border border-sky-300/20 bg-sky-300/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-sky-300">Mensagem para o tripulante</p><textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div></div>}</div>}
+    </div>
+    {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
+  </section>;
+}
 function Detalhe({ label, valor }: { label: string; valor: string }) { return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><p className="text-[9px] text-muted-foreground">{label}</p><p className="mt-1.5 truncate text-[10px] font-semibold">{valor}</p></div>; }
 
 type DadosDisponibilidade = { tripulante_id: string; data_inicio: string; data_fim: string; status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel"; observacoes: string };

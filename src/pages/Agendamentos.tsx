@@ -763,10 +763,10 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="emprestimo-agendamento" className="text-xs">Empréstimo da aeronave</Label>
+                  <Label htmlFor="emprestimo-agendamento" className="text-xs">ESSE VOO É UM EMPRESTIMO DA AERONAVE?</Label>
                   <select id="emprestimo-agendamento" value={edicao.emprestimo ? "sim" : "nao"} onChange={(event) => setEdicao((atual) => ({ ...atual, emprestimo: event.target.value === "sim", cliente_emprestimo_id: "", socio_emprestimo_id: "" }))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-xs">
-                    <option value="nao" disabled={!aeronaveDoTitular}>Não emprestada</option>
-                    <option value="sim">Emprestada</option>
+                    <option value="nao" disabled={!aeronaveDoTitular}>NÃO</option>
+                    <option value="sim">SIM</option>
                   </select>
                 </div>
 

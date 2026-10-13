@@ -215,6 +215,27 @@ function statusClass(status?: string) {
         ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
         : "border-border bg-secondary/50 text-muted-foreground";
 }
+function mensagemErroRelatorio(texto: string) {
+  const codigo = texto.split(" — ", 1)[0].trim();
+  const mensagens: Record<string, string> = {
+    cliente_obrigatorio: "PREENCHER COTISTA",
+    aeronave_obrigatoria: "PREENCHER AERONAVE",
+    trecho_obrigatorio: "PREENCHER TRECHO",
+    tripulante_obrigatorio: "PREENCHER TRIPULANTE 1",
+    datas_obrigatorias: "PREENCHER AS DATAS DE INÍCIO E FIM",
+    data_fim_antes_da_data_inicio: "A DATA FINAL NÃO PODE SER ANTERIOR À DATA INICIAL",
+    relatorio_sem_despesas: "ADICIONE UMA DESPESA COM VALOR MAIOR QUE ZERO",
+    numero_relatorio_obrigatorio: "PREENCHER O NÚMERO DO RELATÓRIO",
+    formato_numero_relatorio_invalido: "O FORMATO DO NÚMERO DO RELATÓRIO É INVÁLIDO",
+    numero_relatorio_ja_utilizado: "ESTE NÚMERO DE RELATÓRIO JÁ ESTÁ EM USO",
+    numero_relatorio_ja_utilizado_ou_relatorio_alterado: "O RELATÓRIO FOI ALTERADO OU O NÚMERO JÁ ESTÁ EM USO. ATUALIZE E TENTE NOVAMENTE",
+    numero_relatorio_alteravel_somente_em_rascunho: "O NÚMERO DO RELATÓRIO SÓ PODE SER ALTERADO NO RASCUNHO",
+    relatorio_ja_finalizado: "ESTE RELATÓRIO JÁ FOI FINALIZADO",
+    sessao_expirada: "SUA SESSÃO EXPIROU. ENTRE NOVAMENTE E TENTE DE NOVO",
+    sessao_nao_encontrada: "NÃO FOI POSSÍVEL IDENTIFICAR SUA SESSÃO. ENTRE NOVAMENTE",
+  };
+  return mensagens[codigo] || texto.replace(/_/g, " ");
+}
 
 export default function RelatorioDespesaViagem({
   aoVoltar,
@@ -375,6 +396,7 @@ export default function RelatorioDespesaViagem({
     setAba("editor");
   };
   const abrirRelatorio = async (item: Relatorio) => {
+    setMensagem(null);
     try {
       const resposta = await buscarRelatorioDespesaViagem(item.id);
       item = resposta.relatorio;
@@ -426,7 +448,6 @@ export default function RelatorioDespesaViagem({
         }),
       ) || [novaDespesa()],
     );
-    setMensagem(null);
     setAba("editor");
   };
   const totaisPorPagador = useMemo(
@@ -503,7 +524,21 @@ export default function RelatorioDespesaViagem({
     total_sharebrasil: totaisPorPagador.sharebrasil,
     total_valor: total,
   });
+  const validarFormulario = () => {
+    if (!form.cliente_id) return "PREENCHER COTISTA";
+    if (!form.aeronave_id) return "PREENCHER AERONAVE";
+    if (!form.rota.trim()) return "PREENCHER TRECHO";
+    if (!form.tripulacao_id && !form.nome_tripulante.trim()) return "PREENCHER TRIPULANTE 1";
+    if (!form.data_inicio || !form.data_fim) return "PREENCHER AS DATAS DE INÍCIO E FIM";
+    if (form.data_fim < form.data_inicio) return "A DATA FINAL NÃO PODE SER ANTERIOR À DATA INICIAL";
+    return null;
+  };
   const salvar = async (silencioso = false) => {
+    const pendencia = validarFormulario();
+    if (pendencia) {
+      setMensagem({ tipo: "erro", texto: pendencia });
+      return null;
+    }
     setSalvando(true);
     setMensagem(null);
     try {
@@ -657,6 +692,15 @@ export default function RelatorioDespesaViagem({
     }
   };
   const finalizar = async () => {
+    const pendencia = validarFormulario();
+    if (pendencia) {
+      setMensagem({ tipo: "erro", texto: pendencia });
+      return;
+    }
+    if (!despesas.some((despesa) => Number(despesa.valor) > 0)) {
+      setMensagem({ tipo: "erro", texto: "ADICIONE UMA DESPESA COM VALOR MAIOR QUE ZERO" });
+      return;
+    }
     const salvo = await salvar(true);
     if (!salvo) return;
     setSalvando(true);
@@ -897,15 +941,18 @@ export default function RelatorioDespesaViagem({
 
   if (aba === "lista")
     return (
-      <RelatorioFolder
-        carregando={carregando}
-        clientes={opcoes.clientes}
-        relatorios={relatorios}
-        visao={visaoLista}
-        onMudarVisao={setVisaoLista}
-        onAbrirRelatorio={abrirRelatorio}
-        onNovoRelatorio={iniciarNovo}
-      />
+      <>
+        {mensagem && <Feedback {...mensagem} onFechar={() => setMensagem(null)} />}
+        <RelatorioFolder
+          carregando={carregando}
+          clientes={opcoes.clientes}
+          relatorios={relatorios}
+          visao={visaoLista}
+          onMudarVisao={setVisaoLista}
+          onAbrirRelatorio={abrirRelatorio}
+          onNovoRelatorio={iniciarNovo}
+        />
+      </>
     );
 
   return (
@@ -956,7 +1003,7 @@ export default function RelatorioDespesaViagem({
           )}
         </div>
       </div>
-      {mensagem && <Feedback {...mensagem} />}
+      {mensagem && <Feedback {...mensagem} onFechar={() => setMensagem(null)} />}
       {relatorio && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/70 px-4 py-3">
           <Badge className={statusClass(relatorio.status)}>
@@ -1039,7 +1086,7 @@ export default function RelatorioDespesaViagem({
             </div>
             {form.cliente_id || form.socio_id || form.aeronave_id ? <p className="mt-1 text-xs text-muted-foreground">A lista mostra somente voos compatíveis com o cotista e a aeronave selecionados.</p> : null}
           </Campo>
-          <Campo label="Cotista">
+          <Campo label="Cotista" required>
             <SearchableCombobox
               items={cotistas}
               value={form.socio_id ? `socio:${form.socio_id}` : form.cliente_id ? `cliente:${form.cliente_id}` : ""}
@@ -1886,12 +1933,30 @@ function Campo({
     </div>
   );
 }
-function Feedback({ tipo, texto }: { tipo: "ok" | "erro"; texto: string }) {
+function Feedback({ tipo, texto, onFechar }: { tipo: "ok" | "erro"; texto: string; onFechar: () => void }) {
+  if (tipo === "erro") {
+    return (
+      <Dialog open onOpenChange={(open) => { if (!open) onFechar(); }}>
+        <DialogContent className="max-w-md border-rose-400/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-2 pr-6 text-rose-200">
+              <CircleAlert className="mt-0.5 shrink-0" size={18} />
+              <span>{mensagemErroRelatorio(texto)}</span>
+            </DialogTitle>
+            <DialogDescription>Revise o campo ou a informação indicada e tente novamente.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" onClick={onFechar}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs ${tipo === "ok" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-rose-400/30 bg-rose-400/10 text-rose-200"}`}
+      className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-200"
     >
-      {tipo === "ok" ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}
+      <CheckCircle2 size={15} />
       {texto}
     </div>
   );

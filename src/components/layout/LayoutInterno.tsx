@@ -37,21 +37,23 @@ import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types
 import { BarraSuperior } from "@/components/layout/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { buscarPerfilColaborador } from "@/lib/colaborador-api";
+import { limparNavegacao, restaurarNavegacao, salvarNavegacao } from "@/lib/navigation-state";
 import { supabase } from "@/lib/supabase";
 import WelcomeToast from "@/components/layout/WelcomeToast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function LayoutInterno() {
-  const [ambiente, setAmbiente] = useState<Ambiente>("share-brasil");
+  const [navegacaoInicial] = useState(() => restaurarNavegacao(menusPorAmbiente, window.sessionStorage));
+  const [ambiente, setAmbiente] = useState<Ambiente>(navegacaoInicial.ambiente);
   const [podeAcessarGestor, setPodeAcessarGestor] = useState(false);
   const [podeAcessarMenuGestor, setPodeAcessarMenuGestor] = useState(false);
   const [nomeColaborador, setNomeColaborador] = useState<string | null>(null);
-  const [menuAtivo, setMenuAtivo] = useState("overview");
+  const [menuAtivo, setMenuAtivo] = useState(navegacaoInicial.menuAtivo);
   const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme") as Tema) || "dark");
   const [menuAberto, setMenuAberto] = useState(false);
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const navegacaoManual = useRef(false);
+  const navegacaoManual = useRef(navegacaoInicial.restaurada);
   const navegar = useNavigate();
   const localizacao = useLocation();
   const rotaRecibo = localizacao.pathname === "/financeiro/emissao-recibo";
@@ -85,6 +87,7 @@ export default function LayoutInterno() {
   useEffect(() => { if (rotaMovimentacoes) { setAmbiente("financeiro"); setMenuAtivo("movimentacoes"); } }, [rotaMovimentacoes]);
   useEffect(() => { if (salaReuniaoDireta) { setAmbiente("share-brasil"); setMenuAtivo("sala-reuniao"); } }, [salaReuniaoDireta]);
   useEffect(() => { resetarRolagem(); }, [ambiente, menuAtivo, resetarRolagem]);
+  useEffect(() => { salvarNavegacao(window.sessionStorage, { ambiente, menuAtivo }); }, [ambiente, menuAtivo]);
   useEffect(() => { void buscarPerfilColaborador().then((response) => { const papeisDashboard = [response.perfil.tipo_user || "", ...response.funcoes.map((item) => item.funcao)].map((papel) => papel.trim().toLowerCase().replace(/[\s-]+/g, "_")); const papeisMenu = [...papeisDashboard, (response.perfil.departamento || "").trim().toLowerCase().replace(/[\s-]+/g, "_")]; const permitido = papeisDashboard.some((papel) => ["admin", "administrador", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(papel)); const menuGestorPermitido = papeisMenu.some((papel) => ["admin", "administrador", "gestor_master"].includes(papel)); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) setNomeColaborador(nome); setPodeAcessarGestor(permitido); setPodeAcessarMenuGestor(menuGestorPermitido); if (permitido && !navegacaoManual.current && !rotaRecibo && !rotaFinanceiroShare && !rotaFinanceiroCotista && !rotaEnviarPagamento && !rotaMovimentacoes && !salaReuniaoDireta) { setAmbiente("gestor"); setMenuAtivo(menuInicial("gestor")); } }).catch(() => { setPodeAcessarGestor(false); setPodeAcessarMenuGestor(false); }); }, [rotaRecibo, rotaFinanceiroShare, rotaFinanceiroCotista, rotaEnviarPagamento, rotaMovimentacoes, salaReuniaoDireta]);
 
   const itens = menusPorAmbiente[ambiente];
@@ -103,7 +106,7 @@ export default function LayoutInterno() {
   };
   const abrirPerfil = () => { navegacaoManual.current = true; setMenuAtivo("perfil"); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
   const abrirMensagens = () => { navegacaoManual.current = true; setAmbiente("financeiro"); setMenuAtivo("email"); setMenuAberto(false); if (rotaRecibo || rotaEnviarPagamento) navegar("/"); };
-  const sair = async () => { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); navegar("/login", { replace: true }); };
+  const sair = async () => { limparNavegacao(window.sessionStorage); await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); navegar("/login", { replace: true }); };
 
   const renderConteudo = () => {
     if (menuAtivo === "perfil") return <Perfil tema={tema} onAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} />;

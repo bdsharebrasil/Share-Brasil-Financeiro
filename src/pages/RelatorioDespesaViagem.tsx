@@ -305,10 +305,16 @@ export default function RelatorioDespesaViagem({
     return (!form.cliente_id && !form.socio_id || cotistaCompativel) && (!form.aeronave_id || voo.aeronave_id === form.aeronave_id);
   };
   const voosDisponiveis = opcoes.voos.filter(vooCompativel);
-  const limparVoo = () => {
-    const possuiDadosDerivados = Boolean(form.cliente_id || form.socio_id || form.aeronave_id || form.rota || form.tripulacao_id || form.tripulante_id_2);
-    if (possuiDadosDerivados && !window.confirm("Limpar o voo também removerá cotista, aeronave, rota e tripulação preenchidos por ele. Deseja continuar?")) return;
+  const limparCamposVoo = () => {
     setForm((atual) => ({ ...atual, numero_voo: "", cliente_id: "", socio_id: "", aeronave_id: "", rota: "", data_inicio: "", data_fim: "", quantidade_dias: "1", tripulacao_id: "", nome_tripulante: "", tripulante_id_2: "", nome_tripulante_2: "" }));
+  };
+  const limparVoo = () => {
+    toast("Deseja realmente retirar o número de voo ?", {
+      position: "top-center",
+      duration: 10000,
+      action: { label: "Sim", onClick: limparCamposVoo },
+      cancel: { label: "Não", onClick: () => undefined },
+    });
   };
   const setCampo = <K extends keyof Formulario>(campo: K, valor: Formulario[K]) => {
     if (campo === "numero_voo") {
@@ -887,25 +893,6 @@ export default function RelatorioDespesaViagem({
               <Trash2 size={15} /> Excluir rascunho
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void salvar()}
-            disabled={salvando || bloqueado}
-            className="gap-2"
-          >
-            <Save size={15} /> Salvar rascunho
-          </Button>
-          {relatorio && (
-            <Button
-              type="button"
-              onClick={() => void finalizar()}
-              disabled={salvando || bloqueado || !["rascunho", "ajuste_necessario"].includes(relatorio.status)}
-              className="gap-2"
-            >
-              <CheckCircle2 size={15} /> Finalizar relatório
-            </Button>
-          )}
         </div>
       </div>
       {mensagem && <Feedback {...mensagem} />}
@@ -964,7 +951,7 @@ export default function RelatorioDespesaViagem({
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
                 <SearchableCombobox
-                  items={voosDisponiveis.map((item) => ({ id: item.numero_voo, label: item.numero_voo }))}
+                  items={voosDisponiveis.map((item) => ({ id: item.numero_voo, label: `${item.numero_voo}${item.origem && item.destino ? ` ${item.origem} x ${item.destino}` : ""}` }))}
                   value={form.numero_voo}
                   onChange={(valor) => setCampo("numero_voo", valor)}
                   placeholder="Busque por um voo válido..."
@@ -1230,6 +1217,27 @@ export default function RelatorioDespesaViagem({
                 {moeda(total)}
               </span>
             </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void salvar()}
+              disabled={salvando || bloqueado}
+              className="gap-2"
+            >
+              <Save size={15} /> Salvar rascunho
+            </Button>
+            {relatorio && (
+              <Button
+                type="button"
+                onClick={() => void finalizar()}
+                disabled={salvando || bloqueado || !["rascunho", "ajuste_necessario"].includes(relatorio.status)}
+                className="gap-2"
+              >
+                <CheckCircle2 size={15} /> Finalizar relatório
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

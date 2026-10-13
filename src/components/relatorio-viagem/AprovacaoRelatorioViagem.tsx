@@ -8,10 +8,12 @@ import {
   FileImage,
   FileText,
   Info,
+  ImagePlus,
   Loader2,
   Plane,
   ReceiptText,
   ShieldCheck,
+  Trash2,
   UserRound,
   X,
   XCircle,
@@ -221,6 +223,8 @@ export default function AprovacaoRelatorioViagem() {
   const [enviando, setEnviando] = useState(false);
   const [acao, setAcao] = useState<TipoAcao>(null);
   const [motivo, setMotivo] = useState("");
+  const [imagemRejeicao, setImagemRejeicao] = useState<File | null>(null);
+  const [imagemRejeicaoPreview, setImagemRejeicaoPreview] = useState("");
   const [chegouAoFim, setChegouAoFim] = useState(false);
   const [comprovanteSelecionado, setComprovanteSelecionado] =
     useState<ComprovanteSelecionado | null>(null);
@@ -230,6 +234,9 @@ export default function AprovacaoRelatorioViagem() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => () => {
+    if (imagemRejeicaoPreview) URL.revokeObjectURL(imagemRejeicaoPreview);
+  }, [imagemRejeicaoPreview]);
   useEffect(() => {
     /*
       A tela pública NÃO usa o ScrollArea do sistema.
@@ -557,16 +564,13 @@ export default function AprovacaoRelatorioViagem() {
     setMensagem("");
 
     try {
+      const payload = new FormData();
+      payload.append("aprovado", String(aprovado));
+      payload.append("motivo", motivo.trim());
+      if (!aprovado && imagemRejeicao) payload.append("anexo_rejeicao", imagemRejeicao, imagemRejeicao.name);
       const response = await fetch(
         `${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            aprovado,
-            motivo: motivo.trim(),
-          }),
-        },
+        { method: "POST", body: payload },
       );
 
       const json = await response.json().catch(() => ({}));
@@ -1088,6 +1092,8 @@ export default function AprovacaoRelatorioViagem() {
                 disabled={enviando}
                 onClick={() => {
                   setMotivo("");
+                  setImagemRejeicao(null);
+                  setImagemRejeicaoPreview("");
                   setAcao("rejeitar");
                 }}
                 className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-white/[0.03] px-3 text-sm font-extrabold text-rose-200 transition active:scale-[0.99] disabled:opacity-50"
@@ -1165,6 +1171,25 @@ export default function AprovacaoRelatorioViagem() {
                   className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500"
                   autoFocus
                 />
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-sky-300/30 px-3 py-3 text-xs font-bold text-sky-200 hover:bg-sky-300/[0.06]">
+                    <ImagePlus size={16} /> {imagemRejeicao ? "Trocar imagem" : "Anexar imagem para orientar o ajuste (opcional)"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => {
+                      const arquivo = event.target.files?.[0];
+                      if (!arquivo) return;
+                      if (!['image/jpeg', 'image/png', 'image/webp'].includes(arquivo.type) || arquivo.size > 5 * 1024 * 1024) {
+                        setMensagem("Selecione uma imagem JPG, PNG ou WebP de até 5 MB.");
+                        event.target.value = "";
+                        return;
+                      }
+                      setMensagem("");
+                      setImagemRejeicao(arquivo);
+                      setImagemRejeicaoPreview(URL.createObjectURL(arquivo));
+                    }} />
+                  </label>
+                  {imagemRejeicao && <div className="mt-3 flex items-start gap-3"><img src={imagemRejeicaoPreview} alt="Prévia do anexo da rejeição" className="h-20 w-24 rounded-lg border border-white/10 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-200">{imagemRejeicao.name}</p><p className="mt-1 text-[10px] text-slate-400">{(imagemRejeicao.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={() => { setImagemRejeicao(null); setImagemRejeicaoPreview(""); }} aria-label="Remover imagem" className="rounded-lg p-2 text-rose-300 hover:bg-rose-300/10"><Trash2 size={15} /></button></div>}
+                  <p className="mt-2 text-[10px] text-slate-500">JPG, PNG ou WebP · máximo 5 MB. A imagem será anexada à notificação de rejeição.</p>
+                </div>
               </div>
             )}
 

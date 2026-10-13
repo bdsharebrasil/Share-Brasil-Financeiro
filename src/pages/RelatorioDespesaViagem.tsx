@@ -39,6 +39,7 @@ import { copyText } from "@/lib/utils";
 import {
   atualizarRelatorioDespesaViagem,
   baixarAnexoRelatorio,
+  baixarAnexoRejeicaoRelatorio,
   baixarPdfRelatorio,
   buscarOpcoesRelatorioViagem,
   buscarRelatorioDespesaViagem,
@@ -117,6 +118,21 @@ const novaDespesa = (): Despesa => ({
   observacoes: "",
   pago_por: "tripulante_1",
 });
+function ImagemAnexoRejeicao({ relatorioId, anexo }: { relatorioId: string; anexo: { id: string; nome_arquivo?: string } }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    void baixarAnexoRejeicaoRelatorio(relatorioId, anexo.id).then((blob) => {
+      if (!active) return;
+      objectUrl = URL.createObjectURL(blob);
+      setUrl(objectUrl);
+    }).catch(() => undefined);
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [relatorioId, anexo.id]);
+  return url ? <a href={url} target="_blank" rel="noreferrer" className="block w-fit"><img src={url} alt={anexo.nome_arquivo || "Imagem anexada à rejeição"} className="mt-3 max-h-64 max-w-full rounded-lg border border-rose-400/25 object-contain" /><span className="mt-1 block text-[10px] text-primary">{anexo.nome_arquivo || "Imagem enviada pelo tripulante"}</span></a> : null;
+}
+
 function moeda(valor: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -1428,7 +1444,8 @@ export default function RelatorioDespesaViagem({
             {(relatorio?.motivo_reprovacao_tripulante_1 ||
               relatorio?.motivo_reprovacao_tripulante_2 ||
               relatorio?.observacoes_aprovacao_tripulante ||
-              relatorio?.observacoes_aprovacao_tripulante_2) && (
+              relatorio?.observacoes_aprovacao_tripulante_2 ||
+              relatorio?.anexos_rejeicao) && (
               <div className="rounded-lg border border-rose-400/25 bg-rose-400/5 p-3 text-xs">
                 <p className="font-bold text-rose-300">
                   Ajustes solicitados pela tripulação
@@ -1445,6 +1462,11 @@ export default function RelatorioDespesaViagem({
                     {relatorio.motivo_reprovacao_tripulante_2 || relatorio.observacoes_aprovacao_tripulante_2}
                   </p>
                 )}
+                {(() => {
+                  let anexos: Array<{ id: string; nome_arquivo?: string }> = [];
+                  try { const parsed = typeof relatorio.anexos_rejeicao === "string" ? JSON.parse(relatorio.anexos_rejeicao) : relatorio.anexos_rejeicao; if (Array.isArray(parsed)) anexos = parsed; } catch { /* campo legado ou inválido */ }
+                  return anexos.map((anexo) => <ImagemAnexoRejeicao key={anexo.id} relatorioId={relatorio.id} anexo={anexo} />);
+                })()}
               </div>
             )}
             <Textarea

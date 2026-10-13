@@ -221,10 +221,17 @@ export function criarTarefaShare(payload: Record<string, any>) { return colabora
 export function atualizarTarefaShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function comentarTarefaShare(id: string, comentario: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}/comentarios`, { method: "POST", body: JSON.stringify({ comentario }) }); }
 export function marcarNotificacaoTarefaLida(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/notificacoes/${id}/lida`, { method: "PATCH" }); }
-export type NotificacaoInterna = NotificacaoTarefa & { tarefa_titulo?: string | null; tarefa_origem?: string | null };
+export type NotificacaoInterna = NotificacaoTarefa & { tarefa_titulo?: string | null; tarefa_origem?: string | null; relatorio_id?: string | null; anexos_rejeicao?: string | null };
 export function buscarNotificacoesInternas() { return colaboradorRequest<{ notificacoes: NotificacaoInterna[] }>("/api/sharebrasil/notificacoes"); }
 export function excluirNotificacaoInterna(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/sharebrasil/notificacoes/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function limparNotificacoesInternas() { return colaboradorRequest<{ success: boolean }>("/api/sharebrasil/notificacoes", { method: "DELETE" }); }
+export async function baixarAnexoRejeicaoRelatorio(relatorioId: string, anexoId: string) {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session?.access_token) throw new Error(error ? "sessao_expirada" : "sessao_nao_encontrada");
+  const response = await fetch(`${API_BASE}/api/financeiro/relatorios-despesa-viagem/${encodeURIComponent(relatorioId)}/anexos-rejeicao/${encodeURIComponent(anexoId)}/arquivo`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+  if (!response.ok) throw new Error(`api_${response.status}`);
+  return response.blob();
+}
 export type MaterialTreinamento = { id: string; titulo: string; descricao: string; video_url: string | null; conteudo_html: string | null; categoria: "TUTORIAL" | "TREINAMENTO" | string; tema: string | null; ordem: number; criado_por: string | null; criado_em: string; atualizado_em: string; arquivo_url: string | null; tipo_arquivo: string | null; tamanho_arquivo: number | null; publicado: boolean };
 export type SalaTreinamento = { id: string; titulo: string; descricao: string | null; status: string; criado_por: string; criado_por_nome?: string | null; criado_em: string; encerrado_em?: string | null };
 export function buscarMateriaisCentro(categoria: "TUTORIAL" | "TREINAMENTO") { return colaboradorRequest<MaterialTreinamento[]>(`/api/sharebrasil/centro-treinamento/materiais?categoria=${categoria}`); }

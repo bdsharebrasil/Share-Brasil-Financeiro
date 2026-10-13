@@ -51,6 +51,7 @@ import {
   enviarRelatorioParaAprovacao,
   excluirRelatorioDespesaViagem,
   finalizarRelatorioDespesaViagem,
+  voltarRelatorioDespesaViagemParaRascunho,
   type OpcoesRelatorioViagem,
   type RelatorioDespesaViagemAnexo,
   type RelatorioDespesaViagem as Relatorio,
@@ -68,6 +69,7 @@ type Despesa = {
   pago_por: PagoPor;
 };
 type Formulario = {
+  numero_relatorio: string;
   numero_voo: string;
   cliente_id: string;
   socio_id: string;
@@ -90,6 +92,7 @@ const categorias = [
   "Outros",
 ];
 const vazioFormulario = (): Formulario => ({
+  numero_relatorio: "",
   numero_voo: "",
   cliente_id: "",
   socio_id: "",
@@ -360,6 +363,7 @@ export default function RelatorioDespesaViagem({
     }
     setRelatorio(item);
     setForm({
+      numero_relatorio: item.numero_relatorio || "",
       numero_voo: item.numero_voo || "",
       cliente_id: item.cliente_id || "",
       socio_id: item.socio_id || "",
@@ -444,6 +448,7 @@ export default function RelatorioDespesaViagem({
     [despesas],
   );
   const payload = () => ({
+    numero_relatorio: form.numero_relatorio.trim(),
     numero_voo: form.numero_voo,
     cliente_id: form.cliente_id,
     socio_id: form.socio_id,
@@ -486,7 +491,11 @@ export default function RelatorioDespesaViagem({
         const pdf = await gerarPdf(salvo, blob);
         salvo = { ...salvo, pdf_url: pdf.pdf_url, pdf_path: pdf.pdf_path };
       }
+      if (relatorio && relatorio.numero_relatorio !== salvo.numero_relatorio) {
+        setPdfPreview((atual) => { if (atual) URL.revokeObjectURL(atual.url); return null; });
+      }
       setRelatorio(salvo);
+      setForm((atual) => ({ ...atual, numero_relatorio: salvo.numero_relatorio || atual.numero_relatorio }));
       setRelatorios((atuais) => [salvo, ...atuais.filter((item) => item.id !== salvo.id)]);
       if (!silencioso) setMensagem({ tipo: "ok", texto: identificadoresAlterados ? "Alterações salvas e PDF atualizado." : "Relatório salvo com sucesso." });
       return salvo;
@@ -499,6 +508,26 @@ export default function RelatorioDespesaViagem({
             : "Não foi possível salvar o relatório.",
       });
       return null;
+    } finally {
+      setSalvando(false);
+    }
+  };
+  const voltarParaRascunho = async () => {
+    if (!relatorio || relatorio.status !== "finalizado" || relatorio.token_aprovacao_tripulante_1 || relatorio.token_aprovacao_tripulante_2) return;
+    setSalvando(true);
+    setMensagem(null);
+    try {
+      const resposta = await voltarRelatorioDespesaViagemParaRascunho(relatorio.id);
+      const atualizado = resposta.relatorio;
+      setRelatorio(atualizado);
+      setForm((atual) => ({ ...atual, numero_relatorio: atualizado.numero_relatorio || atual.numero_relatorio }));
+      setRelatorios((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
+      setLinksAprovacao({});
+      setMensagensAprovacao({});
+      setPdfPreview((atual) => { if (atual) URL.revokeObjectURL(atual.url); return null; });
+      setMensagem({ tipo: "ok", texto: "Relatório retornou a rascunho. O PDF anterior foi invalidado; será gerado novamente ao finalizar." });
+    } catch (error) {
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível voltar o relatório para rascunho." });
     } finally {
       setSalvando(false);
     }
@@ -830,6 +859,7 @@ export default function RelatorioDespesaViagem({
       ),
     );
   const aprovado = relatorio?.status === "aprovado";
+  const podeVoltarParaRascunho = relatorio?.status === "finalizado" && !relatorio.token_aprovacao_tripulante_1 && !relatorio.token_aprovacao_tripulante_2;
   const bloqueado = Boolean(relatorio && (
     !["rascunho", "finalizado"].includes(relatorio.status) ||
     ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status) ||
@@ -882,6 +912,11 @@ export default function RelatorioDespesaViagem({
           </div>
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          {podeVoltarParaRascunho && (
+            <Button type="button" variant="outline" onClick={() => void voltarParaRascunho()} disabled={salvando} className="gap-2">
+              <ArrowLeft size={15} /> Voltar para rascunho
+            </Button>
+          )}
           {relatorio?.status === "rascunho" && (
             <Button
               type="button"
@@ -942,10 +977,21 @@ export default function RelatorioDespesaViagem({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
-          <Campo label="Número do relatório">
-            <div className="flex h-10 items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 text-sm font-mono text-primary">
-              {relatorio?.numero_relatorio || "Será gerado automaticamente ao finalizar"}
-            </div>
+          <Campo label="Número do relatório" required={relatorio?.status === "rascunho"}>
+            {relatorio?.status === "rascunho" ? (
+              <Input
+                value={form.numero_relatorio}
+                onChange={(e) => setCampo("numero_relatorio", e.target.value)}
+                maxLength={100}
+                disabled={salvando || bloqueado}
+                placeholder="REL-COTISTA-001/26 MATRÍCULA"
+                className="font-mono"
+              />
+            ) : (
+              <div className="flex h-10 items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 text-sm font-mono text-primary">
+                {relatorio?.numero_relatorio || "Será gerado automaticamente ao criar o rascunho"}
+              </div>
+            )}
           </Campo>
           <Campo label="Número do voo">
             <div className="flex items-center gap-2">

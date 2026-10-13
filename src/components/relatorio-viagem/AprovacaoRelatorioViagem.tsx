@@ -490,6 +490,7 @@ export default function AprovacaoRelatorioViagem() {
     statusAtual === "rejeitado";
 
   const foiAprovado = statusAtual === "aprovado";
+  const podeReprocessarFinanceiro = foiAprovado && String(relatorio?.status || "").toLowerCase() === "aprovado";
   const foiReprovado =
     statusAtual === "reprovado" || statusAtual === "rejeitado";
 
@@ -546,9 +547,9 @@ export default function AprovacaoRelatorioViagem() {
   }, [filtroDespesas, despesasFiltradas.length]);
 
   const decidir = async (aprovado: boolean) => {
-    if (!data || decisaoRegistrada || enviando) return;
+    if (!data || (decisaoRegistrada && !(aprovado && podeReprocessarFinanceiro)) || enviando) return;
 
-    if (aprovado && !relatorioRevisado) {
+    if (aprovado && !podeReprocessarFinanceiro && !relatorioRevisado) {
       setMensagem(
         "Revise os grupos de despesas disponíveis, um por vez, até o final de cada grupo para liberar a aprovação.",
       );
@@ -1067,7 +1068,7 @@ export default function AprovacaoRelatorioViagem() {
         </div>
       </main>
 
-      {!decisaoRegistrada ? (
+      {!decisaoRegistrada || podeReprocessarFinanceiro ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
@@ -1086,8 +1087,8 @@ export default function AprovacaoRelatorioViagem() {
               <span className="text-slate-400">{moeda(totalTripulante)}</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
+            <div className={`grid gap-2.5 ${podeReprocessarFinanceiro ? "grid-cols-1" : "grid-cols-2"}`}>
+              {!podeReprocessarFinanceiro ? <button
                 type="button"
                 disabled={enviando}
                 onClick={() => {
@@ -1100,11 +1101,11 @@ export default function AprovacaoRelatorioViagem() {
               >
                 <X size={17} />
                 Rejeitar
-              </button>
+              </button> : null}
 
               <button
                 type="button"
-                disabled={enviando || !relatorioRevisado}
+                disabled={enviando || (!podeReprocessarFinanceiro && !relatorioRevisado)}
                 onClick={() => {
                   setMotivo("");
                   setAcao("aprovar");
@@ -1112,7 +1113,7 @@ export default function AprovacaoRelatorioViagem() {
                 className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-3 text-sm font-extrabold text-[#04120c] shadow-[0_8px_24px_rgba(16,185,129,0.22)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-35"
               >
                 <Check size={17} />
-                Aprovar relatório
+                {podeReprocessarFinanceiro ? "Tentar concluir aprovação" : "Aprovar relatório"}
               </button>
             </div>
           </div>

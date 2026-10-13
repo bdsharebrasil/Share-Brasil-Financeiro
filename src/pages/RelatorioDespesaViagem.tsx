@@ -748,11 +748,13 @@ export default function RelatorioDespesaViagem({
         tipo: "ok",
         texto: "Link copiado! Agora você pode enviá-lo pelo WhatsApp.",
       });
+      return true;
     } catch {
       setMensagem({
         tipo: "erro",
         texto: "Não foi possível copiar o link. Copie-o manualmente.",
       });
+      return false;
     }
   };
   const copiarMensagemAprovacao = async (mensagem: string) => {
@@ -1916,11 +1918,20 @@ function AprovacaoLinha({
   naoAplicavel?: boolean;
   link?: string;
   onEnviar: () => void;
-  onCopiar: (link: string) => void;
+  onCopiar: (link: string) => Promise<boolean>;
   mensagem?: string;
   onCopiarMensagem: (mensagem: string) => void;
   disabled: boolean;
 }) {
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  useEffect(() => {
+    if (!linkCopiado) return;
+    const timeout = window.setTimeout(() => setLinkCopiado(false), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [linkCopiado]);
+  const copiarLink = async () => {
+    if (link && await onCopiar(link)) setLinkCopiado(true);
+  };
   const aprovado = status === "aprovado";
   const reprovado = status === "reprovado";
   return (
@@ -1962,14 +1973,17 @@ function AprovacaoLinha({
           type="button"
           size="sm"
           variant="outline"
-          onClick={() => enviado && link ? onCopiar(link) : onEnviar()}
+          onClick={() => enviado && link ? void copiarLink() : onEnviar()}
           disabled={disabled}
-          className="w-full justify-center gap-1.5 whitespace-normal text-center sm:w-auto sm:whitespace-nowrap"
+          className={`w-full justify-center gap-1.5 whitespace-normal text-center transition-all duration-200 active:scale-95 sm:w-auto sm:whitespace-nowrap ${linkCopiado ? "animate-[bounce_500ms_ease-in-out_1] border-emerald-400/50 bg-emerald-400/15 text-emerald-200 shadow-[0_0_18px_rgba(52,211,153,0.2)]" : ""}`}
         >
           {enviado && link
-            ? <><Copy size={14} /> COPIAR LINK APROVAÇÃO</>
+            ? linkCopiado
+              ? <><CheckCircle2 size={14} /> LINK COPIADO</>
+              : <><Copy size={14} /> COPIAR LINK APROVAÇÃO</>
             : <><Send size={13} /> Enviar para aprovação tripulação</>}
         </Button>}
+      {linkCopiado && <span role="status" className="text-xs font-semibold text-emerald-300">Link copiado para a área de transferência.</span>}
       {mensagem && (
         <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs sm:basis-full">
           <p className="font-semibold text-primary">Mensagem automática para envio</p>

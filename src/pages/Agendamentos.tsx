@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
+import { DayPicker, type DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -418,17 +419,37 @@ function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aerodromos
 }
 
 function PeriodoAgendamento({ inicio, fim, aoAlterarInicio, aoAlterarFim }: { inicio: string; fim: string; aoAlterarInicio: (valor: string) => void; aoAlterarFim: (valor: string) => void }) {
-  const inicioSelecionado = inicio ? new Date(`${inicio}T00:00:00`) : undefined;
-  const selecionarData = (data: Date) => {
-    const selecionada = dataIso(data);
-    if (!inicio || selecionada < inicio) {
-      aoAlterarInicio(selecionada);
-      aoAlterarFim(selecionada);
+  const [aberto, setAberto] = useState(false);
+  const [aguardandoFim, setAguardandoFim] = useState(false);
+  const [inicioTemporario, setInicioTemporario] = useState<Date>();
+  const [mesVisivel, setMesVisivel] = useState(() => inicio ? new Date(`${inicio}T00:00:00`) : new Date());
+
+  const aoAbrir = (novoEstado: boolean) => {
+    setAberto(novoEstado);
+    if (novoEstado) {
+      setAguardandoFim(false);
+      setInicioTemporario(undefined);
+      setMesVisivel(inicio ? new Date(`${inicio}T00:00:00`) : new Date());
+    }
+  };
+
+  const selecionarIntervalo = (intervalo: DateRange | undefined) => {
+    if (!intervalo?.from) return;
+    if (!aguardandoFim) {
+      setInicioTemporario(intervalo.from);
+      setAguardandoFim(true);
       return;
     }
-    aoAlterarFim(selecionada);
+    if (!intervalo.to) {
+      setInicioTemporario(intervalo.from);
+      return;
+    }
+    aoAlterarInicio(dataIso(intervalo.from));
+    aoAlterarFim(dataIso(intervalo.to));
+    aoAbrir(false);
   };
-  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Período do voo</Label><div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><DateCalendar value={inicioSelecionado ?? null} onChange={selecionarData} /></PopoverContent></Popover></div></div>;
+
+  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Período do voo</Label><div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover open={aberto} onOpenChange={aoAbrir}><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent align="end" sideOffset={8} collisionPadding={12} className="z-[70] w-[min(20rem,calc(100vw-1.5rem))] max-h-[min(24rem,calc(100dvh-1.5rem))] overflow-y-auto p-3"><p className="mb-2 text-center text-xs font-semibold text-foreground">{aguardandoFim ? "Selecione a data de fim" : "Selecione a data de início"}</p><DayPicker mode="range" month={mesVisivel} onMonthChange={setMesVisivel} selected={aguardandoFim && inicioTemporario ? { from: inicioTemporario } : undefined} onSelect={selecionarIntervalo} showOutsideDays className="mx-auto" classNames={{ months: "flex justify-center", month: "space-y-3", caption: "relative flex items-center justify-center pt-1", caption_label: "text-xs font-semibold", nav: "flex items-center justify-between", nav_button: "h-7 w-7 rounded-md border border-border bg-background p-1 text-foreground hover:bg-accent", nav_button_previous: "absolute left-0", nav_button_next: "absolute right-0", table: "w-full border-collapse", head_row: "flex", head_cell: "w-9 rounded-md text-[0.65rem] font-normal text-muted-foreground", row: "mt-1 flex w-full", cell: "relative h-9 w-9 p-0 text-center text-xs focus-within:relative focus-within:z-20", day: "h-9 w-9 rounded-md p-0 text-xs font-normal text-foreground hover:bg-accent", day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground", day_range_start: "rounded-l-md bg-primary text-primary-foreground", day_range_end: "rounded-r-md bg-primary text-primary-foreground", day_range_middle: "rounded-none bg-primary/15 text-foreground", day_today: "border border-primary/50", day_outside: "text-muted-foreground opacity-40", day_disabled: "text-muted-foreground opacity-30", day_hidden: "invisible" }} /></PopoverContent></Popover></div></div>;
 }
 
 function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valor: string) => void }) {

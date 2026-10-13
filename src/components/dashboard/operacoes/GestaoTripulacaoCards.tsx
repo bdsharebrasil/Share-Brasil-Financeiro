@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
   atualizarHabilitacaoTripulante,
   atualizarTripulante,
@@ -36,6 +37,7 @@ import {
 const DEFAULT_AVATAR = "/icon.pilot.png";
 
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
+const cmaClassOptions = ["1ª CLASSE", "2ª CLASSE", "3ª CLASSE", "4ª CLASSE", "5ª CLASSE"].map((label) => ({ id: label, label }));
 const mesesDoAno = [
   "Janeiro",
   "Fevereiro",
@@ -980,7 +982,7 @@ function HabilitacoesTab({
         <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">{habilitations.length}</span><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "habilitacao" ? null : "habilitacao")} className="h-9 gap-2 text-xs"><Plus size={14} /> Nova habilitação</Button><Button type="button" variant="outline" onClick={() => setFormOpen((open) => open === "cma" ? null : "cma")} className="h-9 gap-2 text-xs"><Plus size={14} /> Novo CMA</Button></div>
       </div>
       {formOpen === "habilitacao" && <div className="mt-5 rounded-xl border border-border/70 bg-muted/20 p-4"><p className="text-xs font-extrabold">Adicionar habilitação</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newHab.tipo_habilitacao} onChange={(e) => setNewHab({ ...newHab, tipo_habilitacao: e.target.value })} placeholder="Tipo de habilitação" className={field} /><Input type="date" value={newHab.data_validade} onChange={(e) => setNewHab({ ...newHab, data_validade: e.target.value })} aria-label="Validade da habilitação" className={field} /><Input value={newHab.fs_rh} onChange={(e) => setNewHab({ ...newHab, fs_rh: e.target.value })} placeholder="FS/RH" aria-label="FS/RH" className={field} /></div><Button type="button" variant="outline" onClick={() => void addHabilitation()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar habilitação</Button></div>}
-      {formOpen === "cma" && <div className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-xs font-extrabold">Adicionar CMA</p><p className="mt-1 text-[10px] text-muted-foreground">Certificado de Exame Médico: classe e validade são armazenadas separadamente das habilitações.</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Input value={newCma.classe_cma} onChange={(e) => setNewCma({ ...newCma, classe_cma: e.target.value })} placeholder="Classe do CMA" className={field} /><Input type="date" value={newCma.validade_cma} onChange={(e) => setNewCma({ ...newCma, validade_cma: e.target.value })} aria-label="Validade do CMA" className={field} /></div><Button type="button" variant="outline" onClick={() => void addCma()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar CMA</Button></div>}
+      {formOpen === "cma" && <div className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-xs font-extrabold">Adicionar CMA</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><SearchableCombobox items={cmaClassOptions} value={newCma.classe_cma} onChange={(value) => setNewCma({ ...newCma, classe_cma: value })} placeholder="Selecione a classe do CMA" searchPlaceholder="Buscar classe..." className={field} /><Input type="date" value={newCma.validade_cma} onChange={(e) => setNewCma({ ...newCma, validade_cma: e.target.value })} aria-label="Validade do CMA" className={field} /></div><Button type="button" variant="outline" onClick={() => void addCma()} className="mt-3 h-9 gap-2 text-xs"><Plus size={14} /> Salvar CMA</Button></div>}
       <div className="mt-4 grid gap-3 md:grid-cols-2">{cma || outrasHabilitacoes.length ? <>{cma && <HabilitationCard key={cma.id} item={cma} onSave={(id, payload) => void saveHabilitation(id, payload)} />}{outrasHabilitacoes.map((item) => <HabilitationCard key={item.id} item={item} onSave={(id, payload) => void saveHabilitation(id, payload)} />)}</> : <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground md:col-span-2">Nenhuma habilitação cadastrada.</p>}</div>
     </section>
   );

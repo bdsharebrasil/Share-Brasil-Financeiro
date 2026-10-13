@@ -220,10 +220,11 @@ export function buscarUsuariosTarefas() { return colaboradorRequest<UsuariosTare
 export function criarTarefaShare(payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>("/api/sharebrasil/tarefas", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarTarefaShare(id: string, payload: Record<string, any>) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function comentarTarefaShare(id: string, comentario: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/tarefas/${id}/comentarios`, { method: "POST", body: JSON.stringify({ comentario }) }); }
-export function marcarNotificacaoTarefaLida(id: string) { return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/notificacoes/${id}/lida`, { method: "PATCH" }); }
-export type NotificacaoInterna = NotificacaoTarefa & { tarefa_titulo?: string | null; tarefa_origem?: string | null; relatorio_id?: string | null; anexos_rejeicao?: string | null };
+export type OrigemNotificacao = "tarefa" | "geral";
+export function marcarNotificacaoLida(id: string, origem: OrigemNotificacao = "tarefa") { const query = origem === "geral" ? "?origem=geral" : ""; return colaboradorRequest<Record<string, any>>(`/api/sharebrasil/notificacoes/${encodeURIComponent(id)}/lida${query}`, { method: "PATCH" }); }
+export type NotificacaoInterna = { id: string; user_id: string; mensagem: string | null; lido: number; criado_em: string; atualizado_em: string | null; origem_notificacao: OrigemNotificacao; id_from?: string | null; id_da_tarefa?: string | null; status_alterado_para?: string | null; tarefa_titulo?: string | null; tarefa_origem?: string | null; relatorio_id?: string | null; anexos_rejeicao?: string | null };
 export function buscarNotificacoesInternas() { return colaboradorRequest<{ notificacoes: NotificacaoInterna[] }>("/api/sharebrasil/notificacoes"); }
-export function excluirNotificacaoInterna(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/sharebrasil/notificacoes/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+export function excluirNotificacaoInterna(id: string, origem: OrigemNotificacao = "tarefa") { const query = origem === "geral" ? "?origem=geral" : ""; return colaboradorRequest<{ success: boolean }>(`/api/sharebrasil/notificacoes/${encodeURIComponent(id)}${query}`, { method: "DELETE" }); }
 export function limparNotificacoesInternas() { return colaboradorRequest<{ success: boolean }>("/api/sharebrasil/notificacoes", { method: "DELETE" }); }
 export async function baixarAnexoRejeicaoRelatorio(relatorioId: string, anexoId: string) {
   const { data: { session }, error } = await supabase.auth.getSession();

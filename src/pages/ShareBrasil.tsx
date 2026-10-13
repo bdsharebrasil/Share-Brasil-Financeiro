@@ -84,7 +84,7 @@ import {
   criarTarefaShare,
   atualizarTarefaShare,
   comentarTarefaShare,
-  marcarNotificacaoTarefaLida,
+  marcarNotificacaoLida,
   buscarCategoriasCalendario,
   criarCategoriaCalendario,
   buscarLembretesCalendario,
@@ -2799,7 +2799,7 @@ export function TarefasShareBrasil() {
   };
   const markRead = async (notificationId: string) => {
     try {
-      await marcarNotificacaoTarefaLida(notificationId);
+      await marcarNotificacaoLida(notificationId);
       setNotifications((items) =>
         items.map((item) =>
           item.id === notificationId ? { ...item, lido: 1 } : item,

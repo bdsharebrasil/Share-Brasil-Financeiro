@@ -298,49 +298,39 @@ export default function RelatorioDespesaViagem({
       label: `${item.nome} · Sócio`,
     })),
   ];
-  const setCampo = <K extends keyof Formulario>(
-    campo: K,
-    valor: Formulario[K],
-  ) => {
+  const vooCompativel = (voo: OpcoesRelatorioViagem["voos"][number]) => {
+    const cotistaCompativel = form.socio_id
+      ? voo.socio_id === form.socio_id && voo.cliente_id === form.cliente_id
+      : !voo.socio_id && voo.cliente_id === form.cliente_id;
+    return (!form.cliente_id && !form.socio_id || cotistaCompativel) && (!form.aeronave_id || voo.aeronave_id === form.aeronave_id);
+  };
+  const voosDisponiveis = opcoes.voos.filter(vooCompativel);
+  const limparVoo = () => {
+    const possuiDadosDerivados = Boolean(form.cliente_id || form.socio_id || form.aeronave_id || form.rota || form.tripulacao_id || form.tripulante_id_2);
+    if (possuiDadosDerivados && !window.confirm("Limpar o voo também removerá cotista, aeronave, rota e tripulação preenchidos por ele. Deseja continuar?")) return;
+    setForm((atual) => ({ ...atual, numero_voo: "", cliente_id: "", socio_id: "", aeronave_id: "", rota: "", data_inicio: "", data_fim: "", quantidade_dias: "1", tripulacao_id: "", nome_tripulante: "", tripulante_id_2: "", nome_tripulante_2: "" }));
+  };
+  const setCampo = <K extends keyof Formulario>(campo: K, valor: Formulario[K]) => {
     if (campo === "numero_voo") {
-      aplicarVoo(String(valor));
+      const voo = opcoes.voos.find((item) => item.numero_voo === valor);
+      if (voo) aplicarVoo(String(valor));
+      return;
+    }
+    if (campo === "aeronave_id" || campo === "cliente_id" || campo === "socio_id") {
+      setForm((atual) => ({ ...atual, [campo]: valor, numero_voo: "" }));
       return;
     }
     setForm((atual) => ({ ...atual, [campo]: valor }));
   };
   const aplicarVoo = (numeroVoo: string) => {
     const voo = opcoes.voos.find((item) => item.numero_voo === numeroVoo);
-    if (!voo) {
-      setForm((atual) => ({ ...atual, numero_voo: numeroVoo }));
-      return;
-    }
+    if (!voo || !vooCompativel(voo)) return;
     const dataInicio = voo.data_agendada || form.data_inicio;
     const dias = Math.max(1, Number(voo.dias_duracao) || 1);
     const clienteDoVoo = opcoes.clientes.find((item) => item.id === voo.cliente_id);
     const vooEhHolding = clienteDoVoo?.holding === true || Number(clienteDoVoo?.holding || 0) === 1;
-    const dataFim = dataInicio
-      ? new Date(
-          new Date(`${dataInicio}T00:00:00Z`).getTime() +
-            (dias - 1) * 86_400_000,
-        )
-          .toISOString()
-          .slice(0, 10)
-      : form.data_fim;
-    setForm((atual) => ({
-      ...atual,
-      numero_voo: voo.numero_voo,
-      cliente_id: voo.cliente_id || "",
-      socio_id: voo.socio_id && vooEhHolding ? voo.socio_id : "",
-      aeronave_id: voo.aeronave_id || "",
-      rota: [voo.origem, voo.destino].filter(Boolean).join("-"),
-      data_inicio: dataInicio,
-      data_fim: dataFim,
-      quantidade_dias: String(dias),
-      tripulacao_id: voo.piloto_id || "",
-      nome_tripulante: voo.tripulante_nome || "",
-      tripulante_id_2: voo.copiloto_id || "",
-      nome_tripulante_2: voo.tripulante_nome_2 || "",
-    }));
+    const dataFim = dataInicio ? new Date(new Date(`${dataInicio}T00:00:00Z`).getTime() + (dias - 1) * 86_400_000).toISOString().slice(0, 10) : form.data_fim;
+    setForm((atual) => ({ ...atual, numero_voo: voo.numero_voo, cliente_id: voo.cliente_id || "", socio_id: voo.socio_id && vooEhHolding ? voo.socio_id : "", aeronave_id: voo.aeronave_id || "", rota: [voo.origem, voo.destino].filter(Boolean).join("-"), data_inicio: dataInicio, data_fim: dataFim, quantidade_dias: String(dias), tripulacao_id: voo.piloto_id || "", nome_tripulante: voo.tripulante_nome || "", tripulante_id_2: voo.copiloto_id || "", nome_tripulante_2: voo.tripulante_nome_2 || "" }));
   };
   const iniciarNovo = () => {
     setRelatorio(null);
@@ -483,14 +473,17 @@ export default function RelatorioDespesaViagem({
       const resposta = relatorio
         ? await atualizarRelatorioDespesaViagem(relatorio.id, payload())
         : await criarRelatorioDespesaViagem(payload());
-      setRelatorio(resposta.relatorio);
-      setRelatorios((atuais) => [
-        resposta.relatorio,
-        ...atuais.filter((item) => item.id !== resposta.relatorio.id),
-      ]);
-      if (!silencioso)
-        setMensagem({ tipo: "ok", texto: "Relatório salvo com sucesso." });
-      return resposta.relatorio;
+      let salvo = resposta.relatorio;
+      const identificadoresAlterados = Boolean(relatorio && relatorio.status === "finalizado" && (relatorio.cliente_id !== salvo.cliente_id || relatorio.socio_id !== salvo.socio_id || relatorio.aeronave_id !== salvo.aeronave_id || relatorio.numero_voo !== salvo.numero_voo));
+      if (identificadoresAlterados) {
+        const blob = await prepararPdf(salvo);
+        const pdf = await gerarPdf(salvo, blob);
+        salvo = { ...salvo, pdf_url: pdf.pdf_url, pdf_path: pdf.pdf_path };
+      }
+      setRelatorio(salvo);
+      setRelatorios((atuais) => [salvo, ...atuais.filter((item) => item.id !== salvo.id)]);
+      if (!silencioso) setMensagem({ tipo: "ok", texto: identificadoresAlterados ? "Alterações salvas e PDF atualizado." : "Relatório salvo com sucesso." });
+      return salvo;
     } catch (error) {
       setMensagem({
         tipo: "erro",
@@ -550,16 +543,12 @@ export default function RelatorioDespesaViagem({
         arquivo: await baixarAnexoRelatorio(item.id, anexo.id),
       })),
     );
-    const aeronave = opcoes.aeronaves.find((opcao) => opcao.id === item.aeronave_id);
-    const cliente = opcoes.clientes.find((opcao) => opcao.id === item.cliente_id);
-    const tripulante1 = opcoes.tripulantes.find((opcao) => opcao.id === item.tripulacao_id);
-    const tripulante2 = opcoes.tripulantes.find((opcao) => opcao.id === item.tripulante_id_2);
     const blob = await gerarPdfRelatorioViagem({
       ...item,
-      cliente_nome: item.cliente_nome || cliente?.razao_social || item.holding_nome || clienteSelecionado?.razao_social,
-      aeronave_matricula: item.aeronave_matricula || item.matricula_aeronave || aeronave?.matricula_registro || aeronaveSelecionada?.matricula_registro,
-      nome_tripulante: item.nome_tripulante || tripulante1?.nome_completo || form.nome_tripulante,
-      nome_tripulante_2: item.nome_tripulante_2 || tripulante2?.nome_completo || form.nome_tripulante_2,
+      cliente_nome: item.cliente_nome,
+      aeronave_matricula: item.aeronave_matricula || item.matricula_aeronave,
+      nome_tripulante: item.nome_tripulante,
+      nome_tripulante_2: item.nome_tripulante_2,
       despesas: despesasDoRelatorio,
       total_valor: Number(item.total_valor) || despesasDoRelatorio.reduce((soma, despesa) => soma + despesa.valor, 0),
       anexos,
@@ -835,12 +824,14 @@ export default function RelatorioDespesaViagem({
       ),
     );
   const aprovado = relatorio?.status === "aprovado";
-  const bloqueado = Boolean(
-    relatorio &&
-      ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(
-        relatorio.status,
-      ),
-  );
+  const bloqueado = Boolean(relatorio && (
+    !["rascunho", "finalizado"].includes(relatorio.status) ||
+    ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status) ||
+    relatorio.enviado_para_tripulante_em || relatorio.enviado_para_tripulante_2_em ||
+    relatorio.aprovado_tripulante_1_em || relatorio.aprovado_tripulante_2_em || relatorio.aprovado_tripulante_em ||
+    ["aprovado", "reprovado"].includes(String(relatorio.status_aprovacao_tripulante || "").toLowerCase()) ||
+    ["aprovado", "reprovado"].includes(String(relatorio.status_aprovacao_tripulante_2 || "").toLowerCase())
+  ));
 
   if (aba === "lista")
     return (
@@ -909,7 +900,7 @@ export default function RelatorioDespesaViagem({
             <Button
               type="button"
               onClick={() => void finalizar()}
-              disabled={salvando || bloqueado}
+              disabled={salvando || bloqueado || !["rascunho", "ajuste_necessario"].includes(relatorio.status)}
               className="gap-2"
             >
               <CheckCircle2 size={15} /> Finalizar relatório
@@ -970,18 +961,20 @@ export default function RelatorioDespesaViagem({
             </div>
           </Campo>
           <Campo label="Número do voo">
-            <SearchableCombobox
-              items={opcoes.voos.map((item) => ({
-                id: item.numero_voo,
-                label: item.numero_voo,
-              }))}
-              value={form.numero_voo}
-              onChange={(valor) => setCampo("numero_voo", valor)}
-              placeholder="Busque pelo número do voo..."
-              searchPlaceholder="Buscar voo..."
-              allowFreeText
-              disabled={bloqueado}
-            />
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchableCombobox
+                  items={voosDisponiveis.map((item) => ({ id: item.numero_voo, label: item.numero_voo }))}
+                  value={form.numero_voo}
+                  onChange={(valor) => setCampo("numero_voo", valor)}
+                  placeholder="Busque por um voo válido..."
+                  searchPlaceholder="Buscar voo..."
+                  disabled={bloqueado}
+                />
+              </div>
+              {form.numero_voo && <Button type="button" variant="outline" size="icon" onClick={limparVoo} disabled={bloqueado} aria-label="Limpar voo" title="Limpar voo"><X size={15} /></Button>}
+            </div>
+            {form.cliente_id || form.socio_id || form.aeronave_id ? <p className="mt-1 text-xs text-muted-foreground">A lista mostra somente voos compatíveis com o cotista e a aeronave selecionados.</p> : null}
           </Campo>
           <Campo label="Cotista">
             <SearchableCombobox
@@ -992,6 +985,7 @@ export default function RelatorioDespesaViagem({
                 const socio = tipo === "socio" ? opcoes.socios.find((item) => item.id === id) : null;
                 setForm((atual) => ({
                   ...atual,
+                  numero_voo: "",
                   cliente_id: socio?.holding_id || (tipo === "cliente" ? id : ""),
                   socio_id: socio ? id : "",
                 }));

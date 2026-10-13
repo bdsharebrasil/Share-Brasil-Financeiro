@@ -459,7 +459,7 @@ function PeriodoAgendamento({ inicio, fim, aoAlterarInicio, aoAlterarFim }: { in
     aoAbrir(false);
   };
 
-  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Período do voo</Label><div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover open={aberto} onOpenChange={aoAbrir}><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent align="end" sideOffset={8} collisionPadding={12} className="z-[70] w-[min(20rem,calc(100vw-1.5rem))] max-h-[min(24rem,calc(100dvh-1.5rem))] overflow-y-auto p-3"><p className="mb-2 text-center text-xs font-semibold text-foreground">{aguardandoFim ? "Selecione a data de fim" : "Selecione a data de início"}</p><DayPicker locale={ptBR} mode="range" month={mesVisivel} onMonthChange={setMesVisivel} selected={aguardandoFim && inicioTemporario ? { from: inicioTemporario } : undefined} onSelect={selecionarIntervalo} showOutsideDays className="mx-auto" classNames={{ months: "flex justify-center", month: "space-y-3", caption: "relative flex items-center justify-center pt-1", caption_label: "text-xs font-semibold", nav: "flex items-center justify-between", nav_button: "h-7 w-7 rounded-md border border-border bg-background p-1 text-foreground hover:bg-accent", nav_button_previous: "absolute left-0", nav_button_next: "absolute right-0", table: "w-full border-collapse", head_row: "flex", head_cell: "w-9 rounded-md text-[0.65rem] font-normal text-muted-foreground", row: "mt-1 flex w-full", cell: "relative h-9 w-9 p-0 text-center text-xs focus-within:relative focus-within:z-20", day: "h-9 w-9 rounded-md p-0 text-xs font-normal text-foreground hover:bg-accent", day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground", day_range_start: "rounded-l-md bg-primary text-primary-foreground", day_range_end: "rounded-r-md bg-primary text-primary-foreground", day_range_middle: "rounded-none bg-primary/15 text-foreground", day_today: "border border-primary/50", day_outside: "text-muted-foreground opacity-40", day_disabled: "text-muted-foreground opacity-30", day_hidden: "invisible" }} /></PopoverContent></Popover></div></div>;
+  return <div className="space-y-1.5 sm:col-span-2"><Label className="text-xs">Período do voo</Label><div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"><Input aria-label="Data de início do voo" type="date" value={inicio} onChange={(event) => aoAlterarInicio(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><span className="text-[10px] text-muted-foreground">até</span><Input aria-label="Data de fim do voo" type="date" value={fim} min={inicio} onChange={(event) => aoAlterarFim(event.target.value)} required className="h-10 min-w-0 flex-1 text-xs" /><Popover open={aberto} onOpenChange={aoAbrir}><PopoverTrigger asChild><Button type="button" variant="outline" className="h-10 w-10 shrink-0 border-border px-0" aria-label="Abrir calendário do período"><CalendarIcon size={15} /></Button></PopoverTrigger><PopoverContent align="end" sideOffset={8} collisionPadding={12} className="z-[70] w-[min(20rem,calc(100vw-1.5rem))] max-h-[min(24rem,calc(100dvh-1.5rem))] overflow-y-auto p-3"><p className="mb-2 text-center text-xs font-semibold text-foreground">{aguardandoFim ? "Selecione a data de fim" : "Selecione a data de início"}</p><DayPicker locale={ptBR} mode="range" month={mesVisivel} onMonthChange={setMesVisivel} selected={aguardandoFim && inicioTemporario ? { from: inicioTemporario } : undefined} onSelect={selecionarIntervalo} showOutsideDays className="mx-auto" classNames={{ months: "flex justify-center", month: "space-y-3", caption: "relative flex items-center justify-center pt-1", caption_label: "text-xs font-semibold", nav: "flex items-center justify-between", nav_button: "h-7 w-7 rounded-md border border-border bg-background p-1 text-foreground hover:bg-accent", nav_button_previous: "absolute left-0", nav_button_next: "absolute right-0", table: "w-full border-collapse", head_row: "flex", head_cell: "w-9 rounded-md text-[0.65rem] font-normal text-muted-foreground", row: "mt-1 flex w-full", cell: "relative h-9 w-9 p-0 text-center text-xs focus-within:relative focus-within:z-20", day: "h-9 w-9 rounded-md p-0 text-xs font-normal text-foreground hover:bg-accent", day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground", day_range_start: "rounded-l-md bg-primary text-primary-foreground", day_range_end: "rounded-r-md bg-primary text-primary-foreground", day_range_middle: "rounded-none bg-primary/15 text-foreground", day_today: "border border-primary/50", day_outside: "text-muted-foreground opacity-40", day_disabled: "text-muted-foreground opacity-30", day_hidden: "invisible" }} /></PopoverContent></Popover></div></div>;
 }
 
 function DataAgendamento({ valor, aoAlterar }: { valor: string; aoAlterar: (valor: string) => void }) {
@@ -669,6 +669,7 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
   const aeronaveDoTitular = Boolean(edicao.aeronave_id && opcoes.vinculos.some((vinculo) =>
     vinculo.aeronave_id === edicao.aeronave_id && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
   ));
+  
   const cedentes = (() => {
     const ids = new Set<string>();
     return opcoes.vinculos.filter((vinculo) => vinculo.aeronave_id === edicao.aeronave_id).flatMap((vinculo) => {
@@ -692,24 +693,29 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
       return itens;
     });
   })();
+  
   const aeronaves = opcoes.aeronaves.map((aeronave) => ({
     id: aeronave.id,
     label: `${aeronave.matricula_registro} · ${[aeronave.fabricante, aeronave.modelo].filter(Boolean).join(" ")}`,
   }));
+  
   const editarAeronave = (aeronaveId: string) => {
     const vinculadaAoTitular = opcoes.vinculos.some((vinculo) =>
       vinculo.aeronave_id === aeronaveId && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
     );
     setEdicao((atual) => ({ ...atual, aeronave_id: aeronaveId, emprestimo: !vinculadaAoTitular, cliente_emprestimo_id: "", socio_emprestimo_id: "" }));
   };
+  
   const editarCedente = (valor: string) => {
     const [tipo, id] = valor.split(":");
     setEdicao((atual) => ({ ...atual, cliente_emprestimo_id: tipo === "cliente" ? id : "", socio_emprestimo_id: tipo === "socio" ? id : "" }));
   };
+  
   const cedenteSelecionado = edicao.cliente_emprestimo_id ? `cliente:${edicao.cliente_emprestimo_id}` : edicao.socio_emprestimo_id ? `socio:${edicao.socio_emprestimo_id}` : "";
   const horarioFormatado = formatarHorarioAgendamento(edicao.horario ? horarioUtc(edicao.data_agendada, edicao.horario) || null : null);
   const emprestimoValido = !edicao.emprestimo || Boolean(cedenteSelecionado);
   const formularioValido = Boolean(edicao.aeronave_id && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_agendada) && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_fim) && edicao.data_fim >= edicao.data_agendada && Number.isInteger(edicao.numero_passageiros) && edicao.numero_passageiros >= 1 && emprestimoValido && (aeronaveDoTitular || edicao.emprestimo));
+  
   const confirmar = () => aoAprovar({
     aeronave_id: edicao.aeronave_id,
     data_agendada: edicao.data_agendada,
@@ -719,47 +725,153 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
     cliente_emprestimo_id: edicao.emprestimo ? edicao.cliente_emprestimo_id || null : null,
     socio_emprestimo_id: edicao.emprestimo ? edicao.socio_emprestimo_id || null : null,
   });
+  
   const horarioAtual = formatarHorarioAgendamento(selecionada.horario_previsto_agendamento);
   const emprestimoAtual = selecionada.voo_emprestado === "sim" ? `Sim · ${selecionada.cliente_emprestimo_nome || selecionada.socio_emprestimo_nome || "Cedente não informado"}` : "Não";
 
-  return <section id="detalhes-solicitacao" className="overflow-visible rounded-xl border border-primary/25 bg-card">
-    <CabecalhoSecao icon={<ClipboardList size={15} />} title="Detalhes da solicitação" detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} action={<button type="button" onClick={aoFechar} aria-label="Fechar detalhes" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} />
-    <div className="grid gap-5 p-5 lg:grid-cols-[1fr_.9fr]">
-      <div className="grid grid-cols-2 gap-3 text-[10px] sm:grid-cols-4">
-        <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
-        <Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} />
-        <Detalhe label="Horário / UTC" valor={`Brasília ${horarioAtual.brasilia} · UTC ${horarioAtual.utc}`} />
-        <Detalhe label="Período" valor={`${formatarData(selecionada.data_agendada)}${selecionada.data_fim && selecionada.data_fim !== selecionada.data_agendada ? ` até ${formatarData(selecionada.data_fim)}` : ""}`} />
-        <Detalhe label="Passageiros" valor={String(selecionada.numero_passageiros || 1)} />
-        <Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} />
-        <Detalhe label="Status" valor={statusLabel(selecionada.status)} />
-        <Detalhe label="Empréstimo" valor={emprestimoAtual} />
+  return (
+    <section id="detalhes-solicitacao" className="overflow-visible rounded-xl border border-primary/25 bg-card">
+      <CabecalhoSecao 
+        icon={<ClipboardList size={15} />} 
+        title="Detalhes da solicitação" 
+        detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} 
+        action={<button type="button" onClick={aoFechar} aria-label="Fechar detalhes" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} 
+      />
+      <div className="p-4 sm:p-5">
+        {selecionada.status === "pendente" ? (
+          // === VISÃO UNIFICADA DE CONFIRMAÇÃO ===
+          <div className="space-y-6">
+            {/* Informações fixas não editáveis nesta etapa */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
+              <Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} />
+              <Detalhe label="Status da solicitação" valor={statusLabel(selecionada.status)} />
+              <Detalhe label="Rota" valor={`${selecionada.origem} → ${selecionada.destino}`} />
+            </div>
+
+            {/* Formulário de edição/confirmação */}
+            <div className="rounded-xl border border-border bg-secondary/15 p-5">
+              <div className="mb-5">
+                <p className="text-sm font-bold text-foreground">Confirmar dados operacionais</p>
+                <p className="mt-1 text-xs text-muted-foreground">Revise ou altere os dados do voo antes de aprovar. As mudanças serão salvas ao confirmar.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">Aeronave</Label>
+                  <SearchableCombobox items={aeronaves} value={edicao.aeronave_id} onChange={editarAeronave} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave cadastrada." icon={<Plane size={14} />} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="emprestimo-agendamento" className="text-xs">Empréstimo da aeronave</Label>
+                  <select id="emprestimo-agendamento" value={edicao.emprestimo ? "sim" : "nao"} onChange={(event) => setEdicao((atual) => ({ ...atual, emprestimo: event.target.value === "sim", cliente_emprestimo_id: "", socio_emprestimo_id: "" }))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-xs">
+                    <option value="nao" disabled={!aeronaveDoTitular}>Não emprestada</option>
+                    <option value="sim">Emprestada</option>
+                  </select>
+                </div>
+
+                {edicao.emprestimo && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Cedente</Label>
+                    <SearchableCombobox items={cedentes} value={cedenteSelecionado} onChange={editarCedente} placeholder="Selecione quem empresta" searchPlaceholder="Buscar cliente ou sócio" emptyMessage="Nenhum cotista vinculado a esta aeronave." icon={<Users size={14} />} />
+                  </div>
+                )}
+
+                <PeriodoAgendamento inicio={edicao.data_agendada} fim={edicao.data_fim} aoAlterarInicio={(valor) => setEdicao((atual) => ({ ...atual, data_agendada: valor }))} aoAlterarFim={(valor) => setEdicao((atual) => ({ ...atual, data_fim: valor }))} />
+
+                <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+                  <Label htmlFor="horario-confirmacao" className="text-xs">Horário Previsto (UTC)</Label>
+                  <div className="flex items-center gap-3 rounded-md border border-input bg-background px-3">
+                    <Input id="horario-confirmacao" type="time" value={edicao.horario} onChange={(event) => setEdicao((atual) => ({ ...atual, horario: event.target.value }))} className="h-10 w-auto border-none bg-transparent p-0 text-xs shadow-none focus-visible:ring-0" />
+                    <span className="border-l border-border pl-3 text-[10px] font-medium text-muted-foreground">
+                      Brasília {horarioFormatado.brasilia}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="passageiros-confirmacao" className="text-xs">Passageiros</Label>
+                  <Input id="passageiros-confirmacao" type="number" min={1} step={1} value={edicao.numero_passageiros} onChange={(event) => setEdicao((atual) => ({ ...atual, numero_passageiros: Number(event.target.value) }))} className="h-10 text-xs" />
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-4 border-t border-border/60 pt-5">
+                <p className="text-xs font-bold text-foreground">Definição da Tripulação</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">PIC (Piloto em comando)</Label>
+                    <SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={pilotoId} onChange={aoPiloto} placeholder="Selecione o comandante" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">SIC (Segundo em comando) <span className="font-normal text-muted-foreground">(Opcional)</span></Label>
+                    <SearchableCombobox items={tripulacao.filter((item) => item.id !== pilotoId).map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={copilotoId} onChange={aoCopiloto} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} />
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5 pt-2">
+                  <Label htmlFor="motivo-reprovacao" className="text-xs">Motivo (apenas se for reprovar)</Label>
+                  <Textarea id="motivo-reprovacao" value={motivo} onChange={(event) => aoMotivo(event.target.value)} placeholder="Justificativa para rejeição..." className="min-h-16 text-xs" />
+                </div>
+
+                <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:justify-end">
+                  <Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="w-full gap-2 border-red-500/40 text-red-500 hover:bg-red-500/10 sm:w-auto">
+                    <X size={14} /> Reprovar Solicitação
+                  </Button>
+                  <Button type="button" onClick={confirmar} disabled={processando || !pilotoId || !formularioValido} className="w-full gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5] sm:w-auto">
+                    <Check size={14} /> {processando ? "Salvando..." : "Salvar e Aprovar Voo"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // === VISÃO DE LEITURA (APROVADO / ENCERRADO) ===
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
+              <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
+              <Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} />
+              <Detalhe label="Horário / UTC" valor={`Brasília ${horarioAtual.brasilia} · UTC ${horarioAtual.utc}`} />
+              <Detalhe label="Período" valor={`${formatarData(selecionada.data_agendada)}${selecionada.data_fim && selecionada.data_fim !== selecionada.data_agendada ? ` até ${formatarData(selecionada.data_fim)}` : ""}`} />
+              <Detalhe label="Passageiros" valor={String(selecionada.numero_passageiros || 1)} />
+              <Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} />
+              <Detalhe label="Status" valor={statusLabel(selecionada.status)} />
+              <Detalhe label="Empréstimo" valor={emprestimoAtual} />
+            </div>
+            
+            <div className="rounded-xl border border-border bg-secondary/15 p-5">
+              <p className="text-sm font-bold text-foreground">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação processada"}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>
+              
+              {selecionada.status === "aprovada" && (
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p>
+                    <textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-3 min-h-24 w-full resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
+                  </div>
+                  <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-sky-500">Mensagem para o tripulante</p>
+                    <textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-3 min-h-24 w-full resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      {selecionada.status === "pendente" ? <div className="rounded-xl border border-border bg-secondary/20 p-4">
-        <p className="text-[11px] font-bold">Confirmar solicitação</p>
-        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Revise ou altere os dados do voo antes de confirmar. As mudanças serão gravadas junto com a aprovação.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2"><Label className="text-[10px]">Aeronave</Label><SearchableCombobox items={aeronaves} value={edicao.aeronave_id} onChange={editarAeronave} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave cadastrada." icon={<Plane size={14} />} /></div>
-          <div className="space-y-1.5"><Label htmlFor="emprestimo-agendamento" className="text-[10px]">Empréstimo da aeronave</Label><select id="emprestimo-agendamento" value={edicao.emprestimo ? "sim" : "nao"} onChange={(event) => setEdicao((atual) => ({ ...atual, emprestimo: event.target.value === "sim", cliente_emprestimo_id: "", socio_emprestimo_id: "" }))} className="h-10 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="nao" disabled={!aeronaveDoTitular}>Não emprestada</option><option value="sim">Emprestada</option></select></div>
-          {edicao.emprestimo && <div className="space-y-1.5"><Label className="text-[10px]">Cedente</Label><SearchableCombobox items={cedentes} value={cedenteSelecionado} onChange={editarCedente} placeholder="Selecione quem empresta" searchPlaceholder="Buscar cliente ou sócio" emptyMessage="Nenhum cotista vinculado a esta aeronave." icon={<Users size={14} />} /></div>}
-          <PeriodoAgendamento inicio={edicao.data_agendada} fim={edicao.data_fim} aoAlterarInicio={(valor) => setEdicao((atual) => ({ ...atual, data_agendada: valor }))} aoAlterarFim={(valor) => setEdicao((atual) => ({ ...atual, data_fim: valor }))} />
-          <div className="rounded-lg border border-border/70 bg-background/25 p-3 sm:col-span-2"><Label htmlFor="horario-confirmacao" className="text-[10px]">Horário e Horário UTC</Label><div className="mt-1.5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><Input id="horario-confirmacao" type="time" value={edicao.horario} onChange={(event) => setEdicao((atual) => ({ ...atual, horario: event.target.value }))} className="h-10 text-xs" /><p className="text-[10px] font-semibold text-foreground">Brasília {horarioFormatado.brasilia} · UTC {horarioFormatado.utc}</p></div></div>
-          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="passageiros-confirmacao" className="text-[10px]">Passageiros</Label><Input id="passageiros-confirmacao" type="number" min={1} step={1} value={edicao.numero_passageiros} onChange={(event) => setEdicao((atual) => ({ ...atual, numero_passageiros: Number(event.target.value) }))} className="h-10 text-xs" /></div>
-        </div>
-        {edicao.emprestimo && !cedentes.length && <p className="mt-2 text-[10px] text-amber-300">Não há cedentes vinculados à aeronave selecionada.</p>}
-        <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
-          <p className="text-[10px] font-bold">Tripulação</p>
-          <div className="space-y-1.5"><Label className="text-[10px]">PIC (piloto em comando)</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={pilotoId} onChange={aoPiloto} placeholder="Selecione o comandante" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
-          <div className="space-y-1.5"><Label className="text-[10px]">SIC (segundo em comando) <span className="text-muted-foreground">(opcional)</span></Label><SearchableCombobox items={tripulacao.filter((item) => item.id !== pilotoId).map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={copilotoId} onChange={aoCopiloto} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
-          <div className="space-y-1.5"><Label htmlFor="motivo-reprovacao" className="text-[10px]">Motivo da reprovação</Label><Textarea id="motivo-reprovacao" value={motivo} onChange={(event) => aoMotivo(event.target.value)} placeholder="Preencha apenas se for reprovar" className="min-h-16 text-[11px]" /></div>
-          <div className="flex flex-wrap gap-2 pt-1"><Button type="button" onClick={confirmar} disabled={processando || !pilotoId || !formularioValido} className="gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5]"><Check size={14} /> {processando ? "Confirmando..." : "Aprovar e gerar voo"}</Button><Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="gap-2 border-[#e77b80]/40 bg-transparent text-[#ed8c90] hover:bg-[#e77b80]/10"><X size={14} /> Reprovar</Button></div>
-        </div>
-      </div> : <div className="rounded-xl border border-border bg-secondary/20 p-4"><p className="text-[11px] font-bold">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação aprovada"}</p><p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>{selecionada.status === "aprovada" && <div className="mt-4 grid gap-3"><div className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p><textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div><div className="rounded-lg border border-sky-300/20 bg-sky-300/5 p-3"><p className="text-[9px] font-bold uppercase tracking-wide text-sky-300">Mensagem para o tripulante</p><textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-2 min-h-20 w-full resize-none rounded-md border border-border bg-background p-2 text-[10px] leading-relaxed" /></div></div>}</div>}
-    </div>
-    {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
-  </section>;
+      {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
+    </section>
+  );
 }
-function Detalhe({ label, valor }: { label: string; valor: string }) { return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><p className="text-[9px] text-muted-foreground">{label}</p><p className="mt-1.5 truncate text-[10px] font-semibold">{valor}</p></div>; }
+
+// O componente Detalhe ajustado para um visual mais limpo dentro do Grid
+function Detalhe({ label, valor }: { label: string; valor: string }) { 
+  return (
+    <div className="flex flex-col justify-center rounded-lg border border-border/70 bg-secondary/25 p-3">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xs font-semibold text-foreground line-clamp-2">{valor}</p>
+    </div>
+  ); 
+}
 
 type DadosDisponibilidade = { tripulante_id: string; data_inicio: string; data_fim: string; status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel"; observacoes: string };
 function FormularioDisponibilidade({ dados, tripulacao, atualizando, aoCancelar, aoEnviar, aoAlterar }: { dados: DadosDisponibilidade; tripulacao: TripulanteAgendamento[]; atualizando: boolean; aoCancelar: () => void; aoEnviar: (event: FormEvent<HTMLFormElement>) => void; aoAlterar: (campo: keyof DadosDisponibilidade, valor: string) => void }) { return <section className="overflow-visible rounded-xl border border-primary/25 bg-card"><CabecalhoSecao icon={<Users size={15} />} title="Criar escala" detail="Selecione o tripulante, período e status da escala" action={<button type="button" onClick={aoCancelar} aria-label="Fechar formulário de disponibilidade" className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={16} /></button>} /><form onSubmit={aoEnviar} className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4"><div className="space-y-1.5 xl:col-span-2"><Label className="text-[10px]">Tripulante</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={dados.tripulante_id} onChange={(valor) => aoAlterar("tripulante_id", valor)} placeholder="Selecione o piloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div><div className="space-y-1.5"><Label htmlFor="status-disponibilidade" className="text-[10px]">Status</Label><select id="status-disponibilidade" value={dados.status} onChange={(event) => aoAlterar("status", event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="aviso">Sob aviso</option><option value="ferias">Férias</option><option value="folga">Folga</option><option value="atestado_medico">Atestado médico</option><option value="treinamento">Treinamento</option><option value="acompanhando_manutencao">Acompanhando manutenção</option><option value="disponivel">Disponível</option></select></div><DataAgendamento valor={dados.data_inicio} aoAlterar={(valor) => aoAlterar("data_inicio", valor)} /><DataAgendamento valor={dados.data_fim} aoAlterar={(valor) => aoAlterar("data_fim", valor)} /><div className="space-y-1.5 sm:col-span-2 xl:col-span-4"><Label htmlFor="observacoes-disponibilidade" className="text-[10px]">Observações</Label><Textarea id="observacoes-disponibilidade" value={dados.observacoes} onChange={(event) => aoAlterar("observacoes", event.target.value)} placeholder="Observações da coordenação" className="min-h-16 text-xs" /></div><div className="flex justify-end gap-2 sm:col-span-2 xl:col-span-4"><Button type="button" variant="outline" onClick={aoCancelar} className="text-xs">Cancelar</Button><Button type="submit" disabled={atualizando} className="text-xs">{atualizando ? "Salvando..." : "Salvar status"}</Button></div></form></section>; }

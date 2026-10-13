@@ -127,6 +127,13 @@ function dataBr(data?: string | null) {
   const [ano, mes, dia] = data.slice(0, 10).split("-");
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : data;
 }
+function dataAgendadaBr(data?: string | null) {
+  if (!data) return "";
+  const [ano, mes, dia] = data.slice(0, 10).split("-");
+  return /^\d{4}$/.test(ano || "") && /^\d{2}$/.test(mes || "") && /^\d{2}$/.test(dia || "")
+    ? `${dia}/${mes}/${ano.slice(-2)}`
+    : "";
+}
 function dataHoraBr(data?: string | null) {
   if (!data) return "—";
   const [dataParte, horaParte] = data.trim().replace("T", " ").split(" ");
@@ -997,7 +1004,11 @@ export default function RelatorioDespesaViagem({
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
                 <SearchableCombobox
-                  items={voosDisponiveis.map((item) => ({ id: item.numero_voo, label: `${item.numero_voo}${item.origem && item.destino ? ` ${item.origem} x ${item.destino}` : ""}` }))}
+                  items={voosDisponiveis.map((item) => {
+                    const trecho = item.origem && item.destino ? `${item.origem} x ${item.destino}` : "";
+                    const dataAgendada = dataAgendadaBr(item.data_agendada);
+                    return { id: item.numero_voo, label: [item.numero_voo, trecho, dataAgendada].filter(Boolean).join(" ") };
+                  })}
                   value={form.numero_voo}
                   onChange={(valor) => setCampo("numero_voo", valor)}
                   placeholder="Busque por um voo válido..."

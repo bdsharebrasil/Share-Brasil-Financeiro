@@ -354,8 +354,25 @@ export default function AprovacaoRelatorioViagem() {
     totalOutros,
   } = useCalculadoraRelatorio(despesas, data?.resumo, posicao);
 
+  const totalSelecionado = {
+    total: totalGeral,
+    tripulante: totalTripulante,
+    cliente: totalCliente,
+    sharebrasil: totalShare,
+    outros: totalOutros,
+  }[filtroDespesas];
+  const tituloTotalSelecionado = {
+    total: "Total da viagem",
+    tripulante: "Seu total",
+    cliente: "Total do cliente",
+    sharebrasil: "Total Share Brasil",
+    outros: "Total de outras despesas",
+  }[filtroDespesas];
+
   const despesasFiltradas = useMemo(() => {
     switch (filtroDespesas) {
+      case "total":
+        return despesas;
       case "cliente":
         return despesasCliente;
       case "sharebrasil":
@@ -368,6 +385,7 @@ export default function AprovacaoRelatorioViagem() {
     }
   }, [
     despesasCliente,
+    despesas,
     despesasOutras,
     despesasShare,
     despesasTripulante,
@@ -376,6 +394,13 @@ export default function AprovacaoRelatorioViagem() {
 
   const filtroInfo = useMemo(() => {
     switch (filtroDespesas) {
+      case "total":
+        return {
+          titulo: "Todas as despesas da viagem",
+          subtitulo: `Total de todas as despesas: ${moeda(totalGeral)}`,
+          vazio: "Nenhuma despesa neste relatório.",
+          icon: <Plane size={18} />,
+        };
       case "cliente":
         return {
           titulo: "Despesas pagas pelo cliente",
@@ -406,7 +431,7 @@ export default function AprovacaoRelatorioViagem() {
           icon: <UserRound size={18} />,
         };
     }
-  }, [filtroDespesas, totalCliente, totalOutros, totalShare, totalTripulante]);
+  }, [filtroDespesas, totalCliente, totalGeral, totalOutros, totalShare, totalTripulante]);
 
   const filtrosDisponiveis = useMemo<FiltroDespesas[]>(() => {
     const disponiveis: FiltroDespesas[] = [];
@@ -796,10 +821,10 @@ export default function AprovacaoRelatorioViagem() {
 
                 <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3 sm:min-w-[160px] sm:text-right">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-200/70">
-                    Seu total
+                    {tituloTotalSelecionado}
                   </p>
                   <p className="mt-1 text-xl font-black text-emerald-100">
-                    {moeda(totalTripulante)}
+                    {moeda(totalSelecionado)}
                   </p>
                 </div>
               </div>
@@ -857,14 +882,26 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
-              <div className="bg-[#0b111c] p-4">
+              <button
+                type="button"
+                onClick={() => selecionarFiltro("total")}
+                aria-pressed={filtroDespesas === "total"}
+                className={`text-left p-4 transition hover:bg-white/[0.045] ${
+                  filtroDespesas === "total"
+                    ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
+                    : "bg-[#0b111c]"
+                }`}
+              >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Total da viagem
                 </p>
                 <p className="mt-1 text-base font-black text-white">
                   {moeda(totalGeral)}
                 </p>
-              </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                  {despesas.length} despesa(s)
+                </p>
+              </button>
 
               <button
                 type="button"

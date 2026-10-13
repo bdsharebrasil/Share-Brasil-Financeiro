@@ -24,7 +24,7 @@ export type ResumoRelatorio = {
   share_brasil_pagou?: number | string;
 };
 
-export type FiltroDespesas = "tripulante" | "cliente" | "sharebrasil" | "outros";
+export type FiltroDespesas = "total" | "tripulante" | "cliente" | "sharebrasil" | "outros";
 
 export function normalizarPagador(valor: unknown): Pagador {
   const normalizado = String(valor || "")

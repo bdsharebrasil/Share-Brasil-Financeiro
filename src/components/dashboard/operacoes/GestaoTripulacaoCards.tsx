@@ -301,8 +301,8 @@ export function CrewProfile({
     setRhFactor(match?.[2] || "");
   }, [fsRhValue]);
 
-  const saveFsRh = async () => {
-    if (!bloodGroup || !rhFactor) {
+  const saveProfile = async () => {
+    if (Boolean(bloodGroup) !== Boolean(rhFactor)) {
       setError("Selecione o tipo sanguíneo e o fator Rh.");
       setOk(null);
       return;
@@ -311,22 +311,8 @@ export function CrewProfile({
     setError(null);
     setOk(null);
     try {
-      await atualizarFsRhTripulante(crew.id, `${bloodGroup}${rhFactor}`);
-      setOk("Fator sanguíneo atualizado.");
-      onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível atualizar o fator sanguíneo.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveProfile = async () => {
-    setSaving(true);
-    setError(null);
-    setOk(null);
-    try {
       await atualizarTripulante(crew.id, edit);
+      await atualizarFsRhTripulante(crew.id, bloodGroup && rhFactor ? `${bloodGroup}${rhFactor}` : null);
       setOk("Perfil atualizado.");
       setEditing(false);
       onChanged();
@@ -454,21 +440,7 @@ export function CrewProfile({
               label="Status"
               value={isActive(crew.status) ? "Ativo" : crew.status || "Inativo"}
             />
-          </div>
-
-          <div className="mt-5 rounded-xl border border-border/60 bg-background/40 p-4">
-            <p className="text-xs font-extrabold">Fator sanguíneo (FS/RH)</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tipo</span>
-                <SearchableCombobox items={gruposSanguineos} value={bloodGroup} onChange={setBloodGroup} placeholder="Selecione o tipo" searchPlaceholder="Buscar tipo..." className={field} />
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Fator Rh</span>
-                <SearchableCombobox items={fatoresRh} value={rhFactor} onChange={setRhFactor} placeholder="Selecione o fator Rh" searchPlaceholder="Buscar fator..." className={field} />
-              </label>
-            </div>
-            <Button type="button" onClick={() => void saveFsRh()} disabled={saving} className="mt-3 h-9 text-xs">{saving ? "Salvando..." : "Salvar FS/RH"}</Button>
+            <InfoField icon={<ShieldCheck size={14} />} label="Fator sanguíneo (FS/RH)" value={fsRhValue} />
           </div>
 
           {editing && (
@@ -505,6 +477,14 @@ export function CrewProfile({
                   <option value="ativo">Ativo</option>
                   <option value="inativo">Inativo</option>
                 </select>
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tipo sanguíneo</span>
+                  <SearchableCombobox items={gruposSanguineos} value={bloodGroup} onChange={setBloodGroup} placeholder="Selecione o tipo" searchPlaceholder="Buscar tipo..." className={field} />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Fator Rh</span>
+                  <SearchableCombobox items={fatoresRh} value={rhFactor} onChange={setRhFactor} placeholder="Selecione o fator Rh" searchPlaceholder="Buscar fator..." className={field} />
+                </label>
               </div>
               <Button
                 type="button"

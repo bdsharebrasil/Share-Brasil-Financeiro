@@ -713,7 +713,7 @@ export default function AprovacaoRelatorioViagem() {
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
-              src="/logo.share.png"
+              src="/logoshare.branco.png"
               alt="Share Brasil"
               className="mx-auto mb-6 h-12 w-auto object-contain"
             />
@@ -762,7 +762,7 @@ export default function AprovacaoRelatorioViagem() {
           <header className="mb-4 flex items-center gap-3 sm:mb-6">
             <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] sm:size-14">
               <img
-                src="/logo.share.png"
+                src="/logoshare.branco.png"
                 alt="Share Brasil"
                 className="max-h-8 w-auto object-contain sm:max-h-9"
               />

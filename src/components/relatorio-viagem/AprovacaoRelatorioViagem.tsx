@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  AlertCircle,
   Check,
   CheckCircle2,
   ExternalLink,
@@ -1001,25 +1000,6 @@ export default function AprovacaoRelatorioViagem() {
                   {filtroInfo.vazio}
                 </p>
               )}
-            </Cartao>
-
-            <Cartao className="border-sky-300/10 bg-sky-300/[0.035]">
-              <div className="flex items-start gap-3 px-4 py-4 sm:px-5">
-                <AlertCircle
-                  className="mt-0.5 shrink-0 text-sky-300"
-                  size={19}
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-extrabold text-white">
-                    Conferência final
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    Revise cada grupo disponível usando os cartões acima. A
-                    aprovação será liberada depois que todos os grupos forem
-                    revisados até o final.
-                  </p>
-                </div>
-              </div>
             </Cartao>
 
             {decisaoRegistrada ? (

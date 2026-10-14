@@ -115,12 +115,21 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
   const carregar = async () => {
     const atual = await buscarJornadaVoo(item.id);
     setErro("");
-    setJornada(atual);
-    if (atual) {
-      setData(atual.data || item.data_agendada || hoje());
-      setAcionamento(hora(atual.horario_acionamento));
-      setApresentacao(hora(atual.horario_apresentacao));
-      const ultima = atual.pernas?.[atual.pernas.length - 1];
+    const jornadaNormalizada = atual ? {
+      ...atual,
+      pernas: Array.isArray(atual.pernas) ? atual.pernas : [],
+      historico: Array.isArray(atual.historico) ? atual.historico.map((registro) => ({
+        ...registro,
+        pernas: Array.isArray(registro.pernas) ? registro.pernas : [],
+      })) : [],
+      tripulantes: Array.isArray(atual.tripulantes) ? atual.tripulantes : [],
+    } : null;
+    setJornada(jornadaNormalizada);
+    if (jornadaNormalizada) {
+      setData(jornadaNormalizada.data || item.data_agendada || hoje());
+      setAcionamento(hora(jornadaNormalizada.horario_acionamento));
+      setApresentacao(hora(jornadaNormalizada.horario_apresentacao));
+      const ultima = jornadaNormalizada.pernas[jornadaNormalizada.pernas.length - 1];
       if (ultima) setPerna({ origem: ultima.origem || "", destino: ultima.destino || "", numero_passageiros: String(ultima.numero_passageiros ?? 0), horario_ac: hora(ultima.horario_ac), horario_dep: hora(ultima.horario_dep), horario_pouso: hora(ultima.horario_pouso), horario_corte: hora(ultima.horario_corte) });
     }
   };

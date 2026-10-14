@@ -1,43 +1,73 @@
 import { useEffect, useMemo, useState } from "react";
-import { 
-  AlertCircle, Edit, LayoutGrid, List, Mail, MapPin, 
-  Phone, Plus, Search, Trash2, UserRound, Briefcase 
+import {
+  AlertCircle,
+  Briefcase,
+  Edit,
+  Eye,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Dialog, DialogContent, DialogDescription, 
-  DialogFooter, DialogHeader, DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  buscarContatosShare, criarContatoShare, excluirContatoShare, 
-  atualizarContatoShare, type ContatoAgenda 
+import {
+  atualizarContatoShare,
+  buscarContatosShare,
+  criarContatoShare,
+  excluirContatoShare,
+  type ContatoAgenda,
 } from "@/lib/colaborador-api";
 
 const field = "h-11 rounded-xl border-border bg-background shadow-sm text-sm transition-colors focus-visible:ring-1 focus-visible:ring-primary";
-const emptyForm = { nome: "", email: "", telefone: "", empresa: "", cargo: "", endereco: "", cidade: "", uf: "", categoria: "", observacoes: "" };
-type ViewMode = "cards" | "lista";
-type SortMode = "nome" | "cidade";
+const emptyForm = {
+  nome: "",
+  email: "",
+  telefone: "",
+  empresa: "",
+  cargo: "",
+  endereco: "",
+  cidade: "",
+  uf: "",
+  categoria: "",
+  observacoes: "",
+};
 
 function iniciais(nome: string) {
-  return nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase() || "").join("");
+  return nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() || "")
+    .join("");
 }
 
 export default function Contatos() {
   const [contatos, setContatos] = useState<ContatoAgenda[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
   const [busca, setBusca] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("nome");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<ContatoAgenda | null>(null);
+  const [selected, setSelected] = useState<ContatoAgenda | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContatoAgenda | null>(null);
   const { toast } = useToast();
 
@@ -55,15 +85,29 @@ export default function Contatos() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, []);
 
   function openForm(contato?: ContatoAgenda) {
     setEditing(contato || null);
-    setForm(contato ? {
-      nome: contato.nome || "", email: contato.email || "", telefone: contato.telefone || "", empresa: contato.empresa || "", cargo: contato.cargo || "",
-      endereco: contato.endereco || "", cidade: contato.cidade || "", uf: contato.uf || "", categoria: contato.categoria || "", observacoes: contato.observacoes || "",
-    } : { ...emptyForm });
-    setDialogOpen(true);
+    setForm(
+      contato
+        ? {
+            nome: contato.nome || "",
+            email: contato.email || "",
+            telefone: contato.telefone || "",
+            empresa: contato.empresa || "",
+            cargo: contato.cargo || "",
+            endereco: contato.endereco || "",
+            cidade: contato.cidade || "",
+            uf: contato.uf || "",
+            categoria: contato.categoria || "",
+            observacoes: contato.observacoes || "",
+          }
+        : { ...emptyForm },
+    );
+    setFormOpen(true);
   }
 
   async function save() {
@@ -75,8 +119,12 @@ export default function Contatos() {
       setSaving(true);
       if (editing) await atualizarContatoShare(editing.id, form);
       else await criarContatoShare(form);
-      toast({ title: editing ? "Contato atualizado" : "Contato cadastrado", description: "As informações foram salvas no D1." });
-      setDialogOpen(false);
+      toast({
+        title: editing ? "Contato atualizado" : "Contato cadastrado",
+        description: "As informações foram salvas no D1.",
+      });
+      setFormOpen(false);
+      setDetailOpen(false);
       await load();
     } catch (err) {
       toast({ title: "Erro ao salvar", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
@@ -91,6 +139,8 @@ export default function Contatos() {
       await excluirContatoShare(deleteTarget.id);
       toast({ title: "Contato excluído", description: `${deleteTarget.nome} foi removido da agenda.` });
       setDeleteTarget(null);
+      setDetailOpen(false);
+      setSelected(null);
       await load();
     } catch (err) {
       toast({ title: "Erro ao excluir", description: err instanceof Error ? err.message : "Tente novamente.", variant: "destructive" });
@@ -98,284 +148,239 @@ export default function Contatos() {
   }
 
   const filtered = useMemo(() => {
-    const term = busca.toLocaleLowerCase("pt-BR");
-    return contatos.filter((item) => 
-      [item.nome, item.email, item.telefone, item.empresa, item.cidade, item.categoria]
-        .some((value) => value?.toLocaleLowerCase("pt-BR").includes(term))
-    ).sort((a, b) => {
-      const first = sortMode === "cidade" ? (a.cidade || "") : a.nome;
-      const second = sortMode === "cidade" ? (b.cidade || "") : b.nome;
-      return first.localeCompare(second, "pt-BR");
-    });
-  }, [contatos, busca, sortMode]);
+    const term = busca.trim().toLocaleLowerCase("pt-BR");
+    return contatos
+      .filter((item) =>
+        [item.nome, item.email, item.telefone, item.empresa, item.cargo, item.cidade, item.categoria]
+          .some((value) => value?.toLocaleLowerCase("pt-BR").includes(term)),
+      )
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [contatos, busca]);
+
+  const detailRows = selected
+    ? [
+        { label: "Telefone", value: selected.telefone, icon: Phone },
+        { label: "E-mail", value: selected.email, icon: Mail },
+        { label: "Empresa", value: selected.empresa, icon: Briefcase },
+        { label: "Cargo", value: selected.cargo, icon: Briefcase },
+        { label: "Localização", value: [selected.cidade, selected.uf].filter(Boolean).join(" / ") || selected.endereco, icon: MapPin },
+      ].filter((item) => item.value)
+    : [];
 
   return (
-    <div className="route-enter space-y-6 pb-10">
-      {/* Cabeçalho */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="route-enter space-y-5 pb-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Share Brasil · Diretório</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl text-foreground">Contatos</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Sua agenda centralizada para organizar parceiros, clientes e empresas.
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Agenda de contatos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {contatos.length} {contatos.length === 1 ? "contato" : "contatos"} internos
           </p>
         </div>
-        <Button onClick={() => openForm()} className="h-10 gap-2 font-medium shadow-sm">
-          <Plus size={16} /> Novo contato
-        </Button>
-      </div>
-
-      {/* Barra de Ferramentas (Busca e Filtros) */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center p-1 bg-muted/20 rounded-2xl border border-border/50">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={16} />
-          <Input 
-            value={busca} 
-            onChange={(event) => setBusca(event.target.value)} 
-            placeholder="Buscar por nome, empresa, e-mail..." 
-            className="h-12 w-full rounded-xl border-none bg-transparent pl-11 text-sm shadow-none focus-visible:ring-0 focus-visible:bg-background/80" 
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 px-2">
-          <div className="h-6 w-px bg-border/60 hidden lg:block mr-2" />
-          <select 
-            value={sortMode} 
-            onChange={(event) => setSortMode(event.target.value as SortMode)} 
-            className="h-9 rounded-lg border-none bg-background/50 px-3 text-sm font-medium text-muted-foreground shadow-sm focus:ring-1 focus:ring-primary lg:w-48 cursor-pointer"
-          >
-            <option value="nome">Ordenar por nome</option>
-            <option value="cidade">Ordenar por cidade</option>
-          </select>
-
-          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/50 p-1 shadow-sm">
-            <button 
-              type="button" 
-              onClick={() => setViewMode("cards")} 
-              className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-all ${viewMode === "cards" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-muted/50"}`}
-            >
-              <LayoutGrid size={14} /> Cards
-            </button>
-            <button 
-              type="button" 
-              onClick={() => setViewMode("lista")} 
-              className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-all ${viewMode === "lista" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-muted/50"}`}
-            >
-              <List size={14} /> Lista
-            </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-60">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <Input
+              type="search"
+              value={busca}
+              onChange={(event) => setBusca(event.target.value)}
+              placeholder="Nome, setor, ramal..."
+              aria-label="Buscar contatos por nome, categoria ou dados de contato"
+              className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-foreground shadow-none placeholder:text-slate-500 focus-visible:ring-sky-500/50"
+            />
           </div>
+          <Button onClick={() => openForm()} className="h-10 gap-2">
+            <Plus size={16} /> Novo contato
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Estados: Erro, Carregamento ou Vazio */}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
-          <AlertCircle size={18} />
-          <span className="flex-1 font-medium">{error}</span>
-          <Button variant="outline" size="sm" onClick={() => void load()} className="bg-background">Tentar novamente</Button>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+          <AlertCircle size={18} aria-hidden="true" />
+          <span className="min-w-0 flex-1 font-medium">{error}</span>
+          <Button variant="outline" size="sm" onClick={() => void load()}>Tentar novamente</Button>
         </div>
       )}
-      
+
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary mb-4"></div>
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground" role="status">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
           <p className="text-sm font-medium">Carregando seus contatos...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl border-2 border-dashed border-border/60 bg-muted/10">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <UserRound size={30} strokeWidth={1.5} />
+            <UserRound size={30} strokeWidth={1.5} aria-hidden="true" />
           </div>
           <h2 className="text-lg font-bold text-foreground">{busca ? "Nenhum contato encontrado" : "Sua agenda está vazia"}</h2>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {busca ? "Tente buscar por um nome, empresa ou cidade diferente." : "Cadastre o primeiro contato para começar a organizar seu diretório."}
+            {busca ? "Ajuste os termos da busca e tente novamente." : "Cadastre o primeiro contato para começar a organizar sua agenda."}
           </p>
-          {!busca && (
-            <Button className="mt-6 gap-2 shadow-sm" onClick={() => openForm()}>
-              <Plus size={16} /> Cadastrar contato
-            </Button>
-          )}
-        </div>
-      ) : viewMode === "cards" ? (
-        
-        /* MODO CARDS */
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((contato) => (
-            <Card key={contato.id} className="group overflow-hidden rounded-2xl border-border/60 bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:border-primary/30">
-              <CardContent className="p-0">
-                {/* Cabeçalho do Card (Colorido) */}
-                <div className="relative flex items-end p-5 pb-0">
-                  <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-background/80 hover:bg-background shadow-sm text-muted-foreground" onClick={() => openForm(contato)}>
-                      <Edit size={13} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-background/80 hover:bg-red-500 hover:text-white shadow-sm text-red-500 transition-colors" onClick={() => setDeleteTarget(contato)}>
-                      <Trash2 size={13} />
-                    </Button>
-                  </div>
-                  
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-blue-500 text-lg font-bold text-white shadow-inner">
-                    {iniciais(contato.nome)}
-                  </div>
-                </div>
-
-                {/* Informações Principais */}
-                <div className="p-5 pt-4">
-                  <h2 className="truncate text-base font-bold text-foreground">{contato.nome}</h2>
-                  
-                  <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Briefcase size={12} className="opacity-70" />
-                    <span className="truncate">
-                      {[contato.cargo, contato.empresa].filter(Boolean).join(" na ") || "Contato profissional"}
-                    </span>
-                  </div>
-                  
-                  {contato.categoria && (
-                    <span className="mt-3 inline-block rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                      {contato.categoria}
-                    </span>
-                  )}
-                </div>
-
-                {/* Informações de Contato (Rodapé do Card) */}
-                <div className="space-y-2.5 bg-muted/30 p-5 text-[13px] text-muted-foreground">
-                  {contato.telefone && (
-                    <p className="flex items-center gap-2.5">
-                      <Phone size={14} className="text-primary/70" />
-                      <span className="font-medium text-foreground/80">{contato.telefone}</span>
-                    </p>
-                  )}
-                  {contato.email && (
-                    <p className="flex items-center gap-2.5 truncate">
-                      <Mail size={14} className="shrink-0 text-primary/70" />
-                      <span className="truncate">{contato.email}</span>
-                    </p>
-                  )}
-                  {(contato.cidade || contato.uf) && (
-                    <p className="flex items-center gap-2.5">
-                      <MapPin size={14} className="text-primary/70" />
-                      <span>{[contato.cidade, contato.uf].filter(Boolean).join(", ")}</span>
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {!busca && <Button className="mt-6 gap-2" onClick={() => openForm()}><Plus size={16} /> Cadastrar contato</Button>}
         </div>
       ) : (
-
-        /* MODO LISTA */
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-          <div className="divide-y divide-border/40">
-            {filtered.map((contato) => (
-              <div key={contato.id} className="flex flex-wrap items-center gap-4 p-4 transition-colors hover:bg-muted/20">
-                <div className="flex min-w-[250px] flex-1 items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-primary/20 to-blue-500/20 text-sm font-bold text-primary">
-                    {iniciais(contato.nome)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{contato.nome}</p>
-                    <p className="truncate text-xs font-medium text-muted-foreground">
-                      {[contato.cargo, contato.empresa].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="hidden min-w-[200px] flex-col text-sm md:flex">
-                  <span className="truncate font-medium text-foreground/80">{contato.email || "—"}</span>
-                  <span className="text-xs text-muted-foreground">{contato.telefone || "—"}</span>
-                </div>
-
-                <div className="hidden min-w-[150px] md:flex">
-                  {contato.cidade ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <MapPin size={12} className="text-primary/60" /> 
-                      {contato.cidade}
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((contato) => (
+            <li key={contato.id}>
+              <Card className="group h-full overflow-hidden rounded-2xl border-white/10 bg-[#071226] text-slate-100 shadow-sm transition-colors hover:border-sky-400/30">
+                <CardContent className="flex h-full flex-col p-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
+                      {iniciais(contato.nome)}
                     </span>
-                  ) : "—"}
-                </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate text-sm font-semibold text-white">{contato.nome}</h2>
+                      <p className="truncate text-xs text-slate-400">{contato.cargo || contato.empresa || "Contato profissional"}</p>
+                      {(contato.categoria || contato.empresa) && (
+                        <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
+                          {contato.categoria || contato.empresa}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Editar ${contato.nome}`} className="h-8 w-8 text-slate-400 hover:text-sky-200" onClick={() => openForm(contato)}>
+                        <Edit size={14} />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Excluir ${contato.nome}`} className="h-8 w-8 text-slate-400 hover:text-red-400" onClick={() => setDeleteTarget(contato)}>
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
 
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border/50 text-muted-foreground hover:bg-background" onClick={() => openForm(contato)}>
-                    <Edit size={13} />
+                  <dl className="mt-4 flex-1 space-y-2 border-t border-white/5 pt-3 text-xs text-slate-300">
+                    {contato.telefone && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                        <dt className="sr-only">Telefone</dt>
+                        <dd className="truncate">{contato.telefone}</dd>
+                      </div>
+                    )}
+                    {contato.email && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                        <dt className="sr-only">E-mail</dt>
+                        <dd className="min-w-0 truncate">{contato.email}</dd>
+                      </div>
+                    )}
+                    {(contato.cidade || contato.uf || contato.endereco) && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                        <dt className="sr-only">Localização</dt>
+                        <dd className="truncate">{[contato.cidade, contato.uf].filter(Boolean).join(" / ") || contato.endereco}</dd>
+                      </div>
+                    )}
+                    {!contato.telefone && !contato.email && !contato.cidade && !contato.uf && !contato.endereco && (
+                      <div className="text-slate-500">Sem dados adicionais de contato</div>
+                    )}
+                  </dl>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setSelected(contato); setDetailOpen(true); }}
+                    className="mt-4 h-9 w-full gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100"
+                  >
+                    <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Ver
                   </Button>
-                  <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-red-200 text-red-500 hover:bg-red-500 hover:text-white dark:border-red-900/30" onClick={() => setDeleteTarget(contato)}>
-                    <Trash2 size={13} />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
 
-      {/* DIALOG DE FORMULÁRIO */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl rounded-2xl p-0">
-          <div className="px-6 py-5 border-b border-border/60">
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-4 pr-6">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">
+                {selected ? iniciais(selected.nome) : ""}
+              </span>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="truncate text-lg text-white">{selected?.nome}</DialogTitle>
+                <DialogDescription className="truncate text-slate-400">{selected?.cargo || selected?.empresa || "Contato profissional"}</DialogDescription>
+                {(selected?.categoria || selected?.empresa) && <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">{selected.categoria || selected.empresa}</span>}
+              </div>
+            </div>
+          </DialogHeader>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {detailRows.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="min-w-0 rounded-lg border border-white/5 bg-white/[.02] p-3">
+                <dt className="flex items-center gap-2 text-xs text-slate-500"><Icon className="h-3.5 w-3.5" aria-hidden="true" />{label}</dt>
+                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{value}</dd>
+              </div>
+            ))}
+            {selected?.observacoes && <div className="rounded-lg border border-white/5 bg-white/[.02] p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Observações</dt><dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">{selected.observacoes}</dd></div>}
+          </dl>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={() => setDetailOpen(false)}>Fechar</Button>
+            {selected && <Button type="button" onClick={() => { setDetailOpen(false); openForm(selected); }}><Edit className="mr-2 h-4 w-4" />Editar contato</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl p-0 sm:max-w-2xl">
+          <div className="border-b border-border/60 px-6 py-5">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold">{editing ? "Editar contato" : "Novo contato"}</DialogTitle>
-              <DialogDescription className="text-xs mt-1">Preencha as informações do contato. Os dados são salvos no banco D1 do portal.</DialogDescription>
+              <DialogDescription className="mt-1 text-xs">Preencha as informações do contato. Os dados são salvos no banco D1 do portal.</DialogDescription>
             </DialogHeader>
           </div>
-          
           <div className="grid gap-5 px-6 py-5 sm:grid-cols-2">
-            {([ 
-              ["nome", "Nome completo *", "text"], 
-              ["empresa", "Empresa", "text"], 
-              ["cargo", "Cargo / Função", "text"], 
-              ["telefone", "Telefone", "tel"], 
-              ["email", "E-mail", "email"], 
-              ["categoria", "Categoria (Ex: Fornecedor)", "text"], 
-              ["endereco", "Endereço completo", "text"], 
-              ["cidade", "Cidade", "text"], 
-              ["uf", "Estado (UF)", "text"] 
+            {([
+              ["nome", "Nome completo *", "text"],
+              ["empresa", "Empresa", "text"],
+              ["cargo", "Cargo / Função", "text"],
+              ["telefone", "Telefone", "tel"],
+              ["email", "E-mail", "email"],
+              ["categoria", "Categoria (Ex: Fornecedor)", "text"],
+              ["endereco", "Endereço completo", "text"],
+              ["cidade", "Cidade", "text"],
+              ["uf", "Estado (UF)", "text"],
             ] as const).map(([key, label, type]) => (
               <div key={key} className={key === "endereco" ? "sm:col-span-2" : ""}>
                 <Label htmlFor={`contato-${key}`} className="mb-2 block text-[13px] font-semibold text-foreground/80">{label}</Label>
-                <Input 
-                  id={`contato-${key}`} 
+                <Input
+                  id={`contato-${key}`}
                   type={type}
-                  value={form[key as keyof typeof form]} 
-                  onChange={(event) => setForm({ ...form, [key]: event.target.value })} 
-                  className={field} 
+                  value={form[key]}
+                  onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                  className={field}
                 />
               </div>
             ))}
-            
             <div className="sm:col-span-2">
               <Label htmlFor="contato-observacoes" className="mb-2 block text-[13px] font-semibold text-foreground/80">Anotações / Observações</Label>
-              <Textarea 
-                id="contato-observacoes" 
-                value={form.observacoes} 
-                onChange={(event) => setForm({ ...form, observacoes: event.target.value })} 
-                className="min-h-[100px] rounded-xl border-border bg-background shadow-sm text-sm resize-none focus-visible:ring-1 focus-visible:ring-primary p-3" 
+              <Textarea
+                id="contato-observacoes"
+                value={form.observacoes}
+                onChange={(event) => setForm({ ...form, observacoes: event.target.value })}
+                className="min-h-[100px] resize-none rounded-xl border-border bg-background p-3 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-primary"
                 placeholder="Insira detalhes adicionais sobre este contato..."
               />
             </div>
           </div>
-          
-          <div className="px-6 py-4 border-t border-border/60 bg-muted/10 flex justify-end gap-3 rounded-b-2xl">
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="font-medium">Cancelar</Button>
-            <Button onClick={() => void save()} disabled={saving} className="font-semibold shadow-sm">
+          <div className="flex justify-end gap-3 rounded-b-2xl border-t border-border/60 bg-muted/10 px-6 py-4">
+            <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={() => void save()} disabled={saving} className="font-semibold shadow-sm">
               {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar contato"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG DE EXCLUSÃO */}
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-red-600 dark:text-red-400">Remover contato?</DialogTitle>
             <DialogDescription className="mt-2 text-base text-foreground/80">
               Tem certeza que deseja excluir <strong>{deleteTarget?.nome}</strong> da sua agenda? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-6 sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => void remove()}>Sim, excluir contato</Button>
+          <DialogFooter className="mt-6 gap-2 sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button type="button" variant="destructive" onClick={() => void remove()}>Sim, excluir contato</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

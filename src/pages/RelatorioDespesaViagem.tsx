@@ -37,6 +37,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
+import { dataProximaDespesa } from "@/lib/relatorioViagemDatas";
 import { copyText } from "@/lib/utils";
 import {
   atualizarRelatorioDespesaViagem,
@@ -113,9 +114,9 @@ const vazioFormulario = (): Formulario => ({
   nome_tripulante_2: "",
   observacoes: "",
 });
-const novaDespesa = (): Despesa => ({
+const novaDespesa = (data = new Date().toISOString().slice(0, 10)): Despesa => ({
   id: crypto.randomUUID(),
-  data: new Date().toISOString().slice(0, 10),
+  data,
   categoria: "Alimentação",
   descricao: "",
   valor: 0,
@@ -384,7 +385,15 @@ export default function RelatorioDespesaViagem({
     return (!form.cliente_id && !form.socio_id || cotistaCompativel) && (!form.aeronave_id || voo.aeronave_id === form.aeronave_id);
   };
   const voosDisponiveis = opcoes.voos.filter(vooCompativel);
+  const alinharDataInicialDespesa = (dataAnterior: string, dataInicio: string) => {
+    setDespesas((atuais) => atuais.map((despesa, index) =>
+      index === 0 && (!despesa.data || despesa.data === dataAnterior)
+        ? { ...despesa, data: dataInicio }
+        : despesa,
+    ));
+  };
   const limparCamposVoo = () => {
+    alinharDataInicialDespesa(form.data_inicio, "");
     setForm((atual) => ({ ...atual, numero_voo: "", cliente_id: "", socio_id: "", aeronave_id: "", rota: "", data_inicio: "", data_fim: "", quantidade_dias: "1", tripulacao_id: "", nome_tripulante: "", tripulante_id_2: "", nome_tripulante_2: "" }));
   };
   const limparVoo = () => {
@@ -401,6 +410,12 @@ export default function RelatorioDespesaViagem({
       if (voo) aplicarVoo(String(valor));
       return;
     }
+    if (campo === "data_inicio") {
+      const dataInicio = String(valor);
+      setForm((atual) => ({ ...atual, data_inicio: dataInicio }));
+      alinharDataInicialDespesa(form.data_inicio, dataInicio);
+      return;
+    }
     if (campo === "aeronave_id" || campo === "cliente_id" || campo === "socio_id") {
       setForm((atual) => ({ ...atual, [campo]: valor, numero_voo: "" }));
       return;
@@ -415,12 +430,14 @@ export default function RelatorioDespesaViagem({
     const clienteDoVoo = opcoes.clientes.find((item) => item.id === voo.cliente_id);
     const vooEhHolding = clienteDoVoo?.holding === true || Number(clienteDoVoo?.holding || 0) === 1;
     const dataFim = dataInicio ? new Date(new Date(`${dataInicio}T00:00:00Z`).getTime() + (dias - 1) * 86_400_000).toISOString().slice(0, 10) : form.data_fim;
+    alinharDataInicialDespesa(form.data_inicio, dataInicio);
     setForm((atual) => ({ ...atual, numero_voo: voo.numero_voo, cliente_id: voo.cliente_id || "", socio_id: voo.socio_id && vooEhHolding ? voo.socio_id : "", aeronave_id: voo.aeronave_id || "", rota: voo.rota_nome || [voo.origem, voo.destino].filter(Boolean).join("-"), data_inicio: dataInicio, data_fim: dataFim, quantidade_dias: String(dias), tripulacao_id: voo.piloto_id || "", nome_tripulante: voo.tripulante_nome || "", tripulante_id_2: voo.copiloto_id || "", nome_tripulante_2: voo.tripulante_nome_2 || "" }));
   };
   const iniciarNovo = () => {
     setRelatorio(null);
-    setForm(vazioFormulario());
-    setDespesas([novaDespesa()]);
+    const formulario = vazioFormulario();
+    setForm(formulario);
+    setDespesas([novaDespesa(formulario.data_inicio)]);
     setMensagem(null);
     setAba("editor");
   };
@@ -1239,7 +1256,10 @@ export default function RelatorioDespesaViagem({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setDespesas((atuais) => [...atuais, novaDespesa()])}
+            onClick={() => setDespesas((atuais) => [
+              ...atuais,
+              novaDespesa(dataProximaDespesa(atuais, form.data_inicio, form.data_fim) || form.data_inicio),
+            ])}
             disabled={bloqueado}
             className="w-full shrink-0 gap-1.5 sm:w-auto"
           >

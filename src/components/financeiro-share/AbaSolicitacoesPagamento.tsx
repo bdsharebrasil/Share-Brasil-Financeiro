@@ -54,6 +54,7 @@ function estadoBadge(valor: string): "paid" | "pending" | "neutral" {
 }
 
 function StatusSolicitacao({ status }: { status: string }) {
+  if (status.toUpperCase() === "CONVERTIDO") return null;
   const estado = estadoBadge(status);
   return <span className={`nf-badge ${estado}`}>{estado === "paid" ? <CheckCircle2 /> : <Clock />}{statusLegivel(status)}</span>;
 }

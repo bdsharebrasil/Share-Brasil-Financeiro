@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -163,6 +163,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
   const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], fornecedores_combustivel: [], aeronaves: [], voos: [], categorias: [], categorias_cliente: [] });
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
+  const [origemDespesa, setOrigemDespesa] = useState<OrigemDespesaEnvio | "">("");
+  const [despesasOrigem, setDespesasOrigem] = useState<DespesaOrigemEnvio[]>([]);
+  const [carregandoOrigem, setCarregandoOrigem] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [convertendoEnvioId, setConvertendoEnvioId] = useState<string | null>(null);
@@ -383,6 +386,67 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         rateio_linhas: aeronaveMudou ? [] : atual.rateio_linhas,
       };
     });
+  };
+
+  const selecionarAeronaveCliente = (aeronaveId: string) => {
+    setOrigemDespesa("");
+    setDespesasOrigem([]);
+    setCotistas([]);
+    setForm((atual) => ({ ...atual, aeronave_id: aeronaveId, numero_voo: "", cotista_ids: [], rateio_linhas: [], valor: "", fornecedor: "", fornecedor_id: "", categoria_id: "", categoria_nome: "", anexos: [] }));
+  };
+
+  const selecionarVooCliente = async (numeroVoo: string) => {
+    setOrigemDespesa("");
+    setDespesasOrigem([]);
+    setForm((atual) => ({ ...atual, numero_voo: numeroVoo, cotista_ids: [], rateio_linhas: [], valor: "", fornecedor: "", fornecedor_id: "", categoria_id: "", categoria_nome: "", anexos: [] }));
+    if (!numeroVoo || !form.aeronave_id) return;
+    try {
+      const resposta = await buscarCotistasAeronave(form.aeronave_id);
+      const cotistasVoo = resposta.cotistas;
+      setCotistas(cotistasVoo);
+      const somaSociedade = cotistasVoo.reduce((total, item) => total + Number(item.percentual_sociedade || 0), 0);
+      const rateio = cotistasVoo.map((cotista) => ({ cotista_id: cotista.id, percentual: (somaSociedade > 0 ? Number(cotista.percentual_sociedade || 0) / somaSociedade * 100 : 100 / (cotistasVoo.length || 1)).toFixed(2) }));
+      if (rateio.length) {
+        const soma = rateio.reduce((total, linha) => total + Number(linha.percentual), 0);
+        rateio[rateio.length - 1].percentual = (Number(rateio[rateio.length - 1].percentual) + 100 - soma).toFixed(2);
+      }
+      setForm((atual) => ({ ...atual, cotista_ids: cotistasVoo.map((item) => item.id), rateio_linhas: rateio }));
+    } catch {
+      setErro("Não foi possível carregar os cotistas da aeronave.");
+    }
+  };
+
+  const selecionarOrigemDespesa = async (origem: OrigemDespesaEnvio | "") => {
+    setOrigemDespesa(origem);
+    setDespesasOrigem([]);
+    if (!origem || !form.aeronave_id || !form.numero_voo) return;
+    setCarregandoOrigem(true);
+    try {
+      const resposta = await buscarDespesasOrigemEnvio(form.aeronave_id, form.numero_voo, origem);
+      setDespesasOrigem(resposta.registros);
+      if (!resposta.registros.length) toast.info("Não há despesas dessa origem para este voo e aeronave.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível buscar as despesas da origem.");
+    } finally {
+      setCarregandoOrigem(false);
+    }
+  };
+
+  const selecionarDespesaOrigem = (id: string) => {
+    const item = despesasOrigem.find((despesa) => despesa.id === id);
+    if (!item) return;
+    const urls: Array<{ key: keyof DespesaOrigemEnvio; tipo: AnexoLinha["tipo"]; numero?: string | null }> = [
+      { key: "url_demonstrativo", tipo: "demonstrativo" }, { key: "url_nf", tipo: "nf", numero: item.numero_nf },
+      { key: "url_recibo", tipo: "recibo", numero: item.numero_recibo }, { key: "url_boleto", tipo: "boleto" }, { key: "url_doc", tipo: "outro" },
+      { key: "comanda_url", tipo: "comanda", numero: item.numero_comanda }, { key: "nota_url", tipo: "nf", numero: item.numero_nf }, { key: "boleto_url", tipo: "boleto" },
+      { key: "pdf_url", tipo: "demonstrativo", numero: item.numero_relatorio },
+    ];
+    const documentos: AnexoLinha[] = urls.flatMap(({ key, tipo: anexoTipo, numero }) => {
+      const url = item[key];
+      return typeof url === "string" && url ? [{ id: crypto.randomUUID(), tipo: anexoTipo, numero: numero || "", url, file: null, cotista_id: form.cotista_ids[0] }] : [];
+    });
+    const categoria = dadosOpcoes.categorias_cliente.find((opcao) => opcao.nome.toLocaleLowerCase() === String(item.grupo_categoria || item.categoria_nome || "").toLocaleLowerCase());
+    setForm((atual) => ({ ...atual, descricao: String(item.descricao || (origemDespesa === "ABASTECIMENTO" ? "Abastecimento" : origemDespesa === "RECIBOS" ? "Recibo" : "Despesa de viagem")), valor: item.valor == null ? atual.valor : Number(item.valor).toFixed(2).replace(".", ","), data_despesa: item.data_despesa?.slice(0, 10) || atual.data_despesa, fornecedor: item.fornecedor || atual.fornecedor, fornecedor_id: "", categoria_id: categoria?.id || atual.categoria_id, categoria_nome: categoria?.nome || item.grupo_categoria || item.categoria_nome || atual.categoria_nome, grupo_categoria: "CAIXA CLIENTE", anexos: documentos.length ? documentos : atual.anexos }));
   };
 
   const podeAvancar = () => {
@@ -704,13 +768,18 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>}
                   {exigeDadosAeronave && <>
-                    <div className="flex items-start gap-3 rounded-sm border border-amber-400/25 bg-amber-400/[.07] p-3.5 text-[11px] leading-5 text-muted-foreground sm:col-span-2">
-                      <Info size={15} className="mt-0.5 shrink-0 text-amber-500" />
-                      <span>Informe primeiro o número do voo. Quando houver agendamento, a aeronave será preenchida automaticamente.</span>
-                    </div>
-                    <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => selecionarVoo(id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
-                    <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [], rateio_linhas: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
-                    <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids.length ? "__selecionados__" : ""} selectedLabel={form.cotista_ids.length ? `${form.cotista_ids.length} cotista(s) selecionado(s)` : undefined} selectedValues={[...form.cotista_ids, ...(form.cotista_ids.length === cotistas.length && cotistas.length ? ["__todos__"] : [])]} onChange={(id) => setForm((atual) => {
+                    {tipo === "cliente" ? <>
+                      <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={selecionarAeronaveCliente} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
+                      <Campo label="Número do voo" obrigatorio><SearchableCombobox items={dadosOpcoes.voos.filter((voo) => voo.aeronave_id === form.aeronave_id).map((voo) => { const aeronave = dadosOpcoes.aeronaves.find((item) => item.id === voo.aeronave_id); const rota = [voo.origem, voo.destino].filter(Boolean).join(" → "); const data = dataBr(voo.ultima_data); return { id: voo.numero_voo, label: [voo.numero_voo, aeronave?.matricula_registro, rota, data !== "—" ? data : ""].filter(Boolean).join("  ") }; })} value={form.numero_voo} onChange={selecionarVooCliente} placeholder="Selecione o voo" searchPlaceholder="Buscar número do voo, rota ou data" emptyMessage="Nenhum voo para esta aeronave." disabled={!form.aeronave_id} /></Campo>
+                      {form.numero_voo && <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids.length ? "__selecionados__" : ""} selectedLabel={form.cotista_ids.length ? `${form.cotista_ids.length} cotista(s) selecionado(s)` : undefined} selectedValues={[...form.cotista_ids, ...(form.cotista_ids.length === cotistas.length && cotistas.length ? ["__todos__"] : [])]} onChange={() => undefined} placeholder="Cotistas preenchidos pelo voo" searchPlaceholder="Buscar cotista" disabled emptyMessage="Nenhum cotista vinculado a esta aeronave." /></Campo>}
+                      {form.numero_voo && form.cotista_ids.length > 0 && <>
+                        <Campo label="Origem da despesa"><SearchableCombobox items={[{ id: "ABASTECIMENTO", label: "ABASTECIMENTO" }, { id: "RECIBOS", label: "RECIBOS" }, { id: "RELATORIOS DE VIAGEM", label: "RELATORIOS DE VIAGEM" }]} value={origemDespesa} onChange={(id) => void selecionarOrigemDespesa(id as OrigemDespesaEnvio | "")} placeholder="Selecione a origem" searchPlaceholder="Buscar origem" /></Campo>
+                        {origemDespesa && <Campo label="Despesa encontrada" className="sm:col-span-2"><SearchableCombobox items={despesasOrigem.map((item) => ({ id: item.id, label: [item.descricao || item.numero_recibo || item.numero_relatorio || origemDespesa, item.data_despesa ? dataBr(item.data_despesa) : "", item.valor != null ? formatarValor(Number(item.valor)) : "", item.fornecedor].filter(Boolean).join(" · ") }))} value="" onChange={selecionarDespesaOrigem} placeholder={carregandoOrigem ? "Buscando despesas…" : "Selecione uma despesa para preencher o formulário"} searchPlaceholder="Buscar por descrição, data ou valor" emptyMessage="Nenhuma despesa encontrada para este voo e aeronave." disabled={carregandoOrigem || !despesasOrigem.length} /></Campo>}
+                      </>}
+                    </> : <>
+                      <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => selecionarVoo(id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
+                      <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [], rateio_linhas: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
+                      <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids.length ? "__selecionados__" : ""} selectedLabel={form.cotista_ids.length ? `${form.cotista_ids.length} cotista(s) selecionado(s)` : undefined} selectedValues={[...form.cotista_ids, ...(form.cotista_ids.length === cotistas.length && cotistas.length ? ["__todos__"] : [])]} onChange={(id) => setForm((atual) => {
                       const todosSelecionados = atual.cotista_ids.length === cotistas.length && cotistas.length > 0;
                       const ids = id === "__todos__" ? (todosSelecionados ? [] : cotistas.map((c) => c.id)) : atual.cotista_ids.includes(id) ? atual.cotista_ids.filter((cotistaId) => cotistaId !== id) : [...atual.cotista_ids, id];
                       const linhasExistentes = new Map(atual.rateio_linhas.map((linha) => [linha.cotista_id, linha]));
@@ -722,6 +791,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       }
                       return { ...atual, cotista_ids: ids, rateio_linhas: linhas };
                     })} placeholder="Selecione cotistas (adicione mais de um)" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
+                    </>}
                     {tipo === "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                     {tipo !== "share" && <Campo label="Tipo de rateio" obrigatorio><SearchableCombobox items={["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => ({ id: item, label: item }))} value={form.tipo_rateio} onChange={(id) => alterar("tipo_rateio", id)} placeholder="Selecione o tipo de rateio" searchPlaceholder="Buscar tipo de rateio" /></Campo>}
                     {tipo !== "share" && cotistasSelecionados.length > 0 && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2"><p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Rateio da despesa · {formatarValor(valorInformado)}</p><div className="mt-3 space-y-2">{cotistasSelecionados.map((cotista) => { const linha = form.rateio_linhas.find((item) => item.cotista_id === cotista.id); return <div key={cotista.id} className="grid grid-cols-[1fr_110px_auto_auto] items-center gap-2"><span className="truncate text-xs">{cotista.nome}</span><Input value={linha?.percentual ?? "0"} inputMode="decimal" onChange={(e) => alterarPercentual(cotista.id, e.target.value)} className="h-9 text-right" placeholder="%" /><span className="text-right text-xs text-muted-foreground">{formatarValor(valorInformado * (Number(linha?.percentual) || 0) / 100)}</span>{cotistasSelecionados.length >= 3 && <button type="button" className="text-xs text-rose-500" onClick={() => setForm((atual) => ({ ...atual, cotista_ids: atual.cotista_ids.filter((id) => id !== cotista.id), rateio_linhas: atual.rateio_linhas.filter((item) => item.cotista_id !== cotista.id) }))}>Retirar</button>}</div>; })}</div><p className={`mt-2 text-right text-[11px] font-bold ${Math.abs(form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0) - 100) < 0.01 ? "text-emerald-500" : "text-amber-500"}`}>Total: {form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0).toFixed(2)}%</p>{Math.abs(form.rateio_linhas.reduce((s, l) => s + Number(l.percentual || 0), 0) - 100) >= 0.01 && <p className="mt-1 text-right text-[10px] text-amber-600">Ajuste os percentuais para totalizar 100%.</p>}</div>}

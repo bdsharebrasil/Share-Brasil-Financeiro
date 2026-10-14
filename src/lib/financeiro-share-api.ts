@@ -429,7 +429,29 @@ export async function buscarOpcoesFinanceiroShare() {
   };
 }
 
-export type SolicitacaoPagamento = {
+export type CamposLancamento = {
+  numero_nf?: string | null;
+  numero_recibo?: string | null;
+  numero_doc?: string | null;
+  numero_demonstrativo?: string | null;
+  data_emissao?: string | null;
+  aeronave_id?: string | null;
+  cotista_aeronave_id?: string | null;
+  grupo_categoria?: string | null;
+  fornecedor_nome?: string | null;
+  valor_centavos?: number | null;
+  numero_boleto?: string | null;
+  email_enviado_em?: string | null;
+  numero_voo?: string | null;
+  url_demonstrativo?: string | null;
+  url_nf?: string | null;
+  url_recibo?: string | null;
+  url_boleto?: string | null;
+  url_doc?: string | null;
+  comprovante_url?: string | null;
+};
+
+export type SolicitacaoPagamento = CamposLancamento & {
   id: string;
   tipo: string;
   descricao: string;
@@ -446,7 +468,7 @@ export type SolicitacaoPagamento = {
   lancamento_id?: string | null;
 };
 
-export type ReembolsoColaborador = {
+export type ReembolsoColaborador = CamposLancamento & {
   id: string;
   dataEmissao?: string | null;
   dataVencimento: string;

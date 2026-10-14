@@ -8,6 +8,7 @@ import {
   enviarComprovanteReembolso,
   formatarData,
   formatarMoeda,
+  type CamposLancamento,
   type ContaBancaria,
   type ReembolsoColaborador,
   type SolicitacaoPagamento,
@@ -21,11 +22,10 @@ type FiltroLista = { id: string; label: string; quantidade?: number };
 type LinhaExibida = {
   chave: string;
   expandida: boolean;
+  documento: string;
+  dataEmissao: string;
   principal: string;
-  secundaria: string | null;
-  categoria: string;
-  vencimento: string;
-  vencida: boolean;
+  secundaria: string;
   valor: string;
   status: string;
   detalhe: ReactNode;
@@ -65,6 +65,43 @@ function dataLegivel(valor: string | null): string {
 
 function textoBusca(...valores: Array<string | null | undefined>): string {
   return valores.filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+}
+
+function primeiroTexto(...valores: Array<string | null | undefined>): string | null {
+  return valores.find((valor) => valor && valor.trim() !== "") ?? null;
+}
+
+const ANEXOS: Array<{ campo: "url_demonstrativo" | "url_nf" | "url_recibo" | "url_boleto" | "url_doc" | "comprovante_url"; rotulo: string }> = [
+  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
+  { campo: "url_nf", rotulo: "Nota fiscal" },
+  { campo: "url_recibo", rotulo: "Recibo" },
+  { campo: "url_boleto", rotulo: "Boleto" },
+  { campo: "url_doc", rotulo: "Documento" },
+  { campo: "comprovante_url", rotulo: "Comprovante" },
+];
+
+function detalheLancamento(campos: CamposLancamento, acao?: ReactNode): ReactNode {
+  const anexos = ANEXOS.flatMap(({ campo, rotulo }) => {
+    const url = campos[campo];
+    return url ? [{ rotulo, url }] : [];
+  });
+  return <div className="nf-detail">
+    <section>
+      <h3>Documentos anexos</h3>
+      {anexos.length > 0
+        ? anexos.map(({ rotulo, url }) => <a key={rotulo} href={url} target="_blank" rel="noopener noreferrer"><FileText size={13} />{rotulo}</a>)
+        : <p><FileText size={13} /> Nenhum documento anexado.</p>}
+    </section>
+    <section>
+      <h3>Mais informações</h3>
+      <dl>
+        {campos.numero_boleto && <div><dt>Número do boleto</dt><dd>{campos.numero_boleto}</dd></div>}
+        <div><dt>E-mail enviado em</dt><dd>{dataLegivel(campos.email_enviado_em ?? null)}</dd></div>
+        <div><dt>Número do voo</dt><dd>{campos.numero_voo || "—"}</dd></div>
+      </dl>
+    </section>
+    {acao && <div className="nf-detail-actions">{acao}</div>}
+  </div>;
 }
 
 const FILTROS_ENVIO: FiltroLista[] = [
@@ -258,65 +295,22 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const paginaAtual = Math.min(pagina, totalPaginas);
   const inicio = (paginaAtual - 1) * POR_PAGINA;
 
-  function detalheEnvio(item: SolicitacaoPagamento): ReactNode {
-    return <div className="nf-detail">
-      <section>
-        <h3>Documentos vinculados</h3>
-        <p><FileText size={13} /> Os documentos desta solicitação ficam disponíveis no lançamento financeiro após a conversão.</p>
-      </section>
-      <section>
-        <h3>Mais informações</h3>
-        <dl>
-          <div><dt>Vencimento</dt><dd>{dataLegivel(item.vencimento)}</dd></div>
-          <div><dt>Solicitante</dt><dd>{item.solicitante_nome ?? "—"}</dd></div>
-          <div><dt>Data da despesa</dt><dd>{dataLegivel(item.data_despesa)}</dd></div>
-        </dl>
-      </section>
-    </div>;
-  }
-
-  function detalheReembolso(item: ReembolsoColaborador): ReactNode {
-    return <div className="nf-detail">
-      <section>
-        <h3>Documentos vinculados</h3>
-        {item.documentoUrl
-          ? <a href={item.documentoUrl} target="_blank" rel="noopener noreferrer"><FileText size={13} />{item.documento || "Abrir documento vinculado"}</a>
-          : <p><FileText size={13} /> Nenhum documento vinculado diretamente ao título.</p>}
-      </section>
-      <section>
-        <h3>Mais informações</h3>
-        <dl>
-          <div><dt>Vencimento</dt><dd>{dataLegivel(item.dataVencimento)}</dd></div>
-          <div><dt>Caixa</dt><dd>{String(item.tipoCaixa).toUpperCase() === "HOLDING" ? "Holding" : "Share"}</dd></div>
-          <div><dt>Fornecedor</dt><dd>{item.fornecedor || "—"}</dd></div>
-          <div><dt>Número do voo</dt><dd>{item.numeroVoo || "—"}</dd></div>
-          <div><dt>Cotista</dt><dd>{item.cotistaNome || "—"}</dd></div>
-        </dl>
-      </section>
-      <div className="nf-detail-actions">
-        <button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button>
-      </div>
-    </div>;
-  }
-
   const enviosVisiveis = enviosFiltrados.slice(inicio, inicio + POR_PAGINA);
   const reembolsosVisiveis = reembolsosFiltrados.slice(inicio, inicio + POR_PAGINA);
 
   const linhasEnvio: LinhaExibida[] = enviosVisiveis.map((item) => {
     const chave = `envio:${item.id}`;
     const expandida = expandido === chave;
-    const vencimento = item.vencimento ? item.vencimento.slice(0, 10) : "";
     return {
       chave,
       expandida,
-      principal: item.fornecedor_nome ?? item.fornecedor ?? "—",
-      secundaria: item.descricao ?? null,
-      categoria: item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente",
-      vencimento: dataLegivel(item.vencimento),
-      vencida: vencimento !== "" && vencimento < hoje && estadoBadge(item.status) === "pending",
-      valor: `−${formatarMoeda(Number(item.valor ?? 0))}`,
+      documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
+      dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
+      principal: primeiroTexto(item.aeronave_id, item.cotista_aeronave_id, item.descricao) ?? "—",
+      secundaria: [item.grupo_categoria, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
+      valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
-      detalhe: expandida ? detalheEnvio(item) : null,
+      detalhe: expandida ? detalheLancamento(item) : null,
     };
   });
 
@@ -326,14 +320,13 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     return {
       chave,
       expandida,
-      principal: item.documento || item.descricao || "Despesa reembolsável",
-      secundaria: `${dataLegivel(item.dataEmissao ?? null)} · ${item.descricao ?? "Reembolso de colaborador"}`,
-      categoria: item.categoriaNome || "Reembolso de colaborador",
-      vencimento: dataLegivel(item.dataVencimento),
-      vencida: item.dataVencimento.slice(0, 10) < hoje,
-      valor: `−${formatarMoeda(item.valor)}`,
+      documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
+      dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
+      principal: primeiroTexto(item.aeronave_id, item.aeronaveId, item.cotista_aeronave_id, item.descricao) ?? "—",
+      secundaria: [item.grupo_categoria ?? item.categoriaNome, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
+      valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
-      detalhe: expandida ? detalheReembolso(item) : null,
+      detalhe: expandida ? detalheLancamento(item, <button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button>) : null,
     };
   });
 
@@ -379,27 +372,26 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-table-wrap">
               <table className="nf-table">
                 <caption className="nf-sr">{aba === "cotista" ? "Solicitações de pagamento de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <thead><tr><th scope="col">Documento / fornecedor</th><th scope="col">Categoria</th><th scope="col">Vencimento</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Doc / emissão</th><th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr>
-                      <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
-                      <td><span className="nf-category" title={linha.categoria}>{linha.categoria}</span></td>
-                      <td><div className="nf-dates"><span className={linha.vencida ? "nf-late" : ""}>{linha.vencimento}</span></div></td>
+                      <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
+                      <td><div className="nf-doc-cell"><div><strong>{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
                       <td className="right nf-amount">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
                       <td className="right"><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></td>
                     </tr>
-                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={6}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={5}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
             </div>
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
-                <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.principal}</strong><small>{linha.secundaria || "Sem descrição"}</small></div><StatusSolicitacao status={linha.status} /></header>
-                <dl><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div><div><dt>Vencimento</dt><dd className={linha.vencida ? "nf-late" : ""}>{linha.vencimento}</dd></div></dl>
-                <footer><span className="nf-category">{linha.categoria}</span><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
+                <dl><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <footer><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
             </div>

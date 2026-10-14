@@ -9,6 +9,8 @@ import {
   RotateCcw,
   CheckCircle2,
   XCircle,
+  Download,
+  X,
 } from "lucide-react";
 import {
   anexarArquivoAoReciboPdf,
@@ -1854,48 +1856,55 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       )}
 
       {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-sm bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-              <p className="text-[11px] font-bold text-slate-700">
-                Recibo — PDF
-              </p>
-              <div className="flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md sm:p-6">
+          <div className="flex h-[calc(100dvh-1.5rem)] max-h-[920px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[calc(100dvh-3rem)]">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-slate-900/95 px-4 py-3 text-white backdrop-blur sm:px-5">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold tracking-wide">
+                  Pré-visualização do recibo
+                </p>
+                <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                  {pdfPreviewNome}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
                 <a
                   href={pdfPreviewUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                  className="hidden items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-[11px] font-bold text-slate-200 transition hover:bg-white/10 sm:inline-flex"
                 >
                   <ExternalLink size={13} /> Abrir em nova aba
                 </a>
                 <a
                   href={pdfPreviewUrl}
                   download={pdfPreviewNome}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
                 >
-                  <FileText size={13} /> Baixar PDF
+                  <Download size={13} /> Salvar PDF
                 </a>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   onClick={() =>
                     setPdfPreviewUrl((atual) => {
                       if (atual) URL.revokeObjectURL(atual);
                       return "";
                     })
                   }
-                  className="h-7 px-2 text-[10px]"
+                  className="h-9 gap-1.5 border-white/15 bg-white/5 px-3 text-[11px] font-bold text-white hover:bg-white/10 hover:text-white"
                 >
-                  Fechar
+                  <X size={14} /> Fechar
                 </Button>
               </div>
             </div>
-            <iframe
-              src={pdfPreviewUrl}
-              title="Pré-visualização do PDF"
-              className="h-[80vh] w-full"
-            />
+            <div className="min-h-0 flex-1 bg-slate-950/90 p-2 sm:p-4">
+              <iframe
+                src={pdfPreviewUrl}
+                title="Pré-visualização do PDF"
+                className="h-full min-h-0 w-full rounded-xl bg-white shadow-xl"
+              />
+            </div>
           </div>
         </div>
       )}

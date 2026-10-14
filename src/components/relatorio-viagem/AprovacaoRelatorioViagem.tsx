@@ -84,6 +84,13 @@ type ComprovanteSelecionado = Anexo & {
   descricaoDespesa: string;
 };
 
+const ROTULOS_FILTRO: Record<Exclude<FiltroDespesas, "total">, string> = {
+  tripulante: "Você",
+  cliente: "Cliente",
+  sharebrasil: "Share Brasil",
+  outros: "Outras despesas",
+};
+
 function moeda(valor: unknown) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -465,6 +472,9 @@ export default function AprovacaoRelatorioViagem() {
       filtrosDisponiveis.length === 0 ||
       filtrosDisponiveis.every((filtro) => filtrosRevisados.includes(filtro)),
     [filtrosDisponiveis, filtrosRevisados],
+  );
+  const filtrosPendentes = filtrosDisponiveis.filter(
+    (filtro) => !filtrosRevisados.includes(filtro),
   );
 
   const selecionarFiltro = (filtro: FiltroDespesas) => {
@@ -1086,6 +1096,33 @@ export default function AprovacaoRelatorioViagem() {
 
               <span className="text-slate-400">{moeda(totalTripulante)}</span>
             </div>
+
+            {!relatorioRevisado && !podeReprocessarFinanceiro ? (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]">
+                <span className="font-bold text-slate-400">
+                  Falta revisar:
+                </span>
+                {filtrosPendentes.map((filtro) =>
+                  filtro === filtroDespesas ? (
+                    <span
+                      key={filtro}
+                      className="rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-bold text-amber-200"
+                    >
+                      {ROTULOS_FILTRO[filtro]}
+                    </span>
+                  ) : (
+                    <button
+                      key={filtro}
+                      type="button"
+                      onClick={() => selecionarFiltro(filtro)}
+                      className="rounded-full border border-sky-300/20 bg-sky-300/[0.06] px-2 py-1 font-bold text-sky-200 transition hover:bg-sky-300/[0.12]"
+                    >
+                      {ROTULOS_FILTRO[filtro]}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : null}
 
             <div className={`grid gap-2.5 ${podeReprocessarFinanceiro ? "grid-cols-1" : "grid-cols-2"}`}>
               {!podeReprocessarFinanceiro ? <button

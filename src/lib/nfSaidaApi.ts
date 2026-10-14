@@ -34,6 +34,7 @@ export interface NotaOuReciboSaidaRow {
 	descricao?: string | null;
 	descricao_servico?: string | null;
 	status: StatusDocumentoSaida | null;
+	email_enviado_em?: string | null;
 	arquivo_pdf_url?: string | null;
 	pdf_url?: string | null;
 	contas_areceber_id?: string | null;
@@ -60,6 +61,7 @@ export interface DocumentoSaida {
 	categoria: string | null;
 	descricao: string | null;
 	status: string | null;
+	email_enviado_em?: string | null;
 	arquivo_pdf_url: string | null;
 	criado_em: string | null;
 	atualizado_em: string | null;

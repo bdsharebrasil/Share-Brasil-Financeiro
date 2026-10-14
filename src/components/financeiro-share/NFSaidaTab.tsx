@@ -259,7 +259,8 @@ export default function NFSaidaTab() {
     cliente_email: n.cliente_email ?? null,
     data_criacao: n.data_criacao ?? null,
     data_vencimento: n.data_vencimento,
-    valor: n.valor ?? null,
+    valor: n.valor_total ?? n.valor ?? null,
+    email_enviado_em: n.email_enviado_em ?? null,
     categoria: n.categoria ?? null,
     descricao: n.descricao ?? null,
     status: n.status,
@@ -307,6 +308,10 @@ export default function NFSaidaTab() {
         (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "")
       );
       setNotas(merged);
+      setEmailsEnviados((current) => new Set([
+        ...current,
+        ...merged.filter((nota) => Boolean(nota.email_enviado_em)).map((nota) => nota.id),
+      ]));
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao carregar notas." });
     } finally {

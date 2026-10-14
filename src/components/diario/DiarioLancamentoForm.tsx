@@ -1206,14 +1206,29 @@ function DurationField({
   onChange?: (value: string) => void;
   readOnly?: boolean;
 }) {
+  const formattedValue = decimalToHoursMinutes(value);
+  const [draft, setDraft] = useState(formattedValue);
+  useEffect(() => {
+    setDraft(formattedValue);
+  }, [formattedValue]);
+  const aceitarDuracao = (next: string) => {
+    setDraft(next);
+    if (/^\d{1,3}:[0-5]\d$/.test(next)) onChange?.(hoursMinutesToDecimal(next));
+  };
   return (
     <Field label={`${label} ·`}>
       <input
-        type="time"
-        step="60"
-        value={decimalToHoursMinutes(value)}
+        type="text"
+        inputMode={readOnly ? "none" : "numeric"}
+        pattern="\d{1,3}:[0-5]\d"
+        value={readOnly ? formattedValue : draft}
         readOnly={readOnly}
-        onChange={(e) => onChange?.(hoursMinutesToDecimal(e.target.value))}
+        placeholder="HH:MM"
+        aria-label={`${label} em horas e minutos`}
+        onChange={(e) => aceitarDuracao(e.target.value)}
+        onBlur={() => {
+          if (!readOnly && !/^\d{1,3}:[0-5]\d$/.test(draft)) setDraft(formattedValue);
+        }}
         className={readOnly ? `${inputClass} cursor-not-allowed opacity-70` : inputClass}
       />
     </Field>

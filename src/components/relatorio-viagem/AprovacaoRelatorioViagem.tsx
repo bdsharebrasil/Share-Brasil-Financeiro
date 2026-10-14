@@ -63,6 +63,8 @@ type Relatorio = {
   aprovado_tripulante_em?: string | null;
   aprovado_tripulante_1_em?: string | null;
   aprovado_tripulante_2_em?: string | null;
+  contas_apagar_tripulante_1_id?: string | null;
+  contas_apagar_tripulante_2_id?: string | null;
   motivo_reprovacao_tripulante_1?: string | null;
   motivo_reprovacao_tripulante_2?: string | null;
   observacoes_aprovacao_tripulante?: string | null;
@@ -129,6 +131,17 @@ function parseDespesas(valor: Relatorio["despesas"]): Despesa[] {
   } catch {
     return [];
   }
+}
+
+async function buscarAprovacaoPublica(token: string): Promise<ApprovalData> {
+  const response = await fetch(
+    `${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`,
+  );
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(json?.message || json?.error || "Link inválido ou expirado.");
+  }
+  return json as ApprovalData;
 }
 
 function isImagem(anexo: Anexo) {
@@ -291,17 +304,11 @@ export default function AprovacaoRelatorioViagem() {
     setFiltroDespesas("tripulante");
     setMensagem("Carregando relatório...");
 
-    void fetch(
-      `${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}`,
-    )
-      .then(async (response) => {
-        const json = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(json?.message || json?.error || "Link inválido ou expirado.");
-        }
+    void buscarAprovacaoPublica(token)
+      .then((json) => {
         if (!ativo) return;
 
-        setData(json as ApprovalData);
+        setData(json);
         setMensagem("");
         requestAnimationFrame(() => {
           scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -500,7 +507,21 @@ export default function AprovacaoRelatorioViagem() {
     statusAtual === "rejeitado";
 
   const foiAprovado = statusAtual === "aprovado";
-  const podeReprocessarFinanceiro = foiAprovado && String(relatorio?.status || "").toLowerCase() === "aprovado";
+  const pagadorTripulanteAtual = posicao === 1 ? "tripulante_1" : "tripulante_2";
+  const temDespesaReembolsavel = despesas.some(
+    (despesa) =>
+      normalizarPagador(despesa.pago_por || despesa.paid_by) === pagadorTripulanteAtual &&
+      Math.round((Number(despesa.valor) || 0) * 100) > 0,
+  );
+  const contaPagarTripulanteId =
+    posicao === 1
+      ? relatorio?.contas_apagar_tripulante_1_id
+      : relatorio?.contas_apagar_tripulante_2_id;
+  const podeReprocessarFinanceiro =
+    foiAprovado &&
+    String(relatorio?.status || "").toLowerCase() === "aprovado" &&
+    temDespesaReembolsavel &&
+    !String(contaPagarTripulanteId || "").trim();
   const foiReprovado =
     statusAtual === "reprovado" || statusAtual === "rejeitado";
 
@@ -614,11 +635,18 @@ export default function AprovacaoRelatorioViagem() {
         scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       });
     } catch (error) {
-      setMensagem(
+      const mensagemErro =
         error instanceof Error
           ? error.message
-          : "Não foi possível registrar sua decisão.",
-      );
+          : "Não foi possível registrar sua decisão.";
+      if (aprovado) {
+        try {
+          setData(await buscarAprovacaoPublica(token));
+        } catch {
+          // Mantém a mensagem original da decisão se a consulta de atualização também falhar.
+        }
+      }
+      setMensagem(mensagemErro);
     } finally {
       setEnviando(false);
     }
@@ -1155,6 +1183,19 @@ export default function AprovacaoRelatorioViagem() {
             </div>
           </div>
         </div>
+      ) : foiAprovado ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
+            <button
+              type="button"
+              disabled
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.08] px-3 text-sm font-extrabold text-emerald-200 disabled:cursor-default disabled:opacity-100"
+            >
+              <CheckCircle2 size={17} />
+              RELATÓRIO APROVADO
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {acao ? (
@@ -1167,7 +1208,9 @@ export default function AprovacaoRelatorioViagem() {
                 </p>
                 <h2 className="mt-1 text-lg font-black tracking-tight text-white">
                   {acao === "aprovar"
-                    ? "Aprovar este relatório?"
+                    ? podeReprocessarFinanceiro
+                      ? "Tentar concluir aprovação?"
+                      : "Aprovar este relatório?"
                     : "Rejeitar este relatório?"}
                 </h2>
               </div>
@@ -1190,8 +1233,14 @@ export default function AprovacaoRelatorioViagem() {
                     size={20}
                   />
                   <p className="text-sm leading-relaxed text-emerald-100">
-                    Você está confirmando a aprovação do relatório no valor
-                    individual de <strong>{moeda(totalTripulante)}</strong>.
+                    {podeReprocessarFinanceiro ? (
+                      "A aprovação já está registrada. Esta ação tenta concluir a sincronização financeira sem registrar uma nova decisão."
+                    ) : (
+                      <>
+                        Você está confirmando a aprovação do relatório no valor
+                        individual de <strong>{moeda(totalTripulante)}</strong>.
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -1257,7 +1306,9 @@ export default function AprovacaoRelatorioViagem() {
                 {enviando ? (
                   <Loader2 className="mx-auto animate-spin" size={18} />
                 ) : acao === "aprovar" ? (
-                  "Confirmar aprovação"
+                  podeReprocessarFinanceiro
+                    ? "Tentar concluir aprovação"
+                    : "Confirmar aprovação"
                 ) : (
                   "Confirmar rejeição"
                 )}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  Briefcase,
   Building2,
   CalendarDays,
   Cake,
@@ -13,6 +14,7 @@ import {
   Copy,
   FilePlus2,
   FileText,
+  Eye,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -41,6 +43,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
@@ -1056,9 +1059,10 @@ export function ContatosClientesShareBrasil() {
   const [showNewCotista, setShowNewCotista] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
-  const [contactView, setContactView] = useState<"lista" | "grade">("grade");
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(null);
   const [clients, setClients] = useState<ClienteShare[]>([]);
   const [socios, setSocios] = useState<ClienteShare[]>([]);
   const [links, setLinks] = useState<ClienteShare[]>([]);
@@ -1177,6 +1181,12 @@ export function ContatosClientesShareBrasil() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const visibleContacts = contacts
+    .filter((item) =>
+      [item.nome, item.cargo, item.categoria, item.empresa, item.telefone, item.email]
+        .some((value) => value?.toLocaleLowerCase("pt-BR").includes(contactSearch.trim().toLocaleLowerCase("pt-BR"))),
+    )
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   useEffect(() => {
     if (selected) {
@@ -1558,173 +1568,122 @@ export function ContatosClientesShareBrasil() {
 
   const contactsContent = (
     <div className="space-y-4">
-      {showNewContact ? (
+      {showNewContact && (
         <section className={`${card} p-4 md:p-5`}>
           <CabecalhoSecao
             icon={<Plus size={15} />}
-            title="Novo contato"
+            title={editingContact ? "Editar contato" : "Novo contato"}
             detail="Adicione pessoas e parceiros à agenda."
           />
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-            <Input
-              placeholder="Nome"
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="Telefone"
-              value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="E-mail"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="Empresa"
-              value={form.empresa}
-              onChange={(e) => setForm({ ...form, empresa: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="Cargo"
-              value={form.cargo}
-              onChange={(e) => setForm({ ...form, cargo: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="Categoria"
-              value={form.categoria}
-              onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="Endereço"
-              value={form.endereco}
-              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
-              className="h-10 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2"
-            />
-            <Input
-              placeholder="Cidade"
-              value={form.cidade}
-              onChange={(e) => setForm({ ...form, cidade: e.target.value })}
-              className={field}
-            />
-            <Input
-              placeholder="UF"
-              value={form.uf}
-              onChange={(e) => setForm({ ...form, uf: e.target.value })}
-              className={field}
-            />
-            <Textarea
-              placeholder="Observações"
-              value={form.observacoes}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              className="min-h-10 bg-background/70 text-sm sm:col-span-2"
-            />
+            <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
+            <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
+            <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
+            <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
+            <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
+            <Input placeholder="Categoria" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} className={field} />
+            <Input placeholder="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-10 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2" />
+            <Input placeholder="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} className={field} />
+            <Input placeholder="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} className={field} />
+            <Textarea placeholder="Observações" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="min-h-10 bg-background/70 text-sm sm:col-span-2" />
             <div className="flex gap-2">
-              <Button
-                type="button"
-                onClick={() => void addContact()}
-                className="h-10 flex-1 gap-2 text-xs"
-              >
-                <Plus size={14} /> Salvar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowNewContact(false);
-                  setEditingContact(undefined);
-                }}
-                className="h-10 gap-2 text-xs"
-              >
-                <X size={14} /> Cancelar
-              </Button>
+              <Button type="button" onClick={() => void addContact()} className="h-10 flex-1 gap-2 text-xs"><Plus size={14} /> Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowNewContact(false); setEditingContact(undefined); }} className="h-10 gap-2 text-xs"><X size={14} /> Cancelar</Button>
             </div>
           </div>
         </section>
-      ) : (
-        <Button
-          type="button"
-          onClick={() => setShowNewContact(true)}
-          className="h-10 gap-2 text-xs"
-        >
-          <Plus size={14} /> Novo contato
-        </Button>
       )}
-      <section className={`${card} overflow-hidden`}>
-        <CabecalhoSecao
-          icon={<UserRound size={15} />}
-          title="AGENDA"
-          detail={`${contacts.length} contato(s) cadastrado(s)`}
-          action={viewToggle(contactView, setContactView, "a agenda")}
-        />
-        {contacts.length ? (
-          <div
-            className={`p-4 ${contactView === "lista" ? "space-y-2" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"}`}
-          >
-            {contacts.map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-xl border border-border/70 bg-background/35 transition-colors hover:border-primary/35 ${contactView === "lista" ? "flex items-center justify-between gap-3 px-4 py-3" : "flex min-h-[142px] flex-col justify-between gap-5 p-4"}`}
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                    {item.nome?.charAt(0).toUpperCase() || "?"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-bold">{item.nome}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-                      {[item.categoria, item.cargo, item.empresa].filter(Boolean).map((value) => (
-                        <span key={value} className="rounded-md bg-primary/10 px-2 py-1 text-primary">
-                          {value}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-                      {[item.email, item.telefone, [item.cidade, item.uf].filter(Boolean).join("/")]
-                        .filter(Boolean)
-                        .join(" · ") || "Sem dados de contato"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1 self-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => editContact(item)}
-                    aria-label={`Editar contato ${item.nome}`}
-                    className="text-muted-foreground hover:text-primary"
-                  >
-                    <Pencil size={14} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void removeContact(item.id)}
-                    aria-label={`Remover contato ${item.nome}`}
-                    className="text-muted-foreground hover:text-red-300"
-                  >
-                    <X size={14} />
-                  </Button>
-                </div>
-              </div>
-            ))}
+
+      <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="titulo-agenda-contatos" className="text-lg font-semibold tracking-tight text-white">Agenda de contatos</h2>
+            <p className="mt-0.5 text-sm text-slate-400">{contacts.length} {contacts.length === 1 ? "contato interno" : "contatos internos"}</p>
           </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-60">
+              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Input
+                type="search"
+                value={contactSearch}
+                onChange={(event) => setContactSearch(event.target.value)}
+                placeholder="Nome, setor, ramal..."
+                aria-label="Buscar contatos por nome, setor, telefone ou e-mail"
+                className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
+              />
+            </div>
+            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
+              <Plus size={14} /> Novo contato
+            </Button>
+          </div>
+        </header>
+
+        {visibleContacts.length ? (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleContacts.map((item) => (
+              <li key={item.id}>
+                <article className="flex h-full flex-col rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
+                      {item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("") || "?"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-semibold text-white">{item.nome}</h3>
+                      <p className="truncate text-xs text-slate-400">{item.cargo || item.empresa || "Contato profissional"}</p>
+                      {(item.categoria || item.empresa) && <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">{item.categoria || item.empresa}</span>}
+                    </div>
+                  </div>
+
+                  <dl className="mt-4 flex-1 space-y-2 border-t border-white/5 pt-3 text-xs text-slate-300">
+                    {item.telefone && <div className="flex min-w-0 items-center gap-2"><Phone size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Telefone</dt><dd className="truncate">{item.telefone}</dd></div>}
+                    {item.email && <div className="flex min-w-0 items-center gap-2"><Mail size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">E-mail</dt><dd className="truncate">{item.email}</dd></div>}
+                    {(item.cidade || item.uf || item.endereco) && <div className="flex min-w-0 items-center gap-2"><MapPin size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Localização</dt><dd className="truncate">{[item.cidade, item.uf].filter(Boolean).join(" / ") || item.endereco}</dd></div>}
+                    {!item.telefone && !item.email && !item.cidade && !item.uf && !item.endereco && <div className="text-slate-500">Sem dados adicionais de contato</div>}
+                  </dl>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setSelectedContact(item)} className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100">
+                      <Eye size={14} aria-hidden="true" /> Ver
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => editContact(item)} aria-label={`Editar contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"><Pencil size={14} /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-red-300"><X size={14} /></Button>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <EstadoVazio label="Nenhum contato cadastrado" />
+          <EstadoVazio label={contactSearch ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"} />
         )}
       </section>
+
+      <Dialog open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-4 pr-6">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">{selectedContact?.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("")}</span>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="truncate text-lg text-white">{selectedContact?.nome}</DialogTitle>
+                <DialogDescription className="truncate text-slate-400">{selectedContact?.cargo || selectedContact?.empresa || "Contato profissional"}</DialogDescription>
+                {(selectedContact?.categoria || selectedContact?.empresa) && <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">{selectedContact.categoria || selectedContact.empresa}</span>}
+              </div>
+            </div>
+          </DialogHeader>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {selectedContact?.telefone && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Phone size={14} />Telefone</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.telefone}</dd></div>}
+            {selectedContact?.email && <div className="min-w-0 rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Mail size={14} />E-mail</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.email}</dd></div>}
+            {selectedContact?.empresa && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Briefcase size={14} />Empresa</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.empresa}</dd></div>}
+            {(selectedContact?.cidade || selectedContact?.uf || selectedContact?.endereco) && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><MapPin size={14} />Localização</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{[selectedContact.cidade, selectedContact.uf].filter(Boolean).join(" / ") || selectedContact.endereco}</dd></div>}
+            {selectedContact?.observacoes && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Observações</dt><dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">{selectedContact.observacoes}</dd></div>}
+          </dl>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={() => setSelectedContact(null)}>Fechar</Button>
+            {selectedContact && <Button type="button" onClick={() => { const contact = selectedContact; setSelectedContact(null); editContact(contact); }}><Pencil size={14} className="mr-2" />Editar contato</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-
   const clientListContent = (
     <div className="space-y-4">
       <section className="rounded-2xl border border-white/[.08] bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">

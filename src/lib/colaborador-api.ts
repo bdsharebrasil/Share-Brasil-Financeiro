@@ -1186,11 +1186,13 @@ export function buscarNumerosVooAeronave(aeronaveId: string) {
 export function iniciarJornadaVoo(id: string, payload: Record<string, unknown> & { tripulantes?: Array<{ tripulante_id: string; funcao: "PIC" | "SIC" }> }) { return colaboradorRequest<JornadaVoo>(`/api/interno/agendamento/${id}/jornada`, { method: "POST", body: JSON.stringify(payload) }); }
 export function finalizarAgendamento(id: string) { return colaboradorRequest<{ success: boolean; status: string; id: string; numero_voo: string | null }>(`/api/interno/agendamento/${encodeURIComponent(id)}/finalizar`, { method: "POST" }); }
 export function atualizarJornadaVoo(id: string, payload: Record<string, unknown>) { return colaboradorRequest<JornadaVoo>(`/api/interno/jornadas/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirJornadaVoo(id: string) { return colaboradorRequest<{ success: boolean; id: string }>(`/api/interno/jornadas/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function buscarLimitesJornada(id: string, corteFinal?: string) { const query = corteFinal ? `?corte_final=${encodeURIComponent(corteFinal)}` : ""; return colaboradorRequest<LimitesJornada>(`/api/interno/jornadas/${encodeURIComponent(id)}/limites${query}`); }
 export function encerrarJornadaVoo(id: string, payload: { horario_pouso?: string; horario_corte: string; observacoes?: string; confirmar_excedente?: boolean }) { return atualizarJornadaVoo(id, { ...payload, status: "encerrada" }); }
 export type NovaPernaJornadaPayload = Record<string, unknown> & { confirmar_excedente?: boolean };
 export function adicionarPernaJornada(id: string, payload: NovaPernaJornadaPayload) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${id}/pernas`, { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarPernaJornada(jornadaId: string, pernaId: string, payload: Record<string, unknown>) { return colaboradorRequest<{ id: string; status: string }>(`/api/interno/jornadas/${jornadaId}/pernas/${pernaId}`, { method: "PATCH", body: JSON.stringify(payload) }); }
+export function excluirPernaJornada(jornadaId: string, pernaId: string) { return colaboradorRequest<{ success: boolean; id: string }>(`/api/interno/jornadas/${encodeURIComponent(jornadaId)}/pernas/${encodeURIComponent(pernaId)}`, { method: "DELETE" }); }
 
 export type RelatorioDespesaViagem = Record<string, any> & {
   id: string;

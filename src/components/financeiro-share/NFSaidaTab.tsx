@@ -250,6 +250,7 @@ export default function NFSaidaTab() {
     cotista_aeronave_id: n.cotista_aeronave_id ?? null,
     cliente_id: n.cliente_id,
     socio_id: n.socio_id,
+    holding_id: n.holding_id ?? null,
     cliente_nome: n.cliente_nome,
     cliente_cnpj: n.cliente_cnpj,
     cliente_endereco: n.cliente_endereco ?? null,
@@ -277,6 +278,7 @@ export default function NFSaidaTab() {
     cotista_aeronave_id: r.cotista_id ?? null,
     cliente_id: r.cliente_id,
     socio_id: r.socio_id,
+    holding_id: r.holding_id ?? null,
     cliente_nome: r.cliente_nome,
     cliente_cnpj: r.cliente_cnpj,
     cliente_endereco: r.cliente_endereco ?? null,
@@ -636,7 +638,7 @@ export default function NFSaidaTab() {
         pagamentos: [{
           tipo_pagador: baixaTarget.socio_id ? "HOLDING" : "COTISTA",
           pagador_cotista_id: baixaTarget.socio_id ? null : baixaTarget.cotista_aeronave_id,
-          pagador_holding_id: baixaTarget.socio_id ? baixaTarget.socio_id : null,
+          pagador_holding_id: baixaTarget.socio_id ? baixaTarget.holding_id ?? null : null,
           valor_centavos: Math.round(Number(baixaTarget.valor ?? 0) * 100),
           data_pagamento: baixaForm.data_pagamento,
           conta_bancaria_id: baixaForm.conta_bancaria || null,
@@ -645,7 +647,7 @@ export default function NFSaidaTab() {
         }],
       });
 
-      setToast({ type: "ok", text: "Baixa registrada: receita da Share recebida e despesa do cliente quitada." });
+      setToast({ type: "ok", text: "Baixa registrada: receita da Share recebida e espelho financeiro atualizado." });
       closeBaixa();
       fetchNotas();
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao dar baixa." });

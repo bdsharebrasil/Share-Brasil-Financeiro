@@ -15,6 +15,7 @@ export interface NotaOuReciboSaidaRow {
 	cotista_id?: string | null;
 	cliente_id: string | null;
 	socio_id: string | null;
+	holding_id?: string | null;
 	cliente_nome: string | null;
 	cliente_cnpj: string | null;
 	cliente_endereco?: string | null;
@@ -46,6 +47,7 @@ export interface DocumentoSaida {
 	cotista_aeronave_id: string | null;
 	cliente_id: string | null;
 	socio_id: string | null;
+	holding_id?: string | null;
 	cliente_nome: string | null;
 	cliente_cnpj: string | null;
 	cliente_endereco: string | null;

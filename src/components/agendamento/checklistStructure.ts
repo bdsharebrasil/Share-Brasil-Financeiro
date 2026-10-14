@@ -82,5 +82,7 @@ export const SECOES_CHECKLIST: SecaoChecklist[] = [
   },
 ];
 
+export const TOTAL_ITENS_CHECKLIST = SECOES_CHECKLIST.reduce((total, secao) => total + secao.itens.length, 0);
+
 export type RespostaChecklist = { status: "feito" | "alerta" | "nao_feito"; observacao?: string };
 export type RespostasChecklist = Record<string, RespostaChecklist>;

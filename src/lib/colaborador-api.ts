@@ -383,6 +383,7 @@ export type SolicitacaoVooInterna = {
   voo_emprestado: string;
   status: "pendente" | "aprovada" | "reprovada" | "cancelada" | string;
   checklist_status?: string | null;
+  checklist_itens_respondidos?: number | string | null;
   motivo_rejeicao: string | null;
   numero_voo: string | null;
   criado_em: string;

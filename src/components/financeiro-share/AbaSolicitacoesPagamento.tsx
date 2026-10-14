@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileText, RefreshCw } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileImage, FileText, RefreshCw, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
   darBaixaContaAPagar,
+  enviarComprovanteReembolso,
   formatarData,
   formatarMoeda,
   type ContaBancaria,
@@ -71,7 +72,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10));
   const [bancoId, setBancoId] = useState("");
-  const [comprovante, setComprovante] = useState("");
+  const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
 
@@ -109,21 +111,49 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     if (!alvo?.id || !bancoId) return;
     setSalvando(true);
     try {
+      let comprovanteUrl: string | undefined;
+      if (comprovanteArquivo) {
+        setEnviandoComprovante(true);
+        comprovanteUrl = (await enviarComprovanteReembolso(alvo.id, comprovanteArquivo)).url;
+        setEnviandoComprovante(false);
+      }
       await darBaixaContaAPagar(alvo.id, {
         dataPagamento,
         bancoPagamento: bancoId,
-        comprovantePagamentoUrl: comprovante.trim() || undefined,
+        comprovantePagamentoUrl: comprovanteUrl,
         formaPagamento: "TRANSFERENCIA",
       });
       toast.success("Reembolso do colaborador marcado como pago.");
       setAlvo(null);
-      setComprovante("");
+      setComprovanteArquivo(null);
       await carregar();
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível registrar o pagamento.");
     } finally {
+      setEnviandoComprovante(false);
       setSalvando(false);
     }
+  }
+
+  function selecionarComprovante(arquivo?: File) {
+    if (!arquivo) return;
+    const tiposAceitos = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!tiposAceitos.includes(arquivo.type)) {
+      toast.error("Escolha um arquivo PDF, JPG, PNG ou WebP.");
+      return;
+    }
+    if (arquivo.size < 1 || arquivo.size > 10 * 1024 * 1024) {
+      toast.error("O comprovante deve ter no máximo 10 MB.");
+      return;
+    }
+    setComprovanteArquivo(arquivo);
+  }
+
+  function fecharBaixa(aberto: boolean) {
+    if (aberto || salvando) return;
+    setAlvo(null);
+    setComprovanteArquivo(null);
+    setBancoId("");
   }
 
   const enviosFiltrados = useMemo(() => envios.filter((item) => {
@@ -231,6 +261,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             setAlvo(item);
             setDataPagamento(new Date().toISOString().slice(0, 10));
             setBancoId("");
+            setComprovanteArquivo(null);
           }} className="h-8 gap-1.5 text-[11px]"><CheckCircle2 size={13} /> Dar baixa</Button>
         </div>
       </div>,
@@ -280,16 +311,45 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         </TabsContent>
       </Tabs>
 
-      <Dialog open={Boolean(alvo)} onOpenChange={(aberto) => { if (!aberto) setAlvo(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Dar baixa no reembolso</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-lg bg-muted/40 p-3"><p className="text-sm font-semibold">{alvo?.descricao}</p><p className="mt-1 text-xs text-muted-foreground">{formatarMoeda(alvo?.valor ?? 0)}</p></div>
-            <div className="grid gap-2"><Label htmlFor="reembolso-data">Data do pagamento</Label><Input id="reembolso-data" type="date" value={dataPagamento} onChange={(event) => setDataPagamento(event.target.value)} /></div>
-            <div className="grid gap-2"><Label>Conta {String(alvo?.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"}</Label><Select value={bancoId} onValueChange={setBancoId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contasParaPagamento.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid gap-2"><Label htmlFor="reembolso-comprovante">Comprovante (URL)</Label><Input id="reembolso-comprovante" value={comprovante} onChange={(event) => setComprovante(event.target.value)} placeholder="https://…" /></div>
+      <Dialog open={Boolean(alvo)} onOpenChange={fecharBaixa}>
+        <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto rounded-2xl border-border/70 p-0">
+          <div className="border-b border-border/70 bg-gradient-to-br from-primary/[.12] via-transparent to-emerald-500/[.06] p-5 sm:p-6">
+            <DialogHeader>
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary"><CheckCircle2 size={20} /></div>
+              <DialogTitle className="text-lg">Dar baixa no reembolso</DialogTitle>
+              <p className="text-xs text-muted-foreground">Registre o pagamento e, se desejar, anexe o comprovante.</p>
+            </DialogHeader>
+            <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
+              <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">Colaborador · {alvo?.solicitanteNome || "Reembolso"}</p><p className="mt-1 truncate text-sm font-semibold">{alvo?.descricao || "Despesa reembolsável"}</p><p className="mt-1 text-[10px] text-muted-foreground">Vencimento {dataLegivel(alvo?.dataVencimento || null)}</p></div>
+              <strong className="shrink-0 text-lg font-extrabold text-primary">{formatarMoeda(alvo?.valor ?? 0)}</strong>
+            </div>
           </div>
-          <DialogFooter><Button type="button" variant="outline" onClick={() => setAlvo(null)}>Cancelar</Button><Button type="button" disabled={salvando || !bancoId} onClick={() => void confirmarBaixa()}><CheckCircle2 size={15} className="mr-2" />{salvando ? "Salvando…" : "Confirmar pagamento"}</Button></DialogFooter>
+          <div className="space-y-5 p-5 sm:p-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2"><Label htmlFor="reembolso-data" className="flex items-center gap-2 text-xs"><CalendarDays size={14} className="text-primary" />Data do pagamento</Label><Input id="reembolso-data" type="date" value={dataPagamento} onChange={(event) => setDataPagamento(event.target.value)} /></div>
+              <div className="grid gap-2"><Label className="text-xs">Conta {String(alvo?.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"}</Label><Select value={bancoId} onValueChange={setBancoId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contasParaPagamento.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <section className="space-y-2">
+              <div><Label className="text-xs">Comprovante de pagamento <span className="font-normal text-muted-foreground">· opcional</span></Label><p className="mt-1 text-[10px] text-muted-foreground">Imagem ou PDF · até 10 MB</p></div>
+              {comprovanteArquivo ? (
+                <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[.05] p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{comprovanteArquivo.type === "application/pdf" ? <FileText size={18} /> : <FileImage size={18} />}</div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{comprovanteArquivo.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{(comprovanteArquivo.size / (1024 * 1024)).toFixed(2)} MB · pronto para enviar</p></div>
+                  <Button type="button" variant="ghost" size="icon" aria-label="Remover comprovante" disabled={salvando} onClick={() => setComprovanteArquivo(null)} className="h-8 w-8 shrink-0"><X size={15} /></Button>
+                </div>
+              ) : (
+                <label htmlFor="reembolso-comprovante-arquivo" className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/[.04]">
+                  <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary"><Upload size={16} /></span><span className="text-xs font-semibold">Clique para escolher o comprovante</span><span className="mt-1 text-[10px] text-muted-foreground">PDF, JPG, PNG ou WebP</span>
+                  <input id="reembolso-comprovante-arquivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" className="sr-only" disabled={salvando} onChange={(event) => { selecionarComprovante(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+                </label>
+              )}
+              {enviandoComprovante && <p role="status" className="text-[10px] text-primary">Enviando comprovante…</p>}
+            </section>
+          </div>
+          <DialogFooter className="border-t border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
+            <Button type="button" variant="outline" disabled={salvando} onClick={() => fecharBaixa(false)}>Cancelar</Button>
+            <Button type="button" disabled={salvando || !bancoId || !dataPagamento} onClick={() => void confirmarBaixa()}><CheckCircle2 size={15} className="mr-2" />{salvando ? enviandoComprovante ? "Enviando comprovante…" : "Registrando pagamento…" : "Confirmar pagamento"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

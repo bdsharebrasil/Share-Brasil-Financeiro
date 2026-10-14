@@ -144,6 +144,12 @@ export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: st
   return normalizarContaFinanceira<ContaAPagar>(resposta);
 }
 
+export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{ url: string }> {
+  const body = new FormData();
+  body.append("arquivo", arquivo, arquivo.name);
+  return financeiroRequest<{ url: string }>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
+}
+
 export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
   return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
 }

@@ -27,6 +27,31 @@ async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promi
   return data as T;
 }
 
+export type AcessoPortalCliente = {
+  cotista_aeronave_id: string;
+  cliente_id: string | null;
+  socio_id: string | null;
+  codigo_cliente: string | null;
+  percentual_sociedade: number | null;
+  nome: string;
+  email: string | null;
+  matricula_registro: string | null;
+  possui_acesso: number | boolean;
+  login: string | null;
+};
+
+export function buscarAcessosPortalCliente(aeronaveId: string) {
+  return financeiroRequest<{ cotistas: AcessoPortalCliente[] }>(`/api/financeiro/cotista/portal-cliente?aeronave_id=${encodeURIComponent(aeronaveId)}`);
+}
+
+export function criarAcessoPortalCliente(cotistaAeronaveId: string) {
+  return financeiroRequest<{ success: boolean; login: string; senha_temporaria: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/credenciais`, { method: "POST" });
+}
+
+export function enviarAcessoPortalCliente(cotistaAeronaveId: string) {
+  return financeiroRequest<{ success: boolean; destinatario: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/enviar-acesso`, { method: "POST" });
+}
+
 function paraQueryString(filtros: Record<string, string | undefined>): string {
   const parametros = new URLSearchParams();
   Object.entries(filtros).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });

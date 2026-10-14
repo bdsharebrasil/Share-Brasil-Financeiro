@@ -34,6 +34,7 @@ import {
   MoreHorizontal,
   Search,
   ExternalLink,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,7 @@ import {
   buscarCotistasAeronave,
 } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
+import { PortalClienteTab } from "./PortalClienteTab";
 import { BalancoMensalCotista } from "@/components/financeiro/BalancoMensalCotista";
 import {
   agruparPorMes,
@@ -2258,6 +2260,7 @@ export default function FinanceiroCotista() {
     | "ranking"
     | "emprestimos"
     | "extrato"
+    | "portal-cliente"
   >("lancamentos");
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
@@ -2469,6 +2472,7 @@ export default function FinanceiroCotista() {
               ["medias", "Médias", Gauge],
               ["graficos", "Gráficos", BarChart3],
               ["ranking", "Ranking de gastos", ListOrdered],
+              ["portal-cliente", "Portal Cliente", KeyRound],
             ] as const).map(([id, label, Icon]) => (
               <button
                 key={id as string}
@@ -2496,7 +2500,7 @@ export default function FinanceiroCotista() {
             )}
           </div>
 
-          {abaAtiva !== "relatorio" && (
+          {abaAtiva !== "relatorio" && abaAtiva !== "portal-cliente" && (
             <section className="financeiro-panel p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -2550,7 +2554,9 @@ export default function FinanceiroCotista() {
             </section>
           )}
 
-          {carregando ? (
+          {abaAtiva === "portal-cliente" ? (
+            <PortalClienteTab aeronaveId={aeronaveSelecionada} />
+          ) : carregando ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />
             </div>

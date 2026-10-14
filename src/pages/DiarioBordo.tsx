@@ -117,9 +117,22 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     setSaving(true); setError(null);
     try {
       if (entryEditor) await atualizarLancamentoDiario(entryEditor.id, payload); else await criarLancamentoDiario(payload);
-      setEntryEditor(false); setNotice(entryEditor ? "Lançamento atualizado." : "Voo registrado no diário.");
-      await loadDetails(selected, period); await loadList(true);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível salvar o lançamento."); }
+    } catch (cause) {
+      const message = cause instanceof Error && cause.message.trim() ? cause.message : "Não foi possível salvar o lançamento.";
+      setError(message);
+      setSaving(false);
+      return;
+    }
+    setEntryEditor(false);
+    setNotice(entryEditor ? "Lançamento atualizado." : "Voo registrado no diário.");
+    try {
+      await Promise.all([loadDetails(selected, period), loadList(true)]);
+      setError(null);
+    } catch {
+      // A gravação já foi confirmada pelo D1; uma falha de atualização não deve
+      // apresentar o lançamento salvo como se a operação tivesse falhado.
+      setNotice("Lançamento salvo. Atualize a página se a tabela ainda não refletir a alteração.");
+    }
     finally { setSaving(false); }
   };
 

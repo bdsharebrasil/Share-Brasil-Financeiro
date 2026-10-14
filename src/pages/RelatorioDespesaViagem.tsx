@@ -413,7 +413,7 @@ export default function RelatorioDespesaViagem({
     const clienteDoVoo = opcoes.clientes.find((item) => item.id === voo.cliente_id);
     const vooEhHolding = clienteDoVoo?.holding === true || Number(clienteDoVoo?.holding || 0) === 1;
     const dataFim = dataInicio ? new Date(new Date(`${dataInicio}T00:00:00Z`).getTime() + (dias - 1) * 86_400_000).toISOString().slice(0, 10) : form.data_fim;
-    setForm((atual) => ({ ...atual, numero_voo: voo.numero_voo, cliente_id: voo.cliente_id || "", socio_id: voo.socio_id && vooEhHolding ? voo.socio_id : "", aeronave_id: voo.aeronave_id || "", rota: [voo.origem, voo.destino].filter(Boolean).join("-"), data_inicio: dataInicio, data_fim: dataFim, quantidade_dias: String(dias), tripulacao_id: voo.piloto_id || "", nome_tripulante: voo.tripulante_nome || "", tripulante_id_2: voo.copiloto_id || "", nome_tripulante_2: voo.tripulante_nome_2 || "" }));
+    setForm((atual) => ({ ...atual, numero_voo: voo.numero_voo, cliente_id: voo.cliente_id || "", socio_id: voo.socio_id && vooEhHolding ? voo.socio_id : "", aeronave_id: voo.aeronave_id || "", rota: voo.rota_nome || [voo.origem, voo.destino].filter(Boolean).join("-"), data_inicio: dataInicio, data_fim: dataFim, quantidade_dias: String(dias), tripulacao_id: voo.piloto_id || "", nome_tripulante: voo.tripulante_nome || "", tripulante_id_2: voo.copiloto_id || "", nome_tripulante_2: voo.tripulante_nome_2 || "" }));
   };
   const iniciarNovo = () => {
     setRelatorio(null);
@@ -1098,7 +1098,7 @@ export default function RelatorioDespesaViagem({
               <div className="min-w-0 flex-1">
                 <SearchableCombobox
                   items={voosDisponiveis.map((item) => {
-                    const trecho = item.origem && item.destino ? `${item.origem} x ${item.destino}` : "";
+                    const trecho = item.rota_nome || (item.origem && item.destino ? `${item.origem} x ${item.destino}` : "");
                     const dataAgendada = dataAgendadaBr(item.data_agendada);
                     return { id: item.numero_voo, label: [item.numero_voo, trecho, dataAgendada].filter(Boolean).join(" ") };
                   })}

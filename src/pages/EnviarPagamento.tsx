@@ -538,7 +538,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         cliente_id: "", socio_id: "", aeronave_id: form.aeronave_id, ...(form.cotista_ids.length === 1 ? { cotista_aeronave_id: form.cotista_ids[0] } : {}),
         numero_voo: form.numero_voo || null,
         fornecedor: form.fornecedor, fornecedor_id: form.fornecedor_id,
-        categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: false,
+        categoria_id: form.categoria_id, categoria_cliente_id: tipo === "cliente" ? form.categoria_id : undefined, categoria_nome: form.categoria_nome, tipo_caixa: tipo === "cliente" ? "CLIENTE" : "SHARE", gera_rateio: exigeCliente, pago_diretamente: false,
         grupo_categoria: form.grupo_categoria, tipo_despesa: form.tipo_despesa,
         pago_por: tipo === "cliente" ? null : form.pago_por || "share", periodicidade: form.periodicidade,
         anexos: form.anexos.map(({ id, tipo: anexoTipo, numero, url, cotista_id }) => ({ id, tipo: anexoTipo, numero, url, cotista_id })),

@@ -23,6 +23,11 @@ test("envio direto sem voo serializa numero_voo como null e mantém o rateio obr
   assert.doesNotMatch(source, /validarRateio[\s\S]{0,300}if \(!form\.numero_voo\)/);
 });
 
+test("envio direto inclui o nome da categoria selecionada no payload do rateio", () => {
+  assert.match(source, /categoria_id: form\.categoria_id, categoria_cliente_id: tipo === "cliente" \? form\.categoria_id : undefined, categoria_nome: form\.categoria_nome/);
+  assert.match(source, /onChange=\{\(id, label\) => setForm\(\(atual\) => \(\{ \.\.\.atual, categoria_id: id, categoria_nome: label/);
+});
+
 test("no modo com voo, a lista de cotistas permite multisseleção e retirar cada cotista", () => {
   assert.match(source, /onChange=\{atualizarSelecaoCotistas\} placeholder="Selecione cotistas \(adicione ou remova\)"/);
   assert.doesNotMatch(source, /onChange=\{\(\) => undefined\} placeholder="Cotistas preenchidos pelo voo"/);

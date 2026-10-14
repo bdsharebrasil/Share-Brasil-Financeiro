@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
-import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes, type FornecedorCombustivel } from "@/lib/colaborador-api";
+import { anexarArquivoAbastecimento, atualizarAbastecimento, baixarArquivoAbastecimento, buscarAbastecimentoOpcoes, buscarAbastecimentos, buscarNumerosVooAeronave, criarAbastecimento, criarFornecedorAbastecimento, atualizarFornecedorAbastecimento, excluirAbastecimento, type Abastecimento, type AbastecimentoOpcoes, type FornecedorCombustivel, type NumeroVooOpcao } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const money = (value: number) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -38,11 +38,12 @@ const emptyForm = {
 
 type Form = typeof emptyForm;
 
-export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => void }) {
+export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { aoVoltar?: () => void; initialRecordId?: string }) {
   const [tab, setTab] = useState<"registros" | "fornecedores">("registros");
   const [tabCliente, setTabCliente] = useState<"vinculados" | "emprestimo">("vinculados");
   const [options, setOptions] = useState<AbastecimentoOpcoes | null>(null);
   const [records, setRecords] = useState<Abastecimento[]>([]);
+  const [voosDisponiveis, setVoosDisponiveis] = useState<NumeroVooOpcao[]>([]);
   const [form, setForm] = useState<Form>(emptyForm);
   const [files, setFiles] = useState<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>({ comanda: null, nota: null, boleto: null, comprovante: null });
   const [persistedRecordId, setPersistedRecordId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
   const [buscaCliente, setBuscaCliente] = useState("");
   const [mesAberto, setMesAberto] = useState<string | null>(null);
+  const initialRecordOpened = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -90,6 +92,18 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
   };
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    if (!formOpen || !form.aeronave_id) {
+      setVoosDisponiveis([]);
+      return;
+    }
+    let ativo = true;
+    void buscarNumerosVooAeronave(form.aeronave_id)
+      .then((resposta) => { if (ativo) setVoosDisponiveis(resposta.voos || []); })
+      .catch((reason) => { if (ativo) setError(reason instanceof Error ? reason.message : "Não foi possível buscar os números de voo."); });
+    return () => { ativo = false; };
+  }, [form.aeronave_id, formOpen]);
 
   useEffect(() => {
     if (!message) return;
@@ -172,7 +186,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     setForm(emptyForm);
   };
 
-  const editRecord = (item: Abastecimento) => {
+  const editRecord = useCallback((item: Abastecimento) => {
     setEditing(item);
     setForm({
       ...emptyForm,
@@ -185,7 +199,15 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
     setFiles({ comanda: null, nota: null, boleto: null, comprovante: null });
     setPersistedRecordId(item.id);
     setFormOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialRecordId || loading || initialRecordOpened.current) return;
+    initialRecordOpened.current = true;
+    const item = records.find((record) => record.id === initialRecordId);
+    if (item) editRecord(item);
+    else setError("O abastecimento pendente não foi encontrado no controle.");
+  }, [editRecord, initialRecordId, loading, records]);
 
   const save = async () => {
     const litros = Number(form.litros);
@@ -207,8 +229,8 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
       const payload = {
         ...form,
         abastecimento_id: undefined,
-        cliente_id: socioSelecionado ? null : clienteSelecionado,
-        socio_id: socioSelecionado?.id || null,
+        cliente_id: socioSelecionado ? null : clienteSelecionado || editing?.cliente_id || null,
+        socio_id: socioSelecionado?.id || editing?.socio_id || null,
         litros,
         valor_unitario: Number(form.valor_unitario || valorTotal / litros),
         valor_total: valorTotal,
@@ -334,7 +356,7 @@ export default function ControleAbastecimento({ aoVoltar }: { aoVoltar?: () => v
         <>
           {formOpen && (
             <div className="mb-6">
-              <AbastecimentoForm form={form} options={options} editing={editing} saving={saving} files={files} setFiles={setFiles} setField={setField} onClose={closeForm} onSave={() => void save()} />
+              <AbastecimentoForm form={form} options={options} voos={voosDisponiveis} editing={editing} saving={saving} files={files} setFiles={setFiles} setField={setField} onClose={closeForm} onSave={() => void save()} />
             </div>
           )}
 
@@ -556,10 +578,14 @@ function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onPreview }: { r
   const [menuAberto, setMenuAberto] = useState(false);
   return <tr className={`border-b border-border/60 bg-card/40 hover:bg-primary/5 ${StatusBorder({ record })}`}><td className="whitespace-nowrap px-3 py-3 font-mono">{date(record.data)}</td><td className="px-3 py-3 font-mono font-bold text-primary">{record.numero_voo || record.matricula_registro || "—"}</td><td className="px-3 py-3 font-mono">{record.trecho || "—"}</td><td className="px-3 py-3 text-muted-foreground"><div className="flex items-center gap-1"><MapPin size={12} />{record.aerodromo_nome || record.local || "—"}{record.fornecedor_nome ? ` · ${record.fornecedor_nome}` : ""}</div></td><td className="hidden whitespace-nowrap px-2 py-3 font-mono xl:table-cell"><AttachmentNumber record={record} type="comanda" onPreview={onPreview} /></td><td className="hidden whitespace-nowrap px-2 py-3 font-mono xl:table-cell"><AttachmentNumber record={record} type="nota" onPreview={onPreview} /></td><td className="px-3 py-3 text-right font-mono">{Number(record.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</td><td className="hidden px-3 py-3 text-right font-mono text-muted-foreground lg:table-cell">{money(record.valor_unitario)}</td><td className={`px-3 py-3 text-right font-mono font-bold ${corTotalAbastecimento(record.status)}`}>{money(record.valor_total)}</td><td className="relative px-3 py-3 text-right"><div className="flex items-center justify-end gap-2"><button type="button" onClick={() => setMenuAberto(!menuAberto)} className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"><MoreVertical size={14} /></button></div>{menuAberto && <div className="absolute right-4 top-10 z-20 w-32 flex flex-col rounded-xl border border-border bg-card p-1 text-left shadow-xl"><button type="button" onClick={() => { setMenuAberto(false); onEdit(record); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Edit3 size={13} /> Editar</button>{!record.comanda_url && <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Upload size={13} /> Comanda<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(e) => { setMenuAberto(false); void onUpload(record.id, "comanda", e.target.files?.[0]); }} /></label>}{!record.nota_url && <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary"><Upload size={13} /> NF<input className="hidden" type="file" accept="application/pdf,image/*" onChange={(e) => { setMenuAberto(false); void onUpload(record.id, "nota", e.target.files?.[0]); }} /></label>}<button type="button" onClick={() => { setMenuAberto(false); void onDelete(record.id); }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-destructive hover:bg-destructive/10"><X size={13} /> Excluir</button></div>}</td></tr>;
 }
-function AbastecimentoForm({ form, options, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
+function AbastecimentoForm({ form, options, voos, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; voos: NumeroVooOpcao[]; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
   const aeronaves = Array.isArray(options?.aeronaves) ? options.aeronaves : [];
   const fornecedores = Array.isArray(options?.fornecedores) ? options.fornecedores : [];
   const diarios = (options?.diarios || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
+  const voosUnicos = new Map<string, NumeroVooOpcao>();
+  voos.forEach((voo) => { if (voo.numero_voo?.trim() && !voosUnicos.has(voo.numero_voo.trim())) voosUnicos.set(voo.numero_voo.trim(), voo); });
+  if (form.numero_voo.trim() && !voosUnicos.has(form.numero_voo.trim())) voosUnicos.set(form.numero_voo.trim(), { solicitacao_id: "registro-atual", numero_voo: form.numero_voo.trim(), origem: null, destino: null, data_agendada: null, cliente_id: null, socio_id: null, voo_emprestado: null, cliente_emprestimo_id: null, socio_emprestimo_id: null, piloto_id: null, copiloto_id: null, pic_canac: null, pic_nome: null, sic_canac: null, sic_nome: null });
+  const opcoesVoo = Array.from(voosUnicos.values());
   const [trechosAberto, setTrechosAberto] = useState(false);
   const [mesTrechos, setMesTrechos] = useState(new Date().toISOString().slice(0, 7));
   const [confirmarVooEmprestado, setConfirmarVooEmprestado] = useState(false);
@@ -581,7 +607,7 @@ function AbastecimentoForm({ form, options, editing, saving, files, setFiles, se
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Aeronave *</span><SearchableCombobox items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.fabricante || ""} ${a.modelo || ""}` }))} value={form.aeronave_id} onChange={(value) => { setField("aeronave_id", value); setField("lancamento_diario_id", ""); setField("abastecimento_id", ""); setField("numero_voo", ""); setField("trecho", ""); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave encontrada." icon={<Plane size={14} />} /></div>
-        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Número do voo</span><SearchableCombobox items={diarios.filter((d: any) => d.numero_voo).map((d: any) => ({ id: d.id, label: `${d.numero_voo} · ${date(d.data_registro)} · ${d.trecho || `${d.aerodromo_partida} X ${d.aerodromo_chegada}`}` }))} value={form.numero_voo ? form.lancamento_diario_id : ""} onChange={(value) => { const diario = diarios.find((item: any) => item.id === value) as any; setField("lancamento_diario_id", value); if (diario) { setField("numero_voo", diario.numero_voo || ""); setField("trecho", diario.trecho || `${diario.aerodromo_partida || ""} X ${diario.aerodromo_chegada || ""}`); } }} placeholder={form.aeronave_id ? "Selecione o voo (opcional)" : "Selecione primeiro a aeronave"} searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado para a aeronave." icon={<Plane size={14} />} disabled={!form.aeronave_id} clearable /></div>
+        <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Número do voo</span><SearchableCombobox items={opcoesVoo.map((voo) => ({ id: voo.numero_voo, label: `${voo.numero_voo}${voo.data_agendada ? ` · ${date(voo.data_agendada)}` : ""}${voo.origem || voo.destino ? ` · ${voo.origem || "?"} X ${voo.destino || "?"}` : ""}` }))} value={form.numero_voo} onChange={(value) => { const voo = opcoesVoo.find((item) => item.numero_voo === value); setField("numero_voo", value); setField("lancamento_diario_id", ""); if (voo?.origem || voo?.destino) setField("trecho", `${voo.origem || "?"} X ${voo.destino || "?"}`); }} placeholder={form.aeronave_id ? "Selecione o voo (opcional)" : "Selecione primeiro a aeronave"} searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado para a aeronave." icon={<Plane size={14} />} disabled={!form.aeronave_id} clearable /></div>
         <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Data *</span><input type="date" value={form.data} onChange={(e) => setField("data", e.target.value)} className="campo font-mono" /></label>
         <div className="space-y-1"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Local / aeródromo *</span><SearchableCombobox items={(options?.aerodromos || []).map((a: any) => ({ id: a.id, label: `${a.designativo_icao || a.id} · ${a.nome || ""}` }))} value={form.local} onChange={(value) => setField("local", value)} placeholder="Selecione o aeródromo" searchPlaceholder="Buscar ICAO ou nome" emptyMessage="Nenhum aeródromo encontrado." icon={<MapPin size={14} />} /></div>
         <div className="relative space-y-1"><div className="flex items-center justify-between"><span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Trecho</span><button type="button" onClick={() => setTrechosAberto((aberto) => !aberto)} disabled={!form.aeronave_id} title="Consultar trechos do diário de bordo" className="rounded-md border border-border p-1 text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"><CalendarRange size={14} /></button></div><input placeholder="Informe manualmente ou selecione no diário" value={form.trecho} onChange={(e) => setField("trecho", e.target.value)} className="campo font-mono" />{trechosAberto && <div className="absolute z-30 mt-1 w-[min(520px,calc(100vw-3rem))] rounded-xl border border-border bg-card p-3 shadow-xl"><div className="mb-3 flex items-center justify-between gap-2"><strong className="text-[10px] uppercase tracking-wider text-primary">Trechos do diário de bordo</strong><input type="month" value={mesTrechos} onChange={(e) => setMesTrechos(e.target.value)} className="campo h-8 w-auto text-[10px]" /></div><div className="max-h-64 space-y-2 overflow-y-auto">{diariosDoMes.length ? diariosDoMes.map((diario: any) => <button key={diario.id} type="button" onClick={() => selecionarTrecho(diario)} className="w-full rounded-lg border border-border/70 p-2 text-left text-[10px] hover:border-primary/50 hover:bg-primary/5"><strong className="block text-primary">{date(diario.data_registro)} · {diario.trecho || `${diario.aerodromo_partida || ""} X ${diario.aerodromo_chegada || ""}`}</strong><span className="mt-1 block text-muted-foreground">{[diario.cliente_nome && `Cliente: ${diario.cliente_nome}`, diario.holding_nome && `Holding: ${diario.holding_nome}`, diario.socio_nome && `Sócio: ${diario.socio_nome}`].filter(Boolean).join(" · ") || "Cotista não informado"}</span>{diario.voo_emprestado && <span className="mt-1 block text-amber-400">{[diario.socio_tomador_nome && `Sócio tomador: ${diario.socio_tomador_nome}`, diario.cliente_tomador_nome && `Cliente tomador: ${diario.cliente_tomador_nome}`].filter(Boolean).join(" · ") || "Empréstimo sem tomador informado"}</span>}</button>) : <p className="py-5 text-center text-[10px] text-muted-foreground">Nenhum lançamento para esta aeronave no mês selecionado.</p>}</div></div>}</div>

@@ -6,6 +6,7 @@ import {
   MailCheck,
   MailX,
   Plane,
+  Pencil,
   RefreshCw,
 } from "lucide-react";
 
@@ -20,8 +21,10 @@ import { AeronavePasta } from "@/components/ui/aeronavepasta";
 
 import {
   buscarMovimentacoesFinanceiras,
+  type AbastecimentoPendenteFinanceiro,
   type PastaMovimentacoesFinanceiras,
 } from "@/lib/colaborador-api";
+import ControleAbastecimento from "@/pages/ControleAbastecimento";
 
 /* =========================================================
    TIPOS
@@ -637,6 +640,34 @@ function DespesasTabela({
   );
 }
 
+function TabelaAbastecimentosPendentes({ abastecimentos, onEditar }: { abastecimentos: AbastecimentoPendenteFinanceiro[]; onEditar: (id: string) => void }) {
+  if (!abastecimentos.length) return <EstadoVazio label="Nenhum abastecimento pré-voo aguardando dados fiscais." />;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <table className="w-full min-w-[950px] border-collapse text-left text-xs">
+        <thead className="bg-muted/20 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <tr><th className="px-4 py-3">Data</th><th className="px-4 py-3">Voo</th><th className="px-4 py-3">Cotista</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Local / trecho</th><th className="px-4 py-3">Nº NF</th><th className="px-4 py-3">Nota fiscal</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Ação</th></tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {abastecimentos.map((item) => (
+            <tr key={item.id} className="hover:bg-primary/5">
+              <td className="whitespace-nowrap px-4 py-3">{dataBruta(item.data)}</td>
+              <td className="px-4 py-3 font-mono font-bold text-primary">{item.numero_voo || "—"}</td>
+              <td className="px-4 py-3">{item.cotista_nome || "Não informado"}</td>
+              <td className="px-4 py-3">{item.matricula_registro || "—"}</td>
+              <td className="px-4 py-3">{item.local || item.trecho || "—"}</td>
+              <td className="px-4 py-3 font-mono">{item.numero_nf?.trim() || <span className="text-amber-600">Pendente</span>}</td>
+              <td className="px-4 py-3">{item.nota_url ? "Anexada" : <span className="text-amber-600">Pendente</span>}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-right font-mono">{formatarMoeda(Number(item.valor_total || 0))}</td>
+              <td className="px-4 py-3"><Button type="button" variant="outline" className="h-8 gap-1.5 text-[10px]" onClick={() => onEditar(item.id)}><Pencil size={12} /> Completar</Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* =========================================================
    PÁGINA
 ========================================================= */
@@ -648,6 +679,9 @@ export default function MovimentacoesFinanceiras({
 }) {
   const [pastas, setPastas] =
     useState<Pasta[]>([]);
+  const [abastecimentosPendentes, setAbastecimentosPendentes] = useState<AbastecimentoPendenteFinanceiro[]>([]);
+  const [abaSelecionada, setAbaSelecionada] = useState<"movimentacoes" | "abastecimentos_pendentes">("movimentacoes");
+  const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
 
   const [
     pastaAberta,
@@ -682,6 +716,7 @@ export default function MovimentacoesFinanceiras({
       setPastas(
         resposta.pastas || [],
       );
+      setAbastecimentosPendentes(resposta.abastecimentos_pendentes || []);
     } catch (error) {
       console.error(
         "Erro ao carregar movimentações:",
@@ -777,6 +812,16 @@ export default function MovimentacoesFinanceiras({
     aoVoltar();
   };
 
+  const voltarDaEdicaoAbastecimento = () => {
+    setAbastecimentoEmEdicao(null);
+    setAbaSelecionada("abastecimentos_pendentes");
+    void carregar();
+  };
+
+  if (abastecimentoEmEdicao) {
+    return <ControleAbastecimento initialRecordId={abastecimentoEmEdicao} aoVoltar={voltarDaEdicaoAbastecimento} />;
+  }
+
   /* =======================================================
      RENDER
   ======================================================= */
@@ -866,6 +911,13 @@ export default function MovimentacoesFinanceiras({
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Abas de movimentações financeiras">
+        <button type="button" role="tab" aria-selected={abaSelecionada === "movimentacoes"} onClick={() => setAbaSelecionada("movimentacoes")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${abaSelecionada === "movimentacoes" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>Movimentações</button>
+        <button type="button" role="tab" aria-selected={abaSelecionada === "abastecimentos_pendentes"} onClick={() => setAbaSelecionada("abastecimentos_pendentes")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${abaSelecionada === "abastecimentos_pendentes" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          Abastecimentos pendentes <span className="ml-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-700">{abastecimentosPendentes.length}</span>
+        </button>
+      </div>
+
       {/* =================================================
           ERRO
       ================================================= */}
@@ -889,7 +941,16 @@ export default function MovimentacoesFinanceiras({
           CONTEÚDO
       ================================================= */}
 
-      {carregando ? (
+      {abaSelecionada === "abastecimentos_pendentes" ? (
+        carregando ? (
+          <div className="space-y-3"><div className="skeleton h-16 rounded-xl" /><div className="skeleton h-16 rounded-xl" /></div>
+        ) : (
+          <section className="space-y-4">
+            <div><h2 className="text-sm font-bold">ABASTECIMENTOS PENDENTES</h2><p className="mt-1 text-xs text-muted-foreground">Registros gerados no checklist pré-voo que ainda precisam do número da nota fiscal e/ou do arquivo fiscal.</p></div>
+            <TabelaAbastecimentosPendentes abastecimentos={abastecimentosPendentes} onEditar={setAbastecimentoEmEdicao} />
+          </section>
+        )
+      ) : carregando ? (
         /* -----------------------------------------------
            LOADING
         ----------------------------------------------- */

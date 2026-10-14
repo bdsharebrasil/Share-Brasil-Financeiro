@@ -539,8 +539,25 @@ export type PastaMovimentacoesFinanceiras = {
   }>;
 };
 
+export type AbastecimentoPendenteFinanceiro = {
+  id: string;
+  numero_voo: string | null;
+  data: string | null;
+  numero_nf: string | null;
+  nota_url: string | null;
+  numero_comanda: string | null;
+  local: string | null;
+  trecho: string | null;
+  litros: number | null;
+  valor_total: number | null;
+  status: string | null;
+  matricula_registro: string | null;
+  fornecedor_nome: string | null;
+  cotista_nome: string | null;
+};
+
 export function buscarMovimentacoesFinanceiras() {
-  return colaboradorRequest<{ pastas: PastaMovimentacoesFinanceiras[] }>('/api/financeiro/dashboard/financeiro/movimentacoes');
+  return colaboradorRequest<{ pastas: PastaMovimentacoesFinanceiras[]; abastecimentos_pendentes: AbastecimentoPendenteFinanceiro[] }>('/api/financeiro/dashboard/financeiro/movimentacoes');
 }
 
 export function buscarOpcoesAgendamento() {

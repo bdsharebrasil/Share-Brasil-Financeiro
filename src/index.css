@@ -261,4 +261,10 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   .diario-bordo button {
     min-height: 44px;
   }
+
+  .diario-bordo .diario-form-grid,
+  .diario-bordo .diario-form-grid--fields,
+  .diario-bordo .diario-form-grid--compact {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

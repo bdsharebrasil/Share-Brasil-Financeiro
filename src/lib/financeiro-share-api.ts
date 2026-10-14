@@ -48,6 +48,13 @@ export function criarAcessoPortalCliente(cotistaAeronaveId: string) {
   return financeiroRequest<{ success: boolean; login: string; senha_temporaria: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/credenciais`, { method: "POST" });
 }
 
+export function atualizarCredenciaisPortalCliente(cotistaAeronaveId: string, credenciais: { login: string; senha: string }) {
+  return financeiroRequest<{ success: boolean; login: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/credenciais`, {
+    method: "PUT",
+    body: JSON.stringify(credenciais),
+  });
+}
+
 export function enviarAcessoPortalCliente(cotistaAeronaveId: string) {
   return financeiroRequest<{ success: boolean; destinatario: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/enviar-acesso`, { method: "POST" });
 }

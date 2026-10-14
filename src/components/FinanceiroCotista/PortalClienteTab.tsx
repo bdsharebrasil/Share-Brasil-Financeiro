@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { Building2, CircleAlert, Copy, KeyRound, Loader2, Mail, RefreshCw, UserRound } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Building2, CircleAlert, Copy, KeyRound, Loader2, Mail, Pencil, RefreshCw, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import {
 import {
   buscarAcessosPortalCliente,
   criarAcessoPortalCliente,
+  atualizarCredenciaisPortalCliente,
   enviarAcessoPortalCliente,
   type AcessoPortalCliente,
 } from "@/lib/financeiro-share-api";
@@ -26,6 +28,9 @@ export function PortalClienteTab({ aeronaveId }: Props) {
   const [erro, setErro] = useState<string | null>(null);
   const [processando, setProcessando] = useState<string | null>(null);
   const [credenciaisTemporarias, setCredenciaisTemporarias] = useState<CredenciaisTemporarias | null>(null);
+  const [cotistaEditando, setCotistaEditando] = useState<AcessoPortalCliente | null>(null);
+  const [loginEditado, setLoginEditado] = useState("");
+  const [senhaNova, setSenhaNova] = useState("");
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -65,6 +70,39 @@ export function PortalClienteTab({ aeronaveId }: Props) {
       await carregar();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar o acesso por e-mail.");
+    } finally {
+      setProcessando(null);
+    }
+  };
+
+  const iniciarEdicao = (cotista: AcessoPortalCliente) => {
+    setLoginEditado(cotista.login || "");
+    setSenhaNova("");
+    setCotistaEditando(cotista);
+  };
+
+  const salvarCredenciais = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!cotistaEditando) return;
+    setProcessando(cotistaEditando.cotista_aeronave_id);
+    try {
+      const resultado = await atualizarCredenciaisPortalCliente(cotistaEditando.cotista_aeronave_id, {
+        login: loginEditado.trim(),
+        senha: senhaNova,
+      });
+      toast.success(`Credenciais atualizadas para ${resultado.login}.`);
+      setCotistaEditando(null);
+      setSenhaNova("");
+      await carregar();
+    } catch (error) {
+      const codigo = error instanceof Error ? error.message : "";
+      const mensagens: Record<string, string> = {
+        login_ja_em_uso: "Esse login já está sendo usado por outro cotista.",
+        login_invalido: "Use de 3 a 80 caracteres: letras, números, ponto, hífen ou sublinhado.",
+        senha_deve_ter_entre_12_e_128_caracteres: "A nova senha deve ter entre 12 e 128 caracteres.",
+        portal_usuario_alterado_tente_novamente: "As credenciais mudaram em outra sessão. Atualize e tente novamente.",
+      };
+      toast.error(mensagens[codigo] || "Não foi possível salvar as novas credenciais.");
     } finally {
       setProcessando(null);
     }
@@ -115,12 +153,16 @@ export function PortalClienteTab({ aeronaveId }: Props) {
               <tbody>{cotistas.map((cotista) => {
                 const existe = Boolean(cotista.possui_acesso);
                 const ocupado = processando === cotista.cotista_aeronave_id;
+                const acoes = existe ? <>
+                  <Button type="button" variant="outline" size="sm" disabled={Boolean(processando)} onClick={() => iniciarEdicao(cotista)} className="h-8 gap-1.5 text-[10px]"><Pencil size={13} /> Editar credenciais</Button>
+                  <Button type="button" variant="outline" size="sm" disabled={Boolean(processando) || !cotista.email} onClick={() => void enviarAcesso(cotista)} title={!cotista.email ? "Cadastre um e-mail para enviar o acesso" : "Gerar e enviar uma nova senha temporária"} className="h-8 gap-1.5 text-[10px]"><Mail size={13} /> Enviar nova senha</Button>
+                </> : <Button type="button" size="sm" disabled={Boolean(processando) || (!cotista.cliente_id && !cotista.socio_id)} onClick={() => void criarAcesso(cotista)} className="h-8 gap-1.5 text-[10px]">{ocupado ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Criar login e senha</Button>;
                 return <tr key={cotista.cotista_aeronave_id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-3"><p className="text-xs font-semibold">{cotista.nome}</p><p className="mt-1 text-[10px] text-muted-foreground">{cotista.codigo_cliente || "Cotista"}{cotista.percentual_sociedade != null ? ` · ${cotista.percentual_sociedade}%` : ""}</p></td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{cotista.email || "E-mail não cadastrado"}</td>
                   <td className="px-4 py-3 font-mono text-xs">{cotista.login || "—"}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${existe ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>{existe ? "Ativo" : "Não criado"}</span></td>
-                  <td className="px-4 py-3 text-right">{existe ? <Button type="button" variant="outline" size="sm" disabled={Boolean(processando) || !cotista.email} onClick={() => void enviarAcesso(cotista)} title={!cotista.email ? "Cadastre um e-mail para enviar o acesso" : "Gerar e enviar uma nova senha temporária"} className="h-8 gap-1.5 text-[10px]"><Mail size={13} /> Enviar nova senha</Button> : <Button type="button" size="sm" disabled={Boolean(processando) || (!cotista.cliente_id && !cotista.socio_id)} onClick={() => void criarAcesso(cotista)} className="h-8 gap-1.5 text-[10px]">{ocupado ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Criar login e senha</Button>}</td>
+                  <td className="px-4 py-3 text-right"><div className="flex justify-end gap-2">{acoes}</div></td>
                 </tr>;
               })}</tbody>
             </table>
@@ -129,10 +171,14 @@ export function PortalClienteTab({ aeronaveId }: Props) {
             {cotistas.map((cotista) => {
               const existe = Boolean(cotista.possui_acesso);
               const ocupado = processando === cotista.cotista_aeronave_id;
+              const acoes = existe ? <>
+                <Button type="button" variant="outline" size="sm" disabled={Boolean(processando)} onClick={() => iniciarEdicao(cotista)} className="h-8 flex-1 gap-1.5 px-2 text-[10px]"><Pencil size={13} /> Editar</Button>
+                <Button type="button" variant="outline" size="sm" disabled={Boolean(processando) || !cotista.email} onClick={() => void enviarAcesso(cotista)} className="h-8 flex-1 gap-1.5 px-2 text-[10px]"><Mail size={13} /> Enviar senha</Button>
+              </> : <Button type="button" size="sm" disabled={Boolean(processando) || (!cotista.cliente_id && !cotista.socio_id)} onClick={() => void criarAcesso(cotista)} className="h-8 w-full gap-1.5 text-[10px]">{ocupado ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Criar login e senha</Button>;
               return <article key={cotista.cotista_aeronave_id} className="rounded-xl border border-border bg-background/40 p-3">
                 <div className="flex items-start gap-2"><span className="mt-0.5 text-primary">{cotista.socio_id ? <Building2 size={15} /> : <UserRound size={15} />}</span><div className="min-w-0 flex-1"><p className="text-xs font-bold">{cotista.nome}</p><p className="mt-1 break-all text-[10px] text-muted-foreground">{cotista.email || "E-mail não cadastrado"}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold ${existe ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>{existe ? "Ativo" : "Não criado"}</span></div>
                 <p className="mt-3 text-[10px] text-muted-foreground">Login: <span className="font-mono text-foreground">{cotista.login || "—"}</span></p>
-                {existe ? <Button type="button" variant="outline" disabled={Boolean(processando) || !cotista.email} onClick={() => void enviarAcesso(cotista)} className="mt-3 h-9 w-full gap-2 text-xs"><Mail size={14} /> Enviar nova senha</Button> : <Button type="button" disabled={Boolean(processando) || (!cotista.cliente_id && !cotista.socio_id)} onClick={() => void criarAcesso(cotista)} className="mt-3 h-9 w-full gap-2 text-xs">{ocupado ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} Criar login e senha</Button>}
+                <div className="mt-3 flex gap-2">{acoes}</div>
               </article>;
             })}
           </div>
@@ -150,6 +196,61 @@ export function PortalClienteTab({ aeronaveId }: Props) {
             <p><span className="text-muted-foreground">Senha temporária:</span> <code className="ml-2 break-all font-mono font-bold">{credenciaisTemporarias?.senha}</code></p>
           </div>
           <DialogFooter><Button type="button" onClick={() => void copiarCredenciais()} className="gap-2"><Copy size={14} /> Copiar credenciais</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(cotistaEditando)} onOpenChange={(aberto) => {
+        if (!aberto) {
+          setCotistaEditando(null);
+          setSenhaNova("");
+        }
+      }}>
+        <DialogContent>
+          <form onSubmit={(event) => void salvarCredenciais(event)} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Editar credenciais do Portal Cliente</DialogTitle>
+              <DialogDescription>
+                Defina o novo login e uma nova senha para {cotistaEditando?.nome}. A senha atual não pode ser revelada; a nova será salva de forma protegida.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <label htmlFor="portal-cliente-login" className="text-sm font-medium">Novo login</label>
+              <Input
+                id="portal-cliente-login"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                minLength={3}
+                maxLength={80}
+                pattern="[A-Za-z0-9._-]{3,80}"
+                value={loginEditado}
+                onChange={(event) => setLoginEditado(event.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">3–80 caracteres: letras, números, ponto, hífen ou sublinhado.</p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="portal-cliente-nova-senha" className="text-sm font-medium">Nova senha</label>
+              <Input
+                id="portal-cliente-nova-senha"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                value={senhaNova}
+                onChange={(event) => setSenhaNova(event.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Use entre 12 e 128 caracteres. Não será possível recuperá-la depois de salvar.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCotistaEditando(null)}>Cancelar</Button>
+              <Button type="submit" disabled={Boolean(processando)}>
+                {cotistaEditando && processando === cotistaEditando.cotista_aeronave_id ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}
+                Salvar novas credenciais
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </section>

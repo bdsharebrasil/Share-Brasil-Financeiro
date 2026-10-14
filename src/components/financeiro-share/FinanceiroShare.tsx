@@ -80,7 +80,7 @@ export function PaginaFinanceiroShare() {
       <TabsContent value="solicitacoes-pagamento" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>
       <TabsContent value="salarios" className="mt-0"><AbaSalarios /></TabsContent>
-      <TabsContent value="nota-fiscal-saida" className="mt-0"><NFSaidaTab /></TabsContent>
+      <TabsContent value="nota-fiscal-saida" className="mt-0 bg-[#01051d]"><NFSaidaTab /></TabsContent>
     </Tabs>
     <NovoLancamentoShareDialog aberto={dialogoAberto} aoFechar={() => setDialogoAberto(false)} categorias={categorias} contas={contas} aoCriar={aoCriarLancamento} somenteDespesa={somenteDespesa} />
   </div>;

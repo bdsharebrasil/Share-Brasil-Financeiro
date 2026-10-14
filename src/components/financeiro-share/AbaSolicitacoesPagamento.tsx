@@ -1,12 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileImage, FileText, RefreshCw, Upload, X } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, CircleDollarSign, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
@@ -14,11 +8,28 @@ import {
   enviarComprovanteReembolso,
   formatarData,
   formatarMoeda,
+  type CamposLancamento,
   type ContaBancaria,
   type ReembolsoColaborador,
   type SolicitacaoPagamento,
 } from "@/lib/financeiro-share-api";
-import { TabelaFinanceiraPremium, type FiltroTabelaFinanceira, type LinhaTabelaFinanceira, type TomStatusFinanceiro } from "@/components/financeiro-design/TabelaFinanceiraPremium";
+import { Modal, STYLES } from "./NFSaidaTab";
+
+const POR_PAGINA = 12;
+
+type AbaSolicitacao = "cotista" | "colaborador";
+type FiltroLista = { id: string; label: string; quantidade?: number };
+type LinhaExibida = {
+  chave: string;
+  expandida: boolean;
+  documento: string;
+  dataEmissao: string;
+  principal: string;
+  secundaria: string;
+  valor: string;
+  status: string;
+  detalhe: ReactNode;
+};
 
 function statusLegivel(valor: string): string {
   const estado = valor.toUpperCase();
@@ -26,22 +37,25 @@ function statusLegivel(valor: string): string {
     PENDENTE: "Pendente",
     APROVADO: "Aprovado",
     EMAIL_ENVIADO: "Enviado",
-    CONVERTIDO: "Convertido",
+    CONVERTIDO: "Em aberto",
     PAGO: "Pago",
     CANCELADO: "Cancelado",
-    EM_ABERTO: "A pagar",
+    EM_ABERTO: "Em aberto",
     AGUARDANDO_REEMBOLSO: "Aguardando reembolso",
   };
   return labels[estado] ?? estado.replace(/_/g, " ");
 }
 
-function tomStatus(valor: string): TomStatusFinanceiro {
+function estadoBadge(valor: string): "paid" | "pending" | "neutral" {
   const estado = valor.toUpperCase();
-  if (["PAGO", "CONVERTIDO"].includes(estado)) return "emerald";
-  if (["APROVADO", "EMAIL_ENVIADO"].includes(estado)) return "blue";
-  if (["CANCELADO", "REJEITADO"].includes(estado)) return "muted";
-  if (["ATRASADO", "EM_ATRASO"].includes(estado)) return "red";
-  return "amber";
+  if (estado === "PAGO") return "paid";
+  if (["APROVADO", "EMAIL_ENVIADO", "CANCELADO", "REJEITADO"].includes(estado)) return "neutral";
+  return "pending";
+}
+
+function StatusSolicitacao({ status }: { status: string }) {
+  const estado = estadoBadge(status);
+  return <span className={`nf-badge ${estado}`}>{estado === "paid" ? <CheckCircle2 /> : <Clock />}{statusLegivel(status)}</span>;
 }
 
 function dataLegivel(valor: string | null): string {
@@ -52,7 +66,44 @@ function textoBusca(...valores: Array<string | null | undefined>): string {
   return valores.filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
 }
 
-const FILTROS_ENVIO: FiltroTabelaFinanceira[] = [
+function primeiroTexto(...valores: Array<string | null | undefined>): string | null {
+  return valores.find((valor) => valor && valor.trim() !== "") ?? null;
+}
+
+const ANEXOS: Array<{ campo: "url_demonstrativo" | "url_nf" | "url_recibo" | "url_boleto" | "url_doc" | "comprovante_url"; rotulo: string }> = [
+  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
+  { campo: "url_nf", rotulo: "Nota fiscal" },
+  { campo: "url_recibo", rotulo: "Recibo" },
+  { campo: "url_boleto", rotulo: "Boleto" },
+  { campo: "url_doc", rotulo: "Documento" },
+  { campo: "comprovante_url", rotulo: "Comprovante" },
+];
+
+function detalheLancamento(campos: CamposLancamento, acao?: ReactNode): ReactNode {
+  const anexos = ANEXOS.flatMap(({ campo, rotulo }) => {
+    const url = campos[campo];
+    return url ? [{ rotulo, url }] : [];
+  });
+  return <div className="nf-detail">
+    <section>
+      <h3>Documentos anexos</h3>
+      {anexos.length > 0
+        ? anexos.map(({ rotulo, url }) => <a key={rotulo} href={url} target="_blank" rel="noopener noreferrer"><FileText size={13} />{rotulo}</a>)
+        : <p><FileText size={13} /> Nenhum documento anexado.</p>}
+    </section>
+    <section>
+      <h3>Mais informações</h3>
+      <dl>
+        {campos.numero_boleto && <div><dt>Número do boleto</dt><dd>{campos.numero_boleto}</dd></div>}
+        <div><dt>E-mail enviado em</dt><dd>{dataLegivel(campos.email_enviado_em ?? null)}</dd></div>
+        <div><dt>Número do voo</dt><dd>{campos.numero_voo || "—"}</dd></div>
+      </dl>
+    </section>
+    {acao && <div className="nf-detail-actions">{acao}</div>}
+  </div>;
+}
+
+const FILTROS_ENVIO: FiltroLista[] = [
   { id: "TODOS", label: "Todos" },
   { id: "PENDENTES", label: "Pendentes" },
   { id: "EM_ANDAMENTO", label: "Em andamento" },
@@ -65,11 +116,13 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [reembolsos, setReembolsos] = useState<ReembolsoColaborador[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [aba, setAba] = useState<AbaSolicitacao>("cotista");
   const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
   const [filtroReembolso, setFiltroReembolso] = useState("TODOS");
+  const [pagina, setPagina] = useState(1);
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10));
   const [bancoId, setBancoId] = useState("");
   const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
@@ -149,12 +202,48 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     setComprovanteArquivo(arquivo);
   }
 
-  function fecharBaixa(aberto: boolean) {
-    if (aberto || salvando) return;
+  function abrirBaixa(item: ReembolsoColaborador) {
+    setAlvo(item);
+    setDataPagamento(new Date().toISOString().slice(0, 10));
+    setBancoId("");
+    setComprovanteArquivo(null);
+  }
+
+  function fecharBaixa() {
+    if (salvando) return;
     setAlvo(null);
     setComprovanteArquivo(null);
     setBancoId("");
   }
+
+  function trocarAba(novaAba: AbaSolicitacao) {
+    setAba(novaAba);
+    setBusca("");
+    setExpandido(null);
+    setPagina(1);
+  }
+
+  function alterarBusca(valor: string) {
+    setBusca(valor);
+    setPagina(1);
+  }
+
+  function alterarFiltro(valor: string) {
+    if (aba === "cotista") setFiltroEnvio(valor);
+    else setFiltroReembolso(valor);
+    setPagina(1);
+  }
+
+  function limparFiltros() {
+    setBusca("");
+    alterarFiltro("TODOS");
+  }
+
+  function alternarDetalhe(chave: string) {
+    setExpandido(expandido === chave ? null : chave);
+  }
+
+  const hoje = new Date().toISOString().slice(0, 10);
 
   const enviosFiltrados = useMemo(() => envios.filter((item) => {
     const estado = item.status.toUpperCase();
@@ -167,12 +256,12 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   }), [envios, filtroEnvio, busca]);
 
   const reembolsosFiltrados = useMemo(() => reembolsos.filter((item) => {
-    const vencido = item.dataVencimento.slice(0, 10) < new Date().toISOString().slice(0, 10);
+    const vencido = item.dataVencimento.slice(0, 10) < hoje;
     const atendeFiltro = filtroReembolso === "TODOS" || (filtroReembolso === "VENCIDOS" && vencido);
     return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId).includes(busca.toLocaleLowerCase("pt-BR")));
-  }), [reembolsos, filtroReembolso, busca]);
+  }), [reembolsos, filtroReembolso, busca, hoje]);
 
-  const opcoesEnvio = useMemo(() => FILTROS_ENVIO.map((filtro) => ({
+  const opcoesEnvio: FiltroLista[] = useMemo(() => FILTROS_ENVIO.map((filtro) => ({
     ...filtro,
     quantidade: envios.filter((item) => {
       const estado = item.status.toUpperCase();
@@ -184,174 +273,160 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     }).length,
   })), [envios]);
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const opcoesReembolso: FiltroTabelaFinanceira[] = [
+  const reembolsosVencidos = reembolsos.filter((item) => item.dataVencimento.slice(0, 10) < hoje);
+  const opcoesReembolso: FiltroLista[] = [
     { id: "TODOS", label: "Todos", quantidade: reembolsos.length },
-    { id: "VENCIDOS", label: "Vencidos", quantidade: reembolsos.filter((item) => item.dataVencimento.slice(0, 10) < hoje).length },
+    { id: "VENCIDOS", label: "Vencidos", quantidade: reembolsosVencidos.length },
   ];
 
-  const linhasEnvio: LinhaTabelaFinanceira[] = enviosFiltrados.map((item) => {
+  const enviosPendentes = envios.filter((item) => item.status.toUpperCase() === "PENDENTE");
+  const totalCaixaCliente = envios.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
+  const totalPendentes = enviosPendentes.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
+  const totalReembolsos = reembolsos.reduce((soma, item) => soma + item.valor, 0);
+  const totalVencidos = reembolsosVencidos.reduce((soma, item) => soma + item.valor, 0);
+
+  const filtrosAtuais = aba === "cotista" ? opcoesEnvio : opcoesReembolso;
+  const filtroAtual = aba === "cotista" ? filtroEnvio : filtroReembolso;
+  const placeholderBusca = aba === "cotista" ? "Buscar solicitação, fornecedor ou solicitante" : "Buscar documento, descrição, fornecedor, voo ou cotista";
+  const temFiltro = busca !== "" || filtroAtual !== "TODOS";
+  const totalItens = aba === "cotista" ? enviosFiltrados.length : reembolsosFiltrados.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalItens / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const inicio = (paginaAtual - 1) * POR_PAGINA;
+
+  const enviosVisiveis = enviosFiltrados.slice(inicio, inicio + POR_PAGINA);
+  const reembolsosVisiveis = reembolsosFiltrados.slice(inicio, inicio + POR_PAGINA);
+
+  const linhasEnvio: LinhaExibida[] = enviosVisiveis.map((item) => {
     const chave = `envio:${item.id}`;
-    const aberto = expandido === chave;
+    const expandida = expandido === chave;
     return {
-      id: chave,
-      principal: item.fornecedor_nome ?? item.fornecedor ?? "—",
-      secundaria: item.descricao,
-      categoria: item.tipo === "reembolso" ? "Reembolso" : "Caixa cliente",
-      vencimento: dataLegivel(item.vencimento),
-      valor: `−${formatarMoeda(Number(item.valor ?? 0))}`,
+      chave,
+      expandida,
+      documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
+      dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
+      principal: primeiroTexto(item.aeronave_id, item.cotista_aeronave_id, item.descricao) ?? "—",
+      secundaria: [item.grupo_categoria, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
+      valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
-      statusLabel: statusLegivel(item.status),
-      tomStatus: tomStatus(item.status),
-      acoes: <Button type="button" size="sm" variant="outline" onClick={() => setExpandido(aberto ? null : chave)} className="h-8 gap-1.5 text-[11px]">{aberto ? "Fechar" : "Detalhes"}{aberto ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button>,
-      expandida: aberto,
-      detalhe: <div className="grid gap-5 sm:grid-cols-2">
-        <section>
-          <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Documentos vinculados</h3>
-          <p className="text-[11px] text-muted-foreground"><FileText size={13} className="mr-2 inline text-primary" />Os documentos desta solicitação ficam disponíveis no lançamento financeiro após a conversão.</p>
-        </section>
-        <section>
-          <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Mais informações</h3>
-          <dl className="grid grid-cols-2 gap-3 text-[11px]">
-            <div><dt className="text-muted-foreground">Vencimento</dt><dd className="mt-1 font-semibold">{dataLegivel(item.vencimento)}</dd></div>
-            <div><dt className="text-muted-foreground">Solicitante</dt><dd className="mt-1 font-semibold">{item.solicitante_nome ?? "—"}</dd></div>
-            <div><dt className="text-muted-foreground">Data da despesa</dt><dd className="mt-1 font-semibold">{dataLegivel(item.data_despesa)}</dd></div>
-          </dl>
-        </section>
-      </div>,
+      detalhe: expandida ? detalheLancamento(item) : null,
     };
   });
 
-  const linhasReembolso: LinhaTabelaFinanceira[] = reembolsosFiltrados.map((item) => {
+  const linhasReembolso: LinhaExibida[] = reembolsosVisiveis.map((item) => {
     const chave = `reembolso:${item.id}`;
-    const aberto = expandido === chave;
+    const expandida = expandido === chave;
     return {
-      id: chave,
-      principal: item.documento || item.descricao || "Despesa reembolsável",
-      secundaria: `${dataLegivel(item.dataEmissao ?? null)} · ${item.descricao ?? "Reembolso de colaborador"}`,
-      categoria: item.categoriaNome || "Reembolso de colaborador",
-      vencimento: dataLegivel(item.dataVencimento),
-      valor: `−${formatarMoeda(item.valor)}`,
+      chave,
+      expandida,
+      documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
+      dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
+      principal: primeiroTexto(item.aeronave_id, item.aeronaveId, item.cotista_aeronave_id, item.descricao) ?? "—",
+      secundaria: [item.grupo_categoria ?? item.categoriaNome, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
+      valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
-      statusLabel: statusLegivel(item.status),
-      tomStatus: tomStatus(item.status),
-      acoes: <Button type="button" size="sm" variant="outline" onClick={() => setExpandido(aberto ? null : chave)} className="h-8 gap-1.5 text-[11px]">{aberto ? "Fechar" : "Detalhes"}{aberto ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</Button>,
-      expandida: aberto,
-      detalhe: <div>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <section>
-            <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Documentos vinculados</h3>
-            {item.documentoUrl
-              ? <a href={item.documentoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[11px] font-medium text-primary underline-offset-4 hover:underline"><FileText size={13} />{item.documento || "Abrir documento vinculado"}</a>
-              : <p className="text-[11px] text-muted-foreground"><FileText size={13} className="mr-2 inline text-primary" />Nenhum documento vinculado diretamente ao título.</p>}
-          </section>
-          <section>
-            <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Mais informações</h3>
-            <dl className="grid grid-cols-2 gap-3 text-[11px]">
-              <div><dt className="text-muted-foreground">Vencimento</dt><dd className="mt-1 font-semibold">{dataLegivel(item.dataVencimento)}</dd></div>
-              <div><dt className="text-muted-foreground">Caixa</dt><dd className="mt-1 font-semibold">{String(item.tipoCaixa).toUpperCase() === "HOLDING" ? "Holding" : "Share"}</dd></div>
-              <div><dt className="text-muted-foreground">Fornecedor</dt><dd className="mt-1 font-semibold">{item.fornecedor || "—"}</dd></div>
-              <div><dt className="text-muted-foreground">Número do voo</dt><dd className="mt-1 font-semibold">{item.numeroVoo || "—"}</dd></div>
-              <div><dt className="text-muted-foreground">Cotista</dt><dd className="mt-1 font-semibold">{item.cotistaNome || "—"}</dd></div>
-            </dl>
-          </section>
-        </div>
-        <div className="mt-4 flex justify-end border-t border-border/60 pt-3">
-          <Button type="button" size="sm" variant="outline" onClick={() => {
-            setAlvo(item);
-            setDataPagamento(new Date().toISOString().slice(0, 10));
-            setBancoId("");
-            setComprovanteArquivo(null);
-          }} className="h-8 gap-1.5 text-[11px]"><CheckCircle2 size={13} /> Dar baixa</Button>
-        </div>
-      </div>,
+      detalhe: expandida ? detalheLancamento(item, <button type="button" className="nf-btn primary" onClick={() => abrirBaixa(item)}><CheckCircle2 /> Dar baixa</button>) : null,
     };
   });
+
+  const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
 
   return (
-    <div className="space-y-3">
-      {erro && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{erro}</p>}
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => void carregar()} disabled={carregando} className="h-8 gap-2 text-[11px]"><RefreshCw size={13} className={carregando ? "animate-spin" : ""} /> Atualizar</Button>
-      </div>
-      <Tabs defaultValue="cotista" onValueChange={() => { setBusca(""); setExpandido(null); }} className="space-y-3">
-        <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1">
-          <TabsTrigger value="cotista" className="shrink-0 rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Caixa cliente <span className="ml-1 opacity-70">{envios.length}</span></TabsTrigger>
-          <TabsTrigger value="colaborador" className="shrink-0 rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Reembolso colaborador <span className="ml-1 opacity-70">{reembolsos.length}</span></TabsTrigger>
-        </TabsList>
-        <TabsContent value="cotista" className="mt-0">
-          <TabelaFinanceiraPremium
-            titulo="Solicitações de pagamento"
-            descricao={`${envios.length} ${envios.length === 1 ? "solicitação" : "solicitações"} · caixa cliente`}
-            linhas={linhasEnvio}
-            filtros={opcoesEnvio}
-            filtroAtivo={filtroEnvio}
-            aoFiltrar={setFiltroEnvio}
-            busca={busca}
-            aoBuscar={setBusca}
-            placeholderBusca="Buscar solicitação, fornecedor ou solicitante"
-            carregando={carregando}
-            mensagemVazia="Nenhuma solicitação de pagamento encontrada."
-          />
-        </TabsContent>
-        <TabsContent value="colaborador" className="mt-0">
-          <TabelaFinanceiraPremium
-            titulo="Reembolsos de colaboradores"
-            descricao={`${reembolsos.length} ${reembolsos.length === 1 ? "título" : "títulos"} · aguardando pagamento`}
-            linhas={linhasReembolso}
-            filtros={opcoesReembolso}
-            filtroAtivo={filtroReembolso}
-            aoFiltrar={setFiltroReembolso}
-            busca={busca}
-            aoBuscar={setBusca}
-            placeholderBusca="Buscar documento, descrição, fornecedor, voo ou cotista"
-            carregando={carregando}
-            mensagemVazia="Nenhum reembolso pendente encontrado."
-          />
-        </TabsContent>
-      </Tabs>
+    <div className="nf-workspace" style={{ background: "var(--nf-bg)" }}>
+      <style>{STYLES}</style>
+      <header className="nf-header">
+        <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / SOLICITAÇÕES DE PAGAMENTO</div></div>
+        <div className="nf-header-actions">
+          <button className="nf-btn" disabled={carregando} onClick={() => void carregar()}><RefreshCw className={carregando ? "nf-spin" : ""} /> Atualizar</button>
+        </div>
+      </header>
+      <section className="nf-stats" aria-label="Resumo das solicitações" aria-busy={carregando}>
+        {[
+          { label: "Caixa cliente", valor: formatarMoeda(totalCaixaCliente), nota: `${envios.length} ${envios.length === 1 ? "solicitação" : "solicitações"}`, Icon: Wallet, cor: "blue" },
+          { label: "Pendentes", valor: formatarMoeda(totalPendentes), nota: `${enviosPendentes.length} aguardando aprovação`, Icon: Clock, cor: "cyan" },
+          { label: "Reembolsos", valor: formatarMoeda(totalReembolsos), nota: `${reembolsos.length} ${reembolsos.length === 1 ? "título" : "títulos"} aguardando pagamento`, Icon: CircleDollarSign, cor: "green" },
+          { label: "Vencidos", valor: formatarMoeda(totalVencidos), nota: `${reembolsosVencidos.length} ${reembolsosVencidos.length === 1 ? "reembolso vencido" : "reembolsos vencidos"}`, Icon: TriangleAlert, cor: "amber" },
+        ].map(({ label, valor, nota, Icon, cor }) => <article className={`nf-stat ${cor}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{carregando || erro ? "—" : valor}</strong><small>{carregando ? "Atualizando solicitações…" : erro ? "Dados indisponíveis" : nota}</small></article>)}
+      </section>
+      <section className="nf-panel" aria-label="Solicitações de pagamento">
+        <div className="nf-panel-top">
+          <div className="nf-segment" aria-label="Tipo de solicitação">
+            {([["cotista", "Caixa cliente", envios.length], ["colaborador", "Reembolso colaborador", reembolsos.length]] as const).map(([valor, rotulo, quantidade]) => <button key={valor} aria-pressed={aba === valor} className={aba === valor ? "active" : ""} onClick={() => trocarAba(valor)}>{rotulo}<span>{quantidade}</span></button>)}
+          </div>
+        </div>
+        <div className="nf-toolbar">
+          <label className="nf-search"><Search /><span className="nf-sr">{placeholderBusca}</span><input type="search" value={busca} onChange={(e) => alterarBusca(e.target.value)} placeholder={placeholderBusca} /></label>
+          <select aria-label="Filtrar solicitações" value={filtroAtual} onChange={(e) => alterarFiltro(e.target.value)}>{filtrosAtuais.map((filtro) => <option key={filtro.id} value={filtro.id}>{filtro.label}{filtro.quantidade !== undefined ? ` (${filtro.quantidade})` : ""}</option>)}</select>
+        </div>
+        <div className="nf-list-heading">
+          <div>
+            <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
+            <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "solicitação" : "solicitações") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
+          </div>
+        </div>
+        {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
+          : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
+          : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há solicitações de pagamento de caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
+          : <>
+            <div className="nf-table-wrap">
+              <table className="nf-table">
+                <caption className="nf-sr">{aba === "cotista" ? "Solicitações de pagamento de caixa cliente" : "Reembolsos de colaboradores"}</caption>
+                <thead><tr><th scope="col">Doc / emissão</th><th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+                <tbody>
+                  {linhas.map((linha) => <Fragment key={linha.chave}>
+                    <tr>
+                      <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
+                      <td><div className="nf-doc-cell"><div><strong>{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
+                      <td className="right nf-amount">{linha.valor}</td>
+                      <td><StatusSolicitacao status={linha.status} /></td>
+                      <td className="right"><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></td>
+                    </tr>
+                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={5}>{linha.detalhe}</td></tr>}
+                  </Fragment>)}
+                </tbody>
+              </table>
+            </div>
+            <div className="nf-mobile-docs">
+              {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
+                <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
+                <dl><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <footer><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                {linha.detalhe}
+              </article>)}
+            </div>
+            <footer className="nf-pagination">
+              <span>Exibindo {inicio + 1}–{Math.min(inicio + POR_PAGINA, totalItens)} de {totalItens}</span>
+              <div>
+                <button className="nf-icon" aria-label="Página anterior" disabled={paginaAtual === 1} onClick={() => setPagina(paginaAtual - 1)}><ArrowLeft /></button>
+                <span>{paginaAtual} / {totalPaginas}</span>
+                <button className="nf-icon" aria-label="Próxima página" disabled={paginaAtual === totalPaginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight /></button>
+              </div>
+            </footer>
+          </>}
+      </section>
 
-      <Dialog open={Boolean(alvo)} onOpenChange={fecharBaixa}>
-        <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto rounded-2xl border-border/70 p-0">
-          <div className="border-b border-border/70 bg-gradient-to-br from-primary/[.12] via-transparent to-emerald-500/[.06] p-5 sm:p-6">
-            <DialogHeader>
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary"><CheckCircle2 size={20} /></div>
-              <DialogTitle className="text-lg">Dar baixa no reembolso</DialogTitle>
-              <p className="text-xs text-muted-foreground">Registre o pagamento e, se desejar, anexe o comprovante.</p>
-            </DialogHeader>
-            <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
-              <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">Colaborador · {alvo?.solicitanteNome || "Reembolso"}</p><p className="mt-1 truncate text-sm font-semibold">{alvo?.descricao || "Despesa reembolsável"}</p><p className="mt-1 text-[10px] text-muted-foreground">Vencimento {dataLegivel(alvo?.dataVencimento || null)}</p></div>
-              <strong className="shrink-0 text-lg font-extrabold text-primary">{formatarMoeda(alvo?.valor ?? 0)}</strong>
-            </div>
+      {alvo && <Modal title="Dar baixa no reembolso" onClose={fecharBaixa} busy={salvando}>
+        <form onSubmit={(e) => { e.preventDefault(); void confirmarBaixa(); }}>
+          <div className="nf-payment-summary">
+            <span>{alvo.solicitanteNome || "Colaborador"}<small>{alvo.descricao || "Despesa reembolsável"} · Vencimento {dataLegivel(alvo.dataVencimento)}</small></span>
+            <strong>{formatarMoeda(alvo.valor)}</strong>
           </div>
-          <div className="space-y-5 p-5 sm:p-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2"><Label htmlFor="reembolso-data" className="flex items-center gap-2 text-xs"><CalendarDays size={14} className="text-primary" />Data do pagamento</Label><Input id="reembolso-data" type="date" value={dataPagamento} onChange={(event) => setDataPagamento(event.target.value)} /></div>
-              <div className="grid gap-2"><Label className="text-xs">Conta {String(alvo?.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"}</Label><Select value={bancoId} onValueChange={setBancoId}><SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger><SelectContent>{contasParaPagamento.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` · ${conta.numero_conta}` : ""}</SelectItem>)}</SelectContent></Select></div>
-            </div>
-            <section className="space-y-2">
-              <div><Label className="text-xs">Comprovante de pagamento <span className="font-normal text-muted-foreground">· opcional</span></Label><p className="mt-1 text-[10px] text-muted-foreground">Imagem ou PDF · até 10 MB</p></div>
-              {comprovanteArquivo ? (
-                <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[.05] p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{comprovanteArquivo.type === "application/pdf" ? <FileText size={18} /> : <FileImage size={18} />}</div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{comprovanteArquivo.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{(comprovanteArquivo.size / (1024 * 1024)).toFixed(2)} MB · pronto para enviar</p></div>
-                  <Button type="button" variant="ghost" size="icon" aria-label="Remover comprovante" disabled={salvando} onClick={() => setComprovanteArquivo(null)} className="h-8 w-8 shrink-0"><X size={15} /></Button>
-                </div>
-              ) : (
-                <label htmlFor="reembolso-comprovante-arquivo" className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/[.04]">
-                  <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary"><Upload size={16} /></span><span className="text-xs font-semibold">Clique para escolher o comprovante</span><span className="mt-1 text-[10px] text-muted-foreground">PDF, JPG, PNG ou WebP</span>
-                  <input id="reembolso-comprovante-arquivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" className="sr-only" disabled={salvando} onChange={(event) => { selecionarComprovante(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-                </label>
-              )}
-              {enviandoComprovante && <p role="status" className="text-[10px] text-primary">Enviando comprovante…</p>}
-            </section>
+          <div className="nf-form-grid two">
+            <label>Data do pagamento *<input required type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></label>
+            <label>Conta {String(alvo.tipoCaixa).toUpperCase() === "HOLDING" ? "da holding" : "Share"} *<select required value={bancoId} onChange={(e) => setBancoId(e.target.value)}><option value="">Selecione a conta</option>{contasParaPagamento.map((conta) => <option key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` • ${conta.numero_conta}` : ""}</option>)}</select></label>
           </div>
-          <DialogFooter className="border-t border-border/70 bg-muted/20 px-5 py-4 sm:px-6">
-            <Button type="button" variant="outline" disabled={salvando} onClick={() => fecharBaixa(false)}>Cancelar</Button>
-            <Button type="button" disabled={salvando || !bancoId || !dataPagamento} onClick={() => void confirmarBaixa()}><CheckCircle2 size={15} className="mr-2" />{salvando ? enviandoComprovante ? "Enviando comprovante…" : "Registrando pagamento…" : "Confirmar pagamento"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <fieldset disabled={salvando} className="nf-fieldset">
+            <legend><span>02</span> Comprovante de pagamento</legend>
+            <label className="nf-upload"><Upload /><span><strong>{comprovanteArquivo ? comprovanteArquivo.name : "Selecione o comprovante (opcional)"}</strong><small>PDF, PNG, JPG ou WebP • até 10 MB</small></span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => { selecionarComprovante(e.target.files?.[0]); e.target.value = ""; }} /></label>
+            {comprovanteArquivo && <button type="button" className="nf-text-btn" onClick={() => setComprovanteArquivo(null)}>Remover comprovante</button>}
+            {enviandoComprovante && <p role="status">Enviando comprovante…</p>}
+          </fieldset>
+          <footer className="nf-modal-footer">
+            <button type="button" className="nf-btn" disabled={salvando} onClick={fecharBaixa}>Cancelar</button>
+            <button type="submit" className="nf-btn primary" disabled={salvando || !bancoId || !dataPagamento}>{salvando ? enviandoComprovante ? "Enviando comprovante…" : "Registrando pagamento…" : "Confirmar pagamento"}</button>
+          </footer>
+        </form>
+      </Modal>}
     </div>
   );
 }

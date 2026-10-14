@@ -19,3 +19,9 @@ test("checklist concluído oferece visualização sem alterar o fluxo de abertur
   assert.match(componente, /checklistConcluido \? "Visualizar checklist" : "Abrir checklist"/);
   assert.match(componente, /checklistConcluido \? "pointer-events-none opacity-80"/);
 });
+
+test("abastecimento permite informar trecho manual quando não há trecho anterior", () => {
+  assert.match(componente, /Não há trecho anterior registrado para esta aeronave\. Informe o trecho manualmente/);
+  assert.match(componente, /label="Trecho manual"><input value=\{manualTrecho\} onChange=\{\(e\) => \{ setManualTrecho\(e\.target\.value\); setTrechoManualAberto\(true\); \}\}/);
+  assert.match(componente, /trechoConfirmado \? Boolean\(trechoId\) : Boolean\(manualTrecho\.trim\(\)\)/);
+});

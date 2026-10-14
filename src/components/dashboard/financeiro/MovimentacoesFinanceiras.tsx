@@ -44,10 +44,7 @@ type Voo = Pasta["voos"][number];
  */
 type DespesaExpandida = Despesa & {
   fornecedor?: string | null;
-
-  cliente?: string | null;
-  cliente_nome?: string | null;
-  cotista?: string | null;
+  fornecedor_nome?: string | null;
 
   status_email?: string | null;
   email_status?: string | null;
@@ -105,24 +102,10 @@ function statusTone(
 }
 
 /**
- * Nome do cliente.
- *
- * Usa os nomes mais comuns que sua API pode devolver.
- */
-function obterCliente(despesa: DespesaExpandida) {
-  return (
-    despesa.cliente ||
-    despesa.cliente_nome ||
-    despesa.cotista ||
-    "Não informado"
-  );
-}
-
-/**
  * Fornecedor.
  */
 function obterFornecedor(despesa: DespesaExpandida) {
-  return despesa.fornecedor || "—";
+  return despesa.fornecedor || despesa.fornecedor_nome || "—";
 }
 
 /**
@@ -273,7 +256,7 @@ function DespesasTabela({
         <table
           className="
             w-full
-            min-w-[1115px]
+            min-w-[965px]
             table-fixed
             border-collapse
             text-left
@@ -290,9 +273,6 @@ function DespesasTabela({
 
             {/* DESCRIÇÃO / FORNECEDOR */}
             <col className="w-[300px]" />
-
-            {/* CLIENTE */}
-            <col className="w-[150px]" />
 
             {/* CAIXA */}
             <col className="w-[110px]" />
@@ -331,10 +311,6 @@ function DespesasTabela({
               </th>
 
               <th className="px-4 py-4">
-                Cliente
-              </th>
-
-              <th className="px-4 py-4">
                 Caixa
               </th>
 
@@ -360,9 +336,6 @@ function DespesasTabela({
             {despesas.map((item) => {
               const despesa =
                 item as DespesaExpandida;
-
-              const cliente =
-                obterCliente(despesa);
 
               const fornecedor =
                 obterFornecedor(despesa);
@@ -449,23 +422,6 @@ function DespesasTabela({
                       >
                         {fornecedor}
                       </div>
-                    </div>
-                  </td>
-
-                  {/* =========================================
-                      CLIENTE
-                  ========================================= */}
-
-                  <td className="px-4 py-4 align-middle">
-                    <div
-                      title={cliente}
-                      className="
-                        truncate
-                        font-medium
-                        text-foreground
-                      "
-                    >
-                      {cliente}
                     </div>
                   </td>
 
@@ -593,7 +549,6 @@ function DespesasTabela({
       <div className="grid w-full gap-3 p-3 xl:hidden">
         {despesas.map((item) => {
           const despesa = item as DespesaExpandida;
-          const cliente = obterCliente(despesa);
           const email = obterStatusEmail(despesa);
 
           return (
@@ -612,11 +567,7 @@ function DespesasTabela({
                 </p>
               </div>
 
-              <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-border/60 pt-2">
-                <div className="min-w-0">
-                  <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
-                  <p className="break-words text-[11px] font-medium text-foreground">{cliente}</p>
-                </div>
+              <div className="mt-3 flex justify-end border-t border-border/60 pt-2">
                 <div className="text-right">
                   <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Caixa</p>
                   <span className="inline-flex max-w-full items-center rounded-lg bg-green-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
@@ -734,7 +685,7 @@ export default function MovimentacoesFinanceiras({
       return (
         pastaSelecionada?.voos.find(
           (voo) =>
-            voo.numero_voo ===
+          voo.id ===
             vooAberto,
         ) || null
       );
@@ -759,10 +710,8 @@ export default function MovimentacoesFinanceiras({
     });
   };
 
-  const abrirVoo = (
-    numero: string,
-  ) => {
-    setVooAberto(numero);
+  const abrirVoo = (id: string) => {
+    setVooAberto(id);
 
     window.scrollTo({
       top: 0,
@@ -845,7 +794,7 @@ export default function MovimentacoesFinanceiras({
             "
           >
             Consulte despesas organizadas por
-            cotista e número de voo.
+            cotista, número de voo e período.
           </p>
         </div>
 
@@ -950,9 +899,10 @@ export default function MovimentacoesFinanceiras({
                 text-muted-foreground
               "
             >
-              Abra uma pasta para consultar
-              somente os voos e despesas daquele
-              cotista.
+              Abra uma pasta para consultar os voos
+              e despesas daquele cotista. Despesas
+              sem número de voo são separadas por ano
+              e mês.
             </p>
           </div>
 
@@ -1035,17 +985,15 @@ export default function MovimentacoesFinanceiras({
               {pastaSelecionada.voos.map(
                 (voo: Voo) => (
                   <AeronavePasta
-                    key={
-                      voo.numero_voo
-                    }
-                    label={`Voo ${voo.numero_voo}`}
+                    key={voo.id}
+                    label={voo.periodo ? `Sem número de voo · ${voo.periodo}` : `Voo ${voo.numero_voo}`}
                     count={
                       voo.quantidade
                     }
                     isOpen={false}
                     onClick={() =>
                       abrirVoo(
-                        voo.numero_voo,
+                        voo.id,
                       )
                     }
                   />
@@ -1083,10 +1031,9 @@ export default function MovimentacoesFinanceiras({
                   tracking-tight
                 "
               >
-                Voo{" "}
-                {
-                  vooSelecionado.numero_voo
-                }
+                {vooSelecionado.periodo
+                  ? `Sem número de voo · ${vooSelecionado.periodo}`
+                  : `Voo ${vooSelecionado.numero_voo}`}
               </h2>
 
               <p

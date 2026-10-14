@@ -537,7 +537,9 @@ export type PastaMovimentacoesFinanceiras = {
   nome: string;
   quantidade: number;
   voos: Array<{
+    id: string;
     numero_voo: string;
+    periodo: string | null;
     quantidade: number;
     despesas: Array<Record<string, unknown> & { id: string; data: string | null; descricao: string | null; numero_doc: string | null; tipo_caixa: string | null; valor: number; status: string | null; email: string }>;
   }>;

@@ -14,11 +14,19 @@ test("sem número de voo carrega cotistas da aeronave e permite selecionar um ou
   assert.match(source, /modo === "sem_voo" && form\.aeronave_id\) void carregarCotistas\(form\.aeronave_id\)/);
   assert.match(source, /modoNumeroVooCliente === "sem_voo" && <Campo label="Cotista\(s\) da aeronave" obrigatorio>/);
   assert.match(source, /placeholder="Selecione um cotista ou todos"/);
-  assert.match(source, /id === "__todos__" \? \(todosSelecionados \? \[\] : cotistas\.map/);
+  assert.match(source, /const ids = id === "__todos__"[\s\S]{0,250}cotista_ids\.filter/);
 });
 
 test("envio direto sem voo serializa numero_voo como null e mantém o rateio obrigatório", () => {
   assert.match(source, /numero_voo: form\.numero_voo \|\| null/);
   assert.match(source, /const validarRateio = \(\) => \{[\s\S]*?if \(!form\.aeronave_id\) return false;/);
   assert.doesNotMatch(source, /validarRateio[\s\S]{0,300}if \(!form\.numero_voo\)/);
+});
+
+test("no modo com voo, a lista de cotistas permite multisseleção e retirar cada cotista", () => {
+  assert.match(source, /onChange=\{atualizarSelecaoCotistas\} placeholder="Selecione cotistas \(adicione ou remova\)"/);
+  assert.doesNotMatch(source, /onChange=\{\(\) => undefined\} placeholder="Cotistas preenchidos pelo voo"/);
+  assert.match(source, /aria-label=\{`Retirar \$\{cotista\.nome\} do rateio`\}/);
+  assert.match(source, /const atualizarSelecaoCotistas = \(id: string\) => setForm/);
+  assert.match(source, /100 - somaPercentuais/);
 });

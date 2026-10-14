@@ -37,10 +37,10 @@ function statusLegivel(valor: string): string {
     PENDENTE: "Pendente",
     APROVADO: "Aprovado",
     EMAIL_ENVIADO: "Enviado",
-    CONVERTIDO: "Convertido",
+    CONVERTIDO: "Em aberto",
     PAGO: "Pago",
     CANCELADO: "Cancelado",
-    EM_ABERTO: "A pagar",
+    EM_ABERTO: "Em aberto",
     AGUARDANDO_REEMBOLSO: "Aguardando reembolso",
   };
   return labels[estado] ?? estado.replace(/_/g, " ");
@@ -48,13 +48,12 @@ function statusLegivel(valor: string): string {
 
 function estadoBadge(valor: string): "paid" | "pending" | "neutral" {
   const estado = valor.toUpperCase();
-  if (["PAGO", "CONVERTIDO"].includes(estado)) return "paid";
+  if (estado === "PAGO") return "paid";
   if (["APROVADO", "EMAIL_ENVIADO", "CANCELADO", "REJEITADO"].includes(estado)) return "neutral";
   return "pending";
 }
 
 function StatusSolicitacao({ status }: { status: string }) {
-  if (status.toUpperCase() === "CONVERTIDO") return null;
   const estado = estadoBadge(status);
   return <span className={`nf-badge ${estado}`}>{estado === "paid" ? <CheckCircle2 /> : <Clock />}{statusLegivel(status)}</span>;
 }

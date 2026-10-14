@@ -91,7 +91,7 @@ function HistoricoJornadas({ jornadas, ...acoes }: { jornadas: Jornada[]; aoSalv
 }
 function HistoricoDetalhe({ label, valor, icon }: { label: string; valor: string; icon?: ReactNode }) { return <div className="rounded-lg border border-border/70 bg-secondary/25 p-2.5"><div className="flex items-center gap-1 text-[9px] text-muted-foreground">{icon}{label}</div><p className="mt-1.5 truncate text-[10px] font-semibold">{valor}</p></div>; }
 
-export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: { item: SolicitacaoVooInterna; aoFechar?: () => void; aoAtualizarAgendamento?: () => void | Promise<void> }) {
+export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: { item: SolicitacaoVooInterna; aoFechar?: () => void; aoAtualizarAgendamento?: (status?: string) => void | Promise<void> }) {
   const [jornada, setJornada] = useState<Jornada | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -152,7 +152,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
     const horarioAcionamento = utc(data, acionamento);
     const horarioDep = utc(data, perna.horario_dep);
     if (!horarioApresentacao || !horarioAcionamento || !horarioDep) { setErro("Os horários informados não são válidos em UTC."); return; }
-    try { await iniciarJornadaVoo(item.id, { data, data_jornada: data, horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep, origem: perna.origem, aerodromo_partida: perna.origem, destino: perna.destino, aerodromo_chegada: perna.destino, numero_passageiros: Number(perna.numero_passageiros), tripulante_id: item.piloto_id, tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) }); await carregar(); await aoAtualizarAgendamento?.(); setMensagem("Check-in, AC e DEP salvos. Volte depois para registrar POU e COR."); }
+    try { await iniciarJornadaVoo(item.id, { data, data_jornada: data, horario_apresentacao: horarioApresentacao, tripulacao_checkin_hora: horarioApresentacao, horario_acionamento: horarioAcionamento, tempo_ac: horarioAcionamento, horario_ac: horarioAcionamento, horario_dep: horarioDep, tempo_dep: horarioDep, origem: perna.origem, aerodromo_partida: perna.origem, destino: perna.destino, aerodromo_chegada: perna.destino, numero_passageiros: Number(perna.numero_passageiros), tripulante_id: item.piloto_id, tripulantes: [item.piloto_id && { tripulante_id: item.piloto_id, funcao: "PIC" as const }, item.copiloto_id && { tripulante_id: item.copiloto_id, funcao: "SIC" as const }].filter((tripulante): tripulante is { tripulante_id: string; funcao: "PIC" | "SIC" } => Boolean(tripulante)) }); await carregar(); await aoAtualizarAgendamento?.("em_voo"); setMensagem("Check-in, AC e DEP salvos. Volte depois para registrar POU e COR."); }
     catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível iniciar a jornada."); } finally { setSalvando(false); }
   };
   const salvarCorte = async () => {
@@ -161,7 +161,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
     const horarioPouso = utc(jornada.data, perna.horario_pouso);
     const horarioCorte = utc(jornada.data, perna.horario_corte);
     if (!horarioPouso || !horarioCorte) { setErro("Os horários POU/COR não são válidos em UTC."); return; }
-    try { await atualizarPernaJornada(jornada.id, ultimaPerna.id, { numero_passageiros: Number(perna.numero_passageiros), horario_pouso: horarioPouso, tempo_pou: horarioPouso, horario_corte: horarioCorte, tempo_cor: horarioCorte }); await carregar(); setMensagem("POU e corte salvos. Agora você pode iniciar uma nova perna ou encerrar a jornada."); }
+    try { const atualizada = await atualizarPernaJornada(jornada.id, ultimaPerna.id, { numero_passageiros: Number(perna.numero_passageiros), horario_pouso: horarioPouso, tempo_pou: horarioPouso, horario_corte: horarioCorte, tempo_cor: horarioCorte }); await carregar(); await aoAtualizarAgendamento?.(atualizada.status_agendamento || "em_solo"); setMensagem("POU e corte salvos. Agora você pode iniciar uma nova perna ou encerrar a jornada."); }
     catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível salvar pouso e corte."); } finally { setSalvando(false); }
   };
   const salvarNovaPerna = async () => {
@@ -169,16 +169,16 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
     setSalvando(true); setErro(""); setMensagem("");
     try {
       const dataPerna = dataNovaPerna || dataDoUltimoLancamento(ultimaPerna, jornada.data);
-      await adicionarPernaJornada(jornada.id, pernaUtc(dataPerna, perna));
-      await carregar(); setCriandoPerna(false); setMensagem("Nova perna iniciada. Informe o pouso e o corte desta perna.");
+      const criada = await adicionarPernaJornada(jornada.id, pernaUtc(dataPerna, perna));
+      await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || "em_voo"); setCriandoPerna(false); setMensagem("Nova perna iniciada. Informe o pouso e o corte desta perna.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       if (msg.startsWith("limite_jornada_excedido")) {
         if (window.confirm("Este tripulante já está no limite legal de jornada. Iniciar esta perna mesmo assim?")) {
           try {
             const dataPerna = dataNovaPerna || dataDoUltimoLancamento(ultimaPerna, jornada.data);
-            await adicionarPernaJornada(jornada.id, { ...pernaUtc(dataPerna, perna), confirmar_excedente: true });
-            await carregar(); setCriandoPerna(false); setMensagem("Perna iniciada com excedente confirmado.");
+            const criada = await adicionarPernaJornada(jornada.id, { ...pernaUtc(dataPerna, perna), confirmar_excedente: true });
+            await carregar(); await aoAtualizarAgendamento?.(criada.status_agendamento || "em_voo"); setCriandoPerna(false); setMensagem("Perna iniciada com excedente confirmado.");
           } catch (e2) { setErro(e2 instanceof Error ? e2.message : "Não foi possível iniciar a perna."); }
         } else setErro(msg);
       } else setErro(msg || "Não foi possível iniciar a nova perna.");
@@ -191,7 +191,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
     setSalvando(true); setErro(""); setMensagem("");
     const horarioPouso = pouso;
     const horarioCorte = corte;
-    try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_pouso: horarioPouso, horario_corte: horarioCorte }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada."); }
+    try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_pouso: horarioPouso, horario_corte: horarioCorte }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); await aoAtualizarAgendamento?.(atualizada.status_agendamento || "em_solo"); setMensagem("Jornada encerrada."); }
     catch (e) { const mensagemErro = e instanceof Error ? e.message : ""; const tripulanteId = mensagemErro.match(/tripulante_id=([^\s|]+)/)?.[1]; const nome = tripulanteId ? nomesTripulantes.get(tripulanteId) : undefined; if (mensagemErro.startsWith("limite_jornada")) { const aviso = nome ? `${nome} (${tripulanteId}) ultrapassa o limite legal. Registrar mesmo assim?` : "Um tripulante ultrapassa o limite legal. Registrar mesmo assim?"; if (window.confirm(aviso)) { try { const atualizada = await encerrarJornadaVoo(jornada.id, { horario_pouso: horarioPouso, horario_corte: horarioCorte, confirmar_excedente: true }); setJornada({ ...jornada, ...atualizada, pernas: jornada.pernas }); setMensagem("Jornada encerrada com excedente confirmado."); } catch (confirmacao) { setErro(confirmacao instanceof Error ? confirmacao.message : "Não foi possível encerrar a jornada."); } } else setErro(mensagemErro); } else setErro(mensagemErro || "Não foi possível encerrar a jornada."); } finally { setSalvando(false); }
   };
   const salvarEdicaoJornada = async (registro: Jornada, form: JornadaEditForm) => {

@@ -91,12 +91,13 @@ function formatarData(valor: string | null | undefined) {
 function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
   if (status === "aprovada") return "green";
   if (status === "em_voo" || status === "em_rota") return "blue";
+  if (status === "em_solo") return "green";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 function statusLabel(status: string) {
-  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_rota: "Em voo", em_voo: "Em voo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_rota: "Em voo", em_voo: "Em voo", em_solo: "Em solo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
   const prioridadeStatus: Record<string, number> = { em_voo: 0, em_rota: 0, aprovada: 1, pendente: 2 };
@@ -206,7 +207,7 @@ export default function Agendamentos() {
   }, []);
 
   const agendamentos = useMemo(() => normalizarAgendamentos(painel?.agendamentos), [painel?.agendamentos]);
-  const confirmados = useMemo(() => agendamentos.filter((item) => ["aprovada", "em_voo"].includes(item.status)), [agendamentos]);
+  const confirmados = useMemo(() => agendamentos.filter((item) => ["aprovada", "em_voo", "em_solo"].includes(item.status)), [agendamentos]);
   const encerrados = useMemo(() => agendamentos.filter((item) => item.status === "encerrada"), [agendamentos]);
   const pendentes = useMemo(() => agendamentos.filter((item) => item.status === "pendente"), [agendamentos]);
   const dias = useMemo(() => diasCalendario(mes), [mes]);
@@ -354,7 +355,7 @@ export default function Agendamentos() {
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
     {selecionada?.status === "aprovada" && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} />}
-    {selecionada && ["aprovada", "em_rota", "em_voo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async () => { await carregar(true); setSelecionada((atual) => atual ? { ...atual, status: "em_voo" } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
+    {selecionada && ["aprovada", "em_rota", "em_voo", "em_solo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async (status) => { await carregar(true); if (status) setSelecionada((atual) => atual ? { ...atual, status } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
     <Dialog open={Boolean(agendamentoParaExcluir)} onOpenChange={(aberto) => { if (!aberto && !excluindo) setAgendamentoParaExcluir(null); }}>
       <DialogContent className="w-[calc(100%-2rem)] rounded-2xl border-red-400/20 bg-card sm:max-w-md">
         <DialogHeader><DialogTitle className="text-base font-bold text-red-300">Excluir agendamento definitivamente?</DialogTitle><DialogDescription className="pt-2 text-xs leading-relaxed">Deseja realmente excluir definitivo esse agendamento?</DialogDescription></DialogHeader>
@@ -606,7 +607,7 @@ function Cronograma({ selecionada, solicitacoes, nomesTripulantes, busca, filtro
 function getAcoesAgendamento(item: SolicitacaoVooInterna) {
   const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
   const historico = status === "encerrada" || status === "concluida";
-  return { historico, podeJornada: !historico && ["aprovada", "em_rota", "em_voo"].includes(status), podeFinalizar: !historico && Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0 };
+  return { historico, podeJornada: !historico && ["aprovada", "em_rota", "em_voo", "em_solo"].includes(status), podeFinalizar: !historico && Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0 };
 }
 function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { item: SolicitacaoVooInterna; nomesTripulantes: Map<string, string>; aoAbrir: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
   const cliente = item.voo_emprestado !== "nao" && item.socio_emprestimo_nome ? item.socio_emprestimo_nome : item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cliente não informado";

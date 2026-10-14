@@ -20,4 +20,5 @@ test("relatório de viagem não aparece como anexo no e-mail genérico e mantém
   assert.match(travelReport, /<EnviarEmailClienteDialog/);
   assert.match(travelReport, /programarDepoisDoEmail\(emailId\)/);
   assert.match(dashboard, /texto\.includes\("despesas de viagem"\).*RELATORIO_DESPESA_VIAGEM/s);
+  assert.match(api, /referencia === `relatorio_pdf:\$\{idRelatorio\}`/);
 });

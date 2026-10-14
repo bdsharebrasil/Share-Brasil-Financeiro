@@ -979,7 +979,13 @@ function emailRelacionaMovimentacao(
     movimentacao.numero_doc,
     `${movimentacao.origem_tipo}:${movimentacao.origem_id}`,
   ].filter(Boolean);
-  return referencias.some((referencia) => identificadores.includes(referencia));
+  const idRelatorio = movimentacao.referencias
+    .find((referencia) => referencia.toUpperCase().startsWith("RELATORIO_DESPESA_VIAGEM:"))
+    ?.split(":", 2)[1];
+  return referencias.some((referencia) =>
+    identificadores.includes(referencia) ||
+    Boolean(idRelatorio && referencia === `relatorio_pdf:${idRelatorio}`),
+  );
 }
 
 export function buscarOpcoesRateioMovimentacao(origemTipo: MovimentacaoFinanceira["origem_tipo"], origemId: string) { return colaboradorRequest<OpcoesRateioMovimentacao>(`/api/financeiro/dashboard/financeiro/movimentacoes/${encodeURIComponent(origemTipo)}/${encodeURIComponent(origemId)}/rateio-opcoes`); }

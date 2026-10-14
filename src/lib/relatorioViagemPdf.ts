@@ -742,15 +742,14 @@ function montarHtmlRelatorio(
             )}
           </div>
 
-          <div class="info-item">
-            <span class="info-label">
-              Tripulante 2:
-            </span>
-            ${escapeHtml(
-              report.nome_tripulante_2 ||
-                "Não informado",
-            )}
-          </div>
+          ${report.nome_tripulante_2?.trim() ? `
+            <div class="info-item">
+              <span class="info-label">
+                Tripulante 2:
+              </span>
+              ${escapeHtml(report.nome_tripulante_2.trim())}
+            </div>
+          ` : ""}
 
           <div class="info-item">
             <span class="info-label">

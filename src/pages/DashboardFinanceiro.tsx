@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleDollarSign,
   ChevronLeft,
@@ -129,6 +129,56 @@ function valorMovimentacao(valor: number) {
   return valor === 78.9 ? 78.91 : valor;
 }
 
+type PapelCaixa = "share" | "cliente" | "indefinido";
+
+type Operacao = {
+  chave: string;
+  titulo: string;
+  data: string | null;
+  pernas: Array<{ papel: PapelCaixa; item: MovimentacaoFinanceira }>;
+};
+
+function ehRelevante(item: MovimentacaoFinanceira) {
+  if ((Number(item.valor) || 0) <= 0) return false;
+  if (String(item.status || "").trim().toUpperCase() === "CANCELADO") return false;
+
+  const referencias = Array.isArray(item.referencias) ? item.referencias.join(" ") : "";
+  const textoOrigem = `${item.origem_tipo || ""} ${item.descricao || ""} ${referencias}`;
+  return !/di[aá]rio de bordo/i.test(textoOrigem);
+}
+
+function papelCaixa(item: MovimentacaoFinanceira): PapelCaixa {
+  const caixa = String(item.tipo_caixa || "").trim().toUpperCase();
+  if (["CLIENTE", "HOLDING", "HOLD"].includes(caixa)) return "cliente";
+  if (caixa === "SHARE") return "share";
+  return "indefinido";
+}
+
+function chaveOperacao(item: MovimentacaoFinanceira) {
+  const referenciaRelatorio = item.referencias?.find((referencia) =>
+    referencia.toUpperCase().startsWith("RELATORIO_DESPESA_VIAGEM:"),
+  );
+  if (referenciaRelatorio) return referenciaRelatorio.toUpperCase();
+  if (item.origem_tipo && item.origem_id) return `${item.origem_tipo}:${item.origem_id}`;
+  return `ITEM:${item.id}`;
+}
+
+function agruparOperacoes(itens: MovimentacaoFinanceira[]): Operacao[] {
+  const mapa = new Map<string, Operacao>();
+  for (const item of itens.filter(ehRelevante)) {
+    const chave = chaveOperacao(item);
+    const operacao = mapa.get(chave) ?? {
+      chave,
+      titulo: item.descricao || "Movimentação sem descrição",
+      data: item.data_pagamento || item.criado_em,
+      pernas: [],
+    };
+    operacao.pernas.push({ papel: papelCaixa(item), item });
+    mapa.set(chave, operacao);
+  }
+  return [...mapa.values()];
+}
+
 export default function DashboardFinanceiro({
   aoNavegar,
 }: {
@@ -189,15 +239,17 @@ export default function DashboardFinanceiro({
   }, [carregar]);
 
   const resumo = dados?.resumo;
-  const movimentacoes = dados?.movimentacoes ?? [];
-  const despesasNaoEnviadas = movimentacoes.filter(ehDespesaNaoEnviada);
-  const movimentacoesVisiveis = mostrarPendencias
-    ? despesasNaoEnviadas
-    : movimentacoes;
+  const operacoes = useMemo(() => agruparOperacoes(dados?.movimentacoes ?? []), [dados?.movimentacoes]);
+  const operacoesNaoEnviadas = operacoes.filter((operacao) =>
+    operacao.pernas.some(
+      ({ item }) => String(item.fluxo || "").toUpperCase() === "SAIDA" && statusEmail(item) !== "ENVIADO",
+    ),
+  );
+  const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
   const itensPorPagina = 5;
-  const totalPaginas = Math.max(1, Math.ceil(movimentacoesVisiveis.length / itensPorPagina));
+  const totalPaginas = Math.max(1, Math.ceil(operacoesVisiveis.length / itensPorPagina));
   const paginaExibida = Math.min(paginaAtual, totalPaginas);
-  const movimentacoesDaPagina = movimentacoesVisiveis.slice(
+  const operacoesDaPagina = operacoesVisiveis.slice(
     (paginaExibida - 1) * itensPorPagina,
     paginaExibida * itensPorPagina,
   );
@@ -238,7 +290,7 @@ export default function DashboardFinanceiro({
       <div className="mx-auto mb-6 grid w-full max-w-[820px] gap-3 sm:grid-cols-2">
         <CartaoKpi
           label="Despesas não enviadas"
-          value={carregando ? "—" : String(despesasNaoEnviadas.length)}
+          value={carregando ? "—" : String(operacoesNaoEnviadas.length)}
           detail="Despesas sem e-mail enviado"
           tone="amber"
           icon={<Clock3 size={16} />}
@@ -343,38 +395,12 @@ export default function DashboardFinanceiro({
             <div className="skeleton h-12 rounded-lg" />
             <div className="skeleton h-12 rounded-lg" />
           </div>
-        ) : movimentacoesVisiveis.length ? (
+        ) : operacoesVisiveis.length ? (
           <>
-          {/* Tabela Desktop */}
-          <div className="hidden max-w-full overflow-x-auto 2xl:block">
-            <table className="w-full min-w-[860px] table-fixed text-left text-sm">
-              <colgroup>
-                <col className="w-[90px]" />
-                <col className="w-[300px]" />
-                <col className="w-[80px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[90px]" />
-                <col className="w-[120px]" />
-              </colgroup>
-              <thead className="bg-muted/5">
-                <tr className="border-b border-border/80 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="whitespace-nowrap px-3 py-4">ID / Data</th>
-                  <th className="whitespace-nowrap px-3 py-4">Descrição / Fornecedor</th>
-                  <th className="whitespace-nowrap px-3 py-4">Cliente</th>
-                  <th className="whitespace-nowrap px-3 py-4 text-center">Caixa</th>
-                  <th className="whitespace-nowrap px-2 py-4 text-center">Valor (R$)</th>
-                  <th className="whitespace-nowrap px-3 py-4 text-center">Status</th>
-                  <th className="whitespace-nowrap px-3 py-4 text-center">E-mail</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {movimentacoesDaPagina.map((item) => (
-                  <LinhaMovimentacao key={item.id} item={item} onEmailPendente={setDespesaDestino} />
-                ))}
-              </tbody>
-            </table>
-            
+          <div className="space-y-3 p-4">
+            {operacoesDaPagina.map((operacao) => (
+              <CartaoOperacao key={operacao.chave} op={operacao} onEmailPendente={setDespesaDestino} />
+            ))}
             {totalPaginas > 1 && (
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3">
                 <p className="text-xs font-medium text-muted-foreground">
@@ -396,42 +422,6 @@ export default function DashboardFinanceiro({
                     variant="outline"
                     size="sm"
                     className="h-8 gap-1.5 text-xs bg-background"
-                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
-                    disabled={paginaExibida === totalPaginas}
-                  >
-                    Próxima <ChevronRight size={14} />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Cards Mobile */}
-          <div className="space-y-3 p-4 2xl:hidden">
-            {movimentacoesDaPagina.map((item) => (
-              <CartaoMovimentacao key={item.id} item={item} onEmailPendente={setDespesaDestino} />
-            ))}
-            {totalPaginas > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 pb-1 pt-4">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Página {paginaExibida} de {totalPaginas}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
-                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
-                    disabled={paginaExibida === 1}
-                  >
-                    <ChevronLeft size={14} /> Anterior
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
                     onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
                     disabled={paginaExibida === totalPaginas}
                   >
@@ -489,117 +479,32 @@ function StatusEmail({ item, onClick }: { item: MovimentacaoFinanceira; onClick?
   return clicavel ? <button type="button" className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(status)} cursor-pointer underline decoration-dotted underline-offset-2 hover:opacity-80`} onClick={onClick} title="Definir destino da despesa">{content}</button> : <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tomStatusEmail(status)}`}>{content}</span>;
 }
 
-// COMPONENTE: Cartão Mobile
-function CartaoMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanceira; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
+function CartaoOperacao({ op, onEmailPendente }: { op: Operacao; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
+  const rotulo: Record<PapelCaixa, string> = {
+    share: "Caixa Share · a pagar",
+    cliente: "Caixa Cliente · a reembolsar",
+    indefinido: "Origem",
+  };
+
   return (
     <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-foreground">
-          {item.descricao || "Movimentação sem descrição"}
-        </p>
-        <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-medium text-muted-foreground">
-          <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span>
-          <span>•</span>
-          <span>{item.numero_doc || "Sem doc"}</span>
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-bold text-foreground">{op.titulo}</p>
+        <span className="shrink-0 text-xs text-muted-foreground">{dataBruta(op.data)}</span>
       </div>
-
-      <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Cliente</p>
-          <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || "Não informado"}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Caixa</p>
-          <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
-            {tipoCaixaLabel(item.tipo_caixa)}
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <p className="font-mono text-xs font-bold tabular-nums text-foreground">
-          {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
-        </p>
-        <EtiquetaStatus tone={tomStatus(item.status)}>
-          {statusLabel(item.status)}
-        </EtiquetaStatus>
-        <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
-        <span className="ml-auto text-xs font-medium text-muted-foreground">
-          {dataBruta(item.data_pagamento || item.criado_em)}
-        </span>
-      </div>
-      {item.justificativa_reativacao && (
-        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-amber-600 dark:text-amber-300">
-            Recibo reativado{item.reativado_em ? ` · ${dataBruta(item.reativado_em)}` : ""}
-          </p>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{item.justificativa_reativacao}</p>
-        </div>
-      )}
-    </article>
-  );
-}
-
-// COMPONENTE: Linha Desktop
-function LinhaMovimentacao({ item, onEmailPendente }: { item: MovimentacaoFinanceira; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
-  return (
-    <tr className="transition-colors hover:bg-muted/30">
-      {/* ID / DATA Combinados */}
-      <td className="whitespace-nowrap px-3 py-3.5 align-middle">
-        <div className="font-medium text-foreground">
-          {item.numero_doc || "Sem ID"}
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {dataBruta(item.data_pagamento || item.criado_em)}
-        </div>
-      </td>
-      
-      {/* DESCRIÇÃO / FORNECEDOR Combinados */}
-      <td className="px-3 py-3.5 align-middle">
-        <div className="font-semibold text-foreground line-clamp-1" title={item.descricao || "Movimentação sem descrição"}>
-          {item.descricao || "Movimentação sem descrição"}
-        </div>
-        <div className="mt-1 text-xs font-medium text-muted-foreground line-clamp-1" title={item.fornecedor || "Sem fornecedor"}>
-          {item.fornecedor || "Sem fornecedor"}
-        </div>
-        {item.justificativa_reativacao && (
-          <div className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5">
-            <p className="text-[9px] font-black uppercase tracking-[.12em] text-amber-600 dark:text-amber-300">Recibo reativado{item.reativado_em ? ` · ${dataBruta(item.reativado_em)}` : ""}</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">{item.justificativa_reativacao}</p>
+      <div className="mt-3 space-y-2">
+        {op.pernas.map(({ papel, item }) => (
+          <div key={item.id} className="grid items-center gap-3 rounded-lg border border-border/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{rotulo[papel]}</p>
+              <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || item.fornecedor || "—"}</p>
+            </div>
+            <span className="font-mono text-xs font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</span>
+            <EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus>
+            <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
           </div>
-        )}
-      </td>
-      
-      <td className="px-3 py-3.5 align-middle">
-        <div className="truncate text-sm text-foreground" title={item.codigo_cliente || "Não informado"}>
-          {item.codigo_cliente || "Não informado"}
-        </div>
-      </td>
-
-      {/* CAIXA (Verde para Share, Azul para Cliente) */}
-      <td className="px-3 py-3.5 text-center align-middle">
-        <span className={`inline-flex items-center rounded-md font-bold uppercase tracking-wide ${tipoCaixaClass(item.tipo_caixa)}`}>
-          {tipoCaixaLabel(item.tipo_caixa)}
-        </span>
-      </td>
-
-      {/* VALOR */}
-      <td className="whitespace-nowrap px-2 py-3.5 text-center align-middle font-mono font-bold tabular-nums text-foreground">
-        {formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}
-      </td>
-
-      {/* STATUS */}
-      <td className="px-3 py-3.5 text-center align-middle">
-        <EtiquetaStatus tone={tomStatus(item.status)}>
-          {statusLabel(item.status)}
-        </EtiquetaStatus>
-      </td>
-
-      {/* EMAIL */}
-      <td className="px-3 py-3.5 align-middle text-center">
-        <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
-      </td>
-    </tr>
+        ))}
+      </div>
+    </article>
   );
 }

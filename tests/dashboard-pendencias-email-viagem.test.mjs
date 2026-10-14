@@ -10,8 +10,14 @@ const dashboard = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx",
 test("card de despesas não enviadas conta e filtra somente despesas sem e-mail enviado", () => {
   assert.match(api, /pendencia: booleanoFinanceiro\(registro\.pendencia\) \?\? false/);
   assert.match(api, /fluxo: textoFinanceiro\(registro\.fluxo\)/);
-  assert.match(dashboard, /movimentacoes\.filter\(ehDespesaNaoEnviada\)/);
+  assert.match(dashboard, /const operacoes = useMemo\(\(\) => agruparOperacoes\(dados\?\.movimentacoes \?\? \[\]\)/);
+  assert.match(dashboard, /const operacoesNaoEnviadas = operacoes\.filter/);
   assert.match(dashboard, /String\(item\.fluxo \|\| ""\)\.toUpperCase\(\) === "SAIDA" && statusEmail\(item\) !== "ENVIADO"/);
+  assert.match(dashboard, /function ehRelevante\(item: MovimentacaoFinanceira\)/);
+  assert.match(dashboard, /Number\(item\.valor\) \|\| 0\) <= 0/);
+  assert.match(dashboard, /CANCELADO/);
+  assert.match(dashboard, /di\[aá\]rio de bordo/);
+  assert.match(dashboard, /function CartaoOperacao/);
   assert.match(dashboard, /label="Despesas não enviadas"/);
 });
 

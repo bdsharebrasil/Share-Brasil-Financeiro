@@ -864,6 +864,17 @@ function primeiroTexto(...valores: unknown[]) {
   return valores.map(textoFinanceiro).find(Boolean) || null;
 }
 
+function referenciasFinanceiras(valor: unknown): string[] {
+  if (Array.isArray(valor)) return valor.map(String).filter(Boolean);
+  if (typeof valor !== "string" || !valor.trim()) return [];
+  try {
+    const convertido: unknown = JSON.parse(valor);
+    return Array.isArray(convertido) ? convertido.map(String).filter(Boolean) : [valor];
+  } catch {
+    return [valor];
+  }
+}
+
 function numeroDocumento(registro: RegistroFinanceiro) {
   return primeiroTexto(
     registro.numero_nf,
@@ -892,6 +903,8 @@ function normalizarMovimentacao(
     origem_tipo: origemTipo,
     origem_id: origemId,
     referencias: [
+      ...referenciasFinanceiras(registro.referencias),
+      ...referenciasFinanceiras(registro.referencias_json),
       textoFinanceiro(registro.id),
       textoFinanceiro(registro.origem_id),
       textoFinanceiro(registro.origem_tipo) && textoFinanceiro(registro.origem_id)

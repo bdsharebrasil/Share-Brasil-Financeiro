@@ -8,6 +8,13 @@ type AgendamentoOperacional = {
   jornadas_encerradas?: number | string | null;
 };
 
+export function correspondeFiltroStatusAgendamento(status: string, filtro: string): boolean {
+  const statusNormalizado = String(status || "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (filtro === "todos") return true;
+  if (filtro === "em_voo") return ["em_rota", "em_voo", "em_solo"].includes(statusNormalizado);
+  return statusNormalizado === filtro;
+}
+
 export function calcularProgressoChecklist(item: AgendamentoOperacional, progressoLocal?: number): number {
   if (String(item.checklist_status || "").trim().toLowerCase() === "concluido") return 100;
   const respondidos = progressoLocal ?? Number(item.checklist_itens_respondidos || 0);

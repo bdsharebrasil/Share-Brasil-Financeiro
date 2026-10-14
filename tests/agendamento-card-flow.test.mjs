@@ -1,8 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calcularProgressoChecklist, obterAcoesAgendamento } from "../src/components/agendamento/agendamentoCardFlow.ts";
+import { calcularProgressoChecklist, correspondeFiltroStatusAgendamento, obterAcoesAgendamento } from "../src/components/agendamento/agendamentoCardFlow.ts";
 
 const aprovado = { status: "aprovada", checklist_status: null, checklist_itens_respondidos: 0 };
+
+test("filtro Em Voo / Em Solo inclui os dois status operacionais e legado em rota", () => {
+  for (const status of ["em_voo", "em voo", "em_solo", "em solo", "em_rota"]) {
+    assert.equal(correspondeFiltroStatusAgendamento(status, "em_voo"), true, status);
+  }
+  assert.equal(correspondeFiltroStatusAgendamento("aprovada", "em_voo"), false);
+  assert.equal(correspondeFiltroStatusAgendamento("em_solo", "aprovada"), false);
+  assert.equal(correspondeFiltroStatusAgendamento("aprovada", "todos"), true);
+});
 
 test("agendamento aprovado sem checklist mostra iniciar voo, não jornada, e usa amarelo", () => {
   const acoes = obterAcoesAgendamento(aprovado, calcularProgressoChecklist(aprovado));

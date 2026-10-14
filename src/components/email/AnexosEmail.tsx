@@ -58,12 +58,6 @@ const grupos: Grupo[] = [
     origens: ["recibo"],
   },
   {
-    chave: "despesas",
-    titulo: "Despesas de viagem",
-    icone: FileText,
-    origens: ["relatorio_despesa_viagem"],
-  },
-  {
     chave: "abastecimentos",
     titulo: "Abastecimentos",
     icone: Fuel,

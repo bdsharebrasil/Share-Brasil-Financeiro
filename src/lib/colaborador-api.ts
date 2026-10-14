@@ -922,6 +922,7 @@ function normalizarMovimentacao(
     email_enviado_id: textoFinanceiro(registro.email_enviado_id),
     email_status: textoFinanceiro(registro.email_status),
     status_email: textoFinanceiro(registro.status_email),
+    pendencia: booleanoFinanceiro(registro.pendencia) ?? false,
     justificativa_reativacao: textoFinanceiro(registro.justificativa_reativacao),
     reativado_em: textoFinanceiro(registro.reativado_em),
     criado_em: textoFinanceiro(registro.criado_em) || "",

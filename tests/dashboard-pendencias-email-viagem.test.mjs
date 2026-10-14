@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFile } from "node:fs/promises";
+
+const api = await readFile(new URL("../src/lib/colaborador-api.ts", import.meta.url), "utf8");
+const emailAttachments = await readFile(new URL("../src/components/email/AnexosEmail.tsx", import.meta.url), "utf8");
+const travelReport = await readFile(new URL("../src/pages/RelatorioDespesaViagem.tsx", import.meta.url), "utf8");
+const dashboard = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx", import.meta.url), "utf8");
+
+test("normalização mantém a marcação de pendência que alimenta o filtro do dashboard", () => {
+  assert.match(api, /pendencia: booleanoFinanceiro\(registro\.pendencia\) \?\? false/);
+  assert.match(dashboard, /movimentacoes\.filter\(\(item\) => item\.pendencia\)/);
+  assert.match(dashboard, /label="Pendências"/);
+});
+
+test("relatório de viagem não aparece como anexo no e-mail genérico e mantém envio dentro do relatório", () => {
+  assert.doesNotMatch(emailAttachments, /relatorio_despesa_viagem/);
+  assert.match(travelReport, /<EnviarEmailClienteDialog/);
+  assert.match(travelReport, /programarDepoisDoEmail\(emailId\)/);
+});

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import { DespesaDestinoDialog } from "@/components/dashboard/DespesaDestinoDialog";
+import { TabelaAbastecimentosPendentes } from "@/components/dashboard/financeiro/TabelaAbastecimentosPendentes";
 import {
   AcaoRapida,
   CabecalhoSecao,
@@ -26,11 +27,14 @@ import {
   formatarMoeda,
 } from "@/components/dashboard/ComponentesDashboard";
 import {
+  buscarAbastecimentosPendentesFinanceiro,
   buscarPainelFinanceiro,
   buscarPerfilColaborador,
+  type AbastecimentoPendenteFinanceiro,
   type MovimentacaoFinanceira,
   type PainelFinanceiroResponse,
 } from "@/lib/colaborador-api";
+import ControleAbastecimento from "@/pages/ControleAbastecimento";
 
 function dataBruta(valor: string | null | undefined) {
   if (!valor) return "—";
@@ -137,19 +141,38 @@ export default function DashboardFinanceiro({
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
+  const [abaMovimentacoes, setAbaMovimentacoes] = useState<"movimentacoes" | "abastecimentos_pendentes">("movimentacoes");
+  const [abastecimentosPendentes, setAbastecimentosPendentes] = useState<AbastecimentoPendenteFinanceiro[]>([]);
+  const [carregandoAbastecimentos, setCarregandoAbastecimentos] = useState(true);
+  const [erroAbastecimentos, setErroAbastecimentos] = useState<string | null>(null);
+  const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
   const [despesaDestino, setDespesaDestino] = useState<MovimentacaoFinanceira | null>(null);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (silencioso) setAtualizando(true);
     else setCarregando(true);
+    setCarregandoAbastecimentos(true);
     setErro(null);
+    setErroAbastecimentos(null);
     try {
-      setDados(await buscarPainelFinanceiro());
-      setPaginaAtual(1);
-    } catch {
-      setErro("Não foi possível carregar os dados financeiros reais.");
+      const [painel, abastecimentos] = await Promise.allSettled([
+        buscarPainelFinanceiro(),
+        buscarAbastecimentosPendentesFinanceiro(),
+      ]);
+      if (painel.status === "fulfilled") {
+        setDados(painel.value);
+        setPaginaAtual(1);
+      } else {
+        setErro("Não foi possível carregar os dados financeiros reais.");
+      }
+      if (abastecimentos.status === "fulfilled") {
+        setAbastecimentosPendentes(abastecimentos.value.abastecimentos_pendentes || []);
+      } else {
+        setErroAbastecimentos("Não foi possível carregar os abastecimentos pendentes.");
+      }
     } finally {
       setCarregando(false);
+      setCarregandoAbastecimentos(false);
       setAtualizando(false);
     }
   }, []);
@@ -177,6 +200,19 @@ export default function DashboardFinanceiro({
     (paginaExibida - 1) * itensPorPagina,
     paginaExibida * itensPorPagina,
   );
+
+  if (abastecimentoEmEdicao) {
+    return (
+      <ControleAbastecimento
+        initialRecordId={abastecimentoEmEdicao}
+        aoVoltar={() => {
+          setAbastecimentoEmEdicao(null);
+          setAbaMovimentacoes("abastecimentos_pendentes");
+          void carregar(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="route-enter mx-auto w-full max-w-[1320px] min-w-0">
@@ -260,7 +296,7 @@ export default function DashboardFinanceiro({
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
-          detail={mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
+          detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button
@@ -284,6 +320,15 @@ export default function DashboardFinanceiro({
           }
         />
         
+        <div className="flex flex-wrap gap-1 border-b border-border px-4" role="tablist" aria-label="Abas de movimentações financeiras">
+          <button id="tab-movimentacoes" type="button" role="tab" aria-selected={abaMovimentacoes === "movimentacoes"} aria-controls="painel-movimentacoes" onClick={() => setAbaMovimentacoes("movimentacoes")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${abaMovimentacoes === "movimentacoes" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            Movimentações
+          </button>
+          <button id="tab-abastecimentos-pendentes" type="button" role="tab" aria-selected={abaMovimentacoes === "abastecimentos_pendentes"} aria-controls="painel-abastecimentos-pendentes" onClick={() => setAbaMovimentacoes("abastecimentos_pendentes")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${abaMovimentacoes === "abastecimentos_pendentes" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            Abastecimentos pendentes <span className="ml-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-700">{abastecimentosPendentes.length}</span>
+          </button>
+        </div>
+        <div id="painel-movimentacoes" role="tabpanel" aria-labelledby="tab-movimentacoes" hidden={abaMovimentacoes !== "movimentacoes"}>
         {mostrarPendencias && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
             <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo as movimentações das pendências em aberto.</span>
@@ -401,6 +446,22 @@ export default function DashboardFinanceiro({
             <EstadoVazio label="Nenhuma movimentação financeira encontrada" />
           </div>
         )}
+        </div>
+        <div id="painel-abastecimentos-pendentes" role="tabpanel" aria-labelledby="tab-abastecimentos-pendentes" hidden={abaMovimentacoes !== "abastecimentos_pendentes"} className="p-4">
+          {carregandoAbastecimentos ? (
+            <div className="space-y-3"><div className="skeleton h-16 rounded-xl" /><div className="skeleton h-16 rounded-xl" /></div>
+          ) : erroAbastecimentos ? (
+            <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-xs text-red-600">{erroAbastecimentos}</div>
+          ) : (
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-sm font-bold">ABASTECIMENTOS PENDENTES</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Registros gerados no checklist pré-voo que ainda precisam do número da nota fiscal e/ou do arquivo fiscal.</p>
+              </div>
+              <TabelaAbastecimentosPendentes abastecimentos={abastecimentosPendentes} onEditar={setAbastecimentoEmEdicao} formatarData={dataBruta} />
+            </section>
+          )}
+        </div>
       </section>
 
       <DespesaDestinoDialog item={despesaDestino} open={Boolean(despesaDestino)} onOpenChange={(open) => { if (!open) setDespesaDestino(null); }} onCompleted={() => void carregar(true)} />

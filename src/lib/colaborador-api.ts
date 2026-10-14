@@ -560,6 +560,10 @@ export function buscarMovimentacoesFinanceiras() {
   return colaboradorRequest<{ pastas: PastaMovimentacoesFinanceiras[]; abastecimentos_pendentes: AbastecimentoPendenteFinanceiro[] }>('/api/financeiro/dashboard/financeiro/movimentacoes');
 }
 
+export function buscarAbastecimentosPendentesFinanceiro() {
+  return colaboradorRequest<{ abastecimentos_pendentes: AbastecimentoPendenteFinanceiro[] }>('/api/financeiro/dashboard/financeiro/movimentacoes?somente=abastecimentos_pendentes');
+}
+
 export function buscarOpcoesAgendamento() {
   return colaboradorRequest<OpcoesAgendamentoResponse>("/api/interno/agendamento/opcoes");
 }

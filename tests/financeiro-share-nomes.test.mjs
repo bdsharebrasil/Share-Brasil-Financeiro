@@ -18,3 +18,17 @@ test("coluna Fornecedor das solicitações não mostra o nome de quem criou o en
   assert.match(solicitacoes, /item\.fornecedor_nome \?\? item\.fornecedor \?\? "—"/);
   assert.doesNotMatch(solicitacoes, /item\.solicitante_nome \?\? item\.criado_por/);
 });
+
+test("linha de reembolso mostra documento, data de emissão e nome da categoria em vez do ID da aeronave", () => {
+  assert.match(solicitacoes, /principal: item\.documento \|\| item\.descricao/);
+  assert.match(solicitacoes, /dataLegivel\(item\.dataEmissao \?\? null\)/);
+  assert.match(solicitacoes, /categoria: item\.categoriaNome/);
+  assert.doesNotMatch(solicitacoes, /categoria: item\.aeronaveId/);
+});
+
+test("detalhe do reembolso oferece o documento anexado e seus dados complementares", () => {
+  assert.match(solicitacoes, /href=\{item\.documentoUrl\}/);
+  assert.match(solicitacoes, /item\.fornecedor/);
+  assert.match(solicitacoes, /item\.numeroVoo/);
+  assert.match(solicitacoes, /item\.cotistaNome/);
+});

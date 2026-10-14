@@ -139,7 +139,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const reembolsosFiltrados = useMemo(() => reembolsos.filter((item) => {
     const vencido = item.dataVencimento.slice(0, 10) < new Date().toISOString().slice(0, 10);
     const atendeFiltro = filtroReembolso === "TODOS" || (filtroReembolso === "VENCIDOS" && vencido);
-    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.solicitanteNome, item.aeronaveId).includes(busca.toLocaleLowerCase("pt-BR")));
+    return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId).includes(busca.toLocaleLowerCase("pt-BR")));
   }), [reembolsos, filtroReembolso, busca]);
 
   const opcoesEnvio = useMemo(() => FILTROS_ENVIO.map((filtro) => ({
@@ -197,9 +197,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     const aberto = expandido === chave;
     return {
       id: chave,
-      principal: item.solicitanteNome ?? "Colaborador não identificado",
-      secundaria: item.descricao ?? "Despesa reembolsável",
-      categoria: item.aeronaveId ?? "Reembolso de colaborador",
+      principal: item.documento || item.descricao || "Despesa reembolsável",
+      secundaria: `${dataLegivel(item.dataEmissao ?? null)} · ${item.descricao ?? "Reembolso de colaborador"}`,
+      categoria: item.categoriaNome || "Reembolso de colaborador",
       vencimento: dataLegivel(item.dataVencimento),
       valor: `−${formatarMoeda(item.valor)}`,
       status: item.status,
@@ -211,13 +211,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         <div className="grid gap-5 sm:grid-cols-2">
           <section>
             <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Documentos vinculados</h3>
-            <p className="text-[11px] text-muted-foreground"><FileText size={13} className="mr-2 inline text-primary" />Nenhum documento vinculado diretamente ao título.</p>
+            {item.documentoUrl
+              ? <a href={item.documentoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[11px] font-medium text-primary underline-offset-4 hover:underline"><FileText size={13} />{item.documento || "Abrir documento vinculado"}</a>
+              : <p className="text-[11px] text-muted-foreground"><FileText size={13} className="mr-2 inline text-primary" />Nenhum documento vinculado diretamente ao título.</p>}
           </section>
           <section>
             <h3 className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-primary">Mais informações</h3>
             <dl className="grid grid-cols-2 gap-3 text-[11px]">
               <div><dt className="text-muted-foreground">Vencimento</dt><dd className="mt-1 font-semibold">{dataLegivel(item.dataVencimento)}</dd></div>
               <div><dt className="text-muted-foreground">Caixa</dt><dd className="mt-1 font-semibold">{String(item.tipoCaixa).toUpperCase() === "HOLDING" ? "Holding" : "Share"}</dd></div>
+              <div><dt className="text-muted-foreground">Fornecedor</dt><dd className="mt-1 font-semibold">{item.fornecedor || "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Número do voo</dt><dd className="mt-1 font-semibold">{item.numeroVoo || "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Cotista</dt><dd className="mt-1 font-semibold">{item.cotistaNome || "—"}</dd></div>
             </dl>
           </section>
         </div>
@@ -268,7 +273,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             aoFiltrar={setFiltroReembolso}
             busca={busca}
             aoBuscar={setBusca}
-            placeholderBusca="Buscar colaborador, descrição ou aeronave"
+            placeholderBusca="Buscar documento, descrição, fornecedor, voo ou cotista"
             carregando={carregando}
             mensagemVazia="Nenhum reembolso pendente encontrado."
           />

@@ -410,10 +410,17 @@ export type SolicitacaoPagamento = {
 
 export type ReembolsoColaborador = {
   id: string;
+  dataEmissao?: string | null;
   dataVencimento: string;
   valor: number;
   descricao: string | null;
+  categoriaNome?: string | null;
   aeronaveId: string | null;
+  documento?: string | null;
+  documentoUrl?: string | null;
+  fornecedor?: string | null;
+  numeroVoo?: string | null;
+  cotistaNome?: string | null;
   fornecedorId: string | null;
   status: string;
   lancamentoId: string | null;

@@ -580,13 +580,6 @@ export default function AprovacaoRelatorioViagem() {
   const decidir = async (aprovado: boolean) => {
     if (!data || (decisaoRegistrada && !(aprovado && podeReprocessarFinanceiro)) || enviando) return;
 
-    if (aprovado && !podeReprocessarFinanceiro && !relatorioRevisado) {
-      setMensagem(
-        "Revise os grupos de despesas disponíveis, um por vez, até o final de cada grupo para liberar a aprovação.",
-      );
-      return;
-    }
-
     if (!aprovado && !motivo.trim()) {
       setMensagem("Informe o motivo da rejeição antes de continuar.");
       return;
@@ -851,7 +844,7 @@ export default function AprovacaoRelatorioViagem() {
                 <div className="min-w-0">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200">
                     <ShieldCheck size={13} />
-                    Revisão completa
+                    Aprovação do relatório
                   </span>
 
                   <h2 className="mt-3 break-words text-xl font-extrabold tracking-tight text-white sm:text-2xl">
@@ -1118,8 +1111,8 @@ export default function AprovacaoRelatorioViagem() {
                 {relatorioRevisado
                   ? "Todos os grupos foram revisados"
                   : chegouAoFim
-                    ? "Grupo atual revisado · confira os demais"
-                    : "Desça até o final deste grupo para revisar"}
+                    ? "Grupo atual revisado · os demais são opcionais"
+                    : "A revisão dos grupos é opcional"}
               </span>
 
               <span className="text-slate-400">{moeda(totalTripulante)}</span>
@@ -1128,7 +1121,7 @@ export default function AprovacaoRelatorioViagem() {
             {!relatorioRevisado && !podeReprocessarFinanceiro ? (
               <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]">
                 <span className="font-bold text-slate-400">
-                  Falta revisar:
+                  Grupos não revisados (opcional):
                 </span>
                 {filtrosPendentes.map((filtro) =>
                   filtro === filtroDespesas ? (
@@ -1170,7 +1163,7 @@ export default function AprovacaoRelatorioViagem() {
 
               <button
                 type="button"
-                disabled={enviando || (!podeReprocessarFinanceiro && !relatorioRevisado)}
+                disabled={enviando}
                 onClick={() => {
                   setMotivo("");
                   setAcao("aprovar");

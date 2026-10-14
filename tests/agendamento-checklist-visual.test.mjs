@@ -25,3 +25,10 @@ test("abastecimento permite informar trecho manual quando não há trecho anteri
   assert.match(componente, /label="Trecho manual"><input value=\{manualTrecho\} onChange=\{\(e\) => \{ setManualTrecho\(e\.target\.value\); setTrechoManualAberto\(true\); \}\}/);
   assert.match(componente, /trechoConfirmado \? Boolean\(trechoId\) : Boolean\(manualTrecho\.trim\(\)\)/);
 });
+
+test("abastecimento vincula o último lançamento diário e ignora IDs mensais antigos", () => {
+  assert.match(componente, /const ultimo = opcoes\.ultimo_trecho/);
+  assert.doesNotMatch(componente, /const ultimo = opcoes\.diarios\?\.\[0\]/);
+  assert.match(componente, /setTrechoId\(ultimo\.id\)/);
+  assert.match(componente, /opcoes\.ultimo_trecho === undefined \|\| !trechoConfirmado/);
+});

@@ -95,6 +95,8 @@ const categorias = [
   "Outros",
 ];
 const BASE_LINK_APROVACAO_RELATORIO = "https://gestao.share-brasil.com/aprovar-relatorio";
+const PERIODICIDADE_REEMBOLSO_PADRAO = "EVENTUAL";
+const TIPO_RATEIO_REEMBOLSO_PADRAO = "VARIAVEL POR VOO";
 const vazioFormulario = (): Formulario => ({
   numero_relatorio: "",
   numero_voo: "",
@@ -296,7 +298,7 @@ export default function RelatorioDespesaViagem({
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [mensagensAprovacao, setMensagensAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
-  const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill: null });
+  const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: PERIODICIDADE_REEMBOLSO_PADRAO, tipoRateio: TIPO_RATEIO_REEMBOLSO_PADRAO, prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
   const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
 
@@ -843,7 +845,13 @@ export default function RelatorioDespesaViagem({
     if (!relatorio) return;
     try {
       const prefill = await buscarProgramacaoReembolsoRelatorio(relatorio.id);
-      setReembolsoForm({ aberto: true, vencimento: new Date().toISOString().slice(0, 10), periodicidade: "ÚNICO", tipoRateio: "FIXO", prefill });
+      setReembolsoForm({
+        aberto: true,
+        vencimento: prefill.data_vencimento_reembolso || new Date().toISOString().slice(0, 10),
+        periodicidade: prefill.periodicidade || PERIODICIDADE_REEMBOLSO_PADRAO,
+        tipoRateio: prefill.tipo_rateio || TIPO_RATEIO_REEMBOLSO_PADRAO,
+        prefill,
+      });
     } catch (error) {
       setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível iniciar o envio." });
     }

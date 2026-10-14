@@ -11,7 +11,7 @@ test("checklist pr√©-voo sinaliza visualmente progresso vazio, parcial e conclu√
   assert.match(componente, /progresso === 0 \? "#facc15"/);
   assert.match(componente, /progresso === 100 \? "#34d399"/);
   assert.match(componente, /: "#f87171"/);
-  assert.match(componente, /progresso === 0 \? "border-yellow-400" : "border-red-400"/);
+  assert.match(componente, /progresso === 0 \? "border-yellow-400\/40" : "border-red-400\/40"/);
   assert.match(componente, /conic-gradient\(\$\{corChecklist\}/);
 });
 

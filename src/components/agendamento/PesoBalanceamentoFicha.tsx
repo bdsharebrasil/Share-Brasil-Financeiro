@@ -11,8 +11,8 @@ import {
 } from "@/lib/colaborador-api";
 
 const DENSIDADE_AVGAS = 0.72;
-const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary";
-const cell = "rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary w-full";
+const input = "h-11 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
+const cell = "min-h-11 w-full rounded-xl border border-border/80 bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const n = (valor: unknown) => {
@@ -160,7 +160,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-4xl overscroll-contain overflow-y-auto p-3 pb-4 sm:max-h-[92vh] sm:w-[96vw] sm:p-6">
+        <DialogContent className="max-h-[100dvh] w-full max-w-4xl overscroll-contain overflow-y-auto rounded-t-3xl rounded-b-none p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[92dvh] sm:w-[96vw] sm:rounded-2xl sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Scale size={17} className="text-primary" /> Ficha de peso e balanceamento
@@ -181,7 +181,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
                 <Campo label="Voo nº"><input className={input} value={contexto?.solicitacao.numero_voo || item.numero_voo || ""} readOnly /></Campo>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/[.12] p-3">
+              <div className="rounded-2xl border border-border/70 bg-secondary/[.12] p-4 shadow-sm">
                 <strong className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">Limites da aeronave</strong>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <Limite label="Peso máximo de decolagem" valor={config?.peso_maximo_decolagem} />
@@ -239,7 +239,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
               </div>
 
               <div className="space-y-2 sm:hidden">
-                <div className="rounded-xl border border-border/70 bg-secondary/[.12] p-3">
+                <div className="rounded-2xl border border-border/70 bg-secondary/[.12] p-4 shadow-sm">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <strong className="text-[10px] font-bold">Peso básico da aeronave</strong>
                     <span className="text-[10px] font-semibold text-muted-foreground">Momento {fmt(linhasVazio.momento)}</span>
@@ -313,13 +313,13 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
           )}
 
           {!carregando && (
-            <div className="flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:justify-end">
+            <div className="sticky bottom-0 -mx-4 flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:flex-row sm:justify-end sm:bg-transparent sm:px-0 sm:pb-0">
               {somenteLeitura ? (
                 <Button type="button" variant="outline" onClick={() => setAberto(false)} className="h-9 text-[10px]">Fechar</Button>
               ) : (
                 <>
-                  <Button type="button" variant="outline" onClick={() => void salvar(false)} disabled={salvando} className="h-9 w-full gap-2 text-[10px] sm:w-auto">Salvar rascunho</Button>
-                  <Button type="button" onClick={() => void salvar(true)} disabled={salvando || !contexto?.configuracao} className="h-9 w-full gap-2 text-[10px] sm:w-auto">
+                  <Button type="button" variant="outline" onClick={() => void salvar(false)} disabled={salvando} className="h-11 w-full gap-2 rounded-xl text-xs sm:w-auto">Salvar rascunho</Button>
+                  <Button type="button" onClick={() => void salvar(true)} disabled={salvando || !contexto?.configuracao} className="h-11 w-full gap-2 rounded-xl text-xs sm:w-auto">
                     {salvando ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />} Finalizar e assinar
                   </Button>
                 </>

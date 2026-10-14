@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, Pencil, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
 import { DayPicker, type DateRange } from "react-day-picker";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import {
   aprovarSolicitacaoVoo,
+  atualizarAgendamento,
   buscarExtratoJornadaTripulante,
   buscarOpcoesAgendamento,
   buscarPainelAgendamento,
@@ -22,6 +23,7 @@ import {
   reprovarSolicitacaoVoo,
   type AeronaveAgendamento,
   type AlteracoesAgendamentoConfirmacao,
+  type AtualizacaoAgendamento,
   type DisponibilidadeTripulacao,
   excluirAgendamento,
   finalizarAgendamento,
@@ -192,14 +194,7 @@ export default function Agendamentos() {
       setSelecionada((atual) => {
         if (!atual) return atual;
         const atualizado = agendamentosAtualizados.find((item) => item.id === atual.id);
-        return atualizado ? {
-          ...atual,
-          status: atualizado.status,
-          checklist_status: atualizado.checklist_status,
-          checklist_itens_respondidos: atualizado.checklist_itens_respondidos,
-          jornadas_abertas: atualizado.jornadas_abertas,
-          jornadas_encerradas: atualizado.jornadas_encerradas,
-        } : atual;
+        return atualizado || atual;
       });
       setProgressoChecklistPorId(Object.fromEntries(agendamentosAtualizados.map((item) => [item.id, calcularProgressoChecklist(item)])));
       setOpcoes({
@@ -323,6 +318,16 @@ export default function Agendamentos() {
       toast({ title: "Não foi possível excluir", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
     } finally { setExcluindo(false); }
   };
+  const atualizarSelecionada = async (dados: AtualizacaoAgendamento) => {
+    if (!selecionada) return;
+    setProcessando(true);
+    try {
+      await atualizarAgendamento(selecionada.id, dados);
+      toast({ title: "Agendamento atualizado", description: "As alterações foram disponibilizadas para toda a equipe." });
+      await carregar(true);
+    } catch (error) { toast({ title: "Não foi possível atualizar", description: error instanceof Error ? error.message : "Confira os dados e tente novamente.", variant: "destructive" }); }
+    finally { setProcessando(false); }
+  };
   const salvarDisponibilidade = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const dataInicio = novaDisponibilidade.data_inicio.trim();
@@ -373,7 +378,7 @@ export default function Agendamentos() {
     {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} mes={mesEscala} visao={visaoEscala} aoMudarMes={mudarMesEscala} aoMudarVisao={setVisaoEscala} aoMarcar={abrirCriacaoEscala} />}
     {aba === "cronograma" && <Cronograma selecionada={selecionada} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setSelecionada(item); setChecklistAberto(false); setJornadaAberta(true); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
-    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
+    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
     {selecionada && ["aprovada", "em_rota", "em_voo", "em_solo"].includes(selecionada.status) && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist} />}
     {selecionada && ["aprovada", "em_rota", "em_voo", "em_solo", "encerrada"].includes(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[100dvh] w-full max-w-5xl overflow-y-auto rounded-t-3xl rounded-b-none pb-[env(safe-area-inset-bottom)] sm:max-h-[92dvh] sm:rounded-2xl"><JornadaVoo item={selecionada} aoAtualizarAgendamento={async (status) => { await carregar(true); if (status) setSelecionada((atual) => atual ? { ...atual, status } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
     <Dialog open={Boolean(agendamentoParaExcluir)} onOpenChange={(aberto) => { if (!aberto && !excluindo) setAgendamentoParaExcluir(null); }}>
@@ -666,7 +671,7 @@ function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfi
   };
 }
 
-function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilotoId, motivo, processando, aoFechar, aoPiloto, aoCopiloto, aoMotivo, aoAprovar, aoReprovar }: {
+function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilotoId, motivo, processando, aoAtualizar, aoFechar, aoPiloto, aoCopiloto, aoMotivo, aoAprovar, aoReprovar }: {
   selecionada: SolicitacaoVooInterna;
   opcoes: OpcoesAgendamentoResponse;
   tripulacao: TripulanteAgendamento[];
@@ -674,6 +679,7 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
   copilotoId: string;
   motivo: string;
   processando: boolean;
+  aoAtualizar: (dados: AtualizacaoAgendamento) => void;
   aoFechar: () => void;
   aoPiloto: (valor: string) => void;
   aoCopiloto: (valor: string) => void;
@@ -682,10 +688,25 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
   aoReprovar: () => void;
 }) {
   const [edicao, setEdicao] = useState<EdicaoConfirmacao>(() => criarEdicaoConfirmacao(selecionada));
+  const [editandoAgendamento, setEditandoAgendamento] = useState(false);
+  const [dadosAgendamento, setDadosAgendamento] = useState<AtualizacaoAgendamento>(() => ({
+    aeronave_id: selecionada.aeronave_id || "", origem: selecionada.origem, destino: selecionada.destino,
+    data_agendada: selecionada.data_agendada, data_fim: selecionada.data_fim || selecionada.data_agendada,
+    horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento), numero_passageiros: Number(selecionada.numero_passageiros) || 1,
+    piloto_id: selecionada.piloto_id || "", copiloto_id: selecionada.copiloto_id || "",
+  }));
 
   useEffect(() => {
     setEdicao(criarEdicaoConfirmacao(selecionada));
+    setEditandoAgendamento(false);
+    setDadosAgendamento({ aeronave_id: selecionada.aeronave_id || "", origem: selecionada.origem, destino: selecionada.destino, data_agendada: selecionada.data_agendada, data_fim: selecionada.data_fim || selecionada.data_agendada, horario_previsto_agendamento: horaParaCampo(selecionada.horario_previsto_agendamento), numero_passageiros: Number(selecionada.numero_passageiros) || 1, piloto_id: selecionada.piloto_id || "", copiloto_id: selecionada.copiloto_id || "" });
   }, [selecionada]);
+
+  const salvarEdicaoAgendamento = () => {
+    if (!dadosAgendamento.origem || !dadosAgendamento.destino || !dadosAgendamento.data_agendada || !dadosAgendamento.data_fim || dadosAgendamento.data_fim < dadosAgendamento.data_agendada || !dadosAgendamento.aeronave_id) return;
+    aoAtualizar({ ...dadosAgendamento, horario_previsto_agendamento: dadosAgendamento.horario_previsto_agendamento ? horarioUtc(dadosAgendamento.data_agendada, dadosAgendamento.horario_previsto_agendamento) : null });
+    setEditandoAgendamento(false);
+  };
 
   const clienteTitularId = selecionada.cliente_id || opcoes.socios.find((socio) => socio.id === selecionada.socio_id)?.cliente_id;
   const aeronaveDoTitular = Boolean(edicao.aeronave_id && opcoes.vinculos.some((vinculo) =>
@@ -863,6 +884,18 @@ function DetalhesSolicitacao({ selecionada, opcoes, tripulacao, pilotoId, copilo
             <div className="rounded-xl border border-border bg-secondary/15 p-5">
               <p className="text-sm font-bold text-foreground">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação processada"}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>
+              <Button type="button" variant="outline" onClick={() => setEditandoAgendamento((atual) => !atual)} className="mt-4 gap-2 text-xs"><Pencil size={13} /> {editandoAgendamento ? "Cancelar edição" : "Editar agendamento"}</Button>
+              {editandoAgendamento && <div className="mt-4 grid gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div><Label className="text-[10px]">Origem</Label><Input value={dadosAgendamento.origem || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, origem: event.target.value.toUpperCase() }))} className="mt-1 h-9 text-xs" /></div>
+                <div><Label className="text-[10px]">Destino</Label><Input value={dadosAgendamento.destino || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, destino: event.target.value.toUpperCase() }))} className="mt-1 h-9 text-xs" /></div>
+                <div><Label className="text-[10px]">Data início</Label><Input type="date" value={dadosAgendamento.data_agendada || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, data_agendada: event.target.value }))} className="mt-1 h-9 text-xs" /></div>
+                <div><Label className="text-[10px]">Data fim</Label><Input type="date" value={dadosAgendamento.data_fim || ""} min={dadosAgendamento.data_agendada} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, data_fim: event.target.value }))} className="mt-1 h-9 text-xs" /></div>
+                <div><Label className="text-[10px]">Horário UTC</Label><Input type="time" value={typeof dadosAgendamento.horario_previsto_agendamento === "string" && dadosAgendamento.horario_previsto_agendamento.includes("T") ? horaParaCampo(dadosAgendamento.horario_previsto_agendamento) : dadosAgendamento.horario_previsto_agendamento || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, horario_previsto_agendamento: event.target.value }))} className="mt-1 h-9 text-xs" /></div>
+                <div><Label className="text-[10px]">Passageiros</Label><Input type="number" min={1} value={dadosAgendamento.numero_passageiros || 1} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, numero_passageiros: Number(event.target.value) }))} className="mt-1 h-9 text-xs" /></div>
+                <div className="lg:col-span-2"><Label className="text-[10px]">Aeronave</Label><SearchableCombobox items={opcoes.aeronaves.map((item) => ({ id: item.id, label: `${item.matricula_registro} · ${item.modelo || ""}` }))} value={dadosAgendamento.aeronave_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, aeronave_id: valor }))} placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave" emptyMessage="Nenhuma aeronave encontrada." icon={<Plane size={14} />} /></div>
+                <div className="lg:col-span-2"><Label className="text-[10px]">PIC</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · ${item.canac}` }))} value={dadosAgendamento.piloto_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, piloto_id: valor }))} placeholder="Selecione o comandante" searchPlaceholder="Buscar tripulante" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-4"><Button type="button" onClick={salvarEdicaoAgendamento} disabled={processando} className="gap-2 text-xs"><Check size={13} /> Salvar alterações</Button><Button type="button" variant="outline" onClick={() => setEditandoAgendamento(false)} className="text-xs">Cancelar</Button></div>
+              </div>}
               
               {selecionada.status === "aprovada" && (
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">

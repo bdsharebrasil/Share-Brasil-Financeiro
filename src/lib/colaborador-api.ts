@@ -612,6 +612,14 @@ export function criarAgendamento(dados: NovoAgendamento) {
   });
 }
 
+export type AtualizacaoAgendamento = Partial<Pick<NovoAgendamento, 'aeronave_id' | 'origem' | 'destino' | 'data_agendada' | 'data_fim' | 'horario_previsto_agendamento' | 'numero_passageiros' | 'piloto_id' | 'copiloto_id' | 'observacoes'>>;
+export function atualizarAgendamento(id: string, dados: AtualizacaoAgendamento) {
+  return colaboradorRequest<{ success: boolean; id: string }>(`/api/interno/agendamento/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dados),
+  });
+}
+
 export function excluirAgendamento(id: string) {
   return colaboradorRequest<{ success: boolean; agendamento_id: string }>(`/api/interno/agendamento/${encodeURIComponent(id)}`, {
     method: "DELETE",

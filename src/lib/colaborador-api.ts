@@ -499,6 +499,7 @@ export type MovimentacaoFinanceira = {
   origem_id: string;
   referencias: string[];
   tipo_caixa: "CLIENTE" | "SHARE" | "HOLD" | "HOLDING" | string | null;
+  fluxo?: string | null;
   descricao: string;
   fornecedor: string | null;
   codigo_cliente?: string | null;
@@ -898,6 +899,7 @@ function normalizarMovimentacao(
         : null,
     ].filter((valor): valor is string => Boolean(valor)),
     tipo_caixa: textoFinanceiro(registro.tipo_caixa),
+    fluxo: textoFinanceiro(registro.fluxo),
     descricao:
       primeiroTexto(registro.descricao, registro.descricao_despesa) ||
       "Movimentação sem descrição",

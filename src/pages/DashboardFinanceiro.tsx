@@ -190,8 +190,9 @@ export default function DashboardFinanceiro({
 
   const resumo = dados?.resumo;
   const movimentacoes = dados?.movimentacoes ?? [];
+  const despesasNaoEnviadas = movimentacoes.filter(ehDespesaNaoEnviada);
   const movimentacoesVisiveis = mostrarPendencias
-    ? movimentacoes.filter((item) => item.pendencia)
+    ? despesasNaoEnviadas
     : movimentacoes;
   const itensPorPagina = 5;
   const totalPaginas = Math.max(1, Math.ceil(movimentacoesVisiveis.length / itensPorPagina));
@@ -236,9 +237,9 @@ export default function DashboardFinanceiro({
 
       <div className="mx-auto mb-6 grid w-full max-w-[820px] gap-3 sm:grid-cols-2">
         <CartaoKpi
-          label="Pendências"
-          value={carregando ? "—" : String(resumo?.pendencias ?? 0)}
-          detail="Itens que exigem acompanhamento"
+          label="Despesas não enviadas"
+          value={carregando ? "—" : String(despesasNaoEnviadas.length)}
+          detail="Despesas sem e-mail enviado"
           tone="amber"
           icon={<Clock3 size={16} />}
           className="min-w-0"
@@ -296,7 +297,7 @@ export default function DashboardFinanceiro({
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
-          detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Pendências em aberto relacionadas a contas a pagar." : "Últimos registros lançados."}
+          detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button
@@ -331,7 +332,7 @@ export default function DashboardFinanceiro({
         <div id="painel-movimentacoes" role="tabpanel" aria-labelledby="tab-movimentacoes" hidden={abaMovimentacoes !== "movimentacoes"}>
         {mostrarPendencias && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
-            <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo as movimentações das pendências em aberto.</span>
+            <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo despesas sem e-mail enviado.</span>
             <button type="button" onClick={() => { setMostrarPendencias(false); setPaginaAtual(1); }} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
           </div>
         )}
@@ -476,7 +477,11 @@ export default function DashboardFinanceiro({
 function podeIniciarFluxoEmail(item: MovimentacaoFinanceira) {
   const texto = `${item.grupo_categoria || ""} ${item.categoria_nome || ""}`.toLowerCase();
   const eReembolso = item.reembolsavel === true || texto.includes("reembols") || ["reembolso", "reembolsos"].includes(String(item.origem_tipo || "").toLowerCase());
-  return statusEmail(item) === "NÃO ENVIADO" && !eReembolso;
+  const eRelatorioViagem = texto.includes("despesas de viagem") || item.referencias.some((referencia) => referencia.toUpperCase().startsWith("RELATORIO_DESPESA_VIAGEM:"));
+  return statusEmail(item) === "NÃO ENVIADO" && !eReembolso && !eRelatorioViagem;
+}
+function ehDespesaNaoEnviada(item: MovimentacaoFinanceira) {
+  return String(item.fluxo || "").toUpperCase() === "SAIDA" && statusEmail(item) !== "ENVIADO";
 }
 function StatusEmail({ item, onClick }: { item: MovimentacaoFinanceira; onClick?: () => void }) {
   const status = statusEmail(item); const clicavel = podeIniciarFluxoEmail(item);

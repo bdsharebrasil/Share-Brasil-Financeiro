@@ -7,14 +7,17 @@ const emailAttachments = await readFile(new URL("../src/components/email/AnexosE
 const travelReport = await readFile(new URL("../src/pages/RelatorioDespesaViagem.tsx", import.meta.url), "utf8");
 const dashboard = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx", import.meta.url), "utf8");
 
-test("normalização mantém a marcação de pendência que alimenta o filtro do dashboard", () => {
+test("card de despesas não enviadas conta e filtra somente despesas sem e-mail enviado", () => {
   assert.match(api, /pendencia: booleanoFinanceiro\(registro\.pendencia\) \?\? false/);
-  assert.match(dashboard, /movimentacoes\.filter\(\(item\) => item\.pendencia\)/);
-  assert.match(dashboard, /label="Pendências"/);
+  assert.match(api, /fluxo: textoFinanceiro\(registro\.fluxo\)/);
+  assert.match(dashboard, /movimentacoes\.filter\(ehDespesaNaoEnviada\)/);
+  assert.match(dashboard, /String\(item\.fluxo \|\| ""\)\.toUpperCase\(\) === "SAIDA" && statusEmail\(item\) !== "ENVIADO"/);
+  assert.match(dashboard, /label="Despesas não enviadas"/);
 });
 
 test("relatório de viagem não aparece como anexo no e-mail genérico e mantém envio dentro do relatório", () => {
   assert.doesNotMatch(emailAttachments, /relatorio_despesa_viagem/);
   assert.match(travelReport, /<EnviarEmailClienteDialog/);
   assert.match(travelReport, /programarDepoisDoEmail\(emailId\)/);
+  assert.match(dashboard, /texto\.includes\("despesas de viagem"\).*RELATORIO_DESPESA_VIAGEM/s);
 });

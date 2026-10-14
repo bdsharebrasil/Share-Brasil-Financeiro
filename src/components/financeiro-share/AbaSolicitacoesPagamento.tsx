@@ -339,7 +339,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
 
   return (
-    <div className="nf-workspace">
+    <div className="nf-workspace" style={{ background: "var(--nf-bg)" }}>
       <style>{STYLES}</style>
       <header className="nf-header">
         <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / SOLICITAÇÕES DE PAGAMENTO</div></div>

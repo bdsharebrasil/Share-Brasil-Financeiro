@@ -1,0 +1,33 @@
+import { lazy, Suspense, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, ExternalLink, Plane, Radio, Satellite } from "lucide-react";
+import { CabecalhoSecao, EtiquetaStatus } from "@/components/dashboard/ComponentesDashboard";
+import { distanciaNM } from "@/lib/navegacao";
+import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
+import type { StatusRastreio, VooEmOperacao } from "@/lib/colaborador-api";
+
+const MapaRastreio = lazy(() => import("./VooEmOperacaoMapa"));
+const tons: Record<StatusRastreio, "green" | "amber" | "red" | "blue" | "neutral"> = { ao_vivo: "green", atrasado: "amber", sem_sinal: "red", sem_identificador: "neutral", indisponivel: "amber" };
+const rotulos: Record<StatusRastreio, string> = { ao_vivo: "Ao vivo", atrasado: "Atrasado", sem_sinal: "Sem sinal", sem_identificador: "Sem identificador", indisponivel: "Indisponível" };
+
+function horario(valor: string | null) { if (!valor) return { utc: "—", brasilia: "—" }; const data = new Date(valor); if (Number.isNaN(data.getTime())) return { utc: "—", brasilia: "—" }; return { utc: data.toISOString().slice(11, 16), brasilia: new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(data) }; }
+function desde(valor: number | null | undefined) { if (valor == null) return "—"; return `${Math.max(0, Math.round(valor))}s`; }
+function valor(valor: number | null | undefined, sufixo = "") { return valor == null ? "—" : `${Math.round(valor).toLocaleString("pt-BR")}${sufixo}`; }
+function Telemetria({ voo }: { voo: VooEmOperacao }) {
+  const destino = voo.destino_coord && voo.rastreio ? distanciaNM(voo.rastreio, voo.destino_coord) : null;
+  const etaMin = destino != null && (voo.rastreio?.gs_kt || 0) >= 40 ? (destino / voo.rastreio!.gs_kt!) * 60 : null;
+  const eta = etaMin == null ? null : new Date(Date.now() + etaMin * 60_000).toISOString();
+  const campos = [["ALT", valor(voo.rastreio?.alt_ft, " ft")], ["GS", valor(voo.rastreio?.gs_kt, " kt")], ["RUMO", valor(voo.rastreio?.rumo_graus, "°")], ["VS", valor(voo.rastreio?.vs_fpm, " fpm")], ["DIST.", destino == null ? "—" : `${destino.toFixed(1)} NM`]];
+  return <div className="grid grid-cols-2 gap-2 border-t border-border/70 p-3 sm:grid-cols-5">{campos.map(([label, item]) => <div key={label}><p className="text-[9px] font-bold uppercase text-muted-foreground">{label}</p><p className="mt-1 font-mono text-xs font-bold">{item}</p></div>)}<div className="col-span-2 sm:col-span-5"><p className="text-[9px] font-bold uppercase text-muted-foreground">ETA estimativa em linha reta</p><p className="mt-1 font-mono text-[10px]">{eta ? `${horario(eta).utc} UTC · ${horario(eta).brasilia} Brasília` : "—"}</p></div></div>;
+}
+function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) {
+  const [aberto, setAberto] = useState(true);
+  const sinal = voo.rastreio_status;
+  return <article className="overflow-hidden rounded-2xl border border-border bg-card"><header className="flex items-center justify-between gap-3 border-b border-border/70 px-3 py-2.5"><div className="flex min-w-0 items-center gap-2"><Plane size={15} className="shrink-0 text-primary" /><div className="min-w-0"><p className="truncate text-xs font-bold">{voo.matricula_registro || "Aeronave"} · {voo.origem || "—"} → {voo.destino || "—"}</p><p className="mt-0.5 truncate text-[10px] text-muted-foreground">{voo.numero_voo || "Voo sem número"} · {voo.modelo || "Modelo não informado"}</p></div></div><div className="flex shrink-0 items-center gap-1"><EtiquetaStatus tone={voo.status === "em_voo" ? "blue" : "green"}> {voo.status === "em_voo" ? "Em voo" : "Em solo"} </EtiquetaStatus><EtiquetaStatus tone={tons[sinal]}>{rotulos[sinal]}</EtiquetaStatus><button type="button" aria-label={aberto ? "Recolher voo" : "Expandir voo"} onClick={() => setAberto((valorAtual) => !valorAtual)} className="rounded p-1 text-muted-foreground hover:bg-secondary">{aberto ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div></header>{aberto && <>{voo.status === "em_voo" && <Suspense fallback={<div className="h-[230px] animate-pulse bg-secondary/40" />}><MapaRastreio voo={voo} /></Suspense>}{voo.status === "em_voo" && voo.rastreio_status === "sem_identificador" && <p className="px-3 pt-3 text-[10px] text-muted-foreground">Aeronave sem identificador ADS-B cadastrado</p>}{voo.status === "em_voo" && voo.rastreio_status === "sem_sinal" && <p className="px-3 pt-3 text-[10px] text-amber-300">Sem sinal ADS-B — pode estar fora da cobertura.</p>}{voo.status === "em_voo" && <Telemetria voo={voo} />}<div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2.5 text-[10px] text-muted-foreground"><span><Radio size={11} className="mr-1 inline" />{voo.cotista_nome || "Cotista não informado"} · {voo.piloto_nome || "Piloto não informado"}{voo.copiloto_nome ? ` / ${voo.copiloto_nome}` : ""}</span><span>Atualizado há {desde(voo.rastreio?.visto_ha_s)} <button type="button" onClick={aoAbrir} className="ml-2 inline-flex items-center gap-1 font-bold text-primary hover:underline">Abrir jornada <ExternalLink size={11} /></button></span></div></>}</article>;
+}
+export default function VooEmOperacaoCard({ aoNavegar }: { aoNavegar: () => void }) {
+  const { voos } = useVoosEmOperacao();
+  const [aba, setAba] = useState(0);
+  const visiveis = useMemo(() => voos.length > 3 ? [voos[aba] || voos[0]] : voos, [aba, voos]);
+  if (!voos.length) return null;
+  return <section className="mb-6 space-y-3"><CabecalhoSecao icon={<Satellite size={15} />} title="Voo em operação" detail={`${voos.length} operação(ões) em acompanhamento`} />{voos.length > 3 && <div className="flex gap-2 overflow-x-auto">{voos.map((voo, indice) => <button type="button" key={voo.id} onClick={() => setAba(indice)} className={`rounded-lg border px-3 py-2 text-[10px] font-bold ${aba === indice ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>{voo.matricula_registro || voo.id.slice(0, 8)}</button>)}</div>}<div className="space-y-3">{visiveis.filter(Boolean).map((voo) => <VooCard key={voo.id} voo={voo!} aoAbrir={aoNavegar} />)}</div></section>;
+}

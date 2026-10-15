@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Compass, FilePlus2, Route, Save } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, FilePlus2, FolderOpen, Route, Save } from "lucide-react";
 
 import { BuscaVoo } from "@/components/plano/BuscaVoo";
 import { Combustivel } from "@/components/plano/Combustivel";
@@ -11,13 +11,36 @@ import { ResumoVoo } from "@/components/plano/ResumoVoo";
 import { Secao } from "@/components/plano/Secao";
 import { TabelaSegmentos } from "@/components/plano/TabelaSegmentos";
 import { usePlanoVoo } from "@/hooks/usarPlanoVoo";
-import { salvarPlanoVoo } from "@/lib/colaborador-api";
+import PlanosVooSalvos from "@/components/plano/PlanosVooSalvos";
+import { buscarPlanosVoo, salvarPlanoVoo, type PlanoVooSalvo } from "@/lib/colaborador-api";
+
+type AbaPlano = "novo" | "salvos";
 
 export default function PlanoDeVoo() {
   const plano = usePlanoVoo();
+  const [aba, setAba] = useState<AbaPlano>("novo");
+  const [planosSalvos, setPlanosSalvos] = useState<PlanoVooSalvo[]>([]);
+  const [carregandoPlanos, setCarregandoPlanos] = useState(false);
+  const [erroPlanos, setErroPlanos] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
+
+  const carregarPlanosSalvos = useCallback(async () => {
+    setCarregandoPlanos(true);
+    setErroPlanos(null);
+    try {
+      setPlanosSalvos(await buscarPlanosVoo());
+    } catch (error) {
+      setErroPlanos(error instanceof Error ? error.message : "Não foi possível carregar os planos salvos.");
+    } finally {
+      setCarregandoPlanos(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (aba === "salvos") void carregarPlanosSalvos();
+  }, [aba, carregarPlanosSalvos]);
 
   const icaos = useMemo(
     () => [plano.formulario.adep, plano.formulario.ades, plano.formulario.alternado1, plano.formulario.alternado2],
@@ -62,6 +85,7 @@ export default function PlanoDeVoo() {
       });
       setSalvo(true);
       setMensagem("Plano de voo salvo com sucesso.");
+      if (aba === "salvos") void carregarPlanosSalvos();
     } catch (error) {
       setMensagem(error instanceof Error ? error.message : "Não foi possível salvar o plano de voo.");
     } finally {
@@ -76,14 +100,24 @@ export default function PlanoDeVoo() {
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Operações · ICAO FPL</p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Novo plano de voo</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Consulte um voo aprovado ou preencha o formulário ICAO manualmente para montar o briefing operacional.</p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Planos de voo</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">Monte um briefing operacional ICAO ou consulte os planos já salvos pela equipe.</p>
           </div>
           <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[.06] px-4 text-xs font-bold text-white transition-colors hover:bg-white/[.12]">
             <FilePlus2 size={15} /> Novo plano
           </button>
         </div>
       </header>
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Planos de voo">
+        <button type="button" role="tab" aria-selected={aba === "novo"} onClick={() => setAba("novo")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-colors ${aba === "novo" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          <FilePlus2 size={15} /> Novo plano
+        </button>
+        <button type="button" role="tab" aria-selected={aba === "salvos"} onClick={() => setAba("salvos")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-colors ${aba === "salvos" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          <FolderOpen size={15} /> Planos salvos
+          <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">{planosSalvos.length}</span>
+        </button>
+      </div>
+      {aba === "salvos" ? <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} onRecarregar={() => void carregarPlanosSalvos()} /> : <>
 
       {plano.erro && (
         <div className="flex items-start gap-3 rounded-xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
@@ -172,15 +206,12 @@ export default function PlanoDeVoo() {
         <NotamLeituraAjuda />
       </Secao>
 
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-background/95 p-3 shadow-lg backdrop-blur">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Compass size={15} className="text-primary" />
-          {plano.formulario.adep || "ADEP"} → {plano.formulario.ades || "ADES"} · {plano.segmentos.length ? `${plano.segmentos.length - 1} trecho(s)` : "sem trecho calculado"}
-        </div>
+      <div className="flex justify-end border-t border-border pt-4">
         <button type="button" onClick={() => void salvar()} disabled={salvando} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
           <Save size={15} /> {salvando ? "Salvando..." : salvo ? "Plano salvo" : "Salvar plano de voo"}
         </button>
       </div>
+      </>}
     </div>
   );
 }

@@ -1856,8 +1856,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       )}
 
       {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md sm:p-6">
-          <div className="flex h-[calc(100dvh-1.5rem)] max-h-[920px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[calc(100dvh-3rem)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-2 backdrop-blur-md sm:p-4">
+          <div className="flex h-[min(760px,calc(100dvh-2rem))] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[min(760px,calc(100dvh-3rem))] sm:max-h-[calc(100dvh-3rem)]">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-slate-900/95 px-4 py-3 text-white backdrop-blur sm:px-5">
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold tracking-wide">
@@ -1898,7 +1898,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 </Button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 bg-slate-950/90 p-2 sm:p-4">
+            <div className="min-h-0 flex-1 bg-slate-950/90 p-1.5 sm:p-3">
               <iframe
                 src={pdfPreviewUrl}
                 title="Pré-visualização do PDF"

@@ -208,10 +208,11 @@ export function usePlanoVoo() {
     };
   }, [icaosDeInteresse, coordenadas]);
 
-  const consultarRotaAisweb = useCallback(async () => {
-    const adep = formulario.adep.toUpperCase();
-    const ades = formulario.ades.toUpperCase();
+  const consultarRotaAisweb = useCallback(async (adepInformado?: string, adesInformado?: string) => {
+    const adep = (adepInformado ?? formulario.adep).trim().toUpperCase();
+    const ades = (adesInformado ?? formulario.ades).trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) return;
+    setFormulario((atual) => ({ ...atual, adep, ades }));
     setCarregando(true);
     setErro(null);
     try {

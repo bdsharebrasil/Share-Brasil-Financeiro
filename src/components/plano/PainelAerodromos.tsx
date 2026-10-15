@@ -95,6 +95,16 @@ function categoriaCarta(c: Carta): Categoria {
   return "Outras";
 }
 
+function textoDetalhe(valor: unknown): string {
+  if (valor == null || valor === "") return "";
+  if (typeof valor === "string" || typeof valor === "number" || typeof valor === "boolean") return String(valor);
+  try {
+    return JSON.stringify(valor);
+  } catch {
+    return String(valor);
+  }
+}
+
 export function PainelAerodromos({ icaos }: { icaos: string[] }) {
   const lista = useMemo(() => Array.from(new Set(icaos.filter((i) => /^[A-Z]{4}$/.test(i)))), [icaos]);
   const [ativo, setAtivo] = useState<string>("");
@@ -130,6 +140,20 @@ export function PainelAerodromos({ icaos }: { icaos: string[] }) {
   const ficha = dados?.ficha;
   const pistas: any[] = Array.isArray(ficha?.['runways']) ? ficha!['runways'] : [];
   const freqs: any[] = Array.isArray(ficha?.['frequencies']) ? ficha!['frequencies'] : [];
+  const rawFicha = ficha?.['raw_data']?.['rotaer'] ?? ficha?.['raw_data'] ?? {};
+  const detalhesFicha = [
+    ["Restrições", ficha?.['restrictions']],
+    ["Procedimentos operacionais", ficha?.['operational']?.['opea']],
+    ["Obstáculos", ficha?.['operational']?.['obstacles']],
+    ["Iluminação", ficha?.['operational']?.['other_lighting']],
+    ["Energia secundária", ficha?.['operational']?.['secondary_power']],
+    ["Regulamentos locais", ficha?.['operational']?.['local_regulations']],
+    ["Contato", ficha?.['contact']],
+    ...Object.entries(rawFicha).filter(([chave, valor]) =>
+      !["icao", "icaoCode", "AeroCode", "name", "nome", "city", "cidade", "state", "uf", "elevation", "altitude", "coordinates", "coordenadas", "runways", "pistas", "frequencies", "frequencias"].includes(chave)
+      && valor != null && valor !== "",
+    ).map(([chave, valor]) => [chave, valor] as [string, unknown]),
+  ].map(([rotulo, valor]) => [String(rotulo), textoDetalhe(valor)] as const).filter(([, valor]) => valor);
   const sol = dados?.solar?.[0];
   const termoCarta = buscaCarta.trim().toUpperCase();
   const cartasFiltradas = (dados?.cartas ?? []).filter((c) => {
@@ -232,6 +256,20 @@ export function PainelAerodromos({ icaos }: { icaos: string[] }) {
               </ul>
             </Bloco>
           </div>
+
+          {detalhesFicha.length > 0 && (
+            <details className="rounded-lg border border-border bg-background p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-foreground">Dados adicionais publicados pelo AISWEB/ROTAER</summary>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {detalhesFicha.map(([rotulo, valor], i) => (
+                  <div key={`${rotulo}-${i}`} className="min-w-0 rounded-md border border-border/70 p-2">
+                    <dt className="text-[10px] font-semibold uppercase text-muted-foreground">{rotulo}</dt>
+                    <dd className="mt-1 break-words whitespace-pre-wrap font-mono text-xs text-foreground">{valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          )}
 
           <Bloco titulo={`NOTAM (${dados.notams?.length ?? 0})`}>
             {dados.notams?.length ? (

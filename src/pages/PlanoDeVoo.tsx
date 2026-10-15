@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FilePlus2, FolderOpen, Route, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CloudSun, FilePlus2, FolderOpen, MapPin, Route, Save } from "lucide-react";
 
 import { BuscaVoo } from "@/components/plano/BuscaVoo";
-import { Combustivel } from "@/components/plano/Combustivel";
 import MapaRota from "@/components/plano/MapaRota";
-import NotamLeituraAjuda from "@/components/plano/NotamLeituraAjuda";
 import { PainelAerodromos } from "@/components/plano/PainelAerodromos";
 import { PlanoIcao } from "@/components/plano/PlanoIcao";
 import { ResumoVoo } from "@/components/plano/ResumoVoo";
@@ -12,13 +10,23 @@ import { Secao } from "@/components/plano/Secao";
 import { TabelaSegmentos } from "@/components/plano/TabelaSegmentos";
 import { usePlanoVoo } from "@/hooks/usarPlanoVoo";
 import PlanosVooSalvos from "@/components/plano/PlanosVooSalvos";
+import ConsultaMeteorologia from "@/components/plano/ConsultaMeteorologia";
 import { buscarPlanosVoo, salvarPlanoVoo, type PlanoVooSalvo } from "@/lib/colaborador-api";
 
-type AbaPlano = "novo" | "salvos";
+type AbaPlano = "completo" | "aerodromo" | "meteorologia" | "salvos";
+type AbaCompleto = "formulario" | "rotas";
+
+const MENU_PLANO: { id: AbaPlano; label: string; icon: typeof FilePlus2 }[] = [
+  { id: "completo", label: "Criar Plano de Voo Completo", icon: FilePlus2 },
+  { id: "aerodromo", label: "Informações Aeródromo", icon: MapPin },
+  { id: "meteorologia", label: "Meteorologia", icon: CloudSun },
+  { id: "salvos", label: "Planos de Voo Salvos", icon: FolderOpen },
+];
 
 export default function PlanoDeVoo() {
   const plano = usePlanoVoo();
-  const [aba, setAba] = useState<AbaPlano>("novo");
+  const [aba, setAba] = useState<AbaPlano>("completo");
+  const [abaCompleto, setAbaCompleto] = useState<AbaCompleto>("formulario");
   const [planosSalvos, setPlanosSalvos] = useState<PlanoVooSalvo[]>([]);
   const [carregandoPlanos, setCarregandoPlanos] = useState(false);
   const [erroPlanos, setErroPlanos] = useState<string | null>(null);
@@ -49,6 +57,8 @@ export default function PlanoDeVoo() {
 
   const iniciarNovo = () => {
     plano.resetar();
+    setAba("completo");
+    setAbaCompleto("formulario");
     setSalvo(false);
     setMensagem(null);
   };
@@ -85,7 +95,6 @@ export default function PlanoDeVoo() {
       });
       setSalvo(true);
       setMensagem("Plano de voo salvo com sucesso.");
-      if (aba === "salvos") void carregarPlanosSalvos();
     } catch (error) {
       setMensagem(error instanceof Error ? error.message : "Não foi possível salvar o plano de voo.");
     } finally {
@@ -100,118 +109,178 @@ export default function PlanoDeVoo() {
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Operações · ICAO FPL</p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Planos de voo</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Monte um briefing operacional ICAO ou consulte os planos já salvos pela equipe.</p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Plano de voo</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
           </div>
           <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[.06] px-4 text-xs font-bold text-white transition-colors hover:bg-white/[.12]">
             <FilePlus2 size={15} /> Novo plano
           </button>
         </div>
       </header>
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Planos de voo">
-        <button type="button" role="tab" aria-selected={aba === "novo"} onClick={() => setAba("novo")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-colors ${aba === "novo" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-          <FilePlus2 size={15} /> Novo plano
-        </button>
-        <button type="button" role="tab" aria-selected={aba === "salvos"} onClick={() => setAba("salvos")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-colors ${aba === "salvos" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-          <FolderOpen size={15} /> Planos salvos
-          <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">{planosSalvos.length}</span>
-        </button>
-      </div>
-      {aba === "salvos" ? <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} onRecarregar={() => void carregarPlanosSalvos()} /> : <>
 
-      {plano.erro && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
-          <AlertTriangle size={17} className="mt-0.5 shrink-0" />
-          <span>{plano.erro}</span>
-        </div>
-      )}
-      {mensagem && (
-        <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${salvo ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
-          {salvo ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-          {mensagem}
-        </div>
-      )}
-
-      <BuscaVoo
-        carregando={plano.carregando}
-        erro={plano.erro}
-        resumo={plano.contexto ? `${plano.contexto.solicitacao.origem} → ${plano.contexto.solicitacao.destino}` : null}
-        sugestoes={plano.sugestoes}
-        aoBuscar={(numero) => {
-          setSalvo(false);
-          setMensagem(null);
-          void plano.buscarVoo(numero);
-        }}
-      />
-
-      {plano.contexto && (
-        <Secao titulo="Resumo do voo consultado" descricao="Dados do agendamento usados para preencher o FPL">
-          <ResumoVoo contexto={plano.contexto} />
-        </Secao>
-      )}
-
-      <Secao titulo="Plano de voo ICAO" descricao="Itens 7 a 19 · revise os dados antes de salvar">
-        <PlanoIcao formulario={plano.formulario} atualizar={plano.atualizar} />
-      </Secao>
-
-      <Secao
-        titulo="Rota e navegação"
-        descricao="Consulte a rota AISWEB/DECEA e acompanhe os cálculos do trecho"
-        acessorio={
-          <button type="button" onClick={() => void plano.consultarRotaAisweb()} disabled={plano.carregando} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50">
-            <Route size={14} /> Consultar rota
+      <nav className="grid grid-cols-2 gap-2 border-b border-border pb-3 lg:grid-cols-4" role="tablist" aria-label="Menu do plano de voo">
+        {MENU_PLANO.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={aba === id}
+            onClick={() => setAba(id)}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-center text-xs font-bold transition-colors ${aba === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}
+          >
+            <Icon size={15} /> {label}
+            {id === "salvos" && <span className="rounded-full bg-background/20 px-1.5 py-0.5 text-[10px]">{planosSalvos.length}</span>}
           </button>
-        }
-      >
-        {plano.rotaAisweb?.routes[0] && (
-          <div className="mb-4 rounded-lg border border-primary/25 bg-primary/[.06] p-3 text-sm">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Rota sugerida · {plano.rotaAisweb.source}</p>
-            <p className="mt-1 font-mono text-xs">{plano.rotaAisweb.routes[0].route}</p>
+        ))}
+      </nav>
+
+      {aba === "completo" && (
+        <section className="space-y-5">
+          <div className="flex items-center gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Plano de voo completo">
+            <button type="button" role="tab" aria-selected={abaCompleto === "formulario"} onClick={() => setAbaCompleto("formulario")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold ${abaCompleto === "formulario" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <FilePlus2 size={15} /> Formulário ICAO
+            </button>
+            <button type="button" role="tab" aria-selected={abaCompleto === "rotas"} onClick={() => setAbaCompleto("rotas")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold ${abaCompleto === "rotas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              <Route size={15} /> Criar rotas
+            </button>
           </div>
-        )}
-        <TabelaSegmentos segmentos={plano.segmentos} />
-      </Secao>
 
-      <Secao titulo="Combustível e autonomia" descricao="Estimativa com reserva, táxi, vento e combustível a bordo">
-        <Combustivel
-          consumoHora={plano.consumoHora}
-          minutosVoo={plano.minutosVoo}
-          minutosReserva={plano.minutosReserva}
-          minutosTaxi={plano.minutosTaxi}
-          ventoKt={plano.ventoKt}
-          combustivelABordo={plano.combustivelABordo}
-          velocidadeSolo={plano.velocidadeSolo}
-          distanciaTotalNM={plano.distanciaTotalNM}
-          resultado={plano.combustivel}
-          setMinutosReserva={plano.setMinutosReserva}
-          setMinutosTaxi={plano.setMinutosTaxi}
-          setVentoKt={plano.setVentoKt}
-          setCombustivelABordo={plano.setCombustivelABordo}
-        />
-      </Secao>
+          {abaCompleto === "formulario" ? (
+            <div className="space-y-5">
+              {plano.erro && <Aviso erro>{plano.erro}</Aviso>}
+              {mensagem && <Aviso sucesso={salvo}>{mensagem}</Aviso>}
+              <BuscaVoo
+                carregando={plano.carregando}
+                erro={plano.erro}
+                resumo={plano.contexto ? `${plano.contexto.solicitacao.origem} → ${plano.contexto.solicitacao.destino}` : null}
+                sugestoes={plano.sugestoes}
+                aoBuscar={(numero) => {
+                  setSalvo(false);
+                  setMensagem(null);
+                  void plano.buscarVoo(numero);
+                }}
+              />
+              {plano.contexto && <Secao titulo="Resumo do voo consultado" descricao="Dados do agendamento usados para auxiliar o preenchimento"><ResumoVoo contexto={plano.contexto} /></Secao>}
+              <Secao titulo="Formulário de plano de voo ICAO" descricao="Itens 7 a 19 · revise e confirme os dados antes de encaminhar ao órgão AIS">
+                <PlanoIcao formulario={plano.formulario} atualizar={plano.atualizar} />
+              </Secao>
+              <div className="flex justify-end border-t border-border pt-4">
+                <button type="button" onClick={() => void salvar()} disabled={salvando} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                  <Save size={15} /> {salvando ? "Salvando..." : salvo ? "Plano salvo" : "Salvar plano de voo"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <CriarRotas plano={plano} icaos={icaos} />
+          )}
+        </section>
+      )}
 
-      <Secao titulo="Mapa da rota" descricao="Rota, pontos, meteorologia e régua de navegação" abertaInicialmente={Boolean(plano.pontos.length)}>
-        {plano.pontos.length ? (
-          <MapaRota pontos={plano.pontos} velocidadeKt={plano.velocidadeKt} />
-        ) : (
-          <p className="text-sm text-muted-foreground">Informe ADEP e ADES com coordenadas cadastradas para abrir o mapa.</p>
-        )}
-      </Secao>
-
-      <Secao titulo="Painel operacional" descricao="METAR, TAF, NOTAM, cartas e dados publicados para os aeródromos" abertaInicialmente={false}>
-        <PainelAerodromos icaos={icaos} />
-      </Secao>
-
-      <Secao titulo="Orientação de NOTAM" abertaInicialmente={false}>
-        <NotamLeituraAjuda />
-      </Secao>
-
-      <div className="flex justify-end border-t border-border pt-4">
-        <button type="button" onClick={() => void salvar()} disabled={salvando} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
-          <Save size={15} /> {salvando ? "Salvando..." : salvo ? "Plano salvo" : "Salvar plano de voo"}
-        </button>
-      </div>
-      </>}
+      {aba === "aerodromo" && <ConsultaAerodromo />}
+      {aba === "meteorologia" && <ConsultaMeteorologia />}
+      {aba === "salvos" && <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} onRecarregar={() => void carregarPlanosSalvos()} />}
     </div>
   );
+}
+
+function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; icaos: string[] }) {
+  const [origem, setOrigem] = useState(plano.formulario.adep);
+  const [destino, setDestino] = useState(plano.formulario.ades);
+  const [validacao, setValidacao] = useState("");
+
+  const consultar = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const adep = origem.trim().toUpperCase();
+    const ades = destino.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades) || adep === ades) {
+      setValidacao("Informe dois códigos ICAO válidos e diferentes para os pontos A e B.");
+      return;
+    }
+    setValidacao("");
+    plano.atualizar("adep", adep);
+    plano.atualizar("ades", ades);
+    await plano.consultarRotaAisweb(adep, ades);
+  };
+
+  return (
+    <div className="space-y-5">
+      <Secao titulo="Pontos A e B" descricao="Consulte a rota publicada e veja o trecho no mapa">
+        <form onSubmit={consultar} className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
+          <label className="text-xs font-semibold text-muted-foreground">Ponto A · ADEP
+            <input value={origem} onChange={(e) => setOrigem(e.target.value.toUpperCase())} maxLength={4} placeholder="SBGR" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+          </label>
+          <Route className="hidden h-5 w-5 text-primary sm:block" />
+          <label className="text-xs font-semibold text-muted-foreground">Ponto B · ADES
+            <input value={destino} onChange={(e) => setDestino(e.target.value.toUpperCase())} maxLength={4} placeholder="SBRJ" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+          </label>
+          <button type="submit" disabled={plano.carregando} className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">{plano.carregando ? "Consultando..." : "Consultar rota"}</button>
+        </form>
+        {(validacao || plano.erro) && <Aviso erro>{validacao || plano.erro}</Aviso>}
+        {plano.rotaAisweb?.routes[0] && (
+          <div className="mt-4 rounded-lg border border-primary/25 bg-primary/[.06] p-3 text-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Rota sugerida · {plano.rotaAisweb.source}</p>
+            <p className="mt-1 break-words font-mono text-xs">{plano.rotaAisweb.routes[0].route}</p>
+          </div>
+        )}
+      </Secao>
+
+      {plano.segmentos.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="Distância" value={`${plano.distanciaTotalNM.toFixed(1)} NM`} />
+          <Metric label="Tempo estimado" value={`${Math.floor(plano.minutosVoo / 60).toString().padStart(2, "0")}:${Math.round(plano.minutosVoo % 60).toString().padStart(2, "0")}`} />
+          <Metric label="Velocidade" value={plano.velocidadeKt ? `${plano.velocidadeKt} kt` : "—"} />
+        </div>
+      )}
+      <Secao titulo="Mapa, régua e coordenadas" descricao="Altere o estilo do mapa, meça um trecho e consulte as coordenadas dos pontos">
+        {plano.pontos.length ? <MapaRota pontos={plano.pontos} velocidadeKt={plano.velocidadeKt} /> : <p className="text-sm text-muted-foreground">Consulte uma rota com ADEP e ADES válidos para carregar as coordenadas e o mapa.</p>}
+      </Secao>
+      {plano.segmentos.length > 0 && <Secao titulo="Cálculo do trecho" descricao="Distância, proa e tempo calculados a partir das coordenadas disponíveis"><TabelaSegmentos segmentos={plano.segmentos} /></Secao>}
+      <Secao titulo="Informações AISWEB/DECEA da rota" descricao="Ficha dos aeródromos, METAR/TAF, NOTAM e cartas publicadas">
+        <PainelAerodromos icaos={icaos} />
+      </Secao>
+    </div>
+  );
+}
+
+function ConsultaAerodromo() {
+  const [icao, setIcao] = useState("");
+  const [consultado, setConsultado] = useState("");
+  const [erro, setErro] = useState("");
+
+  const buscar = (event: React.FormEvent) => {
+    event.preventDefault();
+    const codigo = icao.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(codigo)) {
+      setErro("Informe um código ICAO de quatro letras, por exemplo SBGR.");
+      setConsultado("");
+      return;
+    }
+    setErro("");
+    setConsultado(codigo);
+  };
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-extrabold text-foreground">Informações do aeródromo</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Consulte dados publicados no AISWEB/DECEA, incluindo ficha, pistas, frequências, meteorologia, NOTAM e cartas.</p>
+      </div>
+      <form onSubmit={buscar} className="flex gap-2">
+        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+        <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Consultar</button>
+      </form>
+      {erro && <Aviso erro>{erro}</Aviso>}
+      {consultado && <PainelAerodromos icaos={[consultado]} />}
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-border bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 font-mono text-lg font-bold text-primary">{value}</p></div>;
+}
+
+function Aviso({ children, erro = false, sucesso = false }: { children: React.ReactNode; erro?: boolean; sucesso?: boolean }) {
+  return <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${erro ? "border-destructive/35 bg-destructive/10 text-destructive" : sucesso ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
+    {sucesso ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}{children}
+  </div>;
 }

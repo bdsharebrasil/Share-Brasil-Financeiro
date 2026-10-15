@@ -381,6 +381,8 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
           <Medida rotulo="Em km" valor={`${formatarNumero(medicao.km)} km`} />
           <Medida rotulo="Proa verdadeira" valor={formatarProa(medicao.proa)} />
           <Medida rotulo="Tempo estimado" valor={minutosParaHoraMinuto(medicao.minutos)} />
+          <Medida rotulo="Ponto A · lat, long" valor={`${formatarNumero(medidas[0]!.lat, 4)}, ${formatarNumero(medidas[0]!.lon, 4)}`} />
+          <Medida rotulo="Ponto B · lat, long" valor={`${formatarNumero(medidas[1]!.lat, 4)}, ${formatarNumero(medidas[1]!.lon, 4)}`} />
           <Medida rotulo="Δ Lat" valor={`${formatarNumero(medicao.dLat, 3)}°`} />
           <Medida rotulo="Δ Long" valor={`${formatarNumero(medicao.dLon, 3)}°`} />
         </div>

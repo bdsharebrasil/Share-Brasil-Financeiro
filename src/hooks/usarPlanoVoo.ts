@@ -212,6 +212,7 @@ export function usePlanoVoo() {
     const adep = formulario.adep.toUpperCase();
     const ades = formulario.ades.toUpperCase();
     if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) return;
+    setCarregando(true);
     setErro(null);
     try {
       const velocidadeConsulta = Number(formulario.velocidade.replace(/[^\d]/g, "")) || Number(contexto?.aeronave?.performance_velocidade_cruzeiro_kt) || Number(contexto?.aeronave?.velocidade_cruzeiro) || 120;
@@ -222,6 +223,7 @@ export function usePlanoVoo() {
         speed: velocidadeConsulta,
         fuelBurn: consumoConsulta,
         reserveMin: minutosReserva,
+        aircraftId: contexto?.aeronave?.id,
       });
       const resposta: RespostaRotas = {
         adep,
@@ -231,10 +233,17 @@ export function usePlanoVoo() {
         source: dados.flightplan.route_source,
       };
       setRotaAisweb(resposta);
+      setCoordenadas((atual) => ({
+        ...atual,
+        [adep]: { lat: dados.departure.lat, lon: dados.departure.lon, nome: dados.departure.name },
+        [ades]: { lat: dados.destination.lat, lon: dados.destination.lon, nome: dados.destination.name },
+      }));
       atualizar("rota", dados.flightplan.route);
     } catch (e) {
       setRotaAisweb(null);
       setErro(e instanceof Error ? e.message : "Falha ao consultar rotas.");
+    } finally {
+      setCarregando(false);
     }
   }, [formulario.adep, formulario.ades, formulario.velocidade, contexto, atualizar, minutosReserva]);
 

@@ -58,6 +58,7 @@ type Relatorio = {
   despesas?: Despesa[] | string | null;
   anexos?: Anexo[] | null;
   status?: string | null;
+  pdf_url?: string | null;
   status_aprovacao_tripulante?: string | null;
   status_aprovacao_tripulante_2?: string | null;
   aprovado_tripulante_em?: string | null;
@@ -537,6 +538,7 @@ export default function AprovacaoRelatorioViagem() {
         relatorio?.observacoes_aprovacao_tripulante
       : relatorio?.motivo_reprovacao_tripulante_2 ||
         relatorio?.observacoes_aprovacao_tripulante_2;
+  const urlRelatorio = `${API_BASE}/api/public/relatorios-despesa-viagem/aprovacao/${encodeURIComponent(token)}/pdf`;
 
   const verificarFimScroll = () => {
     const elemento = scrollRef.current;
@@ -918,6 +920,16 @@ export default function AprovacaoRelatorioViagem() {
                   {relatorio?.rota || "—"}
                 </p>
               </div>
+              <a
+                href={urlRelatorio}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-sky-300/25 bg-sky-300/[0.08] px-4 text-sm font-extrabold text-sky-100 transition hover:bg-sky-300/[0.14]"
+              >
+                <Eye size={17} />
+                Visualizar relatório
+                <ExternalLink size={14} className="text-sky-300" />
+              </a>
             </div>
 
             <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">

@@ -44,6 +44,9 @@ export type RelatorioPdf = {
  * HELPERS
  * ========================================================================== */
 
+const LARGURA_CANVAS_COMPROVANTE = 794;
+const ALTURA_CANVAS_COMPROVANTE = 1123;
+
 function numero(value: unknown): number {
   const resultado = Number(value);
 
@@ -881,9 +884,6 @@ function criarCanvasComprovante(
       "canvas",
     );
 
-  canvas.width = 794;
-  canvas.height = 1123;
-
   const context =
     canvas.getContext("2d");
 
@@ -893,14 +893,28 @@ function criarCanvasComprovante(
     );
   }
 
+  const scaleFactor = 3;
+
+  canvas.width =
+    LARGURA_CANVAS_COMPROVANTE *
+    scaleFactor;
+  canvas.height =
+    ALTURA_CANVAS_COMPROVANTE *
+    scaleFactor;
+
+  context.scale(
+    scaleFactor,
+    scaleFactor,
+  );
+
   context.fillStyle =
     "#ffffff";
 
   context.fillRect(
     0,
     0,
-    canvas.width,
-    canvas.height,
+    LARGURA_CANVAS_COMPROVANTE,
+    ALTURA_CANVAS_COMPROVANTE,
   );
 
   /* --------------------------------------------------------------------------
@@ -1172,7 +1186,7 @@ async function gerarPaginaImagem(
       escala;
 
     const x =
-      (canvas.width -
+      (LARGURA_CANVAS_COMPROVANTE -
         largura) /
       2;
 
@@ -1236,7 +1250,7 @@ async function gerarPaginasPdf(
 
       const viewport =
         pagina.getViewport({
-          scale: 1.5,
+          scale: 4.0,
         });
 
       const origem =
@@ -1308,7 +1322,7 @@ async function gerarPaginasPdf(
 
       context.drawImage(
         origem,
-        (canvas.width -
+        (LARGURA_CANVAS_COMPROVANTE -
           largura) /
           2,
         245 +

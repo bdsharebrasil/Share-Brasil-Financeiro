@@ -1025,19 +1025,32 @@ function LancamentoExpandido({
   lancamento: LancamentoEconomico;
   aoAbrirDocumento: (nome: string, url: string) => void;
 }) {
+  const tituloDocumento = (documento: { nome?: string; tipo?: string | null; url: string }) => {
+    const tipo = (documento.tipo || "").toLowerCase();
+    const nome = (documento.nome || "").trim();
+    const rotulos: Record<string, string> = {
+      comprovante: "Comprovante", comprovante_pagamento: "Comprovante de pagamento",
+      nota_fiscal: "Nota fiscal", nf: "Nota fiscal", recibo: "Recibo",
+      relatorio: "Relatório", relatorio_despesa_viagem: "Relatório de viagem",
+      boleto: "Boleto", demonstrativo: "Demonstrativo",
+    };
+    if (rotulos[tipo]) return rotulos[tipo];
+    if (nome && !["documento", "arquivo", "anexo"].includes(nome.toLowerCase())) return nome;
+    if (/relatorio[_-]despesa[_-]viagem|pdf_relatorios/i.test(documento.url)) return "Relatório de viagem";
+    return nome || "Documento";
+  };
   const documentosLegados = [
-    ["Documento", lancamento.urlDoc, lancamento.numeroDoc],
-    ["Nota fiscal", lancamento.urlNf, lancamento.numeroNf],
-    ["Recibo", lancamento.urlRecibo, lancamento.numeroRecibo],
-    [
-      "Demonstrativo",
-      lancamento.urlDemonstrativo,
-      lancamento.numeroDemonstrativo,
-    ],
-    ["Boleto", lancamento.urlBoleto, null],
-  ].filter((item): item is [string, string, string | null | undefined] =>
-    Boolean(item[1]),
-  );
+    { nome: "Documento", url: lancamento.urlDoc, numero: lancamento.numeroDoc },
+    { nome: "Nota fiscal", url: lancamento.urlNf, numero: lancamento.numeroNf },
+    { nome: "Recibo", url: lancamento.urlRecibo, numero: lancamento.numeroRecibo },
+    { nome: "Demonstrativo", url: lancamento.urlDemonstrativo, numero: lancamento.numeroDemonstrativo },
+    { nome: "Boleto", url: lancamento.urlBoleto, numero: null },
+  ].filter((item): item is { nome: string; url: string; numero: string | null | undefined } => Boolean(item.url));
+  const nomePagador = (valor: string | null | undefined) => {
+    const nome = (valor || "").trim();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nome)
+      ? "Pagador não identificado" : nome;
+  };
 
   // Uma linha por cotista, preservando os documentos anexados àquela parcela.
   const partes =
@@ -1051,9 +1064,9 @@ function LancamentoExpandido({
           valorPagoReal: r.valorPagoRealCentavos ?? 0,
           dataVencimento: r.dataVencimento,
           dataPagamento: r.dataPagamento,
-          subcategorias: r.subcategorias ?? [],
+          subcategorias: r.subcategorias ?? lancamento.subcategorias ?? [],
           tipoRateio: r.tipoRateio,
-          periodicidade: r.periodicidade,
+          periodicidade: r.periodicidade ?? lancamento.periodicidade,
           pagoPor: r.pagoPor,
           pagoDiretamente: Boolean(r.pagoDiretamente),
           documentos: r.documentos ?? [],
@@ -1078,9 +1091,9 @@ function LancamentoExpandido({
             documentos: lancamento.documentos ?? [],
           },
         ];
-  const documentosGerais = lancamento.documentos?.length
-    ? lancamento.documentos
-    : documentosLegados;
+  const documentosGerais = [ ...(lancamento.documentos ?? []), ...documentosLegados ]
+    .filter((doc, index, todos) => todos.findIndex((outro) => outro.url === doc.url) === index)
+    .filter((doc) => !partes.some((parte) => parte.documentos.some((outro) => outro.url === doc.url)));
 
   const fmtPct = (v: number | null | undefined) =>
     v == null
@@ -1102,26 +1115,26 @@ function LancamentoExpandido({
                       <button
                         key={`${parte.chave}-${documento.id ?? documento.url}`}
                         type="button"
-                        onClick={() => aoAbrirDocumento(`${parte.responsavel} · ${documento.nome}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
+                        onClick={() => aoAbrirDocumento(`${parte.responsavel} · ${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
                         className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
                       >
                         <FileText size={14} className="shrink-0 text-primary" />
-                        <span className="break-words [overflow-wrap:anywhere]">{documento.nome}{documento.numero ? ` · ${documento.numero}` : ""}</span>
+                        <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
                         <Eye size={13} className="shrink-0 text-muted-foreground" />
                       </button>
                     ))}
                   </div>
                 </div>
               ) : null)}
-              {!partes.some((parte) => parte.documentos.length) && documentosGerais.map((documento) => (
+              {documentosGerais.map((documento) => (
                 <button
-                  key={`${documento.nome}-${documento.url}`}
+                  key={`${tituloDocumento(documento)}-${documento.url}`}
                   type="button"
-                  onClick={() => aoAbrirDocumento(`${documento.nome}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
+                  onClick={() => aoAbrirDocumento(`${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
                   className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
                 >
                   <FileText size={14} className="shrink-0 text-primary" />
-                  <span className="break-words [overflow-wrap:anywhere]">{documento.nome}{documento.numero ? ` · ${documento.numero}` : ""}</span>
+                  <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
                   <Eye size={13} className="shrink-0 text-muted-foreground" />
                 </button>
               ))}
@@ -1142,14 +1155,14 @@ function LancamentoExpandido({
                 className="grid gap-3 border-b border-border py-3 text-xs first:pt-0 last:border-b-0 last:pb-0"
               >
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div><dt className="text-muted-foreground">Cotista / cota</dt><dd className="mt-1 break-words font-bold">{p.responsavel} · {fmtPct(p.cota)}</dd></div>
+                  <div><dt className="text-muted-foreground">Cota</dt><dd className="mt-1 break-words font-bold">{fmtPct(p.cota)}</dd></div>
                   <div><dt className="text-muted-foreground">Vencimento / pagamento</dt><dd className="mt-1 font-mono tabular-nums">{p.dataVencimento ? formatarData(p.dataVencimento) : "—"} · {p.dataPagamento ? formatarData(p.dataPagamento) : "—"}</dd></div>
-                  <div><dt className="text-muted-foreground">Tipo / periodicidade</dt><dd className="mt-1">{p.tipoRateio || "—"} · {p.periodicidade || "—"}</dd></div>
+                  <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1">{p.periodicidade || "Não informada"}</dd></div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words">{p.subcategorias.length ? p.subcategorias.join(" · ") : "—"}</dd></div>
                   <div><dt className="text-muted-foreground">Percentual de uso / valor pago real</dt><dd className="mt-1 font-mono tabular-nums">{fmtPct(p.uso)} · {formatarCentavos(p.valorPagoReal)}</dd></div>
-                  <div><dt className="text-muted-foreground">Pago por / parcela</dt><dd className="mt-1 break-words font-mono">{p.pagoPor || (p.pagoDiretamente ? p.responsavel : "—")} · {formatarCentavos(p.parcela)}</dd></div>
+                  <div><dt className="text-muted-foreground">Pago por / valor rateio</dt><dd className="mt-1 break-words font-mono">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")} · {formatarCentavos(p.parcela)}</dd></div>
                 </div>
               </dl>
             ))}
@@ -1642,7 +1655,7 @@ function LancamentosDespesa({
                     {[
                       "Data / documento",
                       "Descrição",
-                      "Fornecedor / cotista",
+                      "Fornecedor",
                       "Valor",
                       "Status",
                       "Ações",
@@ -1711,14 +1724,7 @@ function LancamentosDespesa({
                               >
                                 {item.fornecedor || "Fornecedor não informado"}
                               </p>
-                              <p
-                                className={`mt-2 text-xs leading-relaxed text-muted-foreground ${TEXTO_COMPLETO}`}
-                              >
-                                <span className="font-medium">Cotista: </span>
-                                {item.participanteNome ||
-                                  item.participanteId ||
-                                  "Não informado"}
-                              </p>
+
                             </td>
                             <td className="px-4 py-5 text-right align-top">
                               <p className="despesa-money">

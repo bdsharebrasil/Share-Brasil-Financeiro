@@ -1328,8 +1328,9 @@ export type AeronaveRecibo = { id: string; matricula_registro: string; fabricant
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type AbastecimentoRecibo = { id: string; aeronave_id: string; data: string; tipo_combustivel: string | null; trecho: string | null; local: string | null; numero_comanda: string | null; numero_nf: string | null; litros: number | null; valor_total: number; matricula_registro: string | null; cotista_nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
+export type FornecedorRecibo = { id: string; nome: string; nome_completo?: string | null; origem: "favorito" | "combustivel" | string };
 export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
-export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; abastecimentos: AbastecimentoRecibo[]; recebedores: RecebedorRecibo[] };
+export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; abastecimentos: AbastecimentoRecibo[]; fornecedores: FornecedorRecibo[]; recebedores: RecebedorRecibo[] };
 
 export type TipoRecibo = "recibo_reembolso" | "recibo_colaborador" | "recibo_pagamento";
 export type StatusRecibo = "CRIADO" | "ANEXO_PENDENTE" | "PDF_PENDENTE" | "EMITIDO" | "EMAIL_ENVIADO" | "ERRO_ANEXO" | "ERRO_PDF" | "CANCELADO" | "emitido" | "aguardando_reembolso" | "reembolsado" | "cancelado";
@@ -1386,6 +1387,7 @@ export type Recibo = {
 export type RateioLinhaRecibo = { id: string; recibo_id: string; rateio_despesas_id: string; cotista_id?: string | null; cotista_nome?: string | null; cliente_id: string | null; socio_id: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; nome: string | null; percentual: number; valor: number };
 
 export type RateioLinhaEnvio = { cotista_id?: string; cliente_id?: string; socio_id?: string | null; percentual?: number; percentual_sociedade?: number; valor?: number; valor_centavos?: number; pago_por?: string };
+export const PERIODICIDADES_RATEIO_RECIBO = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
 export type CriarReciboPayload = {
   tipo_recibo: TipoRecibo;
   natureza_despesa?: "aeronave" | "empresa" | null;
@@ -1479,6 +1481,7 @@ export async function buscarOpcoesRecibos(): Promise<OpcoesRecibos> {
     categorias: Array.isArray(resposta.categorias) ? resposta.categorias : [],
     categorias_cliente: Array.isArray(resposta.categorias_cliente) ? resposta.categorias_cliente : [],
     abastecimentos: Array.isArray(resposta.abastecimentos) ? resposta.abastecimentos : [],
+    fornecedores: Array.isArray(resposta.fornecedores) ? resposta.fornecedores : [],
     recebedores,
   };
 }
@@ -1533,7 +1536,7 @@ export function reativarRecibo(id: string, justificativa: string) {
 }
 export function atualizarStatusRecibo(id: string, status: StatusRecibo) { return colaboradorRequest<{ ok: boolean; status: StatusRecibo }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); }
 export type LinhaProgramacaoRecibo = { cotista_id: string; percentual_uso: number; socio_id?: string | null };
-export type ProgramacaoReciboPayload = { aeronave_id: string; data_vencimento: string; categoria_id?: string | null; categoria_nome?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; tipo_rateio: "FIXO" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA" | "EXTRA"; periodicidade?: string | null; observacoes?: string | null; boleto_url?: string | null; linhas: LinhaProgramacaoRecibo[] };
+export type ProgramacaoReciboPayload = { aeronave_id: string; fornecedor_id?: string | null; periodicidade?: string | null; data_vencimento: string; categoria_id?: string | null; categoria_nome?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; tipo_rateio: "FIXO" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA" | "EXTRA"; observacoes?: string | null; boleto_url?: string | null; linhas: LinhaProgramacaoRecibo[] };
 export function programarContaAPagarRecibo(id: string, payload: ProgramacaoReciboPayload) { return colaboradorRequest<{ ok: boolean; conta_pagar_id: string; rateio_ids: string[] }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/programar-contas-apagar`, { method: "POST", body: JSON.stringify(payload) }); }
 export function enviarDespesaRateioRecibo(id: string, payload?: { aeronave_id?: string | null; data_vencimento?: string | null; observacoes?: string | null; rateio_linhas?: RateioLinhaEnvio[] }) { return colaboradorRequest<{ ok: boolean; recibo_id: string; lancamento_id: string | null; rateio_ids: string[]; idempotent?: boolean }>(`/api/financeiro/recibos/${encodeURIComponent(id)}/enviar-despesa-rateio`, { method: "POST", body: JSON.stringify(payload || {}) }); }
 export function enviarAnexoRecibo(arquivo: File, reciboId?: string) { const body = new FormData(); body.append("arquivo", arquivo); if (reciboId) body.append("recibo_id", reciboId); return colaboradorRequest<{ id: string; url: string; nome_arquivo: string; tipo_arquivo: string; tamanho_arquivo: number }>("/api/financeiro/recibos/anexos", { method: "POST", body }); }

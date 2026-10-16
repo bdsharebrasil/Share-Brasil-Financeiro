@@ -307,6 +307,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     categorias: [],
     categorias_cliente: [],
     abastecimentos: [],
+    fornecedores: [],
     recebedores: [],
   });
   const [recibos, setRecibos] = useState<ReciboFinanceiro[]>([]);
@@ -736,9 +737,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             ? form.categoria_despesa_subcategoria || null
             : null,
         subcategoria_1:
-          form.tipo === "recibo_pagamento"
-            ? form.categoria_despesa_subcategoria || null
-            : null,
+          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_1 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
+        subcategoria_2:
+          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_2 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
+        subcategoria_3:
+          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_3 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
+        subcategoria_4:
+          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_4 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
         grupo_categoria:
           form.tipo === "recibo_colaborador"
             ? form.natureza_despesa === "aeronave"
@@ -1019,6 +1024,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         open={Boolean(reciboProgramacao)}
         recibo={reciboProgramacao}
         aeronaves={opcoes.aeronaves}
+        fornecedores={opcoes.fornecedores}
         categorias={opcoes.categorias_cliente}
         onRequestEmail={(recibo, payload) => {
           setRateioAposEmail({ recibo, payload });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 import {
   buscarCotistasAeronave,
@@ -8,32 +9,35 @@ import {
   enviarDespesaRateioRecibo,
   programarContaAPagarRecibo,
   type CategoriaClienteRecibo,
+  type FornecedorRecibo,
   type CotistaAeronave,
   type Recibo,
 } from "@/lib/colaborador-api";
 import { allocateCentavos } from "@/lib/money";
 
 const tipos = ["FIXO", "VARIAVEL_POR_VOO", "VARIAVEL_POR_HORA", "EXTRA"] as const;
-const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"];
+const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
 const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-export type RateioDiretoPayload = { aeronave_id: string; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
+export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
  type Props = {
   open: boolean;
   recibo: Recibo | null;
   aeronaves: Array<{ id: string; matricula_registro: string }>;
   categorias: CategoriaClienteRecibo[];
+  fornecedores: FornecedorRecibo[];
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
   onRequestEmail: (recibo: Recibo, payload: RateioDiretoPayload) => void;
 };
 
-export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, categorias, onOpenChange, onSaved, onRequestEmail }: Props) {
+export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, categorias, fornecedores, onOpenChange, onSaved, onRequestEmail }: Props) {
   const rateioDireto = recibo?.tipo_recibo === "recibo_pagamento";
   const [aeronaveId, setAeronaveId] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
+  const [fornecedorId, setFornecedorId] = useState("");
   const [subcategoria, setSubcategoria] = useState("");
   const [tipoRateio, setTipoRateio] = useState<(typeof tipos)[number]>("FIXO");
   const [periodicidade, setPeriodicidade] = useState("ÚNICO");
@@ -56,7 +60,8 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     if (!open || !recibo) return;
     setAeronaveId(recibo.aeronave_id || "");
     setDataVencimento(recibo.data_vencimento || hoje());
-    setCategoriaId("");
+    setCategoriaId(recibo.categoria_id || "");
+    setFornecedorId("");
     setSubcategoria("");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
@@ -118,6 +123,8 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
         const payload: RateioDiretoPayload = {
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
+          fornecedor_id: fornecedorId || null,
+          periodicidade,
           numero_voo: recibo.numero_voo || null,
           observacoes: observacoes.trim() || null,
           rateio_linhas: rateioLinhas,
@@ -157,10 +164,11 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
         await programarContaAPagarRecibo(recibo.id, {
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
-          categoria_id: categoriaId || null,
+          categoria_id: categoriaId || recibo.categoria_id || null,
           categoria_nome: categoriaSelecionada?.nome || null,
           ...subcategoriasPayload,
           tipo_rateio: tipoRateio,
+          fornecedor_id: fornecedorId || null,
           periodicidade,
           observacoes: observacoes.trim() || null,
           boleto_url: boletoSalvo?.url || null,
@@ -211,6 +219,12 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
                 <span className="relative mt-1 block"><CalendarDays size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type="date" value={dataVencimento} onChange={(event) => setDataVencimento(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-xs" /></span>
               </label>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="text-xs font-semibold">Fornecedor favorito
+                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id) => setFornecedorId(id)} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor..." emptyMessage="Nenhum fornecedor encontrado." clearable />
+              </label>
+              <label className="text-xs font-semibold">Periodicidade<SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={periodicidade} onChange={(value) => setPeriodicidade(value)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade..." emptyMessage="Nenhuma periodicidade encontrada." /></label>
+            </div>
             <div className="rounded-xl border border-border/70 p-4"><div className="flex items-center justify-between"><p className="text-xs font-bold">Cotistas e percentual de uso</p><span className={`font-mono text-xs font-bold ${Math.abs(totalPercentual - 100) < 0.01 ? "text-emerald-600" : "text-amber-600"}`}>{totalPercentual.toFixed(2)}%</span></div>{carregandoCotistas ? <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Carregando cotistas...</div> : !aeronaveId ? <p className="mt-3 text-xs text-muted-foreground">Selecione a aeronave para listar os cotistas.</p> : <div className="mt-3 space-y-2">{cotistasParaRateio.map((cotista) => <label key={cotista.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-xs"><span className="min-w-0 flex-1 truncate">{cotista.nome}{cotista.eh_holding ? " · Holding" : ""}</span><span className="text-[10px] text-muted-foreground">Sociedade {Number(cotista.percentual_sociedade || 0).toFixed(2)}%</span><input type="number" min="0" max="100" step="0.01" value={percentuais[cotista.id] || "0"} onChange={(event) => setPercentuais((atual) => ({ ...atual, [cotista.id]: event.target.value }))} className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-right text-xs" /></label>)}</div>}</div>
             <label className="block text-xs font-semibold">Observações<textarea value={observacoes} onChange={(event) => setObservacoes(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-border bg-card p-3 text-xs" /></label>
           </div>
@@ -227,8 +241,11 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
                 <select value={categoriaId} onChange={(event) => { setCategoriaId(event.target.value); setSubcategoria(""); }} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs"><option value="">Selecione a categoria</option>{categorias.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nome}</option>)}</select>
               </label>
               {subcategorias.length > 0 && <label className="text-xs font-semibold">Subcategoria<select value={subcategoria} onChange={(event) => setSubcategoria(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs"><option value="">Selecione a subcategoria</option>{subcategorias.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
+              <label className="text-xs font-semibold">Fornecedor favorito
+                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id) => setFornecedorId(id)} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor..." emptyMessage="Nenhum fornecedor encontrado." clearable />
+              </label>
               <label className="text-xs font-semibold">Tipo de rateio<select value={tipoRateio} onChange={(event) => setTipoRateio(event.target.value as (typeof tipos)[number])} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs">{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></label>
-              <label className="text-xs font-semibold">Periodicidade<select value={periodicidade} onChange={(event) => setPeriodicidade(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs">{periodicidades.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="text-xs font-semibold">Periodicidade<SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={periodicidade} onChange={(value) => setPeriodicidade(value)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade..." emptyMessage="Nenhuma periodicidade encontrada." /></label>
             </div>
             <AnexosDinamicos file={boleto} onFileChange={setBoleto} accept="application/pdf,image/*" label="Boleto" description="PDF ou imagem" className="mt-4" />
             <div className="mt-5 rounded-xl border border-border/70 p-4"><div className="flex items-center justify-between"><p className="text-xs font-bold">Cotistas e percentual de uso</p><span className={`font-mono text-xs font-bold ${Math.abs(totalPercentual - 100) < 0.01 ? "text-emerald-600" : "text-amber-600"}`}>{totalPercentual.toFixed(2)}%</span></div>{carregandoCotistas ? <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Carregando cotistas...</div> : !aeronaveId ? <p className="mt-3 text-xs text-muted-foreground">Selecione a aeronave para listar os cotistas.</p> : <div className="mt-3 space-y-2">{cotistas.map((cotista) => <label key={cotista.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-xs"><span className="min-w-0 flex-1 truncate">{cotista.nome}</span><span className="text-[10px] text-muted-foreground">Sociedade {Number(cotista.percentual_sociedade || 0).toFixed(2)}%</span><input type="number" min="0" max="100" step="0.01" value={percentuais[cotista.id] || "0"} onChange={(event) => setPercentuais((atual) => ({ ...atual, [cotista.id]: event.target.value }))} className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-right text-xs" /></label>)}</div>}</div>

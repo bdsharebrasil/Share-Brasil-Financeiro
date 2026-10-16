@@ -76,7 +76,7 @@ export function PaginaFinanceiroShare() {
       <TabsContent value="resumo" className="mt-0"><AbaResumoFinanceiro aoMudarAba={mudarAba} /></TabsContent>
       <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} /></TabsContent>
       <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} /></TabsContent>
-      <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber /></TabsContent>
+      <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
       <TabsContent value="solicitacoes-pagamento" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>
       <TabsContent value="salarios" className="mt-0"><AbaSalarios /></TabsContent>

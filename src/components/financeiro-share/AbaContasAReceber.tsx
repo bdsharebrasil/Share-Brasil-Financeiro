@@ -8,7 +8,7 @@ import { SectionCard } from "@/components/financeiro-design/SectionCard";
 import { StatusBadge } from "@/components/financeiro-design/StatusBadge";
 import { formatarBRL, formatarData, hojeISO } from "@/components/financeiro-design/lancamento-tabela";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
-import { alterarStatusLancamento, editarLancamento } from "@/lib/financeiro-share-api";
+import { alterarStatusLancamento, editarLancamento, type ContaBancaria } from "@/lib/financeiro-share-api";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import type { ContaAReceber } from "./tipos";
 
@@ -19,7 +19,7 @@ function diasEmAtraso(vencimento: string, hoje: string) {
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
 
-export function AbaContasAReceber() {
+export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaBancaria[] }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAReceber({});
   const [filtroStatus, setFiltroStatus] = useState("PENDENTES");
   const [busca, setBusca] = useState("");
@@ -161,6 +161,7 @@ export function AbaContasAReceber() {
       {contaSelecionada && (
         <ModalContaAReceber
           conta={contaSelecionada}
+          contasBancarias={contasBancarias}
           aberto
           onFechar={() => setContaSelecionada(null)}
           onConfirmar={async (dados) => {

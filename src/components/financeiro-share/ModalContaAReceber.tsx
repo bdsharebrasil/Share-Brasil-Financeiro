@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContaAReceber } from './tipos';
-import { enviarComprovanteRecebimento } from '../../lib/financeiro-share-api';
+import { enviarComprovanteRecebimento, type ContaBancaria } from '../../lib/financeiro-share-api';
+import { SearchableCombobox } from '@/components/ui/searchableCombobox';
 
 type TipoPagador = 'COTISTA' | 'SHARE' | 'HOLDING';
 type RateioInput = { rateio_id: string; valor_centavos: number };
@@ -46,13 +47,14 @@ interface ModalContaAReceberProps {
   aberto: boolean;
   onFechar: () => void;
   onConfirmar: (dados: DadosBaixaReceber) => Promise<void>;
+  contasBancarias: ContaBancaria[];
 }
 
 const cents = (value: string) => Math.round(Number(value.replace(/\./g, '').replace(',', '.')) * 100);
 const money = (value: number) => (value / 100).toFixed(2).replace('.', ',');
 const TIPOS_COMPROVANTE = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
-export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar }: ModalContaAReceberProps) {
+export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar, contasBancarias }: ModalContaAReceberProps) {
   const hoje = new Date().toISOString().slice(0, 10);
   const rateios = conta.rateios ?? [];
   const esperado = Number(conta.valor || 0) * 100;
@@ -132,7 +134,7 @@ export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar }: Mod
         {pagamentos.map((p, index) => <section key={p.id} className="space-y-3 rounded-md border p-3">
           <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Pagamento {index + 1}</h3>{pagamentos.length > 1 && <Button type="button" variant="outline" size="sm" onClick={() => setPagamentos((all) => all.filter((item) => item.id !== p.id))}>Remover</Button>}</div>
           <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Pagador real</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={p.tipo_pagador} onChange={(e) => atualizar(p.id, { tipo_pagador: e.target.value as TipoPagador })}><option value="COTISTA">Cotista</option><option value="SHARE">Share</option><option value="HOLDING">Holding</option></select></div><div className="space-y-1"><Label>Valor deste pagamento (R$)</Label><Input value={p.valor} onChange={(e) => atualizar(p.id, { valor: e.target.value })} /></div></div>
-          <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-1"><Label>Data do pagamento</Label><Input type="date" value={p.data_pagamento} onChange={(e) => atualizar(p.id, { data_pagamento: e.target.value })} /></div><div className="space-y-1"><Label>Conta bancária</Label><Input value={p.conta_bancaria_id} onChange={(e) => atualizar(p.id, { conta_bancaria_id: e.target.value })} placeholder="ID ou nome da conta" /></div><div className="space-y-1"><Label>Forma de pagamento</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={p.forma_pagamento} onChange={(e) => atualizar(p.id, { forma_pagamento: e.target.value })}><option>PIX</option><option>Transferência</option><option>Boleto</option><option>Dinheiro</option><option>Cartão</option></select></div></div>
+          <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-1"><Label>Data do pagamento</Label><Input type="date" value={p.data_pagamento} onChange={(e) => atualizar(p.id, { data_pagamento: e.target.value })} /></div><div className="space-y-1"><Label>Conta bancária</Label><SearchableCombobox items={contasBancarias.map((c) => ({ id: c.id, label: [c.banco, c.numero_conta].filter(Boolean).join(" · ") }))} value={p.conta_bancaria_id} onChange={(id) => atualizar(p.id, { conta_bancaria_id: id })} placeholder="Selecione a conta" searchPlaceholder="Buscar conta bancária…" emptyMessage="Nenhuma conta encontrada." /></div><div className="space-y-1"><Label>Forma de pagamento</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={p.forma_pagamento} onChange={(e) => atualizar(p.id, { forma_pagamento: e.target.value })}><option>PIX</option><option>Transferência</option><option>Boleto</option><option>Dinheiro</option><option>Cartão</option></select></div></div>
           <div className="space-y-2"><Label>Rateios esperados e valor quitado por rateio</Label>{rateios.length ? rateios.map((r) => <div key={r.id} className="grid gap-2 rounded border p-2 text-sm sm:grid-cols-[1fr_140px_140px]"><span>Rateio {r.id.slice(0, 8)}{r.cotista_id ? ` · ${r.cotista_id}` : ''}<small className="block text-muted-foreground">Esperado: R$ {money(Number(r.valor_rateado_centavos))} · já quitado: R$ {money(Number(r.valor_pago_real_centavos || 0))}</small></span><span className="self-center text-muted-foreground">Nesta baixa: R$ {money(cents(p.rateios[r.id] ?? '0'))}</span><Input value={p.rateios[r.id] ?? '0,00'} onChange={(e) => atualizarRateio(p.id, r.id, e.target.value)} aria-label={`Valor no rateio ${r.id}`} /></div>) : <p className="text-sm text-muted-foreground">O rateio será criado automaticamente ao confirmar esta baixa.</p>}</div>
           <p className="text-right text-xs text-muted-foreground">Total deste pagamento: <strong>R$ {money(cents(p.valor))}</strong> · rateios: <strong>R$ {money(rateios.reduce((sum, r) => sum + cents(p.rateios[r.id] ?? '0'), 0))}</strong></p>
           <div className="space-y-1"><Label htmlFor={`comprovante-${p.id}`}>Comprovante de pagamento (obrigatório)</Label><Input id={`comprovante-${p.id}`} type="file" accept={TIPOS_COMPROVANTE.join(',')} onChange={(e) => selecionarComprovante(p.id, e.target.files?.[0])} /><p className="text-xs text-muted-foreground">{p.comprovante ? p.comprovante.name : 'PDF, PNG, JPG ou WebP • até 10 MB'}</p></div>

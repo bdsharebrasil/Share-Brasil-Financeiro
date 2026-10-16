@@ -127,33 +127,16 @@ function dataBr(value?: string | null): string {
 }
 
 /**
- * Ordena as despesas por data (estável) e devolve cada uma com
- * o índice original e o número de exibição.
+ * Mantém as despesas na ordem preenchida no formulário e devolve cada uma com
+ * o índice original e o número de exibição. O índice original é o vínculo
+ * persistido em `indice_despesa` para localizar o comprovante correspondente.
  */
 function prepararItens(despesas: DespesaPdf[]): ItemDespesa[] {
-  return despesas
-    .map((despesa, indiceOriginal) => ({
-      despesa,
-      indiceOriginal,
-      data: Date.parse(`${despesa.data?.slice(0, 10) ?? ""}T00:00:00Z`),
-    }))
-    .sort((a, b) => {
-      const aValida = Number.isFinite(a.data);
-      const bValida = Number.isFinite(b.data);
-
-      if (aValida && bValida) {
-        return a.data - b.data || a.indiceOriginal - b.indiceOriginal;
-      }
-      if (aValida) return -1;
-      if (bValida) return 1;
-
-      return a.indiceOriginal - b.indiceOriginal;
-    })
-    .map(({ despesa, indiceOriginal }, posicao) => ({
-      despesa,
-      indiceOriginal,
-      numero: posicao + 1,
-    }));
+  return despesas.map((despesa, indiceOriginal) => ({
+    despesa,
+    indiceOriginal,
+    numero: indiceOriginal + 1,
+  }));
 }
 
 /**
@@ -1213,7 +1196,7 @@ export async function gerarPdfRelatorioViagem(
   const anexos = Array.isArray(report.anexos) ? report.anexos : [];
 
   /*
-   * Fonte única de verdade: a mesma lista ordenada e numerada
+   * Fonte única de verdade: a mesma lista, na ordem preenchida e numerada,
    * alimenta a tabela do relatório E os comprovantes.
    */
   const itens = prepararItens(despesas);
@@ -1223,28 +1206,22 @@ export async function gerarPdfRelatorioViagem(
   );
 
   /*
-   * Vincula cada anexo à sua despesa (pelo índice ORIGINAL)
-   * e ordena os anexos na mesma sequência da tabela.
+   * Vincula cada anexo à sua despesa pelo índice ORIGINAL e mantém a ordem
+   * dos comprovantes conforme a ordem das despesas no formulário.
    */
-  const anexosOrdenados = anexos
-    .map((anexo, ordem) => {
-      const indiceOriginal = resolverIndiceOriginal(
-        anexo.indice_despesa,
-        despesas.length,
-      );
-
-      const item =
-        indiceOriginal === null
-          ? null
-          : (itemPorIndiceOriginal.get(indiceOriginal) ?? null);
-
-      return { anexo, ordem, item };
-    })
-    .sort(
-      (a, b) =>
-        (a.item?.numero ?? Number.MAX_SAFE_INTEGER) -
-          (b.item?.numero ?? Number.MAX_SAFE_INTEGER) || a.ordem - b.ordem,
+  const anexosOrdenados = anexos.map((anexo) => {
+    const indiceOriginal = resolverIndiceOriginal(
+      anexo.indice_despesa,
+      despesas.length,
     );
+
+    const item =
+      indiceOriginal === null
+        ? null
+        : (itemPorIndiceOriginal.get(indiceOriginal) ?? null);
+
+    return { anexo, item };
+  });
 
   const node = montarHtmlRelatorio(report, itens);
 

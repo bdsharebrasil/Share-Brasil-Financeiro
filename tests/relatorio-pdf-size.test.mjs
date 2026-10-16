@@ -29,3 +29,12 @@ test("anexos mantêm vínculo estável com a despesa quando a lista muda", () =>
   assert.match(worker, /SET indice_despesa = \?1 WHERE id = \?2 AND relatorio_despesa_viagem_id = \?3/);
   assert.match(page, /const uploadAnexo = async \(arquivo: File, indiceDespesa = 0\) => \{[\s\S]{0,180}const relatorioAtual = await salvar\(true\)/);
 });
+
+test("PDF preserva a ordem preenchida para manter legenda, despesa e comprovante", () => {
+  const prepararItens = generator.slice(generator.indexOf("function prepararItens"), generator.indexOf("function resolverIndiceOriginal"));
+  const anexosDoPdf = generator.slice(generator.indexOf("const anexosOrdenados"), generator.indexOf("const node = montarHtmlRelatorio"));
+  assert.match(prepararItens, /return despesas\.map\(\(despesa, indiceOriginal\)/);
+  assert.doesNotMatch(prepararItens, /\.sort\(/);
+  assert.doesNotMatch(anexosDoPdf, /\.sort\(/);
+  assert.match(generator, /o índice original e o número de exibição/);
+});

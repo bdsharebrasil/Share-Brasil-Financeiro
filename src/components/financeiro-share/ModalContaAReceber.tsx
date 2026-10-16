@@ -92,10 +92,9 @@ export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar, conta
   }
 
   async function confirmar() {
-    const payload: Array<Omit<DadosBaixaReceber['pagamentos'][number], 'comprovante_url'> & { arquivo: File }> = [];
+    const payload: Array<Omit<DadosBaixaReceber['pagamentos'][number], 'comprovante_url'> & { arquivo: File | null }> = [];
     for (const pagamento of pagamentos) {
       const arquivo = pagamento.comprovante;
-      if (!arquivo) { setErro('Anexe o comprovante (imagem ou PDF) de cada pagamento.'); return; }
       const valorCentavos = cents(pagamento.valor);
       const distribuicao = rateios.map((r) => ({ rateio_id: r.id, valor_centavos: cents(pagamento.rateios[r.id] ?? '0') })).filter((r) => r.valor_centavos > 0);
       if (!pagamento.conta_bancaria_id.trim() || valorCentavos <= 0 || !pagamento.data_pagamento || (rateios.length > 0 && !distribuicao.length)) {
@@ -114,7 +113,7 @@ export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar, conta
     try {
       const pagamentosComComprovante = await Promise.all(payload.map(async ({ arquivo, ...pagamento }) => ({
         ...pagamento,
-        comprovante_url: (await enviarComprovanteRecebimento(conta.id, arquivo)).url,
+        comprovante_url: arquivo ? (await enviarComprovanteRecebimento(conta.id, arquivo)).url : undefined,
       })));
       const primeiro = pagamentosComComprovante[0];
       await onConfirmar({
@@ -138,7 +137,7 @@ export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar, conta
           <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-1"><Label>Data do pagamento</Label><Input type="date" value={p.data_pagamento} onChange={(e) => atualizar(p.id, { data_pagamento: e.target.value })} /></div><div className="space-y-1"><Label>Conta bancária</Label><SearchableCombobox items={contasBancarias.map((c) => ({ id: c.id, label: [c.banco, c.numero_conta].filter(Boolean).join(" · ") }))} value={p.conta_bancaria_id} onChange={(id) => atualizar(p.id, { conta_bancaria_id: id })} placeholder="Selecione a conta" searchPlaceholder="Buscar conta bancária…" emptyMessage="Nenhuma conta encontrada." /></div><div className="space-y-1"><Label>Forma de pagamento</Label><SearchableCombobox items={FORMAS_PAGAMENTO.map((f) => ({ id: f, label: f }))} value={p.forma_pagamento} onChange={(valor) => atualizar(p.id, { forma_pagamento: valor })} placeholder="Selecione a forma" searchPlaceholder="Buscar forma de pagamento…" emptyMessage="Nenhuma forma encontrada." /></div></div>
           <div className="space-y-2"><Label>Rateios esperados e valor quitado por rateio</Label>{rateios.length ? rateios.map((r) => <div key={r.id} className="grid gap-2 rounded border p-2 text-sm sm:grid-cols-[1fr_140px_140px]"><span>Rateio {r.id.slice(0, 8)}{r.cotista_id ? ` · ${r.cotista_id}` : ''}<small className="block text-muted-foreground">Esperado: R$ {money(Number(r.valor_rateado_centavos))} · já quitado: R$ {money(Number(r.valor_pago_real_centavos || 0))}</small></span><span className="self-center text-muted-foreground">Nesta baixa: R$ {money(cents(p.rateios[r.id] ?? '0'))}</span><Input value={p.rateios[r.id] ?? '0,00'} onChange={(e) => atualizarRateio(p.id, r.id, e.target.value)} aria-label={`Valor no rateio ${r.id}`} /></div>) : <p className="text-sm text-muted-foreground">O rateio será criado automaticamente ao confirmar esta baixa.</p>}</div>
           <p className="text-right text-xs text-muted-foreground">Total deste pagamento: <strong>R$ {money(cents(p.valor))}</strong> · rateios: <strong>R$ {money(rateios.reduce((sum, r) => sum + cents(p.rateios[r.id] ?? '0'), 0))}</strong></p>
-          <div className="space-y-1"><Label htmlFor={`comprovante-${p.id}`}>Comprovante de pagamento (obrigatório)</Label><Input id={`comprovante-${p.id}`} type="file" accept={TIPOS_COMPROVANTE.join(',')} onChange={(e) => selecionarComprovante(p.id, e.target.files?.[0])} /><p className="text-xs text-muted-foreground">{p.comprovante ? p.comprovante.name : 'PDF, PNG, JPG ou WebP • até 10 MB'}</p></div>
+          <div className="space-y-1"><Label htmlFor={`comprovante-${p.id}`}>Comprovante de pagamento (opcional)</Label><Input id={`comprovante-${p.id}`} type="file" accept={TIPOS_COMPROVANTE.join(',')} onChange={(e) => selecionarComprovante(p.id, e.target.files?.[0])} /><p className="text-xs text-muted-foreground">{p.comprovante ? p.comprovante.name : 'PDF, PNG, JPG ou WebP • até 10 MB'}</p></div>
         </section>)}
         <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground"><p>Quitado por rateio após esta baixa:</p><div className="mt-2 grid gap-1 sm:grid-cols-2">{rateios.map((r) => <span key={r.id}>Rateio {r.id.slice(0, 8)}: <strong>R$ {money(quitadoPorRateio[r.id] ?? 0)}</strong> / R$ {money(Number(r.valor_rateado_centavos))}</span>)}</div></div>
         <Button type="button" variant="outline" onClick={adicionarPagamento}>Adicionar outro pagamento</Button>

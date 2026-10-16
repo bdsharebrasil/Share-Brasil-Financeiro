@@ -15,6 +15,7 @@ import { allocateCentavos } from "@/lib/money";
 
 const tipos = ["FIXO", "VARIAVEL_POR_VOO", "VARIAVEL_POR_HORA", "EXTRA"] as const;
 const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"];
+const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
 export type RateioDiretoPayload = { aeronave_id: string; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
@@ -132,15 +133,33 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           return;
         }
         const boletoSalvo = boleto ? await enviarAnexoRecibo(boleto, recibo.id) : null;
+        const subcategoriasPayload: Record<(typeof camposSubcategoria)[number], string | null> = {
+          subcategoria_1: null,
+          subcategoria_2: null,
+          subcategoria_3: null,
+          subcategoria_4: null,
+        };
+
+        if (subcategoria.trim()) {
+          const correspondencias = camposSubcategoria.filter(
+            (campo) => categoriaSelecionada?.[campo]?.trim() === subcategoria.trim(),
+          );
+
+          if (correspondencias.length !== 1) {
+            setErro("A subcategoria selecionada não corresponde a uma opção única da categoria.");
+            return;
+          }
+
+          const campo = correspondencias[0];
+          subcategoriasPayload[campo] = categoriaSelecionada![campo]!.trim();
+        }
+
         await programarContaAPagarRecibo(recibo.id, {
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
           categoria_id: categoriaId || null,
           categoria_nome: categoriaSelecionada?.nome || null,
-          subcategoria_1: subcategoria || null,
-          subcategoria_2: null,
-          subcategoria_3: null,
-          subcategoria_4: null,
+          ...subcategoriasPayload,
           tipo_rateio: tipoRateio,
           periodicidade,
           observacoes: observacoes.trim() || null,

@@ -1,3 +1,4 @@
+import { DarBaixaCotistaDialog } from "./DarBaixaCotistaDialog";
 import {
   Fragment,
   useCallback,
@@ -94,7 +95,6 @@ import {
   buscarVoosEmprestimos,
   editarLancamento,
   excluirLancamento,
-  darBaixaLancamento,
 } from "@/lib/financeiro-share-api";
 import type {
   OpcoesLancamento,
@@ -1248,7 +1248,7 @@ function LancamentoExpandido({
   );
 }
 type AcaoDespesa = {
-  tipo: "editar" | "excluir" | "baixa";
+  tipo: "editar" | "excluir";
   item: LancamentoEconomico;
 };
 const TEXTO_COMPLETO =
@@ -1286,6 +1286,7 @@ function LancamentosDespesa({
   aoNovo: () => void;
   aoAtualizar: () => Promise<void>;
 }) {
+  const [baixaSelecionada, setBaixaSelecionada] = useState<LancamentoEconomico | null>(null);
   const [compacto, setCompacto] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [documentoAberto, setDocumentoAberto] = useState<{
@@ -1427,12 +1428,6 @@ function LancamentosDespesa({
           descricao: descricaoEdicao.trim(),
         });
       if (acao.tipo === "excluir") await excluirLancamento(acao.item.id);
-      if (acao.tipo === "baixa")
-        await darBaixaLancamento(acao.item.id, {
-          dataPagamento: hoje(),
-          valorPagoRealCentavos: acao.item.valorCentavos,
-          pagoPor: acao.item.pagoPor || null,
-        });
       toast.success(
         acao.tipo === "editar"
           ? "Descrição atualizada."
@@ -1482,7 +1477,7 @@ function LancamentosDespesa({
           disabled={["Pago", "Cancelado"].includes(
             statusLancamento(item.status).label,
           )}
-          onSelect={() => abrirAcao("baixa", item)}
+          onSelect={() => setBaixaSelecionada(item)}
           className="gap-2 py-2.5"
         >
           <Coins size={16} />
@@ -1985,6 +1980,12 @@ function LancamentosDespesa({
         </footer>
       </section>
 
+      <DarBaixaCotistaDialog
+        lancamento={baixaSelecionada}
+        onFechar={() => setBaixaSelecionada(null)}
+        onConcluido={async () => { await aoAtualizar(); toast.success("Pagamento registrado."); }}
+      />
+
       <Dialog
         open={Boolean(acao)}
         onOpenChange={(open) => {
@@ -2030,11 +2031,7 @@ function LancamentosDespesa({
                   <p className="mt-3 text-xl font-semibold tabular-nums">
                     {formatarCentavos(acao.item.valorCentavos)}
                   </p>
-                  {acao.tipo === "baixa" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Data do pagamento: {formatarData(hoje())}
-                    </p>
-                  )}
+
                 </div>
               )}
               {erroAcao && (

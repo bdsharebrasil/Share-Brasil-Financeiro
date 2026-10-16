@@ -182,6 +182,12 @@ export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{
   return financeiroRequest<{ url: string }>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
 }
 
+export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise<{ url: string }> {
+  const body = new FormData();
+  body.append("arquivo", arquivo, arquivo.name);
+  return financeiroRequest<{ url: string }>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
+}
+
 export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
   return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
 }

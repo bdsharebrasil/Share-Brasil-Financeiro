@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, FileText, HandCoins, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,10 +17,6 @@ const QUITADOS = ["RECEBIDO", "CANCELADO"];
 function diasEmAtraso(vencimento: string, hoje: string) {
   const ms = new Date(`${hoje}T12:00:00`).getTime() - new Date(`${vencimento.slice(0, 10)}T12:00:00`).getTime();
   return Math.max(0, Math.floor(ms / 86_400_000));
-}
-
-function iniciais(nome: string) {
-  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0]).join("").toUpperCase() || "?";
 }
 
 export function AbaContasAReceber() {
@@ -115,11 +110,6 @@ export function AbaContasAReceber() {
               const quitado = QUITADOS.includes(conta.status);
               return (
                 <li key={conta.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarFallback className={dias > 0 ? "bg-red-500/10 text-xs text-red-700 dark:text-red-300" : "bg-primary/10 text-xs text-primary"}>
-                      {iniciais(nome)}
-                    </AvatarFallback>
-                  </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-card-foreground">{nome}</p>

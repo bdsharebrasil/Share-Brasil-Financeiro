@@ -62,6 +62,8 @@ import {
 } from "@/lib/colaborador-api";
 import { toast } from "sonner";
 
+const LIMITE_PDF_RELATORIO_BYTES = 25 * 1024 * 1024;
+
 type PagoPor = "tripulante_1" | "tripulante_2" | "cliente" | "sharebrasil";
 type Despesa = {
   id: string;
@@ -698,6 +700,9 @@ export default function RelatorioDespesaViagem({
   };
   const gerarPdf = async (item: Relatorio, blob?: Blob) => {
     const pdfBlob = blob || await prepararPdf(item);
+    if (pdfBlob.size > LIMITE_PDF_RELATORIO_BYTES) {
+      throw new Error("O PDF ainda excede 25 MB após a compressão. Reduza ou remova alguns anexos e tente novamente.");
+    }
     const nomeSeguro = String(item.numero_relatorio || item.id).replace(/[^a-zA-Z0-9._-]+/g, "_");
     const arquivo = new File([pdfBlob], `relatorio-${nomeSeguro}.pdf`, {
       type: "application/pdf",

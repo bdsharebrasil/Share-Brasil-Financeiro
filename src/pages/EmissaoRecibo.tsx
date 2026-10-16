@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ArrowRight,
   ExternalLink,
   FileText,
   History,
@@ -321,6 +322,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [previewAberta, setPreviewAberta] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [pdfPreviewNome, setPdfPreviewNome] = useState("recibo.pdf");
+  const [reciboPdfPreview, setReciboPdfPreview] = useState<ReciboFinanceiro | null>(null);
   const [pdfAbrindoId, setPdfAbrindoId] = useState<string | null>(null);
   const [estadoEmissao, setEstadoEmissao] = useState<
     | "CRIADO"
@@ -550,6 +552,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   };
 
   const visualizarPdf = async (recibo: ReciboFinanceiro) => {
+    setReciboPdfPreview(null);
     let caminho = caminhoPdfRecibo(recibo);
     setErro("");
     setPdfAbrindoId(recibo.id);
@@ -764,10 +767,17 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       };
 
       const resposta = await criarRecibo(payload);
+      const reciboCriado: ReciboFinanceiro = {
+        ...resposta.recibo,
+        subcategoria_1: payload.subcategoria_1,
+        subcategoria_2: payload.subcategoria_2,
+        subcategoria_3: payload.subcategoria_3,
+        subcategoria_4: payload.subcategoria_4,
+      };
 
       setEstadoEmissao("CRIADO");
       setRecibos((atual) => [
-        { ...resposta.recibo, status: "CRIADO" },
+        { ...reciboCriado, status: "CRIADO" },
         ...atual,
       ]);
 
@@ -801,6 +811,11 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         const pdfSalvo = await enviarPdfRecibo(resposta.recibo.id, pdf);
         resposta.recibo.pdf_url = pdfSalvo.pdf_url;
         resposta.recibo.pdf_anexo_id = pdfSalvo.anexo_id;
+        setReciboPdfPreview({
+          ...reciboCriado,
+          pdf_url: pdfSalvo.pdf_url,
+          pdf_anexo_id: pdfSalvo.anexo_id,
+        });
         // O upload terminou com sucesso. Mostra imediatamente o mesmo arquivo
         // salvo, sem exigir que o usuário abra o histórico para encontrá-lo.
         const previewUrl = URL.createObjectURL(pdf);
@@ -824,7 +839,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         atual.map((item) =>
           item.id === resposta.recibo.id
             ? {
-                ...resposta.recibo,
+              ...reciboCriado,
                 status: avisoAnexo
                   ? "ERRO_ANEXO"
                   : avisoPdf
@@ -909,27 +924,67 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     else setModalEmail(true);
   };
 
+  const fecharPdfPreview = () => {
+    setPdfPreviewUrl((atual) => {
+      if (atual) URL.revokeObjectURL(atual);
+      return "";
+    });
+    setReciboPdfPreview(null);
+  };
+
+  const continuarFluxoPdf = () => {
+    if (!reciboPdfPreview) return;
+    const recibo = reciboPdfPreview;
+    fecharPdfPreview();
+    programarEmail(recibo);
+  };
+
   const emailEnviado = async () => {
     if (!reciboEmail) return;
+    const recibo = reciboEmail;
+    const rateioPendente = rateioAposEmail?.recibo.id === recibo.id ? rateioAposEmail : null;
+    let erroStatus: unknown = null;
     try {
-      await atualizarStatusRecibo(reciboEmail.id, "EMAIL_ENVIADO");
-      const atualizado = { ...reciboEmail, status: "EMAIL_ENVIADO" as const };
-      const rateioPendente = rateioAposEmail?.recibo.id === reciboEmail.id ? rateioAposEmail : null;
+      await atualizarStatusRecibo(recibo.id, "EMAIL_ENVIADO");
+    } catch (cause) {
+      if (!rateioPendente) throw cause;
+      erroStatus = cause;
+    }
+    try {
       if (rateioPendente) {
-        await enviarDespesaRateioRecibo(reciboEmail.id, rateioPendente.payload);
+        await enviarDespesaRateioRecibo(recibo.id, rateioPendente.payload);
         setRateioAposEmail(null);
       }
-      setRecibos((atual) => atual.map((item) => item.id === reciboEmail.id ? { ...atualizado, despesa_programada: Boolean(rateioPendente) || item.despesa_programada } : item));
+      const atualizado = { ...recibo, status: erroStatus ? recibo.status : "EMAIL_ENVIADO" as const };
+      setRecibos((atual) => atual.map((item) => item.id === recibo.id ? { ...atualizado, despesa_programada: Boolean(rateioPendente) || item.despesa_programada } : item));
       setModalEmail(false);
+      setReciboProgramacao(null);
+      if (erroStatus) {
+        mostrarFeedback(
+          "erro",
+          rateioPendente
+            ? "EMAIL ENVIADO E RATEIO CRIADO, MAS O STATUS DO RECIBO NÃO FOI ATUALIZADO"
+            : erroStatus instanceof Error
+              ? erroStatus.message
+              : "Não foi possível atualizar o status do e-mail.",
+        );
+        return;
+      }
       if (rateioPendente) {
-        setReciboProgramacao(null);
         mostrarFeedback("sucesso", "EMAIL ENVIADO E RATEIO CRIADO COM SUCESSO");
       } else {
         setReciboProgramacao(atualizado);
         mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
       }
     } catch (cause) {
-      mostrarFeedback("erro", cause instanceof Error ? cause.message : "Não foi possível atualizar o status do e-mail.");
+      mostrarFeedback(
+        "erro",
+        rateioPendente
+          ? `EMAIL ENVIADO, MAS O RATEIO NÃO FOI GRAVADO: ${cause instanceof Error ? cause.message : "falha ao criar despesa/rateio"}`
+          : cause instanceof Error
+            ? cause.message
+            : "Não foi possível atualizar o status do e-mail.",
+      );
     }
   };
 
@@ -1862,7 +1917,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       )}
 
       {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-1 backdrop-blur-md sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-1 backdrop-blur-md sm:p-4">
           <div className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[min(760px,calc(100dvh-2rem))] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900/95 px-3 py-2.5 text-white backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-3">
               <div className="min-w-0">
@@ -1892,12 +1947,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    setPdfPreviewUrl((atual) => {
-                      if (atual) URL.revokeObjectURL(atual);
-                      return "";
-                    })
-                  }
+                  onClick={fecharPdfPreview}
                   className="h-9 gap-1.5 border-white/15 bg-white/5 px-3 text-[11px] font-bold text-white hover:bg-white/10 hover:text-white"
                 >
                   <X size={14} /> Fechar
@@ -1911,15 +1961,29 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 className="h-full min-h-0 w-full rounded-xl bg-white shadow-xl"
               />
             </div>
-            <div className="flex shrink-0 justify-end border-t border-white/10 bg-slate-900 px-3 py-2 sm:hidden">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPdfPreviewUrl("")}
-                className="h-9 gap-1.5 border-white/15 bg-white/5 px-3 text-[11px] font-bold text-white hover:bg-white/10 hover:text-white"
-              >
-                <X size={14} /> Fechar e continuar
-              </Button>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-slate-900 px-3 py-2 sm:px-5">
+              <p className="hidden text-[11px] text-slate-400 sm:block">
+                {reciboPdfPreview ? "PDF salvo. Continue para o envio e rateio." : "Pré-visualização do recibo"}
+              </p>
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={fecharPdfPreview}
+                  className="h-9 gap-1.5 border-white/15 bg-white/5 px-3 text-[11px] font-bold text-white hover:bg-white/10 hover:text-white"
+                >
+                  <X size={14} /> Fechar
+                </Button>
+                {reciboPdfPreview && (
+                  <Button
+                    type="button"
+                    onClick={continuarFluxoPdf}
+                    className="h-9 gap-1.5 px-3 text-[11px] font-bold"
+                  >
+                    Continuar para envio e rateio <ArrowRight size={14} />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -64,13 +64,12 @@ const ALTURA_CANVAS_COMPROVANTE = 1123;
 
 /**
  * Densidade de pixels dos comprovantes.
- * 3 => ~288 DPI no A4 (bom equilíbrio nitidez x memória, inclusive em celular/iPad).
- * Se for usar só em desktop e quiser ainda mais nitidez, pode subir para 4.
+ * 2 => ~192 DPI no A4, suficiente para leitura e impressão e reduz o tamanho final.
  */
-const ESCALA_COMPROVANTE = 3;
+const ESCALA_COMPROVANTE = 2;
 
 /** Escala do html2canvas para a página principal do relatório. */
-const ESCALA_RELATORIO = 3;
+const ESCALA_RELATORIO = 2;
 
 const AREA_COMPROVANTE = {
   x: 38,
@@ -1286,8 +1285,8 @@ export async function gerarPdfRelatorioViagem(
       compress: true,
     });
 
-    // Página(s) do relatório: PNG mantém o texto nítido (tolerância maior por causa do html2canvas).
-    adicionarCanvasAoPdf(pdf, canvas, "PNG", 1, 4);
+    // JPEG de alta qualidade reduz PDFs com múltiplas páginas e anexos.
+    adicionarCanvasAoPdf(pdf, canvas, "JPEG", 0.92, 4);
     liberarCanvas(canvas);
 
     // Cada comprovante começa obrigatoriamente em uma nova página.
@@ -1297,10 +1296,10 @@ export async function gerarPdfRelatorioViagem(
         anexo.nome_arquivo.toLowerCase().endsWith(".pdf");
 
       if (ehPdf) {
-        // Páginas de PDF (texto/vetor): PNG, sem borrar as letras.
+        // Rasteriza páginas anexadas em JPEG de alta qualidade para limitar o PDF final.
         await gerarPaginasPdf(anexo, item, (pagina) => {
           pdf.addPage();
-          adicionarCanvasAoPdf(pdf, pagina, "PNG", 1, 0.5);
+          adicionarCanvasAoPdf(pdf, pagina, "JPEG", 0.92, 0.5);
           liberarCanvas(pagina);
         });
       } else {
@@ -1308,7 +1307,7 @@ export async function gerarPdfRelatorioViagem(
         const pagina = await gerarPaginaImagem(anexo, item);
 
         pdf.addPage();
-        adicionarCanvasAoPdf(pdf, pagina, "JPEG", 0.98, 0.5);
+        adicionarCanvasAoPdf(pdf, pagina, "JPEG", 0.92, 0.5);
         liberarCanvas(pagina);
       }
     }

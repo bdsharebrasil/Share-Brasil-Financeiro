@@ -20,7 +20,7 @@ const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL"
 const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; fornecedor_nome?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
+export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; fornecedor_nome?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
  type Props = {
   open: boolean;
   recibo: Recibo | null;
@@ -130,6 +130,10 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           periodicidade,
           numero_voo: recibo.numero_voo || null,
           observacoes: observacoes.trim() || null,
+          subcategoria_1: recibo.subcategoria_1 || null,
+          subcategoria_2: recibo.subcategoria_2 || null,
+          subcategoria_3: recibo.subcategoria_3 || null,
+          subcategoria_4: recibo.subcategoria_4 || null,
           rateio_linhas: rateioLinhas,
         };
         if (enviarEmailAntes) {

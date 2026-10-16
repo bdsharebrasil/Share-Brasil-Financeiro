@@ -1856,9 +1856,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       )}
 
       {pdfPreviewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-2 backdrop-blur-md sm:p-4">
-          <div className="flex h-[min(760px,calc(100dvh-2rem))] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[min(760px,calc(100dvh-3rem))] sm:max-h-[calc(100dvh-3rem)]">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-slate-900/95 px-4 py-3 text-white backdrop-blur sm:px-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 p-1 backdrop-blur-md sm:p-4">
+          <div className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-2xl ring-1 ring-black/30 sm:h-[min(760px,calc(100dvh-2rem))] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900/95 px-3 py-2.5 text-white backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-3">
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold tracking-wide">
                   Pré-visualização do recibo
@@ -1867,7 +1867,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                   {pdfPreviewNome}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
                 <a
                   href={pdfPreviewUrl}
                   target="_blank"
@@ -1898,12 +1898,22 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 </Button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 bg-slate-950/90 p-1.5 sm:p-3">
+            <div className="min-h-0 flex-1 bg-slate-950/90 p-1 sm:p-3">
               <iframe
                 src={pdfPreviewUrl}
                 title="Pré-visualização do PDF"
                 className="h-full min-h-0 w-full rounded-xl bg-white shadow-xl"
               />
+            </div>
+            <div className="flex shrink-0 justify-end border-t border-white/10 bg-slate-900 px-3 py-2 sm:hidden">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPdfPreviewUrl("")}
+                className="h-9 gap-1.5 border-white/15 bg-white/5 px-3 text-[11px] font-bold text-white hover:bg-white/10 hover:text-white"
+              >
+                <X size={14} /> Fechar e continuar
+              </Button>
             </div>
           </div>
         </div>

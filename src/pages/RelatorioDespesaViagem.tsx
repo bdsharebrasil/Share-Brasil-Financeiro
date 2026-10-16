@@ -485,8 +485,8 @@ export default function RelatorioDespesaViagem({
           observacoes?: string;
           pago_por?: string;
           paid_by?: string;
-        }) => ({
-          id: despesa.id || crypto.randomUUID(),
+        }, index) => ({
+          id: despesa.id || `${item.id}-despesa-${index}`,
           data: despesa.data || "",
           categoria: despesa.categoria || "Outros",
           descricao: despesa.descricao || "",
@@ -557,7 +557,8 @@ export default function RelatorioDespesaViagem({
     nome_tripulante_2: form.nome_tripulante_2,
     observacoes: form.observacoes,
     quantidade_dias: quantidadeDiasCalculada,
-    despesas: despesas.map(({ id: _id, ...item }) => ({
+    despesas: despesas.map(({ id, ...item }) => ({
+      id,
       ...item,
       valor: Number(item.valor) || 0,
       pago_por: item.pago_por,
@@ -910,7 +911,7 @@ export default function RelatorioDespesaViagem({
     if (!arquivo) return;
     setAnexando(true);
     try {
-      const relatorioAtual = relatorio || (await salvar(true));
+      const relatorioAtual = await salvar(true);
       if (!relatorioAtual) return;
       const resposta = await enviarAnexoRelatorio(
         relatorioAtual.id,

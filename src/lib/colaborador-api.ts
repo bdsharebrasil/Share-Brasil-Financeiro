@@ -1351,6 +1351,7 @@ export type Recibo = {
   recebedor_cidade?: string | null;
   recebedor_uf?: string | null;
   aeronave_id: string | null;
+  categoria_movimentacao_id?: string | null;
   numero_voo?: string | null;
   subcategoria_1?: string | null;
   subcategoria_2?: string | null;

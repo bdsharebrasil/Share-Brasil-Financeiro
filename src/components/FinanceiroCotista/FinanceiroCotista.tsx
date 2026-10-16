@@ -35,6 +35,13 @@ import {
   Search,
   ExternalLink,
   KeyRound,
+  Filter,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Clock3,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -113,7 +120,7 @@ import {
 
 
 /* Estilos locais: não alteram o tema das demais abas do financeiro.
- * Mantém os componentes, APIs e as seis colunas do arquivo original.
+ * Mantém os componentes e APIs; tabela com cinco colunas e fornecedor nos detalhes.
  */
 const DESPESAS_ESTILOS = `
 .despesas-theme {
@@ -128,7 +135,7 @@ const DESPESAS_ESTILOS = `
   color: hsl(var(--foreground)); color-scheme: light;
   font-family: inherit;
 }
-.despesas-shell { padding: 7px 10px; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: 20px; }
+.despesas-shell { padding: 0; background: transparent; border: 0; border-radius: 12px; }
 .despesas-theme .text-muted-foreground { color: hsl(var(--muted-foreground)); }
 .despesas-theme .text-foreground { color: hsl(var(--foreground)); }
 .despesas-theme .text-primary { color: hsl(var(--primary)); }
@@ -143,26 +150,26 @@ const DESPESAS_ESTILOS = `
 .despesa-metric { position: relative; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: 10px 14px; }
 .despesas-theme .text-emerald-700 { color: #5ce0bf; }
 .despesas-theme .text-amber-700 { color: #ffd36c; }
-.despesas-theme .text-blue-700 { color: #83bfff; }
+.despesas-theme .text-blue-700 { color: #5492d4; }
 .despesa-metric:first-child { border-color: #273752; }
 .despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.despesa-ledger { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 16px; overflow: hidden; }
+.despesa-ledger { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 12px; overflow: clip; }
 .despesa-heading { background: linear-gradient(115deg, hsl(var(--primary) / .07), hsl(var(--card))); }
-.despesa-toolbar { position: sticky; top: 0; z-index: 4; background: hsl(var(--card) / .98); padding: 6px 24px; }
-.despesa-table-scroll { overflow: auto; max-height: 72vh; scrollbar-color: hsl(var(--primary) / .55) hsl(var(--muted)); }
-.despesa-table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
+.despesa-toolbar { background: hsl(var(--card)); padding: 12px 16px; }
+.despesa-table-scroll { overflow-x: auto; scrollbar-color: hsl(var(--primary) / .55) hsl(var(--muted)); }
+.despesa-table { width: 100%; min-width: 880px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
 .despesa-table thead { position: sticky; top: 0; z-index: 2; background: hsl(var(--muted) / .72); color: hsl(var(--muted-foreground)); }
-.despesa-table thead th { border-bottom: 1px solid hsl(var(--border)); padding: 14px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.despesa-table thead th { border-bottom: 1px solid hsl(var(--border)); padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
 .despesa-table .despesa-month th { background: hsl(var(--primary) / .055); border-bottom: 1px solid hsl(var(--border)); }
-.despesa-table .despesa-row td { padding: 16px; vertical-align: middle; border-bottom: 1px solid hsl(var(--border)); }
+.despesa-table .despesa-row td { padding: 10px 12px; vertical-align: middle; border-bottom: 1px solid hsl(var(--border)); }
 .despesa-row { background: hsl(var(--card)); transition: background-color .15s; }
 .despesa-row:nth-of-type(odd) { background: hsl(var(--muted) / .22); }
 .despesa-row:hover { background: hsl(var(--primary) / .055); }
 .despesa-row[data-expanded="true"] { background: hsl(var(--primary) / .08); }
 .despesa-row[data-expanded="true"] td:first-child { box-shadow: inset 3px 0 hsl(var(--primary)); }
-.despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.65; }
+.despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.4; }
 .despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
-.despesa-category { display: inline-block; max-width: 100%; margin-top: 7px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
+.despesa-category { display: inline-block; max-width: 100%; margin-top: 4px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
 .despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
 .despesas-theme .despesa-status[data-status="Pago"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
 .despesas-theme .despesa-status[data-status="Pendente"] { color: #b45309; background: #fffbeb; border-color: #fcd34d; }
@@ -201,14 +208,73 @@ const DESPESAS_ESTILOS = `
 .dark .despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
 .dark .despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
 .despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
+[data-density="compacto"] .despesa-mobile-card { padding: 0; }
+[data-density="confortavel"] .despesa-table .despesa-row td { padding: 18px 14px; }
+[data-density="compacto"] .despesa-table .despesa-row td { padding-top: 8px; padding-bottom: 8px; }
+.despesa-table .despesa-row button { min-height: 32px; }
+.despesa-heading { border-radius: 12px 12px 0 0; }
+.despesa-table .despesa-month th { padding: 8px 12px; }
+.despesa-metric:first-child { border-color: hsl(var(--primary) / .35); }
 @media (max-width: 639px) {
-  .despesas-shell { padding: 10px; border-radius: 14px; }
+  .despesas-shell { padding: 0; border-radius: 12px; }
   .despesa-metric { padding: 8px 12px; }
   .despesa-metric-value { font-size: 0.95rem; }
   .despesa-footer-total { width: 100%; justify-content: space-between; }
 }
 @media (prefers-reduced-motion: reduce) { .despesas-theme * { transition: none !important; } }
+/* Ajustes visuais conforme referências, restritos à aba de despesas. */
+.despesa-table { min-width: 760px; }
+.despesa-detail { padding: 16px 22px; background: #f4f7fb; }
+.despesa-detail-grid { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(0, 1.8fr); gap: 24px; align-items: start; }
+.despesa-detail-title { margin: 0 0 8px; color: #2d6fb8; font-size: 11px; letter-spacing: .1em; font-weight: 600; }
+.despesa-supplier { margin: 0 0 18px; }
+.despesa-supplier dd { margin: 0; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.despesa-documents { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.despesa-documents > div { width: 100%; min-width: 0; }
+.despesas-theme .despesa-document { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 31px; padding: 6px 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: white; color: #174a86; font-size: 11px; font-weight: 400; line-height: 17px; text-align: left; }
+.despesa-rateio { display: grid; gap: 12px; margin: 0; padding: 12px 0; font-size: 12px; }
+.despesa-rateio:first-child { padding-top: 0; }
+.despesa-rateio:last-child { padding-bottom: 0; }
+.despesa-rateio-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; }
+.despesa-rateio-fields > div { min-width: 0; }
+.despesa-rateio dd { overflow-wrap: anywhere; }
+.despesa-rateio-person dt { color: hsl(var(--muted-foreground)); }
+.despesa-rateio-person dd { margin-top: 4px; font-weight: 600; }
+.despesas-theme .despesa-status { gap: 5px; border-radius: 5px; padding: 3px 9px; min-height: 24px; font-size: 11px; line-height: 16px; font-weight: 400; }
+.despesas-theme .despesa-status[data-status="Pendente"] { color: #965000; background: #fff4cc; border-color: #ffc328; }
+.despesas-theme .despesa-status:is([data-status="Pago"], [data-status="Aprovado"]) { color: #006950; background: #d2fae7; border-color: #56e9ad; }
+.despesas-theme .despesa-status[data-status="Reembolsado"] { color: #174cc6; background: #deebff; border-color: #90baff; }
+.despesa-toolbar-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.despesa-control { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: #e8eef5; color: #32699f; font-size: 11px; white-space: nowrap; }
+.despesa-control:hover, .despesa-control[aria-expanded="true"] { background: #dce8f5; }
+.despesa-filter-count { font-size: 10px; font-weight: 700; }
+.despesa-filter-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px; margin-top: 12px; border-top: 1px solid hsl(var(--border)); }
+.despesa-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #c8d8e9; background: #f4f7fb; color: #5080b7; font-size: 11px; }
+.despesa-pagination button { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid #bfd2e8; border-radius: 4px; background: white; color: #335f90; }
+.despesa-pagination button[aria-current="page"] { color: white; background: #203d63; border-color: #203d63; }
+.despesa-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.dark .despesa-detail, .dark .despesa-pagination { background: hsl(var(--muted) / .4); border-color: hsl(var(--border)); }
+.dark .despesas-theme .despesa-document, .dark .despesa-control, .dark .despesa-pagination button { background: hsl(var(--card)); color: #9ecaff; border-color: hsl(var(--border)); }
+.dark .despesa-pagination button[aria-current="page"] { background: #335f90; color: white; }
+.dark .despesa-detail-title { color: #9ecaff; }
+.dark .despesas-theme .despesa-status[data-status="Aprovado"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
+.dark .despesas-theme .despesa-status[data-status="Reembolsado"] { color: #76a4dd; background: #1b3155; border-color: #355787; }
+@media (max-width: 1023px) { .despesa-detail-grid { grid-template-columns: 1fr; gap: 20px; } }
+@media (max-width: 639px) {
+  .despesa-detail { padding: 14px; }
+  .despesa-toolbar-main { flex-wrap: wrap; }
+  .despesa-toolbar-main > div:first-child { flex-basis: 100%; }
+  .despesa-toolbar-main > div:last-child { margin-left: auto; }
+  .despesa-filter-panel, .despesa-rateio-fields { grid-template-columns: 1fr; }
+}
+
 `;
+
+function deslocarMes(competencia: string, deslocamento: number): string {
+  const [ano, mes] = competencia.split("-").map(Number);
+  const data = new Date(ano, mes - 1 + deslocamento, 1, 12);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
+}
 
 const MESES_CURTOS = [
   "Jan",
@@ -973,7 +1039,9 @@ export function NovoLancamentoCotistaDialog({
 }
 
 function statusLancamento(status: string) {
-  const normalizado = status.toUpperCase();
+  const normalizado = status.trim().toUpperCase();
+  if (normalizado === "APROVADO") return { label: "Aprovado", className: "" };
+  if (normalizado === "REEMBOLSADO") return { label: "Reembolsado", className: "" };
   if (["PAGO", "RECEBIDO", "CONFIRMADO", "LIQUIDADO"].includes(normalizado))
     return {
       label: "Pago",
@@ -1014,10 +1082,7 @@ function valorPagoLancamento(lancamento: LancamentoEconomico) {
   return Math.min(lancamento.valorCentavos, pagoInformado);
 }
 
-/* Detalhe expandido: duas colunas objetivas.
- * Esquerda: documentos vinculados. Direita: rateio (Cota · Responsável · Parcela).
- * Valor, status, categoria, fornecedor e cotista já aparecem na linha, então não se repetem aqui.
- */
+/* Fornecedor, documentos e rateio alinhados na expansão. */
 function LancamentoExpandido({
   lancamento,
   aoAbrirDocumento,
@@ -1034,8 +1099,8 @@ function LancamentoExpandido({
       relatorio: "Relatório", relatorio_despesa_viagem: "Relatório de viagem",
       boleto: "Boleto", demonstrativo: "Demonstrativo",
     };
-    if (rotulos[tipo]) return rotulos[tipo];
     if (nome && !["documento", "arquivo", "anexo"].includes(nome.toLowerCase())) return nome;
+    if (rotulos[tipo]) return rotulos[tipo];
     if (/relatorio[_-]despesa[_-]viagem|pdf_relatorios/i.test(documento.url)) return "Relatório de viagem";
     return nome || "Documento";
   };
@@ -1101,12 +1166,16 @@ function LancamentoExpandido({
       : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
 
   return (
-    <div className="despesa-detail px-4 py-5 sm:px-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section>
+    <div className="despesa-detail">
+      <div className="despesa-detail-grid">
+        <section className="min-w-0">
+          <dl className="despesa-supplier">
+            <dt className="despesa-detail-title">Fornecedor</dt>
+            <dd>{lancamento.fornecedor || "Não informado"}</dd>
+          </dl>
           <h3 className="despesa-detail-title">Documentos vinculados</h3>
           {partes.some((parte) => parte.documentos.length) || documentosGerais.length ? (
-            <div className="space-y-4">
+            <div className="despesa-documents">
               {partes.map((parte) => parte.documentos.length ? (
                 <div key={`docs-${parte.chave}`} className="space-y-2">
                   <p className="text-xs font-semibold text-foreground">{parte.responsavel}</p>
@@ -1116,11 +1185,10 @@ function LancamentoExpandido({
                         key={`${parte.chave}-${documento.id ?? documento.url}`}
                         type="button"
                         onClick={() => aoAbrirDocumento(`${parte.responsavel} · ${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
-                        className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
+                        className="despesa-document"
                       >
-                        <FileText size={14} className="shrink-0 text-primary" />
+                        <FileText size={12} className={/nota|fiscal|\bnf\b/i.test(tituloDocumento(documento)) ? "shrink-0 text-red-500" : "shrink-0"} />
                         <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
-                        <Eye size={13} className="shrink-0 text-muted-foreground" />
                       </button>
                     ))}
                   </div>
@@ -1131,11 +1199,10 @@ function LancamentoExpandido({
                   key={`${tituloDocumento(documento)}-${documento.url}`}
                   type="button"
                   onClick={() => aoAbrirDocumento(`${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
-                  className="despesa-document inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium"
+                  className="despesa-document"
                 >
-                  <FileText size={14} className="shrink-0 text-primary" />
+                  <FileText size={12} className={/nota|fiscal|\bnf\b/i.test(tituloDocumento(documento)) ? "shrink-0 text-red-500" : "shrink-0"} />
                   <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
-                  <Eye size={13} className="shrink-0 text-muted-foreground" />
                 </button>
               ))}
             </div>
@@ -1152,14 +1219,15 @@ function LancamentoExpandido({
             {partes.map((p) => (
               <dl
                 key={p.chave}
-                className="grid gap-3 border-b border-border py-3 text-xs first:pt-0 last:border-b-0 last:pb-0"
+                className="despesa-rateio"
               >
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="despesa-rateio-person"><dt>Responsável</dt><dd>{p.responsavel || "Não informado"}</dd></div>
+                <div className="despesa-rateio-fields">
                   <div><dt className="text-muted-foreground">Cota</dt><dd className="mt-1 break-words font-bold">{fmtPct(p.cota)}</dd></div>
                   <div><dt className="text-muted-foreground">Vencimento / pagamento</dt><dd className="mt-1 font-mono tabular-nums">{p.dataVencimento ? formatarData(p.dataVencimento) : "—"} · {p.dataPagamento ? formatarData(p.dataPagamento) : "—"}</dd></div>
                   <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1">{p.periodicidade || "Não informada"}</dd></div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="despesa-rateio-fields">
                   <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words">{p.subcategorias.length ? p.subcategorias.join(" · ") : "—"}</dd></div>
                   <div><dt className="text-muted-foreground">Percentual de uso / valor pago real</dt><dd className="mt-1 font-mono tabular-nums">{fmtPct(p.uso)} · {formatarCentavos(p.valorPagoReal)}</dd></div>
                   <div><dt className="text-muted-foreground">Pago por / valor rateio</dt><dd className="mt-1 break-words font-mono">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")} · {formatarCentavos(p.parcela)}</dd></div>
@@ -1171,7 +1239,7 @@ function LancamentoExpandido({
       </div>
 
       {lancamento.observacoes && (
-        <p className="mt-5 whitespace-pre-wrap break-words border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+        <p className="mt-3 whitespace-pre-wrap break-words border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
           <strong className="text-foreground">Observações:</strong>{" "}
           {lancamento.observacoes}
         </p>
@@ -1195,15 +1263,15 @@ function normalizarBusca(valor: string) {
 
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
+  const Icon = visual.label === "Reembolsado" ? Undo2
+    : ["Pago", "Aprovado"].includes(visual.label) ? CircleCheck
+    : visual.label === "Pendente" ? Clock3 : CircleAlert;
   return (
     <span
       data-status={visual.label}
       className={`despesa-status inline-flex items-center gap-1.5 border ${visual.className}`}
     >
-      <span
-        className="size-1.5 shrink-0 rounded-full bg-current"
-        aria-hidden="true"
-      />
+      <Icon size={11} className="shrink-0" aria-hidden="true" />
       {visual.label}
     </span>
   );
@@ -1218,6 +1286,7 @@ function LancamentosDespesa({
   aoNovo: () => void;
   aoAtualizar: () => Promise<void>;
 }) {
+  const [compacto, setCompacto] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [documentoAberto, setDocumentoAberto] = useState<{
     nome: string;
@@ -1227,6 +1296,10 @@ function LancamentosDespesa({
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [ordem, setOrdem] = useState("recentes");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 10;
+  useEffect(() => { setPagina(1); setExpandido(null); }, [busca, filtroStatus, filtroCategoria, ordem, lancamentos]);
   const [acao, setAcao] = useState<AcaoDespesa | null>(null);
   const [descricaoEdicao, setDescricaoEdicao] = useState("");
   const [processando, setProcessando] = useState(false);
@@ -1294,6 +1367,21 @@ function LancamentosDespesa({
         })),
     [filtradas, ordem],
   );
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const inicioPagina = (paginaAtual - 1) * porPagina;
+  const gruposDaPagina = useMemo(() => {
+    let deslocamento = 0;
+    return gruposPorMes.map((grupo) => {
+      const inicio = deslocamento;
+      deslocamento += grupo.itens.length;
+      return { ...grupo, itens: grupo.itens.slice(
+        Math.max(0, inicioPagina - inicio), Math.max(0, inicioPagina + porPagina - inicio),
+      ) };
+    }).filter((grupo) => grupo.itens.length > 0);
+  }, [gruposPorMes, inicioPagina]);
+  const paginasVisiveis = Array.from({ length: Math.min(3, totalPaginas) }, (_, i) =>
+    Math.max(1, Math.min(paginaAtual - 1, totalPaginas - 2)) + i);
   const totalLancado = despesas.reduce(
     (total, item) => total + item.valorCentavos,
     0,
@@ -1463,9 +1551,9 @@ function LancamentosDespesa({
   ];
 
   return (
-    <div className="despesas-theme despesas-shell min-w-0 space-y-5 py-[7px] px-[10px]">
+    <div className="despesas-theme despesas-shell min-w-0 space-y-3" data-density={compacto ? "compacto" : "confortavel"}>
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-2 grid-cols-2 xl:grid-cols-4">
         {cards.map(({ titulo, valor, detalhe, Icon, cor }) => (
           <section
             key={titulo}
@@ -1493,47 +1581,59 @@ function LancamentosDespesa({
         className="despesa-ledger min-w-0"
         aria-label="Lançamentos mensais"
       >
-        <header className="despesa-heading flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <header className="despesa-heading flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-xl font-semibold tracking-tight">
+            <h3 className="text-sm font-semibold tracking-tight">
               Lançamentos mensais
             </h3>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" aria-pressed={compacto}
+            onClick={() => setCompacto((atual) => !atual)} className="h-9 text-xs">
+            {compacto ? "Visualização compacta" : "Visualização confortável"}
+          </Button>
           <Button
             type="button"
             onClick={aoNovo}
-            className="despesa-primary bg-[rgba(62,156,218,1)] h-11 w-full shrink-0 gap-2 rounded-lg px-5 sm:w-auto"
+            className="despesa-primary h-9 shrink-0 gap-2 rounded-lg px-3 text-xs"
           >
             <Plus size={18} />
             Novo lançamento
           </Button>
+          </div>
         </header>
 
-        <div className="despesa-toolbar space-y-3 border-b border-border py-[6px] px-[50px] bg-[rgba(10,20,36,1)]">
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(150px,1fr)_minmax(180px,1fr)_minmax(150px,1fr)]">
-            <div className="min-w-0 space-y-1.5">
-              <Label
-                htmlFor="despesa-busca"
-                className="text-xs text-muted-foreground"
-              >
-                Buscar lançamento
-              </Label>
-              <div className="relative">
-                <Search
-                  size={17}
-                  className="pointer-events-none absolute left-3 top-3.5 text-muted-foreground"
-                />
-                <Input
-                  id="despesa-busca"
-                  type="search"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Descrição, fornecedor, cotista…"
-                  className="h-11 rounded-xl bg-background pl-10 text-base sm:text-sm"
-                />
-              </div>
+        <div className="despesa-toolbar border-b border-border">
+          <div className="despesa-toolbar-main">
+            <div className="relative min-w-0 flex-1 sm:max-w-sm">
+              <Label htmlFor="despesa-busca" className="sr-only">Buscar lançamento</Label>
+              <Search size={14} className="pointer-events-none absolute left-3 top-2.5 text-muted-foreground" />
+              <Input id="despesa-busca" type="search" value={busca}
+                onChange={(e) => setBusca(e.target.value)} placeholder="Descrição, fornecedor, cotista…"
+                className="h-8 pl-9 text-xs" />
             </div>
-            <div className="min-w-0 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <button type="button" className="despesa-control" aria-expanded={filtrosAbertos}
+                aria-controls="despesa-filtros" onClick={() => setFiltrosAbertos((v) => !v)}>
+                <Filter size={12} fill="currentColor" /> Filtros
+                {(filtroStatus !== "todos" || filtroCategoria !== "todas") && <span className="despesa-filter-count">{Number(filtroStatus !== "todos") + Number(filtroCategoria !== "todas")}</span>}
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="despesa-control"><ArrowUpDown size={12} /> Ordenar</button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="despesas-theme despesa-dialog">
+                  {[["recentes", "Mais recentes"], ["antigas", "Mais antigas"], ["maior", "Maior valor no mês"], ["menor", "Menor valor no mês"]].map(([valor, rotulo]) => (
+                    <DropdownMenuItem key={valor} onSelect={() => setOrdem(valor)}>
+                      <Check size={13} className={ordem === valor ? "mr-2" : "mr-2 invisible"} />{rotulo}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          {filtrosAbertos && <div id="despesa-filtros" className="despesa-filter-panel">
+            <div className="min-w-0 space-y-1">
               <Label
                 htmlFor="despesa-status"
                 className="text-xs text-muted-foreground"
@@ -1543,13 +1643,13 @@ function LancamentosDespesa({
               <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                 <SelectTrigger
                   id="despesa-status"
-                  className="h-11 rounded-xl bg-background"
+                  className="h-9 rounded-md bg-background"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="despesas-theme despesa-dialog">
                   <SelectItem value="todos">Todos os status</SelectItem>
-                  {["Pendente", "Pago", "Atrasado", "Cancelado"].map(
+                  {["Pendente", "Aprovado", "Pago", "Reembolsado", "Atrasado", "Cancelado"].map(
                     (status) => (
                       <SelectItem key={status} value={status}>
                         {status}
@@ -1559,7 +1659,7 @@ function LancamentosDespesa({
                 </SelectContent>
               </Select>
             </div>
-            <div className="min-w-0 space-y-1.5">
+            <div className="min-w-0 space-y-1">
               <Label
                 htmlFor="despesa-categoria"
                 className="text-xs text-muted-foreground"
@@ -1572,7 +1672,7 @@ function LancamentosDespesa({
               >
                 <SelectTrigger
                   id="despesa-categoria"
-                  className="h-11 min-w-0 rounded-xl bg-background"
+                  className="h-9 min-w-0 rounded-md bg-background"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -1586,51 +1686,11 @@ function LancamentosDespesa({
                 </SelectContent>
               </Select>
             </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label
-                htmlFor="despesa-ordem"
-                className="text-xs text-muted-foreground"
-              >
-                Ordenar por mês
-              </Label>
-              <Select value={ordem} onValueChange={setOrdem}>
-                <SelectTrigger
-                  id="despesa-ordem"
-                  className="h-11 rounded-xl bg-background"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="despesas-theme despesa-dialog">
-                  <SelectItem value="recentes">Mais recentes</SelectItem>
-                  <SelectItem value="antigas">Mais antigas</SelectItem>
-                  <SelectItem value="maior">Maior valor no mês</SelectItem>
-                  <SelectItem value="menor">Menor valor no mês</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <p role="status" aria-live="polite">
-              {filtradas.length} de {despesas.length} despesas · Total exibido:{" "}
-              <strong className="font-semibold text-foreground">
-                {formatarCentavos(totalFiltrado)}
-              </strong>
-            </p>
-            {temFiltros ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={limparFiltros}
-                className="h-9 gap-1.5 text-xs"
-              >
-                <X size={14} />
-                Limpar filtros
-              </Button>
-            ) : (
-              <span>Expanda uma despesa para consultar documentos e rateio</span>
-            )}
-          </div>
+          </div>}
+          {temFiltros && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span role="status">{filtradas.length} de {despesas.length} despesas · Total filtrado: {formatarCentavos(totalFiltrado)}</span>
+            <button type="button" className="inline-flex items-center gap-1 text-primary" onClick={limparFiltros}><X size={12} />Limpar filtros</button>
+          </div>}
         </div>
 
         {filtradas.length > 0 ? (
@@ -1643,19 +1703,17 @@ function LancamentosDespesa({
                   e status.
                 </caption>
                 <colgroup>
-                  <col className="w-[13%]" />
-                  <col className="w-[30%]" />
-                  <col className="w-[19%]" />
                   <col className="w-[16%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[11%]" />
+                  <col className="w-[40%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[12%]" />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
                     {[
                       "Data / documento",
                       "Descrição",
-                      "Fornecedor",
                       "Valor",
                       "Status",
                       "Ações",
@@ -1670,12 +1728,12 @@ function LancamentosDespesa({
                     ))}
                   </tr>
                 </thead>
-                {gruposPorMes.map(({ mes, itens }) => (
+                {gruposDaPagina.map(({ mes, itens }) => (
                   <tbody key={mes} className="divide-y divide-border">
                     <tr className="despesa-month">
                       <th
                         scope="rowgroup"
-                        colSpan={6}
+                        colSpan={5}
                         className="px-4 py-3 font-normal"
                       >
                         {resumoMes(mes, itens)}
@@ -1718,14 +1776,6 @@ function LancamentosDespesa({
                               </p>
 
                             </td>
-                            <td className="px-4 py-5 align-top">
-                              <p
-                                className={`leading-relaxed ${TEXTO_COMPLETO}`}
-                              >
-                                {item.fornecedor || "Fornecedor não informado"}
-                              </p>
-
-                            </td>
                             <td className="px-4 py-5 text-right align-top">
                               <p className="despesa-money">
                                 {formatarCentavos(item.valorCentavos)}
@@ -1759,7 +1809,7 @@ function LancamentosDespesa({
                           </tr>
                           {aberto && (
                             <tr id={`despesa-desktop-${item.id}`}>
-                              <td colSpan={6} className="p-0">
+                              <td colSpan={5} className="p-0">
                                 <LancamentoExpandido
                                   lancamento={item}
                                   aoAbrirDocumento={(nome, url) =>
@@ -1779,7 +1829,7 @@ function LancamentosDespesa({
 
             {/* Celular e tablet: leitura vertical, sem precisar arrastar uma tabela larga. */}
             <div className="divide-y divide-border lg:hidden">
-              {gruposPorMes.map(({ mes, itens }) => (
+              {gruposDaPagina.map(({ mes, itens }) => (
                 <section key={mes}>
                   <div className="bg-muted/30 px-4 py-4 sm:px-6">
                     {resumoMes(mes, itens)}
@@ -1820,16 +1870,6 @@ function LancamentosDespesa({
                               {item.categoria || "Sem categoria"}
                             </p>
                             <dl className="mt-4 grid min-w-0 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-2">
-                              <div className="min-w-0">
-                                <dt className="text-xs text-muted-foreground">
-                                  Fornecedor
-                                </dt>
-                                <dd
-                                  className={`mt-1 leading-relaxed ${TEXTO_COMPLETO}`}
-                                >
-                                  {item.fornecedor || "Não informado"}
-                                </dd>
-                              </div>
                               <div className="min-w-0">
                                 <dt className="text-xs text-muted-foreground">
                                   Cotista
@@ -1933,15 +1973,15 @@ function LancamentosDespesa({
             </Button>
           </div>
         )}
-        <footer className="despesa-footer border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6">
-          <div>
-            <p>{filtradas.length} {filtradas.length === 1 ? "lançamento exibido" : "lançamentos exibidos"}</p>
-            <p className="mt-1 text-[11px]">Indicadores: período completo · Total abaixo: lista filtrada</p>
-          </div>
-          <div className="despesa-footer-total">
-            <span className="text-[10px] font-semibold uppercase tracking-widest">Total do extrato</span>
-            <strong>{formatarCentavos(totalFiltrado)}</strong>
-          </div>
+        <footer className="despesa-pagination">
+          <p role="status" aria-live="polite">Exibindo {filtradas.length ? inicioPagina + 1 : 0}–{Math.min(inicioPagina + porPagina, filtradas.length)} de {filtradas.length} transações</p>
+          <nav aria-label="Paginação das despesas" className="flex items-center gap-1">
+            <button type="button" disabled={paginaAtual === 1} aria-label="Página anterior" onClick={() => { setPagina(paginaAtual - 1); setExpandido(null); }}><ChevronLeft size={14} /></button>
+            {paginasVisiveis.map((numero) => <button type="button" key={numero}
+              aria-label={`Página ${numero}`} aria-current={paginaAtual === numero ? "page" : undefined}
+              onClick={() => { setPagina(numero); setExpandido(null); }}>{numero}</button>)}
+            <button type="button" disabled={paginaAtual === totalPaginas} aria-label="Próxima página" onClick={() => { setPagina(paginaAtual + 1); setExpandido(null); }}><ChevronRight size={14} /></button>
+          </nav>
         </footer>
       </section>
 
@@ -2102,7 +2142,7 @@ export default function FinanceiroCotista() {
   const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
   const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
   const mesAtual = mesAtualLocal();
-  const anoMeses = mesAtual.slice(0, 4);
+  const [anoMeses, setAnoMeses] = useState(mesAtual.slice(0, 4));
   const mesesDisponiveis = useMemo(
     () =>
       MESES_CURTOS.map(
@@ -2249,10 +2289,11 @@ export default function FinanceiroCotista() {
       return (
         lancamento.aeronaveId === aeronaveSelecionada &&
         data >= periodoAplicado.inicio &&
-        data <= periodoAplicado.fim
+        data <= periodoAplicado.fim &&
+        mesesAplicados.includes(data.slice(0, 7))
       );
     });
-  }, [dashboard, aeronaveSelecionada, periodoAplicado]);
+  }, [dashboard, aeronaveSelecionada, periodoAplicado, mesesAplicados]);
 
   const possuiHolding = cotistasAeronave.some((cotista) =>
     Boolean(cotista.eh_holding),
@@ -2278,7 +2319,8 @@ export default function FinanceiroCotista() {
       : (periodoDoMes(mesAtual) ?? { inicio: hoje(), fim: hoje() });
   };
   const atualizarMeses = (proximos: string[]) => {
-    const ordenados = [...proximos].sort();
+    const ordenados = [...new Set(proximos)].sort();
+    if (!ordenados.length) return; // Mantém ao menos uma competência válida.
     setMesesRascunho(ordenados);
     setMesesAplicados(ordenados);
     setPeriodoAplicado(periodoDosMeses(ordenados));
@@ -2291,7 +2333,13 @@ export default function FinanceiroCotista() {
     );
   };
   const selecionarTodosOsMeses = () => atualizarMeses(mesesDisponiveis);
-  const limparMeses = () => atualizarMeses([]);
+  const limparMeses = () => selecionarMesUnico(mesAtual);
+  const selecionarMesUnico = (mes: string) => {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes) || !periodoDoMes(mes)) return;
+    setAnoMeses(mes.slice(0, 4));
+    atualizarMeses([mes]);
+  };
+  const mesReferencia = mesesAplicados[0] || mesAtual;
 
   const despesas = useMemo(
     () =>
@@ -2376,7 +2424,7 @@ export default function FinanceiroCotista() {
   ];
 
   return (
-    <div className="financeiro-shell route-enter min-w-0 max-w-full space-y-5">
+    <div className="financeiro-shell financeiro-profissional route-enter min-w-0 max-w-full space-y-3">
       <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="financeiro-eyebrow">CLIENTE / AERONAVE</p>
@@ -2421,11 +2469,11 @@ export default function FinanceiroCotista() {
       ) : (
         <>
           {aeronaveSelecionada && cotistasAeronave.length > 0 && (
-            <div className="financeiro-panel p-4">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                Cotistas desta aeronave
-              </p>
-              <div className="flex flex-wrap gap-2">
+            <details className="financeiro-panel px-4 py-2.5">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Participação na aeronave · {cotistasAeronave.length} cotista(s)
+              </summary>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {cotistasAeronave.map((c) => (
                   <span
                     key={c.id}
@@ -2443,10 +2491,10 @@ export default function FinanceiroCotista() {
                   </span>
                 ))}
               </div>
-            </div>
+            </details>
           )}
 
-          <section className="financeiro-panel overflow-hidden">
+          {abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
@@ -2467,7 +2515,7 @@ export default function FinanceiroCotista() {
                 ))}
               </div>
             </div>
-          </section>
+          </section>}
 
           <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
             {([
@@ -2507,56 +2555,42 @@ export default function FinanceiroCotista() {
           </div>
 
           {abaAtiva !== "relatorio" && abaAtiva !== "portal-cliente" && (
-            <section className="financeiro-panel p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-bold">Período dos dados</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Selecione um ou mais meses para somar os dados da aeronave.
-                </p>
+            <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CalendarDays size={16} className="text-muted-foreground" />
+                  <span className="text-xs font-semibold">Competência</span>
+                  <Button type="button" variant="outline" size="sm" className="h-9 px-3"
+                    aria-label="Mês anterior" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}>‹</Button>
+                  <Input type="month" aria-label="Selecionar competência" value={mesReferencia}
+                    onChange={(e) => selecionarMesUnico(e.target.value)} className="h-9 w-[170px] text-sm" />
+                  <Button type="button" variant="outline" size="sm" className="h-9 px-3"
+                    aria-label="Próximo mês" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}>›</Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-9 text-xs" onClick={limparMeses}>Mês atual</Button>
+                </div>
+                <span className="text-xs text-muted-foreground" aria-live="polite">
+                  {mesesAplicados.length === 1 ? rotuloMesCotista(mesReferencia) : `${mesesAplicados.length} meses selecionados`}
+                </span>
               </div>
-              <span className="text-[9px] text-muted-foreground">
-                {mesesRascunho.length} de {mesesDisponiveis.length}{" "}
-                selecionado(s)
-              </span>
-            </div>
-            <div
-              className="mt-3 flex flex-wrap items-center gap-1.5"
-              role="group"
-              aria-label="Selecionar meses"
-            >
-              <button
-                type="button"
-                onClick={selecionarTodosOsMeses}
-                aria-pressed={mesesRascunho.length === mesesDisponiveis.length}
-                className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Todos
-              </button>
-              {MESES_CURTOS.map((mes, indice) => {
-                const competencia = mesesDisponiveis[indice];
-                const selecionado = mesesRascunho.includes(competencia);
-                return (
-                  <button
-                    key={competencia}
-                    type="button"
-                    onClick={() => alternarMes(competencia)}
-                    aria-pressed={selecionado}
-                    aria-label={`${selecionado ? "Remover" : "Selecionar"} ${mes} ${anoMeses}`}
-                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors ${selecionado ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
-                  >
-                    {mes}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={limparMeses}
-                className="rounded-full px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Limpar
-              </button>
-            </div>
+              <details className="mt-2">
+                <summary className="w-fit cursor-pointer text-xs text-muted-foreground">Selecionar vários meses</summary>
+                <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
+                  <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
+                    onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
+                    className="h-8 w-24" />
+                  <Button type="button" variant="outline" size="sm" onClick={selecionarTodosOsMeses}>Ano inteiro</Button>
+                  {MESES_CURTOS.map((mes, indice) => {
+                    const competencia = mesesDisponiveis[indice];
+                    const selecionado = mesesRascunho.includes(competencia);
+                    return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
+                      aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
+                      className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
+                      {mes}
+                    </button>;
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês.</p>
+              </details>
             </section>
           )}
 

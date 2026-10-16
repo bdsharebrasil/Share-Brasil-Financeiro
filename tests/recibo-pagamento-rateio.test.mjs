@@ -26,7 +26,7 @@ test("subcategorias não são inseridas na tabela recibos e seguem para a criaç
   assert.ok(insert);
   assert.doesNotMatch(insert[1], /subcategoria_[1-4]/);
   assert.match(source, /const reciboCriado: ReciboFinanceiro = \{[\s\S]*?subcategoria_4: payload\.subcategoria_4/);
-  assert.match(rateioDialog, /subcategoria_4: recibo\.subcategoria_4 \|\| null/);
+  assert.match(rateioDialog, /\.\.\.subcategoriasPayload/);
   assert.match(financeKernel, /subcategoria_1: body\.subcategoria_1,[\s\S]*?subcategoria_4: body\.subcategoria_4,/);
 });
 
@@ -40,4 +40,21 @@ test("criação de fornecedor favorito usa somente colunas do schema", () => {
   const insert = financeKernel.match(/INSERT INTO fornecedores_favoritos \(([^)]*)\)\s*VALUES/);
   assert.ok(insert);
   assert.deepEqual(insert[1].split(",").map((column) => column.trim()), ["id", "nome_completo", "apelido"]);
+});
+
+test("recibo pago diretamente mantém o rateio aberto até a baixa", () => {
+  assert.match(financeKernel, /deferir_baixa_rateio: true/);
+  assert.match(financeKernel, /status: command\.deferir_baixa_rateio === true[\s\S]{0,110}'EM_ABERTO'/);
+});
+
+test("rateio de recibo recebe fornecedor, periodicidade e metadados de envio", () => {
+  assert.match(financeKernel, /fornecedor_id: fornecedorResolvido\?\.id \?\? null,[\s\S]{0,250}periodicidade: text\(body\.periodicidade\)/);
+  assert.match(financeKernel, /numero_recibo: receipt\.numero_recibo,[\s\S]{0,100}url_recibo: receipt\.url_recibo,[\s\S]{0,100}email_enviado_em: emailInfo\?\.email_enviado_em/);
+  assert.match(financeKernel, /email_enviado_em: nullableText\(command\.email_enviado_em\)/);
+});
+
+test("repetir envio completa metadados do rateio existente sem duplicá-lo", () => {
+  assert.match(financeKernel, /if \(rateioExistente && \['cotista_aeronave', 'cliente'\]/);
+  assert.match(financeKernel, /status = CASE WHEN status = 'PAGO_DIRETAMENTE' THEN 'EM_ABERTO'/);
+  assert.match(financeKernel, /email_enviado_em = COALESCE\(\?, email_enviado_em\)/);
 });

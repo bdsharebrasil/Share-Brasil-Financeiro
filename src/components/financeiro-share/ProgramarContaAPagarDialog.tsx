@@ -20,7 +20,7 @@ const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL"
 const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
+export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; fornecedor_nome?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
  type Props = {
   open: boolean;
   recibo: Recibo | null;
@@ -38,6 +38,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
   const [dataVencimento, setDataVencimento] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
+  const [fornecedorNome, setFornecedorNome] = useState("");
   const [subcategoria, setSubcategoria] = useState("");
   const [tipoRateio, setTipoRateio] = useState<(typeof tipos)[number]>("FIXO");
   const [periodicidade, setPeriodicidade] = useState("ÚNICO");
@@ -62,6 +63,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setDataVencimento(recibo.data_vencimento || hoje());
     setCategoriaId(recibo.categoria_id || "");
     setFornecedorId("");
+    setFornecedorNome("");
     setSubcategoria("");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
@@ -124,6 +126,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
           fornecedor_id: fornecedorId || null,
+          fornecedor_nome: fornecedorNome || null,
           periodicidade,
           numero_voo: recibo.numero_voo || null,
           observacoes: observacoes.trim() || null,
@@ -169,6 +172,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           ...subcategoriasPayload,
           tipo_rateio: tipoRateio,
           fornecedor_id: fornecedorId || null,
+          fornecedor_nome: fornecedorNome || null,
           periodicidade,
           observacoes: observacoes.trim() || null,
           boleto_url: boletoSalvo?.url || null,
@@ -221,7 +225,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="text-xs font-semibold">Fornecedor favorito
-                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id) => setFornecedorId(id)} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor..." emptyMessage="Nenhum fornecedor encontrado." clearable />
+                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(label); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar ou digitar fornecedor..." emptyMessage="Digite o nome para cadastrar um novo fornecedor favorito." allowFreeText clearable />
               </label>
               <label className="text-xs font-semibold">Periodicidade<SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={periodicidade} onChange={(value) => setPeriodicidade(value)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade..." emptyMessage="Nenhuma periodicidade encontrada." /></label>
             </div>
@@ -242,7 +246,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
               </label>
               {subcategorias.length > 0 && <label className="text-xs font-semibold">Subcategoria<select value={subcategoria} onChange={(event) => setSubcategoria(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs"><option value="">Selecione a subcategoria</option>{subcategorias.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
               <label className="text-xs font-semibold">Fornecedor favorito
-                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id) => setFornecedorId(id)} placeholder="Selecione o fornecedor" searchPlaceholder="Buscar fornecedor..." emptyMessage="Nenhum fornecedor encontrado." clearable />
+                <SearchableCombobox items={fornecedores.map((item) => ({ id: item.id, label: `${item.nome}${item.origem === "combustivel" ? " · Combustível" : " · Favorito"}` }))} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(label); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar ou digitar fornecedor..." emptyMessage="Digite o nome para cadastrar um novo fornecedor favorito." allowFreeText clearable />
               </label>
               <label className="text-xs font-semibold">Tipo de rateio<select value={tipoRateio} onChange={(event) => setTipoRateio(event.target.value as (typeof tipos)[number])} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-xs">{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></label>
               <label className="text-xs font-semibold">Periodicidade<SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={periodicidade} onChange={(value) => setPeriodicidade(value)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade..." emptyMessage="Nenhuma periodicidade encontrada." /></label>

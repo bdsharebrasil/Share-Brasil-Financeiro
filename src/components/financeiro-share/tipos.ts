@@ -82,10 +82,13 @@ export interface ContaAReceber {
   descricao: string | null;
   criadoPor: string | null;
   aeronaveId: string | null;
+  aeronaveMatricula?: string | null;
   fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;
   cotistaNome: string | null;
+  holdingId?: string | null;
+  holdingNome?: string | null;
   boletoUrl: string | null;
   nfUrl: string | null;
   nfSaidaId: string | null;
@@ -101,6 +104,7 @@ export interface ContaAReceber {
   rateios?: Array<{
     id: string;
     cotista_id: string | null;
+    cotista_nome?: string | null;
     valor_rateado_centavos: number;
     valor_pago_real_centavos: number;
     status: string;

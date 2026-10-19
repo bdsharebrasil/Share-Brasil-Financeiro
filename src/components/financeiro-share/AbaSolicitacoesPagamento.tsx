@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, CircleDollarSign, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload, Wallet } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, CircleDollarSign, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -13,6 +13,7 @@ import {
   type ReembolsoColaborador,
   type SolicitacaoPagamento,
 } from "@/lib/financeiro-share-api";
+import { buscarAeronavesShare } from "@/lib/colaborador-api";
 import { Modal, STYLES } from "./NFSaidaTab";
 
 const POR_PAGINA = 12;
@@ -24,6 +25,8 @@ type LinhaExibida = {
   expandida: boolean;
   documento: string;
   dataEmissao: string;
+  cliente?: string;
+  colaborador?: string;
   principal: string;
   secundaria: string;
   valor: string;
@@ -129,14 +132,27 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [contasParaPagamento, setContasParaPagamento] = useState<ContaBancaria[]>(contasBancarias);
+  const [matriculasAeronaves, setMatriculasAeronaves] = useState<Record<string, string>>({});
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     try {
-      const dados = await buscarSolicitacoesPagamento();
+      const [dados, aeronavesAtivas, aeronavesInativas] = await Promise.all([
+        buscarSolicitacoesPagamento(),
+        buscarAeronavesShare("ativa").catch(() => ({ aeronaves: [] })),
+        buscarAeronavesShare("inativa").catch(() => ({ aeronaves: [] })),
+      ]);
       setEnvios(dados.envios);
       setReembolsos(dados.reembolsos);
+      setMatriculasAeronaves(
+        Object.fromEntries(
+          [...aeronavesAtivas.aeronaves, ...aeronavesInativas.aeronaves].map((aeronave) => [
+            aeronave.id,
+            aeronave.matricula_registro,
+          ]),
+        ),
+      );
     } catch (cause) {
       setErro(cause instanceof Error ? cause.message : "Não foi possível carregar as solicitações de pagamento.");
     } finally {
@@ -244,6 +260,11 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   }
 
   const hoje = new Date().toISOString().slice(0, 10);
+  const rotuloAeronave = useCallback(
+    (id?: string | null, matricula?: string | null) =>
+      matricula?.trim() || (id ? matriculasAeronaves[id] : null) || null,
+    [matriculasAeronaves],
+  );
 
   const enviosFiltrados = useMemo(() => envios.filter((item) => {
     const estado = item.status.toUpperCase();
@@ -252,14 +273,14 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       || (filtroEnvio === "EM_ANDAMENTO" && ["APROVADO", "EMAIL_ENVIADO"].includes(estado))
       || (filtroEnvio === "CONCLUIDOS" && estado === "CONVERTIDO")
       || (filtroEnvio === "CANCELADOS" && estado === "CANCELADO");
-    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.fornecedor_nome, item.fornecedor, item.solicitante_nome).includes(busca.toLocaleLowerCase("pt-BR")));
-  }), [envios, filtroEnvio, busca]);
+    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.fornecedor_nome, item.fornecedor, item.solicitante_nome, rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro)).includes(busca.toLocaleLowerCase("pt-BR")));
+  }), [envios, filtroEnvio, busca, rotuloAeronave]);
 
   const reembolsosFiltrados = useMemo(() => reembolsos.filter((item) => {
     const vencido = item.dataVencimento.slice(0, 10) < hoje;
     const atendeFiltro = filtroReembolso === "TODOS" || (filtroReembolso === "VENCIDOS" && vencido);
-    return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId).includes(busca.toLocaleLowerCase("pt-BR")));
-  }), [reembolsos, filtroReembolso, busca, hoje]);
+    return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId, rotuloAeronave(item.aeronaveId, item.aeronave_matricula ?? item.matricula_registro)).includes(busca.toLocaleLowerCase("pt-BR")));
+  }), [reembolsos, filtroReembolso, busca, hoje, rotuloAeronave]);
 
   const opcoesEnvio: FiltroLista[] = useMemo(() => FILTROS_ENVIO.map((filtro) => ({
     ...filtro,
@@ -280,7 +301,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   ];
 
   const enviosPendentes = envios.filter((item) => item.status.toUpperCase() === "PENDENTE");
-  const totalCaixaCliente = envios.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
   const totalPendentes = enviosPendentes.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
   const totalReembolsos = reembolsos.reduce((soma, item) => soma + item.valor, 0);
   const totalVencidos = reembolsosVencidos.reduce((soma, item) => soma + item.valor, 0);
@@ -305,7 +325,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
-      principal: primeiroTexto(item.aeronave_id, item.cotista_aeronave_id, item.descricao) ?? "—",
+      cliente: primeiroTexto(item.cliente_razao_social, item.cliente_nome, item.razao_social, item.socio_nome, item.hold_socios_nome, item.hold_socios?.nome, item.cotista_nome, item.holding_nome) ?? "—",
+      principal: primeiroTexto(rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro), item.descricao) ?? "—",
       secundaria: [item.grupo_categoria, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
@@ -321,7 +342,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
-      principal: primeiroTexto(item.aeronave_id, item.aeronaveId, item.cotista_aeronave_id, item.descricao) ?? "—",
+      colaborador: primeiroTexto(item.user_profiles?.nome_completo, item.nome_completo, item.solicitanteNome) ?? "—",
+      principal: primeiroTexto(rotuloAeronave(item.aeronave_id ?? item.aeronaveId, item.aeronave_matricula ?? item.matricula_registro), item.descricao) ?? "—",
       secundaria: [item.grupo_categoria ?? item.categoriaNome, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : item.valor)}`,
       status: item.status,
@@ -332,8 +354,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const linhas = aba === "cotista" ? linhasEnvio : linhasReembolso;
 
   return (
-    <div className="nf-workspace" style={{ background: "var(--nf-bg)" }}>
+    <div className="nf-workspace nf-payment-requests" style={{ background: "#080d17" }}>
       <style>{STYLES}</style>
+      <style>{`.nf-workspace.nf-payment-requests{background:#080d17}.nf-workspace.nf-payment-requests .nf-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 12px;padding:0 12px}.nf-workspace.nf-payment-requests .nf-stat{padding:12px 14px;border-radius:10px;background:#111b2b;box-shadow:none}.nf-workspace.nf-payment-requests .nf-stat:before{top:12px;bottom:12px}.nf-workspace.nf-payment-requests .nf-stat-top{margin-bottom:8px}.nf-workspace.nf-payment-requests .nf-stat-top span{font-size:10px}.nf-workspace.nf-payment-requests .nf-stat-top svg{width:16px;height:16px}.nf-workspace.nf-payment-requests .nf-stat strong{font-size:clamp(17px,1.5vw,21px);font-weight:600}.nf-workspace.nf-payment-requests .nf-stat small{margin-top:4px;font-size:9px}.nf-workspace.nf-payment-requests .nf-table{table-layout:fixed;white-space:normal}.nf-workspace.nf-payment-requests .nf-table th,.nf-workspace.nf-payment-requests .nf-table td{padding:12px 10px;overflow-wrap:anywhere}.nf-workspace.nf-payment-requests .nf-table th:nth-child(1){width:16%}.nf-workspace.nf-payment-requests .nf-table th:nth-child(2){width:20%}.nf-workspace.nf-payment-requests .nf-table th:nth-child(3){width:27%}.nf-workspace.nf-payment-requests .nf-table th:nth-child(4){width:12%}.nf-workspace.nf-payment-requests .nf-table th:nth-child(5){width:13%}.nf-workspace.nf-payment-requests .nf-table th:nth-child(6){width:12%}.nf-workspace.nf-payment-requests .nf-table .nf-btn{min-height:36px;padding:8px}.@container(max-width:760px){.nf-workspace.nf-payment-requests .nf-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}`}</style>
       <header className="nf-header">
         <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / SOLICITAÇÕES DE PAGAMENTO</div></div>
         <div className="nf-header-actions">
@@ -342,7 +365,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       </header>
       <section className="nf-stats" aria-label="Resumo das solicitações" aria-busy={carregando}>
         {[
-          { label: "Caixa cliente", valor: formatarMoeda(totalCaixaCliente), nota: `${envios.length} ${envios.length === 1 ? "solicitação" : "solicitações"}`, Icon: Wallet, cor: "blue" },
           { label: "Pendentes", valor: formatarMoeda(totalPendentes), nota: `${enviosPendentes.length} aguardando aprovação`, Icon: Clock, cor: "cyan" },
           { label: "Reembolsos", valor: formatarMoeda(totalReembolsos), nota: `${reembolsos.length} ${reembolsos.length === 1 ? "título" : "títulos"} aguardando pagamento`, Icon: CircleDollarSign, cor: "green" },
           { label: "Vencidos", valor: formatarMoeda(totalVencidos), nota: `${reembolsosVencidos.length} ${reembolsosVencidos.length === 1 ? "reembolso vencido" : "reembolsos vencidos"}`, Icon: TriangleAlert, cor: "amber" },
@@ -371,17 +393,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-table-wrap">
               <table className="nf-table">
                 <caption className="nf-sr">{aba === "cotista" ? "Solicitações de pagamento de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <thead><tr><th scope="col">Doc / emissão</th><th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr>
                       <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
+                      <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
                       <td><div className="nf-doc-cell"><div><strong>{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
                       <td className="right nf-amount">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
                       <td className="right"><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></td>
                     </tr>
-                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={5}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={6}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -389,7 +412,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
-                <dl><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
                 <footer><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}

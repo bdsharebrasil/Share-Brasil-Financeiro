@@ -87,6 +87,7 @@ export interface ContaAReceber {
   fornecedorId: string | null;
   cotistaId: string | null;
   cotistaNome: string | null;
+  cotista?: string | null;
   holdingId?: string | null;
   holdingNome?: string | null;
   boletoUrl: string | null;

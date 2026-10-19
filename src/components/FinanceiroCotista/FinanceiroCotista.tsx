@@ -109,7 +109,7 @@ import {
 } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
-import { BalancoMensalCotista } from "@/components/financeiro/BalancoMensalCotista";
+import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -2559,12 +2559,12 @@ export default function FinanceiroCotista() {
             )}
           </div>
 
-          {abaAtiva !== "relatorio" && abaAtiva !== "portal-cliente" && (
-            <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
+          {abaAtiva !== "portal-cliente" && (
+            <section className="financeiro-panel px-4 py-3" aria-label={abaAtiva === "relatorio" ? "Período do balanço mensal" : "Competência dos lançamentos"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <CalendarDays size={16} className="text-muted-foreground" />
-                  <span className="text-xs font-semibold">Competência</span>
+                  <span className="text-xs font-semibold">{abaAtiva === "relatorio" ? "Período do balanço" : "Competência"}</span>
                   <Button type="button" variant="outline" size="sm" className="h-9 px-3"
                     aria-label="Mês anterior" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}>‹</Button>
                   <Input type="month" aria-label="Selecionar competência" value={mesReferencia}
@@ -2594,7 +2594,7 @@ export default function FinanceiroCotista() {
                     </button>;
                   })}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês.</p>
+                <p className="mt-2 text-xs text-muted-foreground">{abaAtiva === "relatorio" ? "O balanço considera os meses selecionados. As setas voltam à visualização de um único mês." : "Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês."}</p>
               </details>
             </section>
           )}
@@ -2839,7 +2839,13 @@ export default function FinanceiroCotista() {
               )}
 
               {abaAtiva === "relatorio" && (
-                <BalancoMensalCotista aeronaveId={aeronaveSelecionada} />
+                <FechamentoBalancoDashboardCotista
+                  dashboard={dashboard}
+                  carregando={carregando}
+                  erro={erroDashboard}
+                  cotistas={cotistasAeronave}
+                  mesesSelecionados={mesesAplicados}
+                />
               )}
               {abaAtiva === "medias" && (
                 <MediasCotista

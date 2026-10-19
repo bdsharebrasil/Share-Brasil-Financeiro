@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Calculator, Gauge, Layers, Plane, Wallet } from 'lucide-react';
-import { SectionCard } from '../financeiro/SectionCard';
-import { KpiCard } from '../financeiro/KpiCard';
+import { SectionCard } from './SectionCard';
+import { KpiCard } from './KpiCard';
 import { useBalancoCotista } from '../../hooks/useBalancoCotista';
 import type { LinhaBalanco, LinhaMedia } from '../../types/balanco';
 import { formatBRL, formatNumero } from '../../utils/format';

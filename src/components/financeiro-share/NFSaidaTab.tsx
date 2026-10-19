@@ -14,10 +14,11 @@ import {
   Search,
   Mail,
   ArrowLeft,
-  ArrowUpRight, LayoutList, LayoutGrid, FolderOpen, ChevronRight,
+  ArrowUpRight, LayoutList, LayoutGrid, ChevronRight,
   Wallet, CircleDollarSign, TriangleAlert, Plane, CalendarDays,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
+import FolderCard from "@/components/ui/folder-card";
 import {
   EnviarEmailClienteDialog,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
@@ -137,6 +138,16 @@ function buildDespesaOptions(rows: CategoriaDespesaOpcao[]): DespesaOption[] {
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
+const getMonthKey = (date: string | null | undefined) => {
+  const month = date?.slice(0, 7);
+  return month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : "sem-data";
+};
+const getMonthName = (yearMonth: string) => {
+  const [year, month] = yearMonth.split("-");
+  const name = new Intl.DateTimeFormat("pt-BR", { month: "long" })
+    .format(new Date(Number(year), Number(month) - 1, 1));
+  return `${name.charAt(0).toLocaleUpperCase("pt-BR")}${name.slice(1)}`;
+};
 
 const paid = (status: string | null) => ["pago", "recebido"].includes((status || "").toLowerCase());
 const pending = (status: string | null) => ["em_aberto", "aberto", "pendente", "atrasado", "em_atraso"].includes((status || "").toLowerCase());
@@ -199,7 +210,7 @@ export function Modal({ title, children, onClose, busy = false, wide = false }: 
 
 export default function NFSaidaTab() {
   const [notas, setNotas] = useState<NFSaida[]>([]);
-  const [view, setView] = useState<"list" | "folders">("list");
+  const [view, setView] = useState<"list" | "folders">("folders");
   const [page, setPage] = useState(1);
   const [loadError, setLoadError] = useState<string | null>(null);
   const receiptCreated = useRef<NotaOuReciboSaidaRow | null>(null);
@@ -221,7 +232,7 @@ export default function NFSaidaTab() {
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [documentTab, setDocumentTab] = useState<"nota" | "recibo">("recibo");
   const [uploading, setUploading] = useState(false);
-  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
+  const [mesSelecionado, setMesSelecionado] = useState<string | null>(null);
 
   // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -658,8 +669,10 @@ export default function NFSaidaTab() {
     } finally { mutationLock.current = false; setBaixaSaving(false); }
   };
 
-  useEffect(() => { setPage(1); }, [searchTerm, dateFrom, dateTo, statusFilter, sortBy, sortDir, documentTab, clienteSelecionado, view]);
-  const scopedRows = useMemo(() => clienteSelecionado ? filteredNotas.filter(n => (n.cliente_nome || "Cotista não informado") === clienteSelecionado) : filteredNotas, [filteredNotas, clienteSelecionado]);
+  useEffect(() => { setPage(1); }, [searchTerm, dateFrom, dateTo, statusFilter, sortBy, sortDir, documentTab, mesSelecionado, view]);
+  const scopedRows = useMemo(() => {
+    return mesSelecionado ? filteredNotas.filter(n => getMonthKey(n.data_criacao) === mesSelecionado) : filteredNotas;
+  }, [filteredNotas, mesSelecionado]);
   const totals = useMemo(() => scopedRows.reduce((acc, n) => {
     const value = num(n.valor); acc.total += value;
     if (paid(n.status)) acc.paid += value;
@@ -668,9 +681,28 @@ export default function NFSaidaTab() {
   }, {total: 0, paid: 0, open: 0, overdue: 0, lateCount: 0}), [scopedRows]);
   const groups = useMemo(() => {
     const map = new Map<string, NFSaida[]>();
-    filteredNotas.forEach(n => { const name = n.cliente_nome || "Cotista não informado"; map.set(name, [...(map.get(name) || []), n]); });
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+    filteredNotas.forEach((nota) => {
+      const key = getMonthKey(nota.data_criacao);
+      map.set(key, [...(map.get(key) ?? []), nota]);
+    });
+    return [...map.entries()]
+      .sort(([a], [b]) => a === "sem-data" ? 1 : b === "sem-data" ? -1 : b.localeCompare(a))
+      .map(([key, rows]) => {
+        if (key === "sem-data") {
+          return { key, ano: "Data não informada", mes: "Data não informada", rows };
+        }
+        const [ano, mes] = key.split("-");
+        return {
+          key,
+          ano,
+          mes: getMonthName(key),
+          rows,
+        };
+      });
   }, [filteredNotas]);
+  const heading = mesSelecionado
+    ? mesSelecionado === "sem-data" ? "Data não informada" : `${getMonthName(mesSelecionado)} de ${mesSelecionado.slice(0, 4)}`
+    : view === "folders" ? "Documentos por mês" : "Todos os documentos";
   const pageCount = Math.max(1, Math.ceil(scopedRows.length / 12));
   const currentPage = Math.min(page, pageCount);
   const visibleRows = scopedRows.slice((currentPage - 1) * 12, currentPage * 12);
@@ -694,6 +726,7 @@ export default function NFSaidaTab() {
 
   return <div className="nf-workspace">
     <style>{STYLES}</style>
+    <style>{`.nf-workspace{background:#080d17}.nf-workspace .nf-stats{gap:12px;margin:4px 0 12px;padding:0 12px}.nf-workspace .nf-stat{padding:12px 14px;border-radius:10px;background:#111b2b;box-shadow:none}.nf-workspace .nf-stat:before{top:12px;bottom:12px}.nf-workspace .nf-stat-top{margin-bottom:8px}.nf-workspace .nf-stat-top span{font-size:10px}.nf-workspace .nf-stat-top svg{width:16px;height:16px}.nf-workspace .nf-stat strong{font-size:clamp(17px,1.5vw,21px);font-weight:600}.nf-workspace .nf-stat small{margin-top:4px;font-size:9px}.nf-workspace .nf-month-year>h3{margin:0 22px}@container(max-width:490px){.nf-workspace .nf-month-year>h3{margin-inline:14px}}`}</style>
     <header className="nf-header">
       <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div></div>
       <div className="nf-header-actions"><button className="nf-btn" disabled={loading} onClick={() => void fetchNotas()}><RefreshCw className={loading ? "nf-spin" : ""} /> Atualizar</button><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
@@ -708,12 +741,12 @@ export default function NFSaidaTab() {
       ].map(({label, value, note, icon: Icon, color}) => <article className={`nf-stat ${color}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{loading || loadError ? "—" : formatBRL(value)}</strong><small>{loading ? "Atualizando documentos…" : loadError ? "Dados indisponíveis" : note}</small></article>)}
     </section>
     <section className="nf-panel" aria-label="Documentos">
-      <div className="nf-panel-top"><div className="nf-segment" aria-label="Tipo de documento">{([['recibo', 'Recibos', totalRecibos], ['nota', 'Notas fiscais', totalNotas]] as const).map(([value, label, count]) => <button key={value} aria-pressed={documentTab === value} className={documentTab === value ? "active" : ""} onClick={() => {setDocumentTab(value); setClienteSelecionado(null);}}>{label}<span>{count}</span></button>)}</div><button className="nf-btn subtle" disabled={!scopedRows.length || loading || !!loadError} onClick={exportCsv}><Download /> Exportar CSV</button></div>
+      <div className="nf-panel-top"><div className="nf-segment" aria-label="Tipo de documento">{([['recibo', 'Recibos', totalRecibos], ['nota', 'Notas fiscais', totalNotas]] as const).map(([value, label, count]) => <button key={value} aria-pressed={documentTab === value} className={documentTab === value ? "active" : ""} onClick={() => {setDocumentTab(value); setMesSelecionado(null);}}>{label}<span>{count}</span></button>)}</div><button className="nf-btn subtle" disabled={!scopedRows.length || loading || !!loadError} onClick={exportCsv}><Download /> Exportar CSV</button></div>
       <div className="nf-toolbar"><label className="nf-search"><Search /><span className="nf-sr">Buscar documentos</span><input type="search" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar cotista, número, aeronave…" /></label><select aria-label="Filtrar por status" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}><option value="">Todos os status</option>{STATUS_OPCOES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select><select aria-label="Ordenar documentos" value={`${sortBy}:${sortDir}`} onChange={e => {const [by, dir] = e.target.value.split(':') as [SortBy, SortDir]; setSortBy(by); setSortDir(dir);}}><option value="data:desc">Mais recentes</option><option value="data:asc">Mais antigos</option><option value="nome:asc">Cotista: A–Z</option><option value="nome:desc">Cotista: Z–A</option></select><button className={`nf-btn ${showFilterPanel ? "selected" : ""}`} aria-expanded={showFilterPanel} aria-controls="nf-period" onClick={() => setShowFilterPanel(!showFilterPanel)}><CalendarDays /> Período{(dateFrom || dateTo) && <span className="nf-dot" />}</button></div>
       {showFilterPanel && <div id="nf-period" className="nf-period"><label>Emissão a partir de<input type="date" value={dateFrom} max={dateTo || undefined} onChange={e => setDateFrom(e.target.value)} /></label><label>Emissão até<input type="date" value={dateTo} min={dateFrom || undefined} onChange={e => setDateTo(e.target.value)} /></label><button className="nf-btn subtle" onClick={() => {setDateFrom(''); setDateTo('');}}>Limpar período</button>{invalidPeriod && <p className="nf-error-text" role="alert">A data final deve ser igual ou posterior à inicial.</p>}</div>}
-      <div className="nf-list-heading"><div><h2>{clienteSelecionado || (view === "folders" ? "Seus cotistas" : "Todos os documentos")}</h2><p>{loading ? "Carregando…" : `${scopedRows.length} documentos encontrados`}{hasActiveFilters && <button className="nf-text-btn" onClick={clearFilters}>Limpar filtros</button>}</p></div><div className="nf-view-toggle"><button className={view === "list" ? "active" : ""} aria-label="Visualização em lista" aria-pressed={view === "list"} onClick={() => {setView('list'); setClienteSelecionado(null);}}><LayoutList /></button><button className={view === "folders" ? "active" : ""} aria-label="Visualização por cotista" aria-pressed={view === "folders"} onClick={() => {setView('folders'); setClienteSelecionado(null);}}><LayoutGrid /></button></div></div>
-      {clienteSelecionado && <div className="nf-back"><button className="nf-text-btn" onClick={() => setClienteSelecionado(null)}><ArrowLeft /> Todos os cotistas</button></div>}
-      {loading ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando documentos</h3><p>Organizando suas informações financeiras.</p></div> : loadError ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{loadError}</p><button className="nf-btn" onClick={() => void fetchNotas()}>Tentar novamente</button></div> : !scopedRows.length ? <div className="nf-empty"><Search /><h3>{hasActiveFilters ? "Nenhum resultado encontrado" : "Seu arquivo começa aqui"}</h3><p>{hasActiveFilters ? "Ajuste a busca ou o período para encontrar seus documentos." : "Emita o primeiro documento para acompanhar os recebimentos."}</p><button className="nf-btn" onClick={hasActiveFilters ? clearFilters : documentTab === 'recibo' ? openNewReceipt : openNew}>{hasActiveFilters ? "Limpar filtros" : "Criar documento"}</button></div> : view === "folders" && !clienteSelecionado ? <div className="nf-folders">{groups.map(([name, rows]) => <button className="nf-folder" key={name} onClick={() => setClienteSelecionado(name)}><div className="nf-folder-top"><span className="nf-folder-icon"><FolderOpen /></span><ArrowUpRight /></div><h3>{name}</h3><p>{rows.length} documentos • {new Set(rows.map(n => n.data_criacao?.slice(0,4)).filter(Boolean)).size} ano(s)</p><div className="nf-folder-bottom"><strong>{formatBRL(rows.reduce((sum,n) => sum + num(n.valor),0))}</strong><span>{rows.filter(n => pending(n.status)).length} em aberto</span></div></button>)}</div> : <>
+      <div className="nf-list-heading"><div><h2>{heading}</h2><p>{loading ? "Carregando…" : `${scopedRows.length} documentos encontrados`}{hasActiveFilters && <button className="nf-text-btn" onClick={clearFilters}>Limpar filtros</button>}</p></div><div className="nf-view-toggle"><button className={view === "list" ? "active" : ""} aria-label="Visualização em lista" aria-pressed={view === "list"} onClick={() => {setView('list'); setMesSelecionado(null);}}><LayoutList /></button><button className={view === "folders" ? "active" : ""} aria-label="Visualização por mês e ano" aria-pressed={view === "folders"} onClick={() => {setView('folders'); setMesSelecionado(null);}}><LayoutGrid /></button></div></div>
+      {mesSelecionado && <div className="nf-back"><button className="nf-text-btn" onClick={() => setMesSelecionado(null)}><ArrowLeft /> Todos os meses</button></div>}
+      {loading ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando documentos</h3><p>Organizando suas informações financeiras.</p></div> : loadError ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{loadError}</p><button className="nf-btn" onClick={() => void fetchNotas()}>Tentar novamente</button></div> : !scopedRows.length ? <div className="nf-empty"><Search /><h3>{hasActiveFilters ? "Nenhum resultado encontrado" : "Seu arquivo começa aqui"}</h3><p>{hasActiveFilters ? "Ajuste a busca ou o período para encontrar seus documentos." : "Emita o primeiro documento para acompanhar os recebimentos."}</p><button className="nf-btn" onClick={hasActiveFilters ? clearFilters : documentTab === 'recibo' ? openNewReceipt : openNew}>{hasActiveFilters ? "Limpar filtros" : "Criar documento"}</button></div> : view === "folders" && !mesSelecionado ? <div className="nf-month-groups space-y-6">{[...new Set(groups.map(group => group.ano))].map(ano => <section className="nf-month-year space-y-3" key={ano}><h3 className="text-xs font-semibold uppercase tracking-[.1em] text-muted-foreground">{ano}</h3><div className="nf-folders">{groups.filter(group => group.ano === ano).map(group => <FolderCard key={group.key} name={group.mes} description={group.ano === "Data não informada" ? "Emissão desconhecida" : group.ano} count={group.rows.length} onClick={() => setMesSelecionado(group.key)} />)}</div></section>)}</div> : <>
         <div className="nf-table-wrap"><table className="nf-table"><caption className="nf-sr">Documentos financeiros de saída</caption><thead><tr><th scope="col">Documento / cotista</th><th scope="col">Aeronave</th><th scope="col">Emissão / vencimento</th><th scope="col">Categoria</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead><tbody>{visibleRows.map(n => <tr key={`${n.origem}:${n.id}`}><td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{n.numero || 'Sem número'}</strong><span title={n.cliente_nome || ''}>{n.cliente_nome || 'Cotista não informado'}</span>{n.descricao && <small title={n.descricao}>{n.descricao}</small>}</div></div></td><td><span className="nf-aircraft"><Plane />{n.aeronave || '—'}</span></td><td><div className="nf-dates"><span>{n.data_criacao ? formatDate(n.data_criacao.slice(0,10)) : '—'}</span><small className={pending(n.status) && n.data_vencimento && n.data_vencimento.slice(0,10) < todayLocal() ? 'nf-late' : ''}>Venc. {n.data_vencimento ? formatDate(n.data_vencimento.slice(0,10)) : '—'}</small></div></td><td><span className="nf-category" title={n.categoria || ''}>{n.categoria || 'Sem categoria'}</span></td><td className="right nf-amount">{formatBRL(num(n.valor))}</td><td><StatusBadge status={n.status} /></td><td>{actions(n)}</td></tr>)}</tbody></table></div>
         <div className="nf-mobile-docs">{visibleRows.map(n => <article className="nf-mobile-doc" key={`${n.origem}:${n.id}`}><header><span className="nf-doc-icon"><FileText /></span><div><strong>{n.numero || 'Sem número'}</strong><small>{n.aeronave || 'Sem aeronave'}</small></div><StatusBadge status={n.status} /></header><h3>{n.cliente_nome || 'Cotista não informado'}</h3><p>{n.descricao || n.categoria || 'Sem descrição'}</p><dl><div><dt>Valor</dt><dd className="nf-amount">{formatBRL(num(n.valor))}</dd></div><div><dt>Emissão</dt><dd>{n.data_criacao ? formatDate(n.data_criacao.slice(0,10)) : '—'}</dd></div><div><dt>Vencimento</dt><dd>{n.data_vencimento ? formatDate(n.data_vencimento.slice(0,10)) : '—'}</dd></div></dl><footer><span className="nf-category">{n.categoria || 'Sem categoria'}</span>{actions(n)}</footer></article>)}</div>
         <footer className="nf-pagination"><span>Exibindo {(currentPage - 1) * 12 + 1}–{Math.min(currentPage * 12, scopedRows.length)} de {scopedRows.length}</span><div><button className="nf-icon" aria-label="Página anterior" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ArrowLeft /></button><span>{currentPage} / {pageCount}</span><button className="nf-icon" aria-label="Próxima página" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}><ChevronRight /></button></div></footer>
@@ -780,4 +813,6 @@ export const STYLES = `
 .nf-mobile-doc.expanded{grid-column:1/-1}
 .nf-mobile-doc .nf-detail{grid-template-columns:1fr;padding:12px}
 .nf-mobile-doc .nf-detail dl{grid-template-columns:1fr}
+.nf-mobile-docs{display:none}
+@container(max-width:760px){.nf-mobile-docs{display:grid}}
 `;

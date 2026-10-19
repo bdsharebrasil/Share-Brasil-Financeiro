@@ -95,6 +95,7 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
     cotistaId: row.cotistaId ?? row.cotista_id ?? null,
     cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null,
+    cotista: row.cotista ?? row.cotistaNome ?? row.cotista_nome ?? (Array.isArray(row.rateios) ? row.rateios.map((rateio: { cotista_nome?: string | null }) => rateio.cotista_nome).filter(Boolean).join(", ") || null : null),
     holdingId: row.holdingId ?? row.holding_id ?? null,
     holdingNome: row.holdingNome ?? row.holding_nome ?? null,
     boletoUrl: row.boletoUrl ?? row.boleto_url ?? null,
@@ -107,7 +108,7 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     bancoRecebimento: row.bancoRecebimento ?? row.banco_recebimento ?? null,
     comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
     documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,
-    documentoUrl: row.documentoUrl ?? row.url_demonstrativo ?? row.url_nf ?? row.url_recibo ?? row.url_boleto ?? row.url_doc ?? null,
+    documentoUrl: row.url_doc || row.documentoUrl || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto || null,
     lancamentoId: row.lancamentoId ?? row.lancamento_id ?? row.lancamentos_id ?? null,
     status: String(row.status ?? "EM_ABERTO").toUpperCase(),
     criadoEm: row.criadoEm ?? row.criado_em ?? "",
@@ -445,6 +446,8 @@ export type CamposLancamento = {
   numero_demonstrativo?: string | null;
   data_emissao?: string | null;
   aeronave_id?: string | null;
+  aeronave_matricula?: string | null;
+  matricula_registro?: string | null;
   cotista_aeronave_id?: string | null;
   grupo_categoria?: string | null;
   fornecedor_nome?: string | null;
@@ -474,6 +477,14 @@ export type SolicitacaoPagamento = CamposLancamento & {
   fornecedor_id?: string | null;
   fornecedor_nome?: string | null;
   solicitante_nome: string | null;
+  cliente_razao_social?: string | null;
+  cliente_nome?: string | null;
+  razao_social?: string | null;
+  socio_nome?: string | null;
+  hold_socios_nome?: string | null;
+  hold_socios?: { nome?: string | null } | null;
+  holding_nome?: string | null;
+  cotista_nome?: string | null;
   lancamento_id?: string | null;
 };
 
@@ -494,6 +505,8 @@ export type ReembolsoColaborador = CamposLancamento & {
   status: string;
   lancamentoId: string | null;
   solicitanteNome?: string | null;
+  nome_completo?: string | null;
+  user_profiles?: { nome_completo?: string | null } | null;
   tipoCaixa?: "SHARE" | "HOLDING" | string | null;
   holdingId?: string | null;
   movimentoHoldingId?: string | null;

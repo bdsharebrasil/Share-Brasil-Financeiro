@@ -32,6 +32,10 @@ export function useContasAReceber(filtros: FiltrosContasAReceber = {}): RetornoU
 
   useEffect(() => {
     carregar();
+    const externo = (event: StorageEvent) => { if (event.key === 'financeiro-atualizado') carregar(); };
+    window.addEventListener('financeiro-atualizado', carregar);
+    window.addEventListener('storage', externo);
+    return () => { window.removeEventListener('financeiro-atualizado', carregar); window.removeEventListener('storage', externo); };
   }, [carregar]);
 
   const darBaixa = useCallback(
@@ -40,7 +44,9 @@ export function useContasAReceber(filtros: FiltrosContasAReceber = {}): RetornoU
       dados: DadosBaixaReceber
     ) => {
       await darBaixaContaAReceber(id, dados);
-      setContas(await buscarContasAReceber(filtros));
+      // Payment succeeded: a refresh failure must not be reported as a payment failure.
+      try { setContas(await buscarContasAReceber(filtros)); }
+      catch (e) { setErro(`Recebimento salvo; falha ao atualizar: ${e instanceof Error ? e.message : 'Recarregue a lista.'}`); }
     },
     [filtros]
   );

@@ -3115,6 +3115,33 @@ CREATE TABLE backup_cpt004_vinculos_20261015(
   tipo_vinculo TEXT,
   criado_em TEXT
 );
+CREATE TABLE financeiro_baixa_revisoes (
+  chave TEXT PRIMARY KEY NOT NULL,
+  revisao INTEGER NOT NULL CHECK (revisao > 0)
+);
+CREATE TABLE IF NOT EXISTS "envio_pagamento_rascunhos"(
+  id TEXT PRIMARY KEY,
+  criado_por TEXT NOT NULL,
+  tipo_envio TEXT NOT NULL,
+  etapa_atual INTEGER NOT NULL DEFAULT 0,
+  dados_json TEXT NOT NULL DEFAULT '{}',
+  idempotency_key TEXT NOT NULL UNIQUE,
+  envio_id TEXT,
+  status TEXT NOT NULL DEFAULT 'PREENCHIMENTO',
+  atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS "envio_pagamento_email_destinatarios"(
+  id TEXT PRIMARY KEY,
+  rascunho_id TEXT NOT NULL,
+  cotista_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'PENDENTE',
+  email_id TEXT,
+  erro TEXT,
+  atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (rascunho_id, cotista_id)
+);
 DELETE FROM sqlite_sequence;
 CREATE INDEX idx_usuarios_funcoes_funcao
 ON usuarios_funcoes(funcao);
@@ -3291,6 +3318,9 @@ CREATE INDEX idx_lancamentos_escopo_criado ON lancamentos(escopo_financeiro, cri
 CREATE INDEX idx_relatorio_viagem_historico_ajustes_relatorio
   ON relatorio_despesa_viagem_historico_ajustes (relatorio_despesa_viagem_id, criado_em);
 CREATE UNIQUE INDEX idx_contas_areceber_relatorio_devedor_ativo ON contas_areceber (origem_id, cotista_id) WHERE origem_tipo = 'RELATORIO_DESPESA_VIAGEM' AND origem_id IS NOT NULL AND cotista_id IS NOT NULL AND UPPER(COALESCE(status, '')) <> 'CANCELADO';
+CREATE UNIQUE INDEX ux_pagamento_direto_cotista
+ON rateio_pagamentos(idempotency_key)
+WHERE idempotency_key LIKE 'DIRETO-COTISTA:%';
 CREATE TRIGGER trg_ctm_programa_upd
 AFTER UPDATE ON ctm_programa_manutencao FOR EACH ROW
 BEGIN

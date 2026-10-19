@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils";
 import AnexosDinamicos from "@/components/ui/AnexosDinamicos";
 
 export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "demonstrativo" | "outro" | "comanda";
-export interface AnexoLinha { id: string; tipo: AnexoTipoId; numero: string; url: string | null; file: File | null; cotista_id?: string; uploading?: boolean; }
+export interface AnexoLinha { id: string; tipo: AnexoTipoId; numero: string; url: string | null; file: File | null; storage_key?: string; cotista_id?: string; uploading?: boolean; }
 const TIPOS: { id: AnexoTipoId; label: string }[] = [
   { id: "comprovante", label: "COMPROVANTE" }, { id: "recibo", label: "RECIBO" }, { id: "nf", label: "NOTA FISCAL" },
   { id: "boleto", label: "BOLETO" }, { id: "comanda", label: "COMANDA" }, { id: "demonstrativo", label: "DEMONSTRATIVO" }, { id: "outro", label: "OUTRO DOCUMENTO" },
 ];
 export function anexoTipoLabel(id: AnexoTipoId) { return TIPOS.find((t) => t.id === id)?.label || id; }
-interface Props { anexos: AnexoLinha[]; onChange: (next: AnexoLinha[]) => void; storagePrefix: string; bucket?: string; cotistas?: Array<{ id: string; label: string }>; uploadFile?: (file: File, id: string) => Promise<string>; className?: string; onView?: (url: string, name?: string, type?: "pdf" | "image") => void; }
+interface Props { anexos: AnexoLinha[]; onChange: (next: AnexoLinha[]) => void; storagePrefix: string; bucket?: string; cotistas?: Array<{ id: string; label: string }>; uploadFile?: (file: File, id: string) => Promise<string | { url: string; key: string }>; className?: string; onView?: (url: string, name?: string, type?: "pdf" | "image") => void; }
 
 export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, bucket = "client-documents", cotistas = [], uploadFile, className, onView }: Props) {
   const anexosRef = useRef(anexos);
@@ -22,11 +22,16 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
   const removeLinha = (id: string) => { const next = anexosRef.current.filter((a) => a.id !== id); anexosRef.current = next; onChange(next); };
   const addLinha = () => { const next = [...anexosRef.current, { id: crypto.randomUUID(), tipo: "comprovante" as AnexoTipoId, numero: "", url: null, file: null, uploading: false }]; anexosRef.current = next; onChange(next); };
   const handleFile = async (id: string, file: File | null) => {
-    if (!file) { updateLinha(id, { file: null, url: null }); return; }
+    if (!file) { updateLinha(id, { file: null, url: null, storage_key: undefined }); return; }
     updateLinha(id, { file, uploading: true });
     try {
       let url: string;
-      if (uploadFile) url = await uploadFile(file, id);
+      let storageKey: string | undefined;
+      if (uploadFile) {
+        const uploaded = await uploadFile(file, id);
+        if (typeof uploaded === "string") url = uploaded;
+        else { url = uploaded.url; storageKey = uploaded.key; }
+      }
       else {
         const { supabase } = await import("@/lib/supabase");
         const ext = (file.name.split(".").pop() || "bin").toLowerCase();
@@ -35,7 +40,7 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
         if (error) throw error;
         url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
       }
-      updateLinha(id, { url, uploading: false });
+      updateLinha(id, { url, storage_key: storageKey, uploading: false });
     } catch (error: any) { toast.error(`Erro no upload: ${error?.message || error}`); updateLinha(id, { uploading: false, file: null }); }
   };
   return <div className={cn("min-w-0 space-y-2", className)}>

@@ -283,6 +283,11 @@ export function buscarCotistasAeronave(aeronaveId: string) { return colaboradorR
 export function enviarAnexoEnvioPagamento(arquivo: File, anexoId: string) { const body = new FormData(); body.append("arquivo", arquivo, arquivo.name); body.append("anexo_id", anexoId); return colaboradorRequest<{ url: string; key: string }>("/api/financeiro/envios-pagamento/anexos", { method: "POST", body }); }
 export function buscarEnviosPagamento(tipo?: EnvioPagamento["tipo"]) { return colaboradorRequest<{ envios: EnvioPagamento[] }>(`/api/financeiro/envios-pagamento${tipo ? `?tipo=${tipo}` : ""}`); }
 export function criarEnvioPagamento(payload: Record<string, unknown>) { return colaboradorRequest<EnvioPagamento>("/api/financeiro/envios-pagamento", { method: "POST", body: JSON.stringify(payload) }); }
+export type RascunhoEnvioPagamento = { id: string; tipo_envio: EnvioPagamento["tipo"]; etapa_atual: number; dados_json: string; idempotency_key: string; envio_id: string | null; status: string; atualizado_em: string; emails_enviados?: number; total_destinatarios?: number };
+export type DestinatarioRascunhoEnvio = { cotista_id: string; status: "PENDENTE" | "PROCESSANDO" | "ENVIADO" | "FALHOU" | string; email_id: string | null; erro: string | null; atualizado_em: string };
+export function buscarRascunhosEnvioPagamento() { return colaboradorRequest<{ rascunhos: RascunhoEnvioPagamento[] }>("/api/financeiro/envios-pagamento/rascunhos"); }
+export function buscarRascunhoEnvioPagamento(id: string) { return colaboradorRequest<{ rascunho: RascunhoEnvioPagamento; destinatarios: DestinatarioRascunhoEnvio[] }>(`/api/financeiro/envios-pagamento/rascunhos/${encodeURIComponent(id)}`); }
+export function salvarRascunhoEnvioPagamento(payload: { id: string; tipo_envio: EnvioPagamento["tipo"]; etapa_atual: number; dados: Record<string, unknown>; idempotency_key: string; envio_id?: string | null; status?: string; destinatarios?: string[] }) { return colaboradorRequest<{ ok: boolean; atualizado_em: string }>("/api/financeiro/envios-pagamento/rascunhos", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarStatusEnvioPagamento(id: string, status: string) { return colaboradorRequest<EnvioPagamento>(`/api/financeiro/envios-pagamento/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); }
 export function converterEnvioPagamento(id: string) { return colaboradorRequest<Record<string, unknown>>(`/api/financeiro/envios-pagamento/${id}/converter`, { method: "POST" }); }
 export function buscarCategoriasCalendario() { return colaboradorRequest<CategoriaCalendario[]>("/api/sharebrasil/calendario/categorias"); }
@@ -1602,9 +1607,13 @@ export function enviarEmailCliente(payload: {
   anexos?: string[];
   referencias?: string[];
   arquivos?: File[];
+  arquivos_persistidos?: Array<{ key: string; filename: string; content_type: string }>;
+  rascunho_id?: string;
+  cotista_id?: string;
+  idempotency_key?: string;
   nome_destinatario?: string;
 }) {
-  const hasFiles = payload.arquivos && payload.arquivos.length > 0;
+  const hasFiles = (payload.arquivos && payload.arquivos.length > 0) || (payload.arquivos_persistidos && payload.arquivos_persistidos.length > 0);
   if (hasFiles) {
     const body = new FormData();
     body.append("destinatarios", JSON.stringify(payload.destinatarios));
@@ -1613,13 +1622,17 @@ export function enviarEmailCliente(payload: {
     if (payload.dados_bancarios) body.append("dados_bancarios", payload.dados_bancarios);
     if (payload.anexos?.length) body.append("anexos", JSON.stringify(payload.anexos));
     if (payload.referencias?.length) body.append("referencias", JSON.stringify(payload.referencias));
+    if (payload.arquivos_persistidos?.length) body.append("arquivos_persistidos", JSON.stringify(payload.arquivos_persistidos));
+    if (payload.rascunho_id) body.append("rascunho_id", payload.rascunho_id);
+    if (payload.cotista_id) body.append("cotista_id", payload.cotista_id);
+    if (payload.idempotency_key) body.append("idempotency_key", payload.idempotency_key);
     if (payload.nome_destinatario) body.append("nome_destinatario", payload.nome_destinatario);
     for (const arquivo of payload.arquivos!) body.append("arquivos", arquivo);
     return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", { method: "POST", body });
   }
   return colaboradorRequest<{ success: boolean; id: string }>("/api/interno/emails", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, arquivos: undefined }),
   });
 }
 

@@ -30,9 +30,11 @@ import {
   buscarAbastecimentosPendentesFinanceiro,
   buscarPainelFinanceiro,
   buscarPerfilColaborador,
+  buscarRascunhosEnvioPagamento,
   type AbastecimentoPendenteFinanceiro,
   type MovimentacaoFinanceira,
   type PainelFinanceiroResponse,
+  type RascunhoEnvioPagamento,
 } from "@/lib/colaborador-api";
 import ControleAbastecimento from "@/pages/ControleAbastecimento";
 
@@ -193,6 +195,7 @@ export default function DashboardFinanceiro({
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
   const [abaMovimentacoes, setAbaMovimentacoes] = useState<"movimentacoes" | "abastecimentos_pendentes">("movimentacoes");
   const [abastecimentosPendentes, setAbastecimentosPendentes] = useState<AbastecimentoPendenteFinanceiro[]>([]);
+  const [rascunhosPagamento, setRascunhosPagamento] = useState<RascunhoEnvioPagamento[]>([]);
   const [carregandoAbastecimentos, setCarregandoAbastecimentos] = useState(true);
   const [erroAbastecimentos, setErroAbastecimentos] = useState<string | null>(null);
   const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
@@ -205,9 +208,10 @@ export default function DashboardFinanceiro({
     setErro(null);
     setErroAbastecimentos(null);
     try {
-      const [painel, abastecimentos] = await Promise.allSettled([
+      const [painel, abastecimentos, rascunhos] = await Promise.allSettled([
         buscarPainelFinanceiro(),
         buscarAbastecimentosPendentesFinanceiro(),
+        buscarRascunhosEnvioPagamento(),
       ]);
       if (painel.status === "fulfilled") {
         setDados(painel.value);
@@ -220,6 +224,7 @@ export default function DashboardFinanceiro({
       } else {
         setErroAbastecimentos("Não foi possível carregar os abastecimentos pendentes.");
       }
+      if (rascunhos.status === "fulfilled") setRascunhosPagamento(rascunhos.value.rascunhos);
     } finally {
       setCarregando(false);
       setCarregandoAbastecimentos(false);
@@ -344,6 +349,32 @@ export default function DashboardFinanceiro({
           onClick={() => aoNavegar("ciclo")}
         />
       </section>
+
+      {rascunhosPagamento.length > 0 && <section className="mx-auto mb-5 w-full max-w-[1180px] overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <CabecalhoSecao
+          icon={<Clock3 size={15} />}
+          title="Programações em andamento"
+          detail="Rascunhos, solicitações criadas e progresso de e-mails por destinatário."
+          action={<Button type="button" variant="outline" className="h-8 gap-1.5 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}><Send size={12} /> Abrir programação</Button>}
+        />
+        <div className="divide-y divide-border/60">
+          {rascunhosPagamento.slice(0, 5).map((rascunho) => {
+            let dados: Record<string, any> = {};
+            try { dados = JSON.parse(rascunho.dados_json || "{}"); } catch { /* ignora rascunhos antigos inválidos */ }
+            const envioCriado = Boolean(rascunho.envio_id || dados.envioId);
+            const enviados = Number(rascunho.emails_enviados || 0);
+            const totalEmails = Number(rascunho.total_destinatarios || 0);
+            const status = envioCriado
+              ? totalEmails > 0 ? `${enviados} de ${totalEmails} e-mails enviados` : "Programação concluída · e-mail pendente"
+              : rascunho.etapa_atual > 0 ? `Dados parcialmente preenchidos · etapa ${rascunho.etapa_atual + 1}` : "Rascunho salvo · início do preenchimento";
+            const nome = dados.form?.descricao || ({ share: "Pagamento Share", cliente: "Despesa de cliente", reembolso: "Despesa com reembolso" } as Record<string, string>)[rascunho.tipo_envio] || "Pagamento";
+            return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+              <div className="min-w-0"><p className="truncate text-xs font-semibold">{nome}</p><p className="mt-1 text-[10px] text-muted-foreground">{status} · atualizado às {new Date(rascunho.atualizado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p></div>
+              <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}>Continuar</Button>
+            </div>;
+          })}
+        </div>
+      </section>}
 
       <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao

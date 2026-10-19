@@ -66,6 +66,18 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
   return query ? `?${query}` : "";
 }
 
+export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{ url: string }> {
+  const body = new FormData();
+  body.append("arquivo", arquivo, arquivo.name);
+  return financeiroRequest<{ url: string }>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
+}
+
+export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise<{ url: string }> {
+  const body = new FormData();
+  body.append("arquivo", arquivo, arquivo.name);
+  return financeiroRequest<{ url: string }>(`/api/financeiro/contas-areceber/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
+}
+
 function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: any): T {
   return {
     ...row,
@@ -174,12 +186,6 @@ export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: st
     body: JSON.stringify({ data_pagamento: dados.dataPagamento, banco_pagamento: dados.bancoPagamento, comprovante_pagamento_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
   });
   return normalizarContaFinanceira<ContaAPagar>(resposta);
-}
-
-export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{ url: string }> {
-  const body = new FormData();
-  body.append("arquivo", arquivo, arquivo.name);
-  return financeiroRequest<{ url: string }>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
 }
 
 export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {

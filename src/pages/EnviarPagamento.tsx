@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Send, Smartphone, Users, WalletCards, X } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -57,6 +57,7 @@ type OpcaoEnvio = {
   icon: typeof WalletCards;
   cor: string;
 };
+type ArquivoPersistidoEmail = { key: string; url: string; filename: string; content_type: string; cotista_id?: string };
 
 // Data local (evita virar o dia seguinte à noite por causa do UTC)
 const hoje = () => new Date().toLocaleDateString("en-CA");
@@ -183,6 +184,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [carregandoOrigem, setCarregandoOrigem] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [rascunhos, setRascunhos] = useState<RascunhoEnvioPagamento[]>([]);
+  const [rascunhoId, setRascunhoId] = useState<string | null>(null);
+  const [chaveRascunho, setChaveRascunho] = useState<string | null>(null);
+  const [statusSalvamento, setStatusSalvamento] = useState<"ocioso" | "salvando" | "salvo" | "erro">("ocioso");
+  const [salvoEm, setSalvoEm] = useState<string | null>(null);
+  const [restaurandoRascunho, setRestaurandoRascunho] = useState(false);
+  const [rascunhoConcluido, setRascunhoConcluido] = useState(false);
   const [convertendoEnvioId, setConvertendoEnvioId] = useState<string | null>(null);
   const [etapa, setEtapa] = useState(0);
   const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
@@ -211,6 +219,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [corpoEmail, setCorpoEmail] = useState("");
   const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
   const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
+  const [arquivosPersistidos, setArquivosPersistidos] = useState<ArquivoPersistidoEmail[]>([]);
   const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
   const [cotistasEmail, setCotistasEmail] = useState<CotistaAeronave[]>([]);
   const [emailsPorCotista, setEmailsPorCotista] = useState<Record<string, string>>({});
@@ -220,6 +229,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
   const [carregandoEmail, setCarregandoEmail] = useState(false);
+  const [statusEmailCotista, setStatusEmailCotista] = useState<Record<string, string>>({});
+  const chaveRascunhoRef = useRef<string | null>(null);
+  const filaSalvamento = useRef<Promise<void>>(Promise.resolve());
+  const persistirRascunhoRef = useRef<() => Promise<void>>(async () => undefined);
 
   const carregarOpcoes = async () => {
     try {
@@ -247,16 +260,85 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const carregar = async () => {
     setCarregando(true);
     try {
-      const respostas = apenasCaixaShare
-        ? await Promise.all([buscarEnviosPagamento("share"), buscarEnviosPagamento("reembolso")])
-        : [await buscarEnviosPagamento()];
+      const [respostas, rascunhosResposta] = await Promise.all([
+        apenasCaixaShare ? Promise.all([buscarEnviosPagamento("share"), buscarEnviosPagamento("reembolso")]) : Promise.all([buscarEnviosPagamento()]),
+        buscarRascunhosEnvioPagamento(),
+      ]);
       setEnvios(respostas.flatMap((resposta) => resposta.envios).sort((a, b) => (b.criado_em || "").localeCompare(a.criado_em || "")));
+      setRascunhos(rascunhosResposta.rascunhos);
     } catch {
       setErro("Não foi possível carregar os envios de pagamento.");
     } finally {
       setCarregando(false);
     }
   };
+
+  const garantirIdentidadeRascunho = () => {
+    const id = rascunhoId || crypto.randomUUID();
+    const chave = chaveRascunhoRef.current || chaveRascunho || crypto.randomUUID();
+    chaveRascunhoRef.current = chave;
+    if (!rascunhoId) setRascunhoId(id);
+    if (!chaveRascunho) setChaveRascunho(chave);
+    return { id, chave };
+  };
+
+  const construirDadosRascunho = (formAtual = form) => ({
+    form: { ...formAtual, anexos: formAtual.anexos.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo) },
+    vincularAeronave,
+    modoNumeroVooCliente,
+    origemDespesa,
+    envioId: envioRecemCriado?.id || null,
+    envioConvertido,
+    assunto,
+    corpoEmail,
+    destinatario,
+    nomeDestinatario,
+    anexosSelecionados,
+    anexosEnvioEmail: anexosEnvioEmail.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo),
+    arquivosPersistidos,
+    cotistasEmail,
+    emailsPorCotista,
+    rascunhosEmailPorCotista,
+    statusEmailCotista,
+  });
+
+  const persistirRascunho = async (opcoes: { dados?: Record<string, unknown>; envioId?: string | null; status?: string; etapa?: number } = {}) => {
+    const tipoRascunho = tipo || envioRecemCriado?.tipo;
+    if (!tipoRascunho) return;
+    const { id, chave } = garantirIdentidadeRascunho();
+    setStatusSalvamento("salvando");
+    const gravacao = filaSalvamento.current.then(async () => {
+      const resultado = await salvarRascunhoEnvioPagamento({
+        id,
+        tipo_envio: tipoRascunho,
+        etapa_atual: opcoes.etapa ?? etapa,
+        dados: opcoes.dados ?? construirDadosRascunho(),
+        idempotency_key: chave,
+        envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
+        status: opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado ? "EMAIL_PENDENTE" : "PREENCHIMENTO"),
+        destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => cotista.id),
+      });
+      setStatusSalvamento("salvo");
+      setSalvoEm(resultado.atualizado_em);
+      setRascunhos((atuais) => {
+        if (opcoes.status === "CONCLUIDO") return atuais.filter((rascunho) => rascunho.id !== id);
+        const existente = atuais.find((rascunho) => rascunho.id === id);
+        const atualizado: RascunhoEnvioPagamento = {
+          id, tipo_envio: tipoRascunho, etapa_atual: opcoes.etapa ?? etapa,
+          dados_json: JSON.stringify(opcoes.dados ?? construirDadosRascunho()), idempotency_key: chave,
+          envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
+          status: opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado ? "EMAIL_PENDENTE" : "PREENCHIMENTO"), atualizado_em: resultado.atualizado_em,
+        };
+        return [atualizado, ...atuais.filter((rascunho) => rascunho.id !== id && rascunho.status !== "CONCLUIDO")].map((rascunho) => existente?.id === rascunho.id ? atualizado : rascunho);
+      });
+    });
+    filaSalvamento.current = gravacao.then(() => undefined, () => undefined);
+    try { await gravacao; } catch (cause) {
+      setStatusSalvamento("erro");
+      throw cause;
+    }
+  };
+  persistirRascunhoRef.current = () => persistirRascunho();
 
   const atualizarStatusLocal = (id: string, status: string) =>
     setEnvios((atual) => atual.map((envio) => (envio.id === id ? ({ ...envio, status } as EnvioPagamento) : envio)));
@@ -290,6 +372,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   useEffect(() => { void carregar(); void carregarOpcoes(); }, []);
+
+  useEffect(() => {
+    if ((!tipo && !envioRecemCriado) || !rascunhoId || restaurandoRascunho || rascunhoConcluido) return;
+    const temporizador = window.setTimeout(() => {
+      void persistirRascunhoRef.current().catch(() => toast.error("Não foi possível salvar o rascunho."));
+    }, 800);
+    return () => window.clearTimeout(temporizador);
+  }, [tipo, rascunhoId, restaurandoRascunho, rascunhoConcluido, etapa, form, vincularAeronave, modoNumeroVooCliente, origemDespesa, envioRecemCriado, envioConvertido, assunto, corpoEmail, destinatario, nomeDestinatario, anexosSelecionados, anexosEnvioEmail, arquivosPersistidos, cotistasEmail, emailsPorCotista, rascunhosEmailPorCotista, statusEmailCotista]);
 
   useEffect(() => { void carregarCotistas(form.aeronave_id); }, [form.aeronave_id]);
 
@@ -388,12 +478,75 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     }
     setModoNumeroVooCliente(null);
     setTipo(novoTipo);
+    const novoId = crypto.randomUUID();
+    const novaChave = crypto.randomUUID();
+    setRascunhoId(novoId);
+    setChaveRascunho(novaChave);
+    chaveRascunhoRef.current = novaChave;
+    setStatusSalvamento("ocioso");
+    setSalvoEm(null);
+    setRascunhoConcluido(false);
     setVincularAeronave(novoTipo === "share" ? null : true);
     setForm({
       ...inicial,
       data_despesa: hoje(),
       grupo_categoria: novoTipo === "cliente" ? "CAIXA CLIENTE" : novoTipo === "reembolso" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA",
     });
+  };
+
+  const continuarRascunho = async (resumo: RascunhoEnvioPagamento) => {
+    setRestaurandoRascunho(true);
+    try {
+      const { rascunho, destinatarios } = await buscarRascunhoEnvioPagamento(resumo.id);
+      const dados = JSON.parse(rascunho.dados_json || "{}") as Record<string, any>;
+      const formSalvo = dados.form as Formulario;
+      if (!formSalvo) throw new Error("O formulário salvo está incompleto.");
+      const envioId = String(dados.envioId || rascunho.envio_id || "") || null;
+      let envioSalvo: EnvioPagamento | null = null;
+      if (envioId) {
+        const resposta = await buscarEnviosPagamento();
+        envioSalvo = resposta.envios.find((envio) => envio.id === envioId) || null;
+        if (!envioSalvo) throw new Error("A solicitação vinculada ao rascunho não foi encontrada.");
+      }
+      setTipo(rascunho.tipo_envio);
+      setEtapa(rascunho.etapa_atual);
+      setForm({ ...formSalvo, anexos: (formSalvo.anexos || []).map((anexo) => ({ ...anexo, file: null, uploading: false })) });
+      setVincularAeronave(dados.vincularAeronave ?? null);
+      setModoNumeroVooCliente(dados.modoNumeroVooCliente ?? null);
+      setOrigemDespesa(dados.origemDespesa || "");
+      setEnvioRecemCriado(envioSalvo ? { ...envioSalvo, tipo: rascunho.tipo_envio } : null);
+      setEnvioConvertido(Boolean(dados.envioConvertido));
+      setAssunto(dados.assunto || "");
+      setCorpoEmail(dados.corpoEmail || "");
+      setDestinatario(dados.destinatario || "");
+      setNomeDestinatario(dados.nomeDestinatario || "");
+      setAnexosSelecionados(dados.anexosSelecionados || []);
+      setAnexosEnvioEmail((dados.anexosEnvioEmail || []).map((anexo: AnexoLinha) => ({ ...anexo, file: null, uploading: false })));
+      setArquivosPersistidos(dados.arquivosPersistidos || []);
+      setArquivosNovos([]);
+      const cotistasSalvos = dados.cotistasEmail || [];
+      setCotistasEmail(cotistasSalvos);
+      setCotistas(cotistasSalvos);
+      setEmailsPorCotista(dados.emailsPorCotista || {});
+      setRascunhosEmailPorCotista(dados.rascunhosEmailPorCotista || {});
+      setStatusEmailCotista(Object.fromEntries(destinatarios.map((destinatario: DestinatarioRascunhoEnvio) => [destinatario.cotista_id, destinatario.status])));
+      setRascunhoConcluido(rascunho.status === "CONCLUIDO");
+      setRascunhoId(rascunho.id);
+      setChaveRascunho(rascunho.idempotency_key);
+      chaveRascunhoRef.current = rascunho.idempotency_key;
+      setSalvoEm(rascunho.atualizado_em);
+      setStatusSalvamento("salvo");
+      setErro("");
+      setMensagem("");
+      if (envioSalvo) {
+        setModalEmail(true);
+        if (!contatos.length) void carregarContatosEmail();
+      }
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível abrir o rascunho.");
+    } finally {
+      setRestaurandoRascunho(false);
+    }
   };
 
   const trocarModo = () => {
@@ -497,18 +650,22 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     return valorInformado > 0 && validarRateio();
   };
 
-  const proxima = () => {
+  const proxima = async () => {
     setErro("");
     if (!podeAvancar()) {
       setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" && vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : tipo === "cliente" && !modoNumeroVooCliente ? "Selecione se a despesa terá número de voo." : tipo === "cliente" && form.aeronave_id && form.cotista_ids.length && valorInformado <= 0 ? "Informe o valor da despesa depois de selecionar a aeronave e os cotistas." : "Selecione a aeronave e pelo menos um cotista.") : "Informe descrição e valor da despesa.");
       return;
     }
-    setEtapa((atual) => Math.min(totalEtapas, atual + 1));
+    const proximaEtapa = Math.min(totalEtapas, etapa + 1);
+    setEtapa(proximaEtapa);
+    if (tipo) await persistirRascunho({ etapa: proximaEtapa }).catch(() => toast.error("Não foi possível salvar o rascunho."));
   };
 
-  const anterior = () => {
+  const anterior = async () => {
     setErro("");
-    setEtapa((atual) => Math.max(0, atual - 1));
+    const etapaAnterior = Math.max(0, etapa - 1);
+    setEtapa(etapaAnterior);
+    if (tipo) await persistirRascunho({ etapa: etapaAnterior }).catch(() => toast.error("Não foi possível salvar o rascunho."));
   };
 
   const enviar = async () => {
@@ -523,7 +680,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSalvando(true);
     setErro("");
     try {
-      const idempotency_key = crypto.randomUUID();
+      const { id: idRascunho, chave: idempotency_key } = garantirIdentidadeRascunho();
+      await persistirRascunho({ etapa: totalEtapas, status: "PREENCHIMENTO" });
       const payload = tipo === "share" ? {
         idempotency_key,
         tipo, descricao: form.descricao, valor_centavos: valorCentavos, data_despesa: form.data_despesa, data_vencimento: form.vencimento,
@@ -554,6 +712,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
+        const emails = Object.fromEntries(cotistasSelecionados.map((cotista) => [
+          cotista.id,
+          cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
+        ]));
+        const rascunhosEmail = Object.fromEntries(cotistasSelecionados.map((cotista) => [cotista.id, {
+          assunto: `Documentos da despesa — ${form.descricao} — ${cotista.nome}`,
+          mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${form.descricao}”.\n\nAtenciosamente,\n${assinaturaEmail?.nome || "Share Brasil"}`,
+        }]));
         setEnvioRecemCriado({ ...registro, tipo });
         setEnvioConvertido(false);
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
@@ -562,15 +728,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
         setCotistasEmail(cotistasSelecionados);
-        setEmailsPorCotista(Object.fromEntries(cotistasSelecionados.map((cotista) => [
-          cotista.id,
-          cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
-        ])));
-        setRascunhosEmailPorCotista(Object.fromEntries(cotistasSelecionados.map((cotista) => [cotista.id, {
-          assunto: `Documentos da despesa — ${form.descricao} — ${cotista.nome}`,
-          mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${form.descricao}”.\n\nAtenciosamente,\n${assinaturaEmail?.nome || "Share Brasil"}`,
-        }])));
+        setEmailsPorCotista(emails);
+        setRascunhosEmailPorCotista(rascunhosEmail);
         setEmailsEnviados([]);
+        setStatusEmailCotista({});
         setDestinatario("");
         setNomeDestinatario("");
         setBancoSelecionado(null);
@@ -581,9 +742,27 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         }
         setModalEmail(true);
         if (contatos.length === 0) void carregarContatosEmail();
+        await persistirRascunho({
+          etapa: totalEtapas,
+          envioId: registro.id,
+          status: "EMAIL_PENDENTE",
+          dados: {
+            ...construirDadosRascunho(),
+            envioId: registro.id,
+            assunto: `Solicitação de pagamento — ${registro.descricao}`,
+            corpoEmail: montarCorpoEmail(registro),
+            anexosSelecionados: form.anexos.map((anexo) => anexo.id).filter(Boolean),
+            anexosEnvioEmail: form.anexos.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo),
+            cotistasEmail: cotistasSelecionados,
+            emailsPorCotista: emails,
+            rascunhosEmailPorCotista: rascunhosEmail,
+            statusEmailCotista: {},
+          },
+        });
+      } else {
+        await persistirRascunho({ etapa: totalEtapas, envioId: registro.id, status: "CONCLUIDO" });
       }
 
-      setForm({ ...inicial, data_despesa: hoje() });
       setTipo(null);
       setEtapa(0);
     } catch (cause) {
@@ -595,27 +774,24 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const fecharModalEmail = () => {
     setModalEmail(false);
-    setDestinatario("");
-    setNomeDestinatario("");
-    setAssunto("");
-    setCorpoEmail("");
-    setAnexosSelecionados([]);
-    setArquivosNovos([]);
-    setAnexosEnvioEmail([]);
-    setCotistasEmail([]);
-    setEmailsPorCotista({});
-    setRascunhosEmailPorCotista({});
-    setEmailsEnviados([]);
     setErroEmail("");
-    setSucessoEmail("");
-    setBancoSelecionado(null);
-    setEnvioRecemCriado(null);
-    setEnvioConvertido(false);
   };
 
   const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
-  const adicionarArquivos = (arquivos: File[]) => setArquivosNovos((atual) => [...atual, ...arquivos]);
+  const adicionarArquivos = async (arquivos: File[]) => {
+    try {
+      const enviados = await Promise.all(arquivos.map(async (arquivo) => {
+        const resultado = await enviarAnexoEnvioPagamento(arquivo, crypto.randomUUID());
+        return { key: resultado.key, url: resultado.url, filename: arquivo.name, content_type: arquivo.type || "application/octet-stream" } satisfies ArquivoPersistidoEmail;
+      }));
+      setArquivosPersistidos((atuais) => [...atuais, ...enviados]);
+      setArquivosNovos([]);
+    } catch (cause) {
+      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível armazenar o anexo.");
+    }
+  };
   const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
+  const removerArquivoPersistido = (key: string) => setArquivosPersistidos((atuais) => atuais.filter((arquivo) => arquivo.key !== key));
   const selecionarFonteAnexo = (fonte: any) => {
     const cotistaIdPadrao = cotistasSelecionados.length === 1 ? cotistasSelecionados[0].id : undefined;
     const novos: AnexoLinha[] = origemAnexo === "recibos"
@@ -657,7 +833,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setEnviandoEmail(true);
     setErroEmail("");
     setSucessoEmail("");
-    const enviadosNestaSessao = new Set(emailsEnviados);
+    const enviadosNestaSessao = new Set([...emailsEnviados, ...Object.entries(statusEmailCotista).filter(([, status]) => status === "ENVIADO").map(([id]) => id)]);
+    const idRascunhoAtual = rascunhoId;
+    const chaveRascunhoAtual = chaveRascunhoRef.current || chaveRascunho;
     try {
       const arquivosDoFormulario = new Set(anexosEnvioEmail.flatMap((anexo) => anexo.file ? [anexo.file] : []));
       const arquivosAdicionais = envioPorCotista ? [] : arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
@@ -676,21 +854,29 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       for (const grupo of gruposComAnexo) {
         const chaveDestinatario = grupo.cotista?.id || "__principal__";
         if (enviadosNestaSessao.has(chaveDestinatario)) continue;
+        setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "PROCESSANDO" }));
         await enviarEmailCliente({
           destinatarios: [email],
           assunto: assuntoEnvio.trim(),
           mensagem: mensagemEnvio.trim(),
           anexos: grupo.anexos.map((anexo) => anexo.id),
           referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
+          rascunho_id: idRascunhoAtual || undefined,
+          cotista_id: chaveDestinatario,
+          idempotency_key: idRascunhoAtual && chaveRascunhoAtual ? `email:${idRascunhoAtual}:${chaveDestinatario}` : undefined,
           // O e-mail usa somente arquivos escolhidos no computador.
           // Em envios por cotista, cada um recebe apenas os anexos marcados para ele.
           arquivos: envioRecemCriado?.tipo === "cliente"
-            ? [...grupo.anexos.flatMap((anexo) => anexo.file ? [anexo.file] : []), ...arquivosAdicionais]
+            ? [...grupo.anexos.flatMap((anexo) => anexo.file && !anexo.storage_key ? [anexo.file] : []), ...arquivosAdicionais]
             : arquivosNovos,
+          arquivos_persistidos: envioPorCotista
+            ? grupo.anexos.filter((anexo) => anexo.storage_key).map((anexo) => ({ key: anexo.storage_key!, filename: anexo.file?.name || anexo.numero || "documento", content_type: anexo.file?.type || "application/octet-stream" }))
+            : arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
           nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
         });
         enviadosNestaSessao.add(chaveDestinatario);
         setEmailsEnviados([...enviadosNestaSessao]);
+        setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "ENVIADO" }));
       }
       const gruposSelecionados = envioPorCotista
         ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id && anexosSelecionados.includes(anexo.id)))
@@ -704,10 +890,19 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         }
       }
       if (envioPorCotista && cotistaAlvo) {
+        const todosConcluidos = gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
+        if (todosConcluidos) setRascunhoConcluido(true);
+        await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
+        if (todosConcluidos) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
         setSucessoEmail(todosEmailsCotistasEnviados
           ? `E-mail de ${cotistaAlvo.nome} enviado. Todos os e-mails selecionados foram concluídos.`
           : `E-mail de ${cotistaAlvo.nome} enviado. Revise a mensagem do próximo cotista e envie separadamente.`);
       } else {
+        if (idRascunhoAtual) {
+          setRascunhoConcluido(true);
+          await persistirRascunho({ status: "CONCLUIDO", envioId: envioRecemCriado?.id });
+          setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
+        }
         setSucessoEmail(envioRecemCriado?.tipo === "reembolso"
           ? "E-mail enviado. Lançamento e rateio criados."
           : "E-mail enviado com sucesso.");
@@ -716,6 +911,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       }
     } catch (cause) {
       setEmailsEnviados([...enviadosNestaSessao]);
+      if (idRascunhoAtual) {
+        try {
+          const recuperado = await buscarRascunhoEnvioPagamento(idRascunhoAtual);
+          setStatusEmailCotista(Object.fromEntries(recuperado.destinatarios.map((item) => [item.cotista_id, item.status])));
+        } catch {
+          setStatusEmailCotista((atual) => ({ ...atual, [cotistaId || "__principal__"]: "FALHOU" }));
+        }
+      } else {
+        setStatusEmailCotista((atual) => ({ ...atual, [cotistaId || "__principal__"]: "FALHOU" }));
+      }
       setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
     } finally {
       setEnviandoEmail(false);
@@ -733,12 +938,36 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </div>
       </header>
 
+      {rascunhos.length > 0 && <section className="overflow-hidden rounded-sm border border-border bg-card/60">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/20 px-5 py-3">
+          <div><p className="text-[11px] font-bold uppercase tracking-[.16em]">Rascunhos e envios em andamento</p><p className="mt-1 text-[10px] text-muted-foreground">Preenchimento, programação e envio de e-mails têm progresso independente.</p></div>
+          <span className="text-[10px] text-muted-foreground">{rascunhos.length} registro(s)</span>
+        </div>
+        <div className="divide-y divide-border/60">
+          {rascunhos.map((rascunho) => {
+            let dados: Record<string, any> = {};
+            try { dados = JSON.parse(rascunho.dados_json || "{}"); } catch { /* ignora dados legados inválidos */ }
+            const envioCriado = Boolean(rascunho.envio_id || dados.envioId);
+            const enviados = Number(rascunho.emails_enviados || 0);
+            const totalEmails = Number(rascunho.total_destinatarios || 0);
+            const progressoTexto = envioCriado
+              ? totalEmails > 0 && enviados > 0 ? `${enviados} de ${totalEmails} e-mails enviados` : "Programação concluída, e-mail pendente"
+              : rascunho.etapa_atual > 0 ? "Dados parcialmente preenchidos" : "Rascunho salvo";
+            const tipoResumo = opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento";
+            return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{dados.form?.descricao || tipoResumo}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{tipoResumo} · {progressoTexto} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p></div>
+              <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
+            </div>;
+          })}
+        </div>
+      </section>}
+
       <section className="overflow-hidden rounded-2xl border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
         <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-5 py-3.5 md:gap-5 md:px-6">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}{statusSalvamento === "salvando" ? " · Salvando…" : statusSalvamento === "salvo" && salvoEm ? ` · Salvo às ${new Date(salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : statusSalvamento === "erro" ? " · Falha ao salvar" : ""}</p>
           </div>
           <div
             className="ml-auto flex w-[38%] min-w-[90px] max-w-[440px] items-center"
@@ -874,7 +1103,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento e distribuídos por cotista no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => (await enviarAnexoEnvioPagamento(arquivo, anexoId)).url : undefined} /></div>
+                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento e distribuídos por cotista no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId) : undefined} /></div>
                   {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
                 </div>
               )}
@@ -992,12 +1221,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         if (!anexosDoCotista.length) return null;
                         const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
                         const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
-                        const emailEnviado = emailsEnviados.includes(cotista.id);
+                        const statusEmail = statusEmailCotista[cotista.id];
+                        const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
+                        const emailProcessando = statusEmail === "PROCESSANDO";
                         return (
                           <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
-                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : statusEmail === "FALHOU" ? "font-semibold text-red-500" : emailProcessando ? "font-semibold text-primary" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : statusEmail === "FALHOU" ? "Falha no envio · pode tentar novamente" : emailProcessando ? "Envio interrompido · retomar" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
                             </div>
                             <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" aria-label={`E-mail de ${cotista.nome}`} disabled={emailEnviado} />
                             <div className="space-y-2">
@@ -1023,7 +1254,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                               <div className="flex justify-end">
                                 <Button type="button" onClick={() => dispararEmail(cotista.id)} disabled={enviandoEmail || emailEnviado || !emailsPorCotista[cotista.id]?.trim() || selecionados === 0 || !rascunho.assunto.trim() || !rascunho.mensagem.trim()} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
                                   {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                                  {emailEnviado ? "E-mail enviado" : `Enviar somente para ${cotista.nome}`}
+                                  {emailEnviado ? "E-mail enviado" : emailProcessando ? "Retomar envio" : `Enviar somente para ${cotista.nome}`}
                                 </Button>
                               </div>
                             </div>
@@ -1065,6 +1296,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
                   {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
+                    {arquivosPersistidos.length > 0 && <div className="space-y-1.5">{arquivosPersistidos.map((arquivo) => <div key={arquivo.key} className="flex items-center justify-between gap-3 rounded border border-border/70 px-3 py-2 text-[11px]"><span className="min-w-0 truncate">{arquivo.filename}</span><button type="button" onClick={() => removerArquivoPersistido(arquivo.key)} className="shrink-0 text-rose-500">Remover</button></div>)}</div>}
                     <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
                   </div>}
 

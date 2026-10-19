@@ -33,6 +33,10 @@ export function useCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): RetornoUseCa
 
   useEffect(() => {
     carregar();
+    const externo = (event: StorageEvent) => { if (event.key === 'financeiro-atualizado') carregar(); };
+    window.addEventListener('financeiro-atualizado', carregar);
+    window.addEventListener('storage', externo);
+    return () => { window.removeEventListener('financeiro-atualizado', carregar); window.removeEventListener('storage', externo); };
   }, [carregar]);
 
   const { totalEntradasCentavos, totalSaidasCentavos, saldoCentavos } = useMemo(() => {

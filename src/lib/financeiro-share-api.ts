@@ -66,6 +66,13 @@ function paraQueryString(filtros: Record<string, string | undefined>): string {
   return query ? `?${query}` : "";
 }
 
+function resolverUrlDocumento(url: unknown): string | null {
+  const valor = String(url ?? "").trim();
+  if (!valor) return null;
+  if (/^(?:https?:|data:|blob:)/i.test(valor)) return valor;
+  return valor.startsWith("/") ? `${API_BASE}${valor}` : valor;
+}
+
 export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{ url: string }> {
   const body = new FormData();
   body.append("arquivo", arquivo, arquivo.name);
@@ -108,7 +115,7 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     bancoRecebimento: row.bancoRecebimento ?? row.banco_recebimento ?? null,
     comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
     documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,
-    documentoUrl: row.url_doc || row.documentoUrl || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto || null,
+    documentoUrl: resolverUrlDocumento(row.documentoUrl || row.url_doc || row.relatorio_pdf_url || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto),
     lancamentoId: row.lancamentoId ?? row.lancamento_id ?? row.lancamentos_id ?? null,
     status: String(row.status ?? "EM_ABERTO").toUpperCase(),
     criadoEm: row.criadoEm ?? row.criado_em ?? "",

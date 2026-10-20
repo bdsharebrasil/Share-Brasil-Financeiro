@@ -1167,6 +1167,46 @@ function LancamentoExpandido({
 
   return (
     <div className="despesa-detail">
+      <section className="mb-5 min-w-0">
+        <h3 className="despesa-detail-title">Rateio e pagamento</h3>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
+          <div><dt className="text-muted-foreground">Data</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.data)}</dd></div>
+          <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
+          <div><dt className="text-muted-foreground">Número voo</dt><dd className="mt-1 font-semibold">{lancamento.numeroVoo || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Tipo de Rateio</dt><dd className="mt-1 font-semibold">{lancamento.tipo || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "Não informada"}</dd></div>
+          <div><dt className="text-muted-foreground">Percentual Sociedade</dt><dd className="mt-1 font-semibold">{fmtPct(lancamento.percentualSociedade)}</dd></div>
+          <div><dt className="text-muted-foreground">Valor Total</dt><dd className="mt-1 font-mono font-semibold tabular-nums">{formatarCentavos(lancamento.valorCentavos)}</dd></div>
+          {lancamento.subcategorias?.length ? <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words font-semibold">{lancamento.subcategorias.join(" · ")}</dd></div> : null}
+        </dl>
+      </section>
+      <section className="mb-5 min-w-0">
+        <h3 className="despesa-detail-title">Cotistas</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left text-xs">
+            <thead>
+              <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
+                <th className="py-2 pr-3 font-bold">Cotista</th>
+                <th className="px-3 py-2 text-right font-bold">Percentual Uso</th>
+                <th className="px-3 py-2 text-right font-bold">Valor Rateado</th>
+                <th className="px-3 py-2 text-right font-bold">Valor pago</th>
+                <th className="py-2 pl-3 font-bold">Pago por</th>
+              </tr>
+            </thead>
+            <tbody>
+              {partes.map((p) => (
+                <tr key={p.chave} className="border-b border-border/60">
+                  <td className="py-2.5 pr-3 font-semibold text-foreground">{p.responsavel || "Não informado"}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.uso)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.parcela)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.valorPagoReal)}</td>
+                  <td className="py-2.5 pl-3 break-words">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <div className="despesa-detail-grid">
         <section className="min-w-0">
           <dl className="despesa-supplier">
@@ -1213,29 +1253,6 @@ function LancamentoExpandido({
           )}
         </section>
 
-        <section>
-          <h3 className="despesa-detail-title">Rateio</h3>
-          <div className="divide-y divide-border">
-            {partes.map((p) => (
-              <dl
-                key={p.chave}
-                className="despesa-rateio"
-              >
-                <div className="despesa-rateio-person"><dt>Responsável</dt><dd>{p.responsavel || "Não informado"}</dd></div>
-                <div className="despesa-rateio-fields">
-                  <div><dt className="text-muted-foreground">Cota</dt><dd className="mt-1 break-words font-bold">{fmtPct(p.cota)}</dd></div>
-                  <div><dt className="text-muted-foreground">Vencimento / pagamento</dt><dd className="mt-1 font-mono tabular-nums">{p.dataVencimento ? formatarData(p.dataVencimento) : "—"} · {p.dataPagamento ? formatarData(p.dataPagamento) : "—"}</dd></div>
-                  <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1">{p.periodicidade || "Não informada"}</dd></div>
-                </div>
-                <div className="despesa-rateio-fields">
-                  <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words">{p.subcategorias.length ? p.subcategorias.join(" · ") : "—"}</dd></div>
-                  <div><dt className="text-muted-foreground">Percentual de uso / valor pago real</dt><dd className="mt-1 font-mono tabular-nums">{fmtPct(p.uso)} · {formatarCentavos(p.valorPagoReal)}</dd></div>
-                  <div><dt className="text-muted-foreground">Pago por / valor rateio</dt><dd className="mt-1 break-words font-mono">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")} · {formatarCentavos(p.parcela)}</dd></div>
-                </div>
-              </dl>
-            ))}
-          </div>
-        </section>
       </div>
 
       {lancamento.observacoes && (

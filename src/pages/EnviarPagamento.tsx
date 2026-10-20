@@ -1060,23 +1060,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </div>
       </header>
 
-      {rascunhos.length > 0 && <section className="overflow-hidden rounded-sm border border-border bg-card/60">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/20 px-5 py-3">
-          <div><p className="text-[11px] font-bold uppercase tracking-[.16em]">Rascunhos e envios em andamento</p><p className="mt-1 text-[10px] text-muted-foreground">Confira exatamente o que foi concluído antes de retomar o envio.</p></div>
-          <span className="text-[10px] text-muted-foreground">{rascunhos.length} registro(s)</span>
-        </div>
-        <div className="divide-y divide-border/60">
-          {rascunhos.map((rascunho) => {
-            const progresso = progressoRascunho(rascunho, lerDadosRascunho(rascunho.dados_json));
-            const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
-            return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-              <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{progresso.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento"} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p><div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 lg:grid-cols-4">{etapas.map(([nome, valor]) => <div key={nome} className="flex min-w-0 items-center gap-1.5"><CheckCircle2 size={12} className={valor === "Concluído" || valor === "Não se aplica" || valor.startsWith("Concluído") ? "shrink-0 text-emerald-500" : "shrink-0 text-amber-500"} /><span className="truncate"><strong>{nome}:</strong> {valor}</span></div>)}</div></div>
-              <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
-            </div>;
-          })}
-        </div>
-      </section>}
-
       <section className="overflow-hidden rounded-2xl border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
         <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-5 py-3.5 md:gap-5 md:px-6">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
@@ -1243,7 +1226,25 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       </section>
 
       {historico && (
-        <section className="overflow-hidden rounded-sm border border-border bg-card/60">
+        <>
+          {rascunhos.length > 0 && <section className="overflow-hidden rounded-sm border border-border bg-card/60">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/20 px-5 py-3">
+              <div><p className="text-[11px] font-bold uppercase tracking-[.16em]">Rascunhos e envios em andamento</p><p className="mt-1 text-[10px] text-muted-foreground">Confira exatamente o que foi concluído antes de retomar o envio.</p></div>
+              <span className="text-[10px] text-muted-foreground">{rascunhos.length} registro(s)</span>
+            </div>
+            <div className="divide-y divide-border/60">
+              {rascunhos.map((rascunho) => {
+                const progresso = progressoRascunho(rascunho, lerDadosRascunho(rascunho.dados_json));
+                const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
+                return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{progresso.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento"} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p><div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 lg:grid-cols-4">{etapas.map(([nome, valor]) => <div key={nome} className="flex min-w-0 items-center gap-1.5"><CheckCircle2 size={12} className={valor === "Concluído" || valor === "Não se aplica" || valor.startsWith("Concluído") ? "shrink-0 text-emerald-500" : "shrink-0 text-amber-500"} /><span className="truncate"><strong>{nome}:</strong> {valor}</span></div>)}</div></div>
+                  <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
+                </div>;
+              })}
+            </div>
+          </section>}
+
+          <section className="overflow-hidden rounded-sm border border-border bg-card/60">
           <div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[.16em]">Histórico de programação</p>
             <span className="text-[10px] text-muted-foreground">{envios.length} registro(s)</span>
@@ -1275,7 +1276,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           ) : (
             <p className="p-6 text-center text-[11px] text-muted-foreground">Nenhum lançamento enviado ainda.</p>
           )}
-        </section>
+          </section>
+        </>
       )}
 
       <Dialog open={dialogoAnexos} onOpenChange={setDialogoAnexos}>

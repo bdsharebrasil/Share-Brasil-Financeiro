@@ -2535,7 +2535,7 @@ export default function FinanceiroCotista() {
               setAeronaveSelecionada(valor === "selecionar" ? "" : valor)
             }
           >
-            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[260px]">
+            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
               <Plane size={14} className="text-muted-foreground" />
               <SelectValue placeholder="Selecione uma aeronave" />
             </SelectTrigger>

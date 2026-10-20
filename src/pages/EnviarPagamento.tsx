@@ -551,6 +551,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     }
   };
 
+  const retomarEnvioHistorico = async (envio: EnvioPagamento) => {
+    setRestaurandoRascunho(true);
+    try {
+      const { rascunhos: rascunhosAtuais } = await buscarRascunhosEnvioPagamento();
+      setRascunhos(rascunhosAtuais);
+      const rascunho = rascunhosAtuais.find((item) => item.envio_id === envio.id && item.status.toUpperCase() !== "CONCLUIDO");
+      if (!rascunho) throw new Error("Não há um rascunho pendente salvo para este envio.");
+      await continuarRascunho(rascunho);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível retomar o envio pendente.");
+    } finally {
+      setRestaurandoRascunho(false);
+    }
+  };
+
   const trocarModo = () => {
     setEtapa(0);
     setTipo(null);
@@ -1135,9 +1150,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               {recentes.map((envio) => {
                 const statusChave = normalizarStatus(envio.status);
                 const status = statusEnvio[statusChave] || { label: envio.status || "Enviado", className: "bg-secondary text-muted-foreground" };
-                const rascunhoPendente = rascunhos.find((rascunho) => rascunho.envio_id === envio.id && rascunho.status !== "CONCLUIDO");
+                const statusPendente = ["pendente", "email_pendente", "email_nao_enviado", "aguardando_aprovacao", "aguardando_pagamento"].includes(statusChave);
                 return (
-                  <div key={envio.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div key={envio.id} role={statusPendente ? "button" : undefined} tabIndex={statusPendente ? 0 : undefined} aria-label={statusPendente ? `Abrir envio pendente: ${envio.descricao}` : undefined} onClick={statusPendente ? () => void retomarEnvioHistorico(envio) : undefined} onKeyDown={statusPendente ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void retomarEnvioHistorico(envio); } } : undefined} className={`flex flex-wrap items-center justify-between gap-3 px-5 py-3 ${statusPendente ? "cursor-pointer hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" : ""}`}>
                     <div className="min-w-0">
                       <p className="truncate text-[11px] font-bold">{envio.descricao}</p>
                       <p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((o) => o.tipo === envio.tipo)?.resumo} · {dataBr(envio.criado_em)}</p>
@@ -1145,7 +1160,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
-                      {rascunhoPendente && (statusChave === "pendente" || statusChave === "email_nao_enviado") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunhoPendente)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
+                      {statusPendente && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={restaurandoRascunho} onClick={(event) => { event.stopPropagation(); void retomarEnvioHistorico(envio); }}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
                       {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar rateio da despesa"}</Button>}
                     </div>
                   </div>

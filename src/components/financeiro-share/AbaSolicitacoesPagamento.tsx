@@ -5,9 +5,11 @@ import {
   buscarContasBancariasHolding,
   buscarSolicitacoesPagamento,
   darBaixaContaAPagar,
+  editarLancamento,
   enviarComprovanteReembolso,
   formatarData,
   formatarMoeda,
+  parseValorReais,
   type CamposLancamento,
   type ContaBancaria,
   type ReembolsoColaborador,
@@ -20,6 +22,19 @@ const POR_PAGINA = 12;
 
 type AbaSolicitacao = "cotista" | "colaborador";
 type FiltroLista = { id: string; label: string; quantidade?: number };
+type DadosLancamentoEditavel = {
+  descricao: string;
+  fornecedor: string;
+  dataEmissao: string;
+  dataVencimento: string;
+  valor: string;
+  numeroDoc: string;
+  numeroNf: string;
+  numeroRecibo: string;
+  numeroBoleto: string;
+  numeroDemonstrativo: string;
+  observacoes: string;
+};
 type LinhaExibida = {
   chave: string;
   expandida: boolean;
@@ -31,6 +46,7 @@ type LinhaExibida = {
   secundaria: string;
   valor: string;
   status: string;
+  acao?: ReactNode;
   detalhe: ReactNode;
 };
 
@@ -150,6 +166,11 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaSolicitacao>("cotista");
   const [alvo, setAlvo] = useState<ReembolsoColaborador | null>(null);
+  const [alvoPagamentoCliente, setAlvoPagamentoCliente] = useState<SolicitacaoPagamento | null>(null);
+  const [edicaoLancamento, setEdicaoLancamento] = useState<DadosLancamentoEditavel>({
+    descricao: "", fornecedor: "", dataEmissao: "", dataVencimento: "", valor: "", numeroDoc: "", numeroNf: "", numeroRecibo: "", numeroBoleto: "", numeroDemonstrativo: "", observacoes: "",
+  });
+  const [formaPagamentoCliente, setFormaPagamentoCliente] = useState("TRANSFERENCIA");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("TODOS");
@@ -254,6 +275,81 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     setComprovanteArquivo(null);
   }
 
+  function abrirBaixaCliente(item: SolicitacaoPagamento) {
+    if (!item.conta_a_pagar_id) {
+      toast.error("Não foi encontrada uma conta a pagar vinculada a este lançamento.");
+      return;
+    }
+    const valorCentavos = Number(item.valor_centavos ?? Math.round(Number(item.valor ?? 0) * 100));
+    setAlvoPagamentoCliente(item);
+    setEdicaoLancamento({
+      descricao: item.descricao ?? "",
+      fornecedor: item.lancamento_fornecedor_nome ?? item.fornecedor_nome ?? item.fornecedor ?? "",
+      dataEmissao: (item.data_emissao ?? item.data_despesa ?? "").slice(0, 10),
+      dataVencimento: (item.data_vencimento ?? item.vencimento ?? "").slice(0, 10),
+      valor: (valorCentavos / 100).toFixed(2).replace(".", ","),
+      numeroDoc: item.numero_doc ?? "",
+      numeroNf: item.numero_nf ?? "",
+      numeroRecibo: item.numero_recibo ?? "",
+      numeroBoleto: item.numero_boleto ?? "",
+      numeroDemonstrativo: item.numero_demonstrativo ?? "",
+      observacoes: item.observacoes ?? "",
+    });
+    setDataPagamento(new Date().toISOString().slice(0, 10));
+    setBancoId(contasBancarias[0]?.id ?? "");
+    setFormaPagamentoCliente("TRANSFERENCIA");
+  }
+
+  function fecharBaixaCliente() {
+    if (salvando) return;
+    setAlvoPagamentoCliente(null);
+    setBancoId("");
+  }
+
+  async function confirmarBaixaCliente() {
+    if (!alvoPagamentoCliente?.conta_a_pagar_id || !bancoId || !dataPagamento) return;
+    if (!edicaoLancamento.descricao.trim()) {
+      toast.error("Informe a descrição do lançamento.");
+      return;
+    }
+    const valorCentavos = parseValorReais(edicaoLancamento.valor);
+    if (!Number.isInteger(valorCentavos) || valorCentavos <= 0) {
+      toast.error("Informe um valor válido maior que zero.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await editarLancamento(alvoPagamentoCliente.lancamento_id ?? alvoPagamentoCliente.id, {
+        descricao: edicaoLancamento.descricao.trim(),
+        fornecedor_nome: edicaoLancamento.fornecedor.trim() || null,
+        data_emissao: edicaoLancamento.dataEmissao || undefined,
+        data_vencimento: edicaoLancamento.dataVencimento || null,
+        valor_centavos: valorCentavos,
+        numero_doc: edicaoLancamento.numeroDoc.trim() || null,
+        numero_nf: edicaoLancamento.numeroNf.trim() || null,
+        numero_recibo: edicaoLancamento.numeroRecibo.trim() || null,
+        numero_boleto: edicaoLancamento.numeroBoleto.trim() || null,
+        numero_demonstrativo: edicaoLancamento.numeroDemonstrativo.trim() || null,
+        observacoes: edicaoLancamento.observacoes.trim() || null,
+      });
+      await darBaixaContaAPagar(alvoPagamentoCliente.conta_a_pagar_id, {
+        dataPagamento,
+        bancoPagamento: bancoId,
+        formaPagamento: formaPagamentoCliente,
+        observacoes: edicaoLancamento.observacoes.trim() || undefined,
+      });
+      toast.success("Pagamento confirmado e lançamento do caixa SHARE atualizado.");
+      setAlvoPagamentoCliente(null);
+      setExpandido(null);
+      setBancoId("");
+      await carregar();
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível atualizar o lançamento e confirmar o pagamento.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   function fecharBaixa() {
     if (salvando) return;
     setAlvo(null);
@@ -338,6 +434,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     const chave = `envio:${item.id}`;
     const expandida = expandido === chave;
     const aeronave = rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro);
+    const baixaDisponivel = !["PAGO", "CANCELADO"].includes(item.status.toUpperCase())
+      && !["PAGO", "CANCELADO"].includes((item.conta_a_pagar_status ?? "").toUpperCase());
     return {
       chave,
       expandida,
@@ -348,6 +446,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       secundaria: [aeronave, item.lancamento_categoria_nome ?? item.categoria_nome, item.grupo_categoria, item.lancamento_fornecedor_nome ?? item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
+      acao: baixaDisponivel ? <button type="button" className="nf-btn primary" disabled={!item.conta_a_pagar_id} title={!item.conta_a_pagar_id ? "Conta a pagar vinculada não encontrada" : undefined} onClick={() => abrirBaixaCliente(item)}>Dar baixa</button> : undefined,
       detalhe: expandida ? detalheLancamento(item) : null,
     };
   });
@@ -420,7 +519,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
                       <td><div className="nf-doc-cell"><div><strong>{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
                       <td className="right nf-amount">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
-                      <td className="right"><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></td>
+                      <td className="right"><div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></div></td>
                     </tr>
                     {linha.expandida && <tr className="nf-detail-row"><td colSpan={6}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
@@ -431,7 +530,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
                 <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
-                <footer><button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
+                <footer>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
             </div>
@@ -445,6 +544,44 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             </footer>
           </>}
       </section>
+
+      {alvoPagamentoCliente && <Modal title="Editar lançamento e dar baixa" onClose={fecharBaixaCliente} busy={salvando} wide>
+        <form onSubmit={(e) => { e.preventDefault(); void confirmarBaixaCliente(); }}>
+          <div className="nf-payment-summary">
+            <span>Despesa reembolsável · Caixa SHARE<small>{alvoPagamentoCliente.cliente_razao_social || "Cliente"} · {edicaoLancamento.descricao || "Lançamento"}</small></span>
+            <strong>{formatarMoeda(parseValorReais(edicaoLancamento.valor) / 100)}</strong>
+          </div>
+          <fieldset disabled={salvando} className="nf-fieldset">
+            <legend><span>01</span> Dados editáveis do lançamento</legend>
+            <div className="nf-form-grid two">
+              <label className="span-2">Descrição *<input required value={edicaoLancamento.descricao} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, descricao: e.target.value }))} /></label>
+              <label>Fornecedor<input value={edicaoLancamento.fornecedor} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, fornecedor: e.target.value }))} /></label>
+              <label>Data de emissão<input type="date" value={edicaoLancamento.dataEmissao} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, dataEmissao: e.target.value }))} /></label>
+              <label>Vencimento<input type="date" value={edicaoLancamento.dataVencimento} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, dataVencimento: e.target.value }))} /></label>
+              <label>Valor da despesa (R$) *<input required inputMode="decimal" value={edicaoLancamento.valor} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, valor: e.target.value }))} /></label>
+              <label>Número do documento<input value={edicaoLancamento.numeroDoc} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroDoc: e.target.value }))} /></label>
+              <label>Nota fiscal<input value={edicaoLancamento.numeroNf} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroNf: e.target.value }))} /></label>
+              <label>Número do recibo<input value={edicaoLancamento.numeroRecibo} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroRecibo: e.target.value }))} /></label>
+              <label>Número do boleto<input value={edicaoLancamento.numeroBoleto} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroBoleto: e.target.value }))} /></label>
+              <label>Número do demonstrativo<input value={edicaoLancamento.numeroDemonstrativo} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, numeroDemonstrativo: e.target.value }))} /></label>
+              <label className="span-2">Observações<textarea rows={3} value={edicaoLancamento.observacoes} onChange={(e) => setEdicaoLancamento((atual) => ({ ...atual, observacoes: e.target.value }))} /></label>
+            </div>
+          </fieldset>
+          <fieldset disabled={salvando} className="nf-fieldset">
+            <legend><span>02</span> Dados do pagamento</legend>
+            <div className="nf-form-grid two">
+              <label>Data do pagamento *<input required type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></label>
+              <label>Conta SHARE *<select required value={bancoId} onChange={(e) => setBancoId(e.target.value)}><option value="">Selecione a conta</option>{contasBancarias.map((conta) => <option key={conta.id} value={conta.id}>{conta.banco}{conta.numero_conta ? ` • ${conta.numero_conta}` : ""}</option>)}</select></label>
+              <label>Forma de pagamento<select value={formaPagamentoCliente} onChange={(e) => setFormaPagamentoCliente(e.target.value)}><option value="PIX">PIX</option><option value="TRANSFERENCIA">Transferência</option><option value="BOLETO">Boleto</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO">Cartão</option></select></label>
+            </div>
+          </fieldset>
+          <p className="nf-info">Ao confirmar, os dados editados serão salvos, a conta a pagar será liquidada e o lançamento do caixa SHARE passará para pago.</p>
+          <footer className="nf-modal-footer">
+            <button type="button" className="nf-btn" disabled={salvando} onClick={fecharBaixaCliente}>Cancelar</button>
+            <button type="submit" className="nf-btn primary" disabled={salvando || !bancoId || !dataPagamento}>{salvando ? "Salvando e confirmando…" : "Confirmar pagamento"}</button>
+          </footer>
+        </form>
+      </Modal>}
 
       {alvo && <Modal title="Dar baixa no reembolso" onClose={fecharBaixa} busy={salvando}>
         <form onSubmit={(e) => { e.preventDefault(); void confirmarBaixa(); }}>

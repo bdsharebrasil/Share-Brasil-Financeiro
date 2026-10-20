@@ -526,6 +526,8 @@ export type SolicitacaoPagamento = CamposLancamento & {
   holding_nome?: string | null;
   cotista_nome?: string | null;
   lancamento_id?: string | null;
+  conta_a_pagar_id?: string | null;
+  conta_a_pagar_status?: string | null;
 };
 
 export type ReembolsoColaborador = CamposLancamento & {

@@ -139,6 +139,7 @@ const statusEnvio: Record<string, { label: string; className: string }> = {
 };
 
 const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();
+const statusChaveConvertido = (status?: string | null) => normalizarStatus(status) === "convertido";
 
 function dataBr(valor?: string | null) {
   return valor ? new Date(`${valor.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -153,6 +154,17 @@ function quantidadeAnexosFonte(item: any, origem: "recibos" | "relatorios" | "ab
 
 function formatarValor(valor: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor);
+}
+
+function lerArrayPersistido(valor: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(valor)) return valor.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"));
+  if (typeof valor !== "string" || !valor.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(valor);
+    return Array.isArray(parsed) ? parsed.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")) : [];
+  } catch {
+    return [];
+  }
 }
 
 function converterValor(valor: string) {
@@ -191,6 +203,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [statusSalvamento, setStatusSalvamento] = useState<"ocioso" | "salvando" | "salvo" | "erro">("ocioso");
   const [salvoEm, setSalvoEm] = useState<string | null>(null);
   const [restaurandoRascunho, setRestaurandoRascunho] = useState(false);
+  const [envioEmRestauracaoId, setEnvioEmRestauracaoId] = useState<string | null>(null);
   const [rascunhoConcluido, setRascunhoConcluido] = useState(false);
   const [convertendoEnvioId, setConvertendoEnvioId] = useState<string | null>(null);
   const [etapa, setEtapa] = useState(0);
@@ -307,6 +320,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const tipoRascunho = tipo || envioRecemCriado?.tipo;
     if (!tipoRascunho) return;
     const { id, chave } = garantirIdentidadeRascunho();
+    const statusRascunho = opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado && envioRecemCriado.tipo !== "share" ? "EMAIL_PENDENTE" : "PREENCHIMENTO");
     setStatusSalvamento("salvando");
     const gravacao = filaSalvamento.current.then(async () => {
       const resultado = await salvarRascunhoEnvioPagamento({
@@ -316,7 +330,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         dados: opcoes.dados ?? construirDadosRascunho(),
         idempotency_key: chave,
         envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
-        status: opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado ? "EMAIL_PENDENTE" : "PREENCHIMENTO"),
+        status: statusRascunho,
         destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => cotista.id),
       });
       setStatusSalvamento("salvo");
@@ -328,7 +342,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           id, tipo_envio: tipoRascunho, etapa_atual: opcoes.etapa ?? etapa,
           dados_json: JSON.stringify(opcoes.dados ?? construirDadosRascunho()), idempotency_key: chave,
           envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
-          status: opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado ? "EMAIL_PENDENTE" : "PREENCHIMENTO"), atualizado_em: resultado.atualizado_em,
+          status: statusRascunho, atualizado_em: resultado.atualizado_em,
         };
         return [atualizado, ...atuais.filter((rascunho) => rascunho.id !== id && rascunho.status !== "CONCLUIDO")].map((rascunho) => existente?.id === rascunho.id ? atualizado : rascunho);
       });
@@ -540,10 +554,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setStatusSalvamento("salvo");
       setErro("");
       setMensagem("");
-      if (envioSalvo) {
-        setModalEmail(true);
-        if (!contatos.length) void carregarContatosEmail();
-      }
+      setModalEmail(false);
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível abrir o rascunho.");
     } finally {
@@ -552,17 +563,102 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   const retomarEnvioHistorico = async (envio: EnvioPagamento) => {
-    setRestaurandoRascunho(true);
+    if (envioEmRestauracaoId) return;
+    setEnvioEmRestauracaoId(envio.id);
     try {
       const { rascunhos: rascunhosAtuais } = await buscarRascunhosEnvioPagamento();
       setRascunhos(rascunhosAtuais);
       const rascunho = rascunhosAtuais.find((item) => item.envio_id === envio.id && item.status.toUpperCase() !== "CONCLUIDO");
-      if (!rascunho) throw new Error("Não há um rascunho pendente salvo para este envio.");
-      await continuarRascunho(rascunho);
+      if (rascunho) {
+        await continuarRascunho(rascunho);
+        return;
+      }
+
+      const registro = envio as EnvioPagamento & Record<string, unknown>;
+      const rateioSalvo = lerArrayPersistido(registro.rateio_linhas_json ?? registro.rateio_linhas);
+      const anexosSalvos = lerArrayPersistido(registro.anexos_json ?? registro.anexos);
+      const cotistaIds = rateioSalvo.map((linha) => String(linha.cotista_id || "")).filter(Boolean);
+      if (!cotistaIds.length && registro.cotista_aeronave_id) cotistaIds.push(String(registro.cotista_aeronave_id));
+      const anexosRestaurados: AnexoLinha[] = anexosSalvos.map((anexo, index) => ({
+        id: String(anexo.id || `anexo-${envio.id}-${index}`),
+        tipo: String(anexo.tipo || "outro") as AnexoLinha["tipo"],
+        numero: String(anexo.numero || ""),
+        url: typeof anexo.url === "string" ? anexo.url : null,
+        file: null,
+        cotista_id: typeof anexo.cotista_id === "string" ? anexo.cotista_id : cotistaIds.length === 1 ? cotistaIds[0] : undefined,
+        uploading: false,
+      }));
+      const valor = Number(envio.valor || 0);
+      const dataDespesa = String(envio.data_despesa || hoje()).slice(0, 10);
+      const formRestaurado: Formulario = {
+        ...inicial,
+        descricao: String(envio.descricao || ""),
+        valor: Number.isFinite(valor) ? valor.toFixed(2).replace(".", ",") : "",
+        data_despesa: dataDespesa,
+        vencimento: String(envio.data_vencimento || envio.vencimento || "").slice(0, 10),
+        periodicidade: String(envio.periodicidade || "ÚNICO") as Formulario["periodicidade"],
+        fornecedor: String(envio.fornecedor || ""),
+        cliente_id: String(registro.cliente_id || ""),
+        socio_id: String(registro.socio_id || ""),
+        cotista_ids: cotistaIds,
+        fornecedor_id: String(envio.fornecedor_id || ""),
+        categoria_id: String(envio.categoria_id || registro.categoria_cliente_id || ""),
+        categoria_nome: String(envio.categoria_nome || ""),
+        aeronave_id: String(envio.aeronave_id || ""),
+        numero_voo: String(envio.numero_voo || ""),
+        centro_custo: String(envio.centro_custo || ""),
+        subcategoria_1: String(registro.subcategoria_1 || ""),
+        subcategoria_2: String(registro.subcategoria_2 || ""),
+        subcategoria_3: String(registro.subcategoria_3 || ""),
+        subcategoria_4: String(registro.subcategoria_4 || ""),
+        tipo_rateio: String(registro.tipo_rateio || "FIXO") as Formulario["tipo_rateio"],
+        rateio_linhas: rateioSalvo.map((linha) => ({ cotista_id: String(linha.cotista_id || ""), percentual: String(Number(linha.percentual || 0)), valor_centavos: Number(linha.valor_centavos || 0) })),
+        observacoes: String(envio.observacoes || ""),
+        grupo_categoria: String(envio.grupo_categoria || (envio.tipo === "cliente" ? "CAIXA CLIENTE" : envio.tipo === "reembolso" ? "DESPESAS REEMBOLSÁVEIS" : "DESPESAS EMPRESA")) as Categoria,
+        tipo_despesa: envio.tipo_despesa === "fixo" ? "fixo" : "variável",
+        pago_por: String(envio.pago_por || ""),
+        anexos: anexosRestaurados,
+      };
+
+      setTipo(envio.tipo);
+      setEtapa(Math.min(1, totalEtapas));
+      setForm(formRestaurado);
+      setVincularAeronave(Boolean(formRestaurado.aeronave_id));
+      setModoNumeroVooCliente(envio.tipo === "cliente" ? (formRestaurado.numero_voo ? "com_voo" : "sem_voo") : null);
+      setOrigemDespesa("");
+      setEnvioRecemCriado(envio);
+      setEnvioConvertido(Boolean(envio.lancamento_id) || statusChaveConvertido(envio.status));
+      setRascunhoId(null);
+      setChaveRascunho(null);
+      chaveRascunhoRef.current = null;
+      setRascunhoConcluido(false);
+      setModalEmail(false);
+      setAssunto(`Solicitação de pagamento — ${envio.descricao}`);
+      setCorpoEmail(montarCorpoEmail(envio));
+      setAnexosEnvioEmail(anexosRestaurados);
+      setAnexosSelecionados(anexosRestaurados.map((anexo) => anexo.id));
+      setCotistasEmail([]);
+      setEmailsPorCotista({});
+      setRascunhosEmailPorCotista({});
+      setStatusEmailCotista({});
+      setEmailsEnviados([]);
+      setCotistas([]);
+      setErro("");
+      setMensagem("Dados do envio selecionado restaurados. Revise as etapas antes de continuar.");
+      if (formRestaurado.aeronave_id) {
+        const respostaCotistas = await buscarCotistasAeronave(formRestaurado.aeronave_id);
+        setCotistas(respostaCotistas.cotistas);
+        const idsSelecionados = new Set(cotistaIds);
+        const cotistasSelecionadosSalvos = respostaCotistas.cotistas.filter((cotista) => idsSelecionados.has(cotista.id));
+        setCotistasEmail(cotistasSelecionadosSalvos);
+        setEmailsPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, cotista.email || ""])));
+        setRascunhosEmailPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, { assunto: `Solicitação de pagamento — ${envio.descricao} — ${cotista.nome}`, mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${envio.descricao}”.\n\nAtenciosamente, Share Brasil` }])));
+      }
+      toast.success("Envio pendente aberto com os dados salvos.");
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível retomar o envio pendente.");
     } finally {
-      setRestaurandoRascunho(false);
+      setEnvioEmRestauracaoId(null);
     }
   };
 
@@ -686,6 +782,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   const enviar = async () => {
+    if (envioRecemCriado) {
+      if (envioRecemCriado.tipo === "share") {
+        toast.info("Esta solicitação já foi registrada e permanece pendente de aprovação. Nenhum novo envio foi criado.");
+        return;
+      }
+      setModalEmail(true);
+      if (!contatos.length) void carregarContatosEmail();
+      return;
+    }
     if (!tipo || !podeAvancar()) {
       setErro("Revise os campos obrigatórios antes de criar o lançamento. Se houver anexos, associe cada um a um cotista.");
       return;
@@ -1132,7 +1237,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : (
-            <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
+            <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Continuar envio" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
           )}
         </div>
       </section>
@@ -1160,7 +1265,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
-                      {statusPendente && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={restaurandoRascunho} onClick={(event) => { event.stopPropagation(); void retomarEnvioHistorico(envio); }}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
+                      {statusPendente && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={Boolean(envioEmRestauracaoId)} onClick={(event) => { event.stopPropagation(); void retomarEnvioHistorico(envio); }}>{envioEmRestauracaoId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
                       {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar rateio da despesa"}</Button>}
                     </div>
                   </div>

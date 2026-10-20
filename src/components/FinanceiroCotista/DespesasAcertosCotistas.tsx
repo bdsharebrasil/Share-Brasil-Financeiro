@@ -62,7 +62,7 @@ export function DespesasAcertosCotistas({dashboard,mesesSelecionados}:Props) {
       <Metrica titulo="Acertos entre clientes" valor={moeda(acerto)} texto="Compensações bilaterais sugeridas" />
     </div>
     {semRateio.length>0&&<div className="bca-alert" role="alert">{semRateio.length} despesa(s) sem rateio, total de {moeda(totalSemRateio)}. Não foram atribuídas aos cotistas nem entram no acerto. Confira a lista na aba de lançamentos.</div>}
-    {!!b.avisos.length&&<div className="bca-alert" role="alert"><strong>Conferência necessária · simulação bloqueada</strong><ul>{b.avisos.map(a=><li key={a}>{a}</li>)}</ul></div>}
+    {!!b.avisos.length&&<div className="bca-alert" role="alert"><strong>Avisos de conciliação</strong><p>O balanço permanece disponível abaixo; somente a simulação fica bloqueada até a revisão destes itens.</p><ul>{b.avisos.map(a=><li key={a}>{a}</li>)}</ul></div>}
     <nav className="bca-nav" aria-label="Detalhamento financeiro">{[['resumo','Visão dos cotistas'],['despesas','Lançamentos e percentuais'],['acertos','Quem deve para quem'],['simular','Equilibrar próxima despesa']].map(([id,label])=><button type="button" aria-pressed={aba===id} onClick={()=>setAba(id)} key={id}>{label}</button>)}</nav>
     {aba==='resumo'&&<>
       <div className="bca-highlights"><div><small>MAIOR CUSTO ATRIBUÍDO</small><strong>{maiorCusto?.nome||'Sem clientes'}</strong><span>{moeda(maiorCusto?.devidoCentavos||0)}</span></div><div><small>MAIOR DESEMBOLSO PESSOAL</small><strong>{maiorPago?.nome||'Sem clientes'}</strong><span>{moeda(maiorPago?.pagoCentavos||0)}</span></div></div>

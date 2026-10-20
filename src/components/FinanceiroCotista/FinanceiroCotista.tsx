@@ -1473,16 +1473,18 @@ function LancamentosDespesa({
           <Pencil size={16} />
           Editar descrição
         </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={["Pago", "Cancelado"].includes(
-            statusLancamento(item.status).label,
-          )}
-          onSelect={() => setBaixaSelecionada(item)}
-          className="gap-2 py-2.5"
-        >
-          <Coins size={16} />
-          Dar baixa
-        </DropdownMenuItem>
+        {!item.reembolsavel && (
+          <DropdownMenuItem
+            disabled={["Pago", "Cancelado"].includes(
+              statusLancamento(item.status).label,
+            )}
+            onSelect={() => setBaixaSelecionada(item)}
+            className="gap-2 py-2.5"
+          >
+            <Coins size={16} />
+            Dar baixa
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onSelect={() => abrirAcao("excluir", item)}
           className="gap-2 py-2.5 text-destructive focus:text-destructive"
@@ -1981,7 +1983,7 @@ function LancamentosDespesa({
       </section>
 
       <DarBaixaCotistaDialog
-        lancamento={baixaSelecionada}
+        lancamento={baixaSelecionada?.reembolsavel ? null : baixaSelecionada}
         onFechar={() => setBaixaSelecionada(null)}
         onConcluido={async () => { await aoAtualizar(); toast.success("Pagamento registrado."); }}
       />

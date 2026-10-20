@@ -97,6 +97,31 @@ export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{
   return financeiroRequest<{ url: string }>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/comprovante-upload`, { method: "POST", body });
 }
 
+// Nome genérico para o mesmo endpoint; mantém compatibilidade com os consumidores antigos.
+export const enviarComprovantePagamento = enviarComprovanteReembolso;
+
+/** Busca documentos privados com autenticação apenas no backend conhecido. */
+export async function carregarDocumentoFinanceiro(valor: string, signal?: AbortSignal): Promise<Blob> {
+  const base = new URL(API_BASE || "/", window.location.origin);
+  const resolvida = resolverUrlDocumento(valor);
+  if (!resolvida) throw new Error("documento_sem_url");
+  const url = new URL(resolvida, window.location.origin);
+  if (!["https:", "http:"].includes(url.protocol)) throw new Error("url_documento_invalida");
+  const headers = new Headers();
+  const privado = url.origin === base.origin && url.pathname.startsWith("/api/");
+  if (privado) {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session?.access_token) throw new Error("sessao_expirada");
+    headers.set("Authorization", `Bearer ${session.access_token}`);
+    if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
+  }
+  const response = await fetch(url.href, { headers, signal, credentials: "omit", redirect: privado ? "error" : "follow" });
+  if (!response.ok) throw new Error(`Não foi possível abrir o documento (${response.status}).`);
+  const blob = await response.blob();
+  if (!blob.size) throw new Error("O documento está vazio.");
+  return blob;
+}
+
 export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise<{ url: string }> {
   const body = new FormData();
   body.append("arquivo", arquivo, arquivo.name);

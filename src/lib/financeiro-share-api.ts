@@ -87,6 +87,9 @@ function resolverUrlDocumento(url: unknown): string | null {
   if (/^(?:https?:|data:|blob:)/i.test(valor)) return valor;
   return valor.startsWith("/") ? `${API_BASE}${valor}` : valor;
 }
+function flagFinanceira(valor: unknown): boolean {
+  return valor === true || valor === 1 || valor === "1" || valor === "true";
+}
 
 export function enviarComprovanteReembolso(id: string, arquivo: File): Promise<{ url: string }> {
   const body = new FormData();
@@ -154,8 +157,8 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     prazo: row.prazo ?? row.data_vencimento ?? null, fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "SAIDA").toUpperCase()) ? "ENTRADA" : "SAIDA",
     valorCentavos: Number(row.valorCentavos ?? row.valor_centavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
     pagoPor: String(row.pagoPor ?? row.pago_por ?? row.pago_por_cotista_id ?? ""), caixa: ((String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" || String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "HOLDING") ? String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() : "SHARE") as "CLIENTE" | "HOLDING" | "SHARE",
-    pagoDiretamente: Boolean(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: Boolean(row.reembolsavel),
-    reembolsoQuitado: Boolean(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
+    pagoDiretamente: flagFinanceira(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: flagFinanceira(row.reembolsavel),
+    reembolsoQuitado: flagFinanceira(row.reembolsoQuitado ?? row.reembolso_quitado), status: String(row.status ?? "EM_ABERTO").toUpperCase() as Lancamento["status"],
     observacoes: row.observacoes ?? null, criadoPor: row.criadoPor ?? row.criado_por ?? null,
     criadoEm: String(row.criadoEm ?? row.criado_em ?? ""), atualizadoEm: String(row.atualizadoEm ?? row.atualizado_em ?? ""),
     anexos: anexos.filter((item: any) => item && item.url).map((item: any) => ({ id: String(item.id ?? crypto.randomUUID()), nome: String(item.nome ?? "Documento"), url: String(item.url), tipo: item.tipo ?? null, numero: item.numero ?? null })),
@@ -624,7 +627,12 @@ function normalizarOpcoesLancamento(payload: Partial<OpcoesLancamento> | null | 
 
 function normalizarBalanco(payload: Partial<BalancoEconomico> | null | undefined): BalancoEconomico {
   return {
-    lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item) => ({ ...item, rateios: Array.isArray(item.rateios) ? item.rateios : [] })) : [],
+    lancamentos: Array.isArray(payload?.lancamentos) ? payload.lancamentos.map((item) => ({
+      ...item,
+      reembolsavel: flagFinanceira(item.reembolsavel),
+      reembolsoQuitado: flagFinanceira(item.reembolsoQuitado),
+      rateios: Array.isArray(item.rateios) ? item.rateios : [],
+    })) : [],
     movimentos_holding: Array.isArray(payload?.movimentos_holding) ? payload.movimentos_holding : [],
     saldos: Array.isArray(payload?.saldos) ? payload.saldos : [],
     matrizCompensacao: payload?.matrizCompensacao && typeof payload.matrizCompensacao === "object" ? payload.matrizCompensacao : {},

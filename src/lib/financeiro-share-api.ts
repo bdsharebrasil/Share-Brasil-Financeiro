@@ -378,6 +378,7 @@ export type LancamentoEconomico = {
   observacoes: string | null;
   local?: string | null;
   periodicidade?: string | null;
+  numeroVoo?: string | null;
   subcategorias?: string[];
   documentos?: DocumentoVinculado[];
   rateios: RateioEconomico[];

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useRef, useId, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, CircleDollarSign, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload, X, Download, Plane } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, Clock, FileText, RefreshCw, Search, TriangleAlert, Upload, X, Download, Plane } from "lucide-react";
 import { toast } from "sonner";
 import {
   buscarContasBancariasHolding,
@@ -41,6 +41,7 @@ type LinhaExibida = {
   expandida: boolean;
   documento: string;
   dataEmissao: string;
+  vencimento: string;
   cliente?: string;
   colaborador?: string;
   principal: string;
@@ -438,7 +439,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
 
   const lancamentosAbertos = envios.filter((item) => atendeFiltroCaixaCliente("ABERTOS", item.status));
   const totalEmAberto = lancamentosAbertos.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
-  const totalReembolsos = reembolsos.reduce((soma, item) => soma + item.valor, 0);
   const totalVencidos = reembolsosVencidos.reduce((soma, item) => soma + item.valor, 0);
 
   const filtrosAtuais = aba === "cotista" ? opcoesEnvio : opcoesReembolso;
@@ -464,6 +464,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
+      vencimento: dataLegivel(item.data_vencimento ?? item.vencimento ?? null),
       cliente: primeiroTexto(item.cliente_razao_social, item.cliente_nome, item.razao_social, item.socio_nome, item.hold_socios_nome, item.hold_socios?.nome, item.cotista_nome, item.holding_nome) ?? "—",
       principal: aeronave ?? "—",
       secundaria: item.descricao ?? "",
@@ -482,6 +483,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
+      vencimento: dataLegivel(item.dataVencimento),
       colaborador: primeiroTexto(item.user_profiles?.nome_completo, item.nome_completo, item.solicitanteNome) ?? "—",
       principal: rotuloAeronave(item.aeronave_id ?? item.aeronaveId, item.matricula_registro ?? item.aeronave_matricula) ?? "—",
       secundaria: item.descricao ?? "",
@@ -497,7 +499,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   return (
     <div className="nf-workspace nf-payment-requests">
       <style>{STYLES}</style>
-      <style>{`.dark .nf-payment-requests{--nf-ink:#edf4ff;--nf-muted:#9aaec8;--nf-border:#25334a;--nf-blue:#3478f6;color-scheme:dark;background:radial-gradient(ellipse at 5% 0%,#112645 0%,transparent 42%),#0b1120;color:#edf4ff}.dark .nf-payment-requests h1,.dark .nf-payment-requests h2,.dark .nf-payment-requests h3{color:#edf4ff}.dark .nf-payment-requests .nf-eyebrow{color:#93b7e6}.dark .nf-payment-requests .nf-subtitle,.dark .nf-payment-requests .nf-list-heading p{color:#91a6c2}.dark .nf-payment-requests .nf-btn{background:#172238;border-color:#25334a;color:#dbe8fa}.dark .nf-payment-requests .nf-btn:hover{background:#21314c;border-color:#3b526f}.dark .nf-payment-requests .nf-btn.primary{background:#09317a;border-color:#020f27;color:#fff}.dark .nf-payment-requests .nf-btn.primary:hover{background:#4289ff}.dark .nf-payment-requests .nf-stat{background:linear-gradient(135deg,#152139,#101a2b);border-color:#25334a;color:#edf4ff}.dark .nf-payment-requests .nf-stat-top{color:#b0c1d8}.dark .nf-payment-requests .nf-stat-top svg{background:#203557;color:#78afff}.dark .nf-payment-requests .nf-stat.green .nf-stat-top svg{background:#10352e;color:#5fe1b5}.dark .nf-payment-requests .nf-stat.amber .nf-stat-top svg{background:#372e1f;color:#f3cb79}.dark .nf-payment-requests .nf-stat small{color:#91a6c2}.dark .nf-payment-requests .nf-panel{background:#10192a;border-color:#25334a;box-shadow:0 12px 40px #00000055}.dark .nf-payment-requests .nf-panel-top{border-color:#25334a}.dark .nf-payment-requests .nf-segment{background:#0b1322;border-color:#253249}.dark .nf-payment-requests .nf-segment button{color:#a4b6cd}.dark .nf-payment-requests .nf-segment button.active{background:#2869e4;color:#fff}.dark .nf-payment-requests .nf-segment span{background:#ffffff10}.dark .nf-payment-requests .nf-toolbar input,.dark .nf-payment-requests .nf-toolbar select{background:#0c1525;border-color:#25334a;color:#edf4ff}.dark .nf-payment-requests .nf-search{background:#0c1525;border-color:#25334a}.dark .nf-payment-requests .nf-search input::placeholder{color:#8196b2}.dark .nf-payment-requests .nf-table th{background:#0d1728;color:#8fa8ca;border-color:#24344c}.dark .nf-payment-requests .nf-table td{border-color:#223047}.dark .nf-payment-requests .nf-table tbody tr:not(.nf-detail-row):hover{background:#1a2b45}.dark .nf-payment-requests .nf-doc-cell strong{color:#e0ecff}.dark .nf-payment-requests .nf-doc-cell small{color:#90a5c0}.dark .nf-payment-requests .nf-doc-icon{background:#20355780;border-color:#304a6d80;color:#78afff}.dark .nf-payment-requests .nf-amount{color:#ecf5ff}.dark .nf-payment-requests .nf-badge.pending{color:#f3cb79;background:#372e1f}.dark .nf-payment-requests .nf-badge.paid{color:#5fe1b5;background:#10352e}.dark .nf-payment-requests .nf-badge.neutral{color:#bbc9dc;background:#223047}.dark .nf-payment-requests .nf-detail{background:#111c2e;border-color:#223047}.dark .nf-payment-requests .nf-detail h3{color:#93b7e6}.dark .nf-payment-requests .nf-detail p{color:#c7d7ee}.dark .nf-payment-requests .nf-detail dt{color:#90a5c0}.dark .nf-payment-requests .nf-detail dd{color:#e0ecff}.dark .nf-payment-requests .nf-detail-actions{border-color:#223047}.dark .nf-payment-requests .nf-attachment{background:#0c1525;border-color:#304a6d;color:#9ec6f1}.dark .nf-payment-requests .nf-attachment:hover{background:#162842;border-color:#7cafe6}.dark .nf-payment-requests .nf-pagination{color:#9cb0cb}.dark .nf-payment-requests .nf-empty{color:#a3b8d3}.dark .nf-payment-requests .nf-mobile-doc{background:#142136;border-color:#2b3f5b}.dark .nf-payment-requests .nf-mobile-doc>header{border-color:#2a3c55}.dark .nf-payment-requests .nf-mobile-doc header small,.dark .nf-payment-requests .nf-mobile-doc dt{color:#8faacc}`}</style>
+      <style>{`.dark .nf-payment-requests{--nf-ink:#edf4ff;--nf-muted:#9aaec8;--nf-border:#25334a;--nf-blue:#3478f6;color-scheme:dark;background:#0b1120;color:#edf4ff}.dark .nf-payment-requests h1,.dark .nf-payment-requests h2,.dark .nf-payment-requests h3{color:#edf4ff}.dark .nf-payment-requests .nf-eyebrow{color:#93b7e6}.dark .nf-payment-requests .nf-subtitle,.dark .nf-payment-requests .nf-list-heading p{color:#91a6c2}.dark .nf-payment-requests .nf-btn{background:#172238;border-color:#25334a;color:#dbe8fa}.dark .nf-payment-requests .nf-btn:hover{background:#21314c;border-color:#3b526f}.dark .nf-payment-requests .nf-btn.primary{background:#09317a;border-color:#020f27;color:#fff}.dark .nf-payment-requests .nf-btn.primary:hover{background:#4289ff}.dark .nf-payment-requests .nf-stat{background:#10192a;border-color:#25334a;color:#edf4ff}.dark .nf-payment-requests .nf-stat-top{color:#b0c1d8}.dark .nf-payment-requests .nf-stat-top svg{background:#203557;color:#78afff}.dark .nf-payment-requests .nf-stat.green .nf-stat-top svg{background:#10352e;color:#5fe1b5}.dark .nf-payment-requests .nf-stat.amber .nf-stat-top svg{background:#372e1f;color:#f3cb79}.dark .nf-payment-requests .nf-stat small{color:#91a6c2}.dark .nf-payment-requests .nf-panel{background:#10192a;border-color:#25334a;box-shadow:0 12px 40px #00000055}.dark .nf-payment-requests .nf-panel-top{border-color:#25334a}.dark .nf-payment-requests .nf-segment{background:#0b1322;border-color:#253249}.dark .nf-payment-requests .nf-segment button{color:#a4b6cd}.dark .nf-payment-requests .nf-segment button.active{background:#2869e4;color:#fff}.dark .nf-payment-requests .nf-segment span{background:#ffffff10}.dark .nf-payment-requests .nf-toolbar input,.dark .nf-payment-requests .nf-toolbar select{background:#0c1525;border-color:#25334a;color:#edf4ff}.dark .nf-payment-requests .nf-search{background:#0c1525;border-color:#25334a}.dark .nf-payment-requests .nf-search input::placeholder{color:#8196b2}.dark .nf-payment-requests .nf-table th{background:#0d1728;color:#8fa8ca;border-color:#24344c}.dark .nf-payment-requests .nf-table td{border-color:#223047}.dark .nf-payment-requests .nf-table tbody tr:not(.nf-detail-row):hover{background:#1a2b45}.dark .nf-payment-requests .nf-doc-cell strong{color:#e0ecff}.dark .nf-payment-requests .nf-doc-cell small{color:#90a5c0}.dark .nf-payment-requests .nf-doc-icon{background:#20355780;border-color:#304a6d80;color:#78afff}.dark .nf-payment-requests .nf-amount{color:#ecf5ff}.dark .nf-payment-requests .nf-badge.pending{color:#f3cb79;background:#372e1f}.dark .nf-payment-requests .nf-badge.paid{color:#5fe1b5;background:#10352e}.dark .nf-payment-requests .nf-badge.neutral{color:#bbc9dc;background:#223047}.dark .nf-payment-requests .nf-detail{background:#111c2e;border-color:#223047}.dark .nf-payment-requests .nf-detail h3{color:#93b7e6}.dark .nf-payment-requests .nf-detail p{color:#c7d7ee}.dark .nf-payment-requests .nf-detail dt{color:#90a5c0}.dark .nf-payment-requests .nf-detail dd{color:#e0ecff}.dark .nf-payment-requests .nf-detail-actions{border-color:#223047}.dark .nf-payment-requests .nf-attachment{background:#0c1525;border-color:#304a6d;color:#9ec6f1}.dark .nf-payment-requests .nf-attachment:hover{background:#162842;border-color:#7cafe6}.dark .nf-payment-requests .nf-pagination{color:#9cb0cb}.dark .nf-payment-requests .nf-empty{color:#a3b8d3}.dark .nf-payment-requests .nf-mobile-doc{background:#142136;border-color:#2b3f5b}.dark .nf-payment-requests .nf-mobile-doc>header{border-color:#2a3c55}.dark .nf-payment-requests .nf-mobile-doc header small,.dark .nf-payment-requests .nf-mobile-doc dt{color:#8faacc}`}</style>
       <header className="nf-header">
         <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / CONTROLE DE DESPESAS</div><h1>Solicitações de pagamento</h1><p className="nf-subtitle">Gestão de despesas e reembolsos</p></div>
         <div className="nf-header-actions">
@@ -507,7 +509,6 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       <section className="nf-stats" aria-label="Resumo das solicitações" aria-busy={carregando}>
         {[
           { label: "Em aberto", valor: formatarMoeda(totalEmAberto), nota: `${lancamentosAbertos.length} despesas aguardando pagamento`, Icon: Clock, cor: "cyan" },
-          { label: "Reembolsos", valor: formatarMoeda(totalReembolsos), nota: `${reembolsos.length} ${reembolsos.length === 1 ? "título" : "títulos"} aguardando pagamento`, Icon: CircleDollarSign, cor: "green" },
           { label: "Vencidos", valor: formatarMoeda(totalVencidos), nota: `${reembolsosVencidos.length} ${reembolsosVencidos.length === 1 ? "reembolso vencido" : "reembolsos vencidos"}`, Icon: TriangleAlert, cor: "amber" },
         ].map(({ label, valor, nota, Icon, cor }) => <article className={`nf-stat ${cor}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{carregando || erro ? "—" : valor}</strong><small>{carregando ? "Atualizando solicitações…" : erro ? "Dados indisponíveis" : nota}</small></article>)}
       </section>
@@ -534,18 +535,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-table-wrap">
               <table className="nf-table">
                 <caption className="nf-sr">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Descrição</th><th scope="col">Vencimento</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr>
                       <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
-                      <td><div className="nf-doc-cell"><div><strong className="nf-registration"><Plane size={14} />{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
+                      <td><div className="nf-doc-cell"><div><strong title={linha.secundaria}>{linha.secundaria || linha.principal}</strong>{linha.secundaria && <small className="nf-registration"><Plane size={12} />{linha.principal}</small>}</div></div></td><td className="nf-date">{linha.vencimento}</td>
                       <td className="right nf-amount">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
                       <td className="right"><div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></div></td>
                     </tr>
-                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={6}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={7}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -553,7 +554,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
-                <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
                 <footer>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
@@ -726,13 +727,13 @@ const STYLES = `
 .nf-payment-requests .nf-btn.primary:hover,.nf-payment-dialog .nf-btn.primary:hover{background:#1949b8}
 .nf-payment-requests .nf-btn svg,.nf-payment-dialog .nf-btn svg,.nf-payment-requests .nf-icon svg,.nf-payment-dialog .nf-icon svg{width:16px;height:16px;flex-shrink:0}
 .nf-payment-requests .nf-icon,.nf-payment-dialog .nf-icon{width:40px;padding:8px}
-.nf-payment-requests .nf-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 24px}
-.nf-payment-requests .nf-stat{position:relative;background:#fff;border:1px solid var(--nf-border);border-radius:13px;padding:20px 22px;box-shadow:0 3px 14px #20395904;overflow:hidden}
-.nf-payment-requests .nf-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#64748b;font-weight:600;font-size:12px;margin-bottom:12px}
-.nf-payment-requests .nf-stat-top svg{width:32px;height:32px;padding:7px;background:#eff4ff;border-radius:9px;color:#245bd8}
+.nf-payment-requests .nf-stats{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:12px;margin:0 0 18px}
+.nf-payment-requests .nf-stat{position:relative;background:#fff;border:1px solid var(--nf-border);border-radius:10px;padding:12px 14px;box-shadow:0 3px 14px #20395904;overflow:hidden}
+.nf-payment-requests .nf-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#64748b;font-weight:600;font-size:11px;margin-bottom:6px}
+.nf-payment-requests .nf-stat-top svg{width:22px;height:22px;padding:4px;background:#eff4ff;border-radius:6px;color:#245bd8}
 .nf-payment-requests .nf-stat.green .nf-stat-top svg{color:#13785c;background:#ecf8f2}.nf-payment-requests .nf-stat.amber .nf-stat-top svg{color:#ab7014;background:#fff6e6}
-.nf-payment-requests .nf-stat strong{display:block;font-size:clamp(20px,2.3vw,29px);letter-spacing:-.9px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.nf-payment-requests .nf-stat small{display:block;font-size:11px;color:#77859a;margin-top:6px}
+.nf-payment-requests .nf-stat strong{display:block;font-size:clamp(16px,1.6vw,20px);letter-spacing:-.9px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.nf-payment-requests .nf-stat small{display:block;font-size:11px;color:#77859a;margin-top:2px}
 .nf-payment-requests .nf-panel{background:#fff;border:1px solid var(--nf-border);border-radius:14px;box-shadow:0 4px 18px #19314d04;overflow:hidden}
 .nf-payment-requests .nf-panel-top{padding:18px 22px;border-bottom:1px solid #edf0f5}
 .nf-payment-requests .nf-segment{display:inline-flex;flex-wrap:wrap;background:#f1f4f9;border:1px solid #e9edf4;border-radius:10px;padding:4px;gap:3px}
@@ -749,7 +750,7 @@ const STYLES = `
 .nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .nf-table{width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;white-space:normal}
 .nf-payment-requests .nf-table th{background:#f8fafc;color:#738197;font-size:10px;text-transform:uppercase;letter-spacing:.6px;font-weight:650;border-block:1px solid #edf1f6;padding:12px 16px}
 .nf-payment-requests .nf-table td{border-bottom:1px solid #edf1f6;padding:18px 16px;vertical-align:top;font-size:12px;overflow-wrap:anywhere}
-.nf-payment-requests .nf-table th:nth-child(1){width:14%}.nf-payment-requests .nf-table th:nth-child(2){width:17%}.nf-payment-requests .nf-table th:nth-child(3){width:27%}.nf-payment-requests .nf-table th:nth-child(4){width:13%}.nf-payment-requests .nf-table th:nth-child(5){width:12%}.nf-payment-requests .nf-table th:nth-child(6){width:17%}
+.nf-payment-requests .nf-table th:nth-child(1){width:13%}.nf-payment-requests .nf-table th:nth-child(2){width:15%}.nf-payment-requests .nf-table th:nth-child(3){width:25%}.nf-payment-requests .nf-table th:nth-child(4){width:10%}.nf-payment-requests .nf-table th:nth-child(5){width:11%}.nf-payment-requests .nf-table th:nth-child(6){width:12%}.nf-payment-requests .nf-table th:nth-child(7){width:14%}.nf-payment-requests .nf-date{font-size:12px;color:#6f7d91;white-space:nowrap}
 .nf-payment-requests .nf-table tbody tr:not(.nf-detail-row):hover{background:#fafcff}.nf-payment-requests .right{text-align:right}
 .nf-payment-requests .nf-doc-cell{display:flex;align-items:flex-start;gap:9px;min-width:0}.nf-payment-requests .nf-doc-cell>div{min-width:0}.nf-payment-requests .nf-doc-cell strong{font-size:12px;font-weight:600}.nf-payment-requests .nf-doc-cell small{display:block;color:#6f7d91;font-size:12px;margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
 .nf-payment-requests .nf-registration{display:flex;gap:6px;align-items:center;color:#304864}.nf-payment-requests .nf-registration svg{color:#8899b0;flex-shrink:0}

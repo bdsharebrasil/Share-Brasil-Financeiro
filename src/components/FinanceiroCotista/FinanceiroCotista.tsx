@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -259,6 +260,13 @@ const DESPESAS_ESTILOS = `
 .dark .despesa-detail-title { color: #9ecaff; }
 .dark .despesas-theme .despesa-status[data-status="Aprovado"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
 .dark .despesas-theme .despesa-status[data-status="Reembolsado"] { color: #76a4dd; background: #1b3155; border-color: #355787; }
+.dark .despesas-theme .despesa-row { background: hsl(222 50% 8%); }
+.dark .despesas-theme .despesa-row:nth-of-type(odd) { background: hsl(222 52% 6%); }
+.dark .despesas-theme .despesa-row:hover { background: hsl(204 94% 64% / .07); }
+.dark .despesas-theme .despesa-row[data-expanded="true"] { background: hsl(204 94% 64% / .1); }
+.dark .despesas-theme .despesa-month th { background: hsl(222 52% 5%); }
+.despesas-theme .despesa-row[data-selected="true"] { background: hsl(var(--primary) / .12); }
+.dark .despesas-theme .despesa-row[data-selected="true"] { background: hsl(204 94% 64% / .16); }
 @media (max-width: 1023px) { .despesa-detail-grid { grid-template-columns: 1fr; gap: 20px; } }
 @media (max-width: 639px) {
   .despesa-detail { padding: 14px; }
@@ -1167,6 +1175,46 @@ function LancamentoExpandido({
 
   return (
     <div className="despesa-detail">
+      <section className="mb-5 min-w-0">
+        <h3 className="despesa-detail-title">Rateio e pagamento</h3>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
+          <div><dt className="text-muted-foreground">Data</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.data)}</dd></div>
+          <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
+          <div><dt className="text-muted-foreground">Número voo</dt><dd className="mt-1 font-semibold">{lancamento.numeroVoo || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Tipo de Rateio</dt><dd className="mt-1 font-semibold">{lancamento.tipo || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "Não informada"}</dd></div>
+          <div><dt className="text-muted-foreground">Percentual Sociedade</dt><dd className="mt-1 font-semibold">{fmtPct(lancamento.percentualSociedade)}</dd></div>
+          <div><dt className="text-muted-foreground">Valor Total</dt><dd className="mt-1 font-mono font-semibold tabular-nums">{formatarCentavos(lancamento.valorCentavos)}</dd></div>
+          {lancamento.subcategorias?.length ? <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words font-semibold">{lancamento.subcategorias.join(" · ")}</dd></div> : null}
+        </dl>
+      </section>
+      <section className="mb-5 min-w-0">
+        <h3 className="despesa-detail-title">Cotistas</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left text-xs">
+            <thead>
+              <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
+                <th className="py-2 pr-3 font-bold">Cotista</th>
+                <th className="px-3 py-2 text-right font-bold">Percentual Uso</th>
+                <th className="px-3 py-2 text-right font-bold">Valor Rateado</th>
+                <th className="px-3 py-2 text-right font-bold">Valor pago</th>
+                <th className="py-2 pl-3 font-bold">Pago por</th>
+              </tr>
+            </thead>
+            <tbody>
+              {partes.map((p) => (
+                <tr key={p.chave} className="border-b border-border/60">
+                  <td className="py-2.5 pr-3 font-semibold text-foreground">{p.responsavel || "Não informado"}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.uso)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.parcela)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.valorPagoReal)}</td>
+                  <td className="py-2.5 pl-3 break-words">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <div className="despesa-detail-grid">
         <section className="min-w-0">
           <dl className="despesa-supplier">
@@ -1213,29 +1261,6 @@ function LancamentoExpandido({
           )}
         </section>
 
-        <section>
-          <h3 className="despesa-detail-title">Rateio</h3>
-          <div className="divide-y divide-border">
-            {partes.map((p) => (
-              <dl
-                key={p.chave}
-                className="despesa-rateio"
-              >
-                <div className="despesa-rateio-person"><dt>Responsável</dt><dd>{p.responsavel || "Não informado"}</dd></div>
-                <div className="despesa-rateio-fields">
-                  <div><dt className="text-muted-foreground">Cota</dt><dd className="mt-1 break-words font-bold">{fmtPct(p.cota)}</dd></div>
-                  <div><dt className="text-muted-foreground">Vencimento / pagamento</dt><dd className="mt-1 font-mono tabular-nums">{p.dataVencimento ? formatarData(p.dataVencimento) : "—"} · {p.dataPagamento ? formatarData(p.dataPagamento) : "—"}</dd></div>
-                  <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1">{p.periodicidade || "Não informada"}</dd></div>
-                </div>
-                <div className="despesa-rateio-fields">
-                  <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words">{p.subcategorias.length ? p.subcategorias.join(" · ") : "—"}</dd></div>
-                  <div><dt className="text-muted-foreground">Percentual de uso / valor pago real</dt><dd className="mt-1 font-mono tabular-nums">{fmtPct(p.uso)} · {formatarCentavos(p.valorPagoReal)}</dd></div>
-                  <div><dt className="text-muted-foreground">Pago por / valor rateio</dt><dd className="mt-1 break-words font-mono">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")} · {formatarCentavos(p.parcela)}</dd></div>
-                </div>
-              </dl>
-            ))}
-          </div>
-        </section>
       </div>
 
       {lancamento.observacoes && (
@@ -1289,6 +1314,7 @@ function LancamentosDespesa({
   const [baixaSelecionada, setBaixaSelecionada] = useState<LancamentoEconomico | null>(null);
   const [compacto, setCompacto] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
   const [documentoAberto, setDocumentoAberto] = useState<{
     nome: string;
     url: string;
@@ -1300,7 +1326,7 @@ function LancamentosDespesa({
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pagina, setPagina] = useState(1);
   const porPagina = 10;
-  useEffect(() => { setPagina(1); setExpandido(null); }, [busca, filtroStatus, filtroCategoria, ordem, lancamentos]);
+  useEffect(() => { setPagina(1); setExpandido(null); setSelecionados(new Set()); }, [busca, filtroStatus, filtroCategoria, ordem, lancamentos]);
   const [acao, setAcao] = useState<AcaoDespesa | null>(null);
   const [descricaoEdicao, setDescricaoEdicao] = useState("");
   const [processando, setProcessando] = useState(false);
@@ -1400,6 +1426,34 @@ function LancamentosDespesa({
     (total, item) => total + item.valorCentavos,
     0,
   );
+  const itensSelecionados = useMemo(
+    () => filtradas.filter((item) => selecionados.has(item.id)),
+    [filtradas, selecionados],
+  );
+  const totalSelecionado = itensSelecionados.reduce(
+    (total, item) => total + item.valorCentavos,
+    0,
+  );
+  const itensDaPagina = gruposDaPagina.flatMap((grupo) => grupo.itens);
+  const todosDaPaginaSelecionados =
+    itensDaPagina.length > 0 &&
+    itensDaPagina.every((item) => selecionados.has(item.id));
+  const alternarSelecao = (id: string) =>
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  const alternarSelecaoDaPagina = () =>
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      itensDaPagina.forEach((item) => {
+        if (todosDaPaginaSelecionados) proximo.delete(item.id);
+        else proximo.add(item.id);
+      });
+      return proximo;
+    });
   const temFiltros = Boolean(
     busca || filtroStatus !== "todos" || filtroCategoria !== "todas",
   );
@@ -1690,6 +1744,17 @@ function LancamentosDespesa({
           </div>}
         </div>
 
+        {itensSelecionados.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-primary/10 px-4 py-3 text-sm">
+            <span role="status">
+              {itensSelecionados.length}{" "}
+              {itensSelecionados.length === 1 ? "lançamento selecionado" : "lançamentos selecionados"}
+              {" · Soma: "}
+              <strong className="tabular-nums">{formatarCentavos(totalSelecionado)}</strong>
+            </span>
+            <button type="button" className="inline-flex items-center gap-1 text-primary" onClick={() => setSelecionados(new Set())}><X size={12} />Limpar seleção</button>
+          </div>
+        )}
         {filtradas.length > 0 ? (
           <>
             {/* A tabela reserva a maior coluna para a descrição. Nenhum texto depende de tooltip. */}
@@ -1700,14 +1765,22 @@ function LancamentosDespesa({
                   e status.
                 </caption>
                 <colgroup>
-                  <col className="w-[16%]" />
-                  <col className="w-[40%]" />
-                  <col className="w-[18%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[38%]" />
+                  <col className="w-[17%]" />
                   <col className="w-[14%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[11%]" />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
+                    <th scope="col" className="px-4 py-4">
+                      <Checkbox
+                        aria-label="Selecionar todos os lançamentos desta página"
+                        checked={todosDaPaginaSelecionados}
+                        onCheckedChange={alternarSelecaoDaPagina}
+                      />
+                    </th>
                     {[
                       "Data / documento",
                       "Descrição",
@@ -1730,7 +1803,7 @@ function LancamentosDespesa({
                     <tr className="despesa-month">
                       <th
                         scope="rowgroup"
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-3 font-normal"
                       >
                         {resumoMes(mes, itens)}
@@ -1749,7 +1822,15 @@ function LancamentosDespesa({
                           <tr
                             className="despesa-row"
                             data-expanded={aberto}
+                            data-selected={selecionados.has(item.id)}
                           >
+                            <td className="px-4 py-5 align-middle">
+                              <Checkbox
+                                aria-label={`Selecionar lançamento: ${item.descricao}`}
+                                checked={selecionados.has(item.id)}
+                                onCheckedChange={() => alternarSelecao(item.id)}
+                              />
+                            </td>
                             <td className="px-4 py-5 align-top">
                               <p className="font-mono text-xs font-semibold tabular-nums">
                                 {formatarData(item.data)}
@@ -1806,7 +1887,7 @@ function LancamentosDespesa({
                           </tr>
                           {aberto && (
                             <tr id={`despesa-desktop-${item.id}`}>
-                              <td colSpan={5} className="p-0">
+                              <td colSpan={6} className="p-0">
                                 <LancamentoExpandido
                                   lancamento={item}
                                   aoAbrirDocumento={(nome, url) =>
@@ -1849,6 +1930,11 @@ function LancamentosDespesa({
                           <div className="p-4 sm:p-5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-3">
+                                <Checkbox
+                                  aria-label={`Selecionar lançamento: ${item.descricao}`}
+                                  checked={selecionados.has(item.id)}
+                                  onCheckedChange={() => alternarSelecao(item.id)}
+                                />
                                 <span className="text-xs font-medium tabular-nums text-muted-foreground">
                                   {formatarData(item.data)}
                                 </span>
@@ -2449,7 +2535,7 @@ export default function FinanceiroCotista() {
               setAeronaveSelecionada(valor === "selecionar" ? "" : valor)
             }
           >
-            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[260px]">
+            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
               <Plane size={14} className="text-muted-foreground" />
               <SelectValue placeholder="Selecione uma aeronave" />
             </SelectTrigger>

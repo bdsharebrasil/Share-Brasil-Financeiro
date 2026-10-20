@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Eye, FileText, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Eye, FileText, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,23 @@ const CORES_STATUS: Record<string, string> = {
 };
 function data(iso: string | null) { if (!iso) return "—"; const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR"); }
 function status(value: string) { return value.replace(/_/g, " "); }
+type ChaveOrdenacao = "emissao" | "descricao" | "cliente" | "vencimento" | "valor";
+function chaveMes(conta: ContaAReceber) {
+  const origem = conta.dataEmissao || conta.dataVencimento;
+  return origem ? origem.slice(0, 7) : "sem-data";
+}
+function rotuloMes(chave: string) {
+  if (chave === "sem-data") return "Data não informada";
+  const [ano, mes] = chave.split("-").map(Number);
+  return new Date(ano, mes - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
 
 export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaBancaria[] }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAReceber({});
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [busca, setBusca] = useState("");
+  const [ordenacao, setOrdenacao] = useState<{ chave: ChaveOrdenacao; direcao: "asc" | "desc" }>({ chave: "emissao", direcao: "desc" });
+  const [mesSelecionado, setMesSelecionado] = useState("todos");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [contaSelecionada, setContaSelecionada] = useState<ContaAReceber | null>(null);
   const [documento, setDocumento] = useState<string | null>(null);
@@ -110,15 +122,40 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
     [nomesCotistas],
   );
 
+  const mesesDisponiveis = useMemo(() => [...new Set(contasDaAba.map(chaveMes))].filter((mes) => mes !== "sem-data").sort().reverse(), [contasDaAba]);
   const filtradas = useMemo(() => contasDaAba
     .filter((conta) => {
       const cotistasRateio = conta.rateios?.map((rateio) => rateio.cotista_nome).filter(Boolean).join(" ") ?? "";
       const texto = `${conta.descricao ?? ""} ${nomeCotistaConta(conta)} ${cotistasRateio} ${conta.documento ?? ""}`.toLowerCase();
-      return (!busca || texto.includes(busca.toLowerCase())) && (filtroStatus === "TODOS" || conta.status === filtroStatus);
+      return (!busca || texto.includes(busca.toLowerCase())) && (filtroStatus === "TODOS" || conta.status === filtroStatus) && (mesSelecionado === "todos" || chaveMes(conta) === mesSelecionado);
     })
-    .map((conta) => ({ ...conta, cotista: nomeCotistaConta(conta) })),
-    [busca, contasDaAba, filtroStatus, nomeCotistaConta],
+    .map((conta) => ({ ...conta, cotista: nomeCotistaConta(conta) }))
+    .sort((a, b) => {
+      const valor = (conta: ContaAReceber) => {
+        switch (ordenacao.chave) {
+          case "emissao": return conta.dataEmissao || "";
+          case "vencimento": return conta.dataVencimento || "";
+          case "descricao": return (conta.descricao || conta.categoriaNome || "").toLocaleLowerCase("pt-BR");
+          case "cliente": return (conta.cotista || "").toLocaleLowerCase("pt-BR");
+          case "valor": return Number(conta.valor) || 0;
+        }
+      };
+      const av = valor(a), bv = valor(b);
+      const resultado = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "pt-BR", { numeric: true });
+      return ordenacao.direcao === "asc" ? resultado : -resultado;
+    }),
+    [busca, contasDaAba, filtroStatus, mesSelecionado, nomeCotistaConta, ordenacao],
   );
+  function alternarOrdenacao(chave: ChaveOrdenacao) {
+    setOrdenacao((atual) => ({ chave, direcao: atual.chave === chave && atual.direcao === "asc" ? "desc" : "asc" }));
+  }
+  function navegarMes(direcao: -1 | 1) {
+    const meses = [...mesesDisponiveis].reverse();
+    const atual = mesSelecionado === "todos" ? (direcao < 0 ? meses.length : -1) : meses.indexOf(mesSelecionado);
+    const proximo = Math.max(0, Math.min(meses.length - 1, atual + direcao));
+    if (meses[proximo]) setMesSelecionado(meses[proximo]);
+  }
+  const cabecalhoOrdenavel = (titulo: string, chave: ChaveOrdenacao, alinhamento = "") => <button type="button" onClick={() => alternarOrdenacao(chave)} className={`inline-flex items-center gap-1.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${alinhamento}`} aria-label={`Ordenar por ${titulo}`} aria-sort={ordenacao.chave === chave ? (ordenacao.direcao === "asc" ? "ascending" : "descending") : "none"}>{titulo}{ordenacao.chave === chave ? (ordenacao.direcao === "asc" ? <ArrowUp size={12}/> : <ArrowDown size={12}/>) : <ArrowUpDown size={12}/>}</button>;
   const total = contasDaAba.reduce((sum, conta) => sum + conta.valor, 0);
   const aberto = contasDaAba.filter((conta) => ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(conta.status)).reduce((sum, conta) => sum + conta.valor, 0);
 
@@ -135,7 +172,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
   return <div className="space-y-4">
     {erro && <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</div>}
     <Card className="overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-sm">Contas a receber</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">{contasDaAba.length} registros · aberto {formatarBRL(aberto)} · clique em Ações para expandir</p></div><div className="flex flex-col gap-2 sm:flex-row"><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição ou documento" className="h-9 rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary" /><Select value={filtroStatus} onValueChange={setFiltroStatus}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os status</SelectItem><SelectItem value="EM_ABERTO">Em aberto</SelectItem><SelectItem value="ATRASADO">Atrasado</SelectItem><SelectItem value="CANCELADO">Cancelado</SelectItem></SelectContent></Select></div></CardHeader>
+      <CardHeader className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-sm">Contas a receber</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">{contasDaAba.length} registros · aberto {formatarBRL(aberto)} · clique em Ações para expandir</p></div><div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"><div className="flex items-center gap-1"><Button type="button" size="icon" variant="outline" className="h-9 w-9" aria-label="Mês anterior" onClick={() => navegarMes(-1)} disabled={mesesDisponiveis.length === 0}><ArrowLeft size={15}/></Button><Select value={mesSelecionado} onValueChange={setMesSelecionado}><SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Todos os meses" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os meses</SelectItem>{mesesDisponiveis.map((mes) => <SelectItem key={mes} value={mes}>{rotuloMes(mes)}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" className="h-9 w-9" aria-label="Próximo mês" onClick={() => navegarMes(1)} disabled={mesesDisponiveis.length === 0}><ArrowRight size={15}/></Button></div><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição ou documento" className="h-9 rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary" /><Select value={filtroStatus} onValueChange={setFiltroStatus}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os status</SelectItem><SelectItem value="EM_ABERTO">Em aberto</SelectItem><SelectItem value="ATRASADO">Atrasado</SelectItem><SelectItem value="CANCELADO">Cancelado</SelectItem></SelectContent></Select></div></CardHeader>
       <CardContent className="p-0">
         {carregando ? (
           <p className="p-12 text-center text-sm text-muted-foreground">
@@ -146,11 +183,11 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
             <table className="w-full min-w-[860px] text-left">
               <thead className="bg-muted/30">
                 <tr className="border-b border-border text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                  <th className="px-4 py-3">Doc. / emissão</th>
-                  <th className="px-4 py-3">Descrição</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Vencimento</th>
-                  <th className="px-4 py-3 text-right">Valor</th>
+                  <th className="px-4 py-3">{cabecalhoOrdenavel("Doc. / emissão", "emissao")}</th>
+                  <th className="px-4 py-3">{cabecalhoOrdenavel("Descrição", "descricao")}</th>
+                  <th className="px-4 py-3">{cabecalhoOrdenavel("Cliente", "cliente")}</th>
+                  <th className="px-4 py-3">{cabecalhoOrdenavel("Vencimento", "vencimento")}</th>
+                  <th className="px-4 py-3 text-right">{cabecalhoOrdenavel("Valor", "valor", "justify-end")}</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Ações</th>
                 </tr>

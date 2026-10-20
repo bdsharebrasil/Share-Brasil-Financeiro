@@ -531,6 +531,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setEmailsPorCotista(dados.emailsPorCotista || {});
       setRascunhosEmailPorCotista(dados.rascunhosEmailPorCotista || {});
       setStatusEmailCotista(Object.fromEntries(destinatarios.map((destinatario: DestinatarioRascunhoEnvio) => [destinatario.cotista_id, destinatario.status])));
+      setEmailsEnviados(destinatarios.filter((destinatario: DestinatarioRascunhoEnvio) => destinatario.status === "ENVIADO").map((destinatario: DestinatarioRascunhoEnvio) => destinatario.cotista_id));
       setRascunhoConcluido(rascunho.status === "CONCLUIDO");
       setRascunhoId(rascunho.id);
       setChaveRascunho(rascunho.idempotency_key);
@@ -1134,6 +1135,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               {recentes.map((envio) => {
                 const statusChave = normalizarStatus(envio.status);
                 const status = statusEnvio[statusChave] || { label: envio.status || "Enviado", className: "bg-secondary text-muted-foreground" };
+                const rascunhoPendente = rascunhos.find((rascunho) => rascunho.envio_id === envio.id && rascunho.status !== "CONCLUIDO");
                 return (
                   <div key={envio.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
@@ -1143,8 +1145,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="flex items-center gap-3">
                       <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
                       <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
+                      {rascunhoPendente && (statusChave === "pendente" || statusChave === "email_nao_enviado") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunhoPendente)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
                       {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar rateio da despesa"}</Button>}
-                      {(statusChave === "email_enviado" || statusChave === "email_nao_enviado" || envio.tipo === "share") && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" onClick={() => setMensagem("Pagamento liberado para programação no módulo financeiro.")}>Programar pagamento</Button>}
                     </div>
                   </div>
                 );

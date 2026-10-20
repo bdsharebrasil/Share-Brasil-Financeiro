@@ -41,6 +41,7 @@ type LinhaExibida = {
   expandida: boolean;
   documento: string;
   dataEmissao: string;
+  vencimento: string;
   cliente?: string;
   colaborador?: string;
   principal: string;
@@ -463,6 +464,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
+      vencimento: dataLegivel(item.data_vencimento ?? item.vencimento ?? null),
       cliente: primeiroTexto(item.cliente_razao_social, item.cliente_nome, item.razao_social, item.socio_nome, item.hold_socios_nome, item.hold_socios?.nome, item.cotista_nome, item.holding_nome) ?? "—",
       principal: aeronave ?? "—",
       secundaria: item.descricao ?? "",
@@ -481,6 +483,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo, item.documento) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.dataEmissao ?? null),
+      vencimento: dataLegivel(item.dataVencimento),
       colaborador: primeiroTexto(item.user_profiles?.nome_completo, item.nome_completo, item.solicitanteNome) ?? "—",
       principal: rotuloAeronave(item.aeronave_id ?? item.aeronaveId, item.matricula_registro ?? item.aeronave_matricula) ?? "—",
       secundaria: item.descricao ?? "",
@@ -532,18 +535,18 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-table-wrap">
               <table className="nf-table">
                 <caption className="nf-sr">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
-                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Descrição</th><th scope="col">Vencimento</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>
                     <tr>
                       <td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div></div></td>
                       <td>{aba === "cotista" ? linha.cliente : linha.colaborador}</td>
-                      <td><div className="nf-doc-cell"><div><strong className="nf-registration"><Plane size={14} />{linha.principal}</strong>{linha.secundaria && <small title={linha.secundaria}>{linha.secundaria}</small>}</div></div></td>
+                      <td><div className="nf-doc-cell"><div><strong title={linha.secundaria}>{linha.secundaria || linha.principal}</strong>{linha.secundaria && <small className="nf-registration"><Plane size={12} />{linha.principal}</small>}</div></div></td><td className="nf-date">{linha.vencimento}</td>
                       <td className="right nf-amount">{linha.valor}</td>
                       <td><StatusSolicitacao status={linha.status} /></td>
                       <td className="right"><div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></div></td>
                     </tr>
-                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={6}>{linha.detalhe}</td></tr>}
+                    {linha.expandida && <tr className="nf-detail-row"><td colSpan={7}>{linha.detalhe}</td></tr>}
                   </Fragment>)}
                 </tbody>
               </table>
@@ -551,7 +554,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
             <div className="nf-mobile-docs">
               {linhas.map((linha) => <article className={`nf-mobile-doc${linha.expandida ? " expanded" : ""}`} key={linha.chave}>
                 <header><span className="nf-doc-icon"><FileText /></span><div><strong>{linha.documento}</strong><small>{linha.dataEmissao}</small></div><StatusSolicitacao status={linha.status} /></header>
-                <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Aeronave / descrição</dt><dd>{linha.principal}{linha.secundaria && <small>{linha.secundaria}</small>}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
+                <dl><div><dt>{aba === "cotista" ? "Cliente" : "Colaborador"}</dt><dd>{aba === "cotista" ? linha.cliente : linha.colaborador}</dd></div><div><dt>Descrição</dt><dd>{linha.secundaria || linha.principal}{linha.secundaria && <small>{linha.principal}</small>}</dd></div><div><dt>Vencimento</dt><dd>{linha.vencimento}</dd></div><div><dt>Valor</dt><dd className="nf-amount">{linha.valor}</dd></div></dl>
                 <footer>{linha.acao}<button type="button" className="nf-btn" aria-expanded={linha.expandida} onClick={() => alternarDetalhe(linha.chave)}>{linha.expandida ? "Fechar" : "Detalhes"}{linha.expandida ? <ChevronUp /> : <ChevronDown />}</button></footer>
                 {linha.detalhe}
               </article>)}
@@ -747,7 +750,7 @@ const STYLES = `
 .nf-payment-requests .nf-table-wrap{width:100%;overflow:auto}.nf-payment-requests .nf-table{width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;white-space:normal}
 .nf-payment-requests .nf-table th{background:#f8fafc;color:#738197;font-size:10px;text-transform:uppercase;letter-spacing:.6px;font-weight:650;border-block:1px solid #edf1f6;padding:12px 16px}
 .nf-payment-requests .nf-table td{border-bottom:1px solid #edf1f6;padding:18px 16px;vertical-align:top;font-size:12px;overflow-wrap:anywhere}
-.nf-payment-requests .nf-table th:nth-child(1){width:14%}.nf-payment-requests .nf-table th:nth-child(2){width:17%}.nf-payment-requests .nf-table th:nth-child(3){width:27%}.nf-payment-requests .nf-table th:nth-child(4){width:13%}.nf-payment-requests .nf-table th:nth-child(5){width:12%}.nf-payment-requests .nf-table th:nth-child(6){width:17%}
+.nf-payment-requests .nf-table th:nth-child(1){width:13%}.nf-payment-requests .nf-table th:nth-child(2){width:15%}.nf-payment-requests .nf-table th:nth-child(3){width:25%}.nf-payment-requests .nf-table th:nth-child(4){width:10%}.nf-payment-requests .nf-table th:nth-child(5){width:11%}.nf-payment-requests .nf-table th:nth-child(6){width:12%}.nf-payment-requests .nf-table th:nth-child(7){width:14%}.nf-payment-requests .nf-date{font-size:12px;color:#6f7d91;white-space:nowrap}
 .nf-payment-requests .nf-table tbody tr:not(.nf-detail-row):hover{background:#fafcff}.nf-payment-requests .right{text-align:right}
 .nf-payment-requests .nf-doc-cell{display:flex;align-items:flex-start;gap:9px;min-width:0}.nf-payment-requests .nf-doc-cell>div{min-width:0}.nf-payment-requests .nf-doc-cell strong{font-size:12px;font-weight:600}.nf-payment-requests .nf-doc-cell small{display:block;color:#6f7d91;font-size:12px;margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
 .nf-payment-requests .nf-registration{display:flex;gap:6px;align-items:center;color:#304864}.nf-payment-requests .nf-registration svg{color:#8899b0;flex-shrink:0}

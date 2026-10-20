@@ -155,6 +155,7 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     bancoPagamento: row.bancoPagamento ?? row.banco_pagamento ?? null,
     comprovantePagamentoUrl: row.comprovantePagamentoUrl ?? row.comprovante_pagamento_url ?? null,
     dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
+    email_enviado_em: row.email_enviado_em ?? null,
     bancoRecebimento: row.bancoRecebimento ?? row.banco_recebimento ?? null,
     comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
     documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,

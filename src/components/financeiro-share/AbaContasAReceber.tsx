@@ -19,6 +19,7 @@ const CORES_STATUS: Record<string, string> = {
 };
 function data(iso: string | null) { if (!iso) return "—"; const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR"); }
 function status(value: string) { return value.replace(/_/g, " "); }
+function dataCurta(iso: string | null | undefined) { if (!iso) return "—"; const partes = iso.slice(0, 10).split("-"); return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0].slice(-2)}` : "—"; }
 type ChaveOrdenacao = "emissao" | "descricao" | "cliente" | "vencimento" | "valor";
 function chaveMes(conta: ContaAReceber) {
   const origem = conta.dataEmissao || conta.dataVencimento;
@@ -242,9 +243,9 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
                           </td>
                         </tr>
                         {abertoLinha && (
-                          <tr key={`${conta.id}-detalhe`}>
-                            <td colSpan={7} className="p-0">
-                              <div className="border-t border-border/70 bg-muted/20 px-4 py-5 sm:px-6">
+                          <tr key={`${conta.id}-detalhe`} className="border-b-2 border-primary/20 bg-primary/[.025]">
+                            <td colSpan={7} className="border-x border-primary/15 p-0">
+                              <div className="border-t border-primary/20 bg-primary/[.035] px-4 py-5 sm:px-6">
                                 <div className="grid gap-6 lg:grid-cols-2">
                                   <section>
                                     <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.16em] text-primary">Documentos vinculados</h3>
@@ -262,8 +263,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
                                     <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.16em] text-primary">Mais informações do recebimento</h3>
                                     <dl className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
                                       <div><dt className="text-muted-foreground">Vencimento</dt><dd className="mt-1 font-semibold">{data(conta.dataVencimento)}</dd></div>
-                                      <div><dt className="text-muted-foreground">Categoria</dt><dd className="mt-1 truncate font-semibold">{conta.categoriaNome || "—"}</dd></div>
-                                      <div><dt className="text-muted-foreground">Recebido em</dt><dd className="mt-1 font-semibold">{data(conta.dataRecebimento)}</dd></div>
+                                      <div><dt className="text-muted-foreground">E-mail enviado em</dt><dd className="mt-1 font-semibold">{dataCurta(conta.email_enviado_em)}</dd></div>
                                     </dl>
                                   </section>
                                 </div>

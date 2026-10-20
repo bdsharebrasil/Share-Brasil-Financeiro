@@ -94,6 +94,7 @@ export interface ContaAReceber {
   nfUrl: string | null;
   nfSaidaId: string | null;
   dataRecebimento: string | null;
+  email_enviado_em?: string | null;
   bancoRecebimento: string | null;
   comprovanteRecebimentoUrl: string | null;
   documento: string | null;

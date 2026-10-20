@@ -42,6 +42,10 @@ function statusLegivel(valor: string): string {
     EMAIL_ENVIADO: "Enviado",
     CONVERTIDO: "Em aberto",
     PAGO: "Pago",
+    RECEBIDO: "Recebido",
+    REEMBOLSADO: "Reembolsado",
+    ATRASADO: "Atrasado",
+    EM_ATRASO: "Em atraso",
     CANCELADO: "Cancelado",
     EM_ABERTO: "Em aberto",
     AGUARDANDO_REEMBOLSO: "Aguardando reembolso",
@@ -51,9 +55,17 @@ function statusLegivel(valor: string): string {
 
 function estadoBadge(valor: string): "paid" | "pending" | "neutral" {
   const estado = valor.toUpperCase();
-  if (estado === "PAGO") return "paid";
+  if (["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(estado)) return "paid";
   if (["APROVADO", "EMAIL_ENVIADO", "CANCELADO", "REJEITADO"].includes(estado)) return "neutral";
   return "pending";
+}
+
+function atendeFiltroCaixaCliente(filtro: string, status: string): boolean {
+  const estado = status.toUpperCase();
+  if (filtro === "TODOS") return true;
+  if (filtro === "ABERTOS") return ["EM_ABERTO", "PENDENTE", "ATRASADO", "EM_ATRASO", "AGUARDANDO_REEMBOLSO"].includes(estado);
+  if (filtro === "PAGOS") return ["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(estado);
+  return estado === "CANCELADO";
 }
 
 function StatusSolicitacao({ status }: { status: string }) {
@@ -87,6 +99,8 @@ function detalheLancamento(campos: CamposLancamento, acao?: ReactNode): ReactNod
     const url = campos[campo];
     return url ? [{ rotulo, url }] : [];
   });
+  const fornecedor = campos.lancamento_fornecedor_nome ?? campos.fornecedor_nome ?? campos.fornecedor;
+  const categoria = campos.lancamento_categoria_nome ?? campos.categoria_nome;
   return <div className="nf-detail">
     <section>
       <h3>Documentos anexos</h3>
@@ -97,20 +111,35 @@ function detalheLancamento(campos: CamposLancamento, acao?: ReactNode): ReactNod
     <section>
       <h3>Mais informações</h3>
       <dl>
+        {campos.descricao && <div><dt>Descrição</dt><dd>{campos.descricao}</dd></div>}
+        {campos.cliente_razao_social && <div><dt>Cliente</dt><dd>{campos.cliente_razao_social}</dd></div>}
+        {campos.aeronave_matricula && <div><dt>Aeronave</dt><dd>{campos.aeronave_matricula}</dd></div>}
+        {categoria && <div><dt>Categoria</dt><dd>{categoria}</dd></div>}
+        {campos.grupo_categoria && <div><dt>Grupo</dt><dd>{campos.grupo_categoria}</dd></div>}
+        {fornecedor && <div><dt>Fornecedor</dt><dd>{fornecedor}</dd></div>}
+        {campos.tipo_caixa && <div><dt>Caixa</dt><dd>{campos.tipo_caixa}</dd></div>}
+        {campos.fluxo && <div><dt>Fluxo</dt><dd>{campos.fluxo}</dd></div>}
+        {campos.data_emissao && <div><dt>Emissão</dt><dd>{dataLegivel(campos.data_emissao)}</dd></div>}
+        {campos.data_vencimento && <div><dt>Vencimento</dt><dd>{dataLegivel(campos.data_vencimento)}</dd></div>}
+        {campos.data_pagamento && <div><dt>Pagamento</dt><dd>{dataLegivel(campos.data_pagamento)}</dd></div>}
+        {campos.pago_por && <div><dt>Pago por</dt><dd>{campos.pago_por}</dd></div>}
+        {campos.reembolsavel != null && <div><dt>Reembolsável</dt><dd>{Number(campos.reembolsavel) === 1 ? "Sim" : "Não"}</dd></div>}
+        {campos.pago_diretamente != null && <div><dt>Pago diretamente</dt><dd>{Number(campos.pago_diretamente) === 1 ? "Sim" : "Não"}</dd></div>}
+        {campos.reembolso_quitado != null && <div><dt>Reembolso quitado</dt><dd>{Number(campos.reembolso_quitado) === 1 ? "Sim" : "Não"}</dd></div>}
+        {campos.observacoes && <div><dt>Observações</dt><dd>{campos.observacoes}</dd></div>}
         {campos.numero_boleto && <div><dt>Número do boleto</dt><dd>{campos.numero_boleto}</dd></div>}
         <div><dt>E-mail enviado em</dt><dd>{dataLegivel(campos.email_enviado_em ?? null)}</dd></div>
-        <div><dt>Número do voo</dt><dd>{campos.numero_voo || "—"}</dd></div>
+        <div><dt>Número do voo</dt><dd>{campos.numero_voo_exibicao || campos.numero_voo || "—"}</dd></div>
       </dl>
     </section>
     {acao && <div className="nf-detail-actions">{acao}</div>}
   </div>;
 }
 
-const FILTROS_ENVIO: FiltroLista[] = [
+const FILTROS_CAIXA_CLIENTE: FiltroLista[] = [
   { id: "TODOS", label: "Todos" },
-  { id: "PENDENTES", label: "Pendentes" },
-  { id: "EM_ANDAMENTO", label: "Em andamento" },
-  { id: "CONCLUIDOS", label: "Convertidos" },
+  { id: "ABERTOS", label: "Em aberto" },
+  { id: "PAGOS", label: "Pagos / reembolsados" },
   { id: "CANCELADOS", label: "Cancelados" },
 ];
 
@@ -267,13 +296,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   );
 
   const enviosFiltrados = useMemo(() => envios.filter((item) => {
-    const estado = item.status.toUpperCase();
-    const atendeFiltro = filtroEnvio === "TODOS"
-      || (filtroEnvio === "PENDENTES" && estado === "PENDENTE")
-      || (filtroEnvio === "EM_ANDAMENTO" && ["APROVADO", "EMAIL_ENVIADO"].includes(estado))
-      || (filtroEnvio === "CONCLUIDOS" && estado === "CONVERTIDO")
-      || (filtroEnvio === "CANCELADOS" && estado === "CANCELADO");
-    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.fornecedor_nome, item.fornecedor, item.solicitante_nome, rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro)).includes(busca.toLocaleLowerCase("pt-BR")));
+    const atendeFiltro = atendeFiltroCaixaCliente(filtroEnvio, item.status);
+    return atendeFiltro && (!busca || textoBusca(item.id, item.descricao, item.cliente_razao_social, item.lancamento_categoria_nome, item.grupo_categoria, item.lancamento_fornecedor_nome, item.fornecedor_nome, item.fornecedor, item.solicitante_nome, rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro)).includes(busca.toLocaleLowerCase("pt-BR")));
   }), [envios, filtroEnvio, busca, rotuloAeronave]);
 
   const reembolsosFiltrados = useMemo(() => reembolsos.filter((item) => {
@@ -282,16 +306,9 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     return atendeFiltro && (!busca || textoBusca(item.id, item.documento, item.descricao, item.fornecedor, item.numeroVoo, item.cotistaNome, item.solicitanteNome, item.aeronaveId, rotuloAeronave(item.aeronaveId, item.aeronave_matricula ?? item.matricula_registro)).includes(busca.toLocaleLowerCase("pt-BR")));
   }), [reembolsos, filtroReembolso, busca, hoje, rotuloAeronave]);
 
-  const opcoesEnvio: FiltroLista[] = useMemo(() => FILTROS_ENVIO.map((filtro) => ({
+  const opcoesEnvio: FiltroLista[] = useMemo(() => FILTROS_CAIXA_CLIENTE.map((filtro) => ({
     ...filtro,
-    quantidade: envios.filter((item) => {
-      const estado = item.status.toUpperCase();
-      if (filtro.id === "TODOS") return true;
-      if (filtro.id === "PENDENTES") return estado === "PENDENTE";
-      if (filtro.id === "EM_ANDAMENTO") return ["APROVADO", "EMAIL_ENVIADO"].includes(estado);
-      if (filtro.id === "CONCLUIDOS") return estado === "CONVERTIDO";
-      return estado === "CANCELADO";
-    }).length,
+    quantidade: envios.filter((item) => atendeFiltroCaixaCliente(filtro.id, item.status)).length,
   })), [envios]);
 
   const reembolsosVencidos = reembolsos.filter((item) => item.dataVencimento.slice(0, 10) < hoje);
@@ -300,14 +317,14 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
     { id: "VENCIDOS", label: "Vencidos", quantidade: reembolsosVencidos.length },
   ];
 
-  const enviosPendentes = envios.filter((item) => item.status.toUpperCase() === "PENDENTE");
-  const totalPendentes = enviosPendentes.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
+  const lancamentosAbertos = envios.filter((item) => atendeFiltroCaixaCliente("ABERTOS", item.status));
+  const totalEmAberto = lancamentosAbertos.reduce((soma, item) => soma + Number(item.valor ?? 0), 0);
   const totalReembolsos = reembolsos.reduce((soma, item) => soma + item.valor, 0);
   const totalVencidos = reembolsosVencidos.reduce((soma, item) => soma + item.valor, 0);
 
   const filtrosAtuais = aba === "cotista" ? opcoesEnvio : opcoesReembolso;
   const filtroAtual = aba === "cotista" ? filtroEnvio : filtroReembolso;
-  const placeholderBusca = aba === "cotista" ? "Buscar solicitação, fornecedor ou solicitante" : "Buscar documento, descrição, fornecedor, voo ou cotista";
+  const placeholderBusca = aba === "cotista" ? "Buscar lançamento, cliente ou fornecedor" : "Buscar documento, descrição, fornecedor, voo ou cotista";
   const temFiltro = busca !== "" || filtroAtual !== "TODOS";
   const totalItens = aba === "cotista" ? enviosFiltrados.length : reembolsosFiltrados.length;
   const totalPaginas = Math.max(1, Math.ceil(totalItens / POR_PAGINA));
@@ -320,14 +337,15 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
   const linhasEnvio: LinhaExibida[] = enviosVisiveis.map((item) => {
     const chave = `envio:${item.id}`;
     const expandida = expandido === chave;
+    const aeronave = rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro);
     return {
       chave,
       expandida,
       documento: primeiroTexto(item.numero_nf, item.numero_recibo, item.numero_doc, item.numero_demonstrativo) ?? "—",
       dataEmissao: dataLegivel(item.data_emissao ?? item.data_despesa),
       cliente: primeiroTexto(item.cliente_razao_social, item.cliente_nome, item.razao_social, item.socio_nome, item.hold_socios_nome, item.hold_socios?.nome, item.cotista_nome, item.holding_nome) ?? "—",
-      principal: primeiroTexto(rotuloAeronave(item.aeronave_id, item.aeronave_matricula ?? item.matricula_registro), item.descricao) ?? "—",
-      secundaria: [item.grupo_categoria, item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
+      principal: primeiroTexto(item.descricao, aeronave) ?? "—",
+      secundaria: [aeronave, item.lancamento_categoria_nome ?? item.categoria_nome, item.grupo_categoria, item.lancamento_fornecedor_nome ?? item.fornecedor_nome ?? item.fornecedor].filter(Boolean).join(" · "),
       valor: `−${formatarMoeda(item.valor_centavos != null ? item.valor_centavos / 100 : Number(item.valor ?? 0))}`,
       status: item.status,
       detalhe: expandida ? detalheLancamento(item) : null,
@@ -365,7 +383,7 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
       </header>
       <section className="nf-stats" aria-label="Resumo das solicitações" aria-busy={carregando}>
         {[
-          { label: "Pendentes", valor: formatarMoeda(totalPendentes), nota: `${enviosPendentes.length} aguardando aprovação`, Icon: Clock, cor: "cyan" },
+          { label: "Em aberto", valor: formatarMoeda(totalEmAberto), nota: `${lancamentosAbertos.length} despesas aguardando pagamento`, Icon: Clock, cor: "cyan" },
           { label: "Reembolsos", valor: formatarMoeda(totalReembolsos), nota: `${reembolsos.length} ${reembolsos.length === 1 ? "título" : "títulos"} aguardando pagamento`, Icon: CircleDollarSign, cor: "green" },
           { label: "Vencidos", valor: formatarMoeda(totalVencidos), nota: `${reembolsosVencidos.length} ${reembolsosVencidos.length === 1 ? "reembolso vencido" : "reembolsos vencidos"}`, Icon: TriangleAlert, cor: "amber" },
         ].map(({ label, valor, nota, Icon, cor }) => <article className={`nf-stat ${cor}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{carregando || erro ? "—" : valor}</strong><small>{carregando ? "Atualizando solicitações…" : erro ? "Dados indisponíveis" : nota}</small></article>)}
@@ -383,16 +401,16 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         <div className="nf-list-heading">
           <div>
             <h2>{aba === "cotista" ? "Caixa cliente" : "Reembolsos de colaboradores"}</h2>
-            <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "solicitação" : "solicitações") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
+            <p>{carregando ? "Carregando…" : `${totalItens} ${aba === "cotista" ? (totalItens === 1 ? "lançamento" : "lançamentos") : (totalItens === 1 ? "título" : "títulos")} encontrados`}{temFiltro && <button className="nf-text-btn" onClick={limparFiltros}>Limpar filtros</button>}</p>
           </div>
         </div>
         {carregando ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando solicitações</h3><p>Organizando as informações de pagamento.</p></div>
           : erro ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{erro}</p><button className="nf-btn" onClick={() => void carregar()}>Tentar novamente</button></div>
-          : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há solicitações de pagamento de caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
+          : totalItens === 0 ? <div className="nf-empty"><Search /><h3>{temFiltro ? "Nenhum resultado encontrado" : "Nada por aqui"}</h3><p>{temFiltro ? "Ajuste a busca ou o filtro para encontrar o registro." : aba === "cotista" ? "Não há despesas reembolsáveis no caixa cliente." : "Não há reembolsos pendentes de colaboradores."}</p>{temFiltro && <button className="nf-btn" onClick={limparFiltros}>Limpar filtros</button>}</div>
           : <>
             <div className="nf-table-wrap">
               <table className="nf-table">
-                <caption className="nf-sr">{aba === "cotista" ? "Solicitações de pagamento de caixa cliente" : "Reembolsos de colaboradores"}</caption>
+                <caption className="nf-sr">{aba === "cotista" ? "Lançamentos reembolsáveis de caixa cliente" : "Reembolsos de colaboradores"}</caption>
                 <thead><tr><th scope="col">Doc / emissão</th>{aba === "cotista" ? <th scope="col">Cliente</th> : <th scope="col">Colaborador</th>}<th scope="col">Aeronave / descrição</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead>
                 <tbody>
                   {linhas.map((linha) => <Fragment key={linha.chave}>

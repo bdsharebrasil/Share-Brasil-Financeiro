@@ -1,4 +1,3 @@
-import { DespesasAcertosCotistas } from "./DespesasAcertosCotistas";
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -29,16 +28,15 @@ export type BalancoOperacional = {
 };
 type DashboardBalanco = DashboardCotista & { balanco_operacional?: BalancoOperacional | null; balanco_escopo?: "aeronave" | "cotista" | "geral" };
 type Registro = Record<string, unknown>;
-type Grupo = "fixos" | "variaveis" | "extras" | "semClassificacao";
-type Custo = { total: number; fixos: number; variaveis: number; extras: number; semClassificacao: number };
+type Grupo = "fixos" | "variaveis" | "extras" | "naoClassificados";
+type Custo = { total: number; fixos: number; variaveis: number; extras: number; naoClassificados: number };
 type Participante = { id: string; nome: string; quota: number | null; holding: boolean; confirmado: boolean };
 const ABAS = [
-  { id: "despesasacertos", nome: "Despesas e acertos", Icon: Scale },
   { id: "geral", nome: "Comparativo mensal", Icon: BarChart3 },
   { id: "cotistas", nome: "Evolução por cotista", Icon: Users },
   { id: "custos", nome: "Custos e projeção", Icon: Gauge },
   { id: "categorias", nome: "Categorias e cotistas", Icon: Layers3 },
-  { id: "acerto", nome: "Posição acumulada", Icon: Scale },
+  { id: "acerto", nome: "Acerto de contas", Icon: Scale },
   { id: "holding", nome: "Conta comum", Icon: Wallet },
 ] as const;
 type Aba = typeof ABAS[number]["id"];
@@ -58,15 +56,15 @@ const validaMes = (v: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
 const horas = (v: number | null) => { if (v === null) return "—"; const m = Math.round(Math.abs(v) * 60); return `${v < 0 ? "−" : ""}${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`; };
 const dividir = (a: number | null, b: number | null) => a === null || b === null || b <= 0 ? null : a / b;
 const compacto = (v: number) => new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(v / 100);
-const custoVazio = (): Custo => ({ total: 0, fixos: 0, variaveis: 0, extras: 0, semClassificacao: 0 });
+const custoVazio = (): Custo => ({ total: 0, fixos: 0, variaveis: 0, extras: 0, naoClassificados: 0 });
 const somarCusto = (a: Custo, b: Custo) => { for (const k of Object.keys(a) as (keyof Custo)[]) a[k] += b[k]; return a; };
-function classificar(l: Registro): Grupo | null {
+function classificar(l: Registro): Grupo {
   // A natureza do custo vem do cadastro, nunca do pagador ou da identidade do cotista.
   const tipo = norm(l.tipoRateio || l.tipo_rateio || l.grupoCategoria);
   if (/EXTRA/.test(tipo)) return "extras";
   if (/FIX/.test(tipo)) return "fixos";
   if (/VARIAVEL|HORA|VOO/.test(tipo)) return "variaveis";
-  return null;
+  return "naoClassificados";
 }
 function somarMedida<T>(itens: T[], valor: (t: T) => number | null, disponivel: boolean): number | null {
   if (!disponivel || itens.some(t => valor(t) === null)) return null;
@@ -137,30 +135,20 @@ function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecio
     cat.total += valor; cat.cotistas.set(cotista, (cat.cotistas.get(cotista) ?? 0) + valor); categorias.set(categoria, cat);
   }
   let diferencasRateio = 0;
-  let custosSemClassificacao = false;
   for (const l of despesas) {
     const raw = obj(l); const m = mes(l.data); const categoria = l.categoria || "Sem categoria";
     if (l.rateios?.length) {
       let rateado = 0;
       for (const r of l.rateios) {
         const valor = cents(r.valorCentavos); rateado += valor;
-        const grupo = classificar({ ...raw, ...obj(r), tipoRateio: obj(r).tipoRateio || raw.tipoRateio });
-        if (grupo) adicionar(valor, grupo, cadastro.resolver(r.cotistaId, r.cotista), m, categoria);
-        else { custosSemClassificacao = true; adicionar(valor, "semClassificacao", cadastro.resolver(r.cotistaId, r.cotista), m, categoria); }
+        adicionar(valor, classificar({ ...raw, ...obj(r), tipoRateio: obj(r).tipoRateio || raw.tipoRateio }), cadastro.resolver(r.cotistaId, r.cotista), m, categoria);
       }
       const diferenca = cents(l.valorCentavos) - rateado;
-      if (diferenca) {
-        diferencasRateio++;
-        const grupo = classificar(raw);
-        if (grupo) adicionar(diferenca, grupo, cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria);
-        else { custosSemClassificacao = true; adicionar(diferenca, "semClassificacao", cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria); }
-      }
+      if (diferenca) { diferencasRateio++; adicionar(diferenca, classificar(raw), cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria); }
     } else {
       // Rateios de holding vêm como linhas individuais com participanteId no backend.
       const id = raw.participanteId;
-      const grupo = classificar(raw);
-      if (grupo) adicionar(cents(l.valorCentavos), grupo, cadastro.resolver(id, raw.participanteNome), m, categoria);
-      else { custosSemClassificacao = true; adicionar(cents(l.valorCentavos), "semClassificacao", cadastro.resolver(id, raw.participanteNome), m, categoria); }
+      adicionar(cents(l.valorCentavos), classificar(raw), cadastro.resolver(id, raw.participanteNome), m, categoria);
     }
   }
   const voos = (op?.voos ?? []).filter(v => seleciona.has(mes(v.data)));
@@ -225,7 +213,8 @@ function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecio
       consumoHora: dividir(somarMedida(lista, v => v.consumoEstimadoLitros, fonteVoos), h),
     };
   });
-  const projecao = totalHoras !== null && totalHoras > 0 && meses.length > 0
+  const custosSemClassificacao = despesas.some(l => l.rateios?.length ? l.rateios.some(r => classificar({ ...obj(l), ...obj(r), tipoRateio: obj(r).tipoRateio || obj(l).tipoRateio }) === "naoClassificados") : classificar(obj(l)) === "naoClassificados");
+  const projecao = !custosSemClassificacao && totalHoras !== null && totalHoras > 0 && meses.length > 0
     ? [5, 10, 15, 20, 25, 30, 40, 50, 60].map(h => ({ horas: h, fixoHora: total.fixos / meses.length / h,
       variavelHora: total.variaveis / totalHoras, extraHora: total.extras / totalHoras,
       custoHora: total.fixos / meses.length / h + (total.variaveis + total.extras) / totalHoras,
@@ -236,14 +225,14 @@ function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecio
   return { meses, mensais, total, totalHoras, totalVoos: somarMedida(mensais, m => m.voos, true), totalPousos: somarMedida(mensais, m => m.pousos, true),
     participantes, categorias: [...categorias].map(([nome, c]) => ({ nome, ...c })).sort((a, b) => b.total - a.total),
     custoHora: dividir(total.total, totalHoras), mediaViagem: dividir(totalViagens, fonteViagens ? viagens.length : null), totalViagens, viagens: fonteViagens ? viagens.length : null,
-    consumoHora: dividir(consumo, totalHoras), abastecidoHora: dividir(litros, totalHoras), consumo, litros, projecao, custosSemClassificacao, entradasHolding,
+    consumoHora: dividir(consumo, totalHoras), abastecidoHora: dividir(litros, totalHoras), consumo, litros, projecao, entradasHolding,
     fonteVoos, fonteViagens, op, diferencasRateio, nome: cadastro.nome,
   };
 }
 
 export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados }: Props) {
   const uid = useId().replace(/:/g, "");
-  const [aba, setAba] = useState<Aba>("despesasacertos");
+  const [aba, setAba] = useState<Aba>("geral");
   const d = dashboard as DashboardBalanco | null;
   const b = useMemo(() => d ? montarBalanco(d, cotistas, mesesSelecionados) : null, [d, cotistas, mesesSelecionados]);
   const estilos = <style>{CSS}</style>;
@@ -267,21 +256,18 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
     <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>Balanço da aeronave</h2><p>{periodo}</p></div><button type="button" className="bcp-button bcp-no-print" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></header>
     <div className="bcp-kpis"><Kpi titulo="Custo total" valor={money(b.total.total)} detalhe="Despesas do período" /><Kpi titulo="Horas voadas" valor={horas(b.totalHoras)} detalhe={`${fmt(b.totalVoos, 0)} etapas · ${fmt(b.totalPousos, 0)} pousos`} /><Kpi titulo="Custo / hora total" valor={money(b.custoHora)} detalhe="Custo total ÷ horas totais" destaque /><Kpi titulo="Média por relatório de viagem" valor={money(b.mediaViagem)} detalhe={`${fmt(b.viagens, 0)} relatórios no período`} /><Kpi titulo="Consumo estimado L/h" valor={fmt(b.consumoHora)} detalhe="Estimativa registrada no diário" /></div>
     {!b.op && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
-    {b.custosSemClassificacao && <Nota>Despesas sem classificação estão incluídas no custo total e na coluna Sem classificação do comparativo mensal. As projeções por tipo de custo não incluem esses valores.</Nota>}
     {b.diferencasRateio > 0 && <Nota>{b.diferencasRateio} lançamento(s) com diferença entre o total e as parcelas. A diferença aparece separada, sem atribuição automática a um cotista.</Nota>}
     <nav className="bcp-tabs bcp-no-print" aria-label="Seções do balanço">{ABAS.filter(t => t.id !== "holding" || temHolding).map(({ id, nome, Icon }) => <button type="button" key={id} aria-pressed={atual === id} aria-controls={`${uid}-${id}`} onClick={() => setAba(id)} className={atual === id ? "bcp-selected" : ""}><Icon size={15} />{nome}</button>)}</nav>
 
-    <section className={view("despesasacertos")} id={`${uid}-despesasacertos`} aria-label="Despesas e acertos"><DespesasAcertosCotistas dashboard={d} mesesSelecionados={mesesSelecionados} /></section>
-
     <section className={view("geral")} id={`${uid}-geral`} aria-label="Comparativo mensal">
       <Painel titulo="Comparativo mensal — total da aeronave" detalhe="Meses selecionados em ordem cronológica. Etapas correspondem aos registros do diário.">
-        <Tabela headers={["Mês", "Custo total", "Fixos", "Variáveis", "Extras", "Sem classificação", "Horas", "Pousos", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8,9]}>
-          {b.mensais.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.semClassificacao)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.pousos,0)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}
-          <tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{money(b.total.total)}</Td><Td num>{money(b.total.fixos)}</Td><Td num>{money(b.total.variaveis)}</Td><Td num>{money(b.total.extras)}</Td><Td num>{money(b.total.semClassificacao)}</Td><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.totalPousos,0)}</Td><Td num>{fmt(b.totalVoos,0)}</Td><Td num destaque>{money(b.custoHora)}</Td></tr>
+        <Tabela headers={["Mês", "Custo total", "Fixos", "Variáveis", "Extras", "Não classificados", "Horas", "Pousos", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8,9]}>
+          {b.mensais.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.naoClassificados)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.pousos,0)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}
+          <tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{money(b.total.total)}</Td><Td num>{money(b.total.fixos)}</Td><Td num>{money(b.total.variaveis)}</Td><Td num>{money(b.total.extras)}</Td><Td num>{money(b.total.naoClassificados)}</Td><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.totalPousos,0)}</Td><Td num>{fmt(b.totalVoos,0)}</Td><Td num destaque>{money(b.custoHora)}</Td></tr>
         </Tabela>
       </Painel>
       {atual === "geral" && <div className="bcp-grid-two bcp-no-print"><Painel titulo="Média de custo/hora por mês" detalhe="Cada ponto = custo do mês ÷ horas do mesmo mês."><Grafico><ResponsiveContainer width="100%" height="100%"><AreaChart data={b.mensais} margin={{left:0,right:15,top:12,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} tickLine={false} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Area dataKey="custoHora" name="Custo/h" stroke="var(--bcp-accent)" fill="var(--bcp-accent)" fillOpacity={.1} strokeWidth={2} connectNulls={false} isAnimationActive={false} /></AreaChart></ResponsiveContainer></Grafico></Painel>
-      <Painel titulo="Fixos × variáveis" detalhe="Custos sem classificação não entram no balanço."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={b.mensais} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
+      <Painel titulo="Fixos × variáveis" detalhe="Extras e valores sem classificação permanecem separados."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={b.mensais} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/><Bar dataKey="naoClassificados" name="Não classificados" stackId="custo" fill="#8291a4" isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
       <Nota>O custo/hora consolidado é ponderado pelas horas: soma dos custos ÷ soma das horas. Meses sem voo exibem “—”. Os totais financeiros seguem a emissão e as horas seguem a data do diário.</Nota>
     </section>
 
@@ -295,7 +281,7 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
             <div className="bcp-quota-result"><strong>{p.diferenca === null ? "Sem base de comparação" : Math.abs(p.diferenca)<.005 ? "Utilização proporcional à cota" : `${fmt(Math.abs(p.diferenca))} p.p. ${p.diferenca>0?"acima":"abaixo"} da cota`}</strong><span>Referência proporcional: {horas(p.referencia)} · Diferença de horas: {horas(p.saldoHoras)}</span></div>
             <small>Cota atual × horas totais do período. A diferença é um comparativo de utilização, não um crédito de horas ou cobrança.</small>
           </div><div className="bcp-destinos"><h4>Destinos mais visitados</h4>{p.destinos.length ? <ol>{p.destinos.slice(0,5).map((dest, k) => <li key={dest.nome}><span className="bcp-rank">{String(k+1).padStart(2,"0")}</span><strong>{dest.nome}</strong><div className="bcp-destination-bar"><i style={{width:`${dest.visitas/p.destinos[0].visitas*100}%`}} /></div><span>{dest.visitas} {dest.visitas===1?"chegada":"chegadas"}</span></li>)}</ol> : <Vazio>{b.fonteVoos ? "Nenhum destino registrado no período." : "Histórico operacional indisponível."}</Vazio>}</div></div>
-          <h4>Evolução mensal</h4><Tabela headers={["Mês", "Custo rateado", "Fixos", "Variáveis", "Extras", "Sem classificação", "Horas", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8]}>{p.mensal.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.semClassificacao)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}</Tabela>
+          <h4>Evolução mensal</h4><Tabela headers={["Mês", "Custo rateado", "Fixos", "Variáveis", "Extras", "Não classificados", "Horas", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8]}>{p.mensal.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.naoClassificados)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}</Tabela>
           <details className="bcp-history"><summary><Plane size={14} /> Histórico de utilização · {b.fonteVoos ? p.voos.length : "—"} etapas</summary>{p.voos.length ? <Tabela headers={["Data", "Voo", "Origem", "Destino", "Horas", "Pousos", "Natureza"]} numericas={[4,5]}>{p.voos.map(v => <tr key={v.id}><Th>{formatarData(v.data)}</Th><Td>{v.numero||"—"}</Td><Td>{v.origem||"—"}</Td><Td>{v.destino||"—"}</Td><Td num>{horas(v.horas)}</Td><Td num>{fmt(v.pousos,0)}</Td><Td>{v.natureza||"—"}{v.emprestado?" · empréstimo":""}</Td></tr>)}</Tabela> : <Vazio>Nenhuma etapa vinculada.</Vazio>}</details>
         </div>
       </article>)}
@@ -303,10 +289,10 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
     </section>
 
     <section className={view("custos")} id={`${uid}-custos`} aria-label="Custos e projeção">
-      <div className="bcp-mini-kpis"><Kpi titulo="Fixos no período" valor={money(b.total.fixos)}/><Kpi titulo="Variáveis no período" valor={money(b.total.variaveis)}/><Kpi titulo="Extras" valor={money(b.total.extras)}/></div>
-      <Painel titulo="Projeção do custo por hora voada" detalhe="Cenários mensais com base nos custos classificados dos meses selecionados.">{b.projecao.length ? <>
+      <div className="bcp-mini-kpis"><Kpi titulo="Fixos no período" valor={money(b.total.fixos)}/><Kpi titulo="Variáveis no período" valor={money(b.total.variaveis)}/><Kpi titulo="Extras" valor={money(b.total.extras)}/><Kpi titulo="Não classificados" valor={money(b.total.naoClassificados)}/></div>
+      <Painel titulo="Projeção do custo por hora voada" detalhe="Cenários mensais com base nos meses selecionados.">{b.projecao.length ? <>
         {atual==="custos" && <div className="bcp-no-print"><Grafico><ResponsiveContainer width="100%" height="100%"><LineChart data={b.projecao} margin={{top:12,right:20,left:0,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="horas" tickFormatter={v=>`${v}h`} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><YAxis width={65} tickFormatter={compacto} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><Tooltip formatter={chartMoney} labelFormatter={v=>`${v} horas/mês`} contentStyle={tooltip}/><Legend wrapperStyle={{fontSize:10}}/><Line dataKey="custoHora" name="Custo/h total" stroke={cores[0]} dot={false} strokeWidth={2} isAnimationActive={false}/><Line dataKey="fixoHora" name="Fixo/h" stroke={cores[1]} dot={false} strokeDasharray="4 4" isAnimationActive={false}/></LineChart></ResponsiveContainer></Grafico></div>}
-        <Tabela headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h projetado", "Custo mensal projetado"]} numericas={[0,1,2,3,4,5]}>{b.projecao.map(p=><tr key={p.horas}><Th num>{p.horas}h</Th><Td num>{money(p.fixoHora)}</Td><Td num>{money(p.variavelHora)}</Td><Td num>{money(p.extraHora)}</Td><Td num destaque>{money(p.custoHora)}</Td><Td num>{money(p.custoMensal)}</Td></tr>)}</Tabela></> : <Vazio>A projeção exige horas registradas nos meses selecionados.</Vazio>}
+        <Tabela headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h projetado", "Custo mensal projetado"]} numericas={[0,1,2,3,4,5]}>{b.projecao.map(p=><tr key={p.horas}><Th num>{p.horas}h</Th><Td num>{money(p.fixoHora)}</Td><Td num>{money(p.variavelHora)}</Td><Td num>{money(p.extraHora)}</Td><Td num destaque>{money(p.custoHora)}</Td><Td num>{money(p.custoMensal)}</Td></tr>)}</Tabela></> : <Vazio>A projeção exige horas registradas e todos os custos classificados. Confira os tipos de rateio antes de projetar.</Vazio>}
         <p className="bcp-footnote">Fixo/h = (fixos do período ÷ quantidade de meses selecionados) ÷ horas projetadas. Variável/h e extra/h mantêm a média histórica ponderada. Extras são repetidos nesta hipótese; não é previsão de manutenção nem compromisso de custo.</p>
       </Painel>
       <Painel titulo="Combustível — consumo e abastecimento" detalhe="Consumo estimado e litros abastecidos têm origens diferentes."><Tabela headers={["Mês", "Horas", "Consumo estimado (L)", "Consumo estimado (L/h)", "Abastecido (L)", "Abastecido / hora"]} numericas={[1,2,3,4,5]}>{b.mensais.map(m=><tr key={m.mes}><Th>{m.nome}</Th><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.consumo)}</Td><Td num destaque>{fmt(m.consumoHora)}</Td><Td num>{fmt(m.litros)}</Td><Td num>{fmt(m.abastecidoHora)}</Td></tr>)}<tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.consumo)}</Td><Td num destaque>{fmt(b.consumoHora)}</Td><Td num>{fmt(b.litros)}</Td><Td num>{fmt(b.abastecidoHora)}</Td></tr></Tabela><p className="bcp-footnote">O backend calcula consumo_combustivel_total multiplicando o tempo total pela taxa cadastrada da aeronave. O indicador é estimado. Abastecimentos vêm da tabela de abastecimentos, sem somar novamente os litros do diário. Nenhuma dessas medidas comprova consumo real medido.</p></Painel>
@@ -315,7 +301,7 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
 
     <section className={view("categorias")} id={`${uid}-categorias`} aria-label="Distribuição por categoria e cotista">
       <Painel titulo="Distribuição por categoria e cotista" detalhe="Cada coluna corresponde ao responsável pelo rateio. O pagador não altera a atribuição."><Tabela headers={["Categoria", "Total da aeronave", ...b.participantes.map(p=>p.nome)]} numericas={Array.from({length:b.participantes.length+1},(_,i)=>i+1)} larga>{b.categorias.map(c=><tr key={c.nome}><Th>{c.nome}</Th><Td num destaque>{money(c.total)}</Td>{b.participantes.map(p=><Td num key={p.id}>{c.cotistas.has(p.id)?money(c.cotistas.get(p.id)):"—"}</Td>)}</tr>)}<tr className="bcp-total"><Th>Total</Th><Td num destaque>{money(b.total.total)}</Td>{b.participantes.map(p=><Td num key={p.id}>{money(p.custo.total)}</Td>)}</tr></Tabela></Painel>
-      <Painel titulo="Composição do custo por cotista"><Tabela headers={["Cotista", "Fixos", "Variáveis", "Extras", "Total"]} numericas={[1,2,3,4]}>{b.participantes.map(p=><tr key={p.id}><Th>{p.nome}{!p.confirmado&&<small>Vínculo a conferir</small>}</Th><Td num>{money(p.custo.fixos)}</Td><Td num>{money(p.custo.variaveis)}</Td><Td num>{money(p.custo.extras)}</Td><Td num destaque>{money(p.custo.total)}</Td></tr>)}</Tabela></Painel>
+      <Painel titulo="Composição do custo por cotista"><Tabela headers={["Cotista", "Fixos", "Variáveis", "Extras", "Não classificados", "Total"]} numericas={[1,2,3,4,5]}>{b.participantes.map(p=><tr key={p.id}><Th>{p.nome}{!p.confirmado&&<small>Vínculo a conferir</small>}</Th><Td num>{money(p.custo.fixos)}</Td><Td num>{money(p.custo.variaveis)}</Td><Td num>{money(p.custo.extras)}</Td><Td num>{money(p.custo.naoClassificados)}</Td><Td num destaque>{money(p.custo.total)}</Td></tr>)}</Tabela></Painel>
       <Nota>Fixos, variáveis e extras seguem tipoRateio ou grupoCategoria do cadastro. Sem identificação explícita, o valor permanece “Não classificado”. Parcelas são somadas em centavos; nenhuma diferença é distribuída por aproximação.</Nota>
     </section>
 

@@ -1178,6 +1178,11 @@ export type DiarioLancamento = {
   discrepancias: string | null;
   acoes_corretivas: string | null;
   confirmado: number;
+  consumo_combustivel_voo?: number | null;
+  consumo_combustivel_total?: number | null;
+  abastecimento_valor_total?: number | null;
+  abastecimento_litros_precificados?: number | null;
+  abastecimento_valor_precificado?: number | null;
   abastecimento_id?: string | null;
   abastecimento_litros?: number | null;
   abastecimento_data?: string | null;

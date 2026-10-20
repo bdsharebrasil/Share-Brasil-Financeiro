@@ -1,408 +1,367 @@
-import { Fragment, useId, useMemo, useState, type ReactNode } from "react";
-import {
-  AlertTriangle, ArrowRight, BarChart3, BookOpen, CheckCircle2,
-  ClipboardList, Printer, Scale, Wallet,
-} from "lucide-react";
-import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
-import type { DashboardCotista, LancamentoEconomico } from "@/lib/financeiro-share-api";
-import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
+import { DespesasAcertosCotistas } from "./DespesasAcertosCotistas";
+import { useId, useMemo, useState, type ReactNode } from "react";
+import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
+import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
-import { formatNumero } from "@/utils/format";
 
 /**
- * Substituição direta do componente existente; mantém as cinco props do pai.
- * Origem: buscarDashboardCotista -> GET /api/financeiro/cotista/dashboard -> SHARE_DB (D1).
- * O pai continua responsável por autenticação, carregamento e atualização.
- * Valores monetários internos são centavos. Não consulta tabelas Supabase nem D1 diretamente.
- * A biblioteca financeiro-share-api mantém a autenticação Supabase já existente.
- * Instalação: substituir src/components/FinanceiroCotista/FechamentoBalancoDashboardCotista.tsx.
- * Não exige mudanças no componente pai nem novas dependências.
- *
- * Compatibilidade com o backend fornecido:
- * - O endpoint ignora `meses`: filtramos os detalhes e as médias mensais localmente.
- * - `saldos`, `matrizCompensacao` e `holdings` são históricos até `fim`, não saldos mensais.
- * - Não há diário completo nesta resposta. Não inventamos voos ou empréstimos.
- * - A apuração usa emissão/status, não o filtro `conferido` do exemplo antigo.
+ * Fechamento mensal / soma dos meses selecionados. Sem filtros de lançamentos.
+ * Instalar também os dois arquivos de backend fornecidos no pacote.
+ * A consulta do pai deve informar aeronave_id, inicio e fim, sem cotista_id.
+ * Preserve balanco_operacional e balanco_escopo se o cliente HTTP mapear o JSON.
+ * As cinco props originais são mantidas. Não faz fetch nem altera autenticação.
+ * Tema: herda os tokens HSL --card/--foreground/--border usados no código original;
+ * fallback escuro/claro por .dark, [data-theme] e preferência do sistema.
  */
-type Props = {
-  dashboard: DashboardCotista | null;
-  carregando: boolean;
-  erro: string | null;
-  cotistas: CotistaAeronave[];
-  mesesSelecionados: string[];
+type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: string | null; cotistas: CotistaAeronave[]; mesesSelecionados: string[] };
+type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
+type Voo = { id: string; data: string; numero: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
+type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
+export type BalancoOperacional = {
+  versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;
+  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean };
+  cotistas: CotistaOperacional[]; voos: Voo[];
+  abastecimentos: { id: string; data: string; litros: number | null; clienteId: string | null; socioId: string | null }[];
+  viagens: Viagem[];
 };
-
+type DashboardBalanco = DashboardCotista & { balanco_operacional?: BalancoOperacional | null; balanco_escopo?: "aeronave" | "cotista" | "geral" };
+type Registro = Record<string, unknown>;
+type Grupo = "fixos" | "variaveis" | "extras" | "semClassificacao";
+type Custo = { total: number; fixos: number; variaveis: number; extras: number; semClassificacao: number };
+type Participante = { id: string; nome: string; quota: number | null; holding: boolean; confirmado: boolean };
 const ABAS = [
-  { id: "graficos", nome: "Gráficos e custos", Icon: BarChart3 },
-  { id: "lancamentos", nome: "Lançamentos", Icon: ClipboardList },
-  { id: "acerto", nome: "Acerto de contas", Icon: Scale },
+  { id: "despesasacertos", nome: "Despesas e acertos", Icon: Scale },
+  { id: "geral", nome: "Comparativo mensal", Icon: BarChart3 },
+  { id: "cotistas", nome: "Evolução por cotista", Icon: Users },
+  { id: "custos", nome: "Custos e projeção", Icon: Gauge },
+  { id: "categorias", nome: "Categorias e cotistas", Icon: Layers3 },
+  { id: "acerto", nome: "Posição acumulada", Icon: Scale },
   { id: "holding", nome: "Conta comum", Icon: Wallet },
-  { id: "metodologia", nome: "Como ler o balanço", Icon: BookOpen },
 ] as const;
-type Aba = (typeof ABAS)[number]["id"];
-const CORES = ["#0284c7", "#d97706", "#059669", "#7c3aed", "#db2777", "#dc2626", "#0891b2"];
-const numero = (value: unknown) => {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
-};
-const centavos = (value: unknown) => Math.round(numero(value));
-const chaveMes = (data: string | null | undefined) => String(data ?? "").slice(0, 7);
-const mesValido = (mes: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(mes);
-const normalizar = (value: string) => value.trim().toLocaleLowerCase("pt-BR");
-const dinheiro = (value: unknown) => formatarCentavos(centavos(value));
-const compacto = (value: number) => new Intl.NumberFormat("pt-BR", {
-  style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1,
-}).format(value / 100);
-function horasMinutos(horas: number) {
-  const minutos = Math.round(Math.max(0, horas) * 60);
-  return `${Math.floor(minutos / 60)}h ${String(minutos % 60).padStart(2, "0")}min`;
+type Aba = typeof ABAS[number]["id"];
+const cores = ["#22c8ec", "#a898f3", "#e3b365", "#62c6a3", "#eb8d9c", "#87a8dc", "#b9c480"];
+const obj = (v: unknown): Registro => v && typeof v === "object" ? v as Registro : {};
+const txt = (v: unknown) => String(v ?? "").trim();
+const norm = (v: unknown) => txt(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+const idKey = (v: unknown) => txt(v).toLowerCase();
+const n = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
+const nullable = (v: unknown) => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
+const cents = (v: unknown) => Math.round(n(v));
+const money = (v: unknown) => v == null ? "—" : formatarCentavos(cents(v));
+const fmt = (v: unknown, dec = 2) => v == null ? "—" : new Intl.NumberFormat("pt-BR", { maximumFractionDigits: dec }).format(n(v));
+const pct = (v: number | null) => v === null ? "—" : `${fmt(v)}%`;
+const mes = (v: unknown) => txt(v).slice(0, 7);
+const validaMes = (v: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+const horas = (v: number | null) => { if (v === null) return "—"; const m = Math.round(Math.abs(v) * 60); return `${v < 0 ? "−" : ""}${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`; };
+const dividir = (a: number | null, b: number | null) => a === null || b === null || b <= 0 ? null : a / b;
+const compacto = (v: number) => new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(v / 100);
+const custoVazio = (): Custo => ({ total: 0, fixos: 0, variaveis: 0, extras: 0, semClassificacao: 0 });
+const somarCusto = (a: Custo, b: Custo) => { for (const k of Object.keys(a) as (keyof Custo)[]) a[k] += b[k]; return a; };
+function classificar(l: Registro): Grupo | null {
+  // A natureza do custo vem do cadastro, nunca do pagador ou da identidade do cotista.
+  const tipo = norm(l.tipoRateio || l.tipo_rateio || l.grupoCategoria);
+  if (/EXTRA/.test(tipo)) return "extras";
+  if (/FIX/.test(tipo)) return "fixos";
+  if (/VARIAVEL|HORA|VOO/.test(tipo)) return "variaveis";
+  return null;
 }
-function rotulo(value: string | null | undefined) {
-  return value ? value.replace(/_/g, " ") : "Não informado";
+function somarMedida<T>(itens: T[], valor: (t: T) => number | null, disponivel: boolean): number | null {
+  if (!disponivel || itens.some(t => valor(t) === null)) return null;
+  return itens.reduce((s, t) => s + (valor(t) ?? 0), 0);
 }
-
-type Pagamento = { pagador: string; valor: number };
-/** O pai consolidado tem pagoPor vazio; os pagamentos reais estão nas linhas filhas. */
-function pagamentos(lancamento: LancamentoEconomico): Pagamento[] {
-  if (lancamento.rateios.length) {
-    return lancamento.rateios.map((r) => ({
-      pagador: r.pagoPor || "Pagador não informado",
-      valor: centavos(r.valorPagoRealCentavos),
-    }));
+function montarCadastro(cotistas: CotistaAeronave[], op?: BalancoOperacional | null) {
+  const participantes = new Map<string, Participante>();
+  const aliases = new Map<string, string | null>();
+  const nomes = new Map<string, string | null>();
+  const clientes = new Map<string, string | null>();
+  const socios = new Map<string, string | null>();
+  function add(map: Map<string, string | null>, key: unknown, id: string) {
+    const k = idKey(key); if (!k) return;
+    map.set(k, !map.has(k) || map.get(k) === id ? id : null);
   }
-  return [{ pagador: lancamento.pagoPor || "Pagador não informado", valor: centavos(lancamento.valorPagoRealCentavos) }];
+  if (op?.fontes.cotistas) {
+    for (const c of op.cotistas) {
+      participantes.set(c.id, { id: c.id, nome: c.nome, quota: c.percentualSociedade, holding: Boolean(c.socioId || c.holdingId), confirmado: true });
+      add(aliases, c.id, c.id); add(aliases, c.clienteId, c.id); add(aliases, c.socioId, c.id);
+      add(clientes, c.clienteId, c.id); add(clientes, c.id, c.id); add(socios, c.socioId, c.id); add(nomes, c.nome, c.id);
+    }
+  } else {
+    for (const c of cotistas) {
+      const id = txt(c.id); if (!id) continue;
+      const q = nullable(obj(c).percentual_sociedade);
+      participantes.set(id, { id, nome: c.nome || id, quota: q, holding: Boolean(c.eh_holding || c.socio_id), confirmado: true });
+      [id, c.cliente_id, c.socio_id, ...(c.cotista_ids ?? [])].forEach(a => add(aliases, a, id));
+      add(clientes, c.cliente_id, id); add(socios, c.socio_id, id); add(nomes, c.nome, id);
+    }
+  }
+  function desconhecido(key: string, nome: unknown) {
+    if (!participantes.has(key)) participantes.set(key, { id: key, nome: txt(nome) || "Sem cotista vinculado", quota: null, holding: false, confirmado: false });
+    return key;
+  }
+  function resolver(id: unknown, nome?: unknown) {
+    const k = idKey(id);
+    if (k) return aliases.get(k) || desconhecido(`sem-vinculo:${k}`, nome || id);
+    const label = idKey(nome);
+    return (aliases.has(label) ? aliases.get(label) : nomes.get(label)) || desconhecido(`sem-vinculo:nome:${label}`, nome);
+  }
+  function operacional(clienteId: string | null, socioId: string | null) {
+    // Campos tipados separadamente evitam colisões entre cliente.id e hold_socios.id.
+    const c = clienteId ? clientes.get(idKey(clienteId)) : null;
+    const s = socioId ? socios.get(idKey(socioId)) : null;
+    if (clienteId && socioId && c !== s) return desconhecido("operacao:sem-vinculo", "Operação sem cotista vinculado");
+    return s || c || desconhecido("operacao:sem-vinculo", "Operação sem cotista vinculado");
+  }
+  return { participantes, resolver, operacional, nome: (valor: unknown) => {
+    const k = idKey(valor); const id = aliases.get(k) || (!aliases.has(k) ? nomes.get(k) : null);
+    return id ? participantes.get(id)?.nome || txt(valor) : txt(valor) || "Não informado";
+  } };
 }
 
-/** Agregação apenas de apresentação: não recalcula rateios nem compensações contábeis. */
-function montarPeriodo(dashboard: DashboardCotista, mesesSelecionados: string[]) {
-  const meses = [...new Set(mesesSelecionados.filter(mesValido))].sort();
-  const selecionados = new Set(meses);
-  const lancamentos = dashboard.lancamentos.filter((l) =>
-    selecionados.has(chaveMes(l.data)) && l.status?.toUpperCase() !== "CANCELADO",
-  ).sort((a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id));
-  const despesas = lancamentos.filter((l) => l.fluxo === "SAIDA");
-  const medias = new Map(dashboard.medias_mensais.map((m) => [m.mes, m]));
-  const mensais = meses.map((mes) => {
-    const registros = lancamentos.filter((l) => chaveMes(l.data) === mes);
-    const entradas = registros.filter((l) => l.fluxo === "ENTRADA").reduce((s, l) => s + centavos(l.valorCentavos), 0);
-    const saidas = registros.filter((l) => l.fluxo === "SAIDA").reduce((s, l) => s + centavos(l.valorCentavos), 0);
-    const custoRateado = registros.filter((l) => l.fluxo === "SAIDA").reduce((s, l) => s + centavos(l.valorRateadoCentavos ?? l.valorCentavos), 0);
-    const m = medias.get(mes);
-    const horas = numero(m?.horas_voadas);
-    const voos = numero(m?.total_voos);
-    return { mes, nome: rotuloMesCotista(mes), entradas, saidas, custoRateado,
-      saldo: entradas - saidas, quantidade: registros.length, horas, voos,
-      pousos: numero(m?.total_pousos), custoHora: horas > 0 ? Math.round(saidas / horas) : null };
+function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecionados: string[]) {
+  const meses = [...new Set(selecionados.filter(validaMes))].sort();
+  const seleciona = new Set(meses);
+  const op = d.balanco_operacional?.versao === 1 ? d.balanco_operacional : null;
+  const cadastro = montarCadastro(cotistas, op);
+  const porMes = new Map(meses.map(m => [m, custoVazio()]));
+  const custosCotista = new Map<string, Map<string, Custo>>();
+  const categorias = new Map<string, { total: number; cotistas: Map<string, number> }>();
+  const despesas = (d.lancamentos ?? []).filter(l => seleciona.has(mes(l.data)) && norm(l.status) !== "CANCELADO" && norm(l.fluxo) === "SAIDA");
+  function adicionar(valor: number, grupo: Grupo, cotista: string, m: string, categoria: string) {
+    const geral = porMes.get(m)!; geral.total += valor; geral[grupo] += valor;
+    let individual = custosCotista.get(cotista); if (!individual) { individual = new Map(meses.map(mm => [mm, custoVazio()])); custosCotista.set(cotista, individual); }
+    const custo = individual.get(m)!; custo.total += valor; custo[grupo] += valor;
+    const cat = categorias.get(categoria) ?? { total: 0, cotistas: new Map() };
+    cat.total += valor; cat.cotistas.set(cotista, (cat.cotistas.get(cotista) ?? 0) + valor); categorias.set(categoria, cat);
+  }
+  let diferencasRateio = 0;
+  let custosSemClassificacao = false;
+  for (const l of despesas) {
+    const raw = obj(l); const m = mes(l.data); const categoria = l.categoria || "Sem categoria";
+    if (l.rateios?.length) {
+      let rateado = 0;
+      for (const r of l.rateios) {
+        const valor = cents(r.valorCentavos); rateado += valor;
+        const grupo = classificar({ ...raw, ...obj(r), tipoRateio: obj(r).tipoRateio || raw.tipoRateio });
+        if (grupo) adicionar(valor, grupo, cadastro.resolver(r.cotistaId, r.cotista), m, categoria);
+        else { custosSemClassificacao = true; adicionar(valor, "semClassificacao", cadastro.resolver(r.cotistaId, r.cotista), m, categoria); }
+      }
+      const diferenca = cents(l.valorCentavos) - rateado;
+      if (diferenca) {
+        diferencasRateio++;
+        const grupo = classificar(raw);
+        if (grupo) adicionar(diferenca, grupo, cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria);
+        else { custosSemClassificacao = true; adicionar(diferenca, "semClassificacao", cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria); }
+      }
+    } else {
+      // Rateios de holding vêm como linhas individuais com participanteId no backend.
+      const id = raw.participanteId;
+      const grupo = classificar(raw);
+      if (grupo) adicionar(cents(l.valorCentavos), grupo, cadastro.resolver(id, raw.participanteNome), m, categoria);
+      else { custosSemClassificacao = true; adicionar(cents(l.valorCentavos), "semClassificacao", cadastro.resolver(id, raw.participanteNome), m, categoria); }
+    }
+  }
+  const voos = (op?.voos ?? []).filter(v => seleciona.has(mes(v.data)));
+  const viagens = (op?.viagens ?? []).filter(v => seleciona.has(mes(v.data)));
+  const abastecimentos = (op?.abastecimentos ?? []).filter(a => seleciona.has(mes(a.data)));
+  const donoVoo = (v: Voo) => v.emprestado
+    ? cadastro.operacional(v.clienteTomadorId, v.socioTomadorId)
+    : cadastro.operacional(v.clienteId, v.socioId);
+  // Resolve previamente para que a lista inclua também operações sem vínculo financeiro.
+  const voosPorCotista = new Map<string, Voo[]>();
+  for (const v of voos) { const id = donoVoo(v); const list = voosPorCotista.get(id) ?? []; list.push(v); voosPorCotista.set(id, list); }
+  const viagensPorCotista = new Map<string, Viagem[]>();
+  for (const v of viagens) { const id = cadastro.operacional(v.clienteId, v.socioId); const list = viagensPorCotista.get(id) ?? []; list.push(v); viagensPorCotista.set(id, list); }
+  const fonteVoos = Boolean(op?.fontes.voos);
+  const fonteViagens = Boolean(op?.fontes.viagens);
+  const mediasAntigas = new Map((d.medias_mensais ?? []).map(m => [m.mes, m]));
+  const mensais = meses.map(m => {
+    const lista = voos.filter(v => mes(v.data) === m);
+    const viagensMes = viagens.filter(v => mes(v.data) === m);
+    const ab = abastecimentos.filter(v => mes(v.data) === m);
+    const custo = porMes.get(m)!;
+    const antigo = mediasAntigas.get(m);
+    const h = fonteVoos ? somarMedida(lista, v => v.horas, true) : antigo ? n(antigo.horas_voadas) : null;
+    const consumo = somarMedida(lista, v => v.consumoEstimadoLitros, fonteVoos);
+    const litros = somarMedida(ab, a => a.litros, Boolean(op?.fontes.abastecimentos));
+    return { mes: m, nome: rotuloMesCotista(m), ...custo, horas: h,
+      voos: fonteVoos ? lista.length : antigo ? n(antigo.total_voos) : null,
+      pousos: fonteVoos ? somarMedida(lista, v => v.pousos, true) : antigo ? n(antigo.total_pousos) : null,
+      custoHora: dividir(custo.total, h), consumo, litros,
+      consumoHora: dividir(consumo, h), abastecidoHora: dividir(litros, h),
+      gastoViagens: somarMedida(viagensMes, v => v.valorCentavos, fonteViagens),
+      relatorios: fonteViagens ? viagensMes.length : null,
+    };
   });
-  const entradas = mensais.reduce((s, m) => s + m.entradas, 0);
-  const saidas = mensais.reduce((s, m) => s + m.saidas, 0);
-  const horas = mensais.reduce((s, m) => s + m.horas, 0);
-  const voos = mensais.reduce((s, m) => s + m.voos, 0);
-  const categoriasMap = new Map<string, { categoria: string; total: number; pago: number; quantidade: number }>();
-  despesas.forEach((l) => {
-    const categoria = l.categoria || "Sem categoria";
-    const item = categoriasMap.get(categoria) ?? { categoria, total: 0, pago: 0, quantidade: 0 };
-    item.total += centavos(l.valorCentavos);
-    item.pago += pagamentos(l).reduce((s, p) => s + p.valor, 0);
-    item.quantidade += 1;
-    categoriasMap.set(categoria, item);
+  const total = mensais.reduce((s, m) => somarCusto(s, m), custoVazio());
+  const totalHoras = somarMedida(mensais, m => m.horas, true);
+  const totalViagens = somarMedida(viagens, v => v.valorCentavos, fonteViagens);
+  const consumo = somarMedida(voos, v => v.consumoEstimadoLitros, fonteVoos);
+  const litros = somarMedida(abastecimentos, a => a.litros, Boolean(op?.fontes.abastecimentos));
+  const participantes = [...cadastro.participantes.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map(p => {
+    const lista = voosPorCotista.get(p.id) ?? [];
+    const relatorios = viagensPorCotista.get(p.id) ?? [];
+    const mensal = meses.map(m => {
+      const vs = lista.filter(v => mes(v.data) === m);
+      const custo = custosCotista.get(p.id)?.get(m) ?? custoVazio();
+      const h = somarMedida(vs, v => v.horas, fonteVoos);
+      return { mes: m, nome: rotuloMesCotista(m), ...custo, horas: h, voos: fonteVoos ? vs.length : null, custoHora: dividir(custo.total, h) };
+    });
+    const custo = mensal.reduce((s, m) => somarCusto(s, m), custoVazio());
+    const h = somarMedida(lista, v => v.horas, fonteVoos);
+    const uso = totalHoras !== null && totalHoras > 0 && h !== null ? h / totalHoras * 100 : null;
+    const quota = p.quota !== null && p.quota >= 0 && p.quota <= 100 ? p.quota : null;
+    const referencia = quota === null || totalHoras === null || !fonteVoos ? null : totalHoras * quota / 100;
+    const destinos = new Map<string, number>(); lista.forEach(v => { const destino = txt(v.destino); if (destino) destinos.set(destino, (destinos.get(destino) ?? 0) + 1); });
+    const gastoViagem = somarMedida(relatorios, v => v.valorCentavos, fonteViagens);
+    return { ...p, quota, mensal, custo, horas: h, uso, referencia,
+      diferenca: uso === null || quota === null ? null : uso - quota,
+      saldoHoras: referencia === null || h === null ? null : referencia - h,
+      voos: lista, destinos: [...destinos].map(([nome, visitas]) => ({ nome, visitas })).sort((a, b) => b.visitas - a.visitas || a.nome.localeCompare(b.nome)),
+      custoHora: dividir(custo.total, h), mediaViagem: dividir(gastoViagem, fonteViagens ? relatorios.length : null),
+      numeroViagens: fonteViagens ? relatorios.length : null,
+      consumoHora: dividir(somarMedida(lista, v => v.consumoEstimadoLitros, fonteVoos), h),
+    };
   });
-  return { meses, lancamentos, despesas, mensais, entradas, saidas, horas, voos,
-    saldo: entradas - saidas,
-    pousos: mensais.reduce((s, m) => s + m.pousos, 0),
-    custoRateado: mensais.reduce((s, m) => s + m.custoRateado, 0),
-    custoHora: horas > 0 ? Math.round(saidas / horas) : null,
-    custoVoo: voos > 0 ? Math.round(saidas / voos) : null,
-    pendentes: lancamentos.filter((l) => ["EM_ABERTO", "EM_ATRASO"].includes(l.status.toUpperCase())).length,
-    categorias: [...categoriasMap.values()].sort((a, b) => b.total - a.total),
-    movimentos: dashboard.movimentos_holding.filter((m) => selecionados.has(chaveMes(m.data))),
+  const projecao = totalHoras !== null && totalHoras > 0 && meses.length > 0
+    ? [5, 10, 15, 20, 25, 30, 40, 50, 60].map(h => ({ horas: h, fixoHora: total.fixos / meses.length / h,
+      variavelHora: total.variaveis / totalHoras, extraHora: total.extras / totalHoras,
+      custoHora: total.fixos / meses.length / h + (total.variaveis + total.extras) / totalHoras,
+      custoMensal: total.fixos / meses.length + (total.variaveis + total.extras) / totalHoras * h })) : [];
+  const entradasHolding = (d.movimentos_holding ?? []).filter(m => seleciona.has(mes(m.data)) && !m.diretamentePago
+    && ["ENTRADA", "APORTE", "ESTORNO"].includes(norm(m.fluxo))
+    && ["PAGO", "RECEBIDO", "REEMBOLSADO", "ENTRADA", "APORTE_MENSAL", "RENDIMENTO_BANCARIO"].includes(norm(m.status)));
+  return { meses, mensais, total, totalHoras, totalVoos: somarMedida(mensais, m => m.voos, true), totalPousos: somarMedida(mensais, m => m.pousos, true),
+    participantes, categorias: [...categorias].map(([nome, c]) => ({ nome, ...c })).sort((a, b) => b.total - a.total),
+    custoHora: dividir(total.total, totalHoras), mediaViagem: dividir(totalViagens, fonteViagens ? viagens.length : null), totalViagens, viagens: fonteViagens ? viagens.length : null,
+    consumoHora: dividir(consumo, totalHoras), abastecidoHora: dividir(litros, totalHoras), consumo, litros, projecao, custosSemClassificacao, entradasHolding,
+    fonteVoos, fonteViagens, op, diferencasRateio, nome: cadastro.nome,
   };
 }
 
-export function FechamentoBalancoDashboardCotista({
-  dashboard, carregando, erro, cotistas, mesesSelecionados,
-}: Props) {
-  const [aba, setAba] = useState<Aba>("lancamentos");
-  const [busca, setBusca] = useState("");
-  const [fluxo, setFluxo] = useState("TODOS");
-  const possuiHolding = cotistas.some((cotista) => Boolean(cotista.eh_holding));
-  const abaVisivel = aba === "holding" && !possuiHolding ? "lancamentos" : aba;
-  const uid = useId();
-  const dados = useMemo(() => dashboard ? montarPeriodo(dashboard, mesesSelecionados) : null, [dashboard, mesesSelecionados]);
-  const nomes = useMemo(() => {
-    const map = new Map<string, string>();
-    cotistas.forEach((c) => {
-      [c.id, c.cliente_id, c.socio_id, ...(c.cotista_ids ?? [])].forEach((id) => {
-        if (id) map.set(normalizar(id), c.nome?.trim() || id);
-      });
-    });
-    return map;
-  }, [cotistas]);
-  const nome = (id: string | null | undefined) => id ? nomes.get(normalizar(id)) ?? id : "Não informado";
-  const { colunasCotistas, aliasesCotistas } = useMemo(() => {
-    const aliases = new Map<string, string>();
-    const participantes = new Map<string, string>();
-    cotistas.forEach((cotista) => {
-      const ids = [cotista.id, cotista.cliente_id, cotista.socio_id, ...(cotista.cotista_ids ?? [])].filter((id): id is string => Boolean(id));
-      const chave = normalizar(cotista.id || ids[0] || cotista.nome);
-      const label = cotista.nome?.trim() || cotista.id;
-      participantes.set(chave, label);
-      [...ids, cotista.nome].filter(Boolean).forEach((id) => aliases.set(normalizar(id), chave));
-    });
-    dados?.lancamentos.forEach((lancamento) => lancamento.rateios.forEach((rateio) => {
-      const id = rateio.cotistaId || rateio.cotista;
-      const alias = normalizar(id);
-      const chave = aliases.get(alias) ?? alias;
-      aliases.set(alias, chave);
-      if (!participantes.has(chave)) participantes.set(chave, nomes.get(alias) ?? id);
-    }));
-    const colunas = [...participantes].map(([chave, label]) => ({ chave, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-    return { colunasCotistas: colunas, aliasesCotistas: aliases };
-  }, [cotistas, dados?.lancamentos, nomes]);
+export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados }: Props) {
+  const uid = useId().replace(/:/g, "");
+  const [aba, setAba] = useState<Aba>("despesasacertos");
+  const d = dashboard as DashboardBalanco | null;
+  const b = useMemo(() => d ? montarBalanco(d, cotistas, mesesSelecionados) : null, [d, cotistas, mesesSelecionados]);
+  const estilos = <style>{CSS}</style>;
+  if (carregando) return <div className="bcp">{estilos}<div className="bcp-empty" role="status">Carregando fechamento…</div></div>;
+  if (erro) return <div className="bcp">{estilos}<div className="bcp-note" role="alert">Não foi possível carregar o balanço: {erro}</div></div>;
+  if (!d || !b || !b.meses.length) return <div className="bcp">{estilos}<Vazio>Selecione a aeronave e os meses do fechamento.</Vazio></div>;
+  if (d.balanco_escopo && d.balanco_escopo !== "aeronave") return <div className="bcp">{estilos}<Vazio>O balanço consolidado precisa da consulta completa da aeronave. Envie aeronave_id, início e fim, sem cotista_id.</Vazio></div>;
+  const periodo = b.meses.map(rotuloMesCotista).join(" · ");
+  const aeronave = [...new Set((d.lancamentos ?? []).map(l => l.aeronaveNome).filter(Boolean))].join(" / ") || "Aeronave selecionada";
+  const holdings = d.holdings ?? [];
+  const temHolding = holdings.length > 0 || b.participantes.some(p => p.holding);
+  const atual = aba === "holding" && !temHolding ? "geral" : aba;
+  const view = (id: Aba) => `bcp-view ${atual === id ? "bcp-active" : ""}`;
+  const tooltip = { background: "var(--bcp-card)", color: "var(--bcp-fg)", border: "1px solid var(--bcp-border)", borderRadius: 8, fontSize: 11 };
+  const chartMoney = (v: unknown) => money(v);
+  const saldos = d.saldos ?? [];
+  const compensacoes = Object.entries(d.matrizCompensacao ?? {}).flatMap(([credor, devedores]) => Object.entries(devedores).filter(([, valor]) => n(valor) > 0).map(([devedor, valor]) => ({ credor, devedor, valor })));
+  const totalPago = saldos.reduce((s, r) => s + cents(r.totalPagoCentavos), 0);
+  const totalDevido = saldos.reduce((s, r) => s + cents(r.totalDevidoCentavos), 0);
+  return <div className="bcp">{estilos}
+    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>Balanço da aeronave</h2><p>{periodo}</p></div><button type="button" className="bcp-button bcp-no-print" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></header>
+    <div className="bcp-kpis"><Kpi titulo="Custo total" valor={money(b.total.total)} detalhe="Despesas do período" /><Kpi titulo="Horas voadas" valor={horas(b.totalHoras)} detalhe={`${fmt(b.totalVoos, 0)} etapas · ${fmt(b.totalPousos, 0)} pousos`} /><Kpi titulo="Custo / hora total" valor={money(b.custoHora)} detalhe="Custo total ÷ horas totais" destaque /><Kpi titulo="Média por relatório de viagem" valor={money(b.mediaViagem)} detalhe={`${fmt(b.viagens, 0)} relatórios no período`} /><Kpi titulo="Consumo estimado L/h" valor={fmt(b.consumoHora)} detalhe="Estimativa registrada no diário" /></div>
+    {!b.op && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
+    {b.custosSemClassificacao && <Nota>Despesas sem classificação estão incluídas no custo total e na coluna Sem classificação do comparativo mensal. As projeções por tipo de custo não incluem esses valores.</Nota>}
+    {b.diferencasRateio > 0 && <Nota>{b.diferencasRateio} lançamento(s) com diferença entre o total e as parcelas. A diferença aparece separada, sem atribuição automática a um cotista.</Nota>}
+    <nav className="bcp-tabs bcp-no-print" aria-label="Seções do balanço">{ABAS.filter(t => t.id !== "holding" || temHolding).map(({ id, nome, Icon }) => <button type="button" key={id} aria-pressed={atual === id} aria-controls={`${uid}-${id}`} onClick={() => setAba(id)} className={atual === id ? "bcp-selected" : ""}><Icon size={15} />{nome}</button>)}</nav>
 
-  if (carregando) return <div role="status" aria-live="polite" className="space-y-4">
-    <span className="sr-only">Carregando fechamento financeiro…</span>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />)}</div>
-    <div className="h-80 animate-pulse rounded-2xl bg-muted" />
-  </div>;
-  if (erro) return <div role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-8 text-center">
-    <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-destructive" aria-hidden="true" />
-    <h2 className="font-semibold">Não foi possível carregar o fechamento</h2>
-    <p className="mt-2 text-sm text-muted-foreground">{erro}</p>
-  </div>;
-  if (!dashboard || !dados) return <Vazio>Selecione uma aeronave para consultar o fechamento.</Vazio>;
-  if (!dados.meses.length) return <Vazio>Selecione pelo menos um mês para consultar o fechamento.</Vazio>;
+    <section className={view("despesasacertos")} id={`${uid}-despesasacertos`} aria-label="Despesas e acertos"><DespesasAcertosCotistas dashboard={d} mesesSelecionados={mesesSelecionados} /></section>
 
-  const periodo = dados.meses.map(rotuloMesCotista).join(" · ");
-  const aeronaves = [...new Set(dados.lancamentos.map((l) => l.aeronaveNome).filter(Boolean))].join(" / ");
-  const registrosVisiveis = dados.lancamentos.filter((l) => {
-    const texto = [l.descricao, l.fornecedor, l.categoria, l.documento, l.numeroNf, l.numeroRecibo, l.pagoPor,
-      ...l.rateios.map((r) => `${r.cotista} ${r.pagoPor ?? ""}`)].join(" ");
-    return (fluxo === "TODOS" || l.fluxo === fluxo) && normalizar(texto).includes(normalizar(busca));
-  });
-  const totalPago = dashboard.saldos.reduce((s, c) => s + centavos(c.totalPagoCentavos), 0);
-  const totalDevido = dashboard.saldos.reduce((s, c) => s + centavos(c.totalDevidoCentavos), 0);
-  const diferenca = totalPago - totalDevido;
-  const transferencias = Object.entries(dashboard.matrizCompensacao).flatMap(([credor, devedores]) =>
-    Object.entries(devedores).filter(([, valor]) => numero(valor) > 0).map(([devedor, valor]) => ({ credor, devedor, valor: centavos(valor) })),
-  );
-  const painel = (id: Aba) => `${abaVisivel === id ? "block" : "hidden"} space-y-5 print:block print:break-before-page`;
-  const tooltipStyle = { borderRadius: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" };
-
-  return <div className="fechamento-d1 space-y-5 text-foreground">
-    <style>{`
-      @media print {
-        @page { size: A4 landscape; margin: 12mm; }
-        body * { visibility: hidden; }
-        .fechamento-d1, .fechamento-d1 * { visibility: visible; }
-        .fechamento-d1 { position: absolute; left: 0; top: 0; width: 100%; color: #111 !important; background: white; }
-        .fechamento-d1 * { color: #111 !important; background-color: transparent !important; box-shadow: none !important; }
-        .fechamento-d1 .overflow-x-auto { overflow: visible !important; }
-        .fechamento-d1 table { width: 100%; min-width: 0 !important; font-size: 9px; }
-        .fechamento-d1 th, .fechamento-d1 td { padding: 5px; overflow-wrap: anywhere; white-space: normal; }
-        .fechamento-d1 thead { display: table-header-group; }
-        .fechamento-d1 tr { break-inside: avoid; }
-      }
-    `}</style>
-    <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5">
-      <div>
-        <p className="mt-2 text-sm capitalize text-muted-foreground">{periodo}</p>
-      </div>
-      <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted print:hidden">
-        <Printer className="h-4 w-4" aria-hidden="true" /> Imprimir / salvar PDF
-      </button>
-    </header>
-    <nav aria-label="Seções do fechamento" className="flex gap-1 overflow-x-auto border-b border-border print:hidden">
-      {ABAS.filter(({ id }) => id !== "holding" || possuiHolding).map(({ id, nome: label, Icon }) => <button key={id} type="button" aria-pressed={abaVisivel === id} aria-controls={`${uid}-${id}`} onClick={() => setAba(id)}
-        className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors ${aba === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-        <Icon className="h-3.5 w-3.5" aria-hidden="true" />{label}
-      </button>)}
-    </nav>
-
-    <div id={`${uid}-graficos`} className={painel("graficos")}>
-      <div className="grid gap-5 xl:grid-cols-2 print:hidden">
-        <Painel titulo="Evolução financeira" descricao="Valores dos meses selecionados.">
-          <div className="h-72 p-3"><ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dados.mensais} margin={{ left: 12, right: 12, top: 16 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} /><XAxis dataKey="nome" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={compacto} tick={{ fontSize: 11 }} width={80} />
-              <Tooltip formatter={(v) => dinheiro(v)} contentStyle={tooltipStyle} /><Legend />
-              <Area type="monotone" dataKey="entradas" name="Entradas" stroke="#059669" fill="#059669" fillOpacity={0.12} isAnimationActive={false} />
-              <Area type="monotone" dataKey="saidas" name="Despesas" stroke="#0284c7" fill="#0284c7" fillOpacity={0.12} isAnimationActive={false} />
-            </AreaChart>
-          </ResponsiveContainer></div>
-        </Painel>
-        <Painel titulo="Distribuição das despesas" descricao="Até oito categorias; as demais são agrupadas em Outras.">
-          {dados.categorias.some((c) => c.total > 0) ? <div className="h-72 p-3"><ResponsiveContainer width="100%" height="100%">
-            <PieChart><Pie data={[
-              ...dados.categorias.filter((c) => c.total > 0).slice(0, 8),
-              ...(dados.categorias.filter((c) => c.total > 0).length > 8 ? [{ categoria: "Outras", total: dados.categorias.filter((c) => c.total > 0).slice(8).reduce((s, c) => s + c.total, 0) }] : []),
-            ]} dataKey="total" nameKey="categoria" innerRadius={52} outerRadius={85} isAnimationActive={false}>
-              {Array.from({ length: 9 }, (_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-            </Pie><Tooltip formatter={(v) => dinheiro(v)} contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart>
-          </ResponsiveContainer></div> : <Vazio>Não há despesas positivas para o gráfico.</Vazio>}
-        </Painel>
-        <Painel titulo="Utilização da aeronave" descricao="Horas em formato decimal no gráfico.">
-          <div className="h-64 p-3"><ResponsiveContainer width="100%" height="100%"><BarChart data={dados.mensais}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} /><XAxis dataKey="nome" tick={{ fontSize: 11 }} /><YAxis />
-            <Tooltip formatter={(v) => `${formatNumero(numero(v), 2)} h`} contentStyle={tooltipStyle} />
-            <Bar dataKey="horas" name="Horas voadas" fill="#0284c7" radius={[5, 5, 0, 0]} isAnimationActive={false} />
-          </BarChart></ResponsiveContainer></div>
-        </Painel>
-        <Painel titulo="Custo por hora" descricao="Meses sem horas voadas ficam sem indicador de custo por hora.">
-          <div className="h-64 p-3"><ResponsiveContainer width="100%" height="100%"><BarChart data={dados.mensais}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} /><XAxis dataKey="nome" tick={{ fontSize: 11 }} /><YAxis tickFormatter={compacto} width={80} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v) => dinheiro(v)} contentStyle={tooltipStyle} /><Bar dataKey="custoHora" name="Custo/h" fill="#d97706" radius={[5, 5, 0, 0]} isAnimationActive={false} />
-          </BarChart></ResponsiveContainer></div>
-        </Painel>
-      </div>
-      <Painel titulo="Despesas por categoria" descricao="Pagamento informado corresponde ao campo de valor pago real dos rateios. Zero pode significar que a origem não informa esse valor.">
-        {dados.categorias.length ? <Tabela cabecalhos={["Categoria", "Lançamentos", "Participação", "Valor lançado", "Pagamento informado"]}>
-          {dados.categorias.map((c) => <tr key={c.categoria}><Celula titulo>{c.categoria}</Celula><Celula>{c.quantidade}</Celula>
-            <Celula>{dados.saidas !== 0 ? `${formatNumero(c.total / dados.saidas * 100, 1)}%` : "—"}</Celula><Celula>{dinheiro(c.total)}</Celula><Celula>{dinheiro(c.pago)}</Celula></tr>)}
-        </Tabela> : <Vazio>Nenhuma despesa no período.</Vazio>}
-      </Painel>
-    </div>
-
-    <div id={`${uid}-lancamentos`} className={painel("lancamentos")}>
-      <div className="flex flex-wrap items-end gap-3 print:hidden">
-        <label className="min-w-60 flex-1 text-xs font-semibold">Buscar lançamento
-          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Descrição, fornecedor, documento ou cotista" className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-        </label>
-        <label className="text-xs font-semibold">Fluxo
-          <select value={fluxo} onChange={(e) => setFluxo(e.target.value)} className="mt-1 block rounded-lg border border-border bg-background px-3 py-2 text-sm">
-            <option value="TODOS">Todos</option><option value="ENTRADA">Entradas</option><option value="SAIDA">Saídas</option>
-          </select>
-        </label>
-        <p className="py-2 text-xs text-muted-foreground">{registrosVisiveis.length} de {dados.lancamentos.length} lançamento(s)</p>
-      </div>
-      <Painel titulo="Lançamentos e rateios" descricao="Despesas consolidadas pela API. Os detalhes mostram as parcelas sem somá-las novamente ao total. A impressão respeita a busca e o fluxo acima.">
-        {registrosVisiveis.length ? <div className="overflow-x-auto">
-          <table className="w-full table-fixed border-collapse text-[10px] leading-tight" style={{ minWidth: `${Math.max(960, 720 + colunasCotistas.length * 150)}px` }}>
-            <colgroup>
-              {[12, 8, 12, 16, 10, 8, 10, 10, 14].map((peso, i) => <col key={i} style={{ width: `${(colunasCotistas.length ? Math.max(50, 100 - Math.max(20, Math.min(50, colunasCotistas.length * 13.333))) : 100) * peso / 100}%` }} />)}
-              {colunasCotistas.map(({ chave }) => <Fragment key={chave}><col style={{ width: `${Math.max(20, Math.min(50, colunasCotistas.length * 13.333)) / colunasCotistas.length / 2}%` }} /><col style={{ width: `${Math.max(20, Math.min(50, colunasCotistas.length * 13.333)) / colunasCotistas.length / 2}%` }} /></Fragment>)}
-            </colgroup>
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-[9px] font-semibold uppercase text-muted-foreground">
-            <th colSpan={9} className="px-2 py-3 text-left">Qualificação da despesa</th>
-                {colunasCotistas.map(({ chave, label }) => <th key={chave} colSpan={2} className="border-l border-border px-1 py-3 text-center text-primary">{label}</th>)}
-              </tr>
-              <tr className="border-b border-border bg-muted/20 text-[9px] font-semibold uppercase text-muted-foreground">
-                {["Data", "Doc", "Fornecedor", "Descrição", "Categoria", "Tipo", "Prazo", "Pago por", "Total"].map((coluna) => <th key={coluna} className="px-2 py-2 text-left">{coluna}</th>)}
-                {colunasCotistas.map(({ chave }) => <Fragment key={chave}><th className="border-l border-border px-1 py-2 text-right">%</th><th className="px-1 py-2 text-right">R$</th></Fragment>)}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {registrosVisiveis.map((l) => {
-                const rateiosPorCotista = new Map<string, { percentual: number; valor: number }>();
-                l.rateios.forEach((rateio) => {
-                  const id = rateio.cotistaId || rateio.cotista;
-                  const chave = aliasesCotistas.get(normalizar(id)) ?? normalizar(id);
-                  const atual = rateiosPorCotista.get(chave) ?? { percentual: 0, valor: 0 };
-                  atual.percentual += numero(rateio.percentual);
-                  atual.valor += centavos(rateio.valorCentavos);
-                  rateiosPorCotista.set(chave, atual);
-                });
-                const pagadores = [...new Set(l.rateios.map((rateio) => rateio.pagoPor).filter((id): id is string => Boolean(id)))];
-                return <tr key={`${l.tipo}:${l.id}`} className="align-top hover:bg-muted/20">
-                  <td className="px-2 py-3 font-semibold">{formatarData(l.data)}</td>
-                  <td className="px-2 py-3 font-semibold">{l.documento || l.numeroNf || l.numeroRecibo || l.numeroDemonstrativo || "—"}</td>
-                  <td className="break-words px-2 py-3 font-semibold">{l.fornecedor || "—"}</td>
-                  <td className="break-words px-2 py-3">{l.descricao}</td>
-                  <td className="break-words px-2 py-3">{l.categoria}</td>
-                  <td className="break-words px-2 py-3 text-muted-foreground">{rotulo(l.tipo)}</td>
-                  <td className="px-2 py-3">{l.prazo ? formatarData(l.prazo) : "—"}</td>
-                  <td className="break-words px-2 py-3 font-semibold">{l.pagoPor ? nome(l.pagoPor) : pagadores.map(nome).join(", ") || "—"}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-right font-mono font-semibold">{dinheiro(l.valorCentavos)}</td>
-                  {colunasCotistas.map(({ chave }) => {
-                    const rateio = rateiosPorCotista.get(chave);
-                    return <Fragment key={chave}>
-                      <td className="border-l border-border px-1 py-3 text-right font-mono">{rateio ? `${formatNumero(rateio.percentual, 4)}%` : "—"}</td>
-                      <td className="whitespace-nowrap px-1 py-3 text-right font-mono font-semibold">{rateio ? dinheiro(rateio.valor) : "—"}</td>
-                    </Fragment>;
-                  })}
-                </tr>;
-              })}
-            </tbody>
-          </table>
-        </div> : <Vazio>Nenhum lançamento corresponde aos filtros.</Vazio>}
-      </Painel>
-    </div>
-
-    <div id={`${uid}-acerto`} className={painel("acerto")}>
-      <Nota titulo="Posição acumulada do fechamento">
-        Os saldos e as compensações abaixo incluem o histórico até a data final da consulta. Eles não são limitados aos meses marcados no relatório.
-      </Nota>
-      <div className="grid gap-4 sm:grid-cols-3"><Resumo titulo="Pagamento informado acumulado" valor={dinheiro(totalPago)} /><Resumo titulo="Devido acumulado" valor={dinheiro(totalDevido)} /><Resumo titulo="Pago − devido" valor={dinheiro(diferenca)} /></div>
-      {diferenca !== 0 && <Nota titulo="Diferença na base de compensação" alerta>Há uma diferença de {dinheiro(diferenca)} entre pagamentos informados e valores devidos. </Nota>}
-      <Painel titulo="Posição por cotista" descricao="Saldo positivo: crédito na apuração. Saldo negativo: valor devido na apuração.">
-        {dashboard.saldos.length ? <Tabela cabecalhos={["Cotista", "Pago informado", "Devido", "Saldo", "Posição"]}>
-          {dashboard.saldos.map((s, i) => <tr key={`${s.cotista}:${i}`}><Celula titulo>{nome(s.cotista)}</Celula><Celula>{dinheiro(s.totalPagoCentavos)}</Celula><Celula>{dinheiro(s.totalDevidoCentavos)}</Celula><Celula>{dinheiro(s.saldoCentavos)}</Celula><Celula>{s.saldoCentavos > 0 ? "Crédito" : s.saldoCentavos < 0 ? "Débito" : "Equilibrado"}</Celula></tr>)}
-        </Tabela> : <Vazio>Nenhum saldo informado pela API.</Vazio>}
-      </Painel>
-      <Painel titulo="Compensações sugeridas pela API" descricao="Cada linha indica quem paga, quem recebe e o valor sugerido.">
-        {transferencias.length ? <div className="grid gap-3 p-4 md:grid-cols-2">{transferencias.map((t) => <div key={`${t.devedor}:${t.credor}`} className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-4 text-sm">
-          <span className="font-semibold">{nome(t.devedor)}</span><ArrowRight className="h-4 w-4 text-muted-foreground" aria-label="paga a" /><span>{nome(t.credor)}</span><strong className="ml-auto font-mono text-primary">{dinheiro(t.valor)}</strong>
-        </div>)}</div> : <Vazio>Nenhuma transferência sugerida pela API.</Vazio>}
-      </Painel>
-    </div>
-
-    {possuiHolding && <div id={`${uid}-holding`} className={painel("holding")}>
-      <Nota titulo="Conta comum da holding">
-        Os saldos são acumulados até a data final da consulta e restritos à aeronave consultada. O extrato abaixo usa somente os meses selecionados. Saldo do sócio = depósitos − consumo; despesas diretas são exibidas separadamente, conforme a regra do backend.
-      </Nota>
-      {dashboard.holdings.length ? dashboard.holdings.map((h) => <Painel key={h.id} titulo={h.nome} descricao={`${h.contaBancaria || "Conta não informada"} · Saldo acumulado da aeronave: ${dinheiro(h.saldoContaCentavos)}`}>
-        <Tabela cabecalhos={["Sócio", "Participação", "Depositado", "Consumido", "Despesas diretas", "Saldo"]}>
-          {h.socios.map((s) => <tr key={s.cotistaId}><Celula titulo>{s.nome}</Celula><Celula>{formatNumero(numero(s.percentual), 2)}%</Celula><Celula>{dinheiro(s.totalDepositadoCentavos)}</Celula><Celula>{dinheiro(s.totalConsumidoCentavos)}</Celula><Celula>{dinheiro(s.despesasPagasDiretamenteCentavos)}</Celula><Celula>{dinheiro(s.saldoCentavos)}</Celula></tr>)}
+    <section className={view("geral")} id={`${uid}-geral`} aria-label="Comparativo mensal">
+      <Painel titulo="Comparativo mensal — total da aeronave" detalhe="Meses selecionados em ordem cronológica. Etapas correspondem aos registros do diário.">
+        <Tabela headers={["Mês", "Custo total", "Fixos", "Variáveis", "Extras", "Sem classificação", "Horas", "Pousos", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8,9]}>
+          {b.mensais.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.semClassificacao)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.pousos,0)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}
+          <tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{money(b.total.total)}</Td><Td num>{money(b.total.fixos)}</Td><Td num>{money(b.total.variaveis)}</Td><Td num>{money(b.total.extras)}</Td><Td num>{money(b.total.semClassificacao)}</Td><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.totalPousos,0)}</Td><Td num>{fmt(b.totalVoos,0)}</Td><Td num destaque>{money(b.custoHora)}</Td></tr>
         </Tabela>
-      </Painel>) : <Vazio>Nenhuma holding vinculada retornada para esta aeronave.</Vazio>}
-      <Painel titulo="Extrato da conta comum no período" descricao="Valores exibidos com seu status; lançamentos em aberto não significam movimentação bancária efetiva.">
-        {dados.movimentos.length ? <Tabela cabecalhos={["Emissão", "Holding / sócio", "Descrição", "Fluxo", "Situação", "Direto", "Valor"]}>
-          {dados.movimentos.map((m) => <tr key={m.id}><Celula titulo>{formatarData(m.data)}</Celula><Celula esquerda>{m.holdingNome || "—"}<small className="block text-muted-foreground">{m.socioNome || "—"}</small></Celula><Celula esquerda>{m.descricao}</Celula><Celula>{rotulo(m.fluxo)}</Celula><Celula>{rotulo(m.status)}</Celula><Celula>{m.diretamentePago ? "Sim" : "Não"}</Celula><Celula>{dinheiro(m.valorCentavos)}</Celula></tr>)}
-        </Tabela> : <Vazio>Nenhum movimento de holding nos meses selecionados.</Vazio>}
       </Painel>
-    </div>}
+      {atual === "geral" && <div className="bcp-grid-two bcp-no-print"><Painel titulo="Média de custo/hora por mês" detalhe="Cada ponto = custo do mês ÷ horas do mesmo mês."><Grafico><ResponsiveContainer width="100%" height="100%"><AreaChart data={b.mensais} margin={{left:0,right:15,top:12,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} tickLine={false} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Area dataKey="custoHora" name="Custo/h" stroke="var(--bcp-accent)" fill="var(--bcp-accent)" fillOpacity={.1} strokeWidth={2} connectNulls={false} isAnimationActive={false} /></AreaChart></ResponsiveContainer></Grafico></Painel>
+      <Painel titulo="Fixos × variáveis" detalhe="Custos sem classificação não entram no balanço."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={b.mensais} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
+      <Nota>O custo/hora consolidado é ponderado pelas horas: soma dos custos ÷ soma das horas. Meses sem voo exibem “—”. Os totais financeiros seguem a emissão e as horas seguem a data do diário.</Nota>
+    </section>
 
-    <div id={`${uid}-metodologia`} className={painel("metodologia")}>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Nota titulo="Período e competência">O relatório usa a data de emissão devolvida pela API. Meses não selecionados são excluídos de lançamentos, categorias, médias e gráficos. As despesas podem estar abertas, pagas ou atrasadas; o total lançado não equivale ao total pago.</Nota>
-        <Nota titulo="Rateios já calculados">O dashboard apresenta os valores e percentuais persistidos pelo backend. Não refaz o rateio por horas ou sociedade. O tipo de rateio vem das parcelas; a origem técnica do lançamento não é utilizada como critério de divisão.</Nota>
-        <Nota titulo="Custo de operação">Custo/h = despesas dos meses selecionados ÷ horas desses mesmos meses. Custo/voo = despesas ÷ quantidade de voos. Sem horas ou voos, o indicador fica sem valor. As horas vêm do tempo total apurado pelo backend.</Nota>
-        <Nota titulo="Pagamentos e conta comum">Os pagamentos reais vêm dos rateios, inclusive quando o lançamento principal não tem pagador. Algumas origens retornam zero para pagamento real; consulte o status e o registro de origem. Saldos de holding e compensações são posições acumuladas da API.</Nota>
-        <Nota titulo="Diário de bordo e empréstimos">Esta resposta da API fornece médias mensais de voo, mas não o diário completo nem o detalhamento de empréstimos. Esses dados não são inferidos a partir de custos. Os totais exibidos seguem a apuração de voos da rota atual.</Nota>
-        <Nota titulo="Conferência">O endpoint atual exclui registros cancelados, mas não aplica o filtro “conferido” do exemplo em Supabase. Compare a emissão, situação, parcelas e pagamentos antes de concluir o fechamento.</Nota>
-      </div>
-      <p className="flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Os valores monetários são somados em centavos e formatados em reais apenas na exibição.</p>
-    </div>
-    <footer className="border-t border-border pt-4 text-center text-xs text-muted-foreground">Share Brasil · Fechamento e balanço · {periodo}</footer>
+    <section className={view("cotistas")} id={`${uid}-cotistas`} aria-label="Evolução individual por cotista">
+      <div className="bcp-section-title"><h3>Evolução individual por cotista</h3><p>Custo rateado, utilização e destinos no período selecionado.</p></div>
+      {!b.fonteVoos && <Nota>O diário individual não está disponível nesta resposta. Horas, destinos e balanço da cota não são estimados a partir do custo.</Nota>}
+      {b.participantes.map((p, i) => <article className="bcp-owner" key={p.id}>
+        <header className="bcp-owner-header"><div className="bcp-avatar" style={{color:cores[i%cores.length]}}>{p.nome.slice(0,2).toUpperCase()}</div><div><h3>{p.nome}</h3><p>{p.confirmado ? p.holding ? "Sócio de holding" : "Cotista cliente" : "Vínculo a conferir"} · Cota atual: {pct(p.quota)}</p></div><div className="bcp-owner-cost"><small>Custo rateado</small><strong>{money(p.custo.total)}</strong></div></header>
+        <div className="bcp-owner-body"><div className="bcp-mini-kpis"><Kpi titulo="Horas utilizadas" valor={horas(p.horas)} /><Kpi titulo="Utilização da aeronave" valor={pct(p.uso)} /><Kpi titulo="Custo/h individual" valor={money(p.custoHora)} /><Kpi titulo="Média por relatório de viagem" valor={money(p.mediaViagem)} detalhe={`${fmt(p.numeroViagens,0)} relatórios`} /><Kpi titulo="Consumo estimado L/h" valor={fmt(p.consumoHora)} /></div>
+          <div className="bcp-grid-two"><div className="bcp-quota"><h4>Balanço da cota</h4><Barra label="Participação na aeronave" valor={p.quota} /><Barra label="Participação nas horas utilizadas" valor={p.uso} destaque />
+            <div className="bcp-quota-result"><strong>{p.diferenca === null ? "Sem base de comparação" : Math.abs(p.diferenca)<.005 ? "Utilização proporcional à cota" : `${fmt(Math.abs(p.diferenca))} p.p. ${p.diferenca>0?"acima":"abaixo"} da cota`}</strong><span>Referência proporcional: {horas(p.referencia)} · Diferença de horas: {horas(p.saldoHoras)}</span></div>
+            <small>Cota atual × horas totais do período. A diferença é um comparativo de utilização, não um crédito de horas ou cobrança.</small>
+          </div><div className="bcp-destinos"><h4>Destinos mais visitados</h4>{p.destinos.length ? <ol>{p.destinos.slice(0,5).map((dest, k) => <li key={dest.nome}><span className="bcp-rank">{String(k+1).padStart(2,"0")}</span><strong>{dest.nome}</strong><div className="bcp-destination-bar"><i style={{width:`${dest.visitas/p.destinos[0].visitas*100}%`}} /></div><span>{dest.visitas} {dest.visitas===1?"chegada":"chegadas"}</span></li>)}</ol> : <Vazio>{b.fonteVoos ? "Nenhum destino registrado no período." : "Histórico operacional indisponível."}</Vazio>}</div></div>
+          <h4>Evolução mensal</h4><Tabela headers={["Mês", "Custo rateado", "Fixos", "Variáveis", "Extras", "Sem classificação", "Horas", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8]}>{p.mensal.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.semClassificacao)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}</Tabela>
+          <details className="bcp-history"><summary><Plane size={14} /> Histórico de utilização · {b.fonteVoos ? p.voos.length : "—"} etapas</summary>{p.voos.length ? <Tabela headers={["Data", "Voo", "Origem", "Destino", "Horas", "Pousos", "Natureza"]} numericas={[4,5]}>{p.voos.map(v => <tr key={v.id}><Th>{formatarData(v.data)}</Th><Td>{v.numero||"—"}</Td><Td>{v.origem||"—"}</Td><Td>{v.destino||"—"}</Td><Td num>{horas(v.horas)}</Td><Td num>{fmt(v.pousos,0)}</Td><Td>{v.natureza||"—"}{v.emprestado?" · empréstimo":""}</Td></tr>)}</Tabela> : <Vazio>Nenhuma etapa vinculada.</Vazio>}</details>
+        </div>
+      </article>)}
+      <Nota>Os destinos contam chegadas registradas no diário, não multiplicam visitas pelo número de pousos. Traslados, voos de teste e operações sem titular ficam separados. Em voos emprestados, a utilização é atribuída ao tomador identificado. A participação societária é a atual, pois o schema não possui histórico de vigência das cotas.</Nota>
+    </section>
+
+    <section className={view("custos")} id={`${uid}-custos`} aria-label="Custos e projeção">
+      <div className="bcp-mini-kpis"><Kpi titulo="Fixos no período" valor={money(b.total.fixos)}/><Kpi titulo="Variáveis no período" valor={money(b.total.variaveis)}/><Kpi titulo="Extras" valor={money(b.total.extras)}/></div>
+      <Painel titulo="Projeção do custo por hora voada" detalhe="Cenários mensais com base nos custos classificados dos meses selecionados.">{b.projecao.length ? <>
+        {atual==="custos" && <div className="bcp-no-print"><Grafico><ResponsiveContainer width="100%" height="100%"><LineChart data={b.projecao} margin={{top:12,right:20,left:0,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="horas" tickFormatter={v=>`${v}h`} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><YAxis width={65} tickFormatter={compacto} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><Tooltip formatter={chartMoney} labelFormatter={v=>`${v} horas/mês`} contentStyle={tooltip}/><Legend wrapperStyle={{fontSize:10}}/><Line dataKey="custoHora" name="Custo/h total" stroke={cores[0]} dot={false} strokeWidth={2} isAnimationActive={false}/><Line dataKey="fixoHora" name="Fixo/h" stroke={cores[1]} dot={false} strokeDasharray="4 4" isAnimationActive={false}/></LineChart></ResponsiveContainer></Grafico></div>}
+        <Tabela headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h projetado", "Custo mensal projetado"]} numericas={[0,1,2,3,4,5]}>{b.projecao.map(p=><tr key={p.horas}><Th num>{p.horas}h</Th><Td num>{money(p.fixoHora)}</Td><Td num>{money(p.variavelHora)}</Td><Td num>{money(p.extraHora)}</Td><Td num destaque>{money(p.custoHora)}</Td><Td num>{money(p.custoMensal)}</Td></tr>)}</Tabela></> : <Vazio>A projeção exige horas registradas nos meses selecionados.</Vazio>}
+        <p className="bcp-footnote">Fixo/h = (fixos do período ÷ quantidade de meses selecionados) ÷ horas projetadas. Variável/h e extra/h mantêm a média histórica ponderada. Extras são repetidos nesta hipótese; não é previsão de manutenção nem compromisso de custo.</p>
+      </Painel>
+      <Painel titulo="Combustível — consumo e abastecimento" detalhe="Consumo estimado e litros abastecidos têm origens diferentes."><Tabela headers={["Mês", "Horas", "Consumo estimado (L)", "Consumo estimado (L/h)", "Abastecido (L)", "Abastecido / hora"]} numericas={[1,2,3,4,5]}>{b.mensais.map(m=><tr key={m.mes}><Th>{m.nome}</Th><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.consumo)}</Td><Td num destaque>{fmt(m.consumoHora)}</Td><Td num>{fmt(m.litros)}</Td><Td num>{fmt(m.abastecidoHora)}</Td></tr>)}<tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.consumo)}</Td><Td num destaque>{fmt(b.consumoHora)}</Td><Td num>{fmt(b.litros)}</Td><Td num>{fmt(b.abastecidoHora)}</Td></tr></Tabela><p className="bcp-footnote">O backend calcula consumo_combustivel_total multiplicando o tempo total pela taxa cadastrada da aeronave. O indicador é estimado. Abastecimentos vêm da tabela de abastecimentos, sem somar novamente os litros do diário. Nenhuma dessas medidas comprova consumo real medido.</p></Painel>
+      <Painel titulo="Média de gasto com despesa de viagem" detalhe="Relatórios por data de início; não são adicionados outra vez às despesas financeiras."><Tabela headers={["Mês", "Relatórios", "Despesa de viagem", "Média por relatório"]} numericas={[1,2,3]}>{b.mensais.map(m=><tr key={m.mes}><Th>{m.nome}</Th><Td num>{fmt(m.relatorios,0)}</Td><Td num>{money(m.gastoViagens)}</Td><Td num destaque>{money(dividir(m.gastoViagens,m.relatorios))}</Td></tr>)}<tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{fmt(b.viagens,0)}</Td><Td num>{money(b.totalViagens)}</Td><Td num destaque>{money(b.mediaViagem)}</Td></tr></Tabela><p className="bcp-footnote">Média = soma de total_valor dos relatórios ÷ quantidade de relatórios. Cancelados, rascunhos e reprovados ficam fora. Um relatório não é necessariamente uma viagem única; total_valor inclui os itens registrados nele.</p></Painel>
+    </section>
+
+    <section className={view("categorias")} id={`${uid}-categorias`} aria-label="Distribuição por categoria e cotista">
+      <Painel titulo="Distribuição por categoria e cotista" detalhe="Cada coluna corresponde ao responsável pelo rateio. O pagador não altera a atribuição."><Tabela headers={["Categoria", "Total da aeronave", ...b.participantes.map(p=>p.nome)]} numericas={Array.from({length:b.participantes.length+1},(_,i)=>i+1)} larga>{b.categorias.map(c=><tr key={c.nome}><Th>{c.nome}</Th><Td num destaque>{money(c.total)}</Td>{b.participantes.map(p=><Td num key={p.id}>{c.cotistas.has(p.id)?money(c.cotistas.get(p.id)):"—"}</Td>)}</tr>)}<tr className="bcp-total"><Th>Total</Th><Td num destaque>{money(b.total.total)}</Td>{b.participantes.map(p=><Td num key={p.id}>{money(p.custo.total)}</Td>)}</tr></Tabela></Painel>
+      <Painel titulo="Composição do custo por cotista"><Tabela headers={["Cotista", "Fixos", "Variáveis", "Extras", "Total"]} numericas={[1,2,3,4]}>{b.participantes.map(p=><tr key={p.id}><Th>{p.nome}{!p.confirmado&&<small>Vínculo a conferir</small>}</Th><Td num>{money(p.custo.fixos)}</Td><Td num>{money(p.custo.variaveis)}</Td><Td num>{money(p.custo.extras)}</Td><Td num destaque>{money(p.custo.total)}</Td></tr>)}</Tabela></Painel>
+      <Nota>Fixos, variáveis e extras seguem tipoRateio ou grupoCategoria do cadastro. Sem identificação explícita, o valor permanece “Não classificado”. Parcelas são somadas em centavos; nenhuma diferença é distribuída por aproximação.</Nota>
+    </section>
+
+    <section className={view("acerto")} id={`${uid}-acerto`} aria-label="Acerto de contas">
+      <Painel titulo="Acerto de contas" detalhe="Posição acumulada até a data final da consulta; não se limita aos meses selecionados."><Tabela headers={["Cotista", "Pagamento informado", "Devido acumulado", "Saldo"]} numericas={[1,2,3]}>{saldos.map((s,i)=><tr key={`${s.cotista}:${i}`}><Th>{b.nome(obj(s).cotistaId||s.cotista)}</Th><Td num>{money(s.totalPagoCentavos)}</Td><Td num>{money(s.totalDevidoCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela><p className="bcp-footnote">Positivo = crédito na apuração; negativo = débito. Pagamentos informados não são entradas de caixa do cotista cliente.</p></Painel>
+      {totalPago!==totalDevido&&<Nota>Pagamentos e valores devidos apresentam diferença de {money(totalPago-totalDevido)}. Confira as origens antes de executar compensações.</Nota>}
+      <Painel titulo="Compensações sugeridas">{compensacoes.length?<Tabela headers={["Quem paga", "Quem recebe", "Valor"]} numericas={[2]}>{compensacoes.map(t=><tr key={JSON.stringify([t.credor,t.devedor])}><Th>{b.nome(t.devedor)}</Th><Td>{b.nome(t.credor)}</Td><Td num destaque>{money(t.valor)}</Td></tr>)}</Tabela>:<Vazio>Nenhuma compensação sugerida.</Vazio>}</Painel>
+    </section>
+
+    {temHolding&&<section className={view("holding")} id={`${uid}-holding`} aria-label="Conta comum das holdings">
+      <Nota>Entradas são exclusivas das contas das holdings. Aportes e estornos efetivados são exibidos aqui; clientes não têm indicador de entrada. Posições dos sócios e saldo da conta são acumulados até o fim da consulta.</Nota>
+      {holdings.map(h=><Painel key={h.id} titulo={h.nome} detalhe={h.contaBancaria||"Conta comum"}><div className="bcp-holding-summary"><span>Saldo acumulado da aeronave</span><strong>{money(h.saldoContaCentavos)}</strong></div>
+        <Tabela headers={["Mês", "Entradas efetivadas da holding"]} numericas={[1]}>{b.meses.map(m=><tr key={m}><Th>{rotuloMesCotista(m)}</Th><Td num destaque>{money(b.entradasHolding.filter(e=>obj(e).holdingId===h.id&&mes(e.data)===m).reduce((s,e)=>s+cents(e.valorCentavos),0))}</Td></tr>)}</Tabela>
+        <Tabela headers={["Sócio", "Cota", "Depositado", "Consumido", "Despesas diretas", "Saldo"]} numericas={[1,2,3,4,5]}>{h.socios.map(s=><tr key={s.cotistaId}><Th>{s.nome}</Th><Td num>{pct(n(s.percentual))}</Td><Td num>{money(s.totalDepositadoCentavos)}</Td><Td num>{money(s.totalConsumidoCentavos)}</Td><Td num>{money(s.despesasPagasDiretamenteCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela>
+      </Painel>)}{!holdings.length&&<Vazio>Nenhuma conta comum retornada para esta aeronave.</Vazio>}
+    </section>}
+    <footer className="bcp-footer"><span>Share Brasil · Fechamento da aeronave</span><span>{periodo}</span></footer>
   </div>;
 }
+function Painel({titulo,detalhe,children}:{titulo:string;detalhe?:string;children:ReactNode}) { return <section className="bcp-panel"><header><h3>{titulo}</h3>{detalhe&&<p>{detalhe}</p>}</header>{children}</section>; }
+function Kpi({titulo,valor,detalhe,destaque}:{titulo:string;valor:string;detalhe?:string;destaque?:boolean}) { return <div className={`bcp-kpi ${destaque?"bcp-kpi-accent":""}`}><span>{titulo}</span><strong>{valor}</strong>{detalhe&&<small>{detalhe}</small>}</div>; }
+function Tabela({headers,numericas=[],children,larga}:{headers:string[];numericas?:number[];children:ReactNode;larga?:boolean}) {return <div className="bcp-scroll" role="region" aria-label={headers.join(", ")} tabIndex={0}><table className={`bcp-table ${larga?"bcp-wide":""}`} style={larga?{minWidth:300+Math.max(0,headers.length-2)*155}:undefined}><thead><tr>{headers.map((h,i)=><th key={`${h}:${i}`} scope="col" className={numericas.includes(i)?"bcp-num":""}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;}
+function Th({children,num}:{children:ReactNode;num?:boolean}) {return <th scope="row" className={num?"bcp-num":undefined}>{children}</th>;}
+function Td({children,num,destaque}:{children:ReactNode;num?:boolean;destaque?:boolean}) {return <td className={`${num?"bcp-num":""} ${destaque?"bcp-accent":""}`}>{children}</td>;}
+function Vazio({children}:{children:ReactNode}) {return <div className="bcp-empty">{children}</div>;}
+function Nota({children}:{children:ReactNode}) {return <aside className="bcp-note">{children}</aside>;}
+function Grafico({children}:{children:ReactNode}) {return <div className="bcp-chart">{children}</div>;}
+function Barra({label,valor,destaque}:{label:string;valor:number|null;destaque?:boolean}) {return <div className="bcp-quota-line"><div><span>{label}</span><strong>{pct(valor)}</strong></div><div className="bcp-track"><i className={destaque?"bcp-fill-accent":""} style={{width:`${Math.max(0,Math.min(100,valor??0))}%`}} /></div></div>;}
 
-function Painel({ titulo, descricao, children }: { titulo: string; descricao?: string; children: ReactNode }) {
-  return <section className="rounded-2xl border border-border bg-card shadow-sm"><header className="border-b border-border px-5 py-4"><h2 className="text-sm font-bold">{titulo}</h2>{descricao && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{descricao}</p>}</header>{children}</section>;
+const CSS = `
+.bcp{--bcp-bg:hsl(var(--background,220 27% 8%));--bcp-card:hsl(var(--card,220 27% 8%));--bcp-fg:hsl(var(--foreground,210 35% 93%));--bcp-muted:hsl(var(--muted-foreground,215 22% 65%));--bcp-border:hsl(var(--border,216 24% 19%));--bcp-soft:hsl(var(--muted,216 25% 12%));--bcp-accent:#00d9ff;--bcp-heading:#a2bddc;min-width:0;width:100%;max-width:100%;padding:8px 0;color:var(--bcp-fg);background:transparent;font-family:inherit;font-size:12px;line-height:1.5;container-type:inline-size}
+:where(.light,[data-theme="light"]) .bcp{--bcp-bg:hsl(var(--background,210 20% 98%));--bcp-card:hsl(var(--card,0 0% 100%));--bcp-fg:hsl(var(--foreground,215 30% 16%));--bcp-muted:hsl(var(--muted-foreground,215 15% 42%));--bcp-border:hsl(var(--border,215 20% 87%));--bcp-soft:hsl(var(--muted,210 25% 95%));--bcp-accent:#00738f;--bcp-heading:#536d88}
+@media(prefers-color-scheme:light){:where(:root:not(.dark):not([data-theme="dark"])) .bcp{--bcp-bg:hsl(var(--background,210 20% 98%));--bcp-card:hsl(var(--card,0 0% 100%));--bcp-fg:hsl(var(--foreground,215 30% 16%));--bcp-muted:hsl(var(--muted-foreground,215 15% 42%));--bcp-border:hsl(var(--border,215 20% 87%));--bcp-soft:hsl(var(--muted,210 25% 95%));--bcp-accent:#00738f;--bcp-heading:#536d88}}
+:where(.dark,[data-theme="dark"]) .bcp{--bcp-bg:hsl(var(--background,220 27% 8%));--bcp-card:hsl(var(--card,220 27% 8%));--bcp-fg:hsl(var(--foreground,210 35% 93%));--bcp-muted:hsl(var(--muted-foreground,215 22% 65%));--bcp-border:hsl(var(--border,216 24% 19%));--bcp-soft:hsl(var(--muted,216 25% 12%));--bcp-accent:#00d9ff;--bcp-heading:#a2bddc}
+.bcp *{box-sizing:border-box}.bcp h2,.bcp h3,.bcp h4,.bcp p{margin:0}.bcp button{font:inherit;color:inherit;cursor:pointer}.bcp :focus-visible{outline:2px solid var(--bcp-accent);outline-offset:3px}.bcp svg{flex-shrink:0}.bcp .bcp-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.bcp .bcp-eyebrow{font-size:9px;letter-spacing:1.4px;color:var(--bcp-muted);overflow-wrap:anywhere}.bcp h2{font-size:20px;letter-spacing:-.35px;font-weight:650;margin-top:3px}.bcp .bcp-header p{font-size:11px;color:var(--bcp-muted);margin-top:3px}.bcp .bcp-button{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid var(--bcp-border);border-radius:7px;background:var(--bcp-card);font-size:11px;min-height:36px}.bcp .bcp-button:hover{background:var(--bcp-soft)}
+.bcp .bcp-kpis,.bcp .bcp-mini-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.bcp .bcp-kpis{margin-bottom:14px}.bcp .bcp-kpi{border:1px solid var(--bcp-border);border-radius:9px;background:var(--bcp-card);padding:11px 13px;min-width:0}.bcp .bcp-kpi>span{display:block;font-size:10px;color:var(--bcp-muted);line-height:1.35}.bcp .bcp-kpi>strong{display:block;font-size:18px;line-height:1.3;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.35px;margin-top:5px;overflow-wrap:anywhere}.bcp .bcp-kpi>small{display:block;font-size:9px;color:var(--bcp-muted);line-height:1.35;margin-top:4px}.bcp .bcp-kpi-accent>strong,.bcp .bcp-accent{color:var(--bcp-accent);font-weight:650}
+.bcp .bcp-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--bcp-border);margin:8px 0 18px;scrollbar-width:thin}.bcp .bcp-tabs button{display:flex;align-items:center;gap:7px;flex-shrink:0;min-height:42px;padding:11px 13px;border:0;border-bottom:2px solid transparent;background:none;color:var(--bcp-muted);font-size:11px;font-weight:550}.bcp .bcp-tabs .bcp-selected{border-bottom-color:var(--bcp-accent);color:var(--bcp-fg)}.bcp .bcp-tabs button:hover{background:var(--bcp-soft)}
+.bcp .bcp-view{display:none;min-width:0}.bcp .bcp-view.bcp-active{display:flex;flex-direction:column;gap:16px}.bcp .bcp-panel{background:var(--bcp-card);border:1px solid var(--bcp-border);border-radius:12px;overflow:hidden;min-width:0}.bcp .bcp-panel>header{padding:16px 18px 12px}.bcp .bcp-panel>header h3{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1.2px;color:var(--bcp-heading)}.bcp .bcp-panel>header p{font-size:10px;color:var(--bcp-muted);margin-top:6px}.bcp .bcp-scroll{overflow-x:auto;max-width:100%;scrollbar-width:thin;padding:0 16px 12px;overscroll-behavior-inline:contain}.bcp .bcp-table{border-collapse:collapse;width:100%;font-size:11px;text-align:left}.bcp .bcp-table th,.bcp .bcp-table td{padding:10px 10px;border-bottom:1px solid var(--bcp-border);vertical-align:middle}.bcp .bcp-table thead th{font-size:9px;color:var(--bcp-heading);font-weight:600;text-transform:uppercase;letter-spacing:.45px;line-height:1.4;min-width:80px}.bcp .bcp-table thead th:first-child{min-width:145px}.bcp .bcp-table tbody th{font-weight:550;min-width:145px}.bcp .bcp-table tbody th small{display:block;font-size:9px;color:var(--bcp-muted);font-weight:400}.bcp .bcp-table tbody tr:last-child>*{border-bottom:0}.bcp .bcp-table tbody tr:hover{background:var(--bcp-soft)}.bcp .bcp-num{text-align:right!important;font-variant-numeric:tabular-nums;white-space:nowrap}.bcp .bcp-table thead .bcp-num{white-space:normal}.bcp .bcp-total{background:var(--bcp-soft);font-weight:650}.bcp .bcp-wide thead th{min-width:150px;max-width:220px;overflow-wrap:anywhere}.bcp .bcp-grid-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.bcp .bcp-chart{height:250px;width:100%;min-width:0;padding:10px 12px 12px}.bcp .bcp-note{padding:11px 14px;border:1px solid var(--bcp-border);border-left:2px solid var(--bcp-heading);border-radius:7px;font-size:10px;color:var(--bcp-muted);line-height:1.75;margin-bottom:4px}.bcp .bcp-empty{padding:24px 14px;text-align:center;font-size:11px;color:var(--bcp-muted)}.bcp .bcp-section-title h3{font-size:15px;font-weight:600}.bcp .bcp-section-title p{font-size:11px;color:var(--bcp-muted);margin-top:3px}
+.bcp .bcp-owner{border:1px solid var(--bcp-border);border-radius:12px;background:var(--bcp-card);min-width:0;overflow:hidden}.bcp .bcp-owner-header{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--bcp-border)}.bcp .bcp-avatar{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--bcp-border);border-radius:9px;font-size:10px;font-weight:650;flex-shrink:0;background:var(--bcp-soft)}.bcp .bcp-owner-header>div:nth-child(2){min-width:0;overflow-wrap:anywhere}.bcp .bcp-owner-header h3{font-size:14px;font-weight:600}.bcp .bcp-owner-header p{font-size:10px;color:var(--bcp-muted);margin-top:3px}.bcp .bcp-owner-cost{margin-left:auto;text-align:right;flex-shrink:0}.bcp .bcp-owner-cost small{display:block;font-size:9px;color:var(--bcp-muted)}.bcp .bcp-owner-cost strong{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--bcp-accent)}.bcp .bcp-owner-body{display:flex;flex-direction:column;gap:16px;padding:16px 18px;min-width:0}.bcp .bcp-owner-body>.bcp-scroll{padding:0}.bcp .bcp-owner-body h4{font-size:11px;font-weight:600}.bcp .bcp-owner-body .bcp-kpi{background:var(--bcp-soft);padding:10px 11px;border:0}.bcp .bcp-owner-body .bcp-kpi>strong{font-size:16px}.bcp .bcp-quota,.bcp .bcp-destinos{border:1px solid var(--bcp-border);border-radius:9px;padding:14px;min-width:0}.bcp .bcp-quota h4,.bcp .bcp-destinos h4{margin-bottom:14px}.bcp .bcp-quota-line{margin:12px 0}.bcp .bcp-quota-line>div:first-child{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:var(--bcp-muted);margin-bottom:5px}.bcp .bcp-quota-line strong{color:var(--bcp-fg);font-variant-numeric:tabular-nums}.bcp .bcp-track{height:5px;background:var(--bcp-soft);border-radius:4px;overflow:hidden}.bcp .bcp-track i{display:block;height:100%;background:#a898f3;border-radius:4px}.bcp .bcp-track .bcp-fill-accent{background:var(--bcp-accent)}.bcp .bcp-quota-result{margin:13px 0 8px}.bcp .bcp-quota-result strong{display:block;font-size:11px;font-weight:550}.bcp .bcp-quota-result span{display:block;font-size:10px;color:var(--bcp-muted);margin-top:3px}.bcp .bcp-quota>small{font-size:9px;color:var(--bcp-muted)}.bcp .bcp-destinos ol{list-style:none;padding:0;margin:0}.bcp .bcp-destinos li{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:10px}.bcp .bcp-destinos li strong{max-width:100px;overflow-wrap:anywhere;font-size:11px}.bcp .bcp-destinos li>span:last-child{color:var(--bcp-muted);white-space:nowrap}.bcp .bcp-rank{color:var(--bcp-muted);font-size:9px}.bcp .bcp-destination-bar{flex:1;height:4px;min-width:20px;background:var(--bcp-soft);border-radius:4px;overflow:hidden}.bcp .bcp-destination-bar i{display:block;height:100%;background:var(--bcp-accent);opacity:.6}.bcp .bcp-history{border-top:1px solid var(--bcp-border);padding-top:12px;min-width:0}.bcp .bcp-history summary{font-size:11px;cursor:pointer;color:var(--bcp-heading);padding:4px 0}.bcp .bcp-history summary svg{vertical-align:middle;margin-right:5px}.bcp .bcp-history .bcp-scroll{padding:8px 0 0}.bcp .bcp-footnote{padding:10px 18px 16px;font-size:10px;color:var(--bcp-muted);line-height:1.7}.bcp .bcp-holding-summary{display:flex;justify-content:space-between;gap:12px;padding:12px 18px;background:var(--bcp-soft);font-size:11px}.bcp .bcp-holding-summary span{color:var(--bcp-muted)}.bcp .bcp-holding-summary strong{font-size:16px;font-variant-numeric:tabular-nums}.bcp .bcp-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;border-top:1px solid var(--bcp-border);margin-top:20px;padding-top:12px;font-size:9px;color:var(--bcp-muted)}
+@container(max-width:1050px){.bcp .bcp-kpis,.bcp .bcp-mini-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.bcp .bcp-kpi>strong{font-size:17px}}
+@container(max-width:700px){.bcp .bcp-kpis,.bcp .bcp-mini-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.bcp .bcp-grid-two{grid-template-columns:1fr}.bcp .bcp-owner-body{padding:12px}.bcp .bcp-owner-header{padding:12px;flex-wrap:wrap}.bcp .bcp-owner-cost{margin-left:auto}.bcp .bcp-header{align-items:flex-start}.bcp h2{font-size:18px}.bcp .bcp-kpi{padding:10px 11px}.bcp .bcp-kpi>strong{font-size:16px}.bcp .bcp-panel>header{padding:13px 12px 10px}.bcp .bcp-scroll{padding:0 8px 10px}.bcp .bcp-table th,.bcp .bcp-table td{padding:9px 8px}.bcp .bcp-owner-header h3{font-size:13px}.bcp .bcp-chart{height:220px}}
+@media print{
+@page{size:A4 landscape;margin:12mm}
+body:has(.bcp) *:has(.bcp){display:block!important;position:static!important;overflow:visible!important;max-height:none!important;height:auto!important;transform:none!important;margin:0!important;padding:0!important;box-shadow:none!important}
+body:has(.bcp) *:has(.bcp)>:not(:has(.bcp)):not(.bcp){display:none!important}
+.bcp{--bcp-bg:white!important;--bcp-card:white!important;--bcp-fg:#172b3b!important;--bcp-muted:#566a78!important;--bcp-border:#d7e0e7!important;--bcp-soft:#f1f5f7!important;--bcp-accent:#006a86!important;--bcp-heading:#39546a!important;padding:0!important;container-type:normal!important}
+.bcp .bcp-no-print{display:none!important}.bcp .bcp-view{display:block!important;break-before:page}.bcp .bcp-view> *{margin-bottom:14px}.bcp .bcp-view:first-of-type{break-before:auto}.bcp .bcp-kpis,.bcp .bcp-mini-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.bcp .bcp-grid-two{grid-template-columns:repeat(2,minmax(0,1fr))}.bcp .bcp-panel,.bcp .bcp-owner{overflow:visible}.bcp .bcp-scroll{overflow:visible}.bcp .bcp-table{width:100%;min-width:0!important;table-layout:fixed;font-size:9px}.bcp .bcp-table th,.bcp .bcp-table td{min-width:0!important;padding:6px;overflow-wrap:anywhere;white-space:normal!important}.bcp .bcp-table thead th{font-size:8px}.bcp .bcp-owner{break-before:page}.bcp .bcp-owner-header{break-after:avoid}.bcp .bcp-history::details-content{content-visibility:visible;display:block}.bcp .bcp-history>*:not(summary){display:block!important}.bcp tr{break-inside:avoid}.bcp thead{display:table-header-group}.bcp .bcp-chart{display:none}.bcp .bcp-footer{margin-top:14px}
 }
-function Tabela({ cabecalhos, children, compacta = false, larguras }: { cabecalhos: string[]; children: ReactNode; compacta?: boolean; larguras?: string[] }) {
-  const classesTabela = compacta ? "table-fixed [&_th]:!px-2 [&_th]:!py-2 [&_th]:!text-[11px] [&_th]:break-words [&_td]:!px-2 [&_td]:!py-2 [&_td]:!text-[11px] [&_td]:break-words" : "";
-  return <div className={compacta ? "overflow-hidden" : "overflow-x-auto"}><table className={`w-full text-sm ${classesTabela}`}>
-    {larguras && <colgroup>{larguras.map((largura, i) => <col key={i} style={{ width: largura }} />)}</colgroup>}
-    <thead><tr className="bg-muted/40">{cabecalhos.map((c, i) => <th key={c} scope="col" className={`px-4 py-3 text-xs font-semibold text-muted-foreground ${i === 0 ? "text-left" : "text-right"}`}>{c}</th>)}</tr></thead><tbody className="divide-y divide-border">{children}</tbody></table></div>;
-}
-function Celula({ children, titulo, esquerda }: { children: ReactNode; titulo?: boolean; esquerda?: boolean }) {
-  const classes = `px-4 py-3 align-top text-xs ${titulo || esquerda ? "text-left" : "text-right font-mono tabular-nums"}`;
-  return titulo ? <th scope="row" className={`${classes} font-semibold`}>{children}</th> : <td className={classes}>{children}</td>;
-}
-function Resumo({ titulo, valor }: { titulo: string; valor: string }) {
-  return <div className="rounded-xl border border-border bg-card p-3"><p className="text-xs text-muted-foreground">{titulo}</p><p className="mt-1 font-mono text-base font-semibold tabular-nums">{valor}</p></div>;
-}
-function Vazio({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{children}</div>;
-}
-function Nota({ titulo, children, alerta }: { titulo: string; children: ReactNode; alerta?: boolean }) {
-  return <aside className={`rounded-xl border p-4 ${alerta ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-muted/20"}`}><h3 className="mb-2 text-sm font-semibold">{titulo}</h3><p className="text-xs leading-relaxed text-muted-foreground">{children}</p></aside>;
-}
+`;

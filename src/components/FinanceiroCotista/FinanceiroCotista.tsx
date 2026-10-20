@@ -171,7 +171,7 @@ const DESPESAS_ESTILOS = `
 .despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.4; }
 .despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
 .despesa-category { display: inline-block; max-width: 100%; margin-top: 4px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
-.despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
+.despesa-status { white-space: nowrap; border-radius: 9999px; padding: 4px 9px; font-size: 10px; font-weight: 650; }
 .despesa-detail { background: hsl(var(--muted) / .28); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
 .despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary)); }
 .despesa-detail dt { font-size: 11px; }
@@ -233,7 +233,7 @@ const DESPESAS_ESTILOS = `
 .despesa-rateio dd { overflow-wrap: anywhere; }
 .despesa-rateio-person dt { color: hsl(var(--muted-foreground)); }
 .despesa-rateio-person dd { margin-top: 4px; font-weight: 600; }
-.despesas-theme .despesa-status { gap: 5px; border-radius: 5px; padding: 3px 9px; min-height: 24px; font-size: 11px; line-height: 16px; font-weight: 400; }
+.despesas-theme .despesa-status { gap: 5px; border-radius: 9999px; padding: 3px 9px; min-height: 24px; font-size: 11px; line-height: 16px; font-weight: 400; }
 .despesa-toolbar-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .despesa-control { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: #e8eef5; color: #32699f; font-size: 11px; white-space: nowrap; }
 .despesa-control:hover, .despesa-control[aria-expanded="true"] { background: #dce8f5; }
@@ -285,7 +285,7 @@ const DESPESAS_ESTILOS = `
 .despesas-theme [role="combobox"], .despesa-toolbar input { border-radius: 3px; min-height: 34px; font-size: 12px; }
 .despesa-control { height: 34px; border-radius: 3px; }
 .despesa-dialog [role="option"] { min-height: 32px; border-radius: 3px; font-size: 12px; }
-.despesas-theme .despesa-status { max-width: 100%; font-size: 10px; line-height: 15px; border-radius: 3px; padding: 3px 6px; color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.despesas-theme .despesa-status { max-width: 100%; font-size: 10px; line-height: 15px; border-radius: 9999px; padding: 3px 6px; color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
 .dark .despesas-theme .despesa-heading, .dark .despesas-theme .despesa-table thead { background: #090e17; }
 .dark .despesas-theme .despesa-row, .dark .despesas-theme .despesa-row:nth-of-type(odd) { background: #0a1119; }
 .dark .despesas-theme .despesa-row:hover { background: #121e2c; }
@@ -1125,9 +1125,11 @@ function valorPagoLancamento(lancamento: LancamentoEconomico) {
 /* Fornecedor, documentos e rateio alinhados na expansão. */
 function LancamentoExpandido({
   lancamento,
+  cotistasAeronave,
   aoAbrirDocumento,
 }: {
   lancamento: LancamentoEconomico;
+  cotistasAeronave: CotistaAeronave[];
   aoAbrirDocumento: (nome: string, url: string) => void;
 }) {
   const tituloDocumento = (documento: { nome?: string; tipo?: string | null; url: string }) => {
@@ -1162,7 +1164,7 @@ function LancamentoExpandido({
     lancamento.rateios.length > 0
       ? lancamento.rateios.map((r, i) => ({
           chave: r.id || `${r.cotistaId || r.cotista}-${i}`,
-          cota: r.percentualSociedade ?? r.percentual,
+          cota: percentualSociedadeDoCotista(r.cotistaId, r.cotista, cotistasAeronave),
           uso: r.percentual,
           responsavel: r.cotista,
           parcela: r.valorCentavos,
@@ -1179,7 +1181,7 @@ function LancamentoExpandido({
       : [
           {
             chave: "unico",
-            cota: lancamento.percentualSociedade,
+            cota: percentualSociedadeDoCotista(lancamento.participanteId, lancamento.participanteNome, cotistasAeronave),
             uso: lancamento.percentualUso ?? lancamento.percentualSociedade ?? 0,
             responsavel:
               lancamento.participanteNome || lancamento.pagoPor || "—",
@@ -1196,6 +1198,13 @@ function LancamentoExpandido({
             documentos: lancamento.documentos ?? [],
           },
         ];
+  const percentualSociedadeLancamento =
+    percentualSociedadeDoCotista(
+      lancamento.participanteId,
+      lancamento.participanteNome,
+      cotistasAeronave,
+    ) ??
+    (partes.length === 1 ? partes[0].cota : null);
   const documentosGerais = [ ...(lancamento.documentos ?? []), ...documentosLegados ]
     .filter((doc, index, todos) => todos.findIndex((outro) => outro.url === doc.url) === index)
     .filter((doc) => !partes.some((parte) => parte.documentos.some((outro) => outro.url === doc.url)));
@@ -1211,14 +1220,12 @@ function LancamentoExpandido({
     <div className="despesa-detail">
       <section className="mb-5 min-w-0">
         <h3 className="despesa-detail-title">Rateio e pagamento</h3>
-        <p className="mb-3 break-words text-xs text-muted-foreground">Documento: {lancamento.numeroNf || lancamento.numeroRecibo || lancamento.numeroDemonstrativo || lancamento.numeroDoc || lancamento.documento || "Não informado"}</p>
+        <p className="mb-3 break-words text-xs text-muted-foreground">Documento: {documentoDoLancamento(lancamento) || "Não informado"}</p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
-          <div><dt className="text-muted-foreground">Data</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.data)}</dd></div>
+          <div><dt className="text-muted-foreground">Data de emissão</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.dataEmissao || lancamento.data)}</dd></div>
           <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
           <div><dt className="text-muted-foreground">Número voo</dt><dd className="mt-1 font-semibold">{lancamento.numeroVoo || "—"}</dd></div>
-          <div><dt className="text-muted-foreground">Tipo de Rateio</dt><dd className="mt-1 font-semibold">{fmtTipoRateio(lancamento.tipoRateio || tiposRateio.join(", "))}</dd></div>
           <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "Não informada"}</dd></div>
-          <div><dt className="text-muted-foreground">Percentual Sociedade</dt><dd className="mt-1 font-semibold">{fmtPct(lancamento.percentualSociedade)}</dd></div>
           <div><dt className="text-muted-foreground">Valor Total</dt><dd className="mt-1 font-mono font-semibold tabular-nums">{formatarCentavos(lancamento.valorCentavos)}</dd></div>
           {lancamento.subcategorias?.length ? <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words font-semibold">{lancamento.subcategorias.join(" · ")}</dd></div> : null}
         </dl>
@@ -1226,11 +1233,12 @@ function LancamentoExpandido({
       <section className="mb-5 min-w-0">
         <h3 className="despesa-detail-title">Cotistas</h3>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-xs">
+          <table className="w-full min-w-[720px] text-left text-xs">
             <thead>
               <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
                 <th className="py-2 pr-3 font-bold">Cotista</th>
                 <th className="px-3 py-2 font-bold">Tipo de Rateio</th>
+                <th className="px-3 py-2 text-right font-bold">Percentual Sociedade</th>
                 <th className="px-3 py-2 text-right font-bold">Percentual Uso</th>
                 <th className="px-3 py-2 text-right font-bold">Valor Rateado</th>
                 <th className="px-3 py-2 text-right font-bold">Valor pago</th>
@@ -1242,6 +1250,7 @@ function LancamentoExpandido({
                 <tr key={p.chave} className="border-b border-border/60">
                   <td className="py-2.5 pr-3 font-semibold text-foreground">{p.responsavel || "Não informado"}</td>
                   <td className="px-3 py-2.5">{fmtTipoRateio(p.tipoRateio || lancamento.tipoRateio)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.cota)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.uso)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.parcela)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.valorPagoReal)}</td>
@@ -1323,6 +1332,36 @@ function normalizarBusca(valor: string) {
     .toLocaleLowerCase("pt-BR");
 }
 
+function percentualSociedadeDoCotista(
+  cotistaId: string | null | undefined,
+  cotistaNome: string | null | undefined,
+  cotistas: CotistaAeronave[],
+) {
+  const cotistaPorId = cotistas.find((item) => {
+    const idsRelacionados = [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])];
+    return Boolean(cotistaId && idsRelacionados.includes(cotistaId));
+  });
+  if (cotistaPorId) return cotistaPorId.percentual_sociedade;
+
+  const nomeNormalizado = cotistaNome ? normalizarBusca(cotistaNome.trim()) : "";
+  if (!nomeNormalizado) return null;
+  const cotistasComMesmoNome = cotistas.filter(
+    (item) => normalizarBusca(item.nome.trim()) === nomeNormalizado,
+  );
+  const cotista = cotistasComMesmoNome.length === 1 ? cotistasComMesmoNome[0] : null;
+  return cotista?.percentual_sociedade ?? null;
+}
+
+function documentoDoLancamento(lancamento: LancamentoEconomico) {
+  return lancamento.documentoNumero ||
+    lancamento.numeroNf ||
+    lancamento.numeroRecibo ||
+    lancamento.numeroDemonstrativo ||
+    lancamento.numeroDoc ||
+    lancamento.documento ||
+    null;
+}
+
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
   const Icon = visual.Icon;
@@ -1339,10 +1378,12 @@ function BadgeStatus({ status }: { status: string }) {
 
 function LancamentosDespesa({
   lancamentos,
+  cotistasAeronave,
   aoNovo,
   aoAtualizar,
 }: {
   lancamentos: LancamentoEconomico[];
+  cotistasAeronave: CotistaAeronave[];
   aoNovo: () => void;
   aoAtualizar: () => Promise<void>;
 }) {
@@ -1425,7 +1466,7 @@ function LancamentosDespesa({
           itens: [...grupo.itens].sort((a, b) => {
             if (ordem === "maior") return b.valorCentavos - a.valorCentavos;
             if (ordem === "menor") return a.valorCentavos - b.valorCentavos;
-            const comparacao = String(a.dataPagamento || a.data).localeCompare(String(b.dataPagamento || b.data));
+            const comparacao = String(a.dataEmissao || a.data).localeCompare(String(b.dataEmissao || b.data));
             return ordem === "antigas" ? comparacao : -comparacao;
           }),
         })),
@@ -1803,7 +1844,7 @@ function LancamentosDespesa({
                 </caption>
                 <colgroup>
                   <col style={{ width: 36 }} />
-                  <col style={{ width: 112 }} />
+                  <col style={{ width: 150 }} />
                   <col />
                   <col style={{ width: 136 }} />
                   <col style={{ width: 192 }} />
@@ -1820,7 +1861,7 @@ function LancamentosDespesa({
                       />
                     </th>
                     {[
-                      "Data (pgto.)",
+                      "Data emissão",
                       "Descrição",
                       "Valor",
                       "Status",
@@ -1831,11 +1872,11 @@ function LancamentosDespesa({
                         scope="col"
                         className={`px-4 py-4 font-medium ${titulo === "Valor" || titulo === "Ações" ? "text-right" : ""}`}
                       >
-                        {titulo === "Data (pgto.)" ? (
+                        {titulo === "Data emissão" ? (
                           <button type="button" className="despesa-sort-date"
                             onClick={() => setOrdem((atual) => atual === "antigas" ? "recentes" : "antigas")}
-                            aria-label={ordem === "antigas" ? "Ordenar por data mais recente" : "Ordenar por data mais antiga"}>
-                            <span>Data<br />(pgto.)</span>
+                            aria-label={ordem === "antigas" ? "Ordenar por data de emissão mais recente" : "Ordenar por data de emissão mais antiga"}>
+                            <span>Data<br />emissão</span>
                             {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           </button>
                         ) : titulo}
@@ -1856,12 +1897,7 @@ function LancamentosDespesa({
                     </tr>
                     {itens.map((item) => {
                       const aberto = expandido === item.id;
-                      const documento =
-                        item.numeroNf ||
-                        item.numeroRecibo ||
-                        item.numeroDemonstrativo ||
-                        item.numeroDoc ||
-                        item.documento;
+                      const documento = documentoDoLancamento(item);
                       return (
                         <Fragment key={item.id}>
                           <tr
@@ -1879,13 +1915,13 @@ function LancamentosDespesa({
                             </td>
                             <td className="px-4 py-5 align-top">
                               <p className="despesa-date">
-                                {formatarData(item.dataPagamento || item.data)}
+                                {formatarData(item.dataEmissao || item.data)}
                               </p>
                               <p
                                 className="despesa-date-caption"
                                 title={documento || undefined}
                               >
-                                {item.dataPagamento ? "Pagamento" : "Lançamento"}
+                                {documento ? `Doc. ${documento}` : "Documento não informado"}
                               </p>
                             </td>
                             <td className="px-4 py-5 align-top">
@@ -1905,11 +1941,6 @@ function LancamentosDespesa({
                               <p className="despesa-money">
                                 {formatarCentavos(item.valorCentavos)}
                               </p>
-                              {item.reembolsavel && (
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                  Reembolsável
-                                </p>
-                              )}
                             </td>
                             <td className="px-4 py-5 align-top">
                               <BadgeStatus status={item.status} />
@@ -1937,6 +1968,7 @@ function LancamentosDespesa({
                               <td colSpan={6} className="p-0">
                                 <LancamentoExpandido
                                   lancamento={item}
+                                  cotistasAeronave={cotistasAeronave}
                                   aoAbrirDocumento={(nome, url) =>
                                     setDocumentoAberto({ nome, url })
                                   }
@@ -1962,12 +1994,7 @@ function LancamentosDespesa({
                   <div className="space-y-3 p-3 sm:p-4">
                     {itens.map((item) => {
                       const aberto = expandido === item.id;
-                      const documento =
-                        item.numeroNf ||
-                        item.numeroRecibo ||
-                        item.numeroDemonstrativo ||
-                        item.numeroDoc ||
-                        item.documento;
+                      const documento = documentoDoLancamento(item);
                       return (
                         <article
                           key={item.id}
@@ -1984,7 +2011,7 @@ function LancamentosDespesa({
                                   onCheckedChange={() => alternarSelecao(item.id)}
                                 />
                                 <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                                  {formatarData(item.dataPagamento || item.data)}
+                                  {formatarData(item.dataEmissao || item.data)}
                                 </span>
                                 <BadgeStatus status={item.status} />
                               </div>
@@ -2034,11 +2061,6 @@ function LancamentosDespesa({
                                 <p className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]">
                                   {formatarCentavos(item.valorCentavos)}
                                 </p>
-                                {item.reembolsavel && (
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Reembolsável
-                                  </p>
-                                )}
                               </div>
                               <Button
                                 type="button"
@@ -2065,6 +2087,7 @@ function LancamentosDespesa({
                             <div id={`despesa-mobile-${item.id}`}>
                               <LancamentoExpandido
                                 lancamento={item}
+                                cotistasAeronave={cotistasAeronave}
                                 aoAbrirDocumento={(nome, url) =>
                                   setDocumentoAberto({ nome, url })
                                 }
@@ -2640,14 +2663,12 @@ export default function FinanceiroCotista() {
               <div>
                 <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
                 <p className="mt-1 text-base font-semibold">{aeronaves.find((a) => a.id === aeronaveSelecionada)?.matricula_registro || "Aeronave selecionada"}</p>
-                <p className="text-[10px] text-muted-foreground">Consolidação dos lançamentos e rateios no período selecionado.</p>
+                <p className="text-[10px] text-muted-foreground"></p>
               </div>
               <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
                 {[
                   ["Lançamentos", String(lancamentosFiltrados.length), ""],
                   ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0), ""],
-                  ["Rateado", formatarMoeda(dashboard?.resumo?.custo_rateado ?? 0), ""],
-                  ["A conferir", formatarMoeda(Math.max(0, (dashboard?.resumo?.saidas ?? 0) - (dashboard?.resumo?.custo_rateado ?? 0))), "text-amber-600"],
                 ].map(([label, value, tone]) => (
                   <div key={label} className="min-w-[104px] px-3 py-2.5 first:pl-3">
                     <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p>
@@ -2666,7 +2687,6 @@ export default function FinanceiroCotista() {
               ["emprestimos", "Voos empréstimo", Fuel],
               ["medias", "Médias", Gauge],
               ["graficos", "Gráficos", BarChart3],
-              ["ranking", "Ranking de gastos", ListOrdered],
               ["portal-cliente", "Portal Cliente", KeyRound],
             ] as const).map(([id, label, Icon]) => (
               <button
@@ -2701,13 +2721,13 @@ export default function FinanceiroCotista() {
                 <div className="flex flex-wrap items-center gap-2">
                   <CalendarDays size={16} className="text-muted-foreground" />
                   <span className="text-xs font-semibold">{abaAtiva === "relatorio" ? "Período do balanço" : "Competência"}</span>
-                  <Button type="button" variant="outline" size="sm" className="h-9 px-3"
+                  <Button type="button" variant="outline" size="sm" className="h-10 px-3"
                     aria-label="Mês anterior" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}>‹</Button>
                   <Input type="month" aria-label="Selecionar competência" value={mesReferencia}
-                    onChange={(e) => selecionarMesUnico(e.target.value)} className="h-9 w-[170px] text-sm" />
-                  <Button type="button" variant="outline" size="sm" className="h-9 px-3"
+                    onChange={(e) => selecionarMesUnico(e.target.value)} className="h-10 w-[160px] text-sm" />
+                  <Button type="button" variant="outline" size="sm" className="h-10 px-3"
                     aria-label="Próximo mês" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}>›</Button>
-                  <Button type="button" variant="ghost" size="sm" className="h-9 text-xs" onClick={limparMeses}>Mês atual</Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-10 text-xs" onClick={limparMeses}>Mês atual</Button>
                 </div>
                 <span className="text-xs text-muted-foreground" aria-live="polite">
                   {mesesAplicados.length === 1 ? rotuloMesCotista(mesReferencia) : `${mesesAplicados.length} meses selecionados`}
@@ -2992,6 +3012,7 @@ export default function FinanceiroCotista() {
               {abaAtiva === "lancamentos" && (
                 <LancamentosDespesa
                   lancamentos={lancamentosFiltrados}
+                  cotistasAeronave={cotistasAeronave}
                   aoNovo={() => setAberto(true)}
                   aoAtualizar={carregar}
                 />

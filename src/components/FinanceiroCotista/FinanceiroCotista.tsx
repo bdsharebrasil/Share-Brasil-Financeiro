@@ -121,7 +121,7 @@ import {
 
 
 /* Estilos locais: não alteram o tema das demais abas do financeiro.
- * Mantém os componentes e APIs; tabela com cinco colunas e fornecedor nos detalhes.
+ * Mantém os componentes e APIs; tabela com seleção, data, descrição, valor, status e ações.
  */
 const DESPESAS_ESTILOS = `
 .despesas-theme {
@@ -172,10 +172,6 @@ const DESPESAS_ESTILOS = `
 .despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
 .despesa-category { display: inline-block; max-width: 100%; margin-top: 4px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
 .despesa-status { white-space: nowrap; border-radius: 5px; padding: 4px 7px; font-size: 10px; font-weight: 650; }
-.despesas-theme .despesa-status[data-status="Pago"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.despesas-theme .despesa-status[data-status="Pendente"] { color: #b45309; background: #fffbeb; border-color: #fcd34d; }
-.despesas-theme .despesa-status[data-status="Atrasado"] { color: #b91c1c; background: #fef2f2; border-color: #fca5a5; }
-.despesas-theme .despesa-status[data-status="Cancelado"] { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
 .despesa-detail { background: hsl(var(--muted) / .28); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
 .despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary)); }
 .despesa-detail dt { font-size: 11px; }
@@ -204,15 +200,11 @@ const DESPESAS_ESTILOS = `
 .dark .despesas-theme .text-emerald-700 { color: #5ce0bf; }
 .dark .despesas-theme .text-amber-700 { color: #ffd36c; }
 .dark .despesas-theme .text-blue-700 { color: #83bfff; }
-.dark .despesas-theme .despesa-status[data-status="Pago"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
-.dark .despesas-theme .despesa-status[data-status="Pendente"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
-.dark .despesas-theme .despesa-status[data-status="Atrasado"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
-.dark .despesas-theme .despesa-status[data-status="Cancelado"] { color: #c0cada; background: #283246; border-color: #475570; }
 .despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
 [data-density="compacto"] .despesa-mobile-card { padding: 0; }
 [data-density="confortavel"] .despesa-table .despesa-row td { padding: 18px 14px; }
 [data-density="compacto"] .despesa-table .despesa-row td { padding-top: 8px; padding-bottom: 8px; }
-.despesa-table .despesa-row button { min-height: 32px; }
+.despesa-table .despesa-row button:not([role="checkbox"]) { min-height: 28px; }
 .despesa-heading { border-radius: 12px 12px 0 0; }
 .despesa-table .despesa-month th { padding: 8px 12px; }
 .despesa-metric:first-child { border-color: hsl(var(--primary) / .35); }
@@ -242,9 +234,6 @@ const DESPESAS_ESTILOS = `
 .despesa-rateio-person dt { color: hsl(var(--muted-foreground)); }
 .despesa-rateio-person dd { margin-top: 4px; font-weight: 600; }
 .despesas-theme .despesa-status { gap: 5px; border-radius: 5px; padding: 3px 9px; min-height: 24px; font-size: 11px; line-height: 16px; font-weight: 400; }
-.despesas-theme .despesa-status[data-status="Pendente"] { color: #965000; background: #fff4cc; border-color: #ffc328; }
-.despesas-theme .despesa-status:is([data-status="Pago"], [data-status="Aprovado"]) { color: #006950; background: #d2fae7; border-color: #56e9ad; }
-.despesas-theme .despesa-status[data-status="Reembolsado"] { color: #174cc6; background: #deebff; border-color: #90baff; }
 .despesa-toolbar-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .despesa-control { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: #e8eef5; color: #32699f; font-size: 11px; white-space: nowrap; }
 .despesa-control:hover, .despesa-control[aria-expanded="true"] { background: #dce8f5; }
@@ -258,8 +247,6 @@ const DESPESAS_ESTILOS = `
 .dark .despesas-theme .despesa-document, .dark .despesa-control, .dark .despesa-pagination button { background: hsl(var(--card)); color: #9ecaff; border-color: hsl(var(--border)); }
 .dark .despesa-pagination button[aria-current="page"] { background: #335f90; color: white; }
 .dark .despesa-detail-title { color: #9ecaff; }
-.dark .despesas-theme .despesa-status[data-status="Aprovado"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
-.dark .despesas-theme .despesa-status[data-status="Reembolsado"] { color: #76a4dd; background: #1b3155; border-color: #355787; }
 .dark .despesas-theme .despesa-row { background: hsl(222 50% 8%); }
 .dark .despesas-theme .despesa-row:nth-of-type(odd) { background: hsl(222 52% 6%); }
 .dark .despesas-theme .despesa-row:hover { background: hsl(204 94% 64% / .07); }
@@ -275,6 +262,54 @@ const DESPESAS_ESTILOS = `
   .despesa-toolbar-main > div:last-child { margin-left: auto; }
   .despesa-filter-panel, .despesa-rateio-fields { grid-template-columns: 1fr; }
 }
+
+/* Tabela compacta e seletores quadrados, conforme o recorte de referência. */
+.despesa-ledger { border-radius: 5px; }
+.despesa-heading { border-radius: 4px 4px 0 0; background: hsl(var(--card)); }
+.despesa-heading h3 { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.despesa-table { min-width: 920px; font-size: 12px; }
+.despesa-table thead th { height: 45px; padding: 8px 10px; font-size: 10px; letter-spacing: .02em; color: hsl(var(--foreground)); }
+.despesa-table .despesa-row td { padding: 12px 10px; }
+[data-density="compacto"] .despesa-table .despesa-row td { padding: 11px 10px; }
+.despesa-table th:first-child, .despesa-table .despesa-row td:first-child { padding-left: 10px; padding-right: 10px; text-align: center; }
+.despesa-row .despesa-description { font-size: 12px; line-height: 1.45; font-weight: 650; }
+.despesa-date { margin: 0; white-space: nowrap; font-size: 11px; line-height: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.despesa-date-caption { margin: 2px 0 0; font-size: 9px; line-height: 13px; text-transform: uppercase; letter-spacing: .035em; color: hsl(var(--muted-foreground)); }
+.despesa-category { display: block; margin-top: 3px; border: 0; background: transparent; border-radius: 0; padding: 0; font-size: 9px; line-height: 14px; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.despesa-sort-date { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; text-align: left; font: inherit; text-transform: inherit; }
+.despesas-theme .despesa-checkbox { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 14px; height: 14px; min-width: 14px; min-height: 14px; max-height: 14px; flex: 0 0 14px; padding: 0; border: 1px solid #8793a3; border-radius: 2px; background: transparent; color: white; vertical-align: middle; box-shadow: none; }
+.despesas-theme .despesa-checkbox[data-state="checked"], .despesas-theme .despesa-checkbox[data-state="indeterminate"] { background: #2674bb; border-color: #2674bb; }
+.despesas-theme .despesa-checkbox svg { width: 11px; height: 11px; stroke-width: 3; }
+.despesas-theme .despesa-checkbox[data-state="indeterminate"] svg { display: none; }
+.despesas-theme .despesa-checkbox[data-state="indeterminate"]::after { content: ""; width: 8px; height: 2px; background: currentColor; }
+.despesas-theme [role="combobox"], .despesa-toolbar input { border-radius: 3px; min-height: 34px; font-size: 12px; }
+.despesa-control { height: 34px; border-radius: 3px; }
+.despesa-dialog [role="option"] { min-height: 32px; border-radius: 3px; font-size: 12px; }
+.despesas-theme .despesa-status { max-width: 100%; font-size: 10px; line-height: 15px; border-radius: 3px; padding: 3px 6px; color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.dark .despesas-theme .despesa-heading, .dark .despesas-theme .despesa-table thead { background: #090e17; }
+.dark .despesas-theme .despesa-row, .dark .despesas-theme .despesa-row:nth-of-type(odd) { background: #0a1119; }
+.dark .despesas-theme .despesa-row:hover { background: #121e2c; }
+.dark .despesas-theme .despesa-row[data-expanded="true"], .dark .despesas-theme .despesa-row[data-selected="true"] { background: #16283b; }
+.dark .despesas-theme .despesa-checkbox[data-state="unchecked"] { background: #383a3c; border-color: #7b7f85; }
+.dark .despesas-theme .despesa-status { color: #c0cada; background: #283246; border-color: #475570; }
+.despesas-theme .despesa-status[data-status="EM_ABERTO"] { color: #965000; background: #fff4cc; border-color: #ffc328; }
+.dark .despesas-theme .despesa-status[data-status="EM_ABERTO"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
+.despesas-theme .despesa-status[data-status="PAGO"] { color: #006950; background: #d2fae7; border-color: #56c999; }
+.dark .despesas-theme .despesa-status[data-status="PAGO"] { color: #5ce0bf; background: #113b39; border-color: #206052; }
+.despesas-theme .despesa-status[data-status="PAGO_DIRETAMENTE"] { color: #0e7490; background: #cffafe; border-color: #67cde0; }
+.dark .despesas-theme .despesa-status[data-status="PAGO_DIRETAMENTE"] { color: #67e8f9; background: #12343e; border-color: #236373; }
+.despesas-theme .despesa-status[data-status="EM_ATRASO"] { color: #b91c1c; background: #fef2f2; border-color: #fca5a5; }
+.dark .despesas-theme .despesa-status[data-status="EM_ATRASO"] { color: #ffaaa8; background: #3c252e; border-color: #75404b; }
+.despesas-theme .despesa-status[data-status="ESTORNO"] { color: #9a3412; background: #ffedd5; border-color: #fdba74; }
+.dark .despesas-theme .despesa-status[data-status="ESTORNO"] { color: #fdba74; background: #3b2b20; border-color: #80532d; }
+.despesas-theme .despesa-status[data-status="SAIDA"] { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.dark .despesas-theme .despesa-status[data-status="SAIDA"] { color: #c0cada; background: #283246; border-color: #475570; }
+.despesas-theme .despesa-status[data-status="AGUARDANDO_REEMBOLSO"] { color: #6d28d9; background: #ede9fe; border-color: #c4b5fd; }
+.dark .despesas-theme .despesa-status[data-status="AGUARDANDO_REEMBOLSO"] { color: #c4b5fd; background: #302346; border-color: #654793; }
+.despesas-theme .despesa-status[data-status="REEMBOLSADO"] { color: #174cc6; background: #deebff; border-color: #90baff; }
+.dark .despesas-theme .despesa-status[data-status="REEMBOLSADO"] { color: #93c5fd; background: #1b3155; border-color: #355787; }
+.despesas-theme .despesa-status[data-status="CANCELADO"] { color: #52525b; background: #f4f4f5; border-color: #d4d4d8; }
+.dark .despesas-theme .despesa-status[data-status="CANCELADO"] { color: #b3b3bf; background: #292a31; border-color: #50515b; }
 
 `;
 
@@ -1046,40 +1081,37 @@ export function NovoLancamentoCotistaDialog({
   );
 }
 
-function statusLancamento(status: string) {
-  const normalizado = status.trim().toUpperCase();
-  if (normalizado === "APROVADO") return { label: "Aprovado", className: "" };
-  if (normalizado === "REEMBOLSADO") return { label: "Reembolsado", className: "" };
-  if (["PAGO", "RECEBIDO", "CONFIRMADO", "LIQUIDADO"].includes(normalizado))
-    return {
-      label: "Pago",
-      className:
-        "border-emerald-400/25 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300",
-    };
-  if (["EM_ATRASO", "ATRASADO"].includes(normalizado))
-    return {
-      label: "Atrasado",
-      className:
-        "border-red-400/25 bg-red-400/10 text-red-700 dark:text-red-300",
-    };
-  if (["CANCELADO", "ESTORNADO"].includes(normalizado))
-    return {
-      label: "Cancelado",
-      className:
-        "border-slate-400/25 bg-slate-400/10 text-slate-600 dark:text-slate-300",
-    };
-  return {
-    label: "Pendente",
-    className:
-      "border-amber-400/25 bg-amber-400/10 text-amber-700 dark:text-amber-300",
+// Códigos usados pela API: filtro, badge e busca compartilham esta lista.
+const STATUS_LANCAMENTO = [
+  { value: "EM_ABERTO", label: "Em aberto", Icon: Clock3 },
+  { value: "PAGO", label: "Pago", Icon: CircleCheck },
+  { value: "PAGO_DIRETAMENTE", label: "Pago diretamente", Icon: CircleCheck },
+  { value: "EM_ATRASO", label: "Em atraso", Icon: CircleAlert },
+  { value: "ESTORNO", label: "Estorno", Icon: Undo2 },
+  { value: "SAIDA", label: "Saída", Icon: ReceiptText },
+  { value: "AGUARDANDO_REEMBOLSO", label: "Aguardando reembolso", Icon: Clock3 },
+  { value: "REEMBOLSADO", label: "Reembolsado", Icon: Undo2 },
+  { value: "CANCELADO", label: "Cancelado", Icon: X },
+] as const;
+
+function normalizarStatus(status: string | null | undefined): string {
+  return (status ?? "").trim().toUpperCase();
+}
+
+function statusLancamento(status: string | null | undefined) {
+  const value = normalizarStatus(status);
+  return STATUS_LANCAMENTO.find((opcao) => opcao.value === value) ?? {
+    value,
+    label: value ? value.replace(/_/g, " ") : "Não informado",
+    Icon: CircleAlert,
   };
 }
 
 function valorPagoLancamento(lancamento: LancamentoEconomico) {
   const pagoInformado = Math.max(0, Number(lancamento.valorPagoCentavos || 0));
   if (
-    ["PAGO", "RECEBIDO", "CONFIRMADO", "LIQUIDADO"].includes(
-      lancamento.status.toUpperCase(),
+    ["PAGO", "PAGO_DIRETAMENTE"].includes(
+      normalizarStatus(lancamento.status),
     )
   ) {
     return Math.min(
@@ -1177,6 +1209,7 @@ function LancamentoExpandido({
     <div className="despesa-detail">
       <section className="mb-5 min-w-0">
         <h3 className="despesa-detail-title">Rateio e pagamento</h3>
+        <p className="mb-3 break-words text-xs text-muted-foreground">Documento: {lancamento.numeroNf || lancamento.numeroRecibo || lancamento.numeroDemonstrativo || lancamento.numeroDoc || lancamento.documento || "Não informado"}</p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
           <div><dt className="text-muted-foreground">Data</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.data)}</dd></div>
           <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
@@ -1288,13 +1321,11 @@ function normalizarBusca(valor: string) {
 
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
-  const Icon = visual.label === "Reembolsado" ? Undo2
-    : ["Pago", "Aprovado"].includes(visual.label) ? CircleCheck
-    : visual.label === "Pendente" ? Clock3 : CircleAlert;
+  const Icon = visual.Icon;
   return (
     <span
-      data-status={visual.label}
-      className={`despesa-status inline-flex items-center gap-1.5 border ${visual.className}`}
+      data-status={visual.value}
+      className="despesa-status inline-flex items-center gap-1.5 border"
     >
       <Icon size={11} className="shrink-0" aria-hidden="true" />
       {visual.label}
@@ -1361,6 +1392,8 @@ function LancamentosDespesa({
             item.numeroDemonstrativo,
             item.documento,
             item.observacoes,
+            item.status,
+            statusLancamento(item.status).label,
           ]
             .filter(Boolean)
             .join(" "),
@@ -1368,7 +1401,7 @@ function LancamentosDespesa({
       return (
         correspondeBusca &&
         (filtroStatus === "todos" ||
-          statusLancamento(item.status).label === filtroStatus) &&
+          normalizarStatus(item.status) === filtroStatus) &&
         (filtroCategoria === "todas" ||
           (item.categoria || "Sem categoria") === filtroCategoria)
       );
@@ -1388,7 +1421,7 @@ function LancamentosDespesa({
           itens: [...grupo.itens].sort((a, b) => {
             if (ordem === "maior") return b.valorCentavos - a.valorCentavos;
             if (ordem === "menor") return a.valorCentavos - b.valorCentavos;
-            const comparacao = String(a.data).localeCompare(String(b.data));
+            const comparacao = String(a.dataPagamento || a.data).localeCompare(String(b.dataPagamento || b.data));
             return ordem === "antigas" ? comparacao : -comparacao;
           }),
         })),
@@ -1510,7 +1543,7 @@ function LancamentosDespesa({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-10 w-10 shrink-0 rounded-xl"
+          className="h-7 w-7 shrink-0 rounded-sm"
           aria-label={`Ações: ${item.descricao}`}
         >
           <MoreHorizontal size={19} />
@@ -1529,8 +1562,8 @@ function LancamentosDespesa({
         </DropdownMenuItem>
         {!item.reembolsavel && (
           <DropdownMenuItem
-            disabled={["Pago", "Cancelado"].includes(
-              statusLancamento(item.status).label,
+            disabled={["PAGO", "PAGO_DIRETAMENTE", "REEMBOLSADO", "CANCELADO", "ESTORNO"].includes(
+              normalizarStatus(item.status),
             )}
             onSelect={() => setBaixaSelecionada(item)}
             className="gap-2 py-2.5"
@@ -1635,7 +1668,7 @@ function LancamentosDespesa({
         <header className="despesa-heading flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold tracking-tight">
-              Lançamentos mensais
+              Lançamentos ({filtradas.length})
             </h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1700,10 +1733,10 @@ function LancamentosDespesa({
                 </SelectTrigger>
                 <SelectContent className="despesas-theme despesa-dialog">
                   <SelectItem value="todos">Todos os status</SelectItem>
-                  {["Pendente", "Aprovado", "Pago", "Reembolsado", "Atrasado", "Cancelado"].map(
+                  {STATUS_LANCAMENTO.map(
                     (status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
                       </SelectItem>
                     ),
                   )}
@@ -1765,24 +1798,25 @@ function LancamentosDespesa({
                   e status.
                 </caption>
                 <colgroup>
-                  <col className="w-[5%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[38%]" />
-                  <col className="w-[17%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[11%]" />
+                  <col style={{ width: 36 }} />
+                  <col style={{ width: 112 }} />
+                  <col />
+                  <col style={{ width: 136 }} />
+                  <col style={{ width: 192 }} />
+                  <col style={{ width: 80 }} />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
                     <th scope="col" className="px-4 py-4">
                       <Checkbox
+                        className="despesa-checkbox"
                         aria-label="Selecionar todos os lançamentos desta página"
-                        checked={todosDaPaginaSelecionados}
+                        checked={todosDaPaginaSelecionados ? true : itensDaPagina.some((item) => selecionados.has(item.id)) ? "indeterminate" : false}
                         onCheckedChange={alternarSelecaoDaPagina}
                       />
                     </th>
                     {[
-                      "Data / documento",
+                      "Data (pgto.)",
                       "Descrição",
                       "Valor",
                       "Status",
@@ -1793,7 +1827,14 @@ function LancamentosDespesa({
                         scope="col"
                         className={`px-4 py-4 font-medium ${titulo === "Valor" || titulo === "Ações" ? "text-right" : ""}`}
                       >
-                        {titulo}
+                        {titulo === "Data (pgto.)" ? (
+                          <button type="button" className="despesa-sort-date"
+                            onClick={() => setOrdem((atual) => atual === "antigas" ? "recentes" : "antigas")}
+                            aria-label={ordem === "antigas" ? "Ordenar por data mais recente" : "Ordenar por data mais antiga"}>
+                            <span>Data<br />(pgto.)</span>
+                            {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
+                        ) : titulo}
                       </th>
                     ))}
                   </tr>
@@ -1826,19 +1867,21 @@ function LancamentosDespesa({
                           >
                             <td className="px-4 py-5 align-middle">
                               <Checkbox
+                        className="despesa-checkbox"
                                 aria-label={`Selecionar lançamento: ${item.descricao}`}
                                 checked={selecionados.has(item.id)}
                                 onCheckedChange={() => alternarSelecao(item.id)}
                               />
                             </td>
                             <td className="px-4 py-5 align-top">
-                              <p className="font-mono text-xs font-semibold tabular-nums">
-                                {formatarData(item.data)}
+                              <p className="despesa-date">
+                                {formatarData(item.dataPagamento || item.data)}
                               </p>
                               <p
-                                className={`mt-2 text-xs leading-relaxed text-muted-foreground ${TEXTO_COMPLETO}`}
+                                className="despesa-date-caption"
+                                title={documento || undefined}
                               >
-                                {documento || "Sem documento"}
+                                {item.dataPagamento ? "Pagamento" : "Lançamento"}
                               </p>
                             </td>
                             <td className="px-4 py-5 align-top">
@@ -1874,7 +1917,7 @@ function LancamentosDespesa({
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-9 w-9 shrink-0 rounded-lg text-primary"
+                                  className="h-7 w-7 shrink-0 rounded-sm text-primary"
                                   onClick={() => setExpandido(aberto ? null : item.id)}
                                   aria-expanded={aberto}
                                   aria-controls={`despesa-desktop-${item.id}`}
@@ -1931,12 +1974,13 @@ function LancamentosDespesa({
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-3">
                                 <Checkbox
+                        className="despesa-checkbox"
                                   aria-label={`Selecionar lançamento: ${item.descricao}`}
                                   checked={selecionados.has(item.id)}
                                   onCheckedChange={() => alternarSelecao(item.id)}
                                 />
                                 <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                                  {formatarData(item.data)}
+                                  {formatarData(item.dataPagamento || item.data)}
                                 </span>
                                 <BadgeStatus status={item.status} />
                               </div>

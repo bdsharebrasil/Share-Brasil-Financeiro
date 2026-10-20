@@ -2,9 +2,9 @@ import { Fragment, useState } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Eye, FileText, Image as ImageIcon, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -108,6 +108,7 @@ export function AbaCaixaEmpresa() {
   const lancamentosVisiveis = lancamentos
     .filter((lancamento) => mesesSelecionados.length === 0 || mesesSelecionados.includes(mesDoLancamento(lancamento)))
     .sort((a, b) => mesDoLancamento(b).localeCompare(mesDoLancamento(a)));
+  const saldoVisivel = lancamentosVisiveis.reduce((total, lancamento) => total + (lancamento.fluxo === "ENTRADA" ? lancamento.valorCentavos : -lancamento.valorCentavos), 0);
   const alternarMes = (mes: string, marcado: boolean) => setMesesSelecionados((atuais) => marcado ? [...atuais, mes] : atuais.filter((item) => item !== mes));
 
   async function executar(acao: () => Promise<unknown>, sucesso: string) {
@@ -131,17 +132,67 @@ export function AbaCaixaEmpresa() {
   }
 
   return <div className="space-y-5">
-    <Card className="overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-col items-stretch gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between">
-        <div><CardTitle className="text-sm">Movimentações do caixa</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">Lançamentos próprios da Share Brasil · clique em Ações para expandir</p></div>
-        <div className="flex flex-col gap-2 sm:flex-row"><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-between gap-2 sm:w-56"><span className="flex items-center gap-2"><CalendarDays size={14} />{mesesSelecionados.length ? `${mesesSelecionados.length} ${mesesSelecionados.length === 1 ? "mês" : "meses"}` : "Todos os meses"}</span><ChevronDown size={14} /></Button></PopoverTrigger><PopoverContent align="end" className="w-64 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold">Meses</span>{mesesSelecionados.length > 0 && <button type="button" onClick={() => setMesesSelecionados([])} className="text-xs text-primary hover:underline">Limpar</button>}</div>{mesesDisponiveis.length === 0 ? <p className="text-xs text-muted-foreground">Nenhum mês disponível.</p> : <div className="max-h-72 space-y-1 overflow-y-auto">{mesesDisponiveis.map((mes) => <label key={mes} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs capitalize hover:bg-muted"><Checkbox checked={mesesSelecionados.includes(mes)} onCheckedChange={(marcado) => alternarMes(mes, marcado === true)} />{rotuloMes(mes)}</label>)}</div>}</PopoverContent></Popover><Select value={fluxo} onValueChange={(v) => setFluxo(v as FluxoLancamento | "TODOS")}><SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Fluxo" /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos</SelectItem><SelectItem value="ENTRADA">Entradas</SelectItem><SelectItem value="SAIDA">Saídas</SelectItem></SelectContent></Select></div>
+    <Card className="overflow-hidden border-border/70 bg-card shadow-sm">
+      <CardHeader className="flex flex-col gap-4 border-b border-border/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle className="text-sm">Movimentações do caixa</CardTitle>
+            <p className="mt-1 text-[11px] text-muted-foreground">Lançamentos próprios da Share Brasil · clique em Ações para expandir</p>
+          </div>
+          <div className="flex items-center gap-3 self-start rounded-xl border border-border bg-muted/30 px-4 py-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Soma total</span>
+            <span className={`font-mono text-sm font-bold ${saldoVisivel >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{formatarMoeda(saldoVisivel)}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex w-full flex-col gap-1.5 sm:w-56">
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Mês e ano</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between gap-2"><span className="flex items-center gap-2"><CalendarDays size={14} />{mesesSelecionados.length ? `${mesesSelecionados.length} ${mesesSelecionados.length === 1 ? "mês" : "meses"}` : "Todos os meses"}</span><ChevronDown size={14} /></Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-3">
+                <div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold">Meses</span>{mesesSelecionados.length > 0 && <button type="button" onClick={() => setMesesSelecionados([])} className="text-xs text-primary hover:underline">Limpar</button>}</div>
+                {mesesDisponiveis.length === 0 ? <p className="text-xs text-muted-foreground">Nenhum mês disponível.</p> : <div className="max-h-72 space-y-1 overflow-y-auto">{mesesDisponiveis.map((mes) => <label key={mes} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs capitalize hover:bg-muted"><Checkbox checked={mesesSelecionados.includes(mes)} onCheckedChange={(marcado) => alternarMes(mes, marcado === true)} />{rotuloMes(mes)}</label>)}</div>}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="flex w-full flex-col gap-1.5 sm:w-44">
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Fluxo</span>
+            <Select value={fluxo} onValueChange={(v) => setFluxo(v as FluxoLancamento | "TODOS")}>
+              <SelectTrigger><SelectValue placeholder="Fluxo" /></SelectTrigger>
+              <SelectContent><SelectItem value="TODOS">Todos</SelectItem><SelectItem value="ENTRADA">Entradas</SelectItem><SelectItem value="SAIDA">Saídas</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground sm:ml-auto sm:pb-2">Lançamentos ({lancamentosVisiveis.length})</p>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {erro && <div className="m-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</div>}
         {carregando ? <div className="flex items-center justify-center gap-2 p-12 text-sm text-muted-foreground"><RefreshCw size={15} className="animate-spin" /> Carregando lançamentos…</div> : <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left"><thead className="bg-muted/30"><tr className="border-b border-border text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-4 py-3">Doc. / emissão</th><th className="px-4 py-3">Fluxo</th><th className="px-4 py-3">Descrição</th><th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody className="text-sm">
-            {lancamentosVisiveis.length === 0 ? <tr><td colSpan={7} className="py-14 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</td></tr> : lancamentosVisiveis.map((lancamento, indice) => { const aberto = expandido === lancamento.id; const mes = mesDoLancamento(lancamento); const novoMes = indice === 0 || mesDoLancamento(lancamentosVisiveis[indice - 1]) !== mes; return <Fragment key={lancamento.id}>{novoMes && <tr className="border-b border-border/60 bg-muted/40"><td colSpan={7} className="px-4 py-2 text-xs font-bold capitalize tracking-[.04em] text-foreground">{rotuloMes(mes)}</td></tr>}<tr className={`border-b border-border/60 transition-colors hover:bg-primary/5 ${aberto ? "bg-primary/[.03]" : ""}`}><td className="px-4 py-3"><p className="font-mono text-xs font-bold text-foreground">{lancamento.documento || "—"}</p><p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><CalendarDays size={12} />{formatarData(lancamento.data)}</p></td><td className="px-4 py-3"><Badge variant={lancamento.fluxo === "ENTRADA" ? "default" : "secondary"}>{lancamento.fluxo === "ENTRADA" ? "Entrada" : "Saída"}</Badge></td><td className="max-w-[260px] px-4 py-3"><p className="truncate font-semibold text-foreground">{lancamento.descricao}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{lancamento.categoria}</p></td><td className="max-w-[180px] truncate px-4 py-3 text-muted-foreground">{lancamento.fornecedor || "—"}</td><td className={`whitespace-nowrap px-4 py-3 text-right font-mono font-bold ${lancamento.fluxo === "ENTRADA" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>{lancamento.fluxo === "ENTRADA" ? "+" : "−"}{formatarMoeda(lancamento.valorCentavos)}</td><td className="px-4 py-3"><Badge className={CORES_STATUS[lancamento.status]}>{formatarStatus(lancamento.status)}</Badge></td><td className="px-4 py-3 text-right"><Button type="button" size="sm" variant="outline" onClick={() => setExpandido(aberto ? null : lancamento.id)} className="gap-1.5 text-xs" aria-expanded={aberto}>{aberto ? "Fechar" : "Ações"}{aberto ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button></td></tr>{aberto && <tr><td colSpan={7} className="p-0"><LinhaExpandida lancamento={lancamento} onDocumento={setDocumentoAberto} onEditar={() => void editar(lancamento)} onExcluir={() => void excluir(lancamento)} onBaixa={() => void baixa(lancamento)} onReembolso={() => void reembolso(lancamento)} /></td></tr>}</Fragment>; })}
-          </tbody></table>
+          <table className="w-full min-w-[980px] text-left">
+            <thead className="bg-muted/30"><tr className="border-b border-border text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><th className="px-4 py-3">Doc. / emissão</th><th className="px-4 py-3">Fluxo</th><th className="px-4 py-3">Descrição</th><th className="px-4 py-3">Fornecedor</th><th className="px-4 py-3 text-right">Valor</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ações</th></tr></thead>
+            <tbody className="text-sm">
+              {lancamentosVisiveis.length === 0 ? <tr><td colSpan={7} className="py-14 text-center text-sm text-muted-foreground">Nenhum lançamento encontrado.</td></tr> : lancamentosVisiveis.map((lancamento, indice) => {
+                const aberto = expandido === lancamento.id;
+                const mes = mesDoLancamento(lancamento);
+                const novoMes = indice === 0 || mesDoLancamento(lancamentosVisiveis[indice - 1]) !== mes;
+                return <Fragment key={lancamento.id}>
+                  {novoMes && <tr className="border-b border-border/60 bg-muted/20"><td colSpan={7} className="px-4 py-2 text-[11px] font-bold capitalize tracking-[.08em] text-primary">{rotuloMes(mes)}</td></tr>}
+                  <tr className={`border-b border-border/60 transition-colors hover:bg-muted/40 ${aberto ? "bg-primary/[.04]" : ""}`}>
+                    <td className="px-4 py-3 align-top"><p className="font-mono text-xs font-bold text-foreground">{lancamento.documento || "—"}</p><p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><CalendarDays size={12} />{formatarData(lancamento.data)}</p></td>
+                    <td className="px-4 py-3 align-top"><Badge variant={lancamento.fluxo === "ENTRADA" ? "default" : "secondary"}>{lancamento.fluxo === "ENTRADA" ? "Entrada" : "Saída"}</Badge></td>
+                    <td className="min-w-[220px] max-w-[320px] px-4 py-3 align-top"><p className="font-semibold leading-snug text-foreground">{lancamento.descricao}</p><p className="mt-1 text-[11px] text-muted-foreground">{lancamento.categoria}</p></td>
+                    <td className="max-w-[180px] px-4 py-3 align-top text-muted-foreground">{lancamento.fornecedor || "—"}</td>
+                    <td className={`whitespace-nowrap px-4 py-3 text-right align-top font-mono font-bold ${lancamento.fluxo === "ENTRADA" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>{lancamento.fluxo === "ENTRADA" ? "+" : "−"}{formatarMoeda(lancamento.valorCentavos)}</td>
+                    <td className="px-4 py-3 align-top"><Badge className={CORES_STATUS[lancamento.status]}>{formatarStatus(lancamento.status)}</Badge></td>
+                    <td className="px-4 py-3 text-right align-top"><Button type="button" size="sm" variant="outline" onClick={() => setExpandido(aberto ? null : lancamento.id)} className="gap-1.5 text-xs" aria-expanded={aberto}>{aberto ? "Fechar" : "Ações"}{aberto ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button></td>
+                  </tr>
+                  {aberto && <tr><td colSpan={7} className="p-0"><LinhaExpandida lancamento={lancamento} onDocumento={setDocumentoAberto} onEditar={() => void editar(lancamento)} onExcluir={() => void excluir(lancamento)} onBaixa={() => void baixa(lancamento)} onReembolso={() => void reembolso(lancamento)} /></td></tr>}
+                </Fragment>;
+              })}
+            </tbody>
+          </table>
         </div>}
       </CardContent>
     </Card>

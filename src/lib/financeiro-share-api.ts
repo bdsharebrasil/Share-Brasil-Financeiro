@@ -27,6 +27,21 @@ async function financeiroRequest<T>(path: string, init: RequestInit = {}): Promi
   return data as T;
 }
 
+export async function buscarDocumentoFinanceiro(path: string): Promise<Blob> {
+  if (!path.startsWith("/api/financeiro/")) throw new Error("url_financeira_invalida");
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error("sessao_expirada");
+  if (!session?.access_token) throw new Error("sessao_nao_encontrada");
+  const headers = new Headers({ Authorization: `Bearer ${session.access_token}` });
+  if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
+  const response = await fetch(`${API_BASE}${path}`, { headers, credentials: "omit", cache: "no-store" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(data?.error || `api_${response.status}`);
+  }
+  return response.blob();
+}
+
 export type AcessoPortalCliente = {
   cotista_aeronave_id: string;
   cliente_id: string | null;

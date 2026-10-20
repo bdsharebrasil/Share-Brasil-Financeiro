@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useContasAReceber } from "@/hooks/useContasAReceber";
 import { buscarCotistasAeronave } from "@/lib/colaborador-api";
 import type { ContaAReceber } from "./tipos";
-import { alterarStatusLancamento, editarLancamento, type ContaBancaria } from "@/lib/financeiro-share-api";
+import { alterarStatusLancamento, buscarDocumentoFinanceiro, editarLancamento, type ContaBancaria } from "@/lib/financeiro-share-api";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import { formatarBRL } from "@/components/financeiro-design/lancamento-tabela";
 
@@ -27,7 +27,45 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
   const [expandido, setExpandido] = useState<string | null>(null);
   const [contaSelecionada, setContaSelecionada] = useState<ContaAReceber | null>(null);
   const [documento, setDocumento] = useState<string | null>(null);
+  const [documentoVisualizado, setDocumentoVisualizado] = useState<string | null>(null);
+  const [carregandoDocumento, setCarregandoDocumento] = useState(false);
   const [nomesCotistas, setNomesCotistas] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!documento) {
+      setDocumentoVisualizado(null);
+      setCarregandoDocumento(false);
+      return;
+    }
+    if (!documento.startsWith("/api/financeiro/")) {
+      setDocumentoVisualizado(documento);
+      setCarregandoDocumento(false);
+      return;
+    }
+
+    let cancelado = false;
+    let urlBlob: string | null = null;
+    setDocumentoVisualizado(null);
+    setCarregandoDocumento(true);
+    buscarDocumentoFinanceiro(documento)
+      .then((blob) => {
+        if (cancelado) return;
+        urlBlob = URL.createObjectURL(blob);
+        setDocumentoVisualizado(urlBlob);
+      })
+      .catch((error: unknown) => {
+        if (cancelado) return;
+        toast.error(error instanceof Error ? error.message : "Não foi possível abrir o documento.");
+        setDocumento(null);
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoDocumento(false);
+      });
+    return () => {
+      cancelado = true;
+      if (urlBlob) URL.revokeObjectURL(urlBlob);
+    };
+  }, [documento]);
 
   useEffect(() => {
     let ativo = true;
@@ -208,7 +246,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
       </CardContent>
     </Card>
     {contaSelecionada && <ModalContaAReceber conta={contaSelecionada} aberto onFechar={() => setContaSelecionada(null)} onConfirmar={async (dados) => { await darBaixa(contaSelecionada.id, dados); setContaSelecionada(null); }} contasBancarias={contasBancarias} />}
-    {documento && <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setDocumento(null)}><div className="h-[85vh] w-full max-w-5xl rounded-xl bg-background p-3" onClick={(e) => e.stopPropagation()}><iframe title="Documento vinculado" src={documento} className="h-full w-full rounded-lg border border-border" /></div></div>}
+    {documento && <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setDocumento(null)}><div className="h-[85vh] w-full max-w-5xl rounded-xl bg-background p-3" onClick={(e) => e.stopPropagation()}>{carregandoDocumento ? <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Carregando documento…</p> : documentoVisualizado ? <iframe title="Documento vinculado" src={documentoVisualizado} className="h-full w-full rounded-lg border border-border" /> : <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Documento indisponível.</p>}</div></div>}
     <span className="sr-only">Total a receber: {formatarBRL(total)}</span>
   </div>;
 }

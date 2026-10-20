@@ -30,6 +30,10 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
   const [documentoVisualizado, setDocumentoVisualizado] = useState<string | null>(null);
   const [carregandoDocumento, setCarregandoDocumento] = useState(false);
   const [nomesCotistas, setNomesCotistas] = useState<Record<string, string>>({});
+  const contasDaAba = useMemo(
+    () => contas.filter((conta) => String(conta.status).toUpperCase() !== "RECEBIDO"),
+    [contas],
+  );
 
   useEffect(() => {
     if (!documento) {
@@ -69,7 +73,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
 
   useEffect(() => {
     let ativo = true;
-    const aeronavesIds = [...new Set(contas.map((conta) => conta.aeronaveId).filter((id): id is string => Boolean(id)))];
+    const aeronavesIds = [...new Set(contasDaAba.map((conta) => conta.aeronaveId).filter((id): id is string => Boolean(id)))];
 
     if (aeronavesIds.length === 0) {
       setNomesCotistas({});
@@ -94,7 +98,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
     });
 
     return () => { ativo = false; };
-  }, [contas]);
+  }, [contasDaAba]);
 
   const nomeCotistaConta = useCallback(
     (conta: ContaAReceber) =>
@@ -106,17 +110,17 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
     [nomesCotistas],
   );
 
-  const filtradas = useMemo(() => contas
+  const filtradas = useMemo(() => contasDaAba
     .filter((conta) => {
       const cotistasRateio = conta.rateios?.map((rateio) => rateio.cotista_nome).filter(Boolean).join(" ") ?? "";
       const texto = `${conta.descricao ?? ""} ${nomeCotistaConta(conta)} ${cotistasRateio} ${conta.documento ?? ""}`.toLowerCase();
       return (!busca || texto.includes(busca.toLowerCase())) && (filtroStatus === "TODOS" || conta.status === filtroStatus);
     })
     .map((conta) => ({ ...conta, cotista: nomeCotistaConta(conta) })),
-    [busca, contas, filtroStatus, nomeCotistaConta],
+    [busca, contasDaAba, filtroStatus, nomeCotistaConta],
   );
-  const total = contas.reduce((sum, conta) => sum + conta.valor, 0);
-  const aberto = contas.filter((conta) => ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(conta.status)).reduce((sum, conta) => sum + conta.valor, 0);
+  const total = contasDaAba.reduce((sum, conta) => sum + conta.valor, 0);
+  const aberto = contasDaAba.filter((conta) => ["PENDENTE", "EM_ABERTO", "ATRASADO", "EM_ATRASO"].includes(conta.status)).reduce((sum, conta) => sum + conta.valor, 0);
 
   async function editar(conta: ContaAReceber) {
     const descricao = window.prompt("Descrição do recebimento", conta.descricao ?? "");
@@ -131,7 +135,7 @@ export function AbaContasAReceber({ contasBancarias }: { contasBancarias: ContaB
   return <div className="space-y-4">
     {erro && <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</div>}
     <Card className="overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-sm">Contas a receber</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">{contas.length} registros · aberto {formatarBRL(aberto)} · clique em Ações para expandir</p></div><div className="flex flex-col gap-2 sm:flex-row"><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição ou documento" className="h-9 rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary" /><Select value={filtroStatus} onValueChange={setFiltroStatus}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os status</SelectItem><SelectItem value="EM_ABERTO">Em aberto</SelectItem><SelectItem value="ATRASADO">Atrasado</SelectItem><SelectItem value="RECEBIDO">Recebido</SelectItem><SelectItem value="CANCELADO">Cancelado</SelectItem></SelectContent></Select></div></CardHeader>
+      <CardHeader className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="text-sm">Contas a receber</CardTitle><p className="mt-1 text-[10px] text-muted-foreground">{contasDaAba.length} registros · aberto {formatarBRL(aberto)} · clique em Ações para expandir</p></div><div className="flex flex-col gap-2 sm:flex-row"><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição ou documento" className="h-9 rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-primary" /><Select value={filtroStatus} onValueChange={setFiltroStatus}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os status</SelectItem><SelectItem value="EM_ABERTO">Em aberto</SelectItem><SelectItem value="ATRASADO">Atrasado</SelectItem><SelectItem value="CANCELADO">Cancelado</SelectItem></SelectContent></Select></div></CardHeader>
       <CardContent className="p-0">
         {carregando ? (
           <p className="p-12 text-center text-sm text-muted-foreground">

@@ -97,6 +97,10 @@ function textoBusca(...valores: Array<string | null | undefined>): string {
   return valores.filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
 }
 
+function naoPago(status: string): boolean {
+  return status.toUpperCase() !== "PAGO";
+}
+
 function primeiroTexto(...valores: Array<string | null | undefined>): string | null {
   return valores.find((valor) => valor && valor.trim() !== "") ?? null;
 }
@@ -193,8 +197,8 @@ export function AbaSolicitacoesPagamento({ contasBancarias }: { contasBancarias:
         buscarAeronavesShare("ativa").catch(() => ({ aeronaves: [] })),
         buscarAeronavesShare("inativa").catch(() => ({ aeronaves: [] })),
       ]);
-      setEnvios(dados.envios);
-      setReembolsos(dados.reembolsos);
+      setEnvios(dados.envios.filter((item) => naoPago(item.status)));
+      setReembolsos(dados.reembolsos.filter((item) => naoPago(item.status)));
       setMatriculasAeronaves(
         Object.fromEntries(
           [...aeronavesAtivas.aeronaves, ...aeronavesInativas.aeronaves].map((aeronave) => [

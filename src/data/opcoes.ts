@@ -1,4 +1,4 @@
-import type { ComboboxItem } from '../components/ui/SearchableCombobox';
+import type { ComboboxItem } from '../components/ui/searchableCombobox';
 import { aeronaves, categorias, cotistas } from './financeiro';
 import type { Fluxo, Periodicidade, StatusLancamento, TipoRateio } from '../types/financeiro';
 

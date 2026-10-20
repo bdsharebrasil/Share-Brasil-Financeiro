@@ -16,9 +16,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-interface ComboboxItem {
+export interface ComboboxItem {
   id: string;
   label: string;
+  grupo?: string;
+  badge?: string;
+  descricao?: string;
 }
 
 interface SearchableComboboxProps {

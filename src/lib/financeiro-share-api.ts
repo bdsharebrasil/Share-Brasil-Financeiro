@@ -365,6 +365,7 @@ export type LancamentoEconomico = {
   categoria: string;
   grupoCategoria: string;
   tipo: string | null;
+  tipoRateio?: string | null;
   prazo: string | null;
   fluxo: "ENTRADA" | "SAIDA";
   valorCentavos: number;

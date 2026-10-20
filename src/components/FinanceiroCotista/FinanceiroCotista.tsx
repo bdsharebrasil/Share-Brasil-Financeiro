@@ -1200,6 +1200,8 @@ function LancamentoExpandido({
     .filter((doc, index, todos) => todos.findIndex((outro) => outro.url === doc.url) === index)
     .filter((doc) => !partes.some((parte) => parte.documentos.some((outro) => outro.url === doc.url)));
 
+  const fmtTipoRateio = (value: string | null | undefined) => value?.replace(/_/g, " ") || "—";
+  const tiposRateio = [...new Set(partes.map((parte) => parte.tipoRateio).filter((value): value is string => Boolean(value)))];
   const fmtPct = (v: number | null | undefined) =>
     v == null
       ? "—"
@@ -1214,7 +1216,7 @@ function LancamentoExpandido({
           <div><dt className="text-muted-foreground">Data</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.data)}</dd></div>
           <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
           <div><dt className="text-muted-foreground">Número voo</dt><dd className="mt-1 font-semibold">{lancamento.numeroVoo || "—"}</dd></div>
-          <div><dt className="text-muted-foreground">Tipo de Rateio</dt><dd className="mt-1 font-semibold">{lancamento.tipo || "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Tipo de Rateio</dt><dd className="mt-1 font-semibold">{fmtTipoRateio(lancamento.tipoRateio || tiposRateio.join(", "))}</dd></div>
           <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "Não informada"}</dd></div>
           <div><dt className="text-muted-foreground">Percentual Sociedade</dt><dd className="mt-1 font-semibold">{fmtPct(lancamento.percentualSociedade)}</dd></div>
           <div><dt className="text-muted-foreground">Valor Total</dt><dd className="mt-1 font-mono font-semibold tabular-nums">{formatarCentavos(lancamento.valorCentavos)}</dd></div>
@@ -1228,6 +1230,7 @@ function LancamentoExpandido({
             <thead>
               <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
                 <th className="py-2 pr-3 font-bold">Cotista</th>
+                <th className="px-3 py-2 font-bold">Tipo de Rateio</th>
                 <th className="px-3 py-2 text-right font-bold">Percentual Uso</th>
                 <th className="px-3 py-2 text-right font-bold">Valor Rateado</th>
                 <th className="px-3 py-2 text-right font-bold">Valor pago</th>
@@ -1238,6 +1241,7 @@ function LancamentoExpandido({
               {partes.map((p) => (
                 <tr key={p.chave} className="border-b border-border/60">
                   <td className="py-2.5 pr-3 font-semibold text-foreground">{p.responsavel || "Não informado"}</td>
+                  <td className="px-3 py-2.5">{fmtTipoRateio(p.tipoRateio || lancamento.tipoRateio)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.uso)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.parcela)}</td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.valorPagoReal)}</td>

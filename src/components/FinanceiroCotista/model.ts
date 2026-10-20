@@ -34,5 +34,5 @@ export function resumir(b: Balanco) {
   return { saldos, linhas, categorias, custo, pago, diferenca: custo-pago, compensacoes: b.compensacoes.filter(c => ids.has(c.deId) && ids.has(c.paraId)) };
 }
 export function csv(rows: (string | number)[][]) {
-  return '\uFEFF' + rows.map(row => row.map(v => '"'+String(v).replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"','""')+'"').join(';')).join('\r\n');
+  return '\uFEFF' + rows.map(row => row.map(v => '"'+String(v).replace(/^[=+@\-\t\r]/, "'$&").replace(/"/g,'""')+'"').join(';')).join('\r\n');
 }

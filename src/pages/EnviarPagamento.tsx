@@ -60,6 +60,25 @@ type OpcaoEnvio = {
 };
 type ArquivoPersistidoEmail = { key: string; url: string; filename: string; content_type: string; cotista_id?: string };
 
+function notificarEnvioCliente(tipo: "success" | "error" | "warning", mensagem: string) {
+  const opcoes = {
+    duration: 5000,
+    position: "top-center" as const,
+    richColors: true,
+    style: {
+      position: "fixed" as const,
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      margin: 0,
+      zIndex: 10000,
+    },
+  };
+  if (tipo === "success") toast.success(mensagem, opcoes);
+  else if (tipo === "warning") toast.warning(mensagem, opcoes);
+  else toast.error(mensagem, opcoes);
+}
+
 // Data local (evita virar o dia seguinte à noite por causa do UTC)
 const hoje = () => new Date().toLocaleDateString("en-CA");
 const inicial: Formulario = {
@@ -897,6 +916,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const fecharModalEmail = () => {
     setModalEmail(false);
     setErroEmail("");
+    setSucessoEmail("");
   };
 
   const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
@@ -958,9 +978,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const enviadosNestaSessao = new Set([...emailsEnviados, ...Object.entries(statusEmailCotista).filter(([, status]) => status === "ENVIADO").map(([id]) => id)]);
     const idRascunhoAtual = rascunhoId;
     const chaveRascunhoAtual = chaveRascunhoRef.current || chaveRascunho;
+    let emailEnviadoNestaExecucao = false;
     try {
-      const arquivosDoFormulario = new Set(anexosEnvioEmail.flatMap((anexo) => anexo.file ? [anexo.file] : []));
-      const arquivosAdicionais = envioPorCotista ? [] : arquivosNovos.filter((arquivo) => !arquivosDoFormulario.has(arquivo));
       const grupos = envioPorCotista
         ? [{ cotista: cotistaAlvo!, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotistaAlvo!.id && anexosSelecionados.includes(anexo.id)) }]
         : [{ cotista: null, anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)) }];
@@ -986,16 +1005,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           rascunho_id: idRascunhoAtual || undefined,
           cotista_id: chaveDestinatario,
           idempotency_key: idRascunhoAtual && chaveRascunhoAtual ? `email:${idRascunhoAtual}:${chaveDestinatario}` : undefined,
-          // O e-mail usa somente arquivos escolhidos no computador.
-          // Em envios por cotista, cada um recebe apenas os anexos marcados para ele.
-          arquivos: envioRecemCriado?.tipo === "cliente"
-            ? [...grupo.anexos.flatMap((anexo) => anexo.file && !anexo.storage_key ? [anexo.file] : []), ...arquivosAdicionais]
-            : arquivosNovos,
-          arquivos_persistidos: envioPorCotista
-            ? grupo.anexos.filter((anexo) => anexo.storage_key).map((anexo) => ({ key: anexo.storage_key!, filename: anexo.file?.name || anexo.numero || "documento", content_type: anexo.file?.type || "application/octet-stream" }))
-            : arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
+          // No envio direto, os IDs são resolvidos no lançamento salvo. Reenviar
+          // também os File locais ou persistidos anexaria cada documento duas vezes.
+          arquivos: envioPorCotista ? [] : arquivosNovos,
+          arquivos_persistidos: envioPorCotista ? [] : arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
           nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
         });
+        emailEnviadoNestaExecucao = true;
         enviadosNestaSessao.add(chaveDestinatario);
         setEmailsEnviados([...enviadosNestaSessao]);
         setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "ENVIADO" }));
@@ -1016,9 +1032,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         if (todosConcluidos) setRascunhoConcluido(true);
         await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
         if (todosConcluidos) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-        setSucessoEmail(todosEmailsCotistasEnviados
-          ? `E-mail de ${cotistaAlvo.nome} enviado. Todos os e-mails selecionados foram concluídos.`
-          : `E-mail de ${cotistaAlvo.nome} enviado. Revise a mensagem do próximo cotista e envie separadamente.`);
+        const mensagemSucesso = todosEmailsCotistasEnviados
+          ? `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`
+          : `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Há outros destinatários pendentes.`;
+        notificarEnvioCliente("success", mensagemSucesso);
+        fecharModalEmail();
       } else {
         if (idRascunhoAtual) {
           setRascunhoConcluido(true);
@@ -1043,7 +1061,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       } else {
         setStatusEmailCotista((atual) => ({ ...atual, [cotistaId || "__principal__"]: "FALHOU" }));
       }
-      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
+      const mensagemErro = cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.";
+      setErroEmail(mensagemErro);
+      if (envioPorCotista) {
+        if (emailEnviadoNestaExecucao) {
+          notificarEnvioCliente("warning", `E-mail enviado para ${cotistaAlvo?.nome || "o cliente"}, mas não foi possível concluir a atualização do registro: ${mensagemErro}`);
+        } else {
+          notificarEnvioCliente("error", `Não foi possível enviar o e-mail${cotistaAlvo ? ` para ${cotistaAlvo.nome}` : ""}: ${mensagemErro}`);
+        }
+        fecharModalEmail();
+      }
     } finally {
       setEnviandoEmail(false);
     }

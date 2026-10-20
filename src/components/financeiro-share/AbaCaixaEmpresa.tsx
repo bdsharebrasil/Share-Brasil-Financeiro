@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Eye, FileText, Image as ImageIcon, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Eye, FileText, Image as ImageIcon, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +95,7 @@ function LinhaExpandida({ lancamento, onDocumento, onEditar, onExcluir, onBaixa,
   );
 }
 
-export function AbaCaixaEmpresa() {
+export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () => void }) {
   const [fluxo, setFluxo] = useState<FluxoLancamento | "TODOS">("TODOS");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [documentoAberto, setDocumentoAberto] = useState<Lancamento["anexos"][number] | null>(null);
@@ -139,6 +139,7 @@ export function AbaCaixaEmpresa() {
             <CardTitle className="text-sm">Movimentações do caixa</CardTitle>
             <p className="mt-1 text-[11px] text-muted-foreground">Lançamentos próprios da Share Brasil · clique em Ações para expandir</p>
           </div>
+          {onNovoLancamento && <Button type="button" onClick={onNovoLancamento} className="h-10 w-full gap-2 rounded-xl sm:w-auto"><Plus size={16} aria-hidden="true" /> Novo Lançamento</Button>}
           <div className="flex items-center gap-3 self-start rounded-xl border border-border bg-muted/30 px-4 py-2.5">
             <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Soma total</span>
             <span className={`font-mono text-sm font-bold ${saldoVisivel >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{formatarMoeda(saldoVisivel)}</span>

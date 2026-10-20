@@ -409,7 +409,7 @@ async function criarLancamentoPeloKernel(payload: Record<string, unknown>, fluxo
 
   const valorCentavos = valorCentavosDoPayload(payload);
 
-  const camposPermitidos = new Set(["idempotency_key", "idempotencyKey", "reference_id", "valor_centavos", "valorCentavos", "descricao", "descricao_servico", "fluxo", "data", "data_emissao", "data_vencimento", "vencimento", "aeronave_id", "cotista_aeronave_id", "cotista_id", "socio_id", "holding_id", "categoria_id", "categoria_nome", "categoria", "fornecedor_id", "fornecedor", "tipo_caixa", "forma_pagamento", "conta_bancaria_id", "observacoes", "pago_diretamente", "pagoDiretamente", "pago_por", "rateio_linhas", "rateios", "tipo_rateio", "reembolsavel", "colaborador_id", "motivo", "valor"]);
+  const camposPermitidos = new Set(["idempotency_key", "idempotencyKey", "reference_id", "valor_centavos", "valorCentavos", "descricao", "descricao_servico", "fluxo", "data", "data_emissao", "data_vencimento", "vencimento", "aeronave_id", "cotista_aeronave_id", "cotista_id", "socio_id", "holding_id", "categoria_id", "categoria_nome", "categoria", "fornecedor_id", "fornecedor", "tipo_caixa", "forma_pagamento", "conta_bancaria_id", "observacoes", "numero_doc", "pago_diretamente", "pagoDiretamente", "pago_por", "rateio_linhas", "rateios", "tipo_rateio", "reembolsavel", "colaborador_id", "motivo", "valor"]);
 
   const contrato = Object.fromEntries(Object.entries(payload).filter(([campo]) => camposPermitidos.has(campo)));
 

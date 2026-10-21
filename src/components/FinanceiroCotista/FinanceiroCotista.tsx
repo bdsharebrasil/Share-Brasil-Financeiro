@@ -45,6 +45,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1555,10 +1556,12 @@ function LancamentosDespesa({
     setProcessando(true);
     setErroAcao(null);
     try {
-      if (acao.tipo === "editar")
+      if (acao.tipo === "editar") {
         await editarLancamento(acao.item.id, {
           descricao: descricaoEdicao.trim(),
         });
+        avisarAtualizacaoFinanceiro();
+      }
       if (acao.tipo === "excluir") await excluirLancamento(acao.item.id);
       toast.success(
         acao.tipo === "editar"

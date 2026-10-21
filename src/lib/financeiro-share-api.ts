@@ -499,6 +499,33 @@ export type CategoriaCaixaShare = {
 
 export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null; tipo_caixa?: string | null; ativo?: number | boolean | null };
 
+export type SolicitacaoBaixaPortal = {
+  id: string;
+  rateio_id: string;
+  valor_centavos: number;
+  data_pagamento: string;
+  observacoes: string | null;
+  criado_em: string;
+  descricao_despesa: string | null;
+  valor_rateado_centavos: number;
+  valor_pago_real_centavos: number;
+  status_rateio: string;
+  lancamento_id: string | null;
+  nome_cotista: string | null;
+  aeronave: string | null;
+  natureza: "RECEBIMENTO_SHARE" | "PAGAMENTO_DIRETO" | null;
+  erro_contexto?: string;
+  comprovante_path: string;
+};
+
+export function buscarSolicitacoesBaixaPortal() {
+  return financeiroRequest<{ solicitacoes: SolicitacaoBaixaPortal[] }>("/api/financeiro/solicitacoes-baixa-portal");
+}
+
+export function aprovarSolicitacaoBaixaPortal(id: string, dados: { data_pagamento: string; conta_bancaria_id?: string }) {
+  return financeiroRequest<{ success: boolean }>(`/api/financeiro/solicitacoes-baixa-portal/${encodeURIComponent(id)}/aprovar`, { method: "POST", body: JSON.stringify(dados) });
+}
+
 export type EmpresaShare = { id: string; razao_social: string | null; cnpj: string | null };
 
 export type LancamentoShare = {

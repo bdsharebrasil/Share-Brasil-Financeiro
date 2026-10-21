@@ -1,10 +1,9 @@
 import { FileText, Landmark, ReceiptText, WalletCards, HandCoins, Building2, LayoutDashboard, Bell } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buscarOpcoesFinanceiroShare, buscarSolicitacoesBaixaPortal, type CategoriaCaixaShare, type ContaBancaria } from "@/lib/financeiro-share-api";
+import { buscarOpcoesFinanceiroShare, buscarSolicitacoesBaixaPortal, type CategoriaCaixaShare, type ContaBancaria, type SolicitacaoBaixaPortal } from "@/lib/financeiro-share-api";
 import { useCaixaEmpresa } from "@/hooks/useCaixaEmpresa";
 import { AbaCaixaEmpresa } from "./AbaCaixaEmpresa";
 import { AbaContasAPagar } from "./AbaContasAPagar";
@@ -30,24 +29,45 @@ export function PaginaFinanceiroShare() {
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [versaoCaixa, setVersaoCaixa] = useState(0);
+  const [solicitacoesBaixa, setSolicitacoesBaixa] = useState<SolicitacaoBaixaPortal[]>([]);
+  const [carregandoBaixas, setCarregandoBaixas] = useState(true);
+  const [erroBaixas, setErroBaixas] = useState(false);
   const { recarregar } = useCaixaEmpresa();
-  const baixasPortal = useQuery({
-    queryKey: ["solicitacoes-baixa-portal"],
-    queryFn: buscarSolicitacoesBaixaPortal,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
-    retry: false,
-  });
+  const componenteAtivo = useRef(false);
+  const atualizarBaixasPortal = useCallback(async () => {
+    try {
+      const resposta = await buscarSolicitacoesBaixaPortal();
+      if (componenteAtivo.current) {
+        setSolicitacoesBaixa(resposta.solicitacoes || []);
+        setErroBaixas(false);
+      }
+    } catch {
+      if (componenteAtivo.current) setErroBaixas(true);
+    } finally {
+      if (componenteAtivo.current) setCarregandoBaixas(false);
+    }
+  }, []);
   const quantidadeBaixasAnterior = useRef<number | null>(null);
   useEffect(() => {
-    const quantidade = baixasPortal.data?.solicitacoes.length;
-    if (quantidade === undefined) return;
+    const quantidade = solicitacoesBaixa.length;
     if (quantidade > (quantidadeBaixasAnterior.current ?? 0)) {
       const novas = quantidade - (quantidadeBaixasAnterior.current ?? 0);
       toast.info(`${novas} nova${novas === 1 ? " solicitação" : "s solicitações"} de baixa do Portal Cliente.`, { description: "Abra a aba Baixas do portal para conferir o comprovante." });
     }
     quantidadeBaixasAnterior.current = quantidade;
-  }, [baixasPortal.data?.solicitacoes.length]);
+  }, [solicitacoesBaixa.length]);
+
+  useEffect(() => {
+    componenteAtivo.current = true;
+    void atualizarBaixasPortal();
+    const timer = window.setInterval(() => void atualizarBaixasPortal(), 30_000);
+    window.addEventListener("focus", atualizarBaixasPortal);
+    return () => {
+      componenteAtivo.current = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", atualizarBaixasPortal);
+    };
+  }, [atualizarBaixasPortal]);
 
   useEffect(() => setAba(abaInicial), [abaInicial]);
   useEffect(() => {
@@ -89,7 +109,7 @@ export function PaginaFinanceiroShare() {
         <TabsTrigger value="contas-apagar" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
         <TabsTrigger value="contas-areceber" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Landmark size={14} /> Contas a Receber</TabsTrigger>
         <TabsTrigger value="solicitacoes-pagamento" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins size={14} /> Solicitações de pagamento</TabsTrigger>
-        <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Bell size={14} /> Baixas do portal{Boolean(baixasPortal.data?.solicitacoes.length) && <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] leading-none text-white">{baixasPortal.data?.solicitacoes.length}</span>}</TabsTrigger>
+        <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Bell size={14} /> Baixas do portal{Boolean(solicitacoesBaixa.length) && <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] leading-none text-white">{solicitacoesBaixa.length}</span>}</TabsTrigger>
         <TabsTrigger value="holdings" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Building2 size={14} /> Holdings</TabsTrigger>
         <TabsTrigger value="salarios" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Salários</TabsTrigger>
         <TabsTrigger value="nota-fiscal-saida" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><FileText size={14} /> NF e recibo de saída</TabsTrigger>
@@ -99,7 +119,7 @@ export function PaginaFinanceiroShare() {
       <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} /></TabsContent>
       <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
       <TabsContent value="solicitacoes-pagamento" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
-      <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={baixasPortal.data?.solicitacoes || []} carregando={baixasPortal.isLoading} erro={Boolean(baixasPortal.error)} contasBancarias={contas} aoAtualizar={() => baixasPortal.refetch()} /></TabsContent>
+      <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={solicitacoesBaixa} carregando={carregandoBaixas} erro={erroBaixas} contasBancarias={contas} aoAtualizar={atualizarBaixasPortal} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>
       <TabsContent value="salarios" className="mt-0"><AbaSalarios /></TabsContent>
       <TabsContent value="nota-fiscal-saida" className="mt-0 bg-[#01051d]"><NFSaidaTab /></TabsContent>

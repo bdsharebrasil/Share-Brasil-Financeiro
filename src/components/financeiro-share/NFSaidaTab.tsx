@@ -27,6 +27,7 @@ import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
 import { formatDate } from "@/lib/receiptUtils";
 import { API_ORIGIN, getAuthToken } from "@/lib/api";
+import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import * as nfSaidaApi from "@/lib/nfSaidaApi";
 import type {
   CategoriaDespesaOpcao,
@@ -551,6 +552,7 @@ export default function NFSaidaTab() {
           if (!nota?.id) throw new Error("O servidor não confirmou a gravação da nota fiscal.");
         }
         fetchNotas();
+        avisarAtualizacaoFinanceiro();
       }
       closeForm();
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao salvar." });
@@ -592,7 +594,7 @@ export default function NFSaidaTab() {
       const { url: reciboUrl } = await nfSaidaApi.enviarAnexoDocumentoSaida(pdfOficial, `${numeroRecibo}.pdf`, { origem: "recibo_saida", documentoId: recibo.id });
       if (!reciboUrl) throw new Error("O PDF foi gerado, mas o servidor não retornou o endereço do arquivo.");
       const atualizado = await nfSaidaApi.atualizarReciboSaida(recibo.id, { pdf_url: reciboUrl });
-      setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo));
+      setReciboSavedUrl(reciboUrl); setEmailTarget(mapRecibo(atualizado.recibo)); avisarAtualizacaoFinanceiro();
       setToast({ type: "ok", text: `Recibo ${numeroRecibo} salvo com PDF e lançamentos financeiros gerados.` }); fetchNotas();
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao salvar o recibo." }); }
     finally { mutationLock.current = false; setSaving(false); }

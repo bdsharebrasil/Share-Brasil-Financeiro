@@ -108,6 +108,8 @@ import type { CotistaAeronave } from "@/lib/colaborador-api";
 import {
   buscarOpcoesEnvioPagamento,
   buscarCotistasAeronave,
+  atualizarParticipacaoCotista,
+  excluirParticipacaoCotista,
 } from "@/lib/colaborador-api";
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
@@ -2297,6 +2299,10 @@ export default function FinanceiroCotista() {
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>(
     [],
   );
+  const [participacaoEditando, setParticipacaoEditando] = useState<CotistaAeronave | null>(null);
+  const [percentualEditado, setPercentualEditado] = useState("");
+  const [aeronaveEditada, setAeronaveEditada] = useState("");
+  const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
   const [cotistaEmprestimo, setCotistaEmprestimo] = useState("");
   const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
   const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
@@ -2379,6 +2385,40 @@ export default function FinanceiroCotista() {
       setCotistasAeronave([]);
     }
   }, []);
+  const salvarParticipacao = async () => {
+    if (!participacaoEditando || salvandoParticipacao) return;
+    const percentual = Number(percentualEditado.replace(",", "."));
+    if (!Number.isFinite(percentual) || percentual < 0 || percentual > 100) {
+      toast.error("Informe uma participação entre 0 e 100%.");
+      return;
+    }
+    setSalvandoParticipacao(true);
+    try {
+      await atualizarParticipacaoCotista(participacaoEditando.id, { aeronave_id: aeronaveEditada, percentual_sociedade: percentual });
+      setParticipacaoEditando(null);
+      await Promise.all([carregarCotistas(aeronaveSelecionada), carregar()]);
+      toast.success("Participação atualizada.");
+    } catch (error) {
+      const codigo = error instanceof Error ? error.message : "";
+      const mensagens: Record<string, string> = {
+        cotista_ja_vinculado_a_aeronave: "Esse cotista já possui vínculo ativo com a aeronave selecionada.",
+        aeronave_nao_pode_ser_alterada_com_historico_financeiro: "Não é possível mudar a aeronave deste vínculo porque ele já possui histórico financeiro.",
+      };
+      toast.error(mensagens[codigo] || "Não foi possível atualizar a participação.");
+    } finally {
+      setSalvandoParticipacao(false);
+    }
+  };
+  const removerParticipacao = async (cotista: CotistaAeronave) => {
+    if (!window.confirm(`Desativar o vínculo de ${cotista.nome} com esta aeronave? O histórico financeiro será preservado.`)) return;
+    try {
+      await excluirParticipacaoCotista(cotista.id);
+      await Promise.all([carregarCotistas(aeronaveSelecionada), carregar()]);
+      toast.success("Vínculo desativado; o histórico foi preservado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível desativar o vínculo.");
+    }
+  };
 
   useEffect(() => {
     void buscarOpcoesLancamento()
@@ -2642,7 +2682,7 @@ export default function FinanceiroCotista() {
               </summary>
               <div className="mt-3 flex flex-wrap gap-2">
                 {cotistasAeronave.map((c) => (
-                  <span
+                  <div
                     key={c.id}
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}
                   >
@@ -2655,7 +2695,9 @@ export default function FinanceiroCotista() {
                     <span className="font-mono text-[10px] opacity-60">
                       {c.percentual_sociedade}%
                     </span>
-                  </span>
+                    <button type="button" className="ml-1 rounded p-1 hover:bg-background/60" aria-label={`Editar participação de ${c.nome}`} onClick={() => { setParticipacaoEditando(c); setPercentualEditado(String(c.percentual_sociedade)); setAeronaveEditada(c.aeronave_id); }}><Pencil size={12} /></button>
+                    <button type="button" className="rounded p-1 text-red-500 hover:bg-red-500/10" aria-label={`Excluir vínculo de ${c.nome}`} onClick={() => void removerParticipacao(c)}><Trash2 size={12} /></button>
+                  </div>
                 ))}
               </div>
             </details>
@@ -3472,6 +3514,19 @@ export default function FinanceiroCotista() {
           aoCriar={carregar}
         />
       )}
+      <Dialog open={Boolean(participacaoEditando)} onOpenChange={(open) => { if (!open && !salvandoParticipacao) setParticipacaoEditando(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar participação do cotista</DialogTitle>
+            <DialogDescription>Atualize a aeronave vinculada e o percentual da cota de {participacaoEditando?.nome}. Alterar aeronave é bloqueado quando existe histórico financeiro associado.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="cotista-aeronave-editada">Aeronave</Label><select id="cotista-aeronave-editada" value={aeronaveEditada} onChange={(event) => setAeronaveEditada(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro} · {aeronave.modelo}</option>)}</select></div>
+            <div className="space-y-2"><Label htmlFor="cotista-percentual-editado">Percentual da cota (%)</Label><Input id="cotista-percentual-editado" type="number" min="0" max="100" step="0.01" value={percentualEditado} onChange={(event) => setPercentualEditado(event.target.value)} /></div>
+          </div>
+          <DialogFooter><Button type="button" variant="outline" disabled={salvandoParticipacao} onClick={() => setParticipacaoEditando(null)}>Cancelar</Button><Button type="button" disabled={salvandoParticipacao} onClick={() => void salvarParticipacao()}>{salvandoParticipacao ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}Salvar alterações</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

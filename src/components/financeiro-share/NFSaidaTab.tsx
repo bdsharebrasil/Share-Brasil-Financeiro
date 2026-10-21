@@ -549,7 +549,6 @@ export default function NFSaidaTab() {
             idempotency_key: notaIdempotencyKey.current,
           });
           if (!nota?.id) throw new Error("O servidor não confirmou a gravação da nota fiscal.");
-          setToast({ type: "ok", text: "Nota fiscal criada e lançamentos financeiros gerados (contas a receber Share + despesa do cliente)." });
         }
         fetchNotas();
       }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CalendarDays, CheckCircle2, FileCheck2, FileText, Loader2, Receipt, UploadCloud, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { buscarOpcoesLancamento, formatarCentavos, type OpcoesLancamento, type LancamentoEconomico } from '@/lib/financeiro-share-api';
 import { buscarContextoBaixa, confirmarBaixaConciliada, avisarAtualizacaoFinanceiro, type ContextoBaixa } from '@/lib/baixa-conciliada-api';
+import { enviarAnexoEnvioPagamento } from '@/lib/colaborador-api';
+
 interface Props { lancamento: LancamentoEconomico | null; onFechar: () => void; onConcluido: () => Promise<void> }
 const money = (c: number) => (c / 100).toFixed(2).replace('.', ',');
 const cents = (s: string) => /^\d+(,\d{1,2})?$/.test(s.trim()) ? Math.round(Number(s.replace(',', '.')) * 100) : NaN;
 function hoje() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function dataLegivel(value?: string | null) {
+  if (!value) return 'Não informado';
+  const [ano, mes, dia] = value.slice(0, 10).split('-');
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : 'Não informado';
+}
+const limiteComprovante = 20 * 1024 * 1024;
+const formatosComprovante = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
 export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Props) {
   const [contexto,setContexto] = useState<ContextoBaixa|null>(null);
   const [opcoes,setOpcoes] = useState<OpcoesLancamento|null>(null);
@@ -21,30 +31,52 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const [tipo,setTipo] = useState<'COTISTA'|'HOLDING'>('COTISTA');
   const [obs,setObs] = useState('');
   const [comprovante,setComprovante] = useState('');
-  const [valores,setValores] = useState<Record<string,string>>({});
+  const [arquivo,setArquivo] = useState<File|null>(null);
   const [erro,setErro] = useState('');
   const [loading,setLoading] = useState(false);
   const [enviando,setEnviando] = useState(false);
+  const [uploading,setUploading] = useState(false);
   const [salvo,setSalvo] = useState(false);
   const trava = useRef(false);
   const chave = useRef('');
   const payloadEnviado = useRef<string|null>(null);
+
   useEffect(() => {
-    if (!lancamento) return;
+    const lancamentoId = lancamento?.id;
+    if (!lancamentoId) return;
     let ativo = true;
-    setLoading(true);setErro('');setContexto(null);setSalvo(false);setBanco('');setForma('PIX');setTipo('COTISTA');setObs('');setComprovante('');setData(hoje());
+    setLoading(true);setErro('');setContexto(null);setSalvo(false);setBanco('');setForma('PIX');setTipo('COTISTA');setObs('');setComprovante('');setArquivo(null);setData(hoje());
     chave.current = crypto.randomUUID();payloadEnviado.current = null;
-    Promise.all([buscarContextoBaixa(lancamento.id),buscarOpcoesLancamento()]).then(([ctx,opts]) => {
+    Promise.all([buscarContextoBaixa(lancamentoId),buscarOpcoesLancamento()]).then(([ctx,opts]) => {
       if (!ativo) return;
       setContexto(ctx);setOpcoes(opts);setPagador(ctx.cotista_id || '');
       setValores(Object.fromEntries(ctx.rateios.map(r => [r.id,money(Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0)))])));
     }).catch(e => { if (ativo) setErro(e instanceof Error ? e.message : 'Falha ao carregar a obrigação.'); }).finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
   },[lancamento?.id]);
+
+  const [valores,setValores] = useState<Record<string,string>>({});
   const direto = contexto?.natureza === 'PAGAMENTO_DIRETO';
   const rateios = contexto?.rateios || [];
   const total = rateios.reduce((s,r) => s+cents(valores[r.id] || '0'),0);
   const pessoas = tipo === 'HOLDING' ? opcoes?.holdings || [] : (opcoes?.cotistas || []).filter(c => !direto || c.aeronave_id === contexto?.lancamento.aeronave_id);
+  const vencimento = rateios.map(r => r.data_vencimento).find(Boolean) || lancamento?.prazo || null;
+
+  async function selecionarArquivo(file?: File) {
+    if (!file) return;
+    if (file.size > limiteComprovante) { setErro('O comprovante deve ter até 20 MB.'); return; }
+    if (!formatosComprovante.includes(file.type)) { setErro('Anexe um arquivo PDF, JPG, PNG ou WebP.'); return; }
+    if (!lancamento) return;
+    setErro('');setArquivo(file);setComprovante('');setUploading(true);
+    try {
+      const { url } = await enviarAnexoEnvioPagamento(file, `baixa-${lancamento.id}`);
+      setComprovante(url);
+    } catch (e) {
+      setArquivo(null);
+      setErro(e instanceof Error ? e.message : 'Não foi possível enviar o comprovante.');
+    } finally { setUploading(false); }
+  }
+
   async function confirmar() {
     if (!lancamento || !contexto || trava.current) return;
     if (!salvo) {
@@ -53,13 +85,13 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
       const date = new Date(`${data}T12:00:00Z`);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==data) {setErro('Informe uma data válida.');return;}
       if (!Number.isSafeInteger(total) || total<=0 || rateios.some(r => !Number.isSafeInteger(cents(valores[r.id]||'0')) || cents(valores[r.id]||'0')<0 || cents(valores[r.id]||'0')>Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0))) {setErro('Informe valores válidos dentro do saldo de cada rateio. Use vírgula para os centavos, sem separador de milhar.');return;}
-      if (comprovante && !/^https:\/\//i.test(comprovante.trim())) {setErro('O link do comprovante precisa começar com https://.');return;}
+      if (arquivo && !comprovante) {setErro('Aguarde o envio do comprovante antes de confirmar.');return;}
     }
     trava.current=true;setEnviando(true);setErro('');
     let confirmado=salvo;
     try {
       if (!confirmado) {
-        const pagamento = {idempotency_key:chave.current,tipo_pagador:tipo,...(tipo==='COTISTA'?{pagador_cotista_id:pagador}:{pagador_holding_id:pagador}),valor_centavos:total,data_pagamento:data,conta_bancaria_id:direto?null:banco,forma_pagamento:forma,observacoes:obs,comprovante_url:comprovante.trim()||null,rateios:rateios.map(r=>({rateio_id:r.id,valor_centavos:cents(valores[r.id]||'0')})).filter(r=>r.valor_centavos>0)};
+        const pagamento = {idempotency_key:chave.current,tipo_pagador:tipo,...(tipo==='COTISTA'?{pagador_cotista_id:pagador}:{pagador_holding_id:pagador}),valor_centavos:total,data_pagamento:data,conta_bancaria_id:direto?null:banco,forma_pagamento:forma,observacoes:obs,comprovante_url:comprovante||null,rateios:rateios.map(r=>({rateio_id:r.id,valor_centavos:cents(valores[r.id]||'0')})).filter(r=>r.valor_centavos>0)};
         const snapshot=JSON.stringify(pagamento);
         if(payloadEnviado.current && payloadEnviado.current!==snapshot) throw new Error('Os dados foram alterados após uma tentativa. Feche e reabra para conferir o saldo antes de registrar outro pagamento.');
         payloadEnviado.current=snapshot;
@@ -70,25 +102,41 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
     } catch(e) {setErro(`${confirmado?'Pagamento salvo. Falha ao atualizar a tela: ':''}${e instanceof Error?e.message:'Falha ao registrar pagamento.'}`);}
     finally {trava.current=false;setEnviando(false);}
   }
-  const selectClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
+
+  const selectClass='h-10 w-full rounded-lg border border-border bg-background px-3 text-sm';
+  const formBusy=enviando||uploading;
   return <Dialog open={Boolean(lancamento)} onOpenChange={o=>{if(!o&&!trava.current)onFechar();}}>
-    <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl" onEscapeKeyDown={e=>{if(trava.current)e.preventDefault();}} onPointerDownOutside={e=>{if(trava.current)e.preventDefault();}}>
-      <DialogHeader><DialogTitle>{direto?'Registrar pagamento direto':'Registrar pagamento à Share'}</DialogTitle><DialogDescription>{direto?'O cotista pagou ao fornecedor. Esta operação não movimenta o caixa da Share.':'O recebimento será conciliado com a conta a receber, o documento e os rateios vinculados.'}</DialogDescription></DialogHeader>
-      {loading?<p className="flex items-center gap-2 py-8"><Loader2 className="h-4 w-4 animate-spin"/>Carregando obrigação…</p>:contexto&&<>
-        <div className="rounded-xl border bg-muted/30 p-4"><p className="break-words font-semibold">{lancamento?.descricao}</p><p className="mt-1 text-sm text-muted-foreground">{lancamento?.fornecedor}</p><p className="mt-3 font-semibold tabular-nums">{Number.isFinite(total)?formatarCentavos(total):'Confira os valores'}</p></div>
-        <fieldset disabled={enviando||salvo} className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1"><Label htmlFor="baixa-data">Data do pagamento</Label><Input id="baixa-data" type="date" value={data} onChange={e=>setData(e.target.value)}/></div>
-          <div className="space-y-1"><Label htmlFor="baixa-forma">Forma de pagamento</Label><select id="baixa-forma" className={selectClass} value={forma} onChange={e=>setForma(e.target.value)}>{['PIX','TRANSFERENCIA','BOLETO','DINHEIRO','CARTAO'].map(f=><option key={f}>{f}</option>)}</select></div>
-          {!direto&&<div className="space-y-1"><Label htmlFor="baixa-tipo">Tipo de pagador</Label><select id="baixa-tipo" className={selectClass} value={tipo} onChange={e=>{setTipo(e.target.value as 'COTISTA'|'HOLDING');setPagador('');}}><option value="COTISTA">Cotista</option><option value="HOLDING">Holding</option></select></div>}
-          <div className="space-y-1"><Label htmlFor="baixa-pagador">Pagador real</Label><select id="baixa-pagador" className={selectClass} value={pagador} onChange={e=>setPagador(e.target.value)}><option value="">Selecione…</option>{pessoas.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
-          {!direto&&<div className="space-y-1 sm:col-span-2"><Label htmlFor="baixa-banco">Conta bancária que recebeu o dinheiro</Label><select id="baixa-banco" className={selectClass} value={banco} onChange={e=>setBanco(e.target.value)}><option value="">Selecione…</option>{(opcoes?.contas_bancarias||[]).filter(c=>c.ativo!==false&&c.ativo!==0).map(c=><option key={c.id} value={c.id}>{c.banco} · {c.numero_conta}</option>)}</select></div>}
-          <div className="space-y-2 sm:col-span-2"><p className="text-sm font-medium">Distribuição do pagamento</p>{rateios.map(r=><div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border p-3"><Label htmlFor={`rateio-${r.id}`} className="text-xs">{opcoes?.cotistas.find(c=>c.id===r.cotista_id)?.nome||'Rateio da obrigação'}<span className="mt-1 block text-muted-foreground">Saldo: {formatarCentavos(Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0)))}</span></Label><Input id={`rateio-${r.id}`} className="w-32 text-right tabular-nums" inputMode="decimal" value={valores[r.id]||''} onChange={e=>setValores(v=>({...v,[r.id]:e.target.value}))}/></div>)}<p className="text-xs text-muted-foreground">Pagamentos menores mantêm o saldo em aberto. Não são tratados como desconto.</p></div>
-          <div className="space-y-1 sm:col-span-2"><Label htmlFor="baixa-comprovante">Link do comprovante (opcional)</Label><Input id="baixa-comprovante" type="url" value={comprovante} onChange={e=>setComprovante(e.target.value)} placeholder="https://…"/></div>
-          <div className="space-y-1 sm:col-span-2"><Label htmlFor="baixa-obs">Observações do pagamento</Label><Textarea id="baixa-obs" value={obs} onChange={e=>setObs(e.target.value)} rows={2}/></div>
+    <DialogContent className="max-h-[92dvh] overflow-y-auto border-slate-700 bg-[#111c2e] text-slate-100 shadow-2xl sm:max-w-2xl" onEscapeKeyDown={e=>{if(trava.current)e.preventDefault();}} onPointerDownOutside={e=>{if(trava.current)e.preventDefault();}}>
+      <DialogHeader className="border-b border-slate-700 pb-4">
+        <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-sky-300">Financeiro Cotista · Baixa</p>
+        <DialogTitle className="flex items-center gap-2 text-xl"><Receipt className="h-5 w-5 text-sky-300"/>{direto?'Registrar pagamento direto':'Registrar pagamento à Share'}</DialogTitle>
+        <DialogDescription className="text-slate-400">{direto?'Registre o pagamento feito pelo cotista ao fornecedor. Não há movimentação no caixa Share.':'Concilie o recebimento com a conta bancária e os rateios vinculados.'}</DialogDescription>
+      </DialogHeader>
+      {loading?<div className="flex items-center gap-2 py-10 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin"/>Carregando obrigação…</div>:contexto&&<div className="space-y-5 pt-1">
+        <section className="rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800/90 to-slate-900/70 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0"><p className="break-words text-base font-semibold text-white">{lancamento?.descricao||contexto.lancamento.descricao||'Despesa do cotista'}</p><p className="mt-1 text-sm text-slate-400">{lancamento?.fornecedor||'Pagamento vinculado ao rateio da despesa'}</p></div>
+            <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-right"><span className="block text-[9px] font-semibold uppercase tracking-wider text-emerald-200">Total desta baixa</span><strong className="text-xl tabular-nums text-emerald-300">{Number.isFinite(total)?formatarCentavos(total):'Confira os valores'}</strong></div>
+          </div>
+          <div className="mt-4 grid gap-3 border-t border-slate-700 pt-4 sm:grid-cols-3">
+            <div className="flex items-start gap-2"><CalendarDays className="mt-0.5 h-4 w-4 text-sky-300"/><div><p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Vencimento</p><p className="mt-1 text-sm font-medium text-slate-100">{dataLegivel(vencimento)}</p></div></div>
+            <div className="flex items-start gap-2"><FileText className="mt-0.5 h-4 w-4 text-sky-300"/><div><p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Categoria</p><p className="mt-1 text-sm font-medium text-slate-100">{lancamento?.categoria||'Despesa rateada'}</p></div></div>
+            <div className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-sky-300"/><div><p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Situação</p><p className="mt-1 text-sm font-medium text-slate-100">{lancamento?.status||'Em aberto'}</p></div></div>
+          </div>
+        </section>
+        <fieldset disabled={formBusy||salvo} className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="baixa-data" className="text-slate-200">Data do pagamento</Label><Input id="baixa-data" type="date" value={data} onChange={e=>setData(e.target.value)} className="border-slate-700 bg-slate-950/60"/></div>
+          <div className="space-y-1.5"><Label htmlFor="baixa-forma" className="text-slate-200">Forma de pagamento</Label><select id="baixa-forma" className={selectClass} value={forma} onChange={e=>setForma(e.target.value)}>{['PIX','TRANSFERENCIA','BOLETO','DINHEIRO','CARTAO'].map(f=><option key={f}>{f}</option>)}</select></div>
+          {!direto&&<div className="space-y-1.5"><Label htmlFor="baixa-tipo" className="text-slate-200">Tipo de pagador</Label><select id="baixa-tipo" className={selectClass} value={tipo} onChange={e=>{setTipo(e.target.value as 'COTISTA'|'HOLDING');setPagador('');}}><option value="COTISTA">Cotista</option><option value="HOLDING">Holding</option></select></div>}
+          <div className="space-y-1.5"><Label htmlFor="baixa-pagador" className="text-slate-200">Pagador real</Label><select id="baixa-pagador" className={selectClass} value={pagador} onChange={e=>setPagador(e.target.value)}><option value="">Selecione…</option>{pessoas.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
+          {!direto&&<div className="space-y-1.5 sm:col-span-2"><Label htmlFor="baixa-banco" className="text-slate-200">Conta bancária que recebeu o dinheiro</Label><select id="baixa-banco" className={selectClass} value={banco} onChange={e=>setBanco(e.target.value)}><option value="">Selecione…</option>{(opcoes?.contas_bancarias||[]).filter(c=>c.ativo!==false&&c.ativo!==0).map(c=><option key={c.id} value={c.id}>{c.banco} · {c.numero_conta}</option>)}</select></div>}
+          <div className="space-y-2 sm:col-span-2"><div><p className="text-sm font-semibold text-slate-100">Distribuição do pagamento</p><p className="mt-1 text-xs text-slate-400">Informe o valor pago para cada cotista participante.</p></div>{rateios.map(r=><div key={r.id} className="grid gap-3 rounded-xl border border-slate-700 bg-slate-900/45 p-3 sm:grid-cols-[1fr_auto] sm:items-center"><div><Label htmlFor={`rateio-${r.id}`} className="text-xs font-semibold text-slate-200">{opcoes?.cotistas.find(c=>c.id===r.cotista_id)?.nome||'Rateio da obrigação'}</Label><p className="mt-1 text-[11px] text-slate-400">Saldo: {formatarCentavos(Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0)))}{r.data_vencimento?` · Vencimento ${dataLegivel(r.data_vencimento)}`:''}</p></div><Input id={`rateio-${r.id}`} className="w-full border-slate-700 bg-slate-950/70 text-right tabular-nums sm:w-36" inputMode="decimal" value={valores[r.id]||''} onChange={e=>setValores(v=>({...v,[r.id]:e.target.value}))}/></div>)}<p className="text-xs text-slate-400">Pagamentos menores mantêm o saldo em aberto; não são tratados como desconto.</p></div>
+          <div className="space-y-2 sm:col-span-2"><Label className="text-slate-200">Comprovante do pagamento</Label><label className="group relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-xl border border-dashed border-slate-600 bg-slate-950/40 p-4 transition hover:border-sky-400/70 hover:bg-sky-950/20"><UploadCloud className="h-6 w-6 shrink-0 text-sky-300"/><span className="min-w-0 flex-1"><strong className="block break-all text-sm font-medium text-slate-100">{uploading?'Enviando arquivo…':arquivo?.name||'Anexar imagem ou PDF do comprovante'}</strong><small className="mt-1 block text-xs text-slate-400">PDF, JPG, PNG ou WebP · até 20 MB</small></span>{uploading?<Loader2 className="h-4 w-4 animate-spin text-sky-300"/>:comprovante?<FileCheck2 className="h-5 w-5 text-emerald-400"/>:null}<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" className="absolute inset-0 cursor-pointer opacity-0" onChange={e=>{void selecionarArquivo(e.target.files?.[0]);e.currentTarget.value='';}}/></label>{arquivo&&<div className="flex items-center justify-between gap-2 text-xs text-slate-400"><span className="truncate">{comprovante?'Comprovante anexado': 'Aguardando upload'}{comprovante?' · pronto para salvar':''}</span><button type="button" disabled={formBusy||salvo} onClick={()=>{setArquivo(null);setComprovante('');}} className="inline-flex items-center gap-1 text-slate-300 hover:text-white"><X className="h-3.5 w-3.5"/>Remover</button></div>}</div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="baixa-obs" className="text-slate-200">Observações do pagamento</Label><Textarea id="baixa-obs" value={obs} onChange={e=>setObs(e.target.value)} rows={2} className="border-slate-700 bg-slate-950/60" placeholder="Detalhes adicionais para conferência"/></div>
         </fieldset>
-      </>}
-      {erro&&<p role="alert" className="text-sm text-destructive">{erro}</p>}
-      <DialogFooter><Button variant="outline" disabled={enviando} onClick={onFechar}>{salvo?'Fechar':'Cancelar'}</Button><Button disabled={loading||enviando||!contexto} onClick={()=>void confirmar()}>{enviando?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<CheckCircle2 className="mr-2 h-4 w-4"/>}{salvo?'Atualizar tela':'Confirmar pagamento'}</Button></DialogFooter>
+      </div>}
+      {erro&&<p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{erro}</p>}
+      <DialogFooter className="border-t border-slate-700 pt-4"><Button variant="outline" disabled={formBusy} onClick={onFechar} className="border-slate-600 bg-transparent text-slate-200 hover:bg-slate-800">{salvo?'Fechar':'Cancelar'}</Button><Button disabled={loading||formBusy||!contexto} onClick={()=>void confirmar()} className="bg-sky-600 text-white hover:bg-sky-500">{enviando?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<CheckCircle2 className="mr-2 h-4 w-4"/>}{salvo?'Atualizar tela':'Confirmar baixa'}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }

@@ -309,18 +309,6 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
       </div>
     </header>
 
-    <section aria-label="Resumo dos lançamentos filtrados" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {[
-        { titulo: "Entradas", valor: resumo.entradas, detalhe: "Recebidas + a receber", cor: "text-emerald-600 dark:text-emerald-400", Icone: ArrowDownLeft },
-        { titulo: "Saídas", valor: resumo.saidas, detalhe: "Pagas + a pagar", cor: "text-rose-600 dark:text-rose-400", Icone: ArrowUpRight },
-        { titulo: "Saldo dos lançamentos", valor: resumo.saldo, detalhe: "Entradas menos saídas", cor: resumo.saldo >= 0 ? "text-foreground" : "text-rose-600 dark:text-rose-400", Icone: Wallet },
-        { titulo: "Saldo realizado", valor: resumo.realizados, detalhe: "Apenas recebidos e pagos", cor: resumo.realizados >= 0 ? "text-foreground" : "text-rose-600 dark:text-rose-400", Icone: CheckCircle2 },
-      ].map(({ titulo, valor, detalhe, cor, Icone }) => <div key={titulo} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-muted-foreground">{titulo}</p><Icone size={18} className={cor} /></div>
-        <p className={`mt-3 break-words text-2xl font-semibold tabular-nums tracking-tight ${cor}`}>{carregando || erro ? "—" : exibirTotal(valor, resumo.valido)}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">{detalhe}</p>
-      </div>)}
-    </section>
     <p className="text-xs text-muted-foreground">Totais dos filtros atuais. Cancelados não entram nas somas. O saldo realizado não inclui saldo inicial. A seleção permanece entre páginas e é limpa ao alterar os filtros.</p>
 
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Movimentações">

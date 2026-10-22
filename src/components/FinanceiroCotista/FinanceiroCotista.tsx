@@ -94,14 +94,12 @@ import {
   formatarMoeda,
   formatarCentavos,
   formatarData,
-  buscarVoosEmprestimos,
   editarLancamento,
   excluirLancamento,
 } from "@/lib/financeiro-share-api";
 import type {
   OpcoesLancamento,
   DashboardCotista,
-  VooEmprestimo,
   LancamentoEconomico,
 } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -2303,9 +2301,7 @@ export default function FinanceiroCotista() {
   const [percentualEditado, setPercentualEditado] = useState("");
   const [aeronaveEditada, setAeronaveEditada] = useState("");
   const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
-  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("");
-  const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
-  const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
+  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const mesAtual = mesAtualLocal();
   const [anoMeses, setAnoMeses] = useState(mesAtual.slice(0, 4));
   const mesesDisponiveis = useMemo(
@@ -2431,64 +2427,6 @@ export default function FinanceiroCotista() {
     carregar();
     carregarCotistas(aeronaveSelecionada);
   }, [aeronaveSelecionada, carregar, carregarCotistas]);
-  useEffect(() => {
-    const primeira = cotistasAeronave.find(
-      (cotista) => cotista.cliente_id || cotista.socio_id,
-    );
-    if (!primeira) {
-      setCotistaEmprestimo("");
-      setVoosEmprestimos([]);
-      return;
-    }
-    const disponiveis = new Set(
-      cotistasAeronave
-        .filter((cotista) => cotista.cliente_id || cotista.socio_id)
-        .map(
-          (cotista) =>
-            `${cotista.socio_id ? "socio" : "cliente"}:${cotista.socio_id || cotista.cliente_id}`,
-        ),
-    );
-    if (!cotistaEmprestimo || !disponiveis.has(cotistaEmprestimo))
-      setCotistaEmprestimo(
-        `${primeira.socio_id ? "socio" : "cliente"}:${primeira.socio_id || primeira.cliente_id}`,
-      );
-  }, [cotistasAeronave, cotistaEmprestimo]);
-  useEffect(() => {
-    if (!cotistaEmprestimo || !aeronaveSelecionada) {
-      setVoosEmprestimos([]);
-      setCarregandoEmprestimos(false);
-      return;
-    }
-    const [tipo, id] = cotistaEmprestimo.split(":");
-    if (!id || (tipo !== "cliente" && tipo !== "socio")) {
-      setVoosEmprestimos([]);
-      setCarregandoEmprestimos(false);
-      return;
-    }
-    let cancelada = false;
-    setCarregandoEmprestimos(true);
-    void buscarVoosEmprestimos(
-      id,
-      tipo,
-      aeronaveSelecionada,
-      periodoAplicado.inicio,
-      periodoAplicado.fim,
-      mesesAplicados,
-    )
-      .then((resultado) => {
-        if (!cancelada) setVoosEmprestimos(resultado);
-      })
-      .catch(() => {
-        if (!cancelada) setVoosEmprestimos([]);
-      })
-      .finally(() => {
-        if (!cancelada) setCarregandoEmprestimos(false);
-      });
-    return () => {
-      cancelada = true;
-    };
-  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado, mesesAplicados]);
-
   const lancamentosFiltrados = useMemo(() => {
     if (!aeronaveSelecionada || !dashboard?.lancamentos) return [];
     return dashboard.lancamentos.filter((lancamento) => {
@@ -2584,10 +2522,15 @@ export default function FinanceiroCotista() {
           .sort((a, b) => b.valor - a.valor),
       }));
   }, [despesas]);
-  const gruposVoosEmprestimos = useMemo(
-    () => agruparPorMes(voosEmprestimos),
-    [voosEmprestimos],
-  );
+  const gruposEmprestimos = useMemo(() => {
+    const [tipo, id] = cotistaEmprestimo.split(":");
+    const lista = (dashboard?.emprestimos_aeronave ?? []).filter((v) => {
+      if (!mesesAplicados.includes(String(v.data ?? "").slice(0, 7))) return false;
+      if (!id) return true;
+      return tipo === "socio" ? v.emprestador_socio_id === id : v.emprestador_cliente_id === id;
+    });
+    return agruparPorMes(lista);
+  }, [dashboard, mesesAplicados, cotistaEmprestimo]);
   const custoFixo = despesas
     .filter((lancamento) =>
       /fix|hangar|seguro|assinatura|mensal/i.test(
@@ -3205,10 +3148,9 @@ export default function FinanceiroCotista() {
                 <div className="financeiro-panel overflow-hidden">
                   <div className="financeiro-panel-header">
                     <div>
-                      <p className="text-sm font-bold">Voos empréstimo</p>
+                      <p className="text-sm font-bold">Voos de empréstimo nesta aeronave</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Abastecimentos em nome deste cotista realizados em
-                        outras aeronaves.
+                        Custo do tomador, fora do rateio. Escolha um cotista para ver os voos emprestados em nome dele.
                       </p>
                     </div>
                     <Select
@@ -3216,9 +3158,10 @@ export default function FinanceiroCotista() {
                       onValueChange={setCotistaEmprestimo}
                     >
                       <SelectTrigger className="h-8 w-full text-[10px] sm:w-[240px]">
-                        <SelectValue placeholder="Selecione o cotista" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="todos">Todos os cotistas</SelectItem>
                         {cotistasAeronave
                           .filter(
                             (cotista) => cotista.cliente_id || cotista.socio_id,
@@ -3234,13 +3177,9 @@ export default function FinanceiroCotista() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {carregandoEmprestimos ? (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <Loader2 size={18} className="animate-spin" />
-                    </div>
-                  ) : gruposVoosEmprestimos.length ? (
+                  {gruposEmprestimos.length ? (
                     <div className="divide-y divide-border">
-                      {gruposVoosEmprestimos.map(({ mes, itens }) => (
+                      {gruposEmprestimos.map(({ mes, itens }) => (
                         <section key={mes}>
                           <div className="flex flex-wrap items-center justify-between gap-2 bg-primary/[.045] px-4 py-2.5">
                             <span className="text-[10px] font-bold capitalize">

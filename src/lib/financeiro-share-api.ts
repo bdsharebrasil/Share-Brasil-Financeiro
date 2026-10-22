@@ -1388,6 +1388,8 @@ export type EmprestimoAeronave = {
   status_reembolso: string | null;
   tomador_nome: string | null;
   emprestador_nome: string | null;
+  emprestador_cliente_id: string | null;
+  emprestador_socio_id: string | null;
 };
 
 export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string, meses?: string[]) {

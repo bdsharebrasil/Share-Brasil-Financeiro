@@ -94,14 +94,12 @@ import {
   formatarMoeda,
   formatarCentavos,
   formatarData,
-  buscarVoosEmprestimos,
   editarLancamento,
   excluirLancamento,
 } from "@/lib/financeiro-share-api";
 import type {
   OpcoesLancamento,
   DashboardCotista,
-  VooEmprestimo,
   LancamentoEconomico,
 } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -2303,9 +2301,7 @@ export default function FinanceiroCotista() {
   const [percentualEditado, setPercentualEditado] = useState("");
   const [aeronaveEditada, setAeronaveEditada] = useState("");
   const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
-  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("");
-  const [voosEmprestimos, setVoosEmprestimos] = useState<VooEmprestimo[]>([]);
-  const [carregandoEmprestimos, setCarregandoEmprestimos] = useState(false);
+  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const mesAtual = mesAtualLocal();
   const [anoMeses, setAnoMeses] = useState(mesAtual.slice(0, 4));
   const mesesDisponiveis = useMemo(
@@ -2431,64 +2427,6 @@ export default function FinanceiroCotista() {
     carregar();
     carregarCotistas(aeronaveSelecionada);
   }, [aeronaveSelecionada, carregar, carregarCotistas]);
-  useEffect(() => {
-    const primeira = cotistasAeronave.find(
-      (cotista) => cotista.cliente_id || cotista.socio_id,
-    );
-    if (!primeira) {
-      setCotistaEmprestimo("");
-      setVoosEmprestimos([]);
-      return;
-    }
-    const disponiveis = new Set(
-      cotistasAeronave
-        .filter((cotista) => cotista.cliente_id || cotista.socio_id)
-        .map(
-          (cotista) =>
-            `${cotista.socio_id ? "socio" : "cliente"}:${cotista.socio_id || cotista.cliente_id}`,
-        ),
-    );
-    if (!cotistaEmprestimo || !disponiveis.has(cotistaEmprestimo))
-      setCotistaEmprestimo(
-        `${primeira.socio_id ? "socio" : "cliente"}:${primeira.socio_id || primeira.cliente_id}`,
-      );
-  }, [cotistasAeronave, cotistaEmprestimo]);
-  useEffect(() => {
-    if (!cotistaEmprestimo || !aeronaveSelecionada) {
-      setVoosEmprestimos([]);
-      setCarregandoEmprestimos(false);
-      return;
-    }
-    const [tipo, id] = cotistaEmprestimo.split(":");
-    if (!id || (tipo !== "cliente" && tipo !== "socio")) {
-      setVoosEmprestimos([]);
-      setCarregandoEmprestimos(false);
-      return;
-    }
-    let cancelada = false;
-    setCarregandoEmprestimos(true);
-    void buscarVoosEmprestimos(
-      id,
-      tipo,
-      aeronaveSelecionada,
-      periodoAplicado.inicio,
-      periodoAplicado.fim,
-      mesesAplicados,
-    )
-      .then((resultado) => {
-        if (!cancelada) setVoosEmprestimos(resultado);
-      })
-      .catch(() => {
-        if (!cancelada) setVoosEmprestimos([]);
-      })
-      .finally(() => {
-        if (!cancelada) setCarregandoEmprestimos(false);
-      });
-    return () => {
-      cancelada = true;
-    };
-  }, [cotistaEmprestimo, aeronaveSelecionada, periodoAplicado, mesesAplicados]);
-
   const lancamentosFiltrados = useMemo(() => {
     if (!aeronaveSelecionada || !dashboard?.lancamentos) return [];
     return dashboard.lancamentos.filter((lancamento) => {
@@ -2584,10 +2522,15 @@ export default function FinanceiroCotista() {
           .sort((a, b) => b.valor - a.valor),
       }));
   }, [despesas]);
-  const gruposVoosEmprestimos = useMemo(
-    () => agruparPorMes(voosEmprestimos),
-    [voosEmprestimos],
-  );
+  const gruposEmprestimos = useMemo(() => {
+    const [tipo, id] = cotistaEmprestimo.split(":");
+    const lista = (dashboard?.emprestimos_aeronave ?? []).filter((v) => {
+      if (!mesesAplicados.includes(String(v.data ?? "").slice(0, 7))) return false;
+      if (!id) return true;
+      return tipo === "socio" ? v.emprestador_socio_id === id : v.emprestador_cliente_id === id;
+    });
+    return agruparPorMes(lista);
+  }, [dashboard, mesesAplicados, cotistaEmprestimo]);
   const custoFixo = despesas
     .filter((lancamento) =>
       /fix|hangar|seguro|assinatura|mensal/i.test(
@@ -2621,6 +2564,37 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) =>
     formatarMoeda(valor).replace(",00", "");
+  const mediasPorCotista = useMemo(() => {
+    const totais = new Map<string, number>();
+    for (const lancamento of despesas) {
+      for (const rateio of lancamento.rateios ?? []) {
+        const chave = rateio.cotistaId ?? rateio.cotista;
+        if (!chave) continue;
+        totais.set(chave, (totais.get(chave) ?? 0) + rateio.valorCentavos);
+      }
+    }
+    const meses = Math.max(mesesAplicados.length, 1);
+    return cotistasAeronave.map((cotista) => {
+      const total = totais.get(cotista.id) ?? 0;
+      return {
+        id: cotista.id,
+        nome: cotista.nome,
+        total,
+        media: Math.round(total / meses),
+      };
+    });
+  }, [despesas, cotistasAeronave, mesesAplicados]);
+  const estiloTooltip = {
+    contentStyle: {
+      background: "#0f172a",
+      border: "1px solid #334155",
+      borderRadius: 8,
+      color: "#ffffff",
+    },
+    itemStyle: { color: "#ffffff" },
+    labelStyle: { color: "#ffffff" },
+  };
+  const estiloEixo = { fontSize: 10, fill: "#ffffff" };
   const coresCategorias = [
     "#22d3ee",
     "#60a5fa",
@@ -2904,6 +2878,49 @@ export default function FinanceiroCotista() {
                       </div>
                     </div>
                   </div>
+                  {aeronaveSelecionada && mediasPorCotista.length > 0 && (
+                    <div className="financeiro-panel overflow-hidden">
+                      <div className="financeiro-panel-header">
+                        <div>
+                          <p className="text-xs font-bold">Médias por cotista</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            Rateio das saídas no período, dividido por{" "}
+                            {mesesAplicados.length} mês(es)
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground">
+                            Total da aeronave
+                          </p>
+                          <p className="font-mono text-sm font-bold">
+                            {formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            Média mensal{" "}
+                            {formatarMoeda(dashboard?.resumo?.media_mensal ?? 0)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {mediasPorCotista.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
+                          >
+                            <span className="font-medium">{item.nome}</span>
+                            <div className="flex gap-4 text-[10px]">
+                              <span className="text-muted-foreground">
+                                Total: {formatarCentavos(item.total)}
+                              </span>
+                              <span className="font-mono font-bold">
+                                Média mensal: {formatarCentavos(item.media)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {Array.isArray(dashboard?.saldos) &&
                   dashboard.saldos.length > 0 ? (
                     <div className="financeiro-panel overflow-hidden">
@@ -3131,10 +3148,9 @@ export default function FinanceiroCotista() {
                 <div className="financeiro-panel overflow-hidden">
                   <div className="financeiro-panel-header">
                     <div>
-                      <p className="text-sm font-bold">Voos empréstimo</p>
+                      <p className="text-sm font-bold">Voos de empréstimo nesta aeronave</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Abastecimentos em nome deste cotista realizados em
-                        outras aeronaves.
+                        Custo do tomador, fora do rateio. Escolha um cotista para ver os voos emprestados em nome dele.
                       </p>
                     </div>
                     <Select
@@ -3142,9 +3158,10 @@ export default function FinanceiroCotista() {
                       onValueChange={setCotistaEmprestimo}
                     >
                       <SelectTrigger className="h-8 w-full text-[10px] sm:w-[240px]">
-                        <SelectValue placeholder="Selecione o cotista" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="todos">Todos os cotistas</SelectItem>
                         {cotistasAeronave
                           .filter(
                             (cotista) => cotista.cliente_id || cotista.socio_id,
@@ -3160,13 +3177,9 @@ export default function FinanceiroCotista() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {carregandoEmprestimos ? (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <Loader2 size={18} className="animate-spin" />
-                    </div>
-                  ) : gruposVoosEmprestimos.length ? (
+                  {gruposEmprestimos.length ? (
                     <div className="divide-y divide-border">
-                      {gruposVoosEmprestimos.map(({ mes, itens }) => (
+                      {gruposEmprestimos.map(({ mes, itens }) => (
                         <section key={mes}>
                           <div className="flex flex-wrap items-center justify-between gap-2 bg-primary/[.045] px-4 py-2.5">
                             <span className="text-[10px] font-bold capitalize">
@@ -3270,19 +3283,20 @@ export default function FinanceiroCotista() {
                             </defs>
                             <XAxis
                               dataKey="mes"
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                             />
                             <YAxis
                               tickFormatter={(v) => formatarValorGrafico(v)}
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                               width={60}
                             />
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                             <Area
                               type="monotone"
@@ -3329,12 +3343,13 @@ export default function FinanceiroCotista() {
                               type="category"
                               dataKey="nome"
                               width={90}
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                             />
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                             <Bar
                               dataKey="valor"
@@ -3386,6 +3401,7 @@ export default function FinanceiroCotista() {
                             </Pie>
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>

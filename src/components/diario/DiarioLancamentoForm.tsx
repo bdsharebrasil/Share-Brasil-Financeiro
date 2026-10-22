@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, Fuel, PlaneTakeoff, Save, Users, X } from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
+  buscarAbastecimentos,
   buscarNumerosVooAeronave,
+  type Abastecimento,
   type NumeroVooJornada,
   type NumeroVooPerna,
 } from "@/lib/colaborador-api";
@@ -156,7 +158,8 @@ function formFromEntry(
     ocorrencias: entry?.ocorrencias || "",
     discrepancias: entry?.discrepancias || "",
     acoes_corretivas: entry?.acoes_corretivas || "",
-    abastecimento_litros: "",
+    abastecimento_id: String((entry as any)?.abastecimento_id || ""),
+    abastecimento_litros: String((entry as any)?.abastecimento_litros ?? ""),
     abastecimento_data: date,
     abastecimento_cliente_id: "",
     abastecimento_socio_id: "",
@@ -203,6 +206,12 @@ export default function DiarioLancamentoForm({
   const [solicitacaoSelecionada, setSolicitacaoSelecionada] = useState("");
   const [jornadaSelecionada, setJornadaSelecionada] = useState("");
   const [pernaSelecionada, setPernaSelecionada] = useState("");
+  const [abastecimentos, setAbastecimentos] = useState<Abastecimento[]>([]);
+  useEffect(() => {
+    void buscarAbastecimentos({ aeronave_id: aeronaveId })
+      .then((response) => setAbastecimentos(response.abastecimentos || []))
+      .catch(() => setAbastecimentos([]));
+  }, [aeronaveId]);
   useEffect(() => {
     setVoosError("");
     void buscarNumerosVooAeronave(aeronaveId)
@@ -528,6 +537,7 @@ export default function DiarioLancamentoForm({
       pousos_total: number("pousos_total"),
       distancia_nm: number("distancia_nm"),
       litros_combustivel_inicio_voo: number("litros_combustivel_inicio_voo"),
+      abastecimento_id: Boolean(form.abastecido) ? value("abastecimento_id") || null : null,
       litros_combustivel_abastecido: Boolean(form.abastecido) ? number("abastecimento_litros") : 0,
       local_combustivel: Boolean(form.abastecido) ? value("abastecimento_local") || null : null,
       abastecido: Boolean(form.abastecido),
@@ -538,7 +548,7 @@ export default function DiarioLancamentoForm({
       discrepancias: value("discrepancias") || null,
       acoes_corretivas: value("acoes_corretivas") || null,
       abastecimento:
-        Boolean(form.abastecido) && number("abastecimento_litros") > 0
+        Boolean(form.abastecido) && !value("abastecimento_id") && number("abastecimento_litros") > 0
           ? {
               litros: number("abastecimento_litros"),
               data: value("abastecimento_data") || value("data_registro"),
@@ -1021,6 +1031,34 @@ export default function DiarioLancamentoForm({
             Teve abastecimento?
           </label>
           {Boolean(form.abastecido) && <div className="diario-form-grid diario-form-grid--fields mt-3 gap-2">
+            <Field label="Vincular abastecimento existente">
+              <select
+                value={value("abastecimento_id")}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const item = abastecimentos.find((abastecimento) => abastecimento.id === id);
+                  setField("abastecimento_id", id);
+                  if (item) {
+                    setField("abastecimento_litros", String(item.litros ?? ""));
+                    setField("abastecimento_local", item.local || "");
+                    setField("abastecimento_data", item.data?.slice(0, 10) || "");
+                    setField("abastecimento_cliente_id", item.cliente_id || "");
+                    setField("abastecimento_socio_id", item.socio_id || "");
+                    setField("abastecimento_numero_comanda", item.numero_comanda || "");
+                    setField("abastecimento_numero_nf", item.numero_nf || "");
+                  }
+                }}
+                className={selectClass}
+              >
+                <option value="">Criar abastecimento neste lançamento</option>
+                {abastecimentos.filter((item) => !item.lancamento_diario_id || item.id === value("abastecimento_id")).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {[item.data?.slice(0, 10), item.local, item.fornecedor_nome, `${item.litros} L`, item.numero_comanda ? `Comanda ${item.numero_comanda}` : ""]
+                      .filter(Boolean).join(" · ")}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <NumberField
               label="Litros abastecidos"
               value={value("abastecimento_litros")}

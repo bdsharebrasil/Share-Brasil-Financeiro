@@ -46,7 +46,7 @@ type Confirmacao = { tipo: "EXCLUIR"; ids: string[] }
   | { tipo: "BAIXA" | "REEMBOLSO"; id: string };
 type Falha = { id: string; descricao: string; mensagem: string };
 
-const STATUS: StatusLancamento[] = ["EM_ABERTO", "PENDENTE", "ATRASADO", "EM_ATRASO", "PAGO", "RECEBIDO", "CANCELADO"];
+const STATUS: StatusLancamento[] = ["EM_ABERTO", "PAGO", "RECEITA", "EM_ATRASO", "ESTORNO", "RECEBIDO", "SAIDA", "ENTRADA", "AGUARDANDO_REEMBOLSO", "REEMBOLSADO", "CANCELADO"];
 const FINALIZADOS = new Set<StatusLancamento>(["PAGO", "RECEBIDO", "CANCELADO"]);
 const INPUT = "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50";
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });

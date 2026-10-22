@@ -504,6 +504,7 @@ export type SolicitacaoBaixaPortal = {
   rateio_id: string;
   valor_centavos: number;
   data_pagamento: string;
+  data_vencimento: string | null;
   observacoes: string | null;
   criado_em: string;
   descricao_despesa: string | null;

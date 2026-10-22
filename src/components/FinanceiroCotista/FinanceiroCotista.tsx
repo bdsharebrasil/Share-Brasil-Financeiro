@@ -2621,6 +2621,37 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) =>
     formatarMoeda(valor).replace(",00", "");
+  const mediasPorCotista = useMemo(() => {
+    const totais = new Map<string, number>();
+    for (const lancamento of despesas) {
+      for (const rateio of lancamento.rateios ?? []) {
+        const chave = rateio.cotistaId ?? rateio.cotista;
+        if (!chave) continue;
+        totais.set(chave, (totais.get(chave) ?? 0) + rateio.valorCentavos);
+      }
+    }
+    const meses = Math.max(mesesAplicados.length, 1);
+    return cotistasAeronave.map((cotista) => {
+      const total = totais.get(cotista.id) ?? 0;
+      return {
+        id: cotista.id,
+        nome: cotista.nome,
+        total,
+        media: Math.round(total / meses),
+      };
+    });
+  }, [despesas, cotistasAeronave, mesesAplicados]);
+  const estiloTooltip = {
+    contentStyle: {
+      background: "#0f172a",
+      border: "1px solid #334155",
+      borderRadius: 8,
+      color: "#ffffff",
+    },
+    itemStyle: { color: "#ffffff" },
+    labelStyle: { color: "#ffffff" },
+  };
+  const estiloEixo = { fontSize: 10, fill: "#ffffff" };
   const coresCategorias = [
     "#22d3ee",
     "#60a5fa",
@@ -2904,6 +2935,49 @@ export default function FinanceiroCotista() {
                       </div>
                     </div>
                   </div>
+                  {aeronaveSelecionada && mediasPorCotista.length > 0 && (
+                    <div className="financeiro-panel overflow-hidden">
+                      <div className="financeiro-panel-header">
+                        <div>
+                          <p className="text-xs font-bold">Médias por cotista</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            Rateio das saídas no período, dividido por{" "}
+                            {mesesAplicados.length} mês(es)
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground">
+                            Total da aeronave
+                          </p>
+                          <p className="font-mono text-sm font-bold">
+                            {formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            Média mensal{" "}
+                            {formatarMoeda(dashboard?.resumo?.media_mensal ?? 0)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {mediasPorCotista.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
+                          >
+                            <span className="font-medium">{item.nome}</span>
+                            <div className="flex gap-4 text-[10px]">
+                              <span className="text-muted-foreground">
+                                Total: {formatarCentavos(item.total)}
+                              </span>
+                              <span className="font-mono font-bold">
+                                Média mensal: {formatarCentavos(item.media)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {Array.isArray(dashboard?.saldos) &&
                   dashboard.saldos.length > 0 ? (
                     <div className="financeiro-panel overflow-hidden">
@@ -3270,19 +3344,20 @@ export default function FinanceiroCotista() {
                             </defs>
                             <XAxis
                               dataKey="mes"
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                             />
                             <YAxis
                               tickFormatter={(v) => formatarValorGrafico(v)}
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                               width={60}
                             />
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                             <Area
                               type="monotone"
@@ -3329,12 +3404,13 @@ export default function FinanceiroCotista() {
                               type="category"
                               dataKey="nome"
                               width={90}
-                              tick={{ fontSize: 10 }}
+                              tick={estiloEixo}
                               axisLine={false}
                               tickLine={false}
                             />
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                             <Bar
                               dataKey="valor"
@@ -3386,6 +3462,7 @@ export default function FinanceiroCotista() {
                             </Pie>
                             <Tooltip
                               formatter={(v: number) => formatarMoeda(v)}
+                              {...estiloTooltip}
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>

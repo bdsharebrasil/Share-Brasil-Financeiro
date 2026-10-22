@@ -902,6 +902,7 @@ export type DashboardCotista = BalancoEconomico & {
   balanco_detalhado_erro?: string | null;
   balanco_operacional?: BalancoOperacionalCotista | null;
   balanco_escopo?: "aeronave" | "cotista" | "geral";
+  emprestimos_aeronave?: EmprestimoAeronave[];
 
 
   medias: MediasCotista;
@@ -1368,6 +1369,27 @@ export type VooEmprestimo = {
 
 };
 
+export type EmprestimoAeronave = {
+  id: string;
+  numero_voo: string | null;
+  data: string | null;
+  trecho: string | null;
+  local: string | null;
+  local_icao: string | null;
+  litros: number | null;
+  valor_total: number | null;
+  numero_comanda: string | null;
+  numero_nf: string | null;
+  aeronave_id: string;
+  matricula_registro: string | null;
+  lancamento_id: string | null;
+  status_abastecimento: string | null;
+  status_lancamento: string | null;
+  status_reembolso: string | null;
+  tomador_nome: string | null;
+  emprestador_nome: string | null;
+};
+
 export async function buscarVoosEmprestimos(cotistaId: string, tipo: "cliente" | "socio", aeronaveAtualId?: string, inicio?: string, fim?: string, meses?: string[]) {
 
   const query = paraQueryString({ cotista_id: cotistaId, tipo, excluir_aeronave_id: aeronaveAtualId, inicio, fim, meses: meses ? (meses.length ? meses.join(",") : "__nenhum__") : undefined });
@@ -1404,6 +1426,7 @@ export async function buscarDashboardCotista(inicio?: string, fim?: string, aero
     balanco_detalhado_erro: payload.balanco_detalhado_erro ?? null,
     balanco_operacional: payload.balanco_operacional ?? null,
     balanco_escopo: payload.balanco_escopo,
+    emprestimos_aeronave: Array.isArray(payload.emprestimos_aeronave) ? payload.emprestimos_aeronave : [],
 
     medias: normalizarMediasCotista(payload.medias),
 

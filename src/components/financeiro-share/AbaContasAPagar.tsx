@@ -3,12 +3,13 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbaSolicitacoesCompra } from "./AbaSolicitacoesCompra";
+import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 import { toast } from "sonner";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
 import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DetalheContaAPagar } from "./DetalheContaAPagar";
-import { agendarContaAPagar, anexarDocumentoLancamento, duplicarLancamento, editarLancamento } from "@/lib/financeiro-share-api";
+import { agendarContaAPagar, anexarDocumentoLancamento, duplicarLancamento, editarLancamento, type ContaBancaria } from "@/lib/financeiro-share-api";
 import {
   type FiltrosTabela,
   type LancamentoTabela,
@@ -17,7 +18,7 @@ import {
   formatarBRL,
 } from "@/components/financeiro-design/lancamento-tabela";
 
-export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
+export function AbaContasAPagar({ onNovaConta, contasBancarias, subAba, onSubAbaChange }: { onNovaConta: () => void; contasBancarias: ContaBancaria[]; subAba: string; onSubAbaChange: (valor: string) => void }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAPagar({});
   const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
   const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
@@ -99,12 +100,14 @@ export function AbaContasAPagar({ onNovaConta }: { onNovaConta: () => void }) {
   }
 
   return (
-    <Tabs defaultValue="contas" className="space-y-3">
+    <Tabs value={subAba} onValueChange={onSubAbaChange} className="space-y-3">
       <TabsList className="h-auto rounded-xl border border-border/70 bg-card/70 p-1">
         <TabsTrigger value="contas" className="rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Contas da Share</TabsTrigger>
         <TabsTrigger value="compras" className="rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Solicitações de compra</TabsTrigger>
+        <TabsTrigger value="solicitacoes" className="rounded-lg px-3 py-2 text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Solicitações de pagamento</TabsTrigger>
       </TabsList>
       <TabsContent value="compras" className="mt-0"><AbaSolicitacoesCompra /></TabsContent>
+      <TabsContent value="solicitacoes" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contasBancarias} /></TabsContent>
       <TabsContent value="contas" className="mt-0">
         <div className="space-y-3">
           {erro && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">{erro}</div>}

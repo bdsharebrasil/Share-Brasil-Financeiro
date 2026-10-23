@@ -4,7 +4,6 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
-  Clock3,
   FileText,
   Folder,
   Landmark,
@@ -80,15 +79,6 @@ const horaBr = (valor: string | null) =>
         minute: "2-digit",
       })
     : "—";
-
-const rotuloReferenciaEmail = (tipo?: string | null) => ({
-  recibo: "Recibo",
-  recibo_saida: "Recibo de saída",
-  nf_saida: "NF de saída",
-  relatorio: "Relatório de viagem",
-  relatorio_pdf: "Relatório de viagem",
-  envio_despesa: "Envio de despesa",
-}[String(tipo || "").toLowerCase()] || (tipo ? String(tipo).replace(/_/g, " ") : "Sem vínculo"));
 
 const rotuloStatusEmail = (status?: string | null) => ({
   enviado: "Enviado",
@@ -406,15 +396,6 @@ export default function Emails() {
             <button onClick={() => { setConfigAberta("bancarios"); setModoCriacao(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><Landmark size={17} /> Contas bancárias</button>
           </div>
 
-          <div className="mt-auto pt-4">
-            <div className="mb-2 flex items-end justify-between px-3">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Armazenamento</h3>
-              <span className="text-xs font-bold text-foreground">82%</span>
-            </div>
-            <div className="mx-3 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-[82%] rounded-full bg-primary/70"></div>
-            </div>
-          </div>
         </aside>
 
         {/* COLUNA 2: LISTA DE E-MAILS */}
@@ -471,45 +452,11 @@ export default function Emails() {
                 </p>
               </button>
             ))}
-            {pastaAtiva !== "enviadas" && <div className="mt-3 border-t border-white/[.08] pt-3">
-              <div className="flex items-center justify-between px-2 pb-2">
-                <h3 className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Histórico de e-mails</h3>
-                <span className="text-[9px] font-semibold text-slate-600">{historicoEmails.length}</span>
-              </div>
-              {historicoEmails.length === 0 ? (
-                <p className="px-2 py-3 text-[10px] text-slate-600">Nenhum e-mail enviado por esta conta.</p>
-              ) : historicoEmails.map((email) => {
-                const status = String(email.status || "").toLowerCase();
-                const sucessoEnvio = status === "enviado";
-                const falhaEnvio = status === "erro" || status === "cancelado";
-                return (
-                  <div key={email.id} className="rounded-md border border-white/[.06] bg-[#0b1525] p-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-[10px] font-semibold text-slate-200" title={email.assunto}>{email.assunto || "(Sem assunto)"}</p>
-                        <p className="mt-0.5 truncate text-[9px] text-slate-500" title={email.destinatarios.join(", ")}>{email.destinatarios.join(", ") || "Destinatário não informado"}</p>
-                      </div>
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-bold ${sucessoEnvio ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : falhaEnvio ? "border-red-400/25 bg-red-400/10 text-red-300" : "border-amber-400/25 bg-amber-400/10 text-amber-300"}`}>
-                        {sucessoEnvio ? <CheckCircle2 size={10} /> : falhaEnvio ? <XCircle size={10} /> : <Clock3 size={10} />}
-                        {rotuloStatusEmail(email.status)}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] text-slate-600">
-                      <span>{dataBr(email.criado_em)}</span>
-                      <span>•</span>
-                      <span>{email.quantidade_anexos || 0} anexo{email.quantidade_anexos === 1 ? "" : "s"}</span>
-                      {email.referencia_tipo && <><span>•</span><span className="text-sky-400/80">{rotuloReferenciaEmail(email.referencia_tipo)}: {email.referencia_id || "—"}</span></>}
-                    </div>
-                    {email.erro && <p className="mt-1 truncate text-[9px] text-red-300/80" title={email.erro}>Erro: {email.erro}</p>}
-                  </div>
-                );
-              })}
-            </div>}
           </div>
         </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#080f1d] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
+        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#050b19] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
           {emailEnviadoSelecionado && pastaAtiva === "enviadas" && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
               <div className="shrink-0 border-b border-white/[.06] bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-slate-400">Para: <span className="text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)}</p></div>

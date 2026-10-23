@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleDollarSign,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   CreditCard,
   FileBarChart,
@@ -30,14 +28,11 @@ import {
   buscarAbastecimentosPendentesFinanceiro,
   buscarPainelFinanceiro,
   buscarPerfilColaborador,
-  buscarRascunhosEnvioPagamento,
   type AbastecimentoPendenteFinanceiro,
   type MovimentacaoFinanceira,
   type PainelFinanceiroResponse,
-  type RascunhoEnvioPagamento,
 } from "@/lib/colaborador-api";
 import ControleAbastecimento from "@/pages/ControleAbastecimento";
-import { lerDadosRascunho, progressoRascunho } from "@/lib/rascunho-envio";
 
 function dataBruta(valor: string | null | undefined) {
   if (!valor) return "—";
@@ -192,11 +187,9 @@ export default function DashboardFinanceiro({
   const [atualizando, setAtualizando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [nomeColaborador, setNomeColaborador] = useState("Colaborador");
-  const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
   const [abaMovimentacoes, setAbaMovimentacoes] = useState<"movimentacoes" | "abastecimentos_pendentes">("movimentacoes");
   const [abastecimentosPendentes, setAbastecimentosPendentes] = useState<AbastecimentoPendenteFinanceiro[]>([]);
-  const [rascunhosPagamento, setRascunhosPagamento] = useState<RascunhoEnvioPagamento[]>([]);
   const [carregandoAbastecimentos, setCarregandoAbastecimentos] = useState(true);
   const [erroAbastecimentos, setErroAbastecimentos] = useState<string | null>(null);
   const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
@@ -209,14 +202,12 @@ export default function DashboardFinanceiro({
     setErro(null);
     setErroAbastecimentos(null);
     try {
-      const [painel, abastecimentos, rascunhos] = await Promise.allSettled([
+      const [painel, abastecimentos] = await Promise.allSettled([
         buscarPainelFinanceiro(),
         buscarAbastecimentosPendentesFinanceiro(),
-        buscarRascunhosEnvioPagamento(),
       ]);
       if (painel.status === "fulfilled") {
         setDados(painel.value);
-        setPaginaAtual(1);
       } else {
         setErro("Não foi possível carregar os dados financeiros reais.");
       }
@@ -225,7 +216,6 @@ export default function DashboardFinanceiro({
       } else {
         setErroAbastecimentos("Não foi possível carregar os abastecimentos pendentes.");
       }
-      if (rascunhos.status === "fulfilled") setRascunhosPagamento(rascunhos.value.rascunhos);
     } finally {
       setCarregando(false);
       setCarregandoAbastecimentos(false);
@@ -252,13 +242,7 @@ export default function DashboardFinanceiro({
     ),
   );
   const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
-  const itensPorPagina = 5;
-  const totalPaginas = Math.max(1, Math.ceil(operacoesVisiveis.length / itensPorPagina));
-  const paginaExibida = Math.min(paginaAtual, totalPaginas);
-  const operacoesDaPagina = operacoesVisiveis.slice(
-    (paginaExibida - 1) * itensPorPagina,
-    paginaExibida * itensPorPagina,
-  );
+  const operacoesDoDashboard = operacoesVisiveis.slice(0, 3);
 
   if (abastecimentoEmEdicao) {
     return (
@@ -301,10 +285,7 @@ export default function DashboardFinanceiro({
           tone="amber"
           icon={<Clock3 size={16} />}
           className="min-w-0"
-          onClick={() => {
-            setMostrarPendencias((atual) => !atual);
-            setPaginaAtual(1);
-          }}
+          onClick={() => setMostrarPendencias((atual) => !atual)}
         />
         <CartaoKpi
           label="Total a receber"
@@ -351,24 +332,6 @@ export default function DashboardFinanceiro({
         />
       </section>
 
-      {rascunhosPagamento.length > 0 && <section className="mx-auto mb-5 w-full max-w-[1180px] overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <CabecalhoSecao
-          icon={<Clock3 size={15} />}
-          title="Programações em andamento"
-          detail="Rascunhos, solicitações criadas e progresso de e-mails por destinatário."
-          action={<Button type="button" variant="outline" className="h-8 gap-1.5 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}><Send size={12} /> Abrir programação</Button>}
-        />
-        <div className="divide-y divide-border/60">
-          {rascunhosPagamento.slice(0, 5).map((rascunho) => {
-            const progresso = progressoRascunho(rascunho, lerDadosRascunho(rascunho.dados_json));
-            const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
-            return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-              <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{progresso.descricao}</p><p className="mt-1 text-[10px] text-muted-foreground">{etapas.map(([nome, valor]) => `${nome}: ${valor}`).join(" · ")} · atualizado às {new Date(rascunho.atualizado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p></div>
-              <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}>Continuar</Button>
-            </div>;
-          })}
-        </div>
-      </section>}
 
       <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao
@@ -410,7 +373,7 @@ export default function DashboardFinanceiro({
         {mostrarPendencias && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
             <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo despesas sem e-mail enviado.</span>
-            <button type="button" onClick={() => { setMostrarPendencias(false); setPaginaAtual(1); }} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
+            <button type="button" onClick={() => setMostrarPendencias(false)} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
           </div>
         )}
         
@@ -423,38 +386,9 @@ export default function DashboardFinanceiro({
         ) : operacoesVisiveis.length ? (
           <>
           <div className="space-y-3 p-4">
-            {operacoesDaPagina.map((operacao) => (
+            {operacoesDoDashboard.map((operacao) => (
               <CartaoOperacao key={operacao.chave} op={operacao} onEmailPendente={setDespesaDestino} />
             ))}
-            {totalPaginas > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 bg-muted/10 px-5 py-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Página {paginaExibida} de {totalPaginas}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs bg-background"
-                    onClick={() => setPaginaAtual((pagina) => Math.max(1, pagina - 1))}
-                    disabled={paginaExibida === 1}
-                  >
-                    <ChevronLeft size={14} /> Anterior
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs bg-background"
-                    onClick={() => setPaginaAtual((pagina) => Math.min(totalPaginas, pagina + 1))}
-                    disabled={paginaExibida === totalPaginas}
-                  >
-                    Próxima <ChevronRight size={14} />
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
           </>
         ) : (

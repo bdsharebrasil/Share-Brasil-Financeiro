@@ -68,8 +68,8 @@ export default function ConsultaMeteorologia() {
         <h2 className="text-xl font-extrabold text-foreground">Meteorologia do aeródromo</h2>
         <p className="mt-1 text-sm text-muted-foreground">Consulte METAR e TAF do AISWEB/DECEA e acompanhe as camadas meteorológicas no mapa.</p>
       </div>
-      <form onSubmit={consultar} className="flex gap-2">
-        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO para meteorologia" className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+      <form onSubmit={consultar} className="flex gap-7">
+        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO para meteorologia" className="ml-[3px] mr-[3px] h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
         <button type="submit" disabled={carregando} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">
           {carregando ? <LoaderCircle size={15} className="animate-spin" /> : <CloudSun size={15} />} Consultar
         </button>

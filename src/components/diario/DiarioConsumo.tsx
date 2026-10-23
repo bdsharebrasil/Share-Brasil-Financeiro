@@ -1,14 +1,11 @@
 import type { DiarioLancamento } from "@/lib/colaborador-api";
 import { resumoConsumo } from "@/lib/diario-consumo";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
-import { useState } from "react";
 
 const numero = (v: number | null, unidade: string) => v === null ? "Sem dados" : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ${unidade}`;
 const dinheiro = (v: number | null) => v === null ? "Sem preço informado" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: DiarioLancamento[]; modo: "celula" | "tvoo" }) {
-  const [consumoAberto, setConsumoAberto] = useState(false);
   const resumo = resumoConsumo(lancamentos, modo);
   const indicadores = [
     ["Consumo médio estimado", numero(resumo.media, "L/h")],
@@ -18,16 +15,13 @@ export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: Diar
     ["Litros abastecidos", numero(resumo.abastecido, "L")],
   ];
   return <div>
-    <section className="rounded-xl border border-amber-400/25 bg-card p-4 sm:p-5">
-      <button type="button" aria-expanded={consumoAberto} onClick={() => setConsumoAberto((aberto) => !aberto)} className="flex w-full items-center justify-between gap-3 text-left">
-        <span>
-          <span className="block text-sm font-bold">Combustível e custo por hora</span>
-          <span className="mt-1 block text-xs text-muted-foreground">Aeronave e mês selecionados · Base: {modo === "celula" ? "tempo total (acionamento ao corte)" : "tempo de voo (decolagem ao pouso)"} · {numero(resumo.horas, "h")}</span>
-        </span>
-        <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted-foreground transition-transform ${consumoAberto ? "rotate-180" : ""}`} />
-      </button>
-     
-      {consumoAberto && (
+    <section className="p-4 sm:p-5">
+      <div>
+        <p className="block text-sm font-bold">Combustível e custo por hora</p>
+        <p className="mt-1 block text-xs text-muted-foreground">Aeronave e mês selecionados · Base: {modo === "celula" ? "tempo total (acionamento ao corte)" : "tempo de voo (decolagem ao pouso)"} · {numero(resumo.horas, "h")}</p>
+      </div>
+
+      <div>
         <div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {indicadores.map(([titulo, valor]) => (
@@ -46,13 +40,7 @@ export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: Diar
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             Consumo estimado pelos lançamentos: litros ÷ horas. O preço médio é
             ponderado pelos litros com valor de compra informado. Custo por hora
-            = L/h × R$/L, apenas combustível. Compras vinculadas aos voos deste
-            diário; abastecimento não equivale a combustível consumido.
-          </p>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Preço disponível para {numero(resumo.litrosPrecificados, "L")} dos
-            abastecimentos. A média não mede o consumo real do tanque.
+            = L/h × R$/L, apenas combustível. 
           </p>
 
           {resumo.semConsumo > 0 && (
@@ -62,7 +50,7 @@ export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: Diar
             </p>
           )}
         </div>
-      )}
+      </div>
     </section>
   </div>;
 }

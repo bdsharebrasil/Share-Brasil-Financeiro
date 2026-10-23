@@ -113,7 +113,7 @@ export function SearchableCombobox({
               className="flex h-12 w-full rounded-md bg-transparent py-3 text-base text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
             />
           </div>
-          <CommandList className="max-h-[min(50dvh,320px)] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
+          <CommandList className="mx-[-5px] max-h-[min(50dvh,320px)] overflow-y-auto px-0 py-[3px] [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:flex-col [&>[cmdk-list-sizer]]:gap-0 [&>[cmdk-list-sizer]]:mx-[-24px] [&>[cmdk-list-sizer]]:p-0 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
             {filteredItems.length === 0 && !allowFreeText && (
               <CommandEmpty className="py-6 text-center text-sm text-slate-400">
                 {emptyMessage}

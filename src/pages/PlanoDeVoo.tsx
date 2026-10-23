@@ -104,11 +104,10 @@ export default function PlanoDeVoo() {
 
   return (
     <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#101c2c] p-6 shadow-[0_18px_55px_rgba(0,0,0,.2)] md:p-8">
+      <header className="relative overflow-hidden rounded-[10px] border border-white/10 bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px] shadow-[0_18px_55px_rgba(0,0,0,.2)] md:px-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Operações · ICAO FPL</p>
             <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Plano de voo</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
           </div>
@@ -265,8 +264,8 @@ function ConsultaAerodromo() {
         <h2 className="text-xl font-extrabold text-foreground">Informações do aeródromo</h2>
         <p className="mt-1 text-sm text-muted-foreground">Consulte dados publicados no AISWEB/DECEA, incluindo ficha, pistas, frequências, meteorologia, NOTAM e cartas.</p>
       </div>
-      <form onSubmit={buscar} className="flex gap-2">
-        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+      <form onSubmit={buscar} className="flex gap-[27px] px-2">
+        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="mx-[-4px] h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-[35px] font-mono text-sm tracking-widest text-foreground" />
         <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Consultar</button>
       </form>
       {erro && <Aviso erro>{erro}</Aviso>}

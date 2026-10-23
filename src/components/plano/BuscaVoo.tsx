@@ -39,7 +39,7 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Prop
   };
 
   return (
-    <form onSubmit={enviar} className="rounded-xl border border-border bg-card p-4 sm:p-5">
+    <form onSubmit={enviar} className="rounded-xl border border-border bg-card px-[21px] py-4 sm:py-5">
       <label
         htmlFor="numero-voo"
         className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -57,12 +57,12 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Prop
           onFocus={() => setAberto(true)}
           placeholder="EBL-0003/26"
           autoComplete="off"
-          className="min-w-0 rounded-lg border border-input bg-background px-4 py-3 font-mono text-xl font-semibold tracking-widest text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
+          className="min-w-0 max-w-[94%] rounded-lg border border-input bg-background px-4 py-3 font-mono text-xl font-semibold tracking-widest text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
         />
         <button
           type="submit"
           disabled={carregando}
-          className="shrink-0 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="max-w-[94%] min-h-[4px] shrink-0 rounded-lg bg-primary px-[47px] py-[3px] text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {carregando ? "Buscando..." : "Buscar"}
         </button>

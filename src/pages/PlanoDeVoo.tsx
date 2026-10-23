@@ -104,11 +104,10 @@ export default function PlanoDeVoo() {
 
   return (
     <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#101c2c] p-6 shadow-[0_18px_55px_rgba(0,0,0,.2)] md:p-8">
+      <header className="relative overflow-hidden rounded-[10px] border border-white/10 bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px] shadow-[0_18px_55px_rgba(0,0,0,.2)] md:px-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">Operações · ICAO FPL</p>
             <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Plano de voo</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
           </div>

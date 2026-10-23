@@ -4,7 +4,13 @@ import type { MediasCotista as MediasCotistaData, MediasCotistaMensais } from "@
 import { formatarCentavos } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 
-type Props = { medias: MediasCotistaData | null; mediasMensais: MediasCotistaMensais[] };
+type Props = {
+  mediasMensais: MediasCotistaMensais[];
+  mediasPorCotista: Array<{ id: string; nome: string; total: number; media: number }>;
+  totalAeronave: string;
+  mediaMensal: string;
+  mesesConsiderados: number;
+};
 
 function numero(valor: number, casas = 2) {
   return valor.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
@@ -22,8 +28,7 @@ function itensMedias(medias: MediasCotistaData) {
   ];
 }
 
-export function MediasCotista({ medias, mediasMensais }: Props) {
-  const itens = medias ? itensMedias(medias) : [];
+export function MediasCotista({ mediasMensais, mediasPorCotista, totalAeronave, mediaMensal, mesesConsiderados }: Props) {
   const [recolhidos, setRecolhidos] = useState<Set<string>>(new Set());
   const podeRecolher = mediasMensais.length > 1;
 
@@ -35,19 +40,32 @@ export function MediasCotista({ medias, mediasMensais }: Props) {
   });
 
   return <div className="space-y-4">
-    <div className="financeiro-panel p-5">
-      <div className="mb-5">
-        <p className="text-sm font-bold">Médias operacionais</p>
-        <p className="mt-1 text-[10px] text-muted-foreground">Indicadores calculados a partir dos diários de bordo e dos custos exibidos nesta aeronave.</p>
+    {mediasPorCotista.length > 0 && <div className="financeiro-panel overflow-hidden">
+      <div className="financeiro-panel-header">
+        <div>
+          <p className="text-xs font-bold">Médias por cotista</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Rateio das saídas no período, dividido por {mesesConsiderados} mês(es)
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-muted-foreground">Total da aeronave</p>
+          <p className="font-mono text-sm font-bold">{totalAeronave}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">Média mensal {mediaMensal}</p>
+        </div>
       </div>
-      {medias ? <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {itens.map(({ label, valor, detalhe, Icon }) => <div key={label} className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
-          <div className="flex items-start justify-between gap-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><Icon size={13} className="shrink-0 text-primary" /></div>
-          <p className="mt-1 break-words font-mono text-sm font-bold text-foreground">{valor}</p>
-          <p className="mt-0.5 text-[9px] text-muted-foreground">{detalhe}</p>
-        </div>)}
-      </div> : <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-xs text-muted-foreground">Nenhuma média disponível para esta aeronave.</div>}
-    </div>
+      <div className="divide-y divide-border">
+        {mediasPorCotista.map((item) => (
+          <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs">
+            <span className="font-medium">{item.nome}</span>
+            <div className="flex gap-4 text-[10px]">
+              <span className="text-muted-foreground">Total: {formatarCentavos(item.total)}</span>
+              <span className="font-mono font-bold">Média mensal: {formatarCentavos(item.media)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>}
     {mediasMensais.length > 0 && <div className="space-y-3">
       <div><p className="text-sm font-bold">Detalhamento mensal</p><p className="mt-1 text-[10px] text-muted-foreground">Os indicadores abaixo estão separados por mês, dentro do período aplicado.</p></div>
       {mediasMensais.map((mensal) => {

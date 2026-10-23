@@ -1,43 +1,20 @@
-/**
- * CAIXA EMPRESA — substitua o componente original por este arquivo.
- * Mantenha-o ao lado de ./tipos e preserve os aliases @/ do projeto.
- * Dependências: React, lucide-react, sonner e os componentes shadcn/ui
- * Button, Badge, Checkbox, Dialog, Popover e Select já usados no original.
- *
- * Integração: usa useCaixaEmpresa({}) e as mesmas três funções de API do
- * original. O hook deve retornar TODOS os lançamentos da empresa autorizada,
- * sem paginação de servidor, para os totais locais serem completos.
- * Não substitui autenticação, autorização nem validações do backend.
- * Exclusão = CANCELADO, preservando histórico. Pagos/recebidos não são
- * cancelados por esta tela, conforme a regra do componente original.
- * Cancelados não participam das somas. Valores são inteiros em centavos.
- * A seleção abrange filtros atuais e persiste ao mudar de página;
- * alterar qualquer filtro limpa a seleção. Selecionar todos abrange todas
- * as páginas filtradas. O checkbox do cabeçalho seleciona só a página.
- * O lote usa requisições sequenciais, sem atomicidade: sucessos e falhas
- * são informados separadamente; falhas permanecem selecionadas.
- * Reembolso é enviado uma única vez por abertura de confirmação; o servidor
- * deve garantir idempotência entre sessões/usuários.
- */
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, FileText, Loader2, Pencil, Plus,
-  RefreshCw, Search, SlidersHorizontal, Trash2, Wallet, X,
+  RefreshCw, Search, SlidersHorizontal, Trash2, Wallet, X, Download, Clock3,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCaixaEmpresa } from "@/hooks/useCaixaEmpresa";
 import { alterarStatusLancamento, editarLancamento, gerarReembolso } from "@/lib/financeiro-share-api";
 import type { FluxoLancamento, Lancamento, StatusLancamento } from "./tipos";
-
+import "./caixa-empresa.css";
 type Documento = Lancamento["anexos"][number];
 type FluxoFiltro = FluxoLancamento | "TODOS";
 type StatusFiltro = StatusLancamento | "ATIVOS" | "TODOS";
@@ -45,12 +22,10 @@ type Ordem = "RECENTES" | "ANTIGOS" | "MAIOR" | "MENOR";
 type Confirmacao = { tipo: "EXCLUIR"; ids: string[] }
   | { tipo: "BAIXA" | "REEMBOLSO"; id: string };
 type Falha = { id: string; descricao: string; mensagem: string };
-
 const STATUS: StatusLancamento[] = ["EM_ABERTO", "PAGO", "RECEITA", "EM_ATRASO", "ESTORNO", "RECEBIDO", "SAIDA", "ENTRADA", "AGUARDANDO_REEMBOLSO", "REEMBOLSADO", "CANCELADO"];
 const FINALIZADOS = new Set<StatusLancamento>(["PAGO", "RECEBIDO", "CANCELADO"]);
-const INPUT = "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50";
+const INPUT = "cash-input";
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
 function formatarMoeda(centavos: number) { return moeda.format(centavos / 100); }
 function normalizar(texto: string) { return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 function formatarData(iso: string | null) {
@@ -93,75 +68,132 @@ function urlSegura(url: string) {
     return ["https:", "http:"].includes(parsed.protocol) ? parsed.href : null;
   } catch { return null; }
 }
-function StatusBadge({ status }: { status: StatusLancamento }) {
-  const classe = status === "CANCELADO" ? "border-border bg-muted text-muted-foreground"
-    : ["PAGO", "RECEBIDO"].includes(status) ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : ["ATRASADO", "EM_ATRASO"].includes(status) ? "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-    : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-  return <Badge variant="outline" className={`whitespace-nowrap text-[10px] ${classe}`}>{status.replace(/_/g, " ")}</Badge>;
+export type ContaCaixaEmpresa = {
+  id: string;
+  nome: string;
+  identificacao?: string;
+  saldoCentavos: number;
+};
+export type PosicaoCaixaEmpresa = {
+  saldoDisponivelCentavos: number;
+  saldoProjetadoCentavos?: number;
+  atualizadoEm?: string;
+  contas?: ContaCaixaEmpresa[];
+};
+export type DadosBancariosLancamento = {
+  contaId?: string;
+  contaNome?: string;
+  formaPagamento?: string;
+  centroCusto?: string;
+  conciliado?: boolean;
+};
+export type AbaCaixaEmpresaProps = {
+  onNovoLancamento?: () => void;
+  posicaoCaixa?: PosicaoCaixaEmpresa | null;
+  obterDadosBancarios?: (item: Lancamento) => DadosBancariosLancamento;
+  onAtualizarPosicao?: () => Promise<void>;
+};
+type EdicaoLote = { id: string; original: string; descricao: string };
+const STATUS_ROTULOS: Record<string, string> = {
+  EM_ABERTO: "Em aberto", PAGO: "Pago", RECEITA: "Receita", EM_ATRASO: "Em atraso",
+  ESTORNO: "Estorno", RECEBIDO: "Recebido", SAIDA: "Saída", ENTRADA: "Entrada",
+  AGUARDANDO_REEMBOLSO: "Aguardando reembolso", REEMBOLSADO: "Reembolsado", CANCELADO: "Cancelado",
+};
+function mesAtual() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+function podeSelecionar(item: Lancamento) { return item.fluxo === "SAIDA" && item.status !== "CANCELADO"; }
+function chaveConta(dados?: DadosBancariosLancamento) {
+  return dados?.contaId ? `id:${dados.contaId}` : dados?.contaNome ? `nome:${dados.contaNome}` : "SEM_CONTA";
+}
+function valorPosicao(valor?: number) { return typeof valor === "number" && Number.isSafeInteger(valor) ? formatarMoeda(valor) : "—"; }
+function atualizadoEm(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : `Atualizado em ${d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+}
+function resumirRealizados(itens: Lancamento[]) {
+  const realizados = itens.filter(item => item.status === "PAGO" || item.status === "RECEBIDO");
+  return { ...resumir(realizados), creditos: realizados.filter(item => item.fluxo === "ENTRADA" && valorValido(item)).length,
+    pagamentos: realizados.filter(item => item.fluxo === "SAIDA" && valorValido(item)).length };
+}
+function celulaCsv(valor: unknown) {
+  let texto = String(valor ?? "");
+  // Neutraliza fórmulas ao abrir descrições/documentos em planilhas.
+  if (/^[\s]*[=+@-]/.test(texto) || /^[\t\r\n]/.test(texto)) texto = `'${texto}`;
+  return `"${texto.replace(/"/g, '""')}"`;
+}
+function montarCsv(itens: Lancamento[], dados: Map<string, DadosBancariosLancamento>) {
+  const linhas = [["Data", "ID", "Documento", "Descrição", "Favorecido", "Categoria", "Conta", "Fluxo", "Valor (R$)", "Status"]];
+  for (const item of itens) linhas.push([formatarData(item.data), item.id, item.documento || "", item.descricao,
+    item.fornecedor || "", item.categoria || "", dados.get(item.id)?.contaNome || "", item.fluxo === "ENTRADA" ? "Entrada" : "Saída",
+    valorValido(item) ? (item.valorCentavos / 100).toFixed(2).replace(".", ",") : "Valor inválido", STATUS_ROTULOS[item.status] || item.status]);
+  return "\uFEFF" + linhas.map(linha => linha.map(celulaCsv).join(";")).join("\r\n");
+}
+function Indicador({ titulo, valor, detalhe, tom, icone: Icon }: {
+  titulo: string; valor: string; detalhe: string; tom?: string; icone: typeof Wallet;
+}) {
+  return <section className={`cash-kpi ${tom || ""}`}><div><span className="cash-kicker">{titulo}</span><Icon size={17} aria-hidden="true" /></div><strong>{valor}</strong><small>{detalhe}</small></section>;
 }
 
+function StatusBadge({ status }: { status: StatusLancamento }) {
+  const tom = ["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(status) ? "success" : status === "EM_ATRASO" ? "danger" : status === "CANCELADO" ? "neutral" : "warning";
+  return <span className={`cash-status cash-status-${tom}`}><i aria-hidden="true" />{STATUS_ROTULOS[status] || status}</span>;
+}
 function DocumentoPreview({ documento, onClose }: { documento: Documento; onClose: () => void }) {
   const url = urlSegura(documento.url);
-  const imagem = /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(documento.url) || documento.tipo?.startsWith("image/");
+  const imagem = /\.(png|jpe?g|gif|webp)(?:[?#].*)?$/i.test(documento.url) || documento.tipo?.startsWith("image/");
   return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-    <DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto">
+    <DialogContent className="cash-dialog max-h-[92dvh] max-w-5xl overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="break-all pr-6">{documento.nome}</DialogTitle>
         <DialogDescription>Documento vinculado ao lançamento.</DialogDescription>
       </DialogHeader>
       {!url ? <p role="alert" className="text-sm text-destructive">Endereço do documento inválido.</p>
         : <>
-          {imagem ? <img src={url} alt={documento.nome} className="mx-auto max-h-[65vh] max-w-full rounded-xl object-contain" />
-            : <iframe sandbox="" referrerPolicy="no-referrer" title={documento.nome} src={url} className="h-[65vh] w-full rounded-xl border border-border" />}
+          {imagem ? <img src={url} alt={documento.nome} className="mx-auto max-h-[65vh] max-w-full object-contain" />
+            : <iframe sandbox="" referrerPolicy="no-referrer" title={documento.nome} src={url} className="h-[65vh] w-full border border-border" />}
           <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary underline">Abrir documento em nova aba</a>
         </>}
     </DialogContent>
   </Dialog>;
 }
-
-function Detalhes({ item, ocupado, onDocumento, onEditar, onAcao }: {
-  item: Lancamento; ocupado: boolean; onDocumento: (documento: Documento) => void;
-  onEditar: () => void; onAcao: (acao: Confirmacao) => void;
+function Detalhes({ item, dados, ocupado, onDocumento, onEditar, onAcao }: {
+  item: Lancamento; dados?: DadosBancariosLancamento; ocupado: boolean;
+  onDocumento: (documento: Documento) => void; onEditar: () => void; onAcao: (acao: Confirmacao) => void;
 }) {
-  return <div className="border-b border-border bg-muted/20 p-5 sm:p-6">
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section aria-label="Documentos vinculados">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documentos vinculados</h3>
-        <div className="flex flex-wrap gap-2">
-          {item.anexos.length ? item.anexos.map((doc) => <Button key={doc.id} variant="outline" size="sm" onClick={() => onDocumento(doc)} className="max-w-full gap-2 rounded-lg">
-            <FileText size={14} className="shrink-0" /><span className="truncate">{doc.nome}</span>
-          </Button>) : <p className="text-sm text-muted-foreground">Nenhum documento vinculado.</p>}
-        </div>
-      </section>
-      <section aria-label="Detalhes do lançamento">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Informações do lançamento</h3>
-        <dl className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-3">
-          {[["Vencimento", formatarData(item.prazo)], ["Categoria", item.categoria], ["Caixa", item.caixa],
-            ["Pagador", item.pagoPor || "—"], ["Reembolsável", item.reembolsavel ? "Sim" : "Não"],
-            ["Criado em", formatarData(item.criadoEm)]].map(([titulo, valor]) => <div key={titulo}>
-            <dt className="text-muted-foreground">{titulo}</dt><dd className="mt-1 break-words font-medium">{valor}</dd>
-          </div>)}
-        </dl>
-        {item.observacoes && <p className="mt-4 whitespace-pre-wrap break-words rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">{item.observacoes}</p>}
-      </section>
-    </div>
-    <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+  return <div className="cash-entry-detail">
+    <section className="cash-detail-block"><h3>Anexos</h3><div className="cash-document-list">
+      {item.anexos.length ? item.anexos.map(doc => <button key={doc.id} type="button" onClick={() => onDocumento(doc)}><FileText size={15} aria-hidden="true" /><span>{doc.nome}</span></button>) : <p className="cash-muted">Nenhum anexo.</p>}
+    </div></section>
+    <section className="cash-detail-block"><h3>Dados do pagamento</h3><dl>
+      <div><dt>Forma</dt><dd>{dados?.formaPagamento || "—"}</dd></div>
+      <div><dt>Conta</dt><dd>{dados?.contaNome || "—"}</dd></div>
+      <div><dt>Favorecido</dt><dd>{item.fornecedor || "—"}</dd></div>
+      <div><dt>Pagador</dt><dd>{item.pagoPor || "—"}</dd></div>
+      <div><dt>Vencimento</dt><dd>{formatarData(item.prazo)}</dd></div>
+    </dl></section>
+    <section className="cash-detail-block"><h3>Conciliação</h3><dl>
+      <div><dt>Situação</dt><dd>{dados?.conciliado === true ? "Conciliado" : dados?.conciliado === false ? "Não conciliado" : "—"}</dd></div>
+      <div><dt>Status</dt><dd>{STATUS_ROTULOS[item.status] || item.status}</dd></div>
+      <div><dt>Competência</dt><dd>{rotuloMes(mesDoLancamento(item))}</dd></div>
+      <div><dt>Centro de custo</dt><dd>{dados?.centroCusto || "—"}</dd></div>
+      <div><dt>Reembolsável</dt><dd>{item.reembolsavel ? "Sim" : "Não"}</dd></div>
+    </dl></section>
+    {item.observacoes && <p className="cash-observations">{item.observacoes}</p>}
+    <div className="cash-entry-actions">
       {item.reembolsavel && item.cotistaId && item.status !== "CANCELADO" && <Button disabled={ocupado || !valorValido(item)} size="sm" variant="outline" onClick={() => onAcao({ tipo: "REEMBOLSO", id: item.id })}>Gerar reembolso</Button>}
-      <Button disabled={ocupado} size="sm" variant="outline" onClick={onEditar} className="gap-2"><Pencil size={14} />Editar descrição</Button>
-      {!FINALIZADOS.has(item.status) && <Button disabled={ocupado || !valorValido(item)} size="sm" variant="outline" onClick={() => onAcao({ tipo: "BAIXA", id: item.id })} className="gap-2"><CheckCircle2 size={14} />Dar baixa</Button>}
-      {podeExcluir(item) && <Button disabled={ocupado} size="sm" variant="ghost" onClick={() => onAcao({ tipo: "EXCLUIR", ids: [item.id] })} className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2 size={14} />Excluir</Button>}
+      <Button disabled={ocupado} size="sm" variant="outline" onClick={onEditar}><Pencil size={14} />Editar descrição</Button>
+      {!FINALIZADOS.has(item.status) && <Button disabled={ocupado || !valorValido(item)} size="sm" variant="outline" onClick={() => onAcao({ tipo: "BAIXA", id: item.id })}><CheckCircle2 size={14} />Dar baixa</Button>}
+      {podeExcluir(item) && <Button disabled={ocupado} size="sm" variant="outline" className="cash-danger" onClick={() => onAcao({ tipo: "EXCLUIR", ids: [item.id] })}><Trash2 size={14} />Excluir</Button>}
     </div>
   </div>;
 }
-
-export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () => void }) {
+export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBancarios, onAtualizarPosicao }: AbaCaixaEmpresaProps) {
   // Filtros locais mantêm os contadores e a seleção consistentes entre as abas.
   const { lancamentos, carregando, erro, recarregar } = useCaixaEmpresa({});
   const [fluxo, setFluxo] = useState<FluxoFiltro>("TODOS");
   const [status, setStatus] = useState<StatusFiltro>("ATIVOS");
   const [busca, setBusca] = useState("");
-  const [meses, setMeses] = useState<string[]>([]);
+  const [meses, setMeses] = useState<string[]>(() => [mesAtual()]);
   const [ordem, setOrdem] = useState<Ordem>("RECENTES");
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(20);
@@ -173,45 +205,58 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
   const [ocupado, setOcupado] = useState(false);
   const [progresso, setProgresso] = useState({ atual: 0, total: 0 });
   const [falhas, setFalhas] = useState<Falha[]>([]);
+  const [contaFiltro, setContaFiltro] = useState("TODAS");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [edicoesLote, setEdicoesLote] = useState<EdicaoLote[] | null>(null);
   // Guarda síncrona: bloqueia duplo clique antes do próximo render.
   const trava = useRef(false);
   const bloqueado = ocupado || carregando || Boolean(erro);
-
-  const mesesDisponiveis = useMemo(() => Array.from(new Set(lancamentos.map(mesDoLancamento))).sort().reverse(), [lancamentos]);
+  const mesesDisponiveis = useMemo(() => [...new Set([mesAtual(), ...lancamentos.map(mesDoLancamento)])].sort().reverse(), [lancamentos]);
+  const dadosPorLancamento = useMemo(() => new Map<string, DadosBancariosLancamento>(lancamentos.map(item => {
+    const dados = obterDadosBancarios?.(item) || {};
+    const conta = posicaoCaixa?.contas?.find(conta => conta.id === dados.contaId);
+    return [item.id, { ...dados, contaNome: dados.contaNome || (conta ? [conta.nome, conta.identificacao].filter(Boolean).join(" · ") : undefined) }];
+  })), [lancamentos, obterDadosBancarios, posicaoCaixa?.contas]);
+  const contasFiltro = useMemo(() => {
+    const contas = new Map<string, string>();
+    for (const dados of dadosPorLancamento.values()) contas.set(chaveConta(dados), dados.contaNome || "Sem conta informada");
+    return [...contas].map(([id, nome]) => ({ id, nome })).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [dadosPorLancamento]);
+  const periodoConta = useMemo(() => lancamentos.filter(item =>
+    (!meses.length || meses.includes(mesDoLancamento(item))) &&
+    (contaFiltro === "TODAS" || chaveConta(dadosPorLancamento.get(item.id)) === contaFiltro)
+  ), [lancamentos, meses, contaFiltro, dadosPorLancamento]);
+  // Indicadores realizados seguem período e conta; busca/status/fluxo filtram apenas o extrato.
+  const indicadores = useMemo(() => resumirRealizados(periodoConta), [periodoConta]);
   const baseFiltrada = useMemo(() => {
     const termo = normalizar(busca.trim());
-    return lancamentos.filter((item) =>
+    return periodoConta.filter(item =>
       (status === "TODOS" || (status === "ATIVOS" ? item.status !== "CANCELADO" : item.status === status)) &&
-      (!meses.length || meses.includes(mesDoLancamento(item))) &&
-      (!termo || normalizar([item.descricao, item.documento, item.fornecedor, item.categoria, item.pagoPor, item.observacoes].filter(Boolean).join(" ")).includes(termo)),
+      (!termo || normalizar([item.id, item.descricao, item.documento, item.fornecedor, item.categoria, item.pagoPor, item.observacoes, dadosPorLancamento.get(item.id)?.contaNome].filter(Boolean).join(" ")).includes(termo))
     );
-  }, [lancamentos, busca, meses, status]);
+  }, [periodoConta, busca, status, dadosPorLancamento]);
   const filtrados = useMemo(() => baseFiltrada.filter((item) => fluxo === "TODOS" || item.fluxo === fluxo).sort((a, b) => {
     const porData = (b.data || "").localeCompare(a.data || "");
     if (ordem === "MAIOR") return b.valorCentavos - a.valorCentavos || porData || a.id.localeCompare(b.id);
     if (ordem === "MENOR") return a.valorCentavos - b.valorCentavos || porData || a.id.localeCompare(b.id);
     return (ordem === "ANTIGOS" ? -porData : porData) || a.id.localeCompare(b.id);
   }), [baseFiltrada, fluxo, ordem]);
-  const idsFiltrados = useMemo(() => new Set(filtrados.map((item) => item.id)), [filtrados]);
-  const itensSelecionados = useMemo(() => filtrados.filter((item) => selecionados.has(item.id)), [filtrados, selecionados]);
+  const idsFiltrados = useMemo(() => new Set(filtrados.filter(podeSelecionar).map((item) => item.id)), [filtrados]);
+  const itensSelecionados = useMemo(() => filtrados.filter((item) => podeSelecionar(item) && selecionados.has(item.id)), [filtrados, selecionados]);
   const resumo = useMemo(() => resumir(filtrados), [filtrados]);
   const resumoSelecao = useMemo(() => resumir(itensSelecionados), [itensSelecionados]);
   const excluiveis = itensSelecionados.filter(podeExcluir);
-  const invalidos = filtrados.filter((item) => !valorValido(item)).length;
+  const invalidos = periodoConta.filter(item => item.status !== "CANCELADO" && !valorValido(item)).length;
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const paginaAtual = Math.min(pagina, paginas);
   const itensPagina = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
-  const todosPagina = itensPagina.length > 0 && itensPagina.every((item) => selecionados.has(item.id));
-  const algunsPagina = itensPagina.some((item) => selecionados.has(item.id));
+  const despesasFiltradas = filtrados.filter(podeSelecionar);
+  const despesasPagina = itensPagina.filter(podeSelecionar);
+  const todosPagina = despesasPagina.length > 0 && despesasPagina.every(item => selecionados.has(item.id));
+  const algunsPagina = despesasPagina.some(item => selecionados.has(item.id));
   const alvo = confirmacao && confirmacao.tipo !== "EXCLUIR" ? lancamentos.find((item) => item.id === confirmacao.id) : undefined;
   const alvosExclusao = confirmacao?.tipo === "EXCLUIR" ? lancamentos.filter((item) => confirmacao.ids.includes(item.id) && podeExcluir(item)) : [];
   const resumoExclusao = resumir(alvosExclusao);
-  const contagens = {
-    TODOS: baseFiltrada.length,
-    ENTRADA: baseFiltrada.filter((item) => item.fluxo === "ENTRADA").length,
-    SAIDA: baseFiltrada.filter((item) => item.fluxo === "SAIDA").length,
-  };
-
   useEffect(() => {
     // Remove IDs que desapareceram após recarregar ou cancelar.
     setSelecionados((anteriores) => {
@@ -219,17 +264,16 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
       return proximos.size === anteriores.size ? anteriores : proximos;
     });
   }, [idsFiltrados]);
-
   function prepararFiltro() {
     setPagina(1); setSelecionados(new Set()); setExpandido(null);
   }
   function limparFiltros() {
-    prepararFiltro(); setFluxo("TODOS"); setStatus("ATIVOS"); setBusca(""); setMeses([]); setOrdem("RECENTES");
+    prepararFiltro(); setFluxo("TODOS"); setStatus("ATIVOS"); setBusca(""); setMeses([]); setOrdem("RECENTES"); setContaFiltro("TODAS");
   }
   function marcar(ids: string[], checked: boolean) {
     setSelecionados((anteriores) => {
       const proximos = new Set(anteriores);
-      ids.forEach((id) => { if (checked) proximos.add(id); else proximos.delete(id); });
+      ids.forEach((id) => { if (checked && idsFiltrados.has(id)) proximos.add(id); else proximos.delete(id); });
       return proximos;
     });
   }
@@ -239,12 +283,12 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
   }
   function terminar() { trava.current = false; setOcupado(false); }
   async function atualizarAposGravacao() {
-    try { await recarregar(); }
+    try { await recarregar(); await onAtualizarPosicao?.(); }
     catch { toast.warning("A operação foi salva, mas a lista não atualizou. Clique em Atualizar."); }
   }
   async function atualizar() {
     if (!iniciar()) return;
-    try { await recarregar(); } catch (error) { toast.error(mensagemErro(error)); } finally { terminar(); }
+    try { await recarregar(); await onAtualizarPosicao?.(); } catch (error) { toast.error(mensagemErro(error)); } finally { terminar(); }
   }
   async function salvarEdicao() {
     if (!edicao || !edicao.descricao.trim() || edicao.descricao.trim().length > 240 || bloqueado || !iniciar()) return;
@@ -295,141 +339,148 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
     } catch (error) { toast.error(mensagemErro(error)); }
     finally { setProgresso({ atual: 0, total: 0 }); terminar(); }
   }
-
-  return <div className="space-y-5 text-foreground" aria-busy={ocupado || carregando}>
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Financeiro / Gestão interna</p>
-        <h2 className="flex items-center gap-3 text-2xl font-semibold tracking-tight"><span className="rounded-xl border border-primary/15 bg-primary/10 p-2.5 text-primary"><Wallet size={22} /></span>Caixa Empresa</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Controle as movimentações, acompanhe valores e organize seu caixa.</p>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <Button variant="outline" disabled={ocupado || carregando} onClick={() => void atualizar()} className="gap-2 rounded-xl"><RefreshCw size={15} className={ocupado || carregando ? "animate-spin" : ""} />Atualizar</Button>
-        {onNovoLancamento && <Button disabled={ocupado} onClick={onNovoLancamento} className="gap-2 rounded-xl"><Plus size={16} />Novo lançamento</Button>}
+  function abrirEdicaoLote() {
+    if (bloqueado) return;
+    setEdicoesLote(itensSelecionados.map(item => ({ id: item.id, original: item.descricao, descricao: item.descricao })));
+  }
+  async function salvarLote() {
+    const alteradas = (edicoesLote || []).filter(item => item.descricao.trim() !== item.original);
+    if (!alteradas.length || alteradas.some(item => !item.descricao.trim() || item.descricao.trim().length > 240) || bloqueado || !iniciar()) return;
+    const erros: Falha[] = [], concluidos = new Set<string>();
+    setFalhas([]); setProgresso({ atual: 0, total: alteradas.length });
+    try {
+      for (const [indice, edicao] of alteradas.entries()) {
+        const atual = lancamentos.find(item => item.id === edicao.id);
+        if (!atual || !podeSelecionar(atual)) {
+          erros.push({ id: edicao.id, descricao: edicao.original, mensagem: "Despesa indisponível. Atualize a lista." });
+        } else if (atual.descricao !== edicao.original) {
+          erros.push({ id: edicao.id, descricao: edicao.original, mensagem: "Descrição alterada. Reabra a edição." });
+        } else {
+          try { await editarLancamento(edicao.id, { descricao: edicao.descricao.trim() }); concluidos.add(edicao.id); }
+          catch (error) { erros.push({ id: edicao.id, descricao: edicao.original, mensagem: mensagemErro(error) }); }
+        }
+        setProgresso({ atual: indice + 1, total: alteradas.length });
+      }
+      setSelecionados(anteriores => new Set([...anteriores].filter(id => !concluidos.has(id))));
+      setFalhas(erros); setEdicoesLote(null);
+      if (concluidos.size) toast.success(`${concluidos.size} descrição(ões) atualizada(s).`);
+      if (erros.length) toast.error(`${erros.length} alteração(ões) não concluída(s).`);
+      await atualizarAposGravacao();
+    } finally { setProgresso({ atual: 0, total: 0 }); terminar(); }
+  }
+  function exportarExtrato() {
+    if (bloqueado || !filtrados.length) return;
+    const url = URL.createObjectURL(new Blob([montarCsv(filtrados, dadosPorLancamento)], { type: "text/csv;charset=utf-8;" }));
+    const link = window.document.createElement("a");
+    link.href = url; link.download = `extrato-caixa-${new Date().toISOString().slice(0, 10)}.csv`;
+    window.document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const indicador = (valor: number) => carregando || erro ? "—" : exibirTotal(valor, indicadores.valido);
+  const saldoDisponivel = valorPosicao(posicaoCaixa?.saldoDisponivelCentavos);
+  const mudancasLote = (edicoesLote || []).filter(item => item.descricao.trim() !== item.original);
+  return <div className="company-cash" aria-busy={ocupado || carregando}>
+    <header className="cash-header">
+      <div className="cash-page-title"><span className="cash-title-icon"><Wallet size={21} aria-hidden="true" /></span><h2>Caixa da empresa</h2></div>
+      <div className="cash-header-actions">
+        <Popover><PopoverTrigger asChild><Button variant="outline" disabled={ocupado} className="cash-period" aria-label="Selecionar período"><CalendarDays size={15} /><span>{meses.length === 1 ? rotuloMes(meses[0]) : meses.length ? `${meses.length} meses` : "Todos os períodos"}</span><ChevronDown size={14} /></Button></PopoverTrigger>
+          <PopoverContent align="end" className="cash-popover">
+            <div className="cash-popover-heading"><strong>Período</strong><Button variant="ghost" size="sm" onClick={() => { prepararFiltro(); setMeses([]); }} disabled={ocupado}>Todos</Button></div>
+            <div className="cash-month-list">{mesesDisponiveis.map(mes => <label key={mes}><Checkbox disabled={ocupado} checked={meses.includes(mes)} onCheckedChange={checked => { prepararFiltro(); setMeses(atuais => checked === true ? [...new Set([...atuais, mes])] : atuais.filter(m => m !== mes)); }} /><span>{rotuloMes(mes)}</span></label>)}</div>
+          </PopoverContent>
+        </Popover>
+        <Button variant="outline" disabled={ocupado || carregando} onClick={() => void atualizar()} aria-label="Atualizar movimentações"><RefreshCw size={15} className={ocupado || carregando ? "animate-spin" : ""} /><span>Atualizar</span></Button>
+        <Button variant="outline" disabled={bloqueado || !filtrados.length} onClick={exportarExtrato}><Download size={15} />Exportar extrato</Button>
+        {onNovoLancamento && <Button className="cash-primary" disabled={ocupado} onClick={onNovoLancamento}><Plus size={16} />Nova movimentação</Button>}
       </div>
     </header>
 
-    <p className="text-xs text-muted-foreground">Totais dos filtros atuais. Cancelados não entram nas somas. O saldo realizado não inclui saldo inicial. A seleção permanece entre páginas e é limpa ao alterar os filtros.</p>
-
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Movimentações">
-      <div className="space-y-4 border-b border-border p-4 sm:p-5">
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <div role="group" aria-label="Filtrar fluxo" className="inline-flex w-full gap-1 rounded-xl bg-muted/60 p-1 sm:w-auto">
-            {([['TODOS', 'Todos'], ['ENTRADA', 'Entradas'], ['SAIDA', 'Saídas']] as const).map(([valor, titulo]) => <button
-              key={valor} type="button" aria-pressed={fluxo === valor} disabled={ocupado}
-              onClick={() => { prepararFiltro(); setFluxo(valor); }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 sm:flex-none ${fluxo === valor ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              {titulo}<span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${fluxo === valor ? "bg-primary/10 text-primary" : "bg-background/60"}`}>{contagens[valor]}</span>
-            </button>)}
-          </div>
-          <div className="relative w-full lg:max-w-sm"><Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-3 text-muted-foreground" />
-            <input aria-label="Buscar lançamentos" placeholder="Buscar descrição, fornecedor, documento…" value={busca} disabled={ocupado} onChange={(e) => { prepararFiltro(); setBusca(e.target.value); }} className={`${INPUT} pl-9 pr-9`} />
-            {busca && <button type="button" disabled={ocupado} onClick={() => { prepararFiltro(); setBusca(""); }} aria-label="Limpar busca" className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground"><X size={16} /></button>}
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-          <div className="space-y-1.5"><span className="text-xs text-muted-foreground">Mês e ano</span>
-            <Popover><PopoverTrigger asChild><Button variant="outline" disabled={ocupado} className="w-full justify-between rounded-xl">
-              <span className="flex items-center gap-2"><CalendarDays size={15} />{meses.length ? `${meses.length} mês(es) selecionado(s)` : "Todos os meses"}</span><ChevronDown size={14} />
-            </Button></PopoverTrigger><PopoverContent align="start" className="w-72 rounded-xl p-3">
-              <div className="mb-2 flex items-center justify-between"><span className="text-sm font-semibold">Período</span><Button size="sm" variant="ghost" disabled={ocupado || !meses.length} onClick={() => { prepararFiltro(); setMeses([]); }}>Limpar</Button></div>
-              <div className="max-h-64 space-y-1 overflow-y-auto">
-                {mesesDisponiveis.length ? mesesDisponiveis.map((mes) => <label key={mes} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 text-sm capitalize hover:bg-muted">
-                  <Checkbox disabled={ocupado} checked={meses.includes(mes)} onCheckedChange={(marcado) => { prepararFiltro(); setMeses((atuais) => marcado === true ? [...new Set([...atuais, mes])] : atuais.filter((item) => item !== mes)); }} />{rotuloMes(mes)}
-                </label>) : <p className="p-2 text-sm text-muted-foreground">Nenhum período disponível.</p>}
-              </div>
-            </PopoverContent></Popover>
-          </div>
-          <div className="space-y-1.5"><span className="text-xs text-muted-foreground">Status</span>
-            <Select value={status} disabled={ocupado} onValueChange={(valor) => { prepararFiltro(); setStatus(valor as StatusFiltro); }}>
-              <SelectTrigger aria-label="Filtrar status" className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="ATIVOS">Ativos (sem cancelados)</SelectItem><SelectItem value="TODOS">Todos os status</SelectItem>{STATUS.map((item) => <SelectItem key={item} value={item}>{item.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5"><span className="text-xs text-muted-foreground">Ordenação</span>
-            <Select value={ordem} disabled={ocupado} onValueChange={(valor) => { setPagina(1); setOrdem(valor as Ordem); }}>
-              <SelectTrigger aria-label="Ordenar lançamentos" className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="RECENTES">Mais recentes</SelectItem><SelectItem value="ANTIGOS">Mais antigos</SelectItem><SelectItem value="MAIOR">Maior valor</SelectItem><SelectItem value="MENOR">Menor valor</SelectItem></SelectContent>
-            </Select>
-          </div>
-          <Button variant="ghost" disabled={ocupado} onClick={limparFiltros} className="gap-2 self-end rounded-xl"><SlidersHorizontal size={15} />Limpar filtros</Button>
-        </div>
-      </div>
-
-      {itensSelecionados.length > 0 && <div role="region" aria-label="Resumo da seleção" className="space-y-3 border-b border-primary/20 bg-primary/5 p-4 sm:px-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p aria-live="polite" className="text-sm font-semibold">{itensSelecionados.length} lançamento(s) selecionado(s)</p>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" disabled={bloqueado || itensSelecionados.length === filtrados.length} onClick={() => marcar(filtrados.map((item) => item.id), true)}>Selecionar todos os {filtrados.length} filtrados</Button>
-            <Button variant="ghost" size="sm" disabled={ocupado} onClick={() => setSelecionados(new Set())}>Limpar seleção</Button>
-            <Button variant="destructive" size="sm" disabled={bloqueado || !excluiveis.length} onClick={() => setConfirmacao({ tipo: "EXCLUIR", ids: excluiveis.map((item) => item.id) })} className="gap-2"><Trash2 size={14} />Excluir ({excluiveis.length})</Button>
-          </div>
-        </div>
-        <dl aria-live="polite" className="grid grid-cols-2 gap-3 text-xs xl:grid-cols-4">
-          {[["Entradas selecionadas", resumoSelecao.entradas], ["Saídas selecionadas", resumoSelecao.saidas], ["Soma dos valores", resumoSelecao.soma], ["Saldo da seleção", resumoSelecao.saldo]].map(([titulo, valor]) => <div key={titulo} className="rounded-xl border border-border/60 bg-background/70 p-3">
-            <dt className="text-muted-foreground">{titulo}</dt><dd className="mt-1 break-words text-base font-semibold tabular-nums">{exibirTotal(Number(valor), resumoSelecao.valido)}</dd>
-          </div>)}
-        </dl>
-        <p className="text-xs text-muted-foreground">Soma = entradas + saídas. Saldo = entradas − saídas. Cancelados não são somados. Pagos, recebidos e cancelados não podem ser excluídos nesta tela.</p>
-      </div>}
-
-      {erro && <div role="alert" className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"><span>{String(erro)}</span><Button variant="outline" size="sm" disabled={ocupado || carregando} onClick={() => void atualizar()}>Tentar novamente</Button></div>}
-      {!erro && invalidos > 0 && <p role="alert" className="m-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">{invalidos} lançamento(s) com valor inválido não foram somados. Corrija os dados de origem.</p>}
-      {!resumo.valido && <p role="alert" className="m-4 text-sm text-destructive">O total excede o limite de precisão suportado. Reduza o período.</p>}
-      {falhas.length > 0 && <div role="alert" className="m-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <div className="flex items-center justify-between gap-3"><p className="font-semibold text-destructive">Exclusão não concluída para {falhas.length} lançamento(s)</p><Button size="sm" variant="ghost" disabled={ocupado} onClick={() => setFalhas([])} aria-label="Fechar relatório de falhas"><X size={14} /></Button></div>
-        <ul className="mt-2 max-h-48 list-inside list-disc space-y-1 overflow-auto">{falhas.map((falha) => <li key={falha.id} className="break-words">{falha.descricao}: {falha.mensagem}</li>)}</ul>
-        <p className="mt-2 text-xs text-muted-foreground">As falhas continuam selecionadas quando estão nos filtros atuais. Atualize a lista antes de tentar novamente.</p>
-      </div>}
-
-      {carregando ? <div role="status" className="flex items-center justify-center gap-2 p-16 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Carregando movimentações…</div>
-        : !erro && <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-sm">
-            <caption className="sr-only">Movimentações filtradas do caixa. Use as caixas de seleção para somar valores ou excluir em lote.</caption>
-            <thead className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr>
-              <th scope="col" className="w-12 px-4 py-3"><Checkbox aria-label="Selecionar lançamentos desta página" disabled={bloqueado || !itensPagina.length} checked={todosPagina ? true : algunsPagina ? "indeterminate" : false} onCheckedChange={(checked) => marcar(itensPagina.map((item) => item.id), checked === true)} /></th>
-              {["Documento / emissão", "Fluxo", "Descrição", "Fornecedor", "Valor", "Status", "Detalhes"].map((titulo) => <th key={titulo} scope="col" className={`px-4 py-3 font-semibold ${titulo === "Valor" || titulo === "Detalhes" ? "text-right" : ""}`}>{titulo}</th>)}
-            </tr></thead>
-            <tbody>
-              {!itensPagina.length ? <tr><td colSpan={8} className="px-6 py-16 text-center"><div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted"><Search size={21} className="text-muted-foreground" /></div><p className="font-semibold">Nenhum lançamento encontrado</p><p className="mt-1 text-sm text-muted-foreground">Ajuste os filtros ou cadastre uma nova movimentação.</p><Button variant="ghost" onClick={limparFiltros} className="mt-3" disabled={ocupado}>Limpar filtros</Button></td></tr>
-                : itensPagina.map((item, indice) => {
-                  const aberto = expandido === item.id;
-                  const marcado = selecionados.has(item.id);
-                  const entrada = item.fluxo === "ENTRADA";
-                  const mes = mesDoLancamento(item);
-                  const grupoMes = (ordem === "RECENTES" || ordem === "ANTIGOS") && (indice === 0 || mesDoLancamento(itensPagina[indice - 1]) !== mes);
-                  return <Fragment key={item.id}>
-                    {grupoMes && <tr className="border-b border-border/60 bg-muted/20"><th scope="rowgroup" colSpan={8} className="px-4 py-2 text-[11px] font-semibold capitalize tracking-wide text-muted-foreground">{rotuloMes(mes)}</th></tr>}
-                    <tr className={`border-b border-border/60 transition-colors hover:bg-muted/30 ${marcado ? "bg-primary/5" : ""} ${item.status === "CANCELADO" ? "text-muted-foreground" : ""}`}>
-                      <td className="px-4 py-4 align-top"><Checkbox aria-label={`Selecionar ${item.descricao}`} disabled={bloqueado} checked={marcado} onCheckedChange={(checked) => marcar([item.id], checked === true)} /></td>
-                      <td className="px-4 py-4 align-top"><p className="font-mono text-xs font-semibold">{item.documento || "—"}</p><p className="mt-1 text-xs text-muted-foreground">{formatarData(item.data)}</p></td>
-                      <td className="px-4 py-4 align-top"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${entrada ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}>{entrada ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}{entrada ? "Entrada" : "Saída"}</span></td>
-                      <td className="min-w-[220px] max-w-[340px] px-4 py-4 align-top"><p className={`break-words font-medium ${item.status === "CANCELADO" ? "line-through" : ""}`}>{item.descricao}</p><p className="mt-1 text-xs text-muted-foreground">{item.categoria || "Sem categoria"}</p></td>
-                      <td className="max-w-[200px] break-words px-4 py-4 align-top text-xs text-muted-foreground">{item.fornecedor || "—"}</td>
-                      <td className={`whitespace-nowrap px-4 py-4 text-right align-top font-semibold tabular-nums ${item.status === "CANCELADO" ? "line-through text-muted-foreground" : entrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{valorValido(item) ? `${entrada ? "+" : "−"}${formatarMoeda(item.valorCentavos)}` : "Valor inválido"}</td>
-                      <td className="px-4 py-4 align-top"><StatusBadge status={item.status} /></td>
-                      <td className="px-4 py-3 text-right align-top"><Button variant="ghost" size="sm" aria-label={`${aberto ? "Fechar" : "Abrir"} detalhes de ${item.descricao}`} aria-expanded={aberto} onClick={() => setExpandido(aberto ? null : item.id)} className="gap-1.5">{aberto ? "Fechar" : "Ações"}{aberto ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</Button></td>
-                    </tr>
-                    {aberto && <tr><td colSpan={8} className="p-0"><Detalhes item={item} ocupado={bloqueado} onDocumento={setDocumento} onEditar={() => setEdicao({ id: item.id, descricao: item.descricao })} onAcao={setConfirmacao} /></td></tr>}
-                  </Fragment>;
-                })}
-            </tbody>
-          </table>
-        </div>}
-      <footer className="flex flex-col justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
-        <span>{filtrados.length ? `${(paginaAtual - 1) * porPagina + 1}–${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length} lançamentos` : "0 lançamentos"}</span>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={String(porPagina)} disabled={ocupado} onValueChange={(valor) => { setPagina(1); setPorPagina(Number(valor)); }}><SelectTrigger aria-label="Lançamentos por página" className="h-8 w-28 rounded-lg text-xs"><SelectValue /></SelectTrigger><SelectContent>{[10, 20, 50, 100].map((n) => <SelectItem key={n} value={String(n)}>{n} por página</SelectItem>)}</SelectContent></Select>
-          <span>Página {paginaAtual} de {paginas}</span>
-          <Button variant="outline" size="icon" className="size-8 rounded-lg" aria-label="Página anterior" disabled={ocupado || paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}><ChevronLeft size={15} /></Button>
-          <Button variant="outline" size="icon" className="size-8 rounded-lg" aria-label="Próxima página" disabled={ocupado || paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={15} /></Button>
-        </div>
-      </footer>
+    <section className="cash-balance-strip" aria-label="Posição de caixa">
+      <div className="cash-balance-main"><span className="cash-balance-icon"><Wallet size={23} aria-hidden="true" /></span><div>
+        <span className="cash-kicker">Saldo disponível consolidado</span><strong>{saldoDisponivel}</strong>
+        <small>{atualizadoEm(posicaoCaixa?.atualizadoEm) || (saldoDisponivel === "—" ? "Saldo não informado" : "Posição bancária")}</small>
+      </div></div>
+      {!!posicaoCaixa?.contas?.length && <div className="cash-accounts">{posicaoCaixa.contas.map(conta => <div key={conta.id}><span>{conta.nome}</span><b>{conta.identificacao || "—"}</b><small>{valorPosicao(conta.saldoCentavos)}</small></div>)}</div>}
     </section>
 
+    <section className="cash-kpi-grid" aria-label="Indicadores do período">
+      <Indicador icone={ArrowDownLeft} titulo="Entradas no período" valor={indicador(indicadores.entradas)} detalhe={carregando || erro ? "—" : `${indicadores.creditos} recebimento(s)`} tom="cash-kpi-income" />
+      <Indicador icone={ArrowUpRight} titulo="Saídas no período" valor={indicador(indicadores.saidas)} detalhe={carregando || erro ? "—" : `${indicadores.pagamentos} pagamento(s)`} tom="cash-kpi-expense" />
+      <Indicador icone={CheckCircle2} titulo="Resultado realizado" valor={indicador(indicadores.saldo)} detalhe="Recebimentos − pagamentos" tom={indicadores.saldo < 0 ? "cash-kpi-expense" : "cash-kpi-income"} />
+      <Indicador icone={Clock3} titulo="Saldo projetado consolidado" valor={valorPosicao(posicaoCaixa?.saldoProjetadoCentavos)} detalhe="Após compromissos pendentes" />
+    </section>
+
+    <section className="cash-ledger-panel" aria-label="Extrato consolidado">
+      <div className="cash-toolbar">
+        <div className="cash-ledger-title"><div><span className="cash-kicker">Movimentação financeira</span><h3>Extrato consolidado</h3></div><span className="cash-count">{carregando || erro ? "—" : `${filtrados.length} movimentações`}</span></div>
+        <div className="cash-filters">
+          <label className="cash-search"><Search size={15} aria-hidden="true" /><input aria-label="Buscar movimentações" type="search" placeholder="Buscar descrição…" value={busca} disabled={ocupado} onChange={e => { prepararFiltro(); setBusca(e.target.value); }} /></label>
+          <select aria-label="Fluxo da movimentação" value={fluxo} disabled={ocupado} onChange={e => { prepararFiltro(); setFluxo(e.target.value as FluxoFiltro); }}><option value="TODOS">Todos os fluxos</option><option value="ENTRADA">Entrada</option><option value="SAIDA">Saída</option></select>
+          <select aria-label="Conta bancária" value={contaFiltro} disabled={ocupado} onChange={e => { prepararFiltro(); setContaFiltro(e.target.value); }}><option value="TODAS">Todas as contas</option>{contasFiltro.map(conta => <option key={conta.id} value={conta.id}>{conta.nome}</option>)}</select>
+          <Button variant="outline" aria-expanded={filtrosAbertos} aria-controls="cash-extra-filters" disabled={ocupado} onClick={() => setFiltrosAbertos(v => !v)}><SlidersHorizontal size={15} />Filtros{status !== "ATIVOS" && <span className="cash-filter-dot" />}</Button>
+        </div>
+      </div>
+      {filtrosAbertos && <div id="cash-extra-filters" className="cash-extra-filters">
+        <label>Status<select value={status} disabled={ocupado} onChange={e => { prepararFiltro(); setStatus(e.target.value as StatusFiltro); }}><option value="ATIVOS">Ativos</option><option value="TODOS">Todos os status</option>{STATUS.map(s => <option key={s} value={s}>{STATUS_ROTULOS[s] || s}</option>)}</select></label>
+        <label>Ordenação<select value={ordem} disabled={ocupado} onChange={e => { setPagina(1); setExpandido(null); setOrdem(e.target.value as Ordem); }}><option value="RECENTES">Mais recentes</option><option value="ANTIGOS">Mais antigos</option><option value="MAIOR">Maior valor</option><option value="MENOR">Menor valor</option></select></label>
+        <Button variant="ghost" disabled={ocupado} onClick={limparFiltros}><X size={14} />Limpar filtros</Button>
+      </div>}
+      {itensSelecionados.length > 0 && <div className="cash-selection-bar" role="region" aria-label="Despesas selecionadas">
+        <span aria-live="polite"><b>{itensSelecionados.length}</b> {itensSelecionados.length === 1 ? "despesa selecionada" : "despesas selecionadas"}<strong>{exibirTotal(resumoSelecao.saidas, resumoSelecao.valido)}</strong></span>
+        <div><Button size="sm" variant="outline" disabled={bloqueado} onClick={abrirEdicaoLote}><Pencil size={14} />Editar em lote</Button><Button size="sm" variant="outline" className="cash-danger" disabled={bloqueado || !excluiveis.length} onClick={() => setConfirmacao({ tipo: "EXCLUIR", ids: excluiveis.map(item => item.id) })}><Trash2 size={14} />Excluir ({excluiveis.length})</Button>
+          {despesasFiltradas.length > itensSelecionados.length && <button type="button" disabled={bloqueado} onClick={() => marcar(despesasFiltradas.map(item => item.id), true)}>Selecionar {despesasFiltradas.length} despesas</button>}
+          <button type="button" disabled={ocupado} onClick={() => setSelecionados(new Set())}>Limpar seleção</button>
+        </div>
+      </div>}
+
+      {erro && <div role="alert" className="cash-message cash-message-error"><span>Não foi possível carregar as movimentações.</span><Button variant="outline" size="sm" disabled={ocupado || carregando} onClick={() => void atualizar()}>Tentar novamente</Button></div>}
+      {!erro && invalidos > 0 && <p role="alert" className="cash-message">{invalidos} lançamento(s) com valor inválido, fora dos totais.</p>}
+      {(!resumo.valido || !indicadores.valido) && <p role="alert" className="cash-message cash-message-error">Total fora do limite de precisão. Reduza o período.</p>}
+      {falhas.length > 0 && <div role="alert" className="cash-message cash-message-error"><div><strong>{falhas.length} operação(ões) não concluída(s)</strong><ul>{falhas.map(falha => <li key={falha.id}>{falha.descricao}: {falha.mensagem}</li>)}</ul></div><button type="button" disabled={ocupado} onClick={() => setFalhas([])} aria-label="Fechar relatório de falhas"><X size={16} /></button></div>}
+
+      {carregando ? <div role="status" className="cash-empty"><Loader2 size={20} className="animate-spin" />Carregando movimentações…</div> : !erro && <div className="cash-table-scroll" role="region" aria-label="Movimentações do caixa" tabIndex={0}>
+        <table className="cash-table"><caption className="sr-only">Extrato consolidado. Totais de todos os registros filtrados, excluindo cancelados.</caption>
+          <colgroup><col style={{ width: 42 }} /><col style={{ width: 122 }} /><col /><col style={{ width: 170 }} /><col style={{ width: 150 }} /><col style={{ width: 160 }} /><col style={{ width: 108 }} /><col style={{ width: 172 }} /><col style={{ width: 160 }} /><col style={{ width: 52 }} /></colgroup>
+          <thead><tr>
+            <th scope="col" className="cash-selection-cell"><Checkbox aria-label="Selecionar despesas desta página" disabled={bloqueado || !despesasPagina.length} checked={todosPagina ? true : algunsPagina ? "indeterminate" : false} onCheckedChange={checked => marcar(despesasPagina.map(item => item.id), checked === true)} /></th>
+            <th scope="col" aria-sort={ordem === "RECENTES" ? "descending" : ordem === "ANTIGOS" ? "ascending" : "none"}><button type="button" className="cash-sort" disabled={ocupado} onClick={() => { setPagina(1); setOrdem(ordem === "RECENTES" ? "ANTIGOS" : "RECENTES"); }}>Data / ID{ordem === "ANTIGOS" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button></th>
+            <th scope="col">Descrição</th><th scope="col">Favorecido</th><th scope="col">Categoria</th><th scope="col">Conta</th><th scope="col">Fluxo</th><th scope="col" className="cash-num">Valor</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Detalhes</span></th>
+          </tr></thead>
+          <tbody>{!itensPagina.length ? <tr><td colSpan={10}><div className="cash-empty"><Search size={22} /><strong>Nenhuma movimentação encontrada</strong><Button variant="ghost" onClick={limparFiltros}>Limpar filtros</Button></div></td></tr> : itensPagina.map(item => {
+            const aberto = expandido === item.id, entrada = item.fluxo === "ENTRADA", dados = dadosPorLancamento.get(item.id);
+            return <Fragment key={item.id}><tr className="cash-entry-row" data-expanded={aberto} data-selected={selecionados.has(item.id)} data-cancelled={item.status === "CANCELADO"}>
+              <td className="cash-selection-cell"><Checkbox aria-label={`Selecionar despesa ${item.descricao}`} disabled={bloqueado || !podeSelecionar(item)} checked={selecionados.has(item.id)} onCheckedChange={checked => marcar([item.id], checked === true)} /></td>
+              <td><b className="cash-date">{formatarData(item.data)}</b><small className="cash-reference">{item.documento || item.id}</small></td>
+              <td><b className="cash-description">{item.descricao}</b></td><td>{item.fornecedor || "—"}</td>
+              <td><span className="cash-category">{item.categoria || "Sem categoria"}</span></td>
+              <td>{dados?.contaNome || "—"}</td>
+              <td><span className={`cash-flow ${entrada ? "cash-flow-income" : "cash-flow-expense"}`}>{entrada ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}{entrada ? "Entrada" : "Saída"}</span></td>
+              <td className="cash-num"><strong className={entrada ? "cash-amount-income" : "cash-amount-expense"}>{valorValido(item) ? `${entrada ? "+" : "−"} ${formatarMoeda(item.valorCentavos)}` : "Valor inválido"}</strong></td>
+              <td><StatusBadge status={item.status} /></td>
+              <td><button type="button" className="cash-expand" aria-expanded={aberto} aria-controls={`cash-detail-${item.id}`} aria-label={`${aberto ? "Fechar" : "Abrir"} detalhes de ${item.descricao}`} onClick={() => setExpandido(aberto ? null : item.id)}>{aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button></td>
+            </tr>{aberto && <tr className="cash-detail-row" id={`cash-detail-${item.id}`}><td colSpan={10}><Detalhes item={item} dados={dados} ocupado={bloqueado} onDocumento={setDocumento} onEditar={() => setEdicao({ id: item.id, descricao: item.descricao })} onAcao={setConfirmacao} /></td></tr>}</Fragment>;
+          })}</tbody>
+          <tfoot><tr><td /><td colSpan={5}>Total dos registros filtrados</td><td>Resultado</td><td className="cash-num"><strong className={resumo.saldo < 0 ? "cash-amount-expense" : "cash-amount-income"}>{exibirTotal(resumo.saldo, resumo.valido)}</strong></td><td colSpan={2} /></tr></tfoot>
+        </table>
+      </div>}
+      {!erro && !carregando && <footer className="cash-pagination"><span role="status" aria-live="polite">{filtrados.length ? `${(paginaAtual - 1) * porPagina + 1}–${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length} movimentações` : "0 movimentações"}</span><div>
+        <select aria-label="Movimentações por página" value={porPagina} disabled={ocupado} onChange={e => { setPagina(1); setExpandido(null); setPorPagina(Number(e.target.value)); }}>{[10,20,50,100].map(n => <option key={n} value={n}>{n} por página</option>)}</select><span>Página {paginaAtual} de {paginas}</span>
+        <button type="button" disabled={ocupado || paginaAtual <= 1} aria-label="Página anterior" onClick={() => { setPagina(paginaAtual - 1); setExpandido(null); }}><ChevronLeft size={16} /></button>
+        <button type="button" disabled={ocupado || paginaAtual >= paginas} aria-label="Próxima página" onClick={() => { setPagina(paginaAtual + 1); setExpandido(null); }}><ChevronRight size={16} /></button>
+      </div></footer>}
+    </section>
+
+    <Dialog open={Boolean(edicoesLote)} onOpenChange={open => { if (!open && !trava.current) setEdicoesLote(null); }}>
+      <DialogContent className="cash-dialog max-w-2xl" onEscapeKeyDown={e => { if (ocupado) e.preventDefault(); }} onInteractOutside={e => { if (ocupado) e.preventDefault(); }}><DialogHeader><DialogTitle>Editar descrições em lote</DialogTitle><DialogDescription>{edicoesLote?.length || 0} despesas selecionadas. Apenas as descrições alteradas serão salvas.</DialogDescription></DialogHeader>
+        <form onSubmit={e => { e.preventDefault(); void salvarLote(); }}><div className="cash-batch-fields">{edicoesLote?.map((item, index) => <label key={item.id}><span>{item.id}</span><input aria-label={`Descrição da despesa ${item.id}`} required maxLength={240} disabled={ocupado} value={item.descricao} onChange={e => setEdicoesLote(atuais => atuais?.map((linha,i) => i === index ? { ...linha, descricao: e.target.value } : linha) || null)} /></label>)}</div>
+          {ocupado && <p role="status">Salvando {progresso.atual} de {progresso.total}…</p>}
+          <div className="cash-dialog-actions"><Button type="button" variant="outline" disabled={ocupado} onClick={() => setEdicoesLote(null)}>Cancelar</Button><Button type="submit" disabled={bloqueado || !mudancasLote.length || mudancasLote.some(item => !item.descricao.trim() || item.descricao.trim().length > 240)}>Salvar alterações</Button></div>
+        </form>
+      </DialogContent>
+    </Dialog>
     {documento && <DocumentoPreview documento={documento} onClose={() => setDocumento(null)} />}
     <Dialog open={Boolean(edicao)} onOpenChange={(open) => { if (!open && !trava.current) setEdicao(null); }}>
-      <DialogContent className="max-w-lg rounded-2xl" onEscapeKeyDown={(e) => { if (ocupado) e.preventDefault(); }} onInteractOutside={(e) => { if (ocupado) e.preventDefault(); }}>
+      <DialogContent className="cash-dialog max-w-lg" onEscapeKeyDown={(e) => { if (ocupado) e.preventDefault(); }} onInteractOutside={(e) => { if (ocupado) e.preventDefault(); }}>
         <DialogHeader><DialogTitle>Editar descrição</DialogTitle><DialogDescription>Atualize a identificação do lançamento.</DialogDescription></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); void salvarEdicao(); }} className="space-y-4">
           <label className="block space-y-2"><span className="text-sm font-medium">Descrição</span><input autoFocus required maxLength={240} disabled={ocupado} value={edicao?.descricao || ""} onChange={(e) => setEdicao((atual) => atual ? { ...atual, descricao: e.target.value } : null)} className={INPUT} /></label>
@@ -439,7 +490,7 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
       </DialogContent>
     </Dialog>
     <Dialog open={Boolean(confirmacao)} onOpenChange={(open) => { if (!open && !trava.current) setConfirmacao(null); }}>
-      <DialogContent className="max-w-lg rounded-2xl" onEscapeKeyDown={(e) => { if (ocupado) e.preventDefault(); }} onInteractOutside={(e) => { if (ocupado) e.preventDefault(); }}>
+      <DialogContent className="cash-dialog max-w-lg" onEscapeKeyDown={(e) => { if (ocupado) e.preventDefault(); }} onInteractOutside={(e) => { if (ocupado) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle>{confirmacao?.tipo === "EXCLUIR" ? `Excluir ${alvosExclusao.length} lançamento(s)?` : confirmacao?.tipo === "BAIXA" ? "Confirmar baixa" : "Gerar reembolso"}</DialogTitle>
           <DialogDescription>{confirmacao?.tipo === "EXCLUIR" ? "Os lançamentos serão cancelados e sairão dos totais ativos. O histórico e os documentos serão preservados." : confirmacao?.tipo === "BAIXA" ? `O lançamento será marcado como ${alvo?.fluxo === "ENTRADA" ? "recebido" : "pago"}.` : "Será criado um reembolso vinculado ao lançamento e ao cotista informado."}</DialogDescription>

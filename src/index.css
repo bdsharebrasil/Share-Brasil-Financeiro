@@ -3,6 +3,14 @@
 @tailwind components;
 @tailwind utilities;
 
+*,
+*::before,
+*::after,
+::backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);

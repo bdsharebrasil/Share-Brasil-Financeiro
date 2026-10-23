@@ -47,6 +47,7 @@ import {
 import { toast } from "sonner";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -74,11 +75,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart as RechartsPieChart,
   ResponsiveContainer,
@@ -125,174 +126,137 @@ import {
  * Mantém os componentes e APIs; tabela com seleção, data, descrição, valor, status e ações.
  */
 const DESPESAS_ESTILOS = `
-.despesas-theme {
-  --background: 214 36% 96%; --foreground: 215 34% 15%;
-  --card: 0 0% 100%; --card-foreground: 215 34% 15%;
-  --popover: 0 0% 100%; --popover-foreground: 215 34% 15%;
-  --muted: 214 30% 93%; --muted-foreground: 215 18% 47%;
-  --border: 214 24% 86%; --input: 214 24% 82%;
-  --primary: 196 95% 42%; --primary-foreground: 0 0% 100%;
-  --accent: 151 52% 31%; --accent-foreground: 0 0% 100%;
-  --ring: 196 95% 42%; --destructive: 0 70% 48%;
+/* Escopo local: superfícies opacas e uma única definição do grid. */
+.financeiro-profissional, .despesas-theme {
+  --background: 210 20% 98%; --foreground: 215 28% 17%;
+  --card: 0 0% 100%; --card-foreground: 215 28% 17%;
+  --popover: 0 0% 100%; --popover-foreground: 215 28% 17%;
+  --muted: 214 22% 95%; --muted-foreground: 215 16% 40%;
+  --border: 214 20% 85%; --input: 214 20% 78%;
+  --primary: 214 65% 42%; --primary-foreground: 0 0% 100%;
+  --accent: 214 22% 93%; --accent-foreground: 215 28% 17%;
+  --ring: 214 65% 42%; --destructive: 0 70% 42%;
   color: hsl(var(--foreground)); color-scheme: light;
-  font-family: inherit;
+  font-family: inherit; font-size: 13px; line-height: 1.5;
 }
-.despesas-shell { padding: 0; background: transparent; border: 0; border-radius: 12px; }
-.despesas-theme .text-muted-foreground { color: hsl(var(--muted-foreground)); }
-.despesas-theme .text-foreground { color: hsl(var(--foreground)); }
-.despesas-theme .text-primary { color: hsl(var(--primary)); }
-.despesas-theme .border-border { border-color: hsl(var(--border)); }
-.despesas-theme .bg-background { background-color: hsl(var(--background)); }
-.despesas-theme .bg-card { background-color: hsl(var(--card)); }
-.despesas-theme :is(input, textarea, [role="combobox"]) { border-color: hsl(var(--input)); background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: none; }
-.despesas-theme input::placeholder, .despesas-theme textarea::placeholder { color: hsl(var(--muted-foreground)); }
-.despesas-theme :is(button, input, textarea, a):focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
-.despesas-theme .despesa-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: 1px solid hsl(var(--primary)); box-shadow: 0 4px 20px hsl(var(--primary) / .18); font-weight: 700; }
-.despesas-theme .despesa-primary:hover { background: hsl(var(--primary) / .86); }
-.despesa-metric { position: relative; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); padding: 10px 14px; }
-.despesas-theme .text-emerald-700 { color: #5ce0bf; }
-.despesas-theme .text-amber-700 { color: #ffd36c; }
-.despesas-theme .text-blue-700 { color: #5492d4; }
-.despesa-metric:first-child { border-color: #273752; }
-.despesa-metric-value { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.despesa-ledger { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 12px; overflow: clip; }
-.despesa-heading { background: linear-gradient(115deg, hsl(var(--primary) / .07), hsl(var(--card))); }
-.despesa-toolbar { background: hsl(var(--card)); padding: 12px 16px; }
-.despesa-table-scroll { overflow-x: auto; scrollbar-color: hsl(var(--primary) / .55) hsl(var(--muted)); }
-.despesa-table { width: 100%; min-width: 880px; table-layout: fixed; border-collapse: separate; border-spacing: 0; text-align: left; font-size: 13px; }
-.despesa-table thead { position: sticky; top: 0; z-index: 2; background: hsl(var(--muted) / .72); color: hsl(var(--muted-foreground)); }
-.despesa-table thead th { border-bottom: 1px solid hsl(var(--border)); padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
-.despesa-table .despesa-month th { background: hsl(var(--primary) / .055); border-bottom: 1px solid hsl(var(--border)); }
-.despesa-table .despesa-row td { padding: 10px 12px; vertical-align: middle; border-bottom: 1px solid hsl(var(--border)); }
-.despesa-row { background: hsl(var(--card)); transition: background-color .15s; }
-.despesa-row:nth-of-type(odd) { background: hsl(var(--muted) / .22); }
-.despesa-row:hover { background: hsl(var(--primary) / .055); }
-.despesa-row[data-expanded="true"] { background: hsl(var(--primary) / .08); }
-.despesa-row[data-expanded="true"] td:first-child { box-shadow: inset 3px 0 hsl(var(--primary)); }
-.despesa-row .despesa-description { font-size: 13px; font-weight: 600; line-height: 1.4; }
-.despesa-row .despesa-money { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
-.despesa-category { display: inline-block; max-width: 100%; margin-top: 4px; border: 1px solid hsl(var(--primary) / .2); border-radius: 4px; background: hsl(var(--primary) / .08); padding: 2px 6px; font-size: 10px; color: hsl(var(--primary)); letter-spacing: .03em; }
-.despesa-status { white-space: nowrap; border-radius: 9999px; padding: 4px 9px; font-size: 10px; font-weight: 650; }
-.despesa-detail { background: hsl(var(--muted) / .28); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
-.despesa-detail-title { margin-bottom: 12px; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary)); }
-.despesa-detail dt { font-size: 11px; }
-.despesas-theme .despesa-document { background: hsl(var(--card)); border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
-.despesas-theme .despesa-document:hover { background: hsl(var(--primary) / .07); border-color: hsl(var(--primary)); }
-.despesa-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: hsl(var(--muted) / .35); }
-.despesa-footer-total { display: flex; align-items: center; gap: 12px; }
-.despesa-footer-total strong { font: 700 16px ui-monospace, SFMono-Regular, Menlo, monospace; color: hsl(var(--foreground)); white-space: nowrap; }
-.despesas-theme .despesa-mobile-card { background: hsl(var(--card)); border-color: hsl(var(--border)); }
-.despesas-theme .despesa-mobile-card[data-expanded="true"] { border-color: hsl(var(--primary) / .55); }
-.despesa-dialog { background: hsl(var(--card)); border-color: hsl(var(--border)); }
-.dark .despesas-theme {
-  --background: 222 49% 9%; --foreground: 210 40% 96%;
-  --card: 221 43% 12%; --card-foreground: 210 40% 96%;
-  --popover: 220 40% 14%; --popover-foreground: 210 40% 96%;
-  --muted: 220 35% 17%; --muted-foreground: 215 24% 70%;
-  --border: 218 30% 24%; --input: 218 30% 24%;
-  --primary: 204 94% 64%; --primary-foreground: 222 49% 9%;
-  --accent: 218 35% 21%; --accent-foreground: 210 40% 96%;
-  --ring: 204 94% 64%; --destructive: 0 85% 70%;
-  color: hsl(var(--foreground)); color-scheme: dark;
+:where(.dark,[data-theme="dark"]) :is(.financeiro-profissional,.despesas-theme) {
+  --background: 220 25% 8%; --foreground: 214 25% 92%;
+  --card: 220 23% 10%; --card-foreground: 214 25% 92%;
+  --popover: 220 23% 12%; --popover-foreground: 214 25% 92%;
+  --muted: 220 20% 14%; --muted-foreground: 215 17% 70%;
+  --border: 218 18% 24%; --input: 218 18% 32%;
+  --primary: 213 70% 68%; --primary-foreground: 220 25% 8%;
+  --accent: 217 25% 18%; --accent-foreground: 214 25% 92%;
+  --ring: 213 70% 68%; --destructive: 0 75% 70%; color-scheme: dark;
 }
-.despesas-theme .text-emerald-700 { color: #047857; }
-.despesas-theme .text-amber-700 { color: #b45309; }
-.despesas-theme .text-blue-700 { color: #1d4ed8; }
-.dark .despesas-theme .text-emerald-700 { color: #5ce0bf; }
-.dark .despesas-theme .text-amber-700 { color: #ffd36c; }
-.dark .despesas-theme .text-blue-700 { color: #83bfff; }
-.despesa-dialog fieldset > .space-y-4, .despesa-dialog fieldset > .space-y-3 { border-radius: 12px; }
-[data-density="compacto"] .despesa-mobile-card { padding: 0; }
-[data-density="confortavel"] .despesa-table .despesa-row td { padding: 18px 14px; }
-[data-density="compacto"] .despesa-table .despesa-row td { padding-top: 8px; padding-bottom: 8px; }
-.despesa-table .despesa-row button:not([role="checkbox"]) { min-height: 28px; }
-.despesa-heading { border-radius: 12px 12px 0 0; }
-.despesa-table .despesa-month th { padding: 8px 12px; }
-.despesa-metric:first-child { border-color: hsl(var(--primary) / .35); }
-@media (max-width: 639px) {
-  .despesas-shell { padding: 0; border-radius: 12px; }
-  .despesa-metric { padding: 8px 12px; }
-  .despesa-metric-value { font-size: 0.95rem; }
-  .despesa-footer-total { width: 100%; justify-content: space-between; }
+.financeiro-profissional.financeiro-shell {
+  width:100%; min-width:0; max-width:100%; padding:0;
+  background:hsl(var(--background)); filter:none; backdrop-filter:none;
+  -webkit-backdrop-filter:none; box-shadow:none; animation:none; transform:none;
 }
-@media (prefers-reduced-motion: reduce) { .despesas-theme * { transition: none !important; } }
-/* Ajustes visuais conforme referências, restritos à aba de despesas. */
-.despesa-table { min-width: 760px; }
-.despesa-detail { padding: 16px 22px; background: #f4f7fb; }
-.despesa-detail-grid { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(0, 1.8fr); gap: 24px; align-items: start; }
-.despesa-detail-title { margin: 0 0 8px; color: #2d6fb8; font-size: 11px; letter-spacing: .1em; font-weight: 600; }
-.despesa-supplier { margin: 0 0 18px; }
-.despesa-supplier dd { margin: 0; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
-.despesa-documents { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.despesa-documents > div { width: 100%; min-width: 0; }
-.despesas-theme .despesa-document { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 31px; padding: 6px 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: white; color: #174a86; font-size: 11px; font-weight: 400; line-height: 17px; text-align: left; }
-.despesa-rateio { display: grid; gap: 12px; margin: 0; padding: 12px 0; font-size: 12px; }
-.despesa-rateio:first-child { padding-top: 0; }
-.despesa-rateio:last-child { padding-bottom: 0; }
-.despesa-rateio-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; }
-.despesa-rateio-fields > div { min-width: 0; }
-.despesa-rateio dd { overflow-wrap: anywhere; }
-.despesa-rateio-person dt { color: hsl(var(--muted-foreground)); }
-.despesa-rateio-person dd { margin-top: 4px; font-weight: 600; }
-.despesas-theme .despesa-status { gap: 5px; border-radius: 9999px; padding: 3px 9px; min-height: 24px; font-size: 11px; line-height: 16px; font-weight: 400; }
-.despesa-toolbar-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.despesa-control { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1px solid #bfd2e8; border-radius: 6px; background: #e8eef5; color: #32699f; font-size: 11px; white-space: nowrap; }
-.despesa-control:hover, .despesa-control[aria-expanded="true"] { background: #dce8f5; }
-.despesa-filter-count { font-size: 10px; font-weight: 700; }
-.despesa-filter-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px; margin-top: 12px; border-top: 1px solid hsl(var(--border)); }
-.despesa-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #c8d8e9; background: #f4f7fb; color: #5080b7; font-size: 11px; }
-.despesa-pagination button { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid #bfd2e8; border-radius: 4px; background: white; color: #335f90; }
-.despesa-pagination button[aria-current="page"] { color: white; background: #203d63; border-color: #203d63; }
-.despesa-pagination button:disabled { opacity: .4; cursor: not-allowed; }
-.dark .despesa-detail, .dark .despesa-pagination { background: hsl(var(--muted) / .4); border-color: hsl(var(--border)); }
-.dark .despesas-theme .despesa-document, .dark .despesa-control, .dark .despesa-pagination button { background: hsl(var(--card)); color: #9ecaff; border-color: hsl(var(--border)); }
-.dark .despesa-pagination button[aria-current="page"] { background: #335f90; color: white; }
-.dark .despesa-detail-title { color: #9ecaff; }
-.dark .despesas-theme .despesa-row { background: hsl(222 50% 8%); }
-.dark .despesas-theme .despesa-row:nth-of-type(odd) { background: hsl(222 52% 6%); }
-.dark .despesas-theme .despesa-row:hover { background: hsl(204 94% 64% / .07); }
-.dark .despesas-theme .despesa-row[data-expanded="true"] { background: hsl(204 94% 64% / .1); }
-.dark .despesas-theme .despesa-month th { background: hsl(222 52% 5%); }
-.despesas-theme .despesa-row[data-selected="true"] { background: hsl(var(--primary) / .12); }
-.dark .despesas-theme .despesa-row[data-selected="true"] { background: hsl(204 94% 64% / .16); }
-@media (max-width: 1023px) { .despesa-detail-grid { grid-template-columns: 1fr; gap: 20px; } }
-@media (max-width: 639px) {
-  .despesa-detail { padding: 14px; }
-  .despesa-toolbar-main { flex-wrap: wrap; }
-  .despesa-toolbar-main > div:first-child { flex-basis: 100%; }
-  .despesa-toolbar-main > div:last-child { margin-left: auto; }
-  .despesa-filter-panel, .despesa-rateio-fields { grid-template-columns: 1fr; }
+.financeiro-profissional *, .despesas-theme * { box-sizing:border-box; }
+.financeiro-profissional .financeiro-panel,
+.financeiro-profissional .financeiro-header,
+.financeiro-profissional .financeiro-tabs,
+.despesas-theme :is(.despesa-ledger,.despesa-metric), .despesa-dialog {
+  background:hsl(var(--card)); border:1px solid hsl(var(--border));
+  border-radius:5px; box-shadow:none; filter:none; backdrop-filter:none;
+  -webkit-backdrop-filter:none; background-image:none;
 }
-
-/* Tabela compacta e seletores quadrados, conforme o recorte de referência. */
-.despesa-ledger { border-radius: 5px; }
-.despesa-heading { border-radius: 4px 4px 0 0; background: hsl(var(--card)); }
-.despesa-heading h3 { font-size: 12px; color: hsl(var(--muted-foreground)); }
-.despesa-table { min-width: 920px; font-size: 12px; }
-.despesa-table thead th { height: 45px; padding: 8px 10px; font-size: 10px; letter-spacing: .02em; color: hsl(var(--foreground)); }
-.despesa-table .despesa-row td { padding: 12px 10px; }
-[data-density="compacto"] .despesa-table .despesa-row td { padding: 11px 10px; }
-.despesa-table th:first-child, .despesa-table .despesa-row td:first-child { padding-left: 10px; padding-right: 10px; text-align: center; }
-.despesa-row .despesa-description { font-size: 12px; line-height: 1.45; font-weight: 650; }
-.despesa-date { margin: 0; white-space: nowrap; font-size: 11px; line-height: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.despesa-date-caption { margin: 2px 0 0; font-size: 9px; line-height: 13px; text-transform: uppercase; letter-spacing: .035em; color: hsl(var(--muted-foreground)); }
-.despesa-category { display: block; margin-top: 3px; border: 0; background: transparent; border-radius: 0; padding: 0; font-size: 9px; line-height: 14px; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
-.despesa-sort-date { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; text-align: left; font: inherit; text-transform: inherit; }
-.despesas-theme .despesa-checkbox { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 14px; height: 14px; min-width: 14px; min-height: 14px; max-height: 14px; flex: 0 0 14px; padding: 0; border: 1px solid #8793a3; border-radius: 2px; background: transparent; color: white; vertical-align: middle; box-shadow: none; }
-.despesas-theme .despesa-checkbox[data-state="checked"], .despesas-theme .despesa-checkbox[data-state="indeterminate"] { background: #2674bb; border-color: #2674bb; }
-.despesas-theme .despesa-checkbox svg { width: 11px; height: 11px; stroke-width: 3; }
-.despesas-theme .despesa-checkbox[data-state="indeterminate"] svg { display: none; }
-.despesas-theme .despesa-checkbox[data-state="indeterminate"]::after { content: ""; width: 8px; height: 2px; background: currentColor; }
-.despesas-theme [role="combobox"], .despesa-toolbar input { border-radius: 3px; min-height: 34px; font-size: 12px; }
-.despesa-control { height: 34px; border-radius: 3px; }
-.despesa-dialog [role="option"] { min-height: 32px; border-radius: 3px; font-size: 12px; }
-.despesas-theme .despesa-status { max-width: 100%; font-size: 10px; line-height: 15px; border-radius: 9999px; padding: 3px 6px; color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-.dark .despesas-theme .despesa-heading, .dark .despesas-theme .despesa-table thead { background: #090e17; }
-.dark .despesas-theme .despesa-row, .dark .despesas-theme .despesa-row:nth-of-type(odd) { background: #0a1119; }
-.dark .despesas-theme .despesa-row:hover { background: #121e2c; }
-.dark .despesas-theme .despesa-row[data-expanded="true"], .dark .despesas-theme .despesa-row[data-selected="true"] { background: #16283b; }
-.dark .despesas-theme .despesa-checkbox[data-state="unchecked"] { background: #383a3c; border-color: #7b7f85; }
-.dark .despesas-theme .despesa-status { color: #c0cada; background: #283246; border-color: #475570; }
+.financeiro-profissional .financeiro-header { padding:16px; }
+.financeiro-profissional .financeiro-header h2 { margin:0; font-size:20px; font-weight:600; letter-spacing:-.02em; }
+.financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.financeiro-profissional .financeiro-panel-header > div { min-width:0; }
+.financeiro-profissional .financeiro-tabs { padding:0 8px; gap:4px; }
+.financeiro-profissional .financeiro-tabs button { border-radius:0; border-bottom:2px solid transparent; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
+.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { color:hsl(var(--primary)); border-bottom-color:hsl(var(--primary)); }
+.financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
+.financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
+.despesas-shell { min-width:0; width:100%; }
+.despesas-theme .text-muted-foreground { color:hsl(var(--muted-foreground)); }
+.despesas-theme .text-foreground { color:hsl(var(--foreground)); }
+.despesas-theme .text-primary { color:hsl(var(--primary)); }
+.despesas-theme .border-border { border-color:hsl(var(--border)); }
+.despesas-theme .bg-background { background:hsl(var(--background)); }
+.despesas-theme .bg-card { background:hsl(var(--card)); }
+.despesas-theme :is(input,textarea,[role="combobox"]) { border-color:hsl(var(--input)); background:hsl(var(--card)); color:hsl(var(--foreground)); border-radius:4px; box-shadow:none; }
+.despesas-theme :is(input,textarea)::placeholder { color:hsl(var(--muted-foreground)); }
+.despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
+.despesas-theme .despesa-primary { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border:1px solid hsl(var(--primary)); border-radius:4px; font-weight:600; box-shadow:none; }
+.despesas-theme .despesa-primary:hover { filter:brightness(.94); }
+.despesa-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.despesa-metric { padding:12px 16px; min-width:0; }
+.despesa-metric-label { margin:0; color:hsl(var(--muted-foreground)); font-size:12px; }
+.despesa-metric-value { margin:6px 0 0; font-size:22px; font-weight:600; line-height:1.3; letter-spacing:-.025em; font-variant-numeric:tabular-nums; overflow-wrap:break-word; }
+.despesa-ledger { min-width:0; overflow:hidden; }
+.despesa-heading { padding:12px 16px; background:hsl(var(--card)); }
+.despesa-heading h3 { font-size:14px; font-weight:600; color:hsl(var(--foreground)); }
+.despesa-toolbar { padding:12px 16px; background:hsl(var(--card)); }
+.despesa-toolbar-main { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.despesa-toolbar input { height:36px; font-size:13px; }
+.despesa-control { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:36px; padding:0 12px; border:1px solid hsl(var(--input)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--foreground)); font-size:12px; white-space:nowrap; }
+.despesa-control:hover,.despesa-control[aria-expanded="true"] { background:hsl(var(--muted)); }
+.despesa-filter-count { font-size:11px; font-weight:600; }
+.despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:12px; margin-top:12px; border-top:1px solid hsl(var(--border)); }
+.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; }
+.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; }
+.despesa-table th,.despesa-table td { box-sizing:border-box; }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.5; font-weight:600; letter-spacing:0; text-transform:none; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
+.despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
+.despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
+.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
+.despesa-table .despesa-row td { padding:12px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
+[data-density="compacto"] .despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
+[data-density="confortavel"] .despesa-table .despesa-row td { padding-top:18px; padding-bottom:18px; }
+.despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
+.despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
+.despesa-table .despesa-row td:nth-child(2) { position:sticky; left:0; z-index:1; border-right:1px solid hsl(var(--border)); }
+.despesa-table > thead > tr > th:nth-child(2) { left:0; z-index:4; border-right:1px solid hsl(var(--border)); }
+.despesa-table .despesa-row td:last-child { position:sticky; right:0; z-index:2; border-left:1px solid hsl(var(--border)); padding:8px; }
+.despesa-table > thead > tr > th:last-child { right:0; z-index:4; }
+.despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
+.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:hsl(var(--muted-foreground)); overflow-wrap:break-word; }
+.despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
+.despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
+.despesa-cotista-heading { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.despesa-cotista-heading small { font-size:11px; font-weight:400; }
+.despesa-date { margin:0; white-space:nowrap; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
+.despesa-date-caption { margin:4px 0 0; color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
+.despesa-category { margin:0; font-size:11px; color:hsl(var(--muted-foreground)); line-height:1.5; }
+.despesa-sort-date { display:flex; width:100%; align-items:center; justify-content:space-between; gap:4px; font:inherit; text-align:left; }
+.despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid hsl(var(--input)); border-radius:3px; background:hsl(var(--card)); color:hsl(var(--primary-foreground)); box-shadow:none; }
+.despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:hsl(var(--primary)); border-color:hsl(var(--primary)); }
+.despesa-checkbox svg { width:12px; height:12px; }
+.despesa-checkbox[data-state="indeterminate"] svg { display:none; }
+.despesa-checkbox[data-state="indeterminate"]::after { content:""; width:8px; height:2px; background:currentColor; }
+.despesas-theme .despesa-status { display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:3px 6px; border:1px solid hsl(var(--border)); border-radius:4px; white-space:normal; font-size:11px; line-height:1.4; font-weight:500; background:hsl(var(--muted)); color:hsl(var(--foreground)); }
+.despesa-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border-top:1px solid hsl(var(--border)); background:hsl(var(--card)); font-size:12px; color:hsl(var(--muted-foreground)); }
+.despesa-pagination button { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid hsl(var(--border)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--foreground)); }
+.despesa-pagination button[aria-current="page"] { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border-color:hsl(var(--primary)); }
+.despesa-pagination button:disabled { opacity:.4; cursor:not-allowed; }
+.despesa-detail { padding:20px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); }
+.despesa-detail-title { margin:0 0 12px; font-size:12px; font-weight:600; color:hsl(var(--foreground)); }
+.despesa-detail-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
+.despesa-detail :is(dt,dd) { font-size:12px; }
+.despesa-detail dd { overflow-wrap:break-word; }
+.despesa-supplier { margin:0 0 16px; }
+.despesa-supplier dd { margin:0; font-weight:500; }
+.despesa-documents { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+.despesa-document { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; max-width:100%; border:1px solid hsl(var(--input)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--primary)); font-size:12px; text-align:left; }
+.despesa-document:hover { background:hsl(var(--accent)); }
+.despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
+@media(max-width:640px) {
+  .despesa-metrics { grid-template-columns:1fr; gap:8px; }
+  .despesa-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; }
+  .despesa-metric-value { font-size:18px; margin:0; }
+  .despesa-toolbar-main { flex-wrap:wrap; }
+  .despesa-toolbar-main > div:first-child { flex-basis:100%; }
+  .despesa-filter-panel { grid-template-columns:1fr; }
+  .despesa-table-scroll { max-height:65dvh; }
+}
+@media(prefers-reduced-motion:reduce) { .despesas-theme * { transition:none!important; } }
 .despesas-theme .despesa-status[data-status="EM_ABERTO"] { color: #965000; background: #fff4cc; border-color: #ffc328; }
 .dark .despesas-theme .despesa-status[data-status="EM_ABERTO"] { color: #ffd36c; background: #352e20; border-color: #62502c; }
 .despesas-theme .despesa-status[data-status="PAGO"] { color: #006950; background: #d2fae7; border-color: #56c999; }
@@ -1405,6 +1369,37 @@ function documentoDoLancamento(lancamento: LancamentoEconomico) {
     null;
 }
 
+function rateioDoCotista(
+  lancamento: LancamentoEconomico,
+  cotista: CotistaAeronave,
+  cotistas: CotistaAeronave[],
+) {
+  const ids = [cotista.id, cotista.cliente_id, cotista.socio_id, ...(cotista.cotista_ids ?? [])];
+  const porId = lancamento.rateios.find((rateio) => rateio.cotistaId && ids.includes(rateio.cotistaId));
+  if (porId) return porId;
+
+  const nome = normalizarBusca(cotista.nome.trim());
+  const nomesIguais = cotistas.filter((item) => normalizarBusca(item.nome.trim()) === nome);
+  if (nomesIguais.length === 1) {
+    const porNome = lancamento.rateios.find((rateio) => normalizarBusca(rateio.cotista.trim()) === nome);
+    if (porNome) return porNome;
+  }
+
+  if (!lancamento.rateios.length) {
+    const participanteId = lancamento.participanteId;
+    const participanteNome = lancamento.participanteNome;
+    const pertence = Boolean(participanteId && ids.includes(participanteId)) ||
+      (!participanteId && participanteNome && nomesIguais.length === 1 && normalizarBusca(participanteNome.trim()) === nome);
+    if (pertence) {
+      return {
+        percentual: lancamento.percentualUso ?? lancamento.percentualSociedade ?? cotista.percentual_sociedade,
+        valorCentavos: lancamento.valorRateadoCentavos || lancamento.valorCentavos,
+      };
+    }
+  }
+  return null;
+}
+
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
   const Icon = visual.Icon;
@@ -1715,38 +1710,17 @@ function LancamentosDespesa({
       Icon: CalendarDays,
       cor: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
     },
-    {
-      titulo: "Reembolsos",
-      valor: totalReembolsos,
-      detalhe: "Despesas reembolsáveis",
-      Icon: FileText,
-      cor: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    },
+
   ];
 
   return (
     <div className="despesas-theme despesas-shell min-w-0 space-y-3" data-density={compacto ? "compacto" : "confortavel"}>
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="grid min-w-0 gap-2 grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ titulo, valor, detalhe, Icon, cor }) => (
-          <section
-            key={titulo}
-            className="despesa-metric min-w-0"
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <p className="text-[11px] font-medium text-muted-foreground">
-                {titulo}
-              </p>
-              <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${cor}`}
-              >
-                <Icon size={13} />
-              </span>
-            </div>
-            <p className="despesa-metric-value mt-1 break-words [overflow-wrap:anywhere]">
-              {formatarCentavos(valor)}
-            </p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground/75">{detalhe}</p>
+      <div className="despesa-metrics">
+        {cards.map(({ titulo, valor }) => (
+          <section key={titulo} className="despesa-metric">
+            <p className="despesa-metric-label">{titulo}</p>
+            <p className="despesa-metric-value">{formatarCentavos(valor)}</p>
           </section>
         ))}
       </div>
@@ -1764,7 +1738,7 @@ function LancamentosDespesa({
           <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" aria-pressed={compacto}
             onClick={() => setCompacto((atual) => !atual)} className="h-9 text-xs">
-            {compacto ? "Visualização compacta" : "Visualização confortável"}
+            {compacto ? "Compacto" : "Confortável"}
           </Button>
           <Button
             type="button"
@@ -1880,20 +1854,23 @@ function LancamentosDespesa({
         )}
         {filtradas.length > 0 ? (
           <>
-            {/* A tabela reserva a maior coluna para a descrição. Nenhum texto depende de tooltip. */}
-            <div className="despesa-table-scroll hidden lg:block" tabIndex={0} role="region" aria-label="Tabela de despesas, com rolagem">
-              <table className="despesa-table">
+            {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
+            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0}>
+              <table className="despesa-table" style={{ minWidth: 1090 + cotistasAeronave.length * 168 }}>
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores
                   e status.
                 </caption>
                 <colgroup>
-                  <col style={{ width: 36 }} />
-                  <col style={{ width: 150 }} />
+                  <col style={{ width: 42 }} />
+                  <col style={{ width: 108 }} />
                   <col />
-                  <col style={{ width: 136 }} />
-                  <col style={{ width: 192 }} />
-                  <col style={{ width: 80 }} />
+                  <col style={{ width: 122 }} />
+                  <col style={{ width: 110 }} />
+                  <col style={{ width: 126 }} />
+                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={{ width: 168 }} />)}
+                  <col style={{ width: 146 }} />
+                  <col style={{ width: 76 }} />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
@@ -1906,25 +1883,28 @@ function LancamentosDespesa({
                       />
                     </th>
                     {[
-                      "Data emissão",
-                      "Descrição",
-                      "Valor",
-                      "Status",
-                      "Ações",
-                    ].map((titulo) => (
-                      <th
-                        key={titulo}
-                        scope="col"
-                        className={`px-4 py-4 font-medium ${titulo === "Valor" || titulo === "Ações" ? "text-right" : ""}`}
-                      >
-                        {titulo === "Data emissão" ? (
+                      { id: "data", titulo: "Data / documento", numerica: false, cotista: false },
+                      { id: "descricao", titulo: "Fornecedor / descrição", numerica: false, cotista: false },
+                      { id: "categoria", titulo: "Categoria", numerica: false, cotista: false },
+                      { id: "tipo", titulo: "Tipo de rateio", numerica: false, cotista: false },
+                      { id: "pago", titulo: "Valor pago", numerica: true, cotista: false },
+                      ...cotistasAeronave.map((cotista) => ({ id: `cotista-${cotista.id}`, titulo: cotista.nome, numerica: true, cotista: true })),
+                      { id: "status", titulo: "Status", numerica: false, cotista: false },
+                      { id: "acoes", titulo: "Ações", numerica: true, cotista: false },
+                    ].map((coluna) => (
+                      <th key={coluna.id} scope="col"
+                        aria-sort={coluna.id === "data" ? ordem === "antigas" ? "ascending" : ordem === "recentes" ? "descending" : "none" : undefined}
+                        className={coluna.numerica ? "text-right" : ""}>
+                        {coluna.cotista ? (
+                          <span className="despesa-cotista-heading"><span>{coluna.titulo}</span><small>Rateio · % / valor</small></span>
+                        ) : coluna.id === "data" ? (
                           <button type="button" className="despesa-sort-date"
                             onClick={() => setOrdem((atual) => atual === "antigas" ? "recentes" : "antigas")}
-                            aria-label={ordem === "antigas" ? "Ordenar por data de emissão mais recente" : "Ordenar por data de emissão mais antiga"}>
-                            <span>Data<br />emissão</span>
+                            aria-label={ordem === "antigas" ? "Ordenar por data mais recente" : "Ordenar por data mais antiga"}>
+                            <span>{coluna.titulo}</span>
                             {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           </button>
-                        ) : titulo}
+                        ) : coluna.titulo}
                       </th>
                     ))}
                   </tr>
@@ -1934,7 +1914,7 @@ function LancamentosDespesa({
                     <tr className="despesa-month">
                       <th
                         scope="rowgroup"
-                        colSpan={6}
+                        colSpan={8 + cotistasAeronave.length}
                         className="px-4 py-3 font-normal"
                       >
                         {resumoMes(mes, itens)}
@@ -1958,39 +1938,35 @@ function LancamentosDespesa({
                                 onCheckedChange={() => alternarSelecao(item.id)}
                               />
                             </td>
-                            <td className="px-4 py-5 align-top">
+                            <td className="px-2 py-3 align-top">
                               <p className="despesa-date">
                                 {formatarData(item.dataEmissao || item.data)}
                               </p>
-                              <p
-                                className="despesa-date-caption"
-                                title={documento || undefined}
-                              >
-                                {documento ? `Doc. ${documento}` : "Documento não informado"}
-                              </p>
+                              <p className="despesa-date-caption" title="Documento">{documento || "—"}</p>
                             </td>
-                            <td className="px-4 py-5 align-top">
-                              <p
-                                className={`despesa-description text-foreground ${TEXTO_COMPLETO}`}
-                              >
-                                {item.descricao}
-                              </p>
+                            <td className="px-2 py-3 align-top">
+                              <p className={`despesa-line-supplier ${TEXTO_COMPLETO}`}>{item.fornecedor || "Fornecedor não informado"}</p>
+                              <p className={`despesa-line-description ${TEXTO_COMPLETO}`}>{item.descricao}</p>
+                            </td>
+                            <td className="px-2 py-3 align-top">
                               <p
                                 className={`despesa-category ${TEXTO_COMPLETO}`}
                               >
                                 {item.categoria || "Sem categoria"}
                               </p>
-
                             </td>
-                            <td className="px-4 py-5 text-right align-top">
-                              <p className="despesa-money">
-                                {formatarCentavos(item.valorCentavos)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-5 align-top">
+                            <td className="px-2 py-3 align-top">{String(item.tipoRateio || item.tipo || "—").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</td>
+                            <td className="px-2 py-3 text-right align-top"><p className="despesa-money">{formatarCentavos(valorPagoLancamento(item))}</p></td>
+                            {cotistasAeronave.map((cotista) => {
+                              const rateio = rateioDoCotista(item, cotista, cotistasAeronave);
+                              return <td key={cotista.id} className="px-2 py-3 text-right align-top">
+                                {rateio ? <div className="despesa-rateio-cell"><span className="text-muted-foreground">{Number(rateio.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</span><b className="despesa-rateio-value">{formatarCentavos(rateio.valorCentavos)}</b></div> : <span className="text-muted-foreground">—</span>}
+                              </td>;
+                            })}
+                            <td className="px-2 py-3 align-top">
                               <BadgeStatus status={item.status} />
                             </td>
-                            <td className="px-4 py-3 text-right align-top">
+                            <td className="px-1 py-2 text-right align-top">
                               <div className="flex items-center justify-end gap-1">
                                 {acoesDaLinha(item)}
                                 <Button
@@ -2010,7 +1986,7 @@ function LancamentosDespesa({
                           </tr>
                           {aberto && (
                             <tr id={`despesa-desktop-${item.id}`}>
-                              <td colSpan={6} className="p-0">
+                              <td colSpan={8 + cotistasAeronave.length} className="p-0">
                                 <LancamentoExpandido
                                   lancamento={item}
                                   cotistasAeronave={cotistasAeronave}
@@ -2029,123 +2005,6 @@ function LancamentosDespesa({
               </table>
             </div>
 
-            {/* Celular e tablet: leitura vertical, sem precisar arrastar uma tabela larga. */}
-            <div className="divide-y divide-border lg:hidden">
-              {gruposDaPagina.map(({ mes, itens }) => (
-                <section key={mes}>
-                  <div className="bg-muted/30 px-4 py-4 sm:px-6">
-                    {resumoMes(mes, itens)}
-                  </div>
-                  <div className="space-y-3 p-3 sm:p-4">
-                    {itens.map((item) => {
-                      const aberto = expandido === item.id;
-                      const documento = documentoDoLancamento(item);
-                      return (
-                        <article
-                          key={item.id}
-                          data-expanded={aberto}
-                          className="despesa-mobile-card min-w-0 overflow-hidden rounded-xl border"
-                        >
-                          <div className="p-4 sm:p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <Checkbox
-                        className="despesa-checkbox"
-                                  aria-label={`Selecionar lançamento: ${item.descricao}`}
-                                  checked={selecionados.has(item.id)}
-                                  onCheckedChange={() => alternarSelecao(item.id)}
-                                />
-                                <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                                  {formatarData(item.dataEmissao || item.data)}
-                                </span>
-                                <BadgeStatus status={item.status} />
-                              </div>
-                              {acoesDaLinha(item)}
-                            </div>
-                            <h4
-                              className={`mt-3 text-base font-semibold leading-7 ${TEXTO_COMPLETO}`}
-                            >
-                              {item.descricao}
-                            </h4>
-                            <p
-                              className={`mt-1.5 text-xs leading-relaxed text-muted-foreground ${TEXTO_COMPLETO}`}
-                            >
-                              {item.categoria || "Sem categoria"}
-                            </p>
-                            <dl className="mt-4 grid min-w-0 gap-3 border-t border-border pt-4 text-sm sm:grid-cols-2">
-                              <div className="min-w-0">
-                                <dt className="text-xs text-muted-foreground">
-                                  Cotista
-                                </dt>
-                                <dd
-                                  className={`mt-1 leading-relaxed ${TEXTO_COMPLETO}`}
-                                >
-                                  {item.participanteNome ||
-                                    item.participanteId ||
-                                    "Não informado"}
-                                </dd>
-                              </div>
-                              {documento && (
-                                <div className="min-w-0 sm:col-span-2">
-                                  <dt className="text-xs text-muted-foreground">
-                                    Documento
-                                  </dt>
-                                  <dd
-                                    className={`mt-1 text-xs leading-relaxed ${TEXTO_COMPLETO}`}
-                                  >
-                                    {documento}
-                                  </dd>
-                                </div>
-                              )}
-                            </dl>
-                            <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
-                              <div className="min-w-0">
-                                <p className="text-xs text-muted-foreground">
-                                  Valor da despesa
-                                </p>
-                                <p className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]">
-                                  {formatarCentavos(item.valorCentavos)}
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  setExpandido(aberto ? null : item.id)
-                                }
-                                aria-expanded={aberto}
-                                aria-controls={`despesa-mobile-${item.id}`}
-                                className="h-10 gap-2 rounded-xl text-xs"
-                              >
-                                {aberto
-                                  ? "Ocultar detalhes"
-                                  : "Documentos e rateio"}
-                                {aberto ? (
-                                  <ChevronUp size={15} />
-                                ) : (
-                                  <ChevronDown size={15} />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                          {aberto && (
-                            <div id={`despesa-mobile-${item.id}`}>
-                              <LancamentoExpandido
-                                lancamento={item}
-                                cotistasAeronave={cotistasAeronave}
-                                aoAbrirDocumento={(nome, url) =>
-                                  setDocumentoAberto({ nome, url })
-                                }
-                              />
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
           </>
         ) : (
           <div className="flex flex-col items-center px-5 py-16 text-center">
@@ -2485,10 +2344,17 @@ export default function FinanceiroCotista() {
   const possuiHolding = cotistasAeronave.some((cotista) =>
     Boolean(cotista.eh_holding),
   );
+  const [cotistaVisaoId, setCotistaVisaoId] = useState("");
+  useEffect(() => {
+    setCotistaVisaoId((atual) =>
+      cotistasAeronave.some((cotista) => cotista.id === atual)
+        ? atual
+        : cotistasAeronave[0]?.id ?? "",
+    );
+  }, [aeronaveSelecionada, cotistasAeronave]);
   const [abaAtiva, setAbaAtiva] = useState<
     | "resumo"
     | "medias"
-    | "relatorio"
     | "lancamentos"
     | "graficos"
     | "ranking"
@@ -2573,18 +2439,6 @@ export default function FinanceiroCotista() {
     });
     return agruparPorMes(lista);
   }, [dashboard, mesesAplicados, cotistaEmprestimo]);
-  const custoFixo = despesas
-    .filter((lancamento) =>
-      /fix|hangar|seguro|assinatura|mensal/i.test(
-        `${lancamento.grupoCategoria} ${lancamento.categoria} ${lancamento.descricao}`,
-      ),
-    )
-    .reduce((total, lancamento) => total + lancamento.valorCentavos, 0);
-  const custoVariavel =
-    despesas.reduce(
-      (total, lancamento) => total + lancamento.valorCentavos,
-      0,
-    ) - custoFixo;
   // O dashboard já entrega ranking_gastos e fechamento_mensal em reais; os lançamentos brutos acima continuam em centavos.
   const dadosCategorias = (dashboard?.ranking_gastos ?? []).map((item) => ({
     nome: item.categoria,
@@ -2592,12 +2446,43 @@ export default function FinanceiroCotista() {
     quantidade: item.quantidade,
     grupo: item.grupo,
   }));
-  const dadosMensais = (dashboard?.fechamento_mensal ?? []).map((item) => ({
-    mes: item.mes.slice(5),
-    entradas: item.entradas,
-    saidas: item.saidas,
-    saldo: item.saldo,
-  }));
+  const totalCategorias = dadosCategorias.reduce(
+    (total, item) => total + item.valor,
+    0,
+  );
+  const totalCategoriasCompacto = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(totalCategorias);
+  const dadosPagamentosRateio = useMemo(() => {
+    const porMes = new Map<string, { pagamentos: number; rateado: number }>();
+    for (const lancamento of despesas) {
+      const mes = String(lancamento.data ?? "").slice(0, 7);
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) continue;
+      const valores = porMes.get(mes) ?? { pagamentos: 0, rateado: 0 };
+      valores.pagamentos += valorPagoLancamento(lancamento) / 100;
+      const rateado = lancamento.rateios.length > 0
+        ? lancamento.rateios.reduce((total, rateio) => total + rateio.valorCentavos, 0)
+        : lancamento.valorRateadoCentavos || lancamento.valorCentavos;
+      valores.rateado += rateado / 100;
+      porMes.set(mes, valores);
+    }
+    return [...porMes.entries()]
+      .sort(([mesA], [mesB]) => mesA.localeCompare(mesB))
+      .map(([mes, valores]) => ({
+        mes: rotuloMesCotista(mes).split(" ")[0].slice(0, 3),
+        ...valores,
+      }));
+  }, [despesas]);
+  const maiorDiferencaPagamentosRateio = dadosPagamentosRateio.reduce<{
+    mes: string;
+    valor: number;
+  } | null>((maior, atual) => {
+    const valor = Math.abs(atual.pagamentos - atual.rateado);
+    return !maior || valor > maior.valor ? { mes: atual.mes, valor } : maior;
+  }, null);
 
   const cotistasParaDialog: CotistaAeronave[] = useMemo(
     () => (aeronaveSelecionada ? cotistasAeronave : []),
@@ -2636,7 +2521,6 @@ export default function FinanceiroCotista() {
     itemStyle: { color: "#ffffff" },
     labelStyle: { color: "#ffffff" },
   };
-  const estiloEixo = { fontSize: 10, fill: "#ffffff" };
   const coresCategorias = [
     "#22d3ee",
     "#60a5fa",
@@ -2647,16 +2531,13 @@ export default function FinanceiroCotista() {
   ];
 
   return (
-    <div className="financeiro-shell financeiro-profissional route-enter min-w-0 max-w-full space-y-3">
+    <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
+      <style>{DESPESAS_ESTILOS}</style>
       <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="financeiro-eyebrow">CLIENTE / AERONAVE</p>
           <h2 className="mt-1 text-xl font-extrabold tracking-[-.035em] md:text-2xl">
             Financeiro do Cotista
           </h2>
-          <p className="text-xs text-muted-foreground">
-            Visão econômica consolidada de cotistas e holdings.
-          </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Select
@@ -2744,7 +2625,6 @@ export default function FinanceiroCotista() {
             {([
               ["lancamentos", "Lançamentos mensais", ReceiptText],
               ["resumo", "Visão por cotista", LayoutDashboard],
-              ["relatorio", "Balanço mensal", FileText],
               ["emprestimos", "Voos empréstimo", Fuel],
               ["medias", "Médias", Gauge],
               ["graficos", "Gráficos", BarChart3],
@@ -2777,11 +2657,11 @@ export default function FinanceiroCotista() {
           </div>
 
           {abaAtiva !== "portal-cliente" && (
-            <section className="financeiro-panel px-4 py-3" aria-label={abaAtiva === "relatorio" ? "Período do balanço mensal" : "Competência dos lançamentos"}>
+            <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <CalendarDays size={16} className="text-muted-foreground" />
-                  <span className="text-xs font-semibold">{abaAtiva === "relatorio" ? "Período do balanço" : "Competência"}</span>
+                  <span className="text-xs font-semibold">Competência</span>
                   <Button type="button" variant="outline" size="sm" className="h-10 px-3"
                     aria-label="Mês anterior" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}>‹</Button>
                   <Input type="month" aria-label="Selecionar competência" value={mesReferencia}
@@ -2811,7 +2691,7 @@ export default function FinanceiroCotista() {
                     </button>;
                   })}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">{abaAtiva === "relatorio" ? "O balanço considera os meses selecionados. As setas voltam à visualização de um único mês." : "Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês."}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês.</p>
               </details>
             </section>
           )}
@@ -2849,268 +2729,45 @@ export default function FinanceiroCotista() {
             <>
               {abaAtiva === "resumo" && (
                 <div className="space-y-4">
-                  <div className="grid gap-4 xl:grid-cols-3">
-                    <div className="financeiro-panel xl:col-span-2">
-                      <div className="mb-5 flex items-center gap-2 ml-[18px] mt-[11px]">
-                        <div>
-                          <p className="text-sm font-bold">
-                            Composição dos custos
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            Custos fixos e variáveis das despesas lançadas
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid gap-2.5 p-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Custos fixos
-                          </p>
-                          <p className="mt-1 font-mono text-base font-bold text-foreground">
-                            {formatarCentavos(custoFixo)}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            Hangar, seguro e recorrências
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/70 bg-muted/15 p-2.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Custos variáveis
-                          </p>
-                          <p className="mt-1 font-mono text-base font-bold text-foreground">
-                            {formatarCentavos(custoVariavel)}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            Operação, combustível e demais despesas
-                          </p>
-                        </div>
-                      </div>
+                  <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-bold">Visão por cotista</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">Selecione o cotista para consultar seus dados.</p>
                     </div>
-                    <div className="financeiro-panel p-3.5">
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Indicadores</p>
-                      <div className="mt-2.5 space-y-2">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className="text-[10px] text-muted-foreground">
-                            Média mensal
-                          </p>
-                          <p className="font-mono text-xs font-bold">
-                            {formatarMoeda(
-                              dashboard?.resumo?.media_mensal ?? 0,
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2 border-t border-border/40 pt-2">
-                          <p className="text-[10px] text-muted-foreground">
-                            Média por lançamento
-                          </p>
-                          <p className="font-mono text-xs font-bold">
-                            {formatarMoeda(
-                              dashboard?.resumo?.media_lancamento ?? 0,
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2 border-t border-border/40 pt-2">
-                          <p className="text-[10px] text-muted-foreground">
-                            Pendências
-                          </p>
-                          <p className="font-mono text-xs font-bold text-amber-400">
-                            {dashboard?.resumo?.pendentes ?? 0} lançamento(s)
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <SearchableCombobox
+                      items={cotistasAeronave.map((cotista) => ({ id: cotista.id, label: cotista.nome, descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%` }))}
+                      value={cotistaVisaoId}
+                      onChange={(id) => setCotistaVisaoId(id)}
+                      placeholder="Selecione um cotista"
+                      searchPlaceholder="Buscar cotista..."
+                      emptyMessage="Nenhum cotista encontrado."
+                      icon={<User size={15} />}
+                      disabled={!cotistasAeronave.length}
+                      className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
+                      popoverClassName="border-border bg-popover text-popover-foreground"
+                    />
                   </div>
-                  {aeronaveSelecionada && mediasPorCotista.length > 0 && (
-                    <div className="financeiro-panel overflow-hidden">
-                      <div className="financeiro-panel-header">
-                        <div>
-                          <p className="text-xs font-bold">Médias por cotista</p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            Rateio das saídas no período, dividido por{" "}
-                            {mesesAplicados.length} mês(es)
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground">
-                            Total da aeronave
-                          </p>
-                          <p className="font-mono text-sm font-bold">
-                            {formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
-                          </p>
-                          <p className="font-mono text-[10px] text-muted-foreground">
-                            Média mensal{" "}
-                            {formatarMoeda(dashboard?.resumo?.media_mensal ?? 0)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="divide-y divide-border">
-                        {mediasPorCotista.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
-                          >
-                            <span className="font-medium">{item.nome}</span>
-                            <div className="flex gap-4 text-[10px]">
-                              <span className="text-muted-foreground">
-                                Total: {formatarCentavos(item.total)}
-                              </span>
-                              <span className="font-mono font-bold">
-                                Média mensal: {formatarCentavos(item.media)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {Array.isArray(dashboard?.saldos) &&
-                  dashboard.saldos.length > 0 ? (
-                    <div className="financeiro-panel overflow-hidden">
-                      <div className="financeiro-panel-header">
-                        <p className="text-xs font-bold">Saldos por cotista</p>
-                      </div>
-                      <div className="divide-y divide-border">
-                        {dashboard.saldos.map((s, i) => (
-                          <div
-                            key={`${s.cotista}-${i}`}
-                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
-                          >
-                            <span className="font-medium">{s.cotista}</span>
-                            <div className="flex gap-4 text-[10px]">
-                              <span className="text-muted-foreground">
-                                Pago: {formatarCentavos(s.totalPagoCentavos)}
-                              </span>
-                              <span className="text-muted-foreground">
-                                Devido:{" "}
-                                {formatarCentavos(s.totalDevidoCentavos)}
-                              </span>
-                              <span
-                                className={
-                                  s.saldoCentavos >= 0
-                                    ? "font-mono font-bold text-emerald-400"
-                                    : "font-mono font-bold text-red-400"
-                                }
-                              >
-                                {formatarCentavos(s.saldoCentavos)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  {possuiHolding && (dashboard?.holdings ?? []).length > 0 && (
-                    <div className="space-y-3">
-                      {dashboard!.holdings.map((holding) => (
-                        <section
-                          key={holding.id}
-                          className="financeiro-panel overflow-hidden"
-                        >
-                          <div className="financeiro-panel-header">
-                            <div className="flex items-center gap-2">
-                              <Landmark size={15} className="text-primary" />
-                              <div>
-                                <p className="text-xs font-bold">
-                                  Saldo bancário · {holding.nome}
-                                </p>
-                                <p className="mt-1 text-[10px] text-muted-foreground">
-                                  {holding.contaBancaria ||
-                                    "Conta bancária não identificada"}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="font-mono text-sm font-bold">
-                              {formatarCentavos(holding.saldoContaCentavos)}
-                            </span>
-                          </div>
-                          <div className="divide-y divide-border">
-                            {holding.socios.map((socio) => (
-                              <div
-                                key={socio.cotistaId}
-                                className="grid gap-2 px-4 py-3 text-[10px] sm:grid-cols-[minmax(120px,1.2fr)_repeat(4,minmax(90px,1fr))] sm:items-center"
-                              >
-                                <div>
-                                  <p className="font-semibold">
-                                    {socio.nome ||
-                                      cotistasAeronave.find(
-                                        (cotista) =>
-                                          cotista.socio_id === socio.cotistaId,
-                                      )?.nome ||
-                                      socio.cotistaId}
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    Participação:{" "}
-                                    {Number(
-                                      socio.percentual || 0,
-                                    ).toLocaleString("pt-BR", {
-                                      maximumFractionDigits: 4,
-                                    })}
-                                    %
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Depositado{" "}
-                                  </span>
-                                  <strong className="font-mono">
-                                    {formatarCentavos(
-                                      socio.totalDepositadoCentavos,
-                                    )}
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Consumido da conta{" "}
-                                  </span>
-                                  <strong className="font-mono">
-                                    {formatarCentavos(
-                                      socio.totalConsumidoCentavos,
-                                    )}
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Pago diretamente{" "}
-                                  </span>
-                                  <strong className="font-mono">
-                                    {formatarCentavos(
-                                      socio.despesasPagasDiretamenteCentavos,
-                                    )}
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">
-                                    Saldo atribuído{" "}
-                                  </span>
-                                  <strong
-                                    className={`font-mono ${socio.saldoCentavos >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                                  >
-                                    {formatarCentavos(socio.saldoCentavos)}
-                                  </strong>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </section>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
 
-              {abaAtiva === "relatorio" && (
+              {abaAtiva === "resumo" && (
                 <FechamentoBalancoDashboardCotista
                   dashboard={dashboard}
                   carregando={carregando}
                   erro={erroDashboard}
                   cotistas={cotistasAeronave}
                   mesesSelecionados={mesesAplicados}
+                  visao="cotista"
+                  cotistaId={cotistaVisaoId}
                 />
               )}
               {abaAtiva === "medias" && (
                 <MediasCotista
-                  medias={dashboard?.medias ?? null}
                   mediasMensais={dashboard?.medias_mensais ?? []}
+                  mediasPorCotista={mediasPorCotista}
+                  totalAeronave={formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
+                  mediaMensal={formatarMoeda(dashboard?.resumo?.media_mensal ?? 0)}
+                  mesesConsiderados={mesesAplicados.length}
                 />
               )}
               {abaAtiva === "lancamentos" && (
@@ -3292,113 +2949,21 @@ export default function FinanceiroCotista() {
               )}
               {abaAtiva === "graficos" && (
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="financeiro-panel p-5">
-                    <div className="mb-5">
-                      <p className="text-sm font-bold">Evolução mensal</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Entradas e saídas por competência
-                      </p>
+                  <div className="financeiro-panel overflow-hidden">
+                    <div className="financeiro-panel-header">
+                      <p className="text-sm font-semibold">Pagamentos × rateio</p>
                     </div>
-                    <div className="h-52 sm:h-64">
-                      {dadosMensais.length ? (
+                    <div className="h-52 p-4 sm:h-64">
+                      {dadosPagamentosRateio.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={dadosMensais}>
-                            <defs>
-                              <linearGradient
-                                id="areaSaidas"
-                                x1="0"
-                                y1="0"
-                                x2="0"
-                                y2="1"
-                              >
-                                <stop
-                                  offset="0%"
-                                  stopColor="#22d3ee"
-                                  stopOpacity={0.4}
-                                />
-                                <stop
-                                  offset="100%"
-                                  stopColor="#22d3ee"
-                                  stopOpacity={0}
-                                />
-                              </linearGradient>
-                            </defs>
-                            <XAxis
-                              dataKey="mes"
-                              tick={estiloEixo}
-                              axisLine={false}
-                              tickLine={false}
-                            />
-                            <YAxis
-                              tickFormatter={(v) => formatarValorGrafico(v)}
-                              tick={estiloEixo}
-                              axisLine={false}
-                              tickLine={false}
-                              width={60}
-                            />
-                            <Tooltip
-                              formatter={(v: number) => formatarMoeda(v)}
-                              {...estiloTooltip}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="saidas"
-                              name="Saídas"
-                              stroke="#22d3ee"
-                              fill="url(#areaSaidas)"
-                              strokeWidth={2}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="entradas"
-                              name="Entradas"
-                              stroke="#34d399"
-                              fill="transparent"
-                              strokeWidth={2}
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          Dados insuficientes para o período.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="financeiro-panel p-5">
-                    <div className="mb-5">
-                      <p className="text-sm font-bold">Custos por categoria</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Distribuição das despesas registradas
-                      </p>
-                    </div>
-                    <div className="h-52 sm:h-64">
-                      {dadosCategorias.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={dadosCategorias}
-                            layout="vertical"
-                            margin={{ left: 8 }}
-                          >
-                            <XAxis type="number" hide />
-                            <YAxis
-                              type="category"
-                              dataKey="nome"
-                              width={90}
-                              tick={estiloEixo}
-                              axisLine={false}
-                              tickLine={false}
-                            />
-                            <Tooltip
-                              formatter={(v: number) => formatarMoeda(v)}
-                              {...estiloTooltip}
-                            />
-                            <Bar
-                              dataKey="valor"
-                              name="Custo"
-                              radius={[0, 4, 4, 0]}
-                              fill="#22d3ee"
-                            />
+                          <BarChart data={dadosPagamentosRateio} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 4" vertical={false} />
+                            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#748399" }} axisLine={false} tickLine={false} />
+                            <YAxis tickFormatter={formatarValorGrafico} tick={{ fontSize: 10, fill: "#748399" }} axisLine={false} tickLine={false} width={60} />
+                            <Tooltip formatter={(valor: number) => formatarMoeda(valor)} {...estiloTooltip} />
+                            <Legend align="right" verticalAlign="top" height={28} iconType="square" wrapperStyle={{ fontSize: 10 }} />
+                            <Bar dataKey="pagamentos" name="Pago" fill="#08a4c9" radius={[2, 2, 0, 0]} />
+                            <Bar dataKey="rateado" name="Rateado" fill="#319b59" radius={[2, 2, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
@@ -3407,54 +2972,81 @@ export default function FinanceiroCotista() {
                         </div>
                       )}
                     </div>
+                    {maiorDiferencaPagamentosRateio && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-[10px]">
+                        <span className="text-muted-foreground">
+                          Maior diferença em <b className="text-foreground">{maiorDiferencaPagamentosRateio.mes}: {formatarMoeda(maiorDiferencaPagamentosRateio.valor)}</b>
+                        </span>
+                        <button type="button" className="inline-flex items-center gap-1 font-semibold text-primary" onClick={() => setAbaAtiva("lancamentos")}>
+                          Ver detalhamento <ChevronRight size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="financeiro-panel p-5 xl:col-span-2">
-                    <div className="mb-5 flex items-center gap-2">
-                      <PieChart size={15} className="text-primary" />
+                  <div className="financeiro-panel min-w-0 overflow-hidden">
+                    <div className="financeiro-panel-header">
                       <div>
-                        <p className="text-sm font-bold">
-                          Participação por categoria
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Percentual de cada despesa sobre o total
-                        </p>
+                        <p className="text-sm font-bold">Custos por categoria</p>
                       </div>
                     </div>
-                    <div className="h-52 sm:h-64">
-                      {dadosCategorias.length ? (
+                    {dadosCategorias.length > 0 ? <>
+                    <div className="relative mx-auto h-44 w-full max-w-[220px]">
+                      <div className="absolute inset-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <RechartsPieChart>
                             <Pie
                               data={dadosCategorias}
                               dataKey="valor"
                               nameKey="nome"
-                              innerRadius={60}
-                              outerRadius={95}
-                              paddingAngle={3}
+                              innerRadius="62%"
+                              outerRadius="88%"
+                              paddingAngle={2}
                             >
                               {dadosCategorias.map((item, i) => (
-                                <Cell
-                                  key={item.nome}
-                                  fill={
-                                    coresCategorias[i % coresCategorias.length]
-                                  }
-                                />
+                                <Cell key={item.nome} fill={coresCategorias[i % coresCategorias.length]} />
                               ))}
                             </Pie>
-                            <Tooltip
-                              formatter={(v: number) => formatarMoeda(v)}
-                              {...estiloTooltip}
-                            />
+                            <Tooltip formatter={(v: number) => formatarMoeda(v)} {...estiloTooltip} />
                           </RechartsPieChart>
                         </ResponsiveContainer>
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          Dados insuficientes para o período.
-                        </div>
-                      )}
+                      </div>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <strong className="font-mono text-sm font-bold">{totalCategoriasCompacto}</strong>
+                        <span className="text-[8px] uppercase tracking-wider text-muted-foreground">Total</span>
+                      </div>
                     </div>
+                    <div className="px-4 pb-3">
+                      {dadosCategorias.map((item, i) => (
+                        <div key={item.nome} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-border/70 py-2 text-[10px]">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <i className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: coresCategorias[i % coresCategorias.length] }} />
+                            <span className="truncate">{item.nome}</span>
+                          </span>
+                          <span className="font-mono text-muted-foreground">{formatarMoeda(item.valor)}</span>
+                          <strong className="w-12 text-right font-mono">
+                            {totalCategorias > 0 ? ((item.valor / totalCategorias) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "0"}%
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                    </> : (
+                      <div className="flex h-44 items-center justify-center px-4 text-center text-xs text-muted-foreground">
+                        Dados insuficientes para o período.
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
+
+              {abaAtiva === "graficos" && (
+                <FechamentoBalancoDashboardCotista
+                  dashboard={dashboard}
+                  carregando={carregando}
+                  erro={erroDashboard}
+                  cotistas={cotistasAeronave}
+                  mesesSelecionados={mesesAplicados}
+                  visao="graficos"
+                />
               )}
 
               {abaAtiva === "ranking" && (

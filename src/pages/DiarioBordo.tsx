@@ -220,13 +220,13 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
             <div className="db-period">
               <span>PERÍODO</span>
               <select aria-label="Mês do diário" value={period.mes} onChange={(event) => changePeriod(`${period.ano}-${event.target.value}`)} disabled={saving}>
-                {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{monthName(i + 1).slice(0, 3).toUpperCase()}</option>)}
+                {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1} style={{ paddingLeft: 10 }}>{monthName(i + 1).slice(0, 3).toUpperCase()}</option>)}
               </select>
-              <select aria-label="Ano do diário" value={period.ano} onChange={(event) => changePeriod(`${event.target.value}-${period.mes}`)} disabled={saving}>
-                {years.map((year) => <option key={year} value={year}>{year}</option>)}
+              <select aria-label="Ano do diário" value={period.ano} onChange={(event) => changePeriod(`${event.target.value}-${period.mes}`)} disabled={saving} style={{ paddingLeft: 15, paddingRight: 15 }}>
+                {years.map((year) => <option key={year} value={year} style={{ paddingLeft: 9 }}>{year}</option>)}
               </select>
             </div>
-            <button type="button" onClick={() => openEntryEditor(null)} disabled={!month || closed || detailsLoading || saving} className="db-btn db-cyan"><Plus size={13} /> Novo Voo</button>
+            <button type="button" onClick={() => openEntryEditor(null)} disabled={!month || closed || detailsLoading || saving} className="db-btn db-cyan" style={{ paddingLeft: 20, paddingRight: 20 }}><Plus size={13} /> Novo Voo</button>
             <button type="button" onClick={() => window.print()} disabled={!month || detailsLoading} className="db-btn db-amber" title="Imprimir ou salvar como PDF"><FileText size={12} /> PDF</button>
             <button type="button" onClick={() => setMonthEditor(true)} disabled={detailsLoading || saving} className="db-btn db-green"><CalendarDays size={12} /> Novo Mês</button>
           </div>
@@ -422,7 +422,7 @@ const diarioStyles = `
 .db-month .db-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px;margin-bottom:15px}
 .db-heading{display:flex;align-items:center;gap:12px;min-width:0}
 .db-heading h1{font-size:15px;font-weight:800;line-height:1.35;margin:0}
-.db-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.db-actions{display:flex;align-items:center;gap:23px;flex-shrink:0;margin:0 -34px;padding:0 142px}
 .db-month .db-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;border:1px solid #293445;border-radius:9px;padding:0 12px;background:#141b25;color:#98a4b6;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;line-height:1}
 .db-month button:disabled{opacity:.45;cursor:not-allowed}
 .db-month button:not(:disabled):hover{filter:brightness(1.15)}
@@ -430,10 +430,10 @@ const diarioStyles = `
 .db-month .db-cyan{color:#08d4f3;background:#0bcedb14;border-color:#0e6174}
 .db-month .db-amber{color:#ffbf00;background:#fbbf240d;border-color:#65501b}
 .db-month .db-green{color:#26dca4;background:#10b98112;border-color:#145c4b}
-.db-month .db-period{display:flex;align-items:center;gap:4px;height:38px;border:1px solid #222c3a;background:#131923;border-radius:10px;padding:6px 10px}
+.db-month .db-period{display:flex;align-items:center;gap:4px;height:38px;border:1px solid #222c3a;background:#131923;border-radius:10px;margin:0 16px;padding:6px 23px}
 .db-period>span{display:flex;align-items:center;gap:6px;margin-right:4px;color:#60a5fa;font-size:9px;font-weight:700;letter-spacing:.7px}
 .db-period>span:before{content:"";width:4px;height:14px;background:#60a5fa;border-radius:2px}
-.db-period select{height:23px;width:auto;min-width:59px;border:1px solid #293445;background:#10151e;color:#f1f3f8;border-radius:7px;padding:0 6px;font-size:11px}
+.db-period select{height:23px;width:auto;min-width:59px;border:1px solid #293445;background:#10151e;color:#f1f3f8;border-radius:7px;margin:0 7px;padding:0 17px;font-size:11px}
 .db-month .db-summary{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:0;background:rgba(22,11,11,0)}
 .db-panel{min-width:0;border:1px solid #1e2633;background:#131821;border-radius:14px;padding:14px}
 .db-aircraft{background:#06080f}

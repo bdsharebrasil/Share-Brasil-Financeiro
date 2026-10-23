@@ -44,11 +44,6 @@ export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: Diar
             diário; abastecimento não equivale a combustível consumido.
           </p>
 
-          <p className="mt-1 text-xs text-muted-foreground">
-            Preço disponível para {numero(resumo.litrosPrecificados, "L")} dos
-            abastecimentos. A média não mede o consumo real do tanque.
-          </p>
-
           {resumo.semConsumo > 0 && (
             <p className="mt-2 text-xs text-amber-500">
               Média parcial: {resumo.semConsumo} lançamento(s) com horas e sem

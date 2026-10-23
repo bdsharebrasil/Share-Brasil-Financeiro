@@ -19,11 +19,14 @@ import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 export function PaginaFinanceiroShare() {
   const localizacao = useLocation();
   const navegar = useNavigate();
-  const abaInicial = new URLSearchParams(localizacao.search).get("aba") ||
+  const parametroAba = new URLSearchParams(localizacao.search).get("aba");
+  const abaInicial = parametroAba === "solicitacoes-pagamento" ? "contas-apagar" : parametroAba ||
     (localizacao.pathname.endsWith("/contas-a-pagar") ? "contas-apagar" :
       localizacao.pathname.endsWith("/contas-a-receber") ? "contas-areceber" :
         localizacao.pathname.endsWith("/nota-fiscal-saida") || localizacao.pathname.endsWith("/recibo-saida") ? "nota-fiscal-saida" : "resumo");
+  const subAbaInicial = parametroAba === "solicitacoes-pagamento" ? "solicitacoes" : "contas";
   const [aba, setAba] = useState(abaInicial);
+  const [subAbaContas, setSubAbaContas] = useState(subAbaInicial);
   const [dialogoAberto, setDialogoAberto] = useState(false);
   const [somenteDespesa, setSomenteDespesa] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
@@ -70,6 +73,7 @@ export function PaginaFinanceiroShare() {
   }, [atualizarBaixasPortal]);
 
   useEffect(() => setAba(abaInicial), [abaInicial]);
+  useEffect(() => setSubAbaContas(subAbaInicial), [subAbaInicial]);
   useEffect(() => {
     void buscarOpcoesFinanceiroShare()
       .then((opcoes) => {
@@ -108,7 +112,6 @@ export function PaginaFinanceiroShare() {
         <TabsTrigger value="caixa-empresa" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><WalletCards size={14} /> Caixa Empresa</TabsTrigger>
         <TabsTrigger value="contas-apagar" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
         <TabsTrigger value="contas-areceber" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Landmark size={14} /> Contas a Receber</TabsTrigger>
-        <TabsTrigger value="solicitacoes-pagamento" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins size={14} /> Solicitações de pagamento</TabsTrigger>
         <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Bell size={14} /> Baixas do portal{Boolean(solicitacoesBaixa.length) && <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] leading-none text-white">{solicitacoesBaixa.length}</span>}</TabsTrigger>
         <TabsTrigger value="holdings" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Building2 size={14} /> Holdings</TabsTrigger>
         <TabsTrigger value="salarios" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Salários</TabsTrigger>
@@ -116,9 +119,17 @@ export function PaginaFinanceiroShare() {
       </TabsList>
       <TabsContent value="resumo" className="mt-0"><AbaResumoFinanceiro aoMudarAba={mudarAba} /></TabsContent>
       <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} onNovoLancamento={() => { setSomenteDespesa(false); setDialogoAberto(true); }} /></TabsContent>
-      <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} /></TabsContent>
+      <TabsContent value="contas-apagar" className="mt-0">
+        <Tabs value={subAbaContas} onValueChange={setSubAbaContas} className="space-y-4">
+          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1 shadow-sm">
+            <TabsTrigger value="contas" className="shrink-0 gap-2 rounded-lg px-4 py-2 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
+            <TabsTrigger value="solicitacoes" className="shrink-0 gap-2 rounded-lg px-4 py-2 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins size={14} /> Solicitações de pagamento</TabsTrigger>
+          </TabsList>
+          <TabsContent value="contas" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} /></TabsContent>
+          <TabsContent value="solicitacoes" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
+        </Tabs>
+      </TabsContent>
       <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
-      <TabsContent value="solicitacoes-pagamento" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
       <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={solicitacoesBaixa} carregando={carregandoBaixas} erro={erroBaixas} contasBancarias={contas} aoAtualizar={atualizarBaixasPortal} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>
       <TabsContent value="salarios" className="mt-0"><AbaSalarios /></TabsContent>

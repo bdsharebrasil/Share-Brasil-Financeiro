@@ -60,10 +60,11 @@ export default function WelcomeToast({ name, onClose }: WelcomeToastProps) {
       aria-atomic="true"
       style={{
         position: "fixed",
-        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
-        width: "clamp(300px, 42vw, 540px)",
-        maxWidth: "calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))",
+        right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        // Menor: era clamp(300px, 42vw, 540px). Ajuste aqui se quiser mais/menos.
+        width: "clamp(260px, 26vw, 340px)",
+        maxWidth: "calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))",
         zIndex: 9999,
         pointerEvents: "none",
         isolation: "isolate",

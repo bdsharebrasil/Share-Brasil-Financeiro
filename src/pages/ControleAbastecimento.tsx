@@ -417,7 +417,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
 
               {/* RESUMO DO COTISTA */}
               <div className="mb-1"><h2 className="text-lg font-bold">{nomeClienteSelecionado}</h2><p className="text-xs text-muted-foreground">Histórico separado por mês</p></div>
-              <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl" role="tablist" aria-label="Histórico do cotista">
+              <div className="mt-[6px] flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-[9px] pb-2 rounded-t-xl" role="tablist" aria-label="Histórico do cotista">
                 <button type="button" role="tab" aria-selected={tabCliente === "vinculados"} onClick={() => { setTabCliente("vinculados"); setMesAberto(null); }} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tabCliente === "vinculados" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                   <Fuel size={13} className="mr-1.5 inline" /> Aeronaves vinculadas
                 </button>
@@ -425,7 +425,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   <Plane size={13} className="mr-1.5 inline" /> Voos Empréstimo
                 </button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid min-h-0 gap-[31px] px-[6px] py-0 text-[11px] font-light leading-[8px] sm:grid-cols-3">
                 <StatTile label="Registros encontrados" value={String(registrosCliente.length)} icon={<FolderOpen size={14} />} />
                 <StatTile label="Volume total" value={`${totalLitrosCliente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L`} icon={<Fuel size={14} />} />
                 <StatTile label="Valor total" value={money(totalValorCliente)} icon={<FileText size={14} />} accent="text-emerald-400" />

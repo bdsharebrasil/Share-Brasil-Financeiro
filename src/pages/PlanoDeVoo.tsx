@@ -264,8 +264,8 @@ function ConsultaAerodromo() {
         <h2 className="text-xl font-extrabold text-foreground">Informações do aeródromo</h2>
         <p className="mt-1 text-sm text-muted-foreground">Consulte dados publicados no AISWEB/DECEA, incluindo ficha, pistas, frequências, meteorologia, NOTAM e cartas.</p>
       </div>
-      <form onSubmit={buscar} className="flex gap-2">
-        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+      <form onSubmit={buscar} className="flex gap-[27px] px-2">
+        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="mx-[-4px] h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-[35px] font-mono text-sm tracking-widest text-foreground" />
         <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Consultar</button>
       </form>
       {erro && <Aviso erro>{erro}</Aviso>}

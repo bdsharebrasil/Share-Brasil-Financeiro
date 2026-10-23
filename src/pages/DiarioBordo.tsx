@@ -255,8 +255,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
                 <button type="submit" className="db-btn db-cyan" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</button>
               </form>}
             </div>
-          </section>
-          <section className="db-panel db-horimeter">
+            <div className="db-cell db-horimeter">
             <div className="db-section-title db-title-amber"><span>Horímetro</span></div>
             {editingHorimeter && month ? <form onSubmit={(event) => { event.preventDefault(); void saveHorimeter(); }}>
               <div className="db-stats db-three">
@@ -268,6 +267,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
               <StatTile label="Final" value={`${decimal(month?.horimetro_final)}h`} onClick={month && !closed && !detailsLoading ? editHorimeter : undefined} />
               <StatTile label="Ativo" value={`${decimal(month?.horimetro_ativo)}h`} onClick={month && !closed && !detailsLoading ? editHorimeter : undefined} />
             </div>}
+            </div>
           </section>
         </div>
 
@@ -434,10 +434,9 @@ const diarioStyles = `
 .db-period>span{display:flex;align-items:center;gap:6px;margin-right:4px;color:#60a5fa;font-size:9px;font-weight:700;letter-spacing:.7px}
 .db-period>span:before{content:"";width:4px;height:14px;background:#60a5fa;border-radius:2px}
 .db-period select{height:23px;width:auto;min-width:59px;border:1px solid #293445;background:#10151e;color:#f1f3f8;border-radius:7px;padding:0 6px;font-size:11px}
-.db-month .db-summary{display:grid;grid-template-columns:minmax(0,2.03fr) minmax(0,1fr);gap:12px;margin-top:0;background:rgba(22,11,11,0)}
+.db-month .db-summary{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:0;background:rgba(22,11,11,0)}
 .db-panel{min-width:0;border:1px solid #1e2633;background:#131821;border-radius:14px;padding:14px}
 .db-aircraft{background:#06080f}
-.db-horimeter{background:rgba(6,8,15,1);padding:20px 14px;margin:30px 0}
 .db-section-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:750;letter-spacing:1px;text-transform:uppercase;line-height:15px;margin-bottom:10px}
 .db-section-title:before{content:"";width:4px;height:15px;border-radius:2px;background:currentColor;flex-shrink:0}
 .db-section-title small{margin-left:auto;color:#929eaf;text-transform:none;letter-spacing:0;font-size:11px;font-weight:400}
@@ -490,7 +489,7 @@ const diarioStyles = `
  .db-month{position:absolute;left:0;top:0;max-width:none;width:100%;padding:0;background:white;color:black;print-color-adjust:exact;-webkit-print-color-adjust:exact}
  .db-month .db-topbar{display:block}.db-heading h1{color:black}
  .db-month :is(.db-actions,.db-back,.db-toolbar,.db-table-options,.db-inline-editor,.db-editor-actions){display:none!important}
- .db-month .db-summary{grid-template-columns:2fr 1fr}.db-month .db-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .db-month .db-summary{grid-template-columns:minmax(0,1fr)}.db-month .db-four{grid-template-columns:repeat(4,minmax(0,1fr))}
  .db-month .db-table-scroll{overflow:visible;max-width:none}.db-month .db-table-scroll table{min-width:0!important;width:100%!important}.db-month .db-table-scroll col{width:auto!important}.db-month .db-table-scroll :is(th,td){position:static!important;width:auto!important;padding:3px 2px!important;font-size:7px!important;white-space:normal!important;overflow:visible!important}
  .db-month .db-panel,.db-month tr{break-inside:avoid}.db-month thead{display:table-header-group}.db-month tfoot{position:static!important}.db-month .db-stat small{display:none}
 }

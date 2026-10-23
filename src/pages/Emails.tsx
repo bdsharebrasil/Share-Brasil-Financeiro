@@ -509,7 +509,7 @@ export default function Emails() {
         </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#080f1d] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
+        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#050b19] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
           {emailEnviadoSelecionado && pastaAtiva === "enviadas" && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
               <div className="shrink-0 border-b border-white/[.06] bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-slate-400">Para: <span className="text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)}</p></div>

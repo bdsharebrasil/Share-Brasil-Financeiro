@@ -488,15 +488,15 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   <table className="w-full table-fixed border-collapse text-left text-[11px]">
                     <colgroup>
                       <col style={{ width: "8%" }} />
-                      <col style={{ width: "9%" }} />
-                      <col style={{ width: "15%" }} />
+                      <col style={{ width: "10%" }} />
                       <col style={{ width: "18%" }} />
+                      <col style={{ width: "10%" }} />
                       <col className="hidden xl:table-column" style={{ width: "9%" }} />
-                      <col className="hidden xl:table-column" style={{ width: "7%" }} />
-                      <col style={{ width: "9%" }} />
+                      <col className="hidden xl:table-column" style={{ width: "8%" }} />
+                      <col style={{ width: "10%" }} />
                       <col className="hidden lg:table-column" style={{ width: "10%" }} />
-                      <col style={{ width: "9%" }} />
-                      <col style={{ width: "6%" }} />
+                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "7%" }} />
                     </colgroup>
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

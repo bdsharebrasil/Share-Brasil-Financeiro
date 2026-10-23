@@ -347,6 +347,30 @@ function percentualNumerico(valor: string) {
   return normalizado ? Number(normalizado) : NaN;
 }
 
+function preverValoresRateio(totalCentavos: number, percentuais: number[]): number[] | null {
+  if (!Number.isInteger(totalCentavos) || totalCentavos <= 0 || !percentuais.length || percentuais.some((p) => !Number.isFinite(p) || p < 0)) return null;
+  const basesBrutas = percentuais.map((p) => p * 100);
+  const bases = basesBrutas.map(Math.floor);
+  let restantePercentual = 10_000 - bases.reduce((soma, base) => soma + base, 0);
+  const restosPercentual = basesBrutas.map((valor, indice) => ({ indice, resto: valor - bases[indice] })).sort((a, b) => b.resto - a.resto || a.indice - b.indice);
+  for (const item of restosPercentual) {
+    if (restantePercentual <= 0) break;
+    bases[item.indice] += 1;
+    restantePercentual -= 1;
+  }
+  if (restantePercentual !== 0) return null;
+  const exatos = bases.map((base) => totalCentavos * base / 10_000);
+  const valores = exatos.map(Math.floor);
+  let centavosRestantes = totalCentavos - valores.reduce((soma, valor) => soma + valor, 0);
+  const restosCentavos = exatos.map((valor, indice) => ({ indice, resto: valor - valores[indice] })).sort((a, b) => b.resto - a.resto || a.indice - b.indice);
+  for (const item of restosCentavos) {
+    if (centavosRestantes <= 0) break;
+    valores[item.indice] += 1;
+    centavosRestantes -= 1;
+  }
+  return centavosRestantes === 0 ? valores : null;
+}
+
 function dividirPercentuais(ids: string[]): RateioDraft[] {
   if (!ids.length) return [{ cotista: "", percentual: "100" }];
   const unidades = 1000000;
@@ -474,6 +498,10 @@ export function NovoLancamentoCotistaDialog({
   const totalPercentual = rateios.reduce(
     (total, r) => total + (percentualNumerico(r.percentual) || 0),
     0,
+  );
+  const valorPreviewRateios = preverValoresRateio(
+    parseValorReais(valor),
+    rateios.map((r) => percentualNumerico(r.percentual)),
   );
 
   const salvar = async () => {
@@ -983,6 +1011,20 @@ export function NovoLancamentoCotistaDialog({
                         </Button>
                       </div>
                     ))}
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                    <p className="text-xs font-semibold">Prévia do valor rateado por participante</p>
+                    <div className="mt-2 space-y-1.5">
+                      {rateios.map((rateio, index) => {
+                        const pessoa = (modo === "CLIENTE" ? cotistasCliente : cotistasHolding).find((item) => item.id === rateio.cotista);
+                        return <div key={`${rateio.cotista}-${index}`} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="min-w-0 truncate text-muted-foreground">{pessoa?.nome || `${modo === "CLIENTE" ? "Cotista" : "Sócio"} ${index + 1}`} · {rateio.percentual || "0"}%</span>
+                          <strong className="shrink-0 tabular-nums">{valorPreviewRateios ? formatarCentavos(valorPreviewRateios[index]) : "—"}</strong>
+                        </div>;
+                      })}
+                    </div>
+                    {valorPreviewRateios && valorPreviewRateios.some((parte) => parte !== valorPreviewRateios[0]) && <p className="mt-2 text-[11px] text-muted-foreground">Os centavos residuais são distribuídos para que a soma seja exatamente o valor total da despesa.</p>}
+                    {pagoDiretamenteCliente && modo === "CLIENTE" && <p className="mt-2 text-[11px] text-muted-foreground">O pagador indicado permanece responsável pelo pagamento integral; os demais rateios registram apenas sua parte e continuam sem valor pago.</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button

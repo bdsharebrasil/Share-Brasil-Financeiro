@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "api_workers": {
-      "enabled": false
+      "enabled": true
     },
     "shaders": {
       "enabled": true

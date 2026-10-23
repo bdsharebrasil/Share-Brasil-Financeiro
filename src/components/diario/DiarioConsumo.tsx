@@ -40,8 +40,7 @@ export default function DiarioConsumo({ lancamentos, modo }: { lancamentos: Diar
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             Consumo estimado pelos lançamentos: litros ÷ horas. O preço médio é
             ponderado pelos litros com valor de compra informado. Custo por hora
-            = L/h × R$/L, apenas combustível. Compras vinculadas aos voos deste
-            diário; abastecimento não equivale a combustível consumido.
+            = L/h × R$/L, apenas combustível. 
           </p>
 
           {resumo.semConsumo > 0 && (

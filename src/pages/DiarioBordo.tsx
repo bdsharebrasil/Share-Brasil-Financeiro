@@ -2,7 +2,7 @@ import DiarioConsumo, { DiarioDiscrepancias } from "@/components/diario/DiarioCo
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, ArrowDown, ChevronDown, Droplets, FileText, Map as MapIcon, BookOpenCheck, CalendarDays, Check, Edit3, List, Plus, RefreshCw, Search, Trash2, X, PlaneTakeoff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EstadoVazio, EtiquetaStatus, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
+import { EstadoVazio, EtiquetaStatus } from "@/components/dashboard/ComponentesDashboard";
 import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import { CreateMonthDialog } from "@/components/diario/CreateMonthDialog";
 import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
@@ -298,9 +298,9 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
   }
 
   return (
-    <div className="diario-bordo route-enter mx-auto w-full min-w-0 max-w-[1440px] space-y-4 pb-6 lg:space-y-5">
+    <div className="diario-bordo route-enter mx-[6px] my-[10px] w-full min-w-0 max-w-[1440px] space-y-4 pb-6 pl-[12px] pr-[25px] lg:space-y-5">
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
-        <div><IndicadorPagina>Operações / Diário de bordo</IndicadorPagina><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><BookOpenCheck className="text-primary" size={26} /> Diários de bordo</h1><p className="mt-1.5 text-xs text-muted-foreground">Gerencie os diários digitais, horas de voo, célula e registros operacionais das aeronaves.</p></div>
+        <div className="pl-[14px] pr-[15px] pt-[7px]"><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><BookOpenCheck className="text-primary" size={26} /> Diários de bordo</h1><p className="mt-1.5 text-xs text-muted-foreground">Gerencie os diários digitais, horas de voo, célula e registros operacionais das aeronaves.</p></div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">{aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]"><ArrowLeft size={13} /> Voltar</Button>}{aoAbrirAerodromos && <Button type="button" variant="outline" onClick={aoAbrirAerodromos} className="h-9 gap-1.5 text-[10px]">Aeródromos</Button>}</div>
       </div>
       {(error || notice) && <div className={`rounded-lg border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}

@@ -174,10 +174,10 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-primary { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border:1px solid hsl(var(--primary)); border-radius:4px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-primary:hover { filter:brightness(.94); }
-.despesa-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.despesa-metric { padding:12px 16px; min-width:0; }
-.despesa-metric-label { margin:0; color:hsl(var(--muted-foreground)); font-size:12px; }
-.despesa-metric-value { margin:6px 0 0; font-size:22px; font-weight:600; line-height:1.3; letter-spacing:-.025em; font-variant-numeric:tabular-nums; overflow-wrap:break-word; }
+.despesa-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.despesa-metric { padding:8px 12px; min-width:0; background:hsl(var(--card) / .6); }
+.despesa-metric-label { margin:0; color:hsl(var(--muted-foreground)); font-size:11px; }
+.despesa-metric-value { margin:2px 0 0; font-size:15px; font-weight:600; line-height:1.3; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:break-word; }
 .despesa-ledger { min-width:0; overflow:hidden; }
 .despesa-heading { padding:12px 16px; background:hsl(var(--card)); }
 .despesa-heading h3 { font-size:14px; font-weight:600; color:hsl(var(--foreground)); }
@@ -191,7 +191,8 @@ const DESPESAS_ESTILOS = `
 .despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; }
 .despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table-scroll[data-recolhido="true"] > table > thead > tr > th { height:34px; padding:6px 12px; font-size:9px; transition:none; }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; transition:height .15s ease, padding .15s ease; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
 .despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
 .despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
 .despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
@@ -239,8 +240,8 @@ const DESPESAS_ESTILOS = `
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:640px) {
   .despesa-metrics { grid-template-columns:1fr; gap:8px; }
-  .despesa-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; }
-  .despesa-metric-value { font-size:18px; margin:0; }
+  .despesa-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 10px; }
+  .despesa-metric-value { font-size:14px; margin:0; }
   .despesa-toolbar-main { flex-wrap:wrap; }
   .despesa-toolbar-main > div:first-child { flex-basis:100%; }
   .despesa-filter-panel { grid-template-columns:1fr; }
@@ -1845,7 +1846,7 @@ function LancamentosDespesa({
         {filtradas.length > 0 ? (
           <>
             {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
-            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0}>
+            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0} onScroll={(e) => { e.currentTarget.dataset.recolhido = String(e.currentTarget.scrollTop > 8); }}>
               <table className="despesa-table" style={{ minWidth: 1090 + cotistasAeronave.length * 168 }}>
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores

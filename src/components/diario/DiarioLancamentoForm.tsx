@@ -883,6 +883,7 @@ export default function DiarioLancamentoForm({
     setForm((current) => ({
       ...current,
       ...dadosAbastecimento(item),
+      abastecido: true,
     }));
   };
 

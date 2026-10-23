@@ -432,3 +432,36 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* Finanças internas: superfícies sólidas e hierarquia funcional, sem efeitos promocionais. */
+.financeiro-cotista-view .financeiro-panel,
+.financeiro-cotista-view .financeiro-kpi,
+.financeiro-cotista-view .despesa-metric,
+.financeiro-cotista-view .despesa-ledger,
+.caixa-empresa-view .financeiro-panel,
+.caixa-empresa-view .caixa-empresa-ledger {
+  background: hsl(var(--card)) !important;
+  box-shadow: none !important;
+}
+.financeiro-cotista-view .financeiro-title-icon,
+.financeiro-cotista-view .despesa-primary,
+.caixa-empresa-view .financeiro-title-icon {
+  box-shadow: none !important;
+}
+.financeiro-cotista-view .despesa-heading,
+.caixa-empresa-view .caixa-empresa-ledger > div:first-child,
+.dark .financeiro-cotista-view .despesa-heading,
+.dark .caixa-empresa-view .caixa-empresa-ledger > div:first-child {
+  background: hsl(var(--card)) !important;
+}
+.financeiro-cotista-view .financeiro-tabs button[aria-selected="true"] {
+  box-shadow: none !important;
+}
+.financeiro-cotista-view .despesa-metric:hover,
+.financeiro-cotista-view .financeiro-kpi:hover {
+  transform: none;
+  box-shadow: none !important;
+}
+.caixa-empresa-view .caixa-empresa-ledger button:not([role="checkbox"]):not(.expand-button):hover {
+  transform: none;
+}

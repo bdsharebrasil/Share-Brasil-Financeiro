@@ -1064,6 +1064,7 @@ export function NovoLancamentoCotistaDialog({
                 !(modo === "CLIENTE" ? possuiCliente : possuiHolding)
               }
               className="despesa-primary h-11 gap-2 rounded-xl px-5"
+              style={{ backgroundColor: "rgba(9, 50, 71, 1)", borderColor: "rgba(6, 54, 78, 1)", borderRadius: 12, overflow: "hidden" }}
             >
               {salvando ? (
                 <Loader2 size={17} className="animate-spin" />
@@ -1735,6 +1736,7 @@ function LancamentosDespesa({
             type="button"
             onClick={aoNovo}
             className="despesa-primary h-9 shrink-0 gap-2 rounded-lg px-3 text-xs"
+            style={{ backgroundColor: "rgba(1, 18, 24, 1)" }}
           >
             <Plus size={18} />
             Novo lançamento

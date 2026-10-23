@@ -1078,12 +1078,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   return (
     <div className="route-enter mx-auto w-full max-w-[1040px] space-y-5 px-1 sm:px-0">
-      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-5 py-6 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-7 sm:py-7">
+      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-5 py-6 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-7 sm:py-7" style={{ backgroundColor: "rgb(16, 20, 39)" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[.14em] text-primary"><ClipboardCheck size={13} /> Fluxo financeiro seguro</div>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
-          <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">Registre a despesa, defina o rateio por cotista e encaminhe os documentos certos para cada destinatário.</p>
         </div>
       </header>
 

@@ -30,14 +30,11 @@ import {
   buscarAbastecimentosPendentesFinanceiro,
   buscarPainelFinanceiro,
   buscarPerfilColaborador,
-  buscarRascunhosEnvioPagamento,
   type AbastecimentoPendenteFinanceiro,
   type MovimentacaoFinanceira,
   type PainelFinanceiroResponse,
-  type RascunhoEnvioPagamento,
 } from "@/lib/colaborador-api";
 import ControleAbastecimento from "@/pages/ControleAbastecimento";
-import { lerDadosRascunho, progressoRascunho } from "@/lib/rascunho-envio";
 
 function dataBruta(valor: string | null | undefined) {
   if (!valor) return "—";
@@ -196,7 +193,6 @@ export default function DashboardFinanceiro({
   const [mostrarPendencias, setMostrarPendencias] = useState(false);
   const [abaMovimentacoes, setAbaMovimentacoes] = useState<"movimentacoes" | "abastecimentos_pendentes">("movimentacoes");
   const [abastecimentosPendentes, setAbastecimentosPendentes] = useState<AbastecimentoPendenteFinanceiro[]>([]);
-  const [rascunhosPagamento, setRascunhosPagamento] = useState<RascunhoEnvioPagamento[]>([]);
   const [carregandoAbastecimentos, setCarregandoAbastecimentos] = useState(true);
   const [erroAbastecimentos, setErroAbastecimentos] = useState<string | null>(null);
   const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
@@ -209,10 +205,9 @@ export default function DashboardFinanceiro({
     setErro(null);
     setErroAbastecimentos(null);
     try {
-      const [painel, abastecimentos, rascunhos] = await Promise.allSettled([
+      const [painel, abastecimentos] = await Promise.allSettled([
         buscarPainelFinanceiro(),
         buscarAbastecimentosPendentesFinanceiro(),
-        buscarRascunhosEnvioPagamento(),
       ]);
       if (painel.status === "fulfilled") {
         setDados(painel.value);
@@ -225,7 +220,6 @@ export default function DashboardFinanceiro({
       } else {
         setErroAbastecimentos("Não foi possível carregar os abastecimentos pendentes.");
       }
-      if (rascunhos.status === "fulfilled") setRascunhosPagamento(rascunhos.value.rascunhos);
     } finally {
       setCarregando(false);
       setCarregandoAbastecimentos(false);
@@ -351,24 +345,6 @@ export default function DashboardFinanceiro({
         />
       </section>
 
-      {rascunhosPagamento.length > 0 && <section className="mx-auto mb-5 w-full max-w-[1180px] overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <CabecalhoSecao
-          icon={<Clock3 size={15} />}
-          title="Programações em andamento"
-          detail="Rascunhos, solicitações criadas e progresso de e-mails por destinatário."
-          action={<Button type="button" variant="outline" className="h-8 gap-1.5 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}><Send size={12} /> Abrir programação</Button>}
-        />
-        <div className="divide-y divide-border/60">
-          {rascunhosPagamento.slice(0, 5).map((rascunho) => {
-            const progresso = progressoRascunho(rascunho, lerDadosRascunho(rascunho.dados_json));
-            const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
-            return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-              <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{progresso.descricao}</p><p className="mt-1 text-[10px] text-muted-foreground">{etapas.map(([nome, valor]) => `${nome}: ${valor}`).join(" · ")} · atualizado às {new Date(rascunho.atualizado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p></div>
-              <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 px-3 text-[10px]" onClick={() => aoNavegar("enviar-pagamento")}>Continuar</Button>
-            </div>;
-          })}
-        </div>
-      </section>}
 
       <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao

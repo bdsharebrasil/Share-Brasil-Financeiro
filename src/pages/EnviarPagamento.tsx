@@ -1252,6 +1252,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </div>
       </section>
 
+      {!historico && rascunhos.length > 0 && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-[11px] text-amber-700 dark:text-amber-200">
+          <span>Você tem {rascunhos.length} programação(ões) em andamento.</span>
+          <button type="button" onClick={() => setHistorico(true)} className="font-bold underline">Ver no histórico</button>
+        </div>
+      )}
+
       {historico && (
         <>
           {rascunhos.length > 0 && <section className="overflow-hidden rounded-sm border border-border bg-card/60">

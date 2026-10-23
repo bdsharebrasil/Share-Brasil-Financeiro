@@ -341,7 +341,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
         </div>
       )}
 
-      {/* TABS */}
+      {!clienteSelecionado && (
       <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl">
         <button type="button" onClick={() => setTab("registros")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tab === "registros" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
           <Fuel size={13} className="mr-1.5 inline" /> Histórico de abastecimentos
@@ -350,6 +350,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
           <Building2 size={13} className="mr-1.5 inline" /> Fornecedores
         </button>
       </div>
+      )}
 
       {tab === "fornecedores" ? (
         <FornecedorTab options={options} onSaved={() => void load()} onError={setError} />
@@ -430,7 +431,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                 <StatTile label="Valor total" value={money(totalValorCliente)} icon={<FileText size={14} />} accent="text-emerald-400" />
               </div>
               {!pastaSelecionada ? (
-                <div className="grid gap-x-5 gap-y-8 rounded-xl border border-border/70 bg-card/35 p-6 sm:grid-cols-2 lg:grid-cols-3 md:p-8">
+                <div className="grid gap-x-4 gap-y-5 rounded-xl border border-border/70 bg-card/35 p-4 sm:grid-cols-2 lg:grid-cols-3 md:p-5">
                   {registrosClientePorMes.length ? registrosClientePorMes.map(([mes, registros], indice) => {
                     const titulo = mes === "sem-data"
                       ? "Sem data"
@@ -441,20 +442,20 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                         type="button"
                         onClick={() => setMesAberto(mes)}
                         aria-label={`Abrir pasta ${titulo}`}
-                        className="group rounded-2xl p-2 text-center transition-all hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                        className="group rounded-2xl p-1 text-center transition-all hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                       >
-                        <div className="relative mx-auto h-[130px] w-[174px] max-w-full px-[6px] transition-transform duration-300 group-hover:scale-[1.04]">
-                          <span className="absolute left-2 top-0 z-0 h-6 w-20 rounded-t-[16px] bg-gradient-to-r from-orange-600 to-amber-500" />
-                          <span className="absolute left-3 top-4 z-10 h-4 w-[154px] rounded-t-lg border border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
-                          <span className="absolute inset-x-0 top-5 bottom-0 z-20 overflow-hidden rounded-[15px] border border-amber-300/[.88] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-400">
-                            <span className="absolute inset-x-3 top-2 h-1.5 rounded-full bg-white/25" />
+                        <div className="relative mx-auto h-[92px] w-[124px] max-w-full px-[4px] transition-transform duration-300 group-hover:scale-[1.04]">
+                          <span className="absolute left-1.5 top-0 z-0 h-4 w-14 rounded-t-[11px] bg-gradient-to-r from-orange-600 to-amber-500" />
+                          <span className="absolute left-2 top-3 z-10 h-3 w-[108px] rounded-t border border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
+                          <span className="absolute inset-x-0 top-3.5 bottom-0 z-20 overflow-hidden rounded-[11px] border border-amber-300/[.88] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-400">
+                            <span className="absolute inset-x-2 top-1.5 h-1 rounded-full bg-white/25" />
                             <span className="absolute inset-x-0 bottom-0 h-9 bg-orange-500/10" />
-                            <span className="absolute left-1/2 top-1/2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-white/30 bg-white/25 font-mono text-sm font-black text-amber-950">
+                            <span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-white/30 bg-white/25 font-mono text-xs font-black text-amber-950">
                               {registros.length}
                             </span>
                           </span>
                         </div>
-                        <strong className={`mt-2 block text-[13px] font-extrabold tracking-[-.02em] ${indice === 0 ? "text-primary" : "text-foreground"}`}>
+                        <strong className={`mt-1.5 block text-xs font-extrabold tracking-[-.02em] ${indice === 0 ? "text-primary" : "text-foreground"}`}>
                           {titulo.charAt(0).toUpperCase() + titulo.slice(1)}
                         </strong>
                         <span className="mt-1 block text-[10px] font-medium text-muted-foreground">Clique para abrir</span>

@@ -1,8 +1,9 @@
-import { FileText, Landmark, ReceiptText, WalletCards, Building2, LayoutDashboard, Bell } from "lucide-react";
+import { Bell, Building2, CirclePlus, FileText, Landmark, LayoutDashboard, ReceiptText, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { buscarOpcoesFinanceiroShare, buscarSolicitacoesBaixaPortal, type CategoriaCaixaShare, type ContaBancaria, type SolicitacaoBaixaPortal } from "@/lib/financeiro-share-api";
 import { useCaixaEmpresa } from "@/hooks/useCaixaEmpresa";
 import { AbaCaixaEmpresa } from "./AbaCaixaEmpresa";
@@ -95,30 +96,52 @@ export function PaginaFinanceiroShare() {
     recarregar();
   };
 
-  return <div className="financeiro-shell route-enter mx-auto max-w-[1480px] space-y-5 pb-10">
-    <header className="financeiro-header -mb-[7px] -mt-[7px] flex flex-wrap items-end justify-between gap-5 pb-[1px] pt-[1px]">
-      <div>
-        <h1 className="mt-1 flex items-center gap-3 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">
-          <span className="financeiro-title-icon"><WalletCards size={18} /></span> Financeiro Share
-        </h1>
+  const abrirNovoLancamento = (despesa = false) => {
+    setSomenteDespesa(despesa);
+    setDialogoAberto(true);
+  };
+
+  return <main className="financeiro-shell route-enter mx-auto w-full max-w-[1480px] space-y-6 pb-10">
+    <header className="relative overflow-hidden rounded-2xl border border-border/70 bg-card px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 size-64 rounded-full bg-primary/[0.07] blur-3xl" />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="financeiro-eyebrow mb-3 flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-primary" /> Share Brasil · Gestão financeira
+          </p>
+          <h1 className="flex items-center gap-3 text-2xl font-extrabold tracking-[-.04em] text-foreground sm:text-[30px]">
+            <span className="financeiro-title-icon size-10 shrink-0 rounded-xl"><WalletCards size={19} /></span>
+            Financeiro Share
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Acompanhe caixa, contas, baixas do portal, holdings, salários e documentos fiscais em um só lugar.
+          </p>
+        </div>
+        <Button type="button" onClick={() => abrirNovoLancamento()} className="financeiro-primary-action shrink-0 gap-2 self-start sm:self-center">
+          <CirclePlus size={16} /> Novo lançamento
+        </Button>
       </div>
     </header>
 
-
     <Tabs value={aba} onValueChange={mudarAba} className="space-y-5">
-      <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-[10px] border border-border/70 bg-card/70 p-1.5 shadow-sm">
-        <TabsTrigger value="resumo" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><LayoutDashboard size={14} /> Resumo</TabsTrigger>
-        <TabsTrigger value="caixa-empresa" className="shrink-0 gap-2 overflow-hidden rounded-[7px] px-4 py-2.5 text-[11px] data-[state=active]:bg-[#057baf] data-[state=active]:text-primary-foreground"><WalletCards size={14} /> Caixa Empresa</TabsTrigger>
-        <TabsTrigger value="contas-apagar" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
-        <TabsTrigger value="contas-areceber" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Landmark size={14} /> Contas a Receber</TabsTrigger>
-        <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Bell size={14} /> Baixas do portal{Boolean(solicitacoesBaixa.length) && <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] leading-none text-white">{solicitacoesBaixa.length}</span>}</TabsTrigger>
-        <TabsTrigger value="holdings" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Building2 size={14} /> Holdings</TabsTrigger>
-        <TabsTrigger value="salarios" className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Salários</TabsTrigger>
-        <TabsTrigger value="nota-fiscal-saida" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><FileText size={14} /> NF e recibo de saída</TabsTrigger>
-      </TabsList>
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <TabsList aria-label="Seções do Financeiro Share" className="financeiro-tabs h-auto w-max min-w-full justify-start gap-1 rounded-xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
+          <TabsTrigger value="resumo" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><LayoutDashboard size={15} /> Resumo</TabsTrigger>
+          <TabsTrigger value="caixa-empresa" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><WalletCards size={15} /> Caixa Empresa</TabsTrigger>
+          <TabsTrigger value="contas-apagar" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><ReceiptText size={15} /> Contas a Pagar</TabsTrigger>
+          <TabsTrigger value="contas-areceber" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><Landmark size={15} /> Contas a Receber</TabsTrigger>
+          <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm">
+            <Bell size={15} /> Baixas do portal
+            {solicitacoesBaixa.length > 0 && <span className="ml-0.5 min-w-5 rounded-full bg-destructive px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-destructive-foreground">{solicitacoesBaixa.length}</span>}
+          </TabsTrigger>
+          <TabsTrigger value="holdings" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><Building2 size={15} /> Holdings</TabsTrigger>
+          <TabsTrigger value="salarios" className="shrink-0 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm">Salários</TabsTrigger>
+          <TabsTrigger value="nota-fiscal-saida" className="shrink-0 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"><FileText size={15} /> NF e recibo de saída</TabsTrigger>
+        </TabsList>
+      </div>
       <TabsContent value="resumo" className="mt-0"><AbaResumoFinanceiro aoMudarAba={mudarAba} /></TabsContent>
-      <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} onNovoLancamento={() => { setSomenteDespesa(false); setDialogoAberto(true); }} /></TabsContent>
-      <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} contasBancarias={contas} subAba={subAbaContas} onSubAbaChange={setSubAbaContas} /></TabsContent>
+      <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} onNovoLancamento={() => abrirNovoLancamento()} /></TabsContent>
+      <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => abrirNovoLancamento(true)} contasBancarias={contas} subAba={subAbaContas} onSubAbaChange={setSubAbaContas} /></TabsContent>
       <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
       <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={solicitacoesBaixa} carregando={carregandoBaixas} erro={erroBaixas} contasBancarias={contas} aoAtualizar={atualizarBaixasPortal} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>
@@ -126,5 +149,5 @@ export function PaginaFinanceiroShare() {
       <TabsContent value="nota-fiscal-saida" className="mt-0 bg-[#01051d]"><NFSaidaTab /></TabsContent>
     </Tabs>
     <NovoLancamentoShareDialog aberto={dialogoAberto} aoFechar={() => setDialogoAberto(false)} categorias={categorias} aoCriar={aoCriarLancamento} somenteDespesa={somenteDespesa} />
-  </div>;
+  </main>;
 }

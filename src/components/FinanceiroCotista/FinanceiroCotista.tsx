@@ -1736,7 +1736,7 @@ function LancamentosDespesa({
             type="button"
             onClick={aoNovo}
             className="despesa-primary h-9 shrink-0 gap-2 rounded-lg px-3 text-xs"
-            style={{ backgroundColor: "rgba(1, 18, 24, 1)" }}
+            style={{ backgroundColor: "rgba(1, 9, 24, 1)", borderColor: "rgba(4, 79, 117, 1)" }}
           >
             <Plus size={18} />
             Novo lançamento

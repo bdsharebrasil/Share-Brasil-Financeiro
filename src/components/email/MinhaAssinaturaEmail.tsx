@@ -34,7 +34,7 @@ export default function MinhaAssinaturaEmail({ embedded = false }: { embedded?: 
   return <div className={`${embedded ? "" : "route-enter mx-auto max-w-4xl"} space-y-6`}>
     {!embedded && <header><h1 className="text-2xl font-extrabold">Assinatura</h1></header>}
     {(erro || ok) && <div className="flex items-center gap-2 rounded-xl border p-3 text-xs">{erro ? <XCircle size={15} /> : <CheckCircle2 size={15} />} {erro || ok}</div>}
-    {busy ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" size={20} /></div> : <div className="grid gap-6 lg:grid-cols-[minmax(260px,340px)_1fr]">
+    {busy ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" size={20} /></div> : <div className="grid gap-6">
       <section className="space-y-4 rounded-2xl border border-border/60 bg-card/60 p-6">
         <label className="block"><span className="mb-1 block text-xs font-semibold">Nome</span><Input value={dados.nome || ""} onChange={(e) => setDados((atual) => ({ ...atual, nome: e.target.value }))} className="h-10 rounded-xl text-xs" placeholder="Nome que aparecerá no e-mail" /></label>
         <p className="text-[11px] text-muted-foreground">Setor, telefone e endereço são preenchidos automaticamente conforme o departamento do seu perfil.</p>

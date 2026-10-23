@@ -296,8 +296,8 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
     finally { setProgresso({ atual: 0, total: 0 }); terminar(); }
   }
 
-  return <div className="space-y-5 text-foreground" aria-busy={ocupado || carregando}>
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  return <div className="caixa-empresa-view space-y-5 text-foreground" aria-busy={ocupado || carregando}>
+    <header className="caixa-empresa-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Financeiro / Gestão interna</p>
         <h2 className="flex items-center gap-3 text-2xl font-semibold tracking-tight"><span className="rounded-xl border border-primary/15 bg-primary/10 p-2.5 text-primary"><Wallet size={22} /></span>Caixa Empresa</h2>
@@ -311,7 +311,7 @@ export function AbaCaixaEmpresa({ onNovoLancamento }: { onNovoLancamento?: () =>
 
     <p className="text-xs text-muted-foreground">Totais dos filtros atuais. Cancelados não entram nas somas. O saldo realizado não inclui saldo inicial. A seleção permanece entre páginas e é limpa ao alterar os filtros.</p>
 
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Movimentações">
+    <section className="caixa-empresa-ledger overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Movimentações">
       <div className="space-y-4 border-b border-border p-4 sm:p-5">
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
           <div role="group" aria-label="Filtrar fluxo" className="inline-flex w-full gap-1 rounded-xl bg-muted/60 p-1 sm:w-auto">

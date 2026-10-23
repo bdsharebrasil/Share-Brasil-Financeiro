@@ -148,6 +148,170 @@
 
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Financeiro Share e Financeiro Cotista — linguagem visual das referências */
+.financeiro-cotista-view,
+.caixa-empresa-view {
+  --financeiro-surface: hsl(var(--card));
+  --financeiro-subtle: hsl(var(--muted) / .42);
+  --financeiro-line: hsl(var(--border));
+  --financeiro-shadow: 0 12px 32px hsl(var(--foreground) / .045);
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+}
+.financeiro-cotista-view .financeiro-header,
+.caixa-empresa-header {
+  padding: 2px 2px 4px;
+}
+.financeiro-cotista-view .financeiro-header h2,
+.caixa-empresa-header h2 {
+  letter-spacing: -.045em;
+}
+.financeiro-cotista-view .financeiro-panel,
+.caixa-empresa-ledger {
+  border-radius: 14px;
+  border-color: var(--financeiro-line);
+  box-shadow: var(--financeiro-shadow);
+}
+.financeiro-cotista-view .financeiro-tabs {
+  border-radius: 12px;
+  background: var(--financeiro-subtle);
+  border-color: var(--financeiro-line);
+  padding: 4px;
+}
+.financeiro-cotista-view .financeiro-tabs button {
+  min-height: 36px;
+  border-radius: 9px;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.financeiro-cotista-view .financeiro-tabs button[aria-selected="true"] {
+  background: var(--financeiro-surface);
+  color: hsl(var(--primary));
+  box-shadow: 0 3px 10px hsl(var(--foreground) / .08);
+}
+.financeiro-cotista-view .despesa-metric {
+  min-height: 104px;
+  border-radius: 13px;
+  padding: 16px;
+  background: radial-gradient(circle at 100% 0%, hsl(var(--primary) / .08), transparent 44%), var(--financeiro-surface);
+  box-shadow: var(--financeiro-shadow);
+  transition: transform .18s ease, border-color .18s ease;
+}
+.financeiro-cotista-view .despesa-metric:hover {
+  transform: translateY(-2px);
+  border-color: hsl(var(--primary) / .35);
+}
+.financeiro-cotista-view .despesa-metric-value {
+  font-size: 1.12rem;
+  letter-spacing: -.035em;
+}
+.financeiro-cotista-view .despesa-ledger {
+  border-radius: 14px;
+  box-shadow: var(--financeiro-shadow);
+}
+.financeiro-cotista-view .despesa-heading {
+  padding: 16px 18px;
+  background: linear-gradient(110deg, hsl(var(--primary) / .06), var(--financeiro-surface) 42%);
+}
+.financeiro-cotista-view .despesa-toolbar {
+  padding: 14px 18px;
+  background: var(--financeiro-surface);
+}
+.financeiro-cotista-view .despesa-table thead {
+  background: hsl(var(--muted) / .5);
+}
+.financeiro-cotista-view .despesa-table thead th {
+  height: 42px;
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.financeiro-cotista-view .despesa-table .despesa-row td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.financeiro-cotista-view .despesa-table .despesa-row:hover {
+  background: hsl(var(--primary) / .055);
+}
+.financeiro-cotista-view .despesa-pagination {
+  background: hsl(var(--muted) / .28);
+}
+.caixa-empresa-view {
+  --caixa-green: hsl(151 52% 31%);
+  --caixa-red: hsl(0 70% 48%);
+}
+.caixa-empresa-view .caixa-empresa-header .rounded-xl {
+  border-radius: 11px;
+}
+.caixa-empresa-view .caixa-empresa-ledger {
+  border-radius: 14px;
+}
+.caixa-empresa-view .caixa-empresa-ledger > div:first-child {
+  background: linear-gradient(110deg, hsl(var(--primary) / .045), var(--financeiro-surface) 46%);
+}
+.caixa-empresa-view .caixa-empresa-ledger table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.caixa-empresa-view .caixa-empresa-ledger thead {
+  background: hsl(var(--muted) / .52);
+}
+.caixa-empresa-view .caixa-empresa-ledger thead th {
+  height: 42px;
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.caixa-empresa-view .caixa-empresa-ledger tbody tr:not(.ledger-detail) {
+  transition: background-color .16s ease;
+}
+.caixa-empresa-view .caixa-empresa-ledger tbody tr:not(.ledger-detail):hover {
+  background: hsl(var(--primary) / .055);
+}
+.caixa-empresa-view .caixa-empresa-ledger tbody td {
+  border-color: hsl(var(--border) / .7);
+}
+.caixa-empresa-view .caixa-empresa-ledger tbody td:nth-child(6) {
+  font-variant-numeric: tabular-nums;
+}
+.caixa-empresa-view .caixa-empresa-ledger footer {
+  background: hsl(var(--muted) / .24);
+}
+.caixa-empresa-view .caixa-empresa-ledger input,
+.caixa-empresa-view .caixa-empresa-ledger [role="combobox"] {
+  border-radius: 9px;
+  background: hsl(var(--background) / .55);
+}
+.caixa-empresa-view .caixa-empresa-ledger button:not([role="checkbox"]):not(.expand-button) {
+  transition: transform .16s ease, border-color .16s ease, background-color .16s ease;
+}
+.caixa-empresa-view .caixa-empresa-ledger button:not([role="checkbox"]):not(.expand-button):hover {
+  transform: translateY(-1px);
+}
+.dark .financeiro-cotista-view .despesa-heading,
+.dark .caixa-empresa-view .caixa-empresa-ledger > div:first-child {
+  background: linear-gradient(110deg, hsl(var(--primary) / .1), hsl(var(--card)) 48%);
+}
+.dark .financeiro-cotista-view .despesa-table thead,
+.dark .caixa-empresa-view .caixa-empresa-ledger thead {
+  background: hsl(var(--muted) / .72);
+}
+@media (max-width: 767px) {
+  .financeiro-cotista-view .despesa-metric {
+    min-height: 96px;
+    padding: 13px;
+  }
+  .financeiro-cotista-view .despesa-heading,
+  .financeiro-cotista-view .despesa-toolbar {
+    padding-inline: 14px;
+  }
+  .caixa-empresa-view .caixa-empresa-header,
+  .financeiro-cotista-view .financeiro-header {
+    padding-inline: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .financeiro-cotista-view *, .caixa-empresa-view * { transition: none !important; }
+}
 .pulse-dot { animation: pulse-dot 2.6s ease-in-out infinite; }
 @keyframes pulse-dot { 0%,100% { opacity: .55; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.1); } }
 .skeleton { background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 75%); background-size: 200% 100%; animation: skeleton 1.5s ease-in-out infinite; }

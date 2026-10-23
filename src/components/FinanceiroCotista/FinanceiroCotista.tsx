@@ -2647,7 +2647,7 @@ export default function FinanceiroCotista() {
   ];
 
   return (
-    <div className="financeiro-shell financeiro-profissional route-enter min-w-0 max-w-full space-y-3">
+    <div className="financeiro-shell financeiro-profissional financeiro-cotista-view route-enter min-w-0 max-w-full space-y-3">
       <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="financeiro-eyebrow">CLIENTE / AERONAVE</p>

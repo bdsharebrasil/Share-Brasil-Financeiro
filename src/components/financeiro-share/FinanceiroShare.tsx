@@ -96,7 +96,7 @@ export function PaginaFinanceiroShare() {
   };
 
   return <div className="financeiro-shell route-enter mx-auto max-w-[1480px] space-y-5 pb-10">
-    <header className="financeiro-header flex flex-wrap items-end justify-between gap-5">
+    <header className="financeiro-header -mb-[7px] -mt-[7px] flex flex-wrap items-end justify-between gap-5 pb-[1px] pt-[1px]">
       <div>
         <h1 className="mt-1 flex items-center gap-3 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">
           <span className="financeiro-title-icon"><WalletCards size={18} /></span> Financeiro Share
@@ -106,9 +106,9 @@ export function PaginaFinanceiroShare() {
 
 
     <Tabs value={aba} onValueChange={mudarAba} className="space-y-5">
-      <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
+      <TabsList className="financeiro-tabs h-auto w-full justify-start gap-1 overflow-x-auto rounded-[10px] border border-border/70 bg-card/70 p-1.5 shadow-sm">
         <TabsTrigger value="resumo" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><LayoutDashboard size={14} /> Resumo</TabsTrigger>
-        <TabsTrigger value="caixa-empresa" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><WalletCards size={14} /> Caixa Empresa</TabsTrigger>
+        <TabsTrigger value="caixa-empresa" className="shrink-0 gap-2 overflow-hidden rounded-[7px] px-4 py-2.5 text-[11px] data-[state=active]:bg-[#057baf] data-[state=active]:text-primary-foreground"><WalletCards size={14} /> Caixa Empresa</TabsTrigger>
         <TabsTrigger value="contas-apagar" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
         <TabsTrigger value="contas-areceber" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Landmark size={14} /> Contas a Receber</TabsTrigger>
         <TabsTrigger value="baixas-portal" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Bell size={14} /> Baixas do portal{Boolean(solicitacoesBaixa.length) && <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] leading-none text-white">{solicitacoesBaixa.length}</span>}</TabsTrigger>

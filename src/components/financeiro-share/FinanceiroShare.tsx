@@ -1,4 +1,4 @@
-import { FileText, Landmark, ReceiptText, WalletCards, HandCoins, Building2, LayoutDashboard, Bell } from "lucide-react";
+import { FileText, Landmark, ReceiptText, WalletCards, Building2, LayoutDashboard, Bell } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { AbaCaixaEmpresa } from "./AbaCaixaEmpresa";
 import { AbaContasAPagar } from "./AbaContasAPagar";
 import { AbaContasAReceber } from "./AbaContasAReceber";
 import { AbaResumoFinanceiro } from "./AbaResumoFinanceiro";
-import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 import { AbaSolicitacoesBaixaPortal } from "./AbaSolicitacoesBaixaPortal";
 import { AbaMovimentosHolding } from "./AbaMovimentosHolding";
 import { AbaSalarios } from "./AbaSalarios";
@@ -119,16 +118,7 @@ export function PaginaFinanceiroShare() {
       </TabsList>
       <TabsContent value="resumo" className="mt-0"><AbaResumoFinanceiro aoMudarAba={mudarAba} /></TabsContent>
       <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} onNovoLancamento={() => { setSomenteDespesa(false); setDialogoAberto(true); }} /></TabsContent>
-      <TabsContent value="contas-apagar" className="mt-0">
-        <Tabs value={subAbaContas} onValueChange={setSubAbaContas} className="space-y-4">
-          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1 shadow-sm">
-            <TabsTrigger value="contas" className="shrink-0 gap-2 rounded-lg px-4 py-2 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ReceiptText size={14} /> Contas a Pagar</TabsTrigger>
-            <TabsTrigger value="solicitacoes" className="shrink-0 gap-2 rounded-lg px-4 py-2 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><HandCoins size={14} /> Solicitações de pagamento</TabsTrigger>
-          </TabsList>
-          <TabsContent value="contas" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} /></TabsContent>
-          <TabsContent value="solicitacoes" className="mt-0"><AbaSolicitacoesPagamento contasBancarias={contas} /></TabsContent>
-        </Tabs>
-      </TabsContent>
+      <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} contasBancarias={contas} subAba={subAbaContas} onSubAbaChange={setSubAbaContas} /></TabsContent>
       <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
       <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={solicitacoesBaixa} carregando={carregandoBaixas} erro={erroBaixas} contasBancarias={contas} aoAtualizar={atualizarBaixasPortal} /></TabsContent>
       <TabsContent value="holdings" className="mt-0"><AbaMovimentosHolding /></TabsContent>

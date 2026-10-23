@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, FileText, Loader2, Pencil, Plus,
-  RefreshCw, Search, SlidersHorizontal, Trash2, Wallet, X, Download, Clock3,
+  RefreshCw, Search, SlidersHorizontal, Trash2, X, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -92,7 +92,6 @@ export type AbaCaixaEmpresaProps = {
   posicaoCaixa?: PosicaoCaixaEmpresa | null;
   obterDadosBancarios?: (item: Lancamento) => DadosBancariosLancamento;
   onAtualizarPosicao?: () => Promise<void>;
-  exibirSaldo?: boolean;
 };
 type EdicaoLote = { id: string; original: string; descricao: string };
 const STATUS_ROTULOS: Record<string, string> = {
@@ -104,12 +103,6 @@ function mesAtual() { const d = new Date(); return `${d.getFullYear()}-${String(
 function podeSelecionar(item: Lancamento) { return item.fluxo === "SAIDA" && item.status !== "CANCELADO"; }
 function chaveConta(dados?: DadosBancariosLancamento) {
   return dados?.contaId ? `id:${dados.contaId}` : dados?.contaNome ? `nome:${dados.contaNome}` : "SEM_CONTA";
-}
-function valorPosicao(valor?: number) { return typeof valor === "number" && Number.isSafeInteger(valor) ? formatarMoeda(valor) : "—"; }
-function atualizadoEm(iso?: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : `Atualizado em ${d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
 }
 function resumirRealizados(itens: Lancamento[]) {
   const realizados = itens.filter(item => item.status === "PAGO" || item.status === "RECEBIDO");
@@ -129,12 +122,6 @@ function montarCsv(itens: Lancamento[], dados: Map<string, DadosBancariosLancame
     valorValido(item) ? (item.valorCentavos / 100).toFixed(2).replace(".", ",") : "Valor inválido", STATUS_ROTULOS[item.status] || item.status]);
   return "\uFEFF" + linhas.map(linha => linha.map(celulaCsv).join(";")).join("\r\n");
 }
-function Indicador({ titulo, valor, detalhe, tom, icone: Icon }: {
-  titulo: string; valor: string; detalhe: string; tom?: string; icone: typeof Wallet;
-}) {
-  return <section className={`cash-kpi ${tom || ""}`}><div><span className="cash-kicker">{titulo}</span><Icon size={17} aria-hidden="true" /></div><strong>{valor}</strong><small>{detalhe}</small></section>;
-}
-
 function StatusBadge({ status }: { status: StatusLancamento }) {
   const tom = ["PAGO", "RECEBIDO", "REEMBOLSADO"].includes(status) ? "success" : status === "EM_ATRASO" ? "danger" : status === "CANCELADO" ? "neutral" : "warning";
   return <span className={`cash-status cash-status-${tom}`}><i aria-hidden="true" />{STATUS_ROTULOS[status] || status}</span>;
@@ -188,7 +175,7 @@ function Detalhes({ item, dados, ocupado, onDocumento, onEditar, onAcao }: {
     </div>
   </div>;
 }
-export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBancarios, onAtualizarPosicao, exibirSaldo = false }: AbaCaixaEmpresaProps) {
+export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBancarios, onAtualizarPosicao }: AbaCaixaEmpresaProps) {
   // Filtros locais mantêm os contadores e a seleção consistentes entre as abas.
   const { lancamentos, carregando, erro, recarregar } = useCaixaEmpresa({});
   const [fluxo, setFluxo] = useState<FluxoFiltro>("TODOS");
@@ -377,12 +364,10 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
     window.document.body.appendChild(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const indicador = (valor: number) => carregando || erro ? "—" : exibirTotal(valor, indicadores.valido);
-  const saldoDisponivel = valorPosicao(posicaoCaixa?.saldoDisponivelCentavos);
   const mudancasLote = (edicoesLote || []).filter(item => item.descricao.trim() !== item.original);
   return <div className="company-cash" aria-busy={ocupado || carregando}>
     <header className="cash-header">
-      <div className="cash-page-title"><span className="cash-title-icon"><Wallet size={21} aria-hidden="true" /></span><h2>Caixa da empresa</h2></div>
+      <div className="cash-page-title"><h2>Caixa da empresa</h2></div>
       <div className="cash-header-actions">
         <Popover><PopoverTrigger asChild><Button variant="outline" disabled={ocupado} className="cash-period" aria-label="Selecionar período"><CalendarDays size={15} /><span>{meses.length === 1 ? rotuloMes(meses[0]) : meses.length ? `${meses.length} meses` : "Todos os períodos"}</span><ChevronDown size={14} /></Button></PopoverTrigger>
           <PopoverContent align="end" className="cash-popover">
@@ -395,21 +380,6 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
         {onNovoLancamento && <Button className="cash-primary" disabled={ocupado} onClick={onNovoLancamento}><Plus size={16} />Nova movimentação</Button>}
       </div>
     </header>
-
-    {exibirSaldo && <section className="cash-balance-strip" aria-label="Posição de caixa">
-      <div className="cash-balance-main"><span className="cash-balance-icon"><Wallet size={23} aria-hidden="true" /></span><div>
-        <span className="cash-kicker">Saldo disponível consolidado</span><strong>{saldoDisponivel}</strong>
-        <small>{atualizadoEm(posicaoCaixa?.atualizadoEm) || (saldoDisponivel === "—" ? "Saldo não informado" : "Posição bancária")}</small>
-      </div></div>
-      {!!posicaoCaixa?.contas?.length && <div className="cash-accounts">{posicaoCaixa.contas.map(conta => <div key={conta.id}><span>{conta.nome}</span><b>{conta.identificacao || "—"}</b><small>{valorPosicao(conta.saldoCentavos)}</small></div>)}</div>}
-    </section>}
-
-    <section className="cash-kpi-grid" aria-label="Indicadores do período">
-      <Indicador icone={ArrowDownLeft} titulo="Entradas no período" valor={indicador(indicadores.entradas)} detalhe={carregando || erro ? "—" : `${indicadores.creditos} recebimento(s)`} tom="cash-kpi-income" />
-      <Indicador icone={ArrowUpRight} titulo="Saídas no período" valor={indicador(indicadores.saidas)} detalhe={carregando || erro ? "—" : `${indicadores.pagamentos} pagamento(s)`} tom="cash-kpi-expense" />
-      <Indicador icone={CheckCircle2} titulo="Resultado realizado" valor={indicador(indicadores.saldo)} detalhe="Recebimentos − pagamentos" tom={indicadores.saldo < 0 ? "cash-kpi-expense" : "cash-kpi-income"} />
-      {exibirSaldo && <Indicador icone={Clock3} titulo="Saldo projetado consolidado" valor={valorPosicao(posicaoCaixa?.saldoProjetadoCentavos)} detalhe="Após compromissos pendentes" />}
-    </section>
 
     <section className="cash-ledger-panel" aria-label="Extrato consolidado">
       <div className="cash-toolbar">

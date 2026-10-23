@@ -77,7 +77,7 @@ export default function AnexosDinamicos({
   const hasExisting = !file && Boolean(existingUrl);
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("mx-[2px] space-y-1.5 px-[8px]", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">
@@ -105,7 +105,7 @@ export default function AnexosDinamicos({
           "group flex min-h-[76px] cursor-pointer items-center gap-3 rounded-xl border border-dashed px-3 py-2.5 transition-all",
           dragging ? "border-primary bg-primary/10 shadow-[0_0_0_3px_hsl(var(--primary)/.12)]" : "border-border/70 bg-background/35 hover:border-primary/60 hover:bg-primary/[.04]",
           (disabled || uploading) && "cursor-not-allowed opacity-60",
-          compact && "min-h-[54px]",
+          compact && "min-h-[54px] px-0 ml-[14px] mr-[-114px]",
         )}
       >
         {uploading ? <Loader2 className="shrink-0 animate-spin text-primary" size={20} /> : hasExisting ? <CheckCircle2 className="shrink-0 text-emerald-400" size={20} /> : file ? <FileText className="shrink-0 text-primary" size={20} /> : <UploadCloud className="shrink-0 text-primary" size={22} />}

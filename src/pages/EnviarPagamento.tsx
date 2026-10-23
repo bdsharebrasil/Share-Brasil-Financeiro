@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Send, Smartphone, Users, WalletCards, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Send, Smartphone, Trash2, Users, WalletCards, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
+import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 import { lerDadosRascunho, progressoRascunho } from "@/lib/rascunho-envio";
 
@@ -578,6 +578,25 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       toast.error(cause instanceof Error ? cause.message : "Não foi possível abrir o rascunho.");
     } finally {
       setRestaurandoRascunho(false);
+    }
+  };
+
+  const excluirRascunho = async (rascunho: RascunhoEnvioPagamento) => {
+    if (!window.confirm("Excluir este rascunho? Essa ação não pode ser desfeita.")) return;
+    try {
+      await excluirRascunhoEnvioPagamento(rascunho.id);
+      setRascunhos((atuais) => atuais.filter((item) => item.id !== rascunho.id));
+      if (rascunhoId === rascunho.id) {
+        setTipo(null);
+        setRascunhoId(null);
+        setChaveRascunho(null);
+        chaveRascunhoRef.current = null;
+        setRascunhoConcluido(false);
+        setStatusSalvamento("ocioso");
+      }
+      toast.success("Rascunho excluído.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível excluir o rascunho.");
     }
   };
 
@@ -1270,7 +1289,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
                 return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{progresso.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento"} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p><div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 lg:grid-cols-4">{etapas.map(([nome, valor]) => <div key={nome} className="flex min-w-0 items-center gap-1.5"><CheckCircle2 size={12} className={valor === "Concluído" || valor === "Não se aplica" || valor.startsWith("Concluído") ? "shrink-0 text-emerald-500" : "shrink-0 text-amber-500"} /><span className="truncate"><strong>{nome}:</strong> {valor}</span></div>)}</div></div>
-                  <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
+                    <Button type="button" size="sm" variant="ghost" className="h-8 gap-2 rounded-sm px-3 text-[10px] text-rose-500 hover:text-rose-400" disabled={restaurandoRascunho} onClick={() => void excluirRascunho(rascunho)} aria-label="Excluir rascunho"><Trash2 size={12} /> Excluir</Button>
+                  </div>
                 </div>;
               })}
             </div>

@@ -117,7 +117,7 @@ export function PaginaFinanceiroShare() {
         <TabsTrigger value="nota-fiscal-saida" className="shrink-0 gap-2 rounded-xl px-4 py-2.5 text-[11px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><FileText size={14} /> NF e recibo de saída</TabsTrigger>
       </TabsList>
       <TabsContent value="resumo" className="mt-0"><AbaResumoFinanceiro aoMudarAba={mudarAba} /></TabsContent>
-      <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} onNovoLancamento={() => { setSomenteDespesa(false); setDialogoAberto(true); }} /></TabsContent>
+      <TabsContent value="caixa-empresa" className="mt-0"><AbaCaixaEmpresa key={versaoCaixa} exibirSaldo onNovoLancamento={() => { setSomenteDespesa(false); setDialogoAberto(true); }} /></TabsContent>
       <TabsContent value="contas-apagar" className="mt-0"><AbaContasAPagar onNovaConta={() => { setSomenteDespesa(true); setDialogoAberto(true); }} contasBancarias={contas} subAba={subAbaContas} onSubAbaChange={setSubAbaContas} /></TabsContent>
       <TabsContent value="contas-areceber" className="mt-0"><AbaContasAReceber contasBancarias={contas} /></TabsContent>
       <TabsContent value="baixas-portal" className="mt-0"><AbaSolicitacoesBaixaPortal solicitacoes={solicitacoesBaixa} carregando={carregandoBaixas} erro={erroBaixas} contasBancarias={contas} aoAtualizar={atualizarBaixasPortal} /></TabsContent>

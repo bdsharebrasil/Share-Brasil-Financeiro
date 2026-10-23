@@ -92,6 +92,7 @@ export type AbaCaixaEmpresaProps = {
   posicaoCaixa?: PosicaoCaixaEmpresa | null;
   obterDadosBancarios?: (item: Lancamento) => DadosBancariosLancamento;
   onAtualizarPosicao?: () => Promise<void>;
+  exibirSaldo?: boolean;
 };
 type EdicaoLote = { id: string; original: string; descricao: string };
 const STATUS_ROTULOS: Record<string, string> = {
@@ -187,7 +188,7 @@ function Detalhes({ item, dados, ocupado, onDocumento, onEditar, onAcao }: {
     </div>
   </div>;
 }
-export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBancarios, onAtualizarPosicao }: AbaCaixaEmpresaProps) {
+export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBancarios, onAtualizarPosicao, exibirSaldo = false }: AbaCaixaEmpresaProps) {
   // Filtros locais mantêm os contadores e a seleção consistentes entre as abas.
   const { lancamentos, carregando, erro, recarregar } = useCaixaEmpresa({});
   const [fluxo, setFluxo] = useState<FluxoFiltro>("TODOS");
@@ -395,19 +396,19 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
       </div>
     </header>
 
-    <section className="cash-balance-strip" aria-label="Posição de caixa">
+    {exibirSaldo && <section className="cash-balance-strip" aria-label="Posição de caixa">
       <div className="cash-balance-main"><span className="cash-balance-icon"><Wallet size={23} aria-hidden="true" /></span><div>
         <span className="cash-kicker">Saldo disponível consolidado</span><strong>{saldoDisponivel}</strong>
         <small>{atualizadoEm(posicaoCaixa?.atualizadoEm) || (saldoDisponivel === "—" ? "Saldo não informado" : "Posição bancária")}</small>
       </div></div>
       {!!posicaoCaixa?.contas?.length && <div className="cash-accounts">{posicaoCaixa.contas.map(conta => <div key={conta.id}><span>{conta.nome}</span><b>{conta.identificacao || "—"}</b><small>{valorPosicao(conta.saldoCentavos)}</small></div>)}</div>}
-    </section>
+    </section>}
 
     <section className="cash-kpi-grid" aria-label="Indicadores do período">
       <Indicador icone={ArrowDownLeft} titulo="Entradas no período" valor={indicador(indicadores.entradas)} detalhe={carregando || erro ? "—" : `${indicadores.creditos} recebimento(s)`} tom="cash-kpi-income" />
       <Indicador icone={ArrowUpRight} titulo="Saídas no período" valor={indicador(indicadores.saidas)} detalhe={carregando || erro ? "—" : `${indicadores.pagamentos} pagamento(s)`} tom="cash-kpi-expense" />
       <Indicador icone={CheckCircle2} titulo="Resultado realizado" valor={indicador(indicadores.saldo)} detalhe="Recebimentos − pagamentos" tom={indicadores.saldo < 0 ? "cash-kpi-expense" : "cash-kpi-income"} />
-      <Indicador icone={Clock3} titulo="Saldo projetado consolidado" valor={valorPosicao(posicaoCaixa?.saldoProjetadoCentavos)} detalhe="Após compromissos pendentes" />
+      {exibirSaldo && <Indicador icone={Clock3} titulo="Saldo projetado consolidado" valor={valorPosicao(posicaoCaixa?.saldoProjetadoCentavos)} detalhe="Após compromissos pendentes" />}
     </section>
 
     <section className="cash-ledger-panel" aria-label="Extrato consolidado">

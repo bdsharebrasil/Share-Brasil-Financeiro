@@ -1,37 +1,21 @@
 /* Estilos locais do caixa. Não altera outras telas do financeiro. */
 .company-cash, .cash-dialog, .cash-popover {
-  --cash-bg: #f3f6fa; --cash-card: #ffffff; --cash-soft: #f6f8fb;
-  --cash-fg: #172b43; --cash-muted: #62748b; --cash-border: #d4deea;
-  --cash-accent: #007fa7; --cash-accent-soft: #edf8fc;
-  --cash-income: #087d55; --cash-income-soft: #edf7f1;
-  --cash-expense: #ba3544; --cash-expense-soft: #fcf0f1;
-  --cash-warning: #8a5a08; --cash-warning-soft: #fff8e8;
-  --background: 216 41% 97%; --foreground: 213 49% 18%;
-  --card: 0 0% 100%; --card-foreground: 213 49% 18%;
-  --popover: 0 0% 100%; --popover-foreground: 213 49% 18%;
-  --muted: 216 38% 97%; --muted-foreground: 214 17% 46%;
-  --border: 215 33% 87%; --input: 215 33% 82%;
-  --primary: 195 100% 33%; --primary-foreground: 0 0% 100%;
-  --accent: 196 71% 96%; --accent-foreground: 213 49% 18%;
-  --ring: 195 100% 33%; --destructive: 353 56% 47%;
-  color: var(--cash-fg); color-scheme: light; font-family: inherit;
-  font-size: 13px; line-height: 1.5; text-shadow: none;
-}
-:where(.dark, [data-theme="dark"]) :is(.company-cash, .cash-dialog, .cash-popover) {
-  --cash-bg: #101620; --cash-card: #141c28; --cash-soft: #192332;
-  --cash-fg: #e3eaf4; --cash-muted: #a5b4c9; --cash-border: #2c3c50;
-  --cash-accent: #78c8e3; --cash-accent-soft: #172d3a;
-  --cash-income: #80d2ad; --cash-income-soft: #19382e;
-  --cash-expense: #f09ca6; --cash-expense-soft: #38242e;
+  --cash-bg: #0b1322; --cash-card: #111b2d; --cash-soft: #162237;
+  --cash-fg: #e6edf7; --cash-muted: #8592a9; --cash-border: #203049;
+  --cash-accent: #78c8e3; --cash-accent-soft: #15293a;
+  --cash-income: #34d399; --cash-income-soft: #113028;
+  --cash-expense: #f87171; --cash-expense-soft: #3a2029;
   --cash-warning: #e7c587; --cash-warning-soft: #352f23;
-  --background: 218 33% 9%; --foreground: 215 44% 92%;
-  --card: 216 33% 12%; --card-foreground: 215 44% 92%;
-  --popover: 216 33% 12%; --popover-foreground: 215 44% 92%;
-  --muted: 216 33% 15%; --muted-foreground: 215 25% 72%;
-  --border: 213 29% 24%; --input: 213 29% 32%;
-  --primary: 195 66% 68%; --primary-foreground: 218 33% 9%;
+  --background: 218 46% 7%; --foreground: 215 44% 92%;
+  --card: 218 40% 10%; --card-foreground: 215 44% 92%;
+  --popover: 218 40% 12%; --popover-foreground: 215 44% 92%;
+  --muted: 218 33% 14%; --muted-foreground: 215 25% 66%;
+  --border: 216 37% 19%; --input: 216 37% 27%;
+  --primary: 195 66% 68%; --primary-foreground: 218 46% 7%;
   --accent: 201 43% 16%; --accent-foreground: 215 44% 92%;
-  --ring: 195 66% 68%; --destructive: 353 73% 78%; color-scheme: dark;
+  --ring: 195 66% 68%; --destructive: 353 73% 78%;
+  color: var(--cash-fg); color-scheme: dark; font-family: inherit;
+  font-size: 13px; line-height: 1.5; text-shadow: none;
 }
 .company-cash { width: 100%; max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; background: var(--cash-bg); filter: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
 .company-cash *, .cash-dialog *, .cash-popover * { box-sizing: border-box; }

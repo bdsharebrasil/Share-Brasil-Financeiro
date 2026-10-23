@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown,
   ChevronLeft, ChevronRight, ChevronUp, FileText, Loader2, Pencil, Plus,
-  RefreshCw, Search, SlidersHorizontal, Trash2, X, Download,
+  RefreshCw, Search, SlidersHorizontal, Trash2, X, Download, Columns3, ChevronsUpDown, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,19 @@ type Ordem = "RECENTES" | "ANTIGOS" | "MAIOR" | "MENOR";
 type Confirmacao = { tipo: "EXCLUIR"; ids: string[] }
   | { tipo: "BAIXA" | "REEMBOLSO"; id: string };
 type Falha = { id: string; descricao: string; mensagem: string };
+type ColunaCaixa = "data" | "descricao" | "favorecido" | "categoria" | "conta" | "fluxo" | "valor" | "status";
+const COLUNAS_OCULTAVEIS: { chave: ColunaCaixa; rotulo: string }[] = [
+  { chave: "data", rotulo: "Data / ID" },
+  { chave: "descricao", rotulo: "Descrição" },
+  { chave: "favorecido", rotulo: "Favorecido" },
+  { chave: "categoria", rotulo: "Categoria" },
+  { chave: "conta", rotulo: "Conta" },
+  { chave: "fluxo", rotulo: "Fluxo" },
+  { chave: "valor", rotulo: "Valor" },
+  { chave: "status", rotulo: "Status" },
+];
+const COLUNAS_ESQUERDA: ColunaCaixa[] = ["data", "descricao", "favorecido", "categoria", "conta"];
+const TOTAL_COLUNAS = COLUNAS_OCULTAVEIS.length + 2;
 const STATUS: StatusLancamento[] = ["EM_ABERTO", "PAGO", "RECEITA", "EM_ATRASO", "ESTORNO", "RECEBIDO", "SAIDA", "ENTRADA", "AGUARDANDO_REEMBOLSO", "REEMBOLSADO", "CANCELADO"];
 const FINALIZADOS = new Set<StatusLancamento>(["PAGO", "RECEBIDO", "CANCELADO"]);
 const INPUT = "cash-input";
@@ -183,6 +196,7 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
   const [busca, setBusca] = useState("");
   const [meses, setMeses] = useState<string[]>(() => [mesAtual()]);
   const [ordem, setOrdem] = useState<Ordem>("RECENTES");
+  const [colunasOcultas, setColunasOcultas] = useState<Set<ColunaCaixa>>(() => new Set());
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(20);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -365,6 +379,16 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const mudancasLote = (edicoesLote || []).filter(item => item.descricao.trim() !== item.original);
+  const ocultar = (coluna: ColunaCaixa) => colunasOcultas.has(coluna);
+  const colunasEsquerdaVisiveis = COLUNAS_ESQUERDA.filter(coluna => !ocultar(coluna)).length;
+  const totalColunasVisiveis = TOTAL_COLUNAS - colunasOcultas.size;
+  function alternarColuna(coluna: ColunaCaixa) {
+    setColunasOcultas(atuais => {
+      const proximas = new Set(atuais);
+      if (proximas.has(coluna)) proximas.delete(coluna); else proximas.add(coluna);
+      return proximas;
+    });
+  }
   return <div className="company-cash" aria-busy={ocupado || carregando}>
     <header className="cash-header">
       <div className="cash-page-title"><h2>Caixa da empresa</h2></div>
@@ -389,6 +413,12 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
           <select aria-label="Fluxo da movimentação" value={fluxo} disabled={ocupado} onChange={e => { prepararFiltro(); setFluxo(e.target.value as FluxoFiltro); }}><option value="TODOS">Todos os fluxos</option><option value="ENTRADA">Entrada</option><option value="SAIDA">Saída</option></select>
           <select aria-label="Conta bancária" value={contaFiltro} disabled={ocupado} onChange={e => { prepararFiltro(); setContaFiltro(e.target.value); }}><option value="TODAS">Todas as contas</option>{contasFiltro.map(conta => <option key={conta.id} value={conta.id}>{conta.nome}</option>)}</select>
           <Button variant="outline" aria-expanded={filtrosAbertos} aria-controls="cash-extra-filters" disabled={ocupado} onClick={() => setFiltrosAbertos(v => !v)}><SlidersHorizontal size={15} />Filtros{status !== "ATIVOS" && <span className="cash-filter-dot" />}</Button>
+          <Popover><PopoverTrigger asChild><Button variant="outline" disabled={ocupado} aria-label="Mostrar ou ocultar colunas"><Columns3 size={15} />Colunas</Button></PopoverTrigger>
+            <PopoverContent align="end" className="cash-popover">
+              <div className="cash-popover-heading"><strong>Mostrar ou ocultar colunas</strong><Button variant="ghost" size="sm" onClick={() => setColunasOcultas(new Set())} disabled={!colunasOcultas.size}>Mostrar todas</Button></div>
+              <ul className="cash-column-list">{COLUNAS_OCULTAVEIS.map(({ chave, rotulo }) => { const visivel = !ocultar(chave); return <li key={chave} data-hidden={!visivel}><span>{rotulo}</span><button type="button" aria-pressed={visivel} aria-label={`${visivel ? "Ocultar" : "Mostrar"} coluna ${rotulo}`} onClick={() => alternarColuna(chave)}>{visivel ? <Eye size={15} /> : <EyeOff size={15} />}</button></li>; })}</ul>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       {filtrosAbertos && <div id="cash-extra-filters" className="cash-extra-filters">
@@ -411,27 +441,29 @@ export function AbaCaixaEmpresa({ onNovoLancamento, posicaoCaixa, obterDadosBanc
 
       {carregando ? <div role="status" className="cash-empty"><Loader2 size={20} className="animate-spin" />Carregando movimentações…</div> : !erro && <div className="cash-table-scroll" role="region" aria-label="Movimentações do caixa" tabIndex={0}>
         <table className="cash-table"><caption className="sr-only">Extrato consolidado. Totais de todos os registros filtrados, excluindo cancelados.</caption>
-          <colgroup><col style={{ width: 42 }} /><col style={{ width: 122 }} /><col /><col style={{ width: 170 }} /><col style={{ width: 150 }} /><col style={{ width: 160 }} /><col style={{ width: 108 }} /><col style={{ width: 172 }} /><col style={{ width: 160 }} /><col style={{ width: 52 }} /></colgroup>
+          <colgroup><col style={{ width: 42 }} />{!ocultar("data") && <col style={{ width: 122 }} />}{!ocultar("descricao") && <col />}{!ocultar("favorecido") && <col style={{ width: 170 }} />}{!ocultar("categoria") && <col style={{ width: 150 }} />}{!ocultar("conta") && <col style={{ width: 160 }} />}{!ocultar("fluxo") && <col style={{ width: 108 }} />}{!ocultar("valor") && <col style={{ width: 172 }} />}{!ocultar("status") && <col style={{ width: 160 }} />}<col style={{ width: 52 }} /></colgroup>
           <thead><tr>
             <th scope="col" className="cash-selection-cell"><Checkbox aria-label="Selecionar despesas desta página" disabled={bloqueado || !despesasPagina.length} checked={todosPagina ? true : algunsPagina ? "indeterminate" : false} onCheckedChange={checked => marcar(despesasPagina.map(item => item.id), checked === true)} /></th>
-            <th scope="col" aria-sort={ordem === "RECENTES" ? "descending" : ordem === "ANTIGOS" ? "ascending" : "none"}><button type="button" className="cash-sort" disabled={ocupado} onClick={() => { setPagina(1); setOrdem(ordem === "RECENTES" ? "ANTIGOS" : "RECENTES"); }}>Data / ID{ordem === "ANTIGOS" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button></th>
-            <th scope="col">Descrição</th><th scope="col">Favorecido</th><th scope="col">Categoria</th><th scope="col">Conta</th><th scope="col">Fluxo</th><th scope="col" className="cash-num">Valor</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Detalhes</span></th>
+            {!ocultar("data") && <th scope="col" className="cash-col-data" aria-sort={ordem === "RECENTES" ? "descending" : ordem === "ANTIGOS" ? "ascending" : "none"}><button type="button" className="cash-sort" disabled={ocupado} onClick={() => { setPagina(1); setOrdem(ordem === "RECENTES" ? "ANTIGOS" : "RECENTES"); }}>Data / ID{ordem === "ANTIGOS" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</button></th>}
+            {!ocultar("descricao") && <th scope="col">Descrição</th>}{!ocultar("favorecido") && <th scope="col">Favorecido</th>}{!ocultar("categoria") && <th scope="col">Categoria</th>}{!ocultar("conta") && <th scope="col">Conta</th>}{!ocultar("fluxo") && <th scope="col">Fluxo</th>}
+            {!ocultar("valor") && <th scope="col" className="cash-num" aria-sort={ordem === "MAIOR" ? "descending" : ordem === "MENOR" ? "ascending" : "none"}><button type="button" className="cash-sort" disabled={ocupado} onClick={() => { setPagina(1); setOrdem(ordem === "MAIOR" ? "MENOR" : "MAIOR"); }}>Valor{ordem === "MENOR" ? <ChevronUp size={12} /> : ordem === "MAIOR" ? <ChevronDown size={12} /> : <ChevronsUpDown size={12} />}</button></th>}
+            {!ocultar("status") && <th scope="col">Status</th>}<th scope="col"><span className="sr-only">Detalhes</span></th>
           </tr></thead>
-          <tbody>{!itensPagina.length ? <tr><td colSpan={10}><div className="cash-empty"><Search size={22} /><strong>Nenhuma movimentação encontrada</strong><Button variant="ghost" onClick={limparFiltros}>Limpar filtros</Button></div></td></tr> : itensPagina.map(item => {
+          <tbody>{!itensPagina.length ? <tr><td colSpan={totalColunasVisiveis}><div className="cash-empty"><Search size={22} /><strong>Nenhuma movimentação encontrada</strong><Button variant="ghost" onClick={limparFiltros}>Limpar filtros</Button></div></td></tr> : itensPagina.map(item => {
             const aberto = expandido === item.id, entrada = item.fluxo === "ENTRADA", dados = dadosPorLancamento.get(item.id);
             return <Fragment key={item.id}><tr className="cash-entry-row" data-expanded={aberto} data-selected={selecionados.has(item.id)} data-cancelled={item.status === "CANCELADO"}>
               <td className="cash-selection-cell"><Checkbox aria-label={`Selecionar despesa ${item.descricao}`} disabled={bloqueado || !podeSelecionar(item)} checked={selecionados.has(item.id)} onCheckedChange={checked => marcar([item.id], checked === true)} /></td>
-              <td><b className="cash-date">{formatarData(item.data)}</b><small className="cash-reference">{item.documento || item.id}</small></td>
-              <td><b className="cash-description">{item.descricao}</b></td><td>{item.fornecedor || "—"}</td>
-              <td><span className="cash-category">{item.categoria || "Sem categoria"}</span></td>
-              <td>{dados?.contaNome || "—"}</td>
-              <td><span className={`cash-flow ${entrada ? "cash-flow-income" : "cash-flow-expense"}`}>{entrada ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}{entrada ? "Entrada" : "Saída"}</span></td>
-              <td className="cash-num"><strong className={entrada ? "cash-amount-income" : "cash-amount-expense"}>{valorValido(item) ? `${entrada ? "+" : "−"} ${formatarMoeda(item.valorCentavos)}` : "Valor inválido"}</strong></td>
-              <td><StatusBadge status={item.status} /></td>
+              {!ocultar("data") && <td className="cash-col-data"><b className="cash-date">{formatarData(item.data)}</b><small className="cash-reference">{item.documento || item.id}</small></td>}
+              {!ocultar("descricao") && <td><b className="cash-description">{item.descricao}</b></td>}{!ocultar("favorecido") && <td>{item.fornecedor || "—"}</td>}
+              {!ocultar("categoria") && <td><span className="cash-category">{item.categoria || "Sem categoria"}</span></td>}
+              {!ocultar("conta") && <td>{dados?.contaNome || "—"}</td>}
+              {!ocultar("fluxo") && <td><span className={`cash-flow ${entrada ? "cash-flow-income" : "cash-flow-expense"}`}>{entrada ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}{entrada ? "Entrada" : "Saída"}</span></td>}
+              {!ocultar("valor") && <td className="cash-num"><strong className={entrada ? "cash-amount-income" : "cash-amount-expense"}>{valorValido(item) ? `${entrada ? "+" : "−"} ${formatarMoeda(item.valorCentavos)}` : "Valor inválido"}</strong></td>}
+              {!ocultar("status") && <td><StatusBadge status={item.status} /></td>}
               <td><button type="button" className="cash-expand" aria-expanded={aberto} aria-controls={`cash-detail-${item.id}`} aria-label={`${aberto ? "Fechar" : "Abrir"} detalhes de ${item.descricao}`} onClick={() => setExpandido(aberto ? null : item.id)}>{aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button></td>
-            </tr>{aberto && <tr className="cash-detail-row" id={`cash-detail-${item.id}`}><td colSpan={10}><Detalhes item={item} dados={dados} ocupado={bloqueado} onDocumento={setDocumento} onEditar={() => setEdicao({ id: item.id, descricao: item.descricao })} onAcao={setConfirmacao} /></td></tr>}</Fragment>;
+            </tr>{aberto && <tr className="cash-detail-row" id={`cash-detail-${item.id}`}><td colSpan={totalColunasVisiveis}><Detalhes item={item} dados={dados} ocupado={bloqueado} onDocumento={setDocumento} onEditar={() => setEdicao({ id: item.id, descricao: item.descricao })} onAcao={setConfirmacao} /></td></tr>}</Fragment>;
           })}</tbody>
-          <tfoot><tr><td /><td colSpan={5}>Total dos registros filtrados</td><td>Resultado</td><td className="cash-num"><strong className={resumo.saldo < 0 ? "cash-amount-expense" : "cash-amount-income"}>{exibirTotal(resumo.saldo, resumo.valido)}</strong></td><td colSpan={2} /></tr></tfoot>
+          <tfoot><tr><td />{colunasEsquerdaVisiveis > 0 && <td colSpan={colunasEsquerdaVisiveis}>Total dos registros filtrados</td>}{!ocultar("fluxo") && <td>Resultado</td>}{!ocultar("valor") && <td className="cash-num"><strong className={resumo.saldo < 0 ? "cash-amount-expense" : "cash-amount-income"}>{exibirTotal(resumo.saldo, resumo.valido)}</strong></td>}<td colSpan={ocultar("status") ? 1 : 2} /></tr></tfoot>
         </table>
       </div>}
       {!erro && !carregando && <footer className="cash-pagination"><span role="status" aria-live="polite">{filtrados.length ? `${(paginaAtual - 1) * porPagina + 1}–${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length} movimentações` : "0 movimentações"}</span><div>

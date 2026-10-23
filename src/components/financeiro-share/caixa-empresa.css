@@ -66,8 +66,8 @@
 .cash-entry-row:hover { --cash-row: var(--cash-soft); }
 .cash-entry-row[data-expanded="true"], .cash-entry-row[data-selected="true"] { --cash-row: var(--cash-accent-soft); }
 .cash-entry-row > td { padding: 16px 12px; height: 68px; border-bottom: 1px solid var(--cash-border); background: var(--cash-row); vertical-align: middle; overflow-wrap: break-word; }
-.cash-entry-row > td:nth-child(2) { position: sticky; left: 0; z-index: 1; border-right: 1px solid var(--cash-border); }
-.cash-table > thead > tr > th:nth-child(2) { left: 0; z-index: 4; border-right: 1px solid var(--cash-border); }
+.cash-entry-row > td.cash-col-data { position: sticky; left: 0; z-index: 1; border-right: 1px solid var(--cash-border); }
+.cash-table > thead > tr > th.cash-col-data { left: 0; z-index: 4; border-right: 1px solid var(--cash-border); }
 .cash-entry-row > td:last-child { position: sticky; right: 0; z-index: 2; padding: 8px; border-left: 1px solid var(--cash-border); }
 .cash-table > thead > tr > th:last-child { right: 0; z-index: 4; border-left: 1px solid var(--cash-border); }
 .cash-table .cash-selection-cell { padding: 8px; text-align: center; }
@@ -120,6 +120,12 @@
 .cash-popover { width: 300px; padding: 14px; background: var(--cash-card); border: 1px solid var(--cash-border); border-radius: 6px; }
 .cash-popover-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .cash-month-list { max-height: 280px; overflow-y: auto; }
+.cash-column-list { list-style: none; margin: 0; padding: 0; }
+.cash-column-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 5px; border-bottom: 1px solid var(--cash-border); }
+.cash-column-list li:last-child { border-bottom: 0; }
+.cash-column-list li[data-hidden="true"] > span { color: var(--cash-muted); }
+.cash-column-list button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: var(--cash-accent-soft); color: var(--cash-accent); }
+.cash-column-list li[data-hidden="true"] button { color: var(--cash-muted); }
 .cash-month-list label { display: flex; align-items: center; gap: 10px; padding: 9px 5px; text-transform: capitalize; cursor: pointer; }
 .cash-dialog { max-height: 90dvh; overflow-y: auto; background: var(--cash-card); border: 1px solid var(--cash-border); border-radius: 6px; box-shadow: none; backdrop-filter: none; }
 .cash-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }

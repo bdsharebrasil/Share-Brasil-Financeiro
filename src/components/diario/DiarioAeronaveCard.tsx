@@ -23,7 +23,7 @@ export default function DiarioAeronaveCard({ aeronave, ano, onOpen }: { aeronave
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary"><Plane size={19} /></span>
             <div className="min-w-0"><h3 className="truncate text-base font-extrabold tracking-[-.02em]">{aeronave.matricula_registro}</h3><p className="truncate text-[11px] text-muted-foreground">{[aeronave.fabricante, aeronave.modelo].filter(Boolean).join(" ") || "Modelo não informado"}</p></div>
           </div>
-          <EtiquetaStatus tone={statusAtivo ? "green" : "neutral"}>{statusAtivo ? "Ativa" : aeronave.status || "Inativa"}</EtiquetaStatus>
+          {!statusAtivo && <EtiquetaStatus tone="neutral">{aeronave.status || "Inativa"}</EtiquetaStatus>}
         </div>
         <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border/70 bg-secondary/35 p-3 sm:mb-4">
           <div><p className="text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">Diário</p><p className="mt-1 font-mono text-sm font-bold">{ano}</p></div>

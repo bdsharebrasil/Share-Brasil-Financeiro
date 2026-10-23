@@ -1847,7 +1847,7 @@ function LancamentosDespesa({
           <>
             {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
             <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0} onScroll={(e) => { e.currentTarget.dataset.recolhido = String(e.currentTarget.scrollTop > 8); }}>
-              <table className="despesa-table" style={{ minWidth: 1090 + cotistasAeronave.length * 168 }}>
+              <table className="despesa-table" style={{ minWidth: 1048 + cotistasAeronave.length * 168 }}>
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores
                   e status.
@@ -1860,7 +1860,7 @@ function LancamentosDespesa({
                   <col style={{ width: 110 }} />
                   <col style={{ width: 126 }} />
                   {cotistasAeronave.map((cotista) => <col key={cotista.id} style={{ width: 168 }} />)}
-                  <col style={{ width: 146 }} />
+                  <col style={{ width: 104 }} />
                   <col style={{ width: 76 }} />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">

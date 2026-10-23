@@ -1077,7 +1077,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   return (
-    <div className="route-enter mx-auto w-full max-w-[1040px] space-y-5 px-1 sm:px-0">
+    <div className="route-enter mx-[115px] min-h-[113px] w-full max-w-[1072px] space-y-5 py-[12px] px-0">
       <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-5 py-6 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-7 sm:py-7" style={{ backgroundColor: "rgb(16, 20, 39)" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
@@ -1104,14 +1104,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </div>
         </div>
 
-        <div className="px-5 py-6 md:px-6">
+        <div className="flex flex-col gap-[4px] px-5 py-6 md:px-6">
           {etapa === 0 && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-[12px]">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[.16em] text-muted-foreground">Modo da solicitação <sup className="text-primary">*</sup></p>
                 <p className="mt-1 text-[11px] text-muted-foreground">Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.</p>
               </div>
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-[13px] px-[16px]">
                 {opcoesVisiveis.map((opcao) => {
                   const ativo = tipo === opcao.tipo;
                   const Icon = opcao.icon;
@@ -1149,7 +1149,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               </div>
 
               {etapa === 1 && (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="mx-[-11px] mb-[16px] ml-[-10px] mt-[27px] grid gap-[40px] px-[20px] py-[17px] sm:grid-cols-2">
                   {tipo === "share" && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
                     <p className="text-[12px] font-bold text-foreground">Deseja vincular uma aeronave nessa despesa?</p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1168,7 +1168,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         {origemDespesa && <Campo label="Despesa encontrada" className="sm:col-span-2"><SearchableCombobox items={despesasOrigem.map((item) => ({ id: item.id, label: [item.descricao || item.numero_recibo || item.numero_relatorio || origemDespesa, item.data_despesa ? dataBr(item.data_despesa) : "", item.valor != null ? formatarValor(Number(item.valor)) : "", item.fornecedor].filter(Boolean).join(" · ") }))} value="" onChange={selecionarDespesaOrigem} placeholder={carregandoOrigem ? "Buscando despesas…" : "Selecione uma despesa para preencher o formulário"} searchPlaceholder="Buscar por descrição, data ou valor" emptyMessage="Nenhuma despesa encontrada para este voo e aeronave." disabled={carregandoOrigem || !despesasOrigem.length} /></Campo>}
                       </>}
                     </> : <>
-                      <Campo label="Número do voo"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => selecionarVoo(id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
+                      <Campo label="Número do voo" rotuloClassName="px-[6px]"><SearchableCombobox items={dadosOpcoes.voos.map((voo) => ({ id: voo.numero_voo, label: voo.numero_voo }))} value={form.numero_voo} onChange={(id) => selecionarVoo(id)} placeholder="Selecione ou busque o voo" searchPlaceholder="Buscar número do voo" emptyMessage="Nenhum voo encontrado em solicitações de reserva." allowFreeText /></Campo>
                       <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={(id) => { setForm((f) => ({ ...f, aeronave_id: id, cotista_ids: [], rateio_linhas: [] })); }} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                       <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids.length ? "__selecionados__" : ""} selectedLabel={form.cotista_ids.length ? `${form.cotista_ids.length} cotista(s) selecionado(s)` : undefined} selectedValues={[...form.cotista_ids, ...(form.cotista_ids.length === cotistas.length && cotistas.length ? ["__todos__"] : [])]} onChange={atualizarSelecaoCotistas} placeholder="Selecione cotistas (adicione mais de um)" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
                     </>}
@@ -1237,7 +1237,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-5 py-3.5 md:px-6">
+        <div className="my-[9px] flex flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-5 py-[19px] md:px-6">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
@@ -1469,8 +1469,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   );
 }
 
-function Campo({ label, obrigatorio, className = "", children }: { label: string; obrigatorio?: boolean; className?: string; children: ReactNode }) {
-  return <label className={`block ${className}`}><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}{obrigatorio && <sup className="ml-1 text-primary">*</sup>}</span>{children}</label>;
+function Campo({ label, obrigatorio, className = "", rotuloClassName = "", children }: { label: string; obrigatorio?: boolean; className?: string; rotuloClassName?: string; children: ReactNode }) {
+  return <label className={`block ${className}`}><span className={`mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground ${rotuloClassName}`}>{label}{obrigatorio && <sup className="ml-1 text-primary">*</sup>}</span>{children}</label>;
 }
 
 function Resumo({ label, valor }: { label: string; valor: string }) {

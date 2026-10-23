@@ -396,7 +396,7 @@ function LancamentosTableConfigurada({ aba, setAba, modoCelula, onToggleModoCelu
     window.addEventListener("pointerup", finalizar, { once: true });
     window.addEventListener("pointercancel", finalizar, { once: true });
   };
-  return <section className={`${card} overflow-hidden`}>
+  return <section className="rounded-xl border border-border bg-[rgba(22,26,36,1)] shadow-sm overflow-hidden">
     <div className="db-table-heading"><h2><PlaneTakeoff size={13} /> Registros de Voo</h2><div>{closed && <EtiquetaStatus tone="amber">Mês fechado</EtiquetaStatus>}<span className="db-count">{exibidos.length} {exibidos.length === 1 ? "voo" : "voos"}</span></div></div>
     <details className="db-table-options"><summary>Visões e opções da tabela</summary>
       <p>Use o código de referência para editar ou excluir. Arraste a tabela para ver todas as colunas e as divisórias do cabeçalho para ajustar as larguras.</p>
@@ -416,7 +416,7 @@ function LancamentosTableConfigurada({ aba, setAba, modoCelula, onToggleModoCelu
 
 // Estilos locais: o restante do dashboard mantém o tema que já utiliza.
 const diarioStyles = `
-.db-month{width:100%;max-width:1440px;min-width:0;margin:0 auto;padding:14px 6px 24px;background:#10151e;color:#f1f3f8;font-family:inherit;color-scheme:dark;font-size:12px}
+.db-month{width:100%;max-width:1486px;min-width:0;margin:0;padding:14px 6px 24px 17px;background:#060a13;color:#f1f3f8;font-family:inherit;color-scheme:dark;font-size:12px}
 .db-month,.db-month *{box-sizing:border-box}
 .db-month> *+*{margin-top:15px}
 .db-month .db-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px;margin-bottom:15px}
@@ -434,8 +434,10 @@ const diarioStyles = `
 .db-period>span{display:flex;align-items:center;gap:6px;margin-right:4px;color:#60a5fa;font-size:9px;font-weight:700;letter-spacing:.7px}
 .db-period>span:before{content:"";width:4px;height:14px;background:#60a5fa;border-radius:2px}
 .db-period select{height:23px;width:auto;min-width:59px;border:1px solid #293445;background:#10151e;color:#f1f3f8;border-radius:7px;padding:0 6px;font-size:11px}
-.db-month .db-summary{display:grid;grid-template-columns:minmax(0,2.03fr) minmax(0,1fr);gap:12px;margin-top:0}
+.db-month .db-summary{display:grid;grid-template-columns:minmax(0,2.03fr) minmax(0,1fr);gap:12px;margin-top:0;background:rgba(22,11,11,0)}
 .db-panel{min-width:0;border:1px solid #1e2633;background:#131821;border-radius:14px;padding:14px}
+.db-aircraft{background:#06080f}
+.db-horimeter{background:rgba(6,8,15,1);padding:20px 14px;margin:30px 0}
 .db-section-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:750;letter-spacing:1px;text-transform:uppercase;line-height:15px;margin-bottom:10px}
 .db-section-title:before{content:"";width:4px;height:15px;border-radius:2px;background:currentColor;flex-shrink:0}
 .db-section-title small{margin-left:auto;color:#929eaf;text-transform:none;letter-spacing:0;font-size:11px;font-weight:400}

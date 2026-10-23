@@ -128,26 +128,16 @@ import {
 const DESPESAS_ESTILOS = `
 /* Escopo local: superfícies opacas e uma única definição do grid. */
 .financeiro-profissional, .despesas-theme {
-  --background: 210 20% 98%; --foreground: 215 28% 17%;
-  --card: 0 0% 100%; --card-foreground: 215 28% 17%;
-  --popover: 0 0% 100%; --popover-foreground: 215 28% 17%;
-  --muted: 214 22% 95%; --muted-foreground: 215 16% 40%;
-  --border: 214 20% 85%; --input: 214 20% 78%;
-  --primary: 214 65% 42%; --primary-foreground: 0 0% 100%;
-  --accent: 214 22% 93%; --accent-foreground: 215 28% 17%;
-  --ring: 214 65% 42%; --destructive: 0 70% 42%;
-  color: hsl(var(--foreground)); color-scheme: light;
+  --background: 228 38% 5%; --foreground: 214 25% 92%;
+  --card: 222 51% 9%; --card-foreground: 214 25% 92%;
+  --popover: 222 45% 11%; --popover-foreground: 214 25% 92%;
+  --muted: 222 40% 12%; --muted-foreground: 215 17% 66%;
+  --border: 218 22% 18%; --input: 218 22% 26%;
+  --primary: 200 80% 62%; --primary-foreground: 0 0% 100%;
+  --accent: 217 35% 15%; --accent-foreground: 214 25% 92%;
+  --ring: 200 80% 62%; --destructive: 0 75% 70%;
+  color: hsl(var(--foreground)); color-scheme: dark;
   font-family: inherit; font-size: 13px; line-height: 1.5;
-}
-:where(.dark,[data-theme="dark"]) :is(.financeiro-profissional,.despesas-theme) {
-  --background: 220 25% 8%; --foreground: 214 25% 92%;
-  --card: 220 23% 10%; --card-foreground: 214 25% 92%;
-  --popover: 220 23% 12%; --popover-foreground: 214 25% 92%;
-  --muted: 220 20% 14%; --muted-foreground: 215 17% 70%;
-  --border: 218 18% 24%; --input: 218 18% 32%;
-  --primary: 213 70% 68%; --primary-foreground: 220 25% 8%;
-  --accent: 217 25% 18%; --accent-foreground: 214 25% 92%;
-  --ring: 213 70% 68%; --destructive: 0 75% 70%; color-scheme: dark;
 }
 .financeiro-profissional.financeiro-shell {
   width:100%; min-width:0; max-width:100%; padding:0;
@@ -168,8 +158,8 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
 .financeiro-profissional .financeiro-tabs { padding:0 8px; gap:4px; }
-.financeiro-profissional .financeiro-tabs button { border-radius:0; border-bottom:2px solid transparent; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
-.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { color:hsl(var(--primary)); border-bottom-color:hsl(var(--primary)); }
+.financeiro-profissional .financeiro-tabs button { border-radius:7px; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
+.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:#057baf; color:#fff; }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
 .despesas-shell { min-width:0; width:100%; }
@@ -201,7 +191,7 @@ const DESPESAS_ESTILOS = `
 .despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; }
 .despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.5; font-weight:600; letter-spacing:0; text-transform:none; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
 .despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
 .despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
 .despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }

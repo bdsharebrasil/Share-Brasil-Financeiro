@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Upload, X, FileText, RefreshCw } from "lucide-react";
+import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Trash2, Upload, X, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import AnexosDinamicos from "@/components/ui/AnexosDinamicos";

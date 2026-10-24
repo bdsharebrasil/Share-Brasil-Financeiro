@@ -5,6 +5,7 @@ import { RecadosPanel } from "@/components/dashboard/Recados";
 import VooEmOperacaoCard from "@/components/dashboard/operacoes/VooEmOperacaoCard";
 import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
+import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
 
 function formatarData(valor: string | null | undefined) {
   if (!valor) return "—";
@@ -75,6 +76,10 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
   }, [carregar]);
 
   const resumo = dados?.resumo;
+  const abrirVoo = (item: SolicitacaoVooInterna) => {
+    window.sessionStorage.setItem(AGENDAMENTO_ABRIR_SESSAO_KEY, item.id);
+    aoNavegar("agendamentos");
+  };
 
   return (
     <div className="route-enter">
@@ -102,8 +107,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
       <section className="overflow-hidden rounded-xl border border-border bg-card/75">
         <CabecalhoSecao icon={<Activity size={15} />} title="Solicitações e voos programados"action={<Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-8 gap-1.5 border-border bg-card px-2.5 text-[10px]"><RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button>} />
         {carregando ? <div className="space-y-3 p-5"><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /><div className="skeleton h-12 rounded-lg" /></div> : (Array.isArray(dados?.solicitacoes) && dados.solicitacoes.length > 0) ? <>
-          <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[730px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Cotista</th><th className="px-4 py-3">Número do voo</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Horário programado</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{dados.solicitacoes.slice(0, 12).map((item) => <LinhaVoo key={item.id} item={item} onOpen={() => aoNavegar("agendamentos")} />)}</tbody></table></div>
-          <div className="space-y-2 p-3 md:hidden">{dados.solicitacoes.slice(0, 12).map((item) => <CartaoVoo key={item.id} item={item} onOpen={() => aoNavegar("agendamentos")} />)}</div>
+          <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[730px] text-left"><thead><tr className="border-b border-border text-[9px] font-bold uppercase tracking-[.11em] text-muted-foreground"><th className="px-4 py-3">Cotista</th><th className="px-4 py-3">Número do voo</th><th className="px-4 py-3">Rota</th><th className="px-4 py-3">Data</th><th className="px-4 py-3">Aeronave</th><th className="px-4 py-3">Horário programado</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{dados.solicitacoes.slice(0, 12).map((item) => <LinhaVoo key={item.id} item={item} onOpen={() => abrirVoo(item)} />)}</tbody></table></div>
+          <div className="space-y-2 p-3 md:hidden">{dados.solicitacoes.slice(0, 12).map((item) => <CartaoVoo key={item.id} item={item} onOpen={() => abrirVoo(item)} />)}</div>
         </> : <EstadoVazio label="Nenhuma solicitação futura encontrada" />}
       </section>
 

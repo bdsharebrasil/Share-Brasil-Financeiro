@@ -40,6 +40,7 @@ import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
 import JornadaVoo from "@/components/agendamento/JornadaVoo";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
 import { calcularProgressoChecklist, correspondeFiltroStatusAgendamento, obterAcoesAgendamento } from "@/components/agendamento/agendamentoCardFlow";
+import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
 
 const abas = [
   { id: "cronograma", label: "Cronograma de Voos", icon: ClipboardList },
@@ -237,7 +238,7 @@ export default function Agendamentos() {
     return ordenarPorAeronave(encontrados);
   }, [agendamentos, busca, filtroStatus]);
 
-  const abrirSolicitacao = (item: SolicitacaoVooInterna) => {
+  const abrirSolicitacao = useCallback((item: SolicitacaoVooInterna) => {
     setAba("cronograma");
     setSelecionada(item);
     setChecklistAberto(false);
@@ -245,7 +246,24 @@ export default function Agendamentos() {
     setPilotoId(item.piloto_id || "");
     setCopilotoId(item.copiloto_id || "");
     setMotivo("");
-  };
+  }, []);
+
+  useEffect(() => {
+    const idSolicitacao = window.sessionStorage.getItem(AGENDAMENTO_ABRIR_SESSAO_KEY);
+    if (!idSolicitacao || !painel?.agendamentos) return;
+    const item = painel.agendamentos.find((agendamento) => agendamento.id === idSolicitacao);
+    if (!item) {
+      if (!carregando) window.sessionStorage.removeItem(AGENDAMENTO_ABRIR_SESSAO_KEY);
+      return;
+    }
+    window.sessionStorage.removeItem(AGENDAMENTO_ABRIR_SESSAO_KEY);
+    abrirSolicitacao(item);
+    const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const hojeComChecklistConcluido = item.data_agendada === hojeUtc()
+      && item.checklist_status === "concluido"
+      && ["aprovada", "em_rota", "em_voo", "em_solo"].includes(status);
+    if (hojeComChecklistConcluido) setJornadaAberta(true);
+  }, [abrirSolicitacao, carregando, painel?.agendamentos]);
   const navegarParaDataCalendario = useCallback((data: string) => {
     const dataVoo = new Date(`${data}T00:00:00`);
     if (Number.isNaN(dataVoo.getTime())) return;

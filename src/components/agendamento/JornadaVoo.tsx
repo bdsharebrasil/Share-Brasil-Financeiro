@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, Clock3, Flag, Gauge, Loader2, MapPin, Pencil, Plane, Plus, Route, Save, Timer, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,6 +6,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import { atualizarJornadaVoo, atualizarPernaJornada, adicionarPernaJornada, buscarJornadaVoo, buscarLimitesJornada, encerrarJornadaVoo, excluirJornadaVoo, excluirPernaJornada, iniciarJornadaVoo, type JornadaVoo as Jornada, type LimitesJornada, type NivelAlertaJornada } from "@/lib/colaborador-api";
 import type { SolicitacaoVooInterna } from "@/lib/colaborador-api";
+const AcompanhamentoVooAgendado = lazy(() => import("@/components/agendamento/AcompanhamentoVooAgendado"));
 
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:bg-secondary/30 disabled:opacity-50";
 const box = "rounded-2xl border border-[rgba(34,44,57,0.96)] bg-card/80 p-5 shadow-sm";
@@ -112,7 +113,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
   const nomesTripulantes = useMemo(() => new Map([[item.piloto_id || "", item.piloto_nome || ""], [item.copiloto_id || "", item.copiloto_nome || ""]]), [item.copiloto_id, item.copiloto_nome, item.piloto_id, item.piloto_nome]);
 
   const opcoesAerodromos = useMemo(() => aerodromos, [aerodromos]);
-  const carregar = async () => {
+  const carregar = useCallback(async () => {
     const atual = await buscarJornadaVoo(item.id);
     setErro("");
     const jornadaNormalizada = atual ? {
@@ -132,8 +133,8 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
       const ultima = jornadaNormalizada.pernas[jornadaNormalizada.pernas.length - 1];
       if (ultima) setPerna({ origem: ultima.origem || "", destino: ultima.destino || "", numero_passageiros: String(ultima.numero_passageiros ?? 0), horario_ac: hora(ultima.horario_ac), horario_dep: hora(ultima.horario_dep), horario_pouso: hora(ultima.horario_pouso), horario_corte: hora(ultima.horario_corte) });
     }
-  };
-  useEffect(() => { void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }, [item.id]);
+  }, [item.data_agendada, item.id]);
+  useEffect(() => { void carregar().catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar jornada.")).finally(() => setCarregando(false)); }, [carregar]);
   useEffect(() => {
     let ativo = true;
     setAerodromosCarregando(true);
@@ -225,6 +226,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
   const nivelCabecalho = jornada?.tripulantes?.reduce<NivelAlertaJornada>((pior, tripulante) => ({ normal: 0, atencao: 1, critico: 2, excedido: 3 }[tripulante.limites.nivel_alerta] > { normal: 0, atencao: 1, critico: 2, excedido: 3 }[pior] ? tripulante.limites.nivel_alerta : pior), limites?.nivel_alerta || "normal") || "normal";
   const tripulantesComLimites = jornada?.tripulantes ?? (jornada && limites ? [{ ...jornada, funcao_tripulante: jornada.funcao_tripulante, limites }] : []);
   return <section className={`${box} space-y-5`}>
+    <Suspense fallback={<div className="h-40 animate-pulse rounded-xl bg-secondary/40" />}><AcompanhamentoVooAgendado item={item} /></Suspense>
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/25 p-4"><div className="flex items-start gap-3"><div className={`rounded-xl border p-2.5 ${tomAlerta[nivelCabecalho]}`}><Route size={18} /></div><div className="min-w-0 flex-1"><p className="text-[9px] font-bold uppercase tracking-[.14em] text-primary">{somenteLeitura ? "Operação concluída · histórico" : "Operação · UTC/Zulu"}</p><h2 className="mt-1 text-base font-bold">{somenteLeitura ? "Jornada realizada" : "Jornada de voo"}</h2><p className="mt-1 text-[10px] text-muted-foreground">{somenteLeitura ? "Visualização somente leitura da operação encerrada." : "Controle de apresentação, acionamento, voo, pouso e corte."}</p></div>{jornada?.status === "encerrada" && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-bold text-emerald-300">Encerrada</span>}<button type="button" onClick={aoFechar} aria-label="Fechar jornada de voo" className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><X size={16} /></button></div>{jornada && <div className="grid gap-2 border-t border-border/60 pt-3 sm:grid-cols-2">{tripulantesComLimites.map((t) => <div key={t.id} className={`rounded-lg border px-3 py-2 ${tomAlerta[t.limites.nivel_alerta]}`}><div className="flex items-center justify-between gap-2"><span className="text-[9px] font-bold uppercase tracking-wide"> · {nomesTripulantes.get(t.tripulante_id ?? "") || "Tempo Jornada"}</span></div><p className="mt-1 text-[9px] text-muted-foreground">Semana {horas(t.limites.semana.minutos)}/{horas(t.limites.semana.limite)} · Mês {horas(t.limites.mes.minutos)}/{horas(t.limites.mes.limite)}</p></div>)}</div>}{jornada?.status === "encerrada" && !somenteLeitura && <Button type="button" onClick={() => { setJornada(null); setMensagem("Nova jornada: preencha os horários e o novo dia."); setData(item.data_agendada || hoje()); setAcionamento(""); setApresentacao(""); setPerna({ ...pernaVazia(), origem: item.origem || "", destino: item.destino || "" }); }} className="w-full gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto sm:self-end"><Plus size={14} /> Iniciar nova jornada</Button>}</div>
     {!jornada ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Campo label="Data da jornada *"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={input} /></Campo>
@@ -234,7 +236,7 @@ export default function JornadaVoo({ item, aoFechar, aoAtualizarAgendamento }: {
       <Campo label="Tripulação check-in automático"><input type="time" value={apresentacao} readOnly disabled={!acionamento} aria-describedby="checkin-automatico-ajuda" className={input} /><span id="checkin-automatico-ajuda" className="block text-[9px] text-muted-foreground">Preenchido 30 min antes do acionamento.</span></Campo>
       <Campo label="Horário de acionamento (AC) *"><input type="time" value={acionamento} onChange={(e) => { setAcionamento(e.target.value); setApresentacao(""); }} className={input} /></Campo>
       <Campo label="Decolagem / saída (DEP) *"><input type="time" value={perna.horario_dep} onChange={(e) => alterarPerna("horario_dep", e.target.value)} className={input} /></Campo>
-      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Horários: check-in da tripulação → AC → DEP → POU → COR. Na primeira gravação informe check-in, AC e DEP; POU e COR serão registrados depois.</p><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento || !perna.horario_dep} className="gap-2 text-xs"><Save size={14} /> Salvar AC e DEP</Button></div>
+      <div className="sm:col-span-2 lg:col-span-4"><p className="mb-2 text-[10px] text-muted-foreground">Horários: check-in da tripulação → AC → DEP → POU → COR. Na primeira gravação informe check-in, AC e DEP; POU e COR serão registrados depois.</p><Button onClick={() => void salvarInicio()} disabled={salvando || !data || !perna.origem || !perna.destino || !apresentacao || !acionamento || !perna.horario_dep} className="gap-2 text-xs"><Save size={14} /> Iniciar jornada</Button></div>
     </div> : <>
       {jornada.status !== "encerrada" && <div className="grid gap-2 sm:grid-cols-4"><div className="rounded-xl border border-border/70 bg-secondary/20 p-3"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><CalendarDays size={12} />Data</span><strong className="mt-1 block text-xs">{dataBr(jornada.data)}</strong></div><div className="rounded-xl border border-border/70 bg-secondary/20 p-3"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Clock3 size={12} />Check-in</span><strong className="mt-1 block text-xs">{hora(jornada.horario_apresentacao) || "—"}</strong></div><div className="rounded-xl border border-border/70 bg-secondary/20 p-3"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Gauge size={12} />Acionamento</span><strong className="mt-1 block text-xs text-sky-300">{hora(jornada.horario_acionamento) || "—"}</strong></div><div className="rounded-xl border border-border/70 bg-secondary/20 p-3"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Route size={12} />Sequência</span><strong className="mt-1 block text-[10px]">CHECK-IN → AC → DEP → POU → COR</strong></div></div>}
       <HistoricoJornadas jornadas={jornada.historico?.length ? jornada.historico : [jornada]} aoSalvarJornada={salvarEdicaoJornada} aoSalvarPerna={salvarEdicaoPerna} salvando={salvando} aoExcluirJornada={pedirExclusaoJornada} aoExcluirPerna={pedirExclusaoPerna} />

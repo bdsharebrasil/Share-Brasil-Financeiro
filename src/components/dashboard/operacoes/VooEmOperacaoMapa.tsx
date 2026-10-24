@@ -8,9 +8,9 @@ const estilo = {
   sources: {
     base: {
       type: "raster" as const,
-      tiles: ["https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"],
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
-      attribution: "© CARTO © OpenStreetMap contributors",
+      attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     },
   },
   layers: [{ id: "base", type: "raster" as const, source: "base" }],

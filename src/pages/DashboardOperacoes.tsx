@@ -21,15 +21,15 @@ function formatarHorario(valor: string | null | undefined) {
 }
 
 function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
-  if (status === "aprovada") return "green";
-  if (status === "em_voo") return "blue";
+  if (status === "aprovada" || status === "em_solo") return "green";
+  if (status === "em_voo" || status === "em_rota") return "blue";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 
 function statusLabel(status: string) {
-  return ({ pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", em_rota: "Em voo", em_solo: "Em solo", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 
 function saudacaoAtual() {
@@ -71,8 +71,17 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
   }, [carregar]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => void carregar(true), 60_000);
-    return () => window.clearInterval(timer);
+    const atualizarAoRetornar = () => {
+      if (document.visibilityState === "visible") void carregar(true);
+    };
+    const timer = window.setInterval(() => void carregar(true), 15_000);
+    window.addEventListener("focus", atualizarAoRetornar);
+    document.addEventListener("visibilitychange", atualizarAoRetornar);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", atualizarAoRetornar);
+      document.removeEventListener("visibilitychange", atualizarAoRetornar);
+    };
   }, [carregar]);
 
   const resumo = dados?.resumo;

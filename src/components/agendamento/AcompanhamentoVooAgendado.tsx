@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3, MapPin, Plane, Radio } from "lucide-react";
 import { buscarRotaerOperacao, type SolicitacaoVooInterna, type VooEmOperacao } from "@/lib/colaborador-api";
-import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 
 const MapaVoo = lazy(() => import("@/components/dashboard/operacoes/VooEmOperacaoMapa"));
 type Coordenada = { lat: number; lon: number };
@@ -25,11 +24,10 @@ function buscarCoordenada(codigo: string | null | undefined): Promise<Coordenada
     .catch(() => null);
 }
 
-export default function AcompanhamentoVooAgendado({ item }: { item: SolicitacaoVooInterna }) {
-  const { voos } = useVoosEmOperacao();
+export default function AcompanhamentoVooAgendado({ item, voosEmOperacao }: { item: SolicitacaoVooInterna; voosEmOperacao: VooEmOperacao[] }) {
   const [origemCoord, setOrigemCoord] = useState<Coordenada | null>(null);
   const [destinoCoord, setDestinoCoord] = useState<Coordenada | null>(null);
-  const vooAoVivo = voos.find((voo) => voo.id === item.id) || null;
+  const vooAoVivo = voosEmOperacao.find((voo) => voo.id === item.id) || null;
 
   useEffect(() => {
     let ativo = true;
@@ -77,7 +75,7 @@ export default function AcompanhamentoVooAgendado({ item }: { item: SolicitacaoV
       <div className="rounded-lg border border-border/60 bg-background/30 p-2.5"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Clock3 size={11} />Decolagem programada</span><strong className="mt-1 block font-mono text-[11px]">{coordenadaHorario(item.horario_previsto_agendamento)}</strong></div>
       <div className="rounded-lg border border-border/60 bg-background/30 p-2.5"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Plane size={11} />Aeronave</span><strong className="mt-1 block truncate font-mono text-[11px]">{item.matricula_registro || "A definir"}{item.modelo ? ` · ${item.modelo}` : ""}</strong></div>
     </div>
-    {temRota ? <Suspense fallback={<div className="h-[240px] animate-pulse bg-secondary/40" />}><MapaVoo voo={dadosMapa} /></Suspense> : <div className="flex h-32 items-center justify-center px-4 text-center text-[10px] text-muted-foreground">Coordenadas dos aeródromos ainda não disponíveis para desenhar a rota.</div>}
+    <div className="relative"><Suspense fallback={<div className="h-[360px] animate-pulse bg-secondary/40" />}><MapaVoo voo={dadosMapa} /></Suspense>{!temRota && <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md bg-background/85 px-3 py-2 text-[10px] text-muted-foreground shadow">Mapa disponível; coordenadas da rota ainda não cadastradas.</div>}</div>
     <p className="border-t border-border/60 px-3 py-2 text-[9px] text-muted-foreground">{sinalAoVivo ? `Aeronave ${item.matricula_registro || "identificada"} · sinal atualizado há ${Math.max(0, Math.round(vooAoVivo?.rastreio?.visto_ha_s || 0))} s.` : vooRegistradoEmOperacao ? "A linha tracejada indica a rota planejada. Sem posição recente; cobertura ADS-B e identificação da aeronave podem afetar o rastreamento." : "A linha tracejada indica a rota planejada. A posição da aeronave aparecerá quando o ADS-B confirmar a decolagem; mapa depende de cobertura e identificação válidas."}</p>
   </section>;
 }

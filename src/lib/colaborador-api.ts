@@ -75,6 +75,14 @@ export type SolicitacaoFerias = {
   criado_em: string;
   atualizado_em: string;
 };
+export type PernaOperacao = {
+  id: string; numero: number; jornada_numero: number;
+  origem: string; destino: string; status: string;
+  horario_ac: string | null; horario_dep: string | null;
+  horario_pouso: string | null; horario_corte: string | null;
+  origem_coord: { lat: number; lon: number } | null;
+  destino_coord: { lat: number; lon: number } | null;
+};
 
 export type PerfilColaboradorResponse = {
   perfil: PerfilColaborador;
@@ -644,7 +652,7 @@ export function buscarPainelOperacoes(data?: string) {
 export type StatusRastreio = "ao_vivo" | "atrasado" | "sem_sinal" | "sem_identificador" | "indisponivel";
 export type RastreioAeronave = { hex: string; matricula: string | null; callsign: string | null; lat: number; lon: number; alt_ft: number | null; no_solo: boolean; gs_kt: number | null; rumo_graus: number | null; vs_fpm: number | null; visto_ha_s: number | null; squawk: string | null; fonte: string };
 export type StatusVooOperacao = "acionado" | "decolado" | "em_voo" | "em_solo";
-export type VooEmOperacao = { id: string; numero_voo: string | null; status: StatusVooOperacao; aeronave_id: string | null; matricula_registro: string | null; modelo: string | null; icao_hex: string | null; origem: string | null; destino: string | null; origem_coord: { lat: number; lon: number } | null; destino_coord: { lat: number; lon: number } | null; horario_previsto_agendamento: string | null; cotista_nome: string | null; piloto_nome: string | null; copiloto_nome: string | null; rastreio: RastreioAeronave | null; rastreio_status: StatusRastreio; trilha?: Array<{ lat: number; lon: number }> };
+export type VooEmOperacao = { id: string; numero_voo: string | null; status: StatusVooOperacao; aeronave_id: string | null; matricula_registro: string | null; modelo: string | null; icao_hex: string | null; origem: string | null; destino: string | null; origem_coord: { lat: number; lon: number } | null; destino_coord: { lat: number; lon: number } | null; horario_previsto_agendamento: string | null; cotista_nome: string | null; piloto_nome: string | null; copiloto_nome: string | null; rastreio: RastreioAeronave | null; rastreio_status: StatusRastreio; perna_atual: PernaOperacao | null; pernas: PernaOperacao[]; trilha?: Array<{ lat: number; lon: number; alt_ft?: number | null }> };
 export function buscarVoosEmOperacao() { return colaboradorRequest<{ atualizado_em: string; voos: VooEmOperacao[] }>("/api/interno/voos-em-operacao"); }
 export function buscarRotaerOperacao(icao: string) { return colaboradorRequest<{ airport?: { coordinates?: { lat?: number; lng?: number } } }>(`/api/rotaer/${encodeURIComponent(icao)}`); }
 

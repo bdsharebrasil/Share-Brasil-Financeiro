@@ -1,109 +1,114 @@
 import { useMemo } from "react";
-import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";
+import Map, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
+import type { StyleSpecification } from "maplibre-gl";
+import type { Feature, LineString } from "geojson";
 import { Plane } from "lucide-react";
-import "maplibre-gl/dist/maplibre-gl.css"; // Essencial para o mapa não quebrar o layout
+import "maplibre-gl/dist/maplibre-gl.css";
 
-// Importação das tipagens do seu projeto
 import type { VooEmOperacao } from "@/lib/colaborador-api";
 
 interface MapaVooProps {
   voo: VooEmOperacao;
 }
 
-export default function VooEmOperacaoMapa({ voo }: { voo: any }) {
-  // 1. Pega a chave do Stadia Maps injetada pelo Vite
-  const apiKey = import.meta.env.VITE_API_OPENSTREETMAP || "";
+const ESTILO_OPENSTREETMAP: StyleSpecification = {
+  version: 8,
+  sources: {
+    openstreetmap: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+    },
+  },
+  layers: [{ id: "openstreetmap-tiles", type: "raster", source: "openstreetmap" }],
+};
 
-  // 2. Centraliza o mapa dinamicamente com base na rota
+function linhaGeoJSON(coordenadas: [number, number][]): Feature<LineString> | null {
+  if (coordenadas.length < 2) return null;
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: { type: "LineString", coordinates: coordenadas },
+  };
+}
+
+export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
   const initialViewState = useMemo(() => {
-    const lat = voo.rastreio?.lat || voo.origem_coord?.lat || -23.55;
-    const lon = voo.rastreio?.lon || voo.origem_coord?.lon || -46.63;
+    const atual = voo.rastreio;
+    const lat = atual?.lat ?? voo.origem_coord?.lat ?? -23.55;
+    const lon = atual?.lon ?? voo.origem_coord?.lon ?? -46.63;
     return { latitude: lat, longitude: lon, zoom: 6 };
-  }, [voo]);
-
-  // 3. Monta a linha da rota (GeoJSON) conectando origem ao destino
-  const rotaGeoJSON = useMemo(() => {
-    if (!voo.origem_coord || !voo.destino_coord) return null;
-    return {
-      type: "Feature",
-      properties: {},
-      geometry: {
-        type: "LineString",
-        coordinates: [
-          [voo.origem_coord.lon, voo.origem_coord.lat],
-          [voo.destino_coord.lon, voo.destino_coord.lat],
-        ],
-      },
-    };
-  }, [voo.origem_coord, voo.destino_coord]);
-
-  // 4. Coordenada atual do avião (ADS-B ao vivo ou última posição conhecida)
-  const posicaoAviao = useMemo(() => {
-    if (voo.rastreio?.lat && voo.rastreio?.lon) {
-      return { lat: voo.rastreio.lat, lon: voo.rastreio.lon };
-    }
-    return voo.origem_coord || null;
   }, [voo.rastreio, voo.origem_coord]);
 
-  // Ângulo de rotação do avião (rumo/heading do ADS-B ou padrão apontando para a direita)
-  const rumoAviao = voo.rastreio?.rumo || voo.rastreio?.heading || 0;
+  const rotaGeoJSON = useMemo(() => {
+    if (!voo.origem_coord || !voo.destino_coord) return null;
+    return linhaGeoJSON([
+      [voo.origem_coord.lon, voo.origem_coord.lat],
+      [voo.destino_coord.lon, voo.destino_coord.lat],
+    ]);
+  }, [voo.origem_coord, voo.destino_coord]);
+
+  const trilhaGeoJSON = useMemo(() => {
+    const coordenadas: [number, number][] = (voo.trilha || []).map(({ lon, lat }) => [lon, lat]);
+    if (voo.rastreio) {
+      const atual: [number, number] = [voo.rastreio.lon, voo.rastreio.lat];
+      const ultima = coordenadas[coordenadas.length - 1];
+      if (!ultima || ultima[0] !== atual[0] || ultima[1] !== atual[1]) coordenadas.push(atual);
+    }
+    return linhaGeoJSON(coordenadas);
+  }, [voo.trilha, voo.rastreio]);
+
+  const posicaoAviao = useMemo(() => {
+    const rastreio = voo.rastreio;
+    if (rastreio && rastreio.lat != null && rastreio.lon != null) {
+      return { lat: rastreio.lat, lon: rastreio.lon };
+    }
+    return voo.origem_coord;
+  }, [voo.rastreio, voo.origem_coord]);
+  const rumoAviao = voo.rastreio?.rumo_graus ?? 0;
 
   return (
-    <div className="h-[360px] w-full overflow-hidden rounded-xl bg-[#111]">
+    <div className="h-[360px] w-full overflow-hidden rounded-xl bg-[#111]" aria-label="Mapa da rota planejada e posição da aeronave">
       <Map
         initialViewState={initialViewState}
-        // Aplica o tema escuro profissional do Stadia Maps passando a sua chave
-        mapStyle={`https://stadiamaps.com{apiKey}`}
+        mapStyle={ESTILO_OPENSTREETMAP}
+        attributionControl={{ compact: true }}
         style={{ width: "100%", height: "100%" }}
       >
-        {/* DESENHA A ROTA PLANEJADA TRACEJADA */}
+        <NavigationControl position="top-right" />
         {rotaGeoJSON && (
-          <Source id="rota-planejada" type="geojson" data={rotaGeoJSON as any}>
+          <Source id="rota-planejada" type="geojson" data={rotaGeoJSON}>
             <Layer
               id="linha-da-rota"
               type="line"
-              paint={{
-                "line-color": "#1a8ec0", // Cor sky-400 combinando com seu app
-                "line-width": 2,
-                "line-dasharray": [2, 2], // Deixa tracejado estilizado
-              }}
+              paint={{ "line-color": "#1a8ec0", "line-width": 2, "line-dasharray": [2, 2] }}
             />
           </Source>
         )}
-
-        {/* MARCADOR DA ORIGEM */}
+        {trilhaGeoJSON && (
+          <Source id="trilha-adsb" type="geojson" data={trilhaGeoJSON}>
+            <Layer id="linha-trilha-adsb" type="line" paint={{ "line-color": "#eab308", "line-width": 3 }} />
+          </Source>
+        )}
         {voo.origem_coord && (
           <Marker longitude={voo.origem_coord.lon} latitude={voo.origem_coord.lat}>
-            <div className="flex flex-col items-center">
-              <span className="rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-mono font-bold text-foreground border border-border shadow-sm">
-                {voo.origem}
-              </span>
-            </div>
+            <span className="rounded border border-border bg-background/90 px-1.5 py-0.5 font-mono text-[9px] font-bold text-foreground shadow-sm">
+              {voo.origem}
+            </span>
           </Marker>
         )}
-
-        {/* MARCADOR DO DESTINO */}
         {voo.destino_coord && (
           <Marker longitude={voo.destino_coord.lon} latitude={voo.destino_coord.lat}>
-            <div className="flex flex-col items-center">
-              <span className="rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-mono font-bold text-foreground border border-border shadow-sm">
-                {voo.destino}
-              </span>
-            </div>
+            <span className="rounded border border-border bg-background/90 px-1.5 py-0.5 font-mono text-[9px] font-bold text-foreground shadow-sm">
+              {voo.destino}
+            </span>
           </Marker>
         )}
-
-        {/* MARCADOR DO AVIÃO COM SINAL ADS-B AO VIVO */}
         {posicaoAviao && (
           <Marker longitude={posicaoAviao.lon} latitude={posicaoAviao.lat} anchor="center">
-            <div 
-              className="transition-all duration-1000 ease-out"
-              style={{ transform: `rotate(${rumoAviao}deg)` }}
-            >
-              <Plane 
-                size={22} 
-                className="text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)]" 
-              />
+            <div className="transition-transform duration-1000 ease-out" style={{ transform: `rotate(${rumoAviao}deg)` }}>
+              <Plane size={22} className="text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
             </div>
           </Marker>
         )}

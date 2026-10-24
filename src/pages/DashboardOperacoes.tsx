@@ -69,6 +69,11 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
     void buscarPerfilColaborador().then((response) => setNomeColaborador(response.perfil.nome_exibicao || response.perfil.nome_completo)).catch(() => undefined);
   }, [carregar]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => void carregar(true), 60_000);
+    return () => window.clearInterval(timer);
+  }, [carregar]);
+
   const resumo = dados?.resumo;
 
   return (
@@ -109,9 +114,27 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
 }
 
 function LinhaVoo({ item, onOpen }: { item: SolicitacaoVooInterna; onOpen: () => void }) {
-  return <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20"><td className="px-4 py-3"><p className="max-w-[180px] truncate text-[10px] font-bold">{item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cotista não informado"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.codigo_cliente || item.id.slice(0, 8)}</p></td><td className="px-4 py-3 font-mono text-[10px] font-bold text-primary">{item.numero_voo || "A definir"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{item.origem} → {item.destino}</td><td className="px-4 py-3"><p className="text-[10px] font-semibold">{formatarData(item.data_agendada)}</p></td><td className="px-4 py-3 font-mono text-[10px] font-bold">{item.matricula_registro || "A definir"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{formatarHorario(item.horario_previsto_agendamento)}</td><td className="px-4 py-3"><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></td><td className="px-4 py-3 text-right"><button type="button" onClick={onOpen} className="text-[10px] font-bold text-primary hover:underline">Abrir</button></td></tr>;
+  return <tr className="border-b border-border/60 last:border-0 hover:bg-secondary/20"><td className="px-4 py-3"><p className="max-w-[180px] truncate text-[10px] font-bold">{item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cotista não informado"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.codigo_cliente || item.id.slice(0, 8)}</p></td><td className="px-4 py-3 font-mono text-[10px] font-bold text-primary">{item.numero_voo || "A definir"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{item.origem} → {item.destino}</td><td className="px-4 py-3"><p className="text-[10px] font-semibold">{formatarData(item.data_agendada)}</p></td><td className="px-4 py-3 font-mono text-[10px] font-bold">{item.matricula_registro || "A definir"}</td><td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{formatarHorario(item.horario_previsto_agendamento)}<AvisoDecolagem item={item} /></td><td className="px-4 py-3"><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></td><td className="px-4 py-3 text-right"><button type="button" onClick={onOpen} className="text-[10px] font-bold text-primary hover:underline">Abrir</button></td></tr>;
 }
 
 function CartaoVoo({ item, onOpen }: { item: SolicitacaoVooInterna; onOpen: () => void }) {
-  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-[10px] font-bold">{item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cotista não informado"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.codigo_cliente || item.id.slice(0, 8)}</p></div><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Rota</span><strong className="font-mono">{item.origem} → {item.destino}</strong></div><div><span className="block text-[9px] text-muted-foreground">Data</span><strong>{formatarData(item.data_agendada)}</strong></div><div><span className="block text-[9px] text-muted-foreground">Voo / horário</span><strong className="font-mono text-primary">{item.numero_voo || "A definir"} · {formatarHorario(item.horario_previsto_agendamento)}</strong></div><div><span className="block text-[9px] text-muted-foreground">Aeronave / passageiros</span><strong className="font-mono">{item.matricula_registro || "A definir"} · {item.numero_passageiros ?? 0}</strong></div></div><button type="button" onClick={onOpen} className="mt-3 w-full rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary hover:bg-primary/10">Abrir agendamento</button></article>;
+  return <article className="rounded-xl border border-border/70 bg-background/30 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-[10px] font-bold">{item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cotista não informado"}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.codigo_cliente || item.id.slice(0, 8)}</p></div><EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus></div><div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]"><div><span className="block text-[9px] text-muted-foreground">Rota</span><strong className="font-mono">{item.origem} → {item.destino}</strong></div><div><span className="block text-[9px] text-muted-foreground">Data</span><strong>{formatarData(item.data_agendada)}</strong></div><div><span className="block text-[9px] text-muted-foreground">Voo / horário</span><strong className="font-mono text-primary">{item.numero_voo || "A definir"} · {formatarHorario(item.horario_previsto_agendamento)}<AvisoDecolagem item={item} /></strong></div><div><span className="block text-[9px] text-muted-foreground">Aeronave / passageiros</span><strong className="font-mono">{item.matricula_registro || "A definir"} · {item.numero_passageiros ?? 0}</strong></div></div><button type="button" onClick={onOpen} className="mt-3 w-full rounded-lg border border-primary/30 px-3 py-2 text-[10px] font-bold text-primary hover:bg-primary/10">Abrir agendamento</button></article>;
+}
+
+function AvisoDecolagem({ item }: { item: SolicitacaoVooInterna }) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setAgora(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  if (item.status !== "aprovada" || !item.horario_previsto_agendamento) return null;
+  const horarioUtc = item.horario_previsto_agendamento.replace(" ", "T");
+  const decolagem = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(horarioUtc) ? horarioUtc : `${horarioUtc}Z`).getTime();
+  if (!Number.isFinite(decolagem)) return null;
+  const minutos = Math.ceil((decolagem - agora) / 60_000);
+  if (minutos < 0) return <span className="mt-1 block font-sans text-[9px] font-semibold text-amber-300">Horário previsto passou; aguardando confirmação ADS-B da decolagem.</span>;
+  const horas = Math.floor(minutos / 60);
+  const restantes = minutos % 60;
+  const contagem = horas ? `${horas}h ${restantes}min` : `${restantes}min`;
+  return <span className="mt-1 block font-sans text-[9px] font-semibold text-sky-300">Decolagem prevista em {contagem}</span>;
 }

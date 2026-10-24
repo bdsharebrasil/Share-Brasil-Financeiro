@@ -61,13 +61,18 @@ export default function AcompanhamentoVooAgendado({ item, voosEmOperacao }: { it
   }), [destinoCoord, item, origemCoord, vooAoVivo]);
 
   const sinalAoVivo = vooAoVivo?.rastreio_status === "ao_vivo" && Boolean(vooAoVivo.rastreio);
-  const vooRegistradoEmOperacao = vooAoVivo?.status === "em_voo";
+  const faseVoo = vooAoVivo?.status;
+  const vooRegistradoEmOperacao = Boolean(faseVoo && ["acionado", "decolado", "em_voo", "em_solo"].includes(faseVoo));
+  const textoFase = faseVoo === "acionado" ? "Acionado · aguardando decolagem"
+    : faseVoo === "em_solo" ? "Pouso registrado"
+      : faseVoo === "decolado" || faseVoo === "em_voo" ? "Decolado"
+        : "Aguardando decolagem";
   const temRota = Boolean(dadosMapa.origem_coord || dadosMapa.destino_coord);
 
   return <section className="overflow-hidden rounded-xl border border-sky-400/25 bg-sky-400/[.04]" aria-label="Acompanhamento do voo selecionado">
     <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-4 py-3">
-      <div className="flex items-center gap-2"><Plane size={15} className="text-sky-300" /><div><h3 className="text-xs font-bold">Acompanhamento do voo {item.numero_voo || "programado"}</h3><p className="mt-0.5 text-[9px] text-muted-foreground">{sinalAoVivo ? "Posição ADS-B ao vivo" : vooRegistradoEmOperacao ? "Rastreamento sem sinal recente" : "Prévia da rota prevista"}</p></div></div>
-      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold ${sinalAoVivo ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : "border-sky-400/25 bg-sky-400/10 text-sky-200"}`}><Radio size={11} />{sinalAoVivo ? "Ao vivo" : vooRegistradoEmOperacao ? "Sem sinal" : "Aguardando decolagem"}</span>
+      <div className="flex items-center gap-2"><Plane size={15} className="text-sky-300" /><div><h3 className="text-xs font-bold">Acompanhamento do voo {item.numero_voo || "programado"}</h3><p className="mt-0.5 text-[9px] text-muted-foreground">{sinalAoVivo ? "Posição ADS-B ao vivo" : faseVoo === "acionado" ? "Acionamento registrado; aguardando DEP" : faseVoo === "em_solo" ? "Pouso registrado na jornada" : vooRegistradoEmOperacao ? "Decolagem registrada; rastreamento sem sinal recente" : "Prévia da rota prevista"}</p></div></div>
+      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold ${sinalAoVivo ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : "border-sky-400/25 bg-sky-400/10 text-sky-200"}`}><Radio size={11} />{sinalAoVivo ? "Ao vivo" : textoFase}</span>
     </header>
     <div className="grid gap-2 border-b border-border/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-lg border border-border/60 bg-background/30 p-2.5"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><MapPin size={11} />Rota</span><strong className="mt-1 block font-mono text-[11px]">{item.origem} → {item.destino}</strong></div>
@@ -76,6 +81,6 @@ export default function AcompanhamentoVooAgendado({ item, voosEmOperacao }: { it
       <div className="rounded-lg border border-border/60 bg-background/30 p-2.5"><span className="flex items-center gap-1 text-[9px] text-muted-foreground"><Plane size={11} />Aeronave</span><strong className="mt-1 block truncate font-mono text-[11px]">{item.matricula_registro || "A definir"}{item.modelo ? ` · ${item.modelo}` : ""}</strong></div>
     </div>
     <div className="relative"><Suspense fallback={<div className="h-[360px] animate-pulse bg-secondary/40" />}><MapaVoo voo={dadosMapa} /></Suspense>{!temRota && <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md bg-background/85 px-3 py-2 text-[10px] text-muted-foreground shadow">Mapa disponível; coordenadas da rota ainda não cadastradas.</div>}</div>
-    <p className="border-t border-border/60 px-3 py-2 text-[9px] text-muted-foreground">{sinalAoVivo ? `Aeronave ${item.matricula_registro || "identificada"} · sinal atualizado há ${Math.max(0, Math.round(vooAoVivo?.rastreio?.visto_ha_s || 0))} s.` : vooRegistradoEmOperacao ? "A linha tracejada indica a rota planejada. Sem posição recente; cobertura ADS-B e identificação da aeronave podem afetar o rastreamento." : "A linha tracejada indica a rota planejada. A posição da aeronave aparecerá quando o ADS-B confirmar a decolagem; mapa depende de cobertura e identificação válidas."}</p>
+    <p className="border-t border-border/60 px-3 py-2 text-[9px] text-muted-foreground">{sinalAoVivo ? `Aeronave ${item.matricula_registro || "identificada"} · sinal atualizado há ${Math.max(0, Math.round(vooAoVivo?.rastreio?.visto_ha_s || 0))} s.` : faseVoo === "acionado" ? "A linha tracejada indica a rota planejada. Acionamento foi registrado; a posição aparecerá após a decolagem e depende da cobertura ADS-B." : faseVoo === "em_solo" ? "A linha tracejada indica a rota planejada. Pouso registrado na jornada; posição ADS-B pode não estar mais disponível." : vooRegistradoEmOperacao ? "A linha tracejada indica a rota planejada. Sem posição recente; cobertura ADS-B e identificação da aeronave podem afetar o rastreamento." : "A linha tracejada indica a rota planejada. A posição da aeronave aparecerá quando o ADS-B confirmar a decolagem; mapa depende de cobertura e identificação válidas."}</p>
   </section>;
 }

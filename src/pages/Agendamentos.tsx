@@ -63,7 +63,7 @@ function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefine
   for (const item of Array.isArray(itens) ? itens : []) {
     if (!item?.id) continue;
     const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
-    const normalizado = status === "em_rota" ? { ...item, status: "em_voo" } : item;
+    const normalizado = status === "em_rota" || status === "em_voo" ? { ...item, status: "decolado" } : item;
     const existente = porId.get(normalizado.id);
     if (!existente || String(normalizado.atualizado_em || normalizado.criado_em) >= String(existente.atualizado_em || existente.criado_em)) porId.set(normalizado.id, normalizado);
   }
@@ -97,17 +97,18 @@ function formatarData(valor: string | null | undefined) {
 }
 function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
   if (status === "aprovada") return "green";
-  if (status === "em_voo" || status === "em_rota") return "blue";
+  if (status === "acionado") return "amber";
+  if (status === "decolado" || status === "em_voo" || status === "em_rota") return "blue";
   if (status === "em_solo") return "green";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 function statusLabel(status: string) {
-  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", em_rota: "Em voo", em_voo: "Em voo", em_solo: "Em solo", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", pendente: "Pendente", aprovada: "Aprovada", acionado: "Acionado", decolado: "Decolado", em_rota: "Decolado", em_voo: "Decolado", em_solo: "Em solo · pousado", encerrada: "Encerrada", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
-  const prioridadeStatus: Record<string, number> = { em_voo: 0, em_rota: 0, aprovada: 1, pendente: 2 };
+  const prioridadeStatus: Record<string, number> = { decolado: 0, em_voo: 0, em_rota: 0, acionado: 1, aprovada: 2, pendente: 3 };
   return [...itens].sort((a, b) => {
     const prioridadeA = prioridadeStatus[a.status] ?? 3;
     const prioridadeB = prioridadeStatus[b.status] ?? 3;
@@ -672,7 +673,7 @@ function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJorn
   const cliente = item.voo_emprestado !== "nao" && item.socio_emprestimo_nome ? item.socio_emprestimo_nome : item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cliente não informado";
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const tripulacao = [item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null), item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null)].filter(Boolean).join(" / ") || "A definir";
-  const bordaStatus = acoes.historico ? "border-emerald-400/30" : item.status === "em_voo" || item.status === "em_rota" ? "border-sky-400/45" : item.status === "aprovada" ? "border-emerald-400/30" : item.status === "pendente" ? "border-amber-400/35" : item.status === "cancelada" || item.status === "reprovada" ? "border-red-400/30" : "border-border/70";
+  const bordaStatus = acoes.historico ? "border-emerald-400/30" : item.status === "decolado" || item.status === "em_voo" || item.status === "em_rota" ? "border-sky-400/45" : item.status === "acionado" || item.status === "pendente" ? "border-amber-400/35" : item.status === "aprovada" || item.status === "em_solo" ? "border-emerald-400/30" : item.status === "cancelada" || item.status === "reprovada" ? "border-red-400/30" : "border-border/70";
   return <article className={`group flex min-h-full flex-col overflow-hidden rounded-2xl border ${bordaStatus} bg-gradient-to-br from-background/90 to-card/50 p-4 shadow-lg shadow-black/10 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-primary/5`}>
     <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-muted-foreground">Agendamento de voo</p><p className="mt-1 truncate font-mono text-sm font-bold tracking-tight text-primary">{item.numero_voo || "A gerar na confirmação"}</p><p className="mt-1 truncate text-[11px] font-semibold text-foreground">{cliente}</p></div><EtiquetaStatus tone={tomStatus(item.status)}>{acoes.historico ? "Encerrada" : statusLabel(item.status)}</EtiquetaStatus></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="min-w-0 rounded-xl border border-border/50 bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Rota</span><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.origem} <span className="text-primary">→</span> {item.destino}</strong></div><div className="min-w-0 rounded-xl border border-border/50 bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Período</span><strong className="mt-1 block text-xs text-foreground">{formatarData(item.data_agendada)}{item.data_fim && item.data_fim !== item.data_agendada ? ` a ${formatarData(item.data_fim)}` : ""}</strong></div><div className="min-w-0 rounded-xl border border-border/50 bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Aeronave</span><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.matricula_registro || "A definir"}<span className="ml-1 font-sans text-[10px] font-normal text-muted-foreground">{item.modelo || ""}</span></strong></div><div className="min-w-0 rounded-xl border border-border/50 bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Tripulação</span><strong className="mt-1 block break-words text-xs text-foreground">{tripulacao}</strong></div></div>

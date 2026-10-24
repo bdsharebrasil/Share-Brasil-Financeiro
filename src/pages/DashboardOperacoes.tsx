@@ -22,14 +22,15 @@ function formatarHorario(valor: string | null | undefined) {
 
 function tomStatus(status: string): "green" | "amber" | "red" | "blue" | "neutral" {
   if (status === "aprovada" || status === "em_solo") return "green";
-  if (status === "em_voo" || status === "em_rota") return "blue";
+  if (status === "decolado" || status === "em_voo" || status === "em_rota") return "blue";
+  if (status === "acionado") return "amber";
   if (status === "reprovada" || status === "cancelada") return "red";
   if (status === "pendente") return "amber";
   return "neutral";
 }
 
 function statusLabel(status: string) {
-  return ({ pendente: "Pendente", aprovada: "Aprovada", em_voo: "Em voo", em_rota: "Em voo", em_solo: "Em solo", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
+  return ({ pendente: "Pendente", aprovada: "Aprovada", acionado: "Acionado", decolado: "Decolado", em_voo: "Decolado", em_rota: "Decolado", em_solo: "Em solo · pousado", reprovada: "Reprovada", cancelada: "Cancelada" } as Record<string, string>)[status] || status;
 }
 
 function saudacaoAtual() {

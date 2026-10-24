@@ -11,7 +11,7 @@ type AgendamentoOperacional = {
 export function correspondeFiltroStatusAgendamento(status: string, filtro: string): boolean {
   const statusNormalizado = String(status || "").trim().toLowerCase().replace(/\s+/g, "_");
   if (filtro === "todos") return true;
-  if (filtro === "em_voo") return ["em_rota", "em_voo", "em_solo"].includes(statusNormalizado);
+  if (filtro === "em_voo") return ["acionado", "decolado", "em_rota", "em_voo", "em_solo"].includes(statusNormalizado);
   return statusNormalizado === filtro;
 }
 
@@ -25,7 +25,7 @@ export function calcularProgressoChecklist(item: AgendamentoOperacional, progres
 export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChecklist: number, checklistAberto = false) {
   const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
   const historico = status === "encerrada" || status === "concluida";
-  const operacional = ["aprovada", "em_rota", "em_voo", "em_solo"].includes(status);
+  const operacional = ["aprovada", "acionado", "decolado", "em_rota", "em_voo", "em_solo"].includes(status);
   const checklistStatus = String(item.checklist_status || "").trim().toLowerCase();
   const checklistConcluido = checklistStatus === "concluido";
   const checklistIniciado = Boolean(checklistStatus) || checklistAberto || progressoChecklist > 0;

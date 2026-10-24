@@ -101,8 +101,6 @@ export type AcessoPortalCliente = {
 
   nome: string;
 
-  email: string | null;
-
   matricula_registro: string | null;
 
   possui_acesso: number | boolean;
@@ -117,9 +115,9 @@ export function buscarAcessosPortalCliente(aeronaveId: string) {
 
 }
 
-export function criarAcessoPortalCliente(cotistaAeronaveId: string) {
+export function criarAcessoPortalCliente(cotistaAeronaveId: string, senha: string) {
 
-  return financeiroRequest<{ success: boolean; login: string; senha_temporaria: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/credenciais`, { method: "POST" });
+	  return financeiroRequest<{ success: boolean; login: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/credenciais`, { method: "POST", body: JSON.stringify({ senha }) });
 
 }
 
@@ -135,9 +133,9 @@ export function atualizarCredenciaisPortalCliente(cotistaAeronaveId: string, cre
 
 }
 
-export function enviarAcessoPortalCliente(cotistaAeronaveId: string) {
+export function enviarAcessoPortalCliente(cotistaAeronaveId: string, dados: { senha: string; destinatario: string }) {
 
-  return financeiroRequest<{ success: boolean; destinatario: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/enviar-acesso`, { method: "POST" });
+	  return financeiroRequest<{ success: boolean; destinatario: string }>(`/api/financeiro/cotista/portal-cliente/${encodeURIComponent(cotistaAeronaveId)}/enviar-acesso`, { method: "POST", body: JSON.stringify(dados) });
 
 }
 

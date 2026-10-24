@@ -8,10 +8,23 @@ type AgendamentoOperacional = {
   jornadas_encerradas?: number | string | null;
 };
 
+const STATUS_FASE_VOO = new Set(["acionado", "decolado", "em_rota", "em_voo", "em_solo"]);
+const STATUS_OPERACIONAIS = new Set(["aprovada", ...STATUS_FASE_VOO]);
+const normalizarStatus = (status: string) => String(status || "").trim().toLowerCase().replace(/\s+/g, "_");
+
+export function statusPermiteChecklist(status: string): boolean {
+  return STATUS_OPERACIONAIS.has(normalizarStatus(status));
+}
+
+export function statusPermiteAbrirJornada(status: string): boolean {
+  const normalizado = normalizarStatus(status);
+  return STATUS_OPERACIONAIS.has(normalizado) || normalizado === "encerrada";
+}
+
 export function correspondeFiltroStatusAgendamento(status: string, filtro: string): boolean {
-  const statusNormalizado = String(status || "").trim().toLowerCase().replace(/\s+/g, "_");
+  const statusNormalizado = normalizarStatus(status);
   if (filtro === "todos") return true;
-  if (filtro === "em_voo") return ["acionado", "decolado", "em_rota", "em_voo", "em_solo"].includes(statusNormalizado);
+  if (filtro === "em_voo") return STATUS_FASE_VOO.has(statusNormalizado);
   return statusNormalizado === filtro;
 }
 
@@ -23,9 +36,9 @@ export function calcularProgressoChecklist(item: AgendamentoOperacional, progres
 }
 
 export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChecklist: number, checklistAberto = false) {
-  const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
+  const status = normalizarStatus(item.status);
   const historico = status === "encerrada" || status === "concluida";
-  const operacional = ["aprovada", "acionado", "decolado", "em_rota", "em_voo", "em_solo"].includes(status);
+  const operacional = STATUS_OPERACIONAIS.has(status);
   const checklistStatus = String(item.checklist_status || "").trim().toLowerCase();
   const checklistConcluido = checklistStatus === "concluido";
   const checklistIniciado = Boolean(checklistStatus) || checklistAberto || progressoChecklist > 0;

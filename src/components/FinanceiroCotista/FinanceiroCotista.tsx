@@ -2536,42 +2536,12 @@ export default function FinanceiroCotista() {
   return (
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="mt-1 text-xl font-extrabold tracking-[-.035em] md:text-2xl">
-            Financeiro do Cotista
-          </h2>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <Select
-            value={aeronaveSelecionada || "selecionar"}
-            onValueChange={(valor) => {
-              setAeronaveSelecionada(valor === "selecionar" ? "" : valor);
-              setPaginaAberta(false);
-            }}
-          >
-            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
-              <Plane size={14} className="text-muted-foreground" />
-              <SelectValue placeholder="Selecione uma aeronave" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="selecionar">Selecione uma aeronave</SelectItem>
-              {aeronaves.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.matricula_registro} · {a.modelo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {aeronaveSelecionada && paginaAberta && (
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-1" onClick={() => setPaginaAberta(false)}>
             <ChevronLeft size={15} /> Voltar
           </Button>
-          <div className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
+          <div className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4" role="tablist" aria-label="Visões do financeiro cotista">
             {abasCotista.map(({ id, rotulo, Icon }) => (
               <button
                 key={id}
@@ -2599,34 +2569,6 @@ export default function FinanceiroCotista() {
         </div>
       ) : (
         <>
-          {aeronaveSelecionada && cotistasAeronave.length > 0 && (
-            <details className="financeiro-panel px-4 py-2.5">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                Participação na aeronave · {cotistasAeronave.length} cotista(s)
-              </summary>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {cotistasAeronave.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}
-                  >
-                    {c.eh_holding ? (
-                      <Building2 size={11} />
-                    ) : (
-                      <User size={11} />
-                    )}
-                    {c.nome}
-                    <span className="font-mono text-[10px] opacity-60">
-                      {c.percentual_sociedade}%
-                    </span>
-                    <button type="button" className="ml-1 rounded p-1 hover:bg-background/60" aria-label={`Editar participação de ${c.nome}`} onClick={() => { setParticipacaoEditando(c); setPercentualEditado(String(c.percentual_sociedade)); setAeronaveEditada(c.aeronave_id); }}><Pencil size={12} /></button>
-                    <button type="button" className="rounded p-1 text-red-500 hover:bg-red-500/10" aria-label={`Excluir vínculo de ${c.nome}`} onClick={() => void removerParticipacao(c)}><Trash2 size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
           {paginaAberta && abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>

@@ -84,6 +84,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   const excluiveisSelecionados = itensSelecionados.filter(podeExcluir);
   const unicoSelecionado = itensSelecionados.length === 1 ? itensSelecionados[0] : null;
   const rotuloMes = mesesSelecionados.length === 1 ? `${nomeMes(mesesSelecionados[0], "long").replace(/^./, (c) => c.toUpperCase())} ${mesesSelecionados[0].slice(0, 4)}` : `${mesesSelecionados.length} meses selecionados`;
+  const periodoImpressao = filtroInicial?.inicio || filtroInicial?.fim
+    ? `${filtroInicial?.inicio ? formatarData(filtroInicial.inicio) : "início"} a ${filtroInicial?.fim ? formatarData(filtroInicial.fim) : "hoje"}`
+    : [...mesesSelecionados].sort().map((m) => `${nomeMes(m, "long")} ${m.slice(0, 4)}`).join(", ");
+  const itensRelatorio = usaSelecao ? selecionadosVisiveis : filtrados;
   const anoSeletor = mes.slice(0, 4);
   const mesesDoAno = Array.from({ length: 12 }, (_, i) => `${anoSeletor}-${String(i + 1).padStart(2, "0")}`);
   const mudarMes = (delta: number) => { const d = new Date(`${mes}-01T12:00:00`); d.setMonth(d.getMonth() + delta); const novo = d.toISOString().slice(0, 7); setMes(novo); setMesesSelecionados([novo]); setPagina(1); };
@@ -215,6 +219,31 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
       </table>
     </div>
     <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"><span>{filtrados.length ? `${(pagina-1)*porPagina+1}–${Math.min(pagina*porPagina,filtrados.length)} de ${filtrados.length}` : "0 itens"}</span><div className="flex items-center gap-2"><Select value={String(porPagina)} onValueChange={(v) => {setPorPagina(Number(v));setPagina(1);}}><SelectTrigger className="h-8 w-24"><SelectValue/></SelectTrigger><SelectContent>{[10,25,50,100].map((n)=><SelectItem key={n} value={String(n)}>{n} / pág.</SelectItem>)}</SelectContent></Select><Button variant="outline" size="sm" disabled={pagina<=1} onClick={()=>setPagina(pagina-1)}>Anterior</Button><Button variant="outline" size="sm" disabled={pagina>=paginas} onClick={()=>setPagina(pagina+1)}>Próxima</Button></div></footer>
+    <style>{`
+      .relatorio-impressao { display: none; }
+      @media print {
+        body * { visibility: hidden !important; }
+        .relatorio-impressao, .relatorio-impressao * { visibility: visible !important; }
+        .relatorio-impressao { display: block !important; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11px; }
+        .relatorio-impressao table { width: 100%; border-collapse: collapse; }
+        .relatorio-impressao th, .relatorio-impressao td { border-bottom: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+        .relatorio-impressao .direita { text-align: right; }
+        .relatorio-impressao tfoot td { font-weight: 700; }
+        @page { margin: 12mm; }
+      }
+    `}</style>
+    <div className="relatorio-impressao">
+      <h1 style={{ fontSize: 18, fontWeight: 700 }}>{titulo}</h1>
+      <p>Período: {periodoImpressao}</p>
+      <p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
+      <table>
+        <thead><tr><th>DOC</th><th>Descrição</th><th>Favorecido</th><th>Conta</th><th>Data</th><th>Situação</th><th className="direita">Valor</th></tr></thead>
+        <tbody>{itensRelatorio.map((l) => <tr key={`${l.origem}:${l.id}`}>
+          <td>{l.documento || "—"}</td><td>{l.descricao}</td><td>{l.favorecido}</td><td>{l.contaBancaria}</td><td>{formatarData(l.dataLancamento)}</td><td>{ROTULO_SITUACAO[l.situacao] ?? l.situacao}</td><td className="direita">{l.fluxo === "ENTRADA" ? "+ " : "− "}{formatarMoeda(l.valor)}</td>
+        </tr>)}</tbody>
+        <tfoot><tr><td colSpan={6}>{usaSelecao ? `Total dos selecionados (${itensRelatorio.length} itens)` : `Total listado (${itensRelatorio.length} itens)`}</td><td className="direita">{formatarMoeda(total)}</td></tr></tfoot>
+      </table>
+    </div>
     <NovoLancamentoShareDialog aberto={novo} aoFechar={()=>setNovo(false)} categorias={categorias} aoCriar={()=>void recarregar()} somenteDespesa={fluxo === "SAIDA"} somenteEntrada={fluxo === "ENTRADA"}/>
     {contaBaixa?.origem === "contas_apagar" && <ModalContaAPagar conta={contaBaixa.raw as ContaAPagar} aberto onFechar={() => setContaBaixa(null)} onConfirmar={async (dados) => { await darBaixaContaAPagar(contaBaixa.origemId, dados); setContaBaixa(null); await recarregar(); toast.success("Baixa registrada."); }}/>}
     {contaBaixa?.origem === "contas_areceber" && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias} onConfirmar={async (dados) => { await darBaixaContaAReceber(contaBaixa.origemId, dados); setContaBaixa(null); await recarregar(); toast.success("Baixa registrada."); }}/>}

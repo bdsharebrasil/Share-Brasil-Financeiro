@@ -480,8 +480,8 @@ const diarioStyles = `
 .db-table-options{border-bottom:1px solid #1e2633;color:#98a4b6;font-size:10px}.db-table-options>summary{padding:7px 14px;cursor:pointer}.db-table-options p{padding:0 14px;font-size:10px}
 .db-table-scroll{overflow-x:auto;max-width:100%;touch-action:pan-y}
 .db-month .db-table-scroll table{font-size:11px}.db-month .db-table-scroll :is(td,th){padding-top:8px;padding-bottom:8px}
-@media(max-width:1100px){.db-month .db-topbar{flex-wrap:wrap}.db-actions{margin-left:auto}.db-heading h1{font-size:14px}}
-@media(max-width:700px){.db-month .db-summary{grid-template-columns:1fr}.db-actions{width:100%;flex-wrap:wrap;margin-left:0}.db-actions .db-period{margin-right:auto}.db-four{grid-template-columns:repeat(2,minmax(0,1fr))}.db-panel{padding:12px}.db-toolbar{flex-wrap:wrap}.db-search{flex-basis:100%}.db-heading{align-items:flex-start}.db-heading h1{padding-top:4px}.db-month .db-back{flex-shrink:0}.db-section-title small{font-size:10px}}
+@media(max-width:1100px){.db-month .db-topbar{flex-wrap:wrap}.db-actions{margin:0 0 0 auto;padding:0}.db-heading h1{font-size:14px}}
+@media(max-width:700px){.db-month .db-summary{grid-template-columns:1fr}.db-actions{width:100%;flex-wrap:wrap;margin:0;padding:0;gap:8px}.db-month .db-period{margin:0 auto 0 0;padding:6px 12px}.db-month .db-period select{margin:0 4px;padding:0 8px}.db-month .db-btn{padding:0 10px}.db-four{grid-template-columns:repeat(2,minmax(0,1fr))}.db-panel{padding:12px}.db-toolbar{flex-wrap:wrap}.db-search{flex-basis:100%}.db-heading{align-items:flex-start}.db-heading h1{padding-top:4px}.db-month .db-back{flex-shrink:0}.db-section-title small{font-size:10px}}
 @media print{
  @page{size:A4 landscape;margin:8mm}
  body *{visibility:hidden}

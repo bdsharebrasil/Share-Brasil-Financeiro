@@ -8,7 +8,6 @@ import DashboardGestorFinanceiro from "@/components/dashboard/gestor/DashboardGe
 import DashboardGestorResumo from "@/components/dashboard/gestor/DashboardGestorResumo";
 import MenuGestor from "@/components/dashboard/gestor/MenuGestor";
 import FinanceiroCotista from "@/components/FinanceiroCotista/FinanceiroCotista";
-import { PaginaFinanceiroShare } from "@/components/financeiro-share/FinanceiroShare";
 import EmissaoRecibo from "@/pages/EmissaoRecibo";
 import ModuloInterno from "@/pages/ModuloInterno";
 import Agendamentos from "@/pages/Agendamentos";
@@ -59,6 +58,8 @@ export default function LayoutInterno() {
   const localizacao = useLocation();
   const rotaRecibo = localizacao.pathname === "/financeiro/emissao-recibo";
   const rotaFinanceiroShare = localizacao.pathname.startsWith("/gestor/financeiro-share");
+  const moduloLegado = (() => { const aba = new URLSearchParams(localizacao.search).get("aba"); if (localizacao.pathname.endsWith("/contas-a-pagar") || aba === "contas-apagar" || aba === "caixa-empresa") return "saida"; if (localizacao.pathname.endsWith("/contas-a-receber") || aba === "contas-areceber") return "entrada"; if (localizacao.pathname.endsWith("/nota-fiscal-saida") || localizacao.pathname.endsWith("/recibo-saida") || aba === "nota-fiscal-saida") return "nf-saida"; if (aba === "baixas-portal") return "baixas"; if (aba === "holdings") return "holding"; if (aba === "salarios") return "folha"; return null; })();
+  const rotaUrlFinanceiraLegada = rotaFinanceiroShare || ["/contas-a-pagar", "/contas-a-receber", "/nota-fiscal-saida", "/recibo-saida"].includes(localizacao.pathname);
   const rotaFinanceiroCotista = localizacao.pathname === "/gestor/financeiro-cotista";
   const rotaEnviarPagamento = localizacao.pathname === "/financeiro/enviar-pagamento";
   const rotaMovimentacoes = localizacao.pathname === "/financeiro/movimentacoes";
@@ -74,9 +75,9 @@ export default function LayoutInterno() {
   useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); }, [tema]);
   useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo, menuAtivo]);
   useEffect(() => {
-    if (rotaFinanceiroShare) { setAmbiente("gestor"); setMenuAtivo("financeiro-share"); }
+    if (rotaUrlFinanceiraLegada) { setAmbiente("gestor"); setMenuAtivo("overview"); navegar(`/?modulo=${moduloLegado || "entrada"}`, { replace: true }); }
     else if (rotaFinanceiroCotista) { setAmbiente("gestor"); setMenuAtivo("financeiro-cotista"); }
-  }, [rotaFinanceiroShare, rotaFinanceiroCotista]);
+  }, [rotaUrlFinanceiraLegada, moduloLegado, rotaFinanceiroCotista, navegar]);
   useEffect(() => {
     if (rotaEnviarPagamento) {
       setAmbiente("financeiro");
@@ -107,7 +108,7 @@ export default function LayoutInterno() {
     setMenuAtivo(menu);
     if (menu === "enviar-pagamento") { setAmbiente("financeiro"); navegar("/financeiro/enviar-pagamento"); }
     else if (menu === "movimentacoes") { setAmbiente("financeiro"); navegar("/financeiro/movimentacoes"); }
-    else if (ambiente === "gestor" && menu === "financeiro-share") navegar(`/gestor/financeiro-share${aba ? `?aba=${encodeURIComponent(aba)}` : ""}`);
+    else if (ambiente === "gestor" && menu === "financeiro-share") { setMenuAtivo("overview"); navegar(`/?modulo=${encodeURIComponent(aba || "entrada")}`); }
     else if (ambiente === "gestor" && menu === "financeiro-cotista") navegar("/gestor/financeiro-cotista");
     else if (menu === "recibos") navegar("/financeiro/emissao-recibo");
     else if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/");
@@ -127,7 +128,6 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "gestor" && menuAtivo === "gestor" && podeAcessarMenuGestor) return <MenuGestor />;
-    if (ambiente === "gestor" && menuAtivo === "financeiro-share") return <PaginaFinanceiroShare />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <FinanceiroCotista />;
 
     if (ambiente === "financeiro" && menuAtivo === "enviar-pagamento") return <EnviarPagamento />;

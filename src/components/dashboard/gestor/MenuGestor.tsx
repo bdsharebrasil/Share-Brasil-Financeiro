@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AbaCaixaEmpresa } from "@/components/financeiro-share/AbaCaixaEmpresa";
 import { buscarContasAPagar, buscarContasAReceber } from "@/lib/financeiro-share-api";
 import { formatCentavos } from "@/lib/money";
 import { carregarArquivoColaborador, colaboradorRequest } from "@/lib/colaborador-api";
@@ -205,18 +204,16 @@ async function gerarPdfDaPrevia(elemento: HTMLElement, nomeArquivo: string) {
 }
 
 export default function MenuGestor() {
-  const [aba, setAba] = useState("caixa");
+  const [aba, setAba] = useState("previsao");
   return <div className="route-enter space-y-5">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-primary">Dashboard Gestor</p><h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]"><BriefcaseBusiness size={23} className="text-primary" /> Gestor</h1><p className="mt-1 text-xs text-muted-foreground">Caixa da empresa, previsão financeira e contratos.</p></div>
     </header>
     <Tabs value={aba} onValueChange={setAba} className="space-y-5">
       <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/70 p-1.5">
-        <TabsTrigger value="caixa" className="shrink-0 gap-2 rounded-lg px-3 py-2 text-[11px]"><WalletCards size={14} /> Caixa da empresa</TabsTrigger>
         <TabsTrigger value="previsao" className="shrink-0 gap-2 rounded-lg px-3 py-2 text-[11px]"><CalendarDays size={14} /> Previsão e estratégia financeira</TabsTrigger>
         <TabsTrigger value="contratos" className="shrink-0 gap-2 rounded-lg px-3 py-2 text-[11px]"><FileText size={14} /> Contratos</TabsTrigger>
       </TabsList>
-      <TabsContent value="caixa" className="mt-0"><AbaCaixaEmpresa /></TabsContent>
       <TabsContent value="previsao" className="mt-0"><PrevisaoFinanceira /></TabsContent>
       <TabsContent value="contratos" className="mt-0"><Contratos /></TabsContent>
     </Tabs>

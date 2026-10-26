@@ -145,6 +145,7 @@ export interface FiltrosCaixaEmpresa {
   fluxo?: FluxoLancamento;
   status?: StatusLancamento;
   categoriaId?: string;
+  caixa?: CaixaLancamento;
 }
 
 /** Filtros aceitos pela listagem de contas a pagar. */

@@ -373,12 +373,33 @@ export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Pro
 
   const periodo = periodoCompetencia(filtros.competencia);
 
-  const resposta = await financeiroRequest<{ lancamentos?: unknown[] }>(`/api/financeiro/lancamentos${paraQueryString({ caixa: "SHARE", inicio: periodo.inicio, fim: periodo.fim })}`);
+  const resposta = await financeiroRequest<{ lancamentos?: unknown[] }>(`/api/financeiro/lancamentos${paraQueryString({ caixa: filtros.caixa || "SHARE", inicio: periodo.inicio, fim: periodo.fim })}`);
 
   return (resposta.lancamentos ?? []).map(normalizarLancamentoCaixa).filter((item) =>
 
     (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
 
+}
+
+export type SolicitacaoCompraFinanceira = {
+  id: string;
+  numero_solicitacao?: string | null;
+  descricao: string;
+  status: string;
+  data_solicitacao?: string | null;
+  data_necessaria?: string | null;
+  envio_id?: string | null;
+  envio_status?: string | null;
+  valor?: number | null;
+  vencimento?: string | null;
+  tipo_caixa?: string | null;
+  lancamento_id?: string | null;
+  solicitante_nome?: string | null;
+};
+
+export async function buscarSolicitacoesCompraFinanceiras(): Promise<SolicitacaoCompraFinanceira[]> {
+  const resposta = await financeiroRequest<{ solicitacoes?: SolicitacaoCompraFinanceira[] }>("/api/financeiro/solicitacoes-compra");
+  return resposta.solicitacoes ?? [];
 }
 
 function valorCentavosDoPayload(payload: Record<string, unknown>): number {

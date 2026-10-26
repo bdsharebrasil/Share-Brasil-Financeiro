@@ -111,7 +111,6 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   gestor: [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
     { id: "gestor", label: "Gestor", icon: BriefcaseBusiness },
-    { id: "financeiro-share", label: "Financeiro Share", icon: Wallet, badge: "3" },
     { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Receipt },
     { id: "gestao-colaborador", label: "Gestão Colaborador", icon: IdCard },
     { id: "ferias", label: "Férias", icon: CalendarDays },

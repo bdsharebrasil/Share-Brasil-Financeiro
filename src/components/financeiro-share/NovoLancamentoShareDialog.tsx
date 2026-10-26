@@ -16,9 +16,11 @@ type Props = {
   categorias: CategoriaCaixaShare[];
   aoCriar: (lancamento: Lancamento) => void;
   somenteDespesa?: boolean;
+  fluxoInicial?: "entrada" | "saida";
+  somenteEntrada?: boolean;
 };
 
-export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false }: Props) {
+export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCriar, somenteDespesa = false, fluxoInicial, somenteEntrada = false }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [fluxo, setFluxo] = useState("saida");
   const [grupoDespesa, setGrupoDespesa] = useState("DESPESAS EMPRESA");
@@ -33,7 +35,9 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
 
   useEffect(() => {
     if (somenteDespesa) setFluxo("saida");
-  }, [somenteDespesa]);
+    else if (somenteEntrada) setFluxo("entrada");
+    else if (fluxoInicial) setFluxo(fluxoInicial);
+  }, [somenteDespesa, somenteEntrada, fluxoInicial]);
 
   const gruposCategoria = useMemo(() => {
     const mapa = new Map<string, CategoriaCaixaShare[]>();
@@ -112,7 +116,7 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
             <Input className="h-11" value={descricao} onChange={(evento) => setDescricao(evento.target.value)} placeholder="Ex.: Aluguel da sede — setembro" />
           </div>
 
-          {!somenteDespesa && <div className="space-y-2">
+          {!somenteDespesa && !somenteEntrada && <div className="space-y-2">
             <Label>Fluxo</Label>
             <Select value={fluxo} onValueChange={(proximoFluxo) => { setFluxo(proximoFluxo); setCategoriaId(""); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>

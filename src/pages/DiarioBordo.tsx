@@ -421,7 +421,7 @@ const diarioStyles = `
 .db-month> *+*{margin-top:15px}
 .db-month .db-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px;margin-bottom:15px}
 .db-heading{display:flex;align-items:center;gap:12px;min-width:0}
-.db-heading h1{font-size:15px;font-weight:800;line-height:1.35;margin:0}
+.db-heading h1{font-size:15px;font-weight:400;line-height:1.35;margin:0}
 .db-actions{display:flex;align-items:center;gap:23px;flex-shrink:0;margin:0 -34px;padding:0 142px}
 .db-month .db-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;border:1px solid #293445;border-radius:9px;padding:0 12px;background:#141b25;color:#98a4b6;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;line-height:1}
 .db-month button:disabled{opacity:.45;cursor:not-allowed}

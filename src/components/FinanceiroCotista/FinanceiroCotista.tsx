@@ -105,7 +105,7 @@ import type {
 } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import {
-  buscarOpcoesEnvioPagamento,
+  buscarAeronavesShare,
   buscarCotistasAeronave,
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
@@ -2229,7 +2229,7 @@ export default function FinanceiroCotista() {
 
   const carregarAeronaves = useCallback(async () => {
     try {
-      const resp = await buscarOpcoesEnvioPagamento();
+      const resp = await buscarAeronavesShare("ativa");
       setAeronaves(resp.aeronaves || []);
     } catch {
       setAeronaves([]);

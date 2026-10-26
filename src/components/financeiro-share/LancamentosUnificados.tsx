@@ -34,7 +34,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [ordenacao, setOrdenacao] = useState<{ chave: "codigo" | "descricao" | "favorecido" | "caixa" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
+  const [ordenacao, setOrdenacao] = useState<{ chave: "documento" | "descricao" | "favorecido" | "caixa" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -58,10 +58,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     if (situacaoFiltro !== "TODAS" && l.situacao !== situacaoFiltro) return false;
     if (caixaFiltro !== "TODOS" && l.caixa !== caixaFiltro) return false;
     if (naturezaFiltro !== "TODAS" && l.natureza !== naturezaFiltro) return false;
-    const texto = `${l.codigo} ${l.descricao} ${l.categoria} ${l.favorecido} ${l.natureza}`.toLocaleLowerCase("pt-BR");
+    const texto = `${l.documento || ""} ${l.descricao} ${l.categoria} ${l.favorecido} ${l.natureza}`.toLocaleLowerCase("pt-BR");
     return texto.includes(busca.toLocaleLowerCase("pt-BR"));
   }).sort((a, b) => {
-    const valor = ordenacao.chave === "codigo" ? a.codigo.localeCompare(b.codigo)
+    const valor = ordenacao.chave === "documento" ? (a.documento || "").localeCompare(b.documento || "")
       : ordenacao.chave === "descricao" ? a.descricao.localeCompare(b.descricao, "pt-BR")
       : ordenacao.chave === "favorecido" ? a.favorecido.localeCompare(b.favorecido, "pt-BR")
       : ordenacao.chave === "caixa" ? a.caixa.localeCompare(b.caixa)
@@ -137,7 +137,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   }
 
   const colunas = [
-    { label: "Cód.", key: "codigo" },
+    { label: "DOC", key: "documento" },
     { label: "Descrição", key: "descricao" },
     { label: "Favorecido", key: "favorecido" },
     { label: "Conta", key: "caixa" },
@@ -178,7 +178,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
       </tr></thead>
         <tbody>{carregando ? <tr><td colSpan={8} className="p-10 text-center text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16}/>Carregando lançamentos…</td></tr> : linhas.length ? linhas.map((l) => <tr key={`${l.origem}:${l.id}`} onClick={() => abrirBaixa(l)} className={`border-b border-border/60 hover:bg-muted/20 ${podeBaixar(l) ? "cursor-pointer" : ""}`}>
           <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${l.descricao}`} checked={selecionados.includes(l.id)} onChange={() => alternarSelecao(l.id)} className="accent-primary"/></td>
-          <td className="px-4 py-3 font-mono text-primary">{l.codigo}</td>
+          <td className="px-4 py-3 font-mono text-primary">{l.documento || "—"}</td>
           <td className="px-4 py-3"><strong>{l.descricao}</strong><div className="mt-1 text-[10px] text-muted-foreground">{l.categoria}</div></td>
           <td className="px-4 py-3">{l.favorecido}</td>
           <td className="px-4 py-3 font-mono">{l.contaBancaria}</td>

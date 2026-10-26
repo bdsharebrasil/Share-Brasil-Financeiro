@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Check,
@@ -202,6 +203,8 @@ const DESPESAS_ESTILOS = `
 .despesa-table .despesa-row td:last-child { position:sticky; right:0; z-index:2; border-left:1px solid hsl(var(--border)); padding:8px; }
 .despesa-table > thead > tr > th:last-child { right:0; z-index:4; }
 .despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
+.despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
 .despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
 .despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:hsl(var(--muted-foreground)); overflow-wrap:break-word; }
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
@@ -1421,6 +1424,28 @@ function LancamentosDespesa({
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [ordem, setOrdem] = useState("recentes");
+  const [larguras, setLarguras] = useState<Record<string, number>>({});
+  const estiloColuna = (id: string, padrao?: number) => {
+    const largura = larguras[id] ?? padrao;
+    return largura ? { width: largura } : undefined;
+  };
+  const iniciarRedimensionamento = (colunaId: string, evento: ReactPointerEvent<HTMLSpanElement>) => {
+    evento.preventDefault();
+    evento.stopPropagation();
+    const inicioX = evento.clientX;
+    const larguraInicial = evento.currentTarget.parentElement?.getBoundingClientRect().width ?? 0;
+    const mover = (e: PointerEvent) => setLarguras((atual) => ({ ...atual, [colunaId]: Math.max(56, larguraInicial + e.clientX - inicioX) }));
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  };
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pagina, setPagina] = useState(1);
   const porPagina = 10;
@@ -1822,14 +1847,14 @@ function LancamentosDespesa({
                 </caption>
                 <colgroup>
                   <col style={{ width: 42 }} />
-                  <col style={{ width: 108 }} />
-                  <col />
-                  <col style={{ width: 122 }} />
-                  <col style={{ width: 110 }} />
-                  <col style={{ width: 126 }} />
-                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={{ width: 168 }} />)}
-                  <col style={{ width: 104 }} />
-                  <col style={{ width: 76 }} />
+                  <col style={estiloColuna("data", 108)} />
+                  <col style={estiloColuna("descricao")} />
+                  <col style={estiloColuna("categoria", 122)} />
+                  <col style={estiloColuna("tipo", 110)} />
+                  <col style={estiloColuna("pago", 126)} />
+                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={estiloColuna(`cotista-${cotista.id}`, 168)} />)}
+                  <col style={estiloColuna("status", 104)} />
+                  <col style={estiloColuna("acoes", 76)} />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
@@ -1864,6 +1889,7 @@ function LancamentosDespesa({
                             {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           </button>
                         ) : coluna.titulo}
+                        <span role="separator" aria-orientation="vertical" aria-label={`Redimensionar coluna ${coluna.titulo}`} className="despesa-col-resizer" onPointerDown={(evento) => iniciarRedimensionamento(coluna.id, evento)} />
                       </th>
                     ))}
                   </tr>

@@ -2533,30 +2533,38 @@ export default function FinanceiroCotista() {
         </div>
       )}
 
-      {!aeronaveSelecionada && (
-        <Select value="selecionar" onValueChange={(valor) => setAeronaveSelecionada(valor === "selecionar" ? "" : valor)}>
-          <SelectTrigger className="ml-[30px] mr-[30px] h-11 w-full gap-[9px] overflow-hidden rounded-[16px] px-0 text-xs font-light leading-[14px] sm:w-[200px]">
-            <SelectValue placeholder="Selecione uma aeronave" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="selecionar">Selecione uma aeronave</SelectItem>
-            {aeronaves.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.matricula_registro} · {a.modelo}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
       {!aeronaveSelecionada ? (
-        <div className="financeiro-panel rounded-xl border-dashed px-5 py-14 text-center">
-          <Plane className="mx-auto h-8 w-8 text-muted-foreground/60" />
-          <p className="mt-3 text-sm font-semibold">Selecione uma aeronave</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Os dados financeiros do cotista serão exibidos depois da seleção.
-          </p>
-        </div>
+        <section className="space-y-5 py-6">
+          <header className="space-y-1.5 text-center">
+            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">Selecione uma aeronave para começar</h2>
+            <p className="text-sm text-muted-foreground">Os dados financeiros e de cotistas serão carregados após a seleção.</p>
+          </header>
+          {aeronaves.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave cadastrada.</p>
+          ) : (
+            <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {aeronaves.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setAeronaveSelecionada(a.id);
+                    setPaginaAberta(false);
+                  }}
+                  className="group flex items-center gap-4 rounded-xl border border-white/10 bg-card/60 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg"
+                >
+                  <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
+                    <Plane size={20} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold">{a.matricula_registro}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{a.modelo}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       ) : (
         <>
           {paginaAberta && abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">

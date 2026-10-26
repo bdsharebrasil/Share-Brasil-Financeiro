@@ -2355,6 +2355,16 @@ export default function FinanceiroCotista() {
     | "extrato"
     | "portal-cliente"
   >("lancamentos");
+  const [paginaAberta, setPaginaAberta] = useState(false);
+  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText }> = [
+    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText },
+    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard },
+    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel },
+    { id: "medias", rotulo: "Médias", Icon: Gauge },
+    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3 },
+    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound },
+    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark }] : []),
+  ];
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
     const periodos = meses
@@ -2535,9 +2545,10 @@ export default function FinanceiroCotista() {
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Select
             value={aeronaveSelecionada || "selecionar"}
-            onValueChange={(valor) =>
-              setAeronaveSelecionada(valor === "selecionar" ? "" : valor)
-            }
+            onValueChange={(valor) => {
+              setAeronaveSelecionada(valor === "selecionar" ? "" : valor);
+              setPaginaAberta(false);
+            }}
           >
             <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
               <Plane size={14} className="text-muted-foreground" />
@@ -2554,6 +2565,29 @@ export default function FinanceiroCotista() {
           </Select>
         </div>
       </div>
+
+      {aeronaveSelecionada && paginaAberta && (
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-1" onClick={() => setPaginaAberta(false)}>
+            <ChevronLeft size={15} /> Voltar
+          </Button>
+          <div className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
+            {abasCotista.map(({ id, rotulo, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={abaAtiva === id}
+                onClick={() => setAbaAtiva(id as typeof abaAtiva)}
+                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon size={14} />
+                {rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!aeronaveSelecionada ? (
         <div className="financeiro-panel rounded-xl border-dashed px-5 py-14 text-center">
@@ -2593,7 +2627,7 @@ export default function FinanceiroCotista() {
             </details>
           )}
 
-          {abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
+          {paginaAberta && abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
@@ -2614,42 +2648,7 @@ export default function FinanceiroCotista() {
             </div>
           </section>}
 
-          <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
-            {([
-              ["lancamentos", "Lançamentos mensais", ReceiptText],
-              ["resumo", "Visão por cotista", LayoutDashboard],
-              ["emprestimos", "Voos empréstimo", Fuel],
-              ["medias", "Médias", Gauge],
-              ["graficos", "Gráficos", BarChart3],
-              ["portal-cliente", "Portal Cliente", KeyRound],
-            ] as const).map(([id, label, Icon]) => (
-              <button
-                key={id as string}
-                type="button"
-                role="tab"
-                aria-selected={abaAtiva === id}
-                onClick={() => setAbaAtiva(id as typeof abaAtiva)}
-                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
-            {possuiHolding && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={abaAtiva === "extrato"}
-                onClick={() => setAbaAtiva("extrato")}
-                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "extrato" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Landmark size={14} />
-                Extrato Holding
-              </button>
-            )}
-          </div>
-
-          {abaAtiva !== "portal-cliente" && (
+          {paginaAberta && abaAtiva !== "portal-cliente" && (
             <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -2689,7 +2688,26 @@ export default function FinanceiroCotista() {
             </section>
           )}
 
-          {abaAtiva === "portal-cliente" ? (
+          {!paginaAberta ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {abasCotista.map(({ id, rotulo, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setAbaAtiva(id as typeof abaAtiva);
+                    setPaginaAberta(true);
+                  }}
+                  className="financeiro-panel flex items-center gap-3 rounded-xl p-4 text-left transition hover:bg-card"
+                >
+                  <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                    <Icon size={17} />
+                  </span>
+                  <span className="text-sm font-semibold">{rotulo}</span>
+                </button>
+              ))}
+            </div>
+          ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : carregando ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">

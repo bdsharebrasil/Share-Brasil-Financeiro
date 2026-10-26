@@ -148,7 +148,7 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel,
 .financeiro-profissional .financeiro-header,
 .financeiro-profissional .financeiro-tabs,
-.despesas-theme :is(.despesa-ledger,.despesa-metric), .despesa-dialog {
+.despesas-theme .despesa-ledger, .despesa-dialog {
   background:hsl(var(--card)); border:1px solid hsl(var(--border));
   border-radius:5px; box-shadow:none; filter:none; backdrop-filter:none;
   -webkit-backdrop-filter:none; background-image:none;
@@ -174,10 +174,6 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-primary { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border:1px solid hsl(var(--primary)); border-radius:4px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-primary:hover { filter:brightness(.94); }
-.despesa-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-.despesa-metric { padding:8px 12px; min-width:0; background:hsl(var(--card) / .6); }
-.despesa-metric-label { margin:0; color:hsl(var(--muted-foreground)); font-size:11px; }
-.despesa-metric-value { margin:2px 0 0; font-size:15px; font-weight:600; line-height:1.3; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:break-word; }
 .despesa-ledger { min-width:0; overflow:hidden; }
 .despesa-heading { padding:12px 16px; background:hsl(var(--card)); }
 .despesa-heading h3 { font-size:14px; font-weight:600; color:hsl(var(--foreground)); }
@@ -238,9 +234,6 @@ const DESPESAS_ESTILOS = `
 .despesa-document:hover { background:hsl(var(--accent)); }
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:640px) {
-  .despesa-metrics { grid-template-columns:1fr; gap:8px; }
-  .despesa-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 10px; }
-  .despesa-metric-value { font-size:14px; margin:0; }
   .despesa-toolbar-main { flex-wrap:wrap; }
   .despesa-toolbar-main > div:first-child { flex-basis:100%; }
   .despesa-filter-panel { grid-template-columns:1fr; }
@@ -1679,51 +1672,29 @@ function LancamentosDespesa({
     </div>
   );
   const cards = [
-    {
-      titulo: "Total lançado",
-      valor: totalLancado,
-      detalhe: `${despesas.length} despesas no período`,
-      Icon: ReceiptText,
-      cor: "bg-primary/10 text-primary",
-    },
-    {
-      titulo: "Total pago",
-      valor: totalPago,
-      detalhe: "Pagamentos registrados",
-      Icon: Check,
-      cor: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    },
-    {
-      titulo: "Em aberto",
-      valor: totalAberto,
-      detalhe: "Saldo a pagar no período",
-      Icon: CalendarDays,
-      cor: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    },
-
+    { titulo: "Total lançado", valor: totalLancado },
+    { titulo: "Total pago", valor: totalPago },
+    { titulo: "Em aberto", valor: totalAberto },
   ];
 
   return (
     <div className="despesas-theme despesas-shell min-w-0 space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="despesa-metrics">
-        {cards.map(({ titulo, valor }) => (
-          <section key={titulo} className="despesa-metric">
-            <p className="despesa-metric-label">{titulo}</p>
-            <p className="despesa-metric-value">{formatarCentavos(valor)}</p>
-          </section>
-        ))}
-      </div>
-
       <section
         className="despesa-ledger min-w-0"
         aria-label="Lançamentos mensais"
       >
         <header className="despesa-heading flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <h3 className="text-sm font-semibold tracking-tight">
               Lançamentos ({filtradas.length})
             </h3>
+            {cards.map(({ titulo, valor }) => (
+              <p key={titulo} className="text-xs text-muted-foreground">
+                {titulo}{" "}
+                <span className="font-semibold tabular-nums text-foreground">{formatarCentavos(valor)}</span>
+              </p>
+            ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -2390,6 +2361,7 @@ export default function FinanceiroCotista() {
     atualizarMeses([mes]);
   };
   const mesReferencia = mesesAplicados[0] || mesAtual;
+  const todosOsMesesSelecionados = mesesDisponiveis.every((mes) => mesesRascunho.includes(mes));
 
   const despesas = useMemo(
     () =>
@@ -2553,6 +2525,22 @@ export default function FinanceiroCotista() {
         </div>
       )}
 
+      {!aeronaveSelecionada && (
+        <Select value="selecionar" onValueChange={(valor) => setAeronaveSelecionada(valor === "selecionar" ? "" : valor)}>
+          <SelectTrigger className="ml-[30px] mr-[30px] h-11 w-full gap-[9px] overflow-hidden rounded-[16px] px-0 text-xs font-light leading-[14px] sm:w-[200px]">
+            <SelectValue placeholder="Selecione uma aeronave" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="selecionar">Selecione uma aeronave</SelectItem>
+            {aeronaves.map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.matricula_registro} · {a.modelo}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
       {!aeronaveSelecionada ? (
         <div className="financeiro-panel rounded-xl border-dashed px-5 py-14 text-center">
           <Plane className="mx-auto h-8 w-8 text-muted-foreground/60" />
@@ -2602,25 +2590,28 @@ export default function FinanceiroCotista() {
                   {mesesAplicados.length === 1 ? rotuloMesCotista(mesReferencia) : `${mesesAplicados.length} meses selecionados`}
                 </span>
               </div>
-              <details className="mt-2">
-                <summary className="w-fit cursor-pointer text-xs text-muted-foreground">Selecionar vários meses</summary>
-                <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
-                  <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
-                    onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
-                    className="h-8 w-24" />
-                  <Button type="button" variant="outline" size="sm" onClick={selecionarTodosOsMeses}>Ano inteiro</Button>
-                  {MESES_CURTOS.map((mes, indice) => {
-                    const competencia = mesesDisponiveis[indice];
-                    const selecionado = mesesRascunho.includes(competencia);
-                    return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
-                      aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
-                      className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
-                      {mes}
-                    </button>;
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês.</p>
-              </details>
+              <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
+                <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
+                  onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
+                  className="h-8 w-24" />
+                <label className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+                  <Checkbox
+                    checked={todosOsMesesSelecionados}
+                    onCheckedChange={(marcado) => (marcado ? selecionarTodosOsMeses() : limparMeses())}
+                    aria-label={`Selecionar todo o ano ${anoMeses}`}
+                  />
+                  Ano inteiro
+                </label>
+                {MESES_CURTOS.map((mes, indice) => {
+                  const competencia = mesesDisponiveis[indice];
+                  const selecionado = mesesRascunho.includes(competencia);
+                  return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
+                    aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
+                    {mes}
+                  </button>;
+                })}
+              </div>
             </section>
           )}
 

@@ -2502,6 +2502,14 @@ export default function FinanceiroCotista() {
   return (
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
+      {aeronaveSelecionada && (
+        <div className="flex justify-start">
+          <Button type="button" variant="ghost" size="sm" className="h-9 gap-2 text-xs"
+            onClick={() => { setAeronaveSelecionada(""); setPaginaAberta(false); }}>
+            <Plane size={14} /> Trocar aeronave
+          </Button>
+        </div>
+      )}
       {aeronaveSelecionada && paginaAberta && (
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-1" onClick={() => setPaginaAberta(false)}>

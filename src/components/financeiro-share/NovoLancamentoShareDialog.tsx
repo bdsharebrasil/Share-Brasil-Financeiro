@@ -7,14 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { criarDespesa, emitirReceita, type CategoriaCaixaShare } from "@/lib/financeiro-share-api";
-import type { Lancamento } from "@/components/financeiro-share/tipos";
-
+import { criarLancamentoUnificado, type CategoriaCaixaShare } from "@/lib/financeiro-share-api";
 type Props = {
   aberto: boolean;
   aoFechar: () => void;
   categorias: CategoriaCaixaShare[];
-  aoCriar: (lancamento: Lancamento) => void;
+  aoCriar: () => void;
   somenteDespesa?: boolean;
   fluxoInicial?: "entrada" | "saida";
   somenteEntrada?: boolean;
@@ -65,24 +63,22 @@ export function NovoLancamentoShareDialog({ aberto, aoFechar, categorias, aoCria
 
     setSalvando(true);
     try {
-      const criar = fluxo === "entrada" ? emitirReceita : criarDespesa;
-      const lancamento = await criar({
+      await criarLancamentoUnificado({
         descricao: descricao.trim(),
         fluxo: fluxo === "entrada" ? "ENTRADA" : "SAIDA",
-        tipo_caixa: "SHARE",
+        caixa: "SHARE",
+        natureza: fluxo === "entrada" ? "RECEITA" : grupoDespesa,
         categoria_id: categoria.id,
-        categoria_nome: categoria.nome,
-        grupo_categoria: fluxo === "saida" ? grupoDespesa : categoria.grupo,
-        valor_total: valorNumerico,
-        data_emissao: dataEmissao || null,
+        categoria: categoria.nome,
+        valor_centavos: Math.round(valorNumerico * 100),
+        data_lancamento: dataEmissao || null,
         data_vencimento: dataVencimento || null,
-        fornecedor: fornecedor.trim() || null,
-        numero_doc: numeroDoc.trim() || null,
-        periodicidade: categoria.classificacao,
+        favorecido: fornecedor.trim() || null,
+        numero_documento: numeroDoc.trim() || null,
         observacoes: observacoes.trim() || null,
       });
-      toast.success("Lançamento do caixa Share registrado.");
-      aoCriar(lancamento);
+      toast.success("Lançamento registrado.");
+      aoCriar();
       limpar();
       aoFechar();
     } catch (erro) {

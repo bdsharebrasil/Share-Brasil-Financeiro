@@ -7,7 +7,7 @@ export type FluxoUnificado = "ENTRADA" | "SAIDA";
 export type SituacaoUnificada = "PENDENTE" | "ATRASADO" | "PAGO" | "CANCELADO";
 export type OrigemUnificada = "lancamentos" | "contas_apagar" | "contas_areceber" | "solicitacoes_pagamento" | "solicitacoes_compra";
 export type LancamentoUnificado = {
-  id: string; codigo: string; fluxo: FluxoUnificado; natureza: string; caixa: "SHARE" | "CLIENTE";
+  id: string; codigo: string; documento: string | null; fluxo: FluxoUnificado; natureza: string; caixa: "SHARE" | "CLIENTE";
   descricao: string; categoria: string; favorecido: string; contaBancaria: string; dataLancamento: string;
   dataVencimento: string | null; dataPagamento: string | null; situacao: SituacaoUnificada; valor: number;
   reembolsavel: boolean; cotistaId: string | null; origem: OrigemUnificada; origemId: string;
@@ -30,7 +30,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
   for (const item of compras) if (item.lancamento_id) idsRelacionados.add(item.lancamento_id);
   for (const l of lancamentos) {
     if (idsRelacionados.has(l.id)) continue;
-    linhas.push({ id: l.id, codigo: l.id.slice(-8).toUpperCase(), fluxo: l.fluxo, natureza: l.grupoCategoria || l.tipo || l.categoria,
+    linhas.push({ id: l.id, codigo: l.id.slice(-8).toUpperCase(), documento: l.documento || null, fluxo: l.fluxo, natureza: l.grupoCategoria || l.tipo || l.categoria,
       caixa: l.caixa === "CLIENTE" ? "CLIENTE" : "SHARE", descricao: l.descricao || "—", categoria: l.categoria || "—",
       favorecido: l.fornecedor || l.pagoPor || "—", contaBancaria: "—", dataLancamento: l.data,
       dataVencimento: l.prazo || null, dataPagamento: ["PAGO", "RECEBIDO"].includes(l.status) ? l.data : null,
@@ -39,7 +39,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
       documentoUrl: l.documentoUrl || l.anexos?.[0]?.url || null, raw: l });
   }
   for (const c of pagar) {
-    linhas.push({ id: `pagar:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), fluxo: "SAIDA", natureza: "DESPESA",
+    linhas.push({ id: `pagar:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), documento: c.documento || null, fluxo: "SAIDA", natureza: "DESPESA",
       caixa: "SHARE", descricao: c.descricao || "—", categoria: c.categoriaNome || "—", favorecido: c.fornecedor || "—",
       contaBancaria: c.bancoPagamento || "—", dataLancamento: c.dataEmissao || c.criadoEm || "",
       dataVencimento: c.dataVencimento || null, dataPagamento: c.dataPagamento || null,
@@ -48,7 +48,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
       documentoUrl: c.comprovantePagamentoUrl || c.boletoUrl || c.nfUrl || c.documentoUrl || null, raw: c });
   }
   for (const c of receber) {
-    linhas.push({ id: `receber:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), fluxo: "ENTRADA", natureza: "RECEITA",
+    linhas.push({ id: `receber:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), documento: c.documento || null, fluxo: "ENTRADA", natureza: "RECEITA",
       caixa: c.cotistaId ? "CLIENTE" : "SHARE", descricao: c.descricao || "—", categoria: c.categoriaNome || "—",
       favorecido: c.cotistaNome || c.cotista || c.fornecedor || "—", contaBancaria: c.bancoRecebimento || "—",
       dataLancamento: c.dataEmissao || c.criadoEm || "", dataVencimento: c.dataVencimento || null,
@@ -61,7 +61,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     const estado = String(s.status || "").toUpperCase();
     if (["CANCELADO", "CANCELADA", "REJEITADO", "REJEITADA", "CONCLUIDO", "CONCLUÍDO"].includes(estado)) continue;
     const vencimento = s.data_vencimento || s.vencimento || null;
-    linhas.push({ id: `solicitacao:${s.id}`, codigo: s.id.slice(-8).toUpperCase(), fluxo: "SAIDA",
+    linhas.push({ id: `solicitacao:${s.id}`, codigo: s.id.slice(-8).toUpperCase(), documento: null, fluxo: "SAIDA",
       natureza: "SOLICITAÇÃO DE PAGAMENTO", caixa: s.tipo === "cliente" ? "CLIENTE" : "SHARE",
       descricao: s.descricao || "Solicitação de pagamento", categoria: s.categoria_nome || "—",
       favorecido: s.fornecedor || "—", contaBancaria: "—", dataLancamento: s.data_despesa || s.criado_em || "",
@@ -74,7 +74,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     if (c.envio_id || c.lancamento_id) continue;
     const estado = String(c.status || "").toUpperCase();
     if (["CONCLUIDA", "CONCLUIDO", "REJEITADA", "CANCELADA", "CANCELADO"].includes(estado)) continue;
-    linhas.push({ id: `compra:${c.id}`, codigo: c.numero_solicitacao || c.id.slice(-8).toUpperCase(), fluxo: "SAIDA",
+    linhas.push({ id: `compra:${c.id}`, codigo: c.numero_solicitacao || c.id.slice(-8).toUpperCase(), documento: null, fluxo: "SAIDA",
       natureza: "SOLICITAÇÃO DE COMPRA", caixa: c.tipo_caixa === "CLIENTE" ? "CLIENTE" : "SHARE",
       descricao: c.descricao || "Solicitação de compra", categoria: "Solicitada para aprovação",
       favorecido: c.solicitante_nome || "—", contaBancaria: "—", dataLancamento: c.data_solicitacao || "",

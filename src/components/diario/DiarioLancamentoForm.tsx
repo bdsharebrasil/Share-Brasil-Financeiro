@@ -2454,7 +2454,7 @@ const styles = `
 }
 .db-overview {
   min-width: 0;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid rgba(139,183,222,.14);
   border-radius: 20px;
   background:
@@ -2587,7 +2587,7 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid rgba(195,213,235,.07);
   background: rgba(2,17,34,1);
   border-radius: 18px;
@@ -2649,7 +2649,7 @@ const styles = `
 }
 .db-section-content {
   min-width: 0;
-  padding: 18px;
+  padding: 14px;
 }
 .db-grid, .db-notes-grid {
   display: grid;
@@ -2703,9 +2703,9 @@ const styles = `
 }
 .db-entry .db-input,
 .db-entry .db-combo {
-  height: 50px;
-  min-height: 50px;
-  padding: 0 13px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 11px;
 }
 .db-entry .db-combo {
   text-align: left;
@@ -2928,13 +2928,13 @@ const styles = `
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  height: 46px;
-  padding: 0 10px;
+  height: 40px;
+  padding: 0 9px;
   border: 1px solid var(--db-border);
   border-radius: 10px;
   background: var(--db-input-bg);
   color: #f1f7fc;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

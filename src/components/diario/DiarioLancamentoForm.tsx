@@ -2562,15 +2562,14 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 10px 18px;
   border-bottom: 1px solid rgba(195,213,235,.07);
   background: rgba(2,17,34,1);
   border-radius: 18px;
   overflow: hidden;
 }
 .db-section:first-of-type > .db-section-header {
-  margin-left: 0;
-  margin-right: 0;
+  margin: -7px 0;
   padding-left: 25px;
   padding-right: 25px;
 }
@@ -2624,7 +2623,7 @@ const styles = `
 }
 .db-section-content {
   min-width: 0;
-  padding: 14px;
+  padding: 15px 14px;
 }
 .db-grid, .db-notes-grid {
   display: grid;
@@ -3100,9 +3099,9 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 13px 0 -22px;
-  padding: 30px 28px;
-  padding-bottom: max(30px, env(safe-area-inset-bottom, 0px));
+  margin: 13px -17px -19px -18px;
+  padding: 10px 28px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--db-border);
   border-radius: 0 0 24px 24px;
   background: rgba(12,21,32,1);

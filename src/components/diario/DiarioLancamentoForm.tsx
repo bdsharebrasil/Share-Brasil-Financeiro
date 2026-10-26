@@ -2364,7 +2364,7 @@ const styles = `
   padding: 16px;
   border: 1px solid var(--db-border);
   border-radius: 24px;
-  background: var(--db-bg);
+  background: #050911;
   color: var(--db-text);
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
@@ -2589,6 +2589,15 @@ const styles = `
   gap: 12px;
   padding: 18px;
   border-bottom: 1px solid rgba(195,213,235,.07);
+  background: rgba(2,17,34,1);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.db-section:first-of-type > .db-section-header {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 25px;
+  padding-right: 25px;
 }
 .db-section-heading {
   display: flex;
@@ -3116,12 +3125,12 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 18px -16px -16px;
-  padding: 14px 16px;
-  padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  margin: 13px 0 -22px;
+  padding: 30px 28px;
+  padding-bottom: max(30px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--db-border);
   border-radius: 0 0 24px 24px;
-  background: rgba(12,21,32,.96);
+  background: rgba(12,21,32,1);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }

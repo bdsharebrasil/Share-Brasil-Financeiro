@@ -22,6 +22,7 @@ import {
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
   buscarAbastecimentos,
+  buscarAerodromosCadastro,
   buscarNumerosVooAeronave,
   type Abastecimento,
   type DiarioLancamento,
@@ -29,6 +30,11 @@ import {
   type NumeroVooJornada,
   type NumeroVooPerna,
 } from "@/lib/colaborador-api";
+import {
+  distanciaNM,
+  interpretarCoordenadas,
+  type Coordenada,
+} from "@/lib/navegacao";
 
 type FormValues = Record<string, string | boolean>;
 
@@ -391,6 +397,28 @@ export default function DiarioLancamentoForm({
   const [abastecimentoModo, setAbastecimentoModo] = useState<
     "existente" | "novo"
   >("existente");
+
+  const [coordenadasAerodromos, setCoordenadasAerodromos] = useState<
+    Record<string, Coordenada>
+  >({});
+
+  useEffect(() => {
+    let ativo = true;
+    buscarAerodromosCadastro()
+      .then(({ aerodromos }) => {
+        if (!ativo) return;
+        const mapa: Record<string, Coordenada> = {};
+        for (const item of aerodromos) {
+          const coord = interpretarCoordenadas(item.coordenadas);
+          if (coord) mapa[item.designativo_icao.toUpperCase()] = coord;
+        }
+        setCoordenadasAerodromos(mapa);
+      })
+      .catch(() => undefined);
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const busy = saving || submitting;
   const value = (key: string) => valor(form, key);
@@ -777,6 +805,11 @@ export default function DiarioLancamentoForm({
 
       if (origem && destino) {
         next.trecho = montarTrecho(origem, destino);
+        const coordOrigem = coordenadasAerodromos[origem];
+        const coordDestino = coordenadasAerodromos[destino];
+        if (coordOrigem && coordDestino) {
+          next.distancia_nm = distanciaNM(coordOrigem, coordDestino).toFixed(1);
+        }
       }
 
       return next;

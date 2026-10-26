@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Check,
@@ -105,7 +106,7 @@ import type {
 } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import {
-  buscarOpcoesEnvioPagamento,
+  buscarAeronavesShare,
   buscarCotistasAeronave,
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
@@ -148,7 +149,7 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel,
 .financeiro-profissional .financeiro-header,
 .financeiro-profissional .financeiro-tabs,
-.despesas-theme :is(.despesa-ledger,.despesa-metric), .despesa-dialog {
+.despesas-theme .despesa-ledger, .despesa-dialog {
   background:hsl(var(--card)); border:1px solid hsl(var(--border));
   border-radius:5px; box-shadow:none; filter:none; backdrop-filter:none;
   -webkit-backdrop-filter:none; background-image:none;
@@ -174,10 +175,6 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-primary { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border:1px solid hsl(var(--primary)); border-radius:4px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-primary:hover { filter:brightness(.94); }
-.despesa-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-.despesa-metric { padding:8px 12px; min-width:0; background:hsl(var(--card) / .6); }
-.despesa-metric-label { margin:0; color:hsl(var(--muted-foreground)); font-size:11px; }
-.despesa-metric-value { margin:2px 0 0; font-size:15px; font-weight:600; line-height:1.3; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:break-word; }
 .despesa-ledger { min-width:0; overflow:hidden; }
 .despesa-heading { padding:12px 16px; background:hsl(var(--card)); }
 .despesa-heading h3 { font-size:14px; font-weight:600; color:hsl(var(--foreground)); }
@@ -198,8 +195,7 @@ const DESPESAS_ESTILOS = `
 .despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
 .despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
 .despesa-table .despesa-row td { padding:12px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
-[data-density="compacto"] .despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
-[data-density="confortavel"] .despesa-table .despesa-row td { padding-top:18px; padding-bottom:18px; }
+.despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
 .despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
 .despesa-table .despesa-row td:nth-child(2) { position:sticky; left:0; z-index:1; border-right:1px solid hsl(var(--border)); }
@@ -207,6 +203,8 @@ const DESPESAS_ESTILOS = `
 .despesa-table .despesa-row td:last-child { position:sticky; right:0; z-index:2; border-left:1px solid hsl(var(--border)); padding:8px; }
 .despesa-table > thead > tr > th:last-child { right:0; z-index:4; }
 .despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
+.despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
 .despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
 .despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:hsl(var(--muted-foreground)); overflow-wrap:break-word; }
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
@@ -239,9 +237,6 @@ const DESPESAS_ESTILOS = `
 .despesa-document:hover { background:hsl(var(--accent)); }
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:640px) {
-  .despesa-metrics { grid-template-columns:1fr; gap:8px; }
-  .despesa-metric { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 10px; }
-  .despesa-metric-value { font-size:14px; margin:0; }
   .despesa-toolbar-main { flex-wrap:wrap; }
   .despesa-toolbar-main > div:first-child { flex-basis:100%; }
   .despesa-filter-panel { grid-template-columns:1fr; }
@@ -342,6 +337,7 @@ type AeronaveOpcao = {
   matricula_registro: string;
   fabricante: string;
   modelo: string;
+  url_imagem?: string | null;
 };
 
 export function NovoLancamentoCotistaDialog({
@@ -1418,7 +1414,6 @@ function LancamentosDespesa({
   aoAtualizar: () => Promise<void>;
 }) {
   const [baixaSelecionada, setBaixaSelecionada] = useState<LancamentoEconomico | null>(null);
-  const [compacto, setCompacto] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
   const [documentoAberto, setDocumentoAberto] = useState<{
@@ -1429,6 +1424,28 @@ function LancamentosDespesa({
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [ordem, setOrdem] = useState("recentes");
+  const [larguras, setLarguras] = useState<Record<string, number>>({});
+  const estiloColuna = (id: string, padrao?: number) => {
+    const largura = larguras[id] ?? padrao;
+    return largura ? { width: largura } : undefined;
+  };
+  const iniciarRedimensionamento = (colunaId: string, evento: ReactPointerEvent<HTMLSpanElement>) => {
+    evento.preventDefault();
+    evento.stopPropagation();
+    const inicioX = evento.clientX;
+    const larguraInicial = evento.currentTarget.parentElement?.getBoundingClientRect().width ?? 0;
+    const mover = (e: PointerEvent) => setLarguras((atual) => ({ ...atual, [colunaId]: Math.max(56, larguraInicial + e.clientX - inicioX) }));
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  };
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pagina, setPagina] = useState(1);
   const porPagina = 10;
@@ -1681,57 +1698,31 @@ function LancamentosDespesa({
     </div>
   );
   const cards = [
-    {
-      titulo: "Total lançado",
-      valor: totalLancado,
-      detalhe: `${despesas.length} despesas no período`,
-      Icon: ReceiptText,
-      cor: "bg-primary/10 text-primary",
-    },
-    {
-      titulo: "Total pago",
-      valor: totalPago,
-      detalhe: "Pagamentos registrados",
-      Icon: Check,
-      cor: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    },
-    {
-      titulo: "Em aberto",
-      valor: totalAberto,
-      detalhe: "Saldo a pagar no período",
-      Icon: CalendarDays,
-      cor: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    },
-
+    { titulo: "Total lançado", valor: totalLancado },
+    { titulo: "Total pago", valor: totalPago },
+    { titulo: "Em aberto", valor: totalAberto },
   ];
 
   return (
-    <div className="despesas-theme despesas-shell min-w-0 space-y-3" data-density={compacto ? "compacto" : "confortavel"}>
+    <div className="despesas-theme despesas-shell min-w-0 space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="despesa-metrics">
-        {cards.map(({ titulo, valor }) => (
-          <section key={titulo} className="despesa-metric">
-            <p className="despesa-metric-label">{titulo}</p>
-            <p className="despesa-metric-value">{formatarCentavos(valor)}</p>
-          </section>
-        ))}
-      </div>
-
       <section
         className="despesa-ledger min-w-0"
         aria-label="Lançamentos mensais"
       >
         <header className="despesa-heading flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <h3 className="text-sm font-semibold tracking-tight">
               Lançamentos ({filtradas.length})
             </h3>
+            {cards.map(({ titulo, valor }) => (
+              <p key={titulo} className="text-xs text-muted-foreground">
+                {titulo}{" "}
+                <span className="font-semibold tabular-nums text-foreground">{formatarCentavos(valor)}</span>
+              </p>
+            ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" aria-pressed={compacto}
-            onClick={() => setCompacto((atual) => !atual)} className="h-9 text-xs">
-            {compacto ? "Compacto" : "Confortável"}
-          </Button>
           <Button
             type="button"
             onClick={aoNovo}
@@ -1856,14 +1847,14 @@ function LancamentosDespesa({
                 </caption>
                 <colgroup>
                   <col style={{ width: 42 }} />
-                  <col style={{ width: 108 }} />
-                  <col />
-                  <col style={{ width: 122 }} />
-                  <col style={{ width: 110 }} />
-                  <col style={{ width: 126 }} />
-                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={{ width: 168 }} />)}
-                  <col style={{ width: 104 }} />
-                  <col style={{ width: 76 }} />
+                  <col style={estiloColuna("data", 108)} />
+                  <col style={estiloColuna("descricao")} />
+                  <col style={estiloColuna("categoria", 122)} />
+                  <col style={estiloColuna("tipo", 110)} />
+                  <col style={estiloColuna("pago", 126)} />
+                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={estiloColuna(`cotista-${cotista.id}`, 168)} />)}
+                  <col style={estiloColuna("status", 104)} />
+                  <col style={estiloColuna("acoes", 76)} />
                 </colgroup>
                 <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                   <tr>
@@ -1898,6 +1889,7 @@ function LancamentosDespesa({
                             {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           </button>
                         ) : coluna.titulo}
+                        <span role="separator" aria-orientation="vertical" aria-label={`Redimensionar coluna ${coluna.titulo}`} className="despesa-col-resizer" onPointerDown={(evento) => iniciarRedimensionamento(coluna.id, evento)} />
                       </th>
                     ))}
                   </tr>
@@ -2188,6 +2180,13 @@ export default function FinanceiroCotista() {
   const [erroDashboard, setErroDashboard] = useState<string | null>(null);
   const [aeronaves, setAeronaves] = useState<AeronaveOpcao[]>([]);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
+  const [buscaMatricula, setBuscaMatricula] = useState("");
+  const aeronavesFiltradas = useMemo(() => {
+    const termo = buscaMatricula.trim().toLowerCase();
+    return termo
+      ? aeronaves.filter((a) => a.matricula_registro.toLowerCase().includes(termo))
+      : aeronaves;
+  }, [aeronaves, buscaMatricula]);
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>(
     [],
   );
@@ -2256,7 +2255,7 @@ export default function FinanceiroCotista() {
 
   const carregarAeronaves = useCallback(async () => {
     try {
-      const resp = await buscarOpcoesEnvioPagamento();
+      const resp = await buscarAeronavesShare("ativa");
       setAeronaves(resp.aeronaves || []);
     } catch {
       setAeronaves([]);
@@ -2355,6 +2354,16 @@ export default function FinanceiroCotista() {
     | "extrato"
     | "portal-cliente"
   >("lancamentos");
+  const [paginaAberta, setPaginaAberta] = useState(false);
+  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText }> = [
+    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText },
+    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard },
+    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel },
+    { id: "medias", rotulo: "Médias", Icon: Gauge },
+    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3 },
+    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound },
+    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark }] : []),
+  ];
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
     const periodos = meses
@@ -2386,6 +2395,7 @@ export default function FinanceiroCotista() {
     atualizarMeses([mes]);
   };
   const mesReferencia = mesesAplicados[0] || mesAtual;
+  const todosOsMesesSelecionados = mesesDisponiveis.every((mes) => mesesRascunho.includes(mes));
 
   const despesas = useMemo(
     () =>
@@ -2526,74 +2536,88 @@ export default function FinanceiroCotista() {
   return (
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
-      <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="mt-1 text-xl font-extrabold tracking-[-.035em] md:text-2xl">
-            Financeiro do Cotista
-          </h2>
+      {aeronaveSelecionada && (
+        <div className="flex justify-start">
+          <Button type="button" variant="ghost" size="sm" className="h-9 gap-2 text-xs"
+            onClick={() => { setAeronaveSelecionada(""); setPaginaAberta(false); }}>
+            <Plane size={14} /> Trocar aeronave
+          </Button>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <Select
-            value={aeronaveSelecionada || "selecionar"}
-            onValueChange={(valor) =>
-              setAeronaveSelecionada(valor === "selecionar" ? "" : valor)
-            }
-          >
-            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
-              <Plane size={14} className="text-muted-foreground" />
-              <SelectValue placeholder="Selecione uma aeronave" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="selecionar">Selecione uma aeronave</SelectItem>
-              {aeronaves.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.matricula_registro} · {a.modelo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      )}
+      {aeronaveSelecionada && paginaAberta && (
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-1" onClick={() => setPaginaAberta(false)}>
+            <ChevronLeft size={15} /> Voltar
+          </Button>
+          <div className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4" role="tablist" aria-label="Visões do financeiro cotista">
+            {abasCotista.map(({ id, rotulo, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={abaAtiva === id}
+                onClick={() => setAbaAtiva(id as typeof abaAtiva)}
+                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon size={14} />
+                {rotulo}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {!aeronaveSelecionada ? (
-        <div className="financeiro-panel rounded-xl border-dashed px-5 py-14 text-center">
-          <Plane className="mx-auto h-8 w-8 text-muted-foreground/60" />
-          <p className="mt-3 text-sm font-semibold">Selecione uma aeronave</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Os dados financeiros do cotista serão exibidos depois da seleção.
-          </p>
-        </div>
+        <section className="space-y-5 py-6">
+          <header className="space-y-1.5 text-center">
+            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">Selecione uma aeronave para começar</h2>
+            <p className="text-sm text-muted-foreground">Os dados financeiros e de cotistas serão carregados após a seleção.</p>
+          </header>
+          <div className="mx-auto max-w-4xl">
+            <Input
+              type="search"
+              value={buscaMatricula}
+              onChange={(e) => setBuscaMatricula(e.target.value)}
+              placeholder="Digite a matrícula (ex.: PR-GJM)"
+              aria-label="Filtrar aeronaves pela matrícula"
+              className="h-10"
+            />
+          </div>
+          {aeronaves.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave cadastrada.</p>
+          ) : aeronavesFiltradas.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave encontrada para &quot;{buscaMatricula}&quot;.</p>
+          ) : (
+            <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {aeronavesFiltradas.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setAeronaveSelecionada(a.id);
+                    setPaginaAberta(false);
+                  }}
+                  className="group flex items-center gap-4 rounded-xl border border-white/10 bg-card/60 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg"
+                >
+                  {a.url_imagem ? (
+                    <img src={a.url_imagem} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
+                      <Plane size={20} />
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold">{a.matricula_registro}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{a.modelo}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       ) : (
         <>
-          {aeronaveSelecionada && cotistasAeronave.length > 0 && (
-            <details className="financeiro-panel px-4 py-2.5">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                Participação na aeronave · {cotistasAeronave.length} cotista(s)
-              </summary>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {cotistasAeronave.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}
-                  >
-                    {c.eh_holding ? (
-                      <Building2 size={11} />
-                    ) : (
-                      <User size={11} />
-                    )}
-                    {c.nome}
-                    <span className="font-mono text-[10px] opacity-60">
-                      {c.percentual_sociedade}%
-                    </span>
-                    <button type="button" className="ml-1 rounded p-1 hover:bg-background/60" aria-label={`Editar participação de ${c.nome}`} onClick={() => { setParticipacaoEditando(c); setPercentualEditado(String(c.percentual_sociedade)); setAeronaveEditada(c.aeronave_id); }}><Pencil size={12} /></button>
-                    <button type="button" className="rounded p-1 text-red-500 hover:bg-red-500/10" aria-label={`Excluir vínculo de ${c.nome}`} onClick={() => void removerParticipacao(c)}><Trash2 size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
+          {paginaAberta && abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
@@ -2614,42 +2638,7 @@ export default function FinanceiroCotista() {
             </div>
           </section>}
 
-          <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
-            {([
-              ["lancamentos", "Lançamentos mensais", ReceiptText],
-              ["resumo", "Visão por cotista", LayoutDashboard],
-              ["emprestimos", "Voos empréstimo", Fuel],
-              ["medias", "Médias", Gauge],
-              ["graficos", "Gráficos", BarChart3],
-              ["portal-cliente", "Portal Cliente", KeyRound],
-            ] as const).map(([id, label, Icon]) => (
-              <button
-                key={id as string}
-                type="button"
-                role="tab"
-                aria-selected={abaAtiva === id}
-                onClick={() => setAbaAtiva(id as typeof abaAtiva)}
-                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
-            {possuiHolding && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={abaAtiva === "extrato"}
-                onClick={() => setAbaAtiva("extrato")}
-                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === "extrato" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Landmark size={14} />
-                Extrato Holding
-              </button>
-            )}
-          </div>
-
-          {abaAtiva !== "portal-cliente" && (
+          {paginaAberta && abaAtiva !== "portal-cliente" && (
             <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -2667,29 +2656,51 @@ export default function FinanceiroCotista() {
                   {mesesAplicados.length === 1 ? rotuloMesCotista(mesReferencia) : `${mesesAplicados.length} meses selecionados`}
                 </span>
               </div>
-              <details className="mt-2">
-                <summary className="w-fit cursor-pointer text-xs text-muted-foreground">Selecionar vários meses</summary>
-                <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
-                  <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
-                    onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
-                    className="h-8 w-24" />
-                  <Button type="button" variant="outline" size="sm" onClick={selecionarTodosOsMeses}>Ano inteiro</Button>
-                  {MESES_CURTOS.map((mes, indice) => {
-                    const competencia = mesesDisponiveis[indice];
-                    const selecionado = mesesRascunho.includes(competencia);
-                    return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
-                      aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
-                      className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
-                      {mes}
-                    </button>;
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Os indicadores consideram os meses selecionados. As setas retornam à visualização de um único mês.</p>
-              </details>
+              <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
+                <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
+                  onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
+                  className="h-8 w-24" />
+                <label className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+                  <Checkbox
+                    checked={todosOsMesesSelecionados}
+                    onCheckedChange={(marcado) => (marcado ? selecionarTodosOsMeses() : limparMeses())}
+                    aria-label={`Selecionar todo o ano ${anoMeses}`}
+                  />
+                  Ano inteiro
+                </label>
+                {MESES_CURTOS.map((mes, indice) => {
+                  const competencia = mesesDisponiveis[indice];
+                  const selecionado = mesesRascunho.includes(competencia);
+                  return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
+                    aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
+                    {mes}
+                  </button>;
+                })}
+              </div>
             </section>
           )}
 
-          {abaAtiva === "portal-cliente" ? (
+          {!paginaAberta ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {abasCotista.map(({ id, rotulo, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setAbaAtiva(id as typeof abaAtiva);
+                    setPaginaAberta(true);
+                  }}
+                  className="financeiro-panel flex items-center gap-3 rounded-xl p-4 text-left transition hover:bg-card"
+                >
+                  <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                    <Icon size={17} />
+                  </span>
+                  <span className="text-sm font-semibold">{rotulo}</span>
+                </button>
+              ))}
+            </div>
+          ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : carregando ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">

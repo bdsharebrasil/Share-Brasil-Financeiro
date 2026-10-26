@@ -22,6 +22,7 @@ import {
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import {
   buscarAbastecimentos,
+  buscarAerodromosCadastro,
   buscarNumerosVooAeronave,
   type Abastecimento,
   type DiarioLancamento,
@@ -29,6 +30,11 @@ import {
   type NumeroVooJornada,
   type NumeroVooPerna,
 } from "@/lib/colaborador-api";
+import {
+  distanciaNM,
+  interpretarCoordenadas,
+  type Coordenada,
+} from "@/lib/navegacao";
 
 type FormValues = Record<string, string | boolean>;
 
@@ -391,6 +397,28 @@ export default function DiarioLancamentoForm({
   const [abastecimentoModo, setAbastecimentoModo] = useState<
     "existente" | "novo"
   >("existente");
+
+  const [coordenadasAerodromos, setCoordenadasAerodromos] = useState<
+    Record<string, Coordenada>
+  >({});
+
+  useEffect(() => {
+    let ativo = true;
+    buscarAerodromosCadastro()
+      .then(({ aerodromos }) => {
+        if (!ativo) return;
+        const mapa: Record<string, Coordenada> = {};
+        for (const item of aerodromos) {
+          const coord = interpretarCoordenadas(item.coordenadas);
+          if (coord) mapa[item.designativo_icao.toUpperCase()] = coord;
+        }
+        setCoordenadasAerodromos(mapa);
+      })
+      .catch(() => undefined);
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const busy = saving || submitting;
   const value = (key: string) => valor(form, key);
@@ -777,6 +805,11 @@ export default function DiarioLancamentoForm({
 
       if (origem && destino) {
         next.trecho = montarTrecho(origem, destino);
+        const coordOrigem = coordenadasAerodromos[origem];
+        const coordDestino = coordenadasAerodromos[destino];
+        if (coordOrigem && coordDestino) {
+          next.distancia_nm = distanciaNM(coordOrigem, coordDestino).toFixed(1);
+        }
       }
 
       return next;
@@ -1131,14 +1164,8 @@ export default function DiarioLancamentoForm({
 
       <header className="db-header">
         <div className="db-heading">
-          <div className="db-app-icon" aria-hidden="true">
-            <BookOpen size={22} strokeWidth={1.6} />
-          </div>
-
           <div>
-            <p className="db-eyebrow">Operação aérea</p>
             <h2>{initialData ? "Editar lançamento" : "Novo lançamento"}</h2>
-            <p className="db-subtitle">Diário de bordo digital</p>
           </div>
         </div>
 
@@ -2364,7 +2391,7 @@ const styles = `
   padding: 16px;
   border: 1px solid var(--db-border);
   border-radius: 24px;
-  background: var(--db-bg);
+  background: #050911;
   color: var(--db-text);
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
@@ -2400,7 +2427,9 @@ const styles = `
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 5px 0 20px;
+  margin: -6px 0;
+  padding: 1px 0 3px;
+  font-weight: 300;
 }
 .db-heading {
   display: flex;
@@ -2408,36 +2437,12 @@ const styles = `
   min-width: 0;
   gap: 12px;
 }
-.db-app-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  border: 1px solid rgba(123,199,239,.2);
-  border-radius: 16px;
-  color: #b6e4ff;
-  background: linear-gradient(145deg, #233c50, #142131);
-}
-.db-entry .db-eyebrow {
-  margin-bottom: 4px;
-  color: var(--db-accent);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-}
 .db-entry h2 {
-  font-size: 21px;
+  margin: 7px 0;
+  font-size: 17px;
   font-weight: 650;
   line-height: 1.2;
   letter-spacing: -.65px;
-}
-.db-entry .db-subtitle {
-  margin-top: 5px;
-  color: var(--db-muted);
-  font-size: 12px;
-  line-height: 1.5;
 }
 .db-close {
   display: grid;
@@ -2451,15 +2456,18 @@ const styles = `
   background: rgba(255,255,255,.04);
   color: #b8c7d8;
   cursor: pointer;
+  line-height: 15px;
+  font-weight: 200;
 }
 .db-overview {
   min-width: 0;
-  padding: 20px;
+  margin: 7px 0;
+  padding: 10px 12px;
   border: 1px solid rgba(139,183,222,.14);
-  border-radius: 20px;
-  background:
-    radial-gradient(ellipse at 50% 0, rgba(80,145,190,.13), transparent 75%),
-    #111d2a;
+  border-radius: 26px;
+  overflow: hidden;
+  line-height: 12px;
+  background: rgba(12,21,31,1);
 }
 .db-route-preview {
   display: flex;
@@ -2587,8 +2595,16 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 18px;
+  padding: 10px 18px;
   border-bottom: 1px solid rgba(195,213,235,.07);
+  background: rgba(2,17,34,1);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.db-section:first-of-type > .db-section-header {
+  margin: -7px 0;
+  padding-left: 25px;
+  padding-right: 25px;
 }
 .db-section-heading {
   display: flex;
@@ -2640,7 +2656,7 @@ const styles = `
 }
 .db-section-content {
   min-width: 0;
-  padding: 18px;
+  padding: 15px 14px;
 }
 .db-grid, .db-notes-grid {
   display: grid;
@@ -2694,9 +2710,9 @@ const styles = `
 }
 .db-entry .db-input,
 .db-entry .db-combo {
-  height: 50px;
-  min-height: 50px;
-  padding: 0 13px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 11px;
 }
 .db-entry .db-combo {
   text-align: left;
@@ -2886,7 +2902,7 @@ const styles = `
   padding: 13px;
   border: 1px solid var(--db-border);
   border-radius: 14px;
-  background: rgba(255,255,255,.02);
+  background: rgba(1, 2, 12, 0.56);
 }
 .db-time-card-heading {
   display: flex;
@@ -2919,13 +2935,13 @@ const styles = `
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  height: 46px;
-  padding: 0 10px;
+  height: 40px;
+  padding: 0 9px;
   border: 1px solid var(--db-border);
   border-radius: 10px;
   background: var(--db-input-bg);
   color: #f1f7fc;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -3116,12 +3132,12 @@ const styles = `
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 18px -16px -16px;
-  padding: 14px 16px;
-  padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  margin: 13px -17px -19px -18px;
+  padding: 10px 28px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--db-border);
   border-radius: 0 0 24px 24px;
-  background: rgba(12,21,32,.96);
+  background: rgba(12,21,32,1);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }

@@ -268,34 +268,33 @@ export function EnviarEmailClienteDialog({
 
   return createPortal(
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 12, boxSizing: "border-box", backgroundColor: "rgba(24, 34, 47, 0.48)", fontFamily: FONT, color: COR.tinta }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={`${id}-titulo`} aria-describedby={`${id}-descricao`} tabIndex={-1}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={`${id}-titulo`} tabIndex={-1}
         style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", width: "100%", maxWidth: 640, maxHeight: "calc(100dvh - 24px)", minWidth: 0, border: "1px solid #0c2f5a", borderRadius: 10, backgroundColor: "#034377", boxShadow: "0 24px 80px rgba(18,32,49,0.18)", overflow: "hidden" }}>
         <form onSubmit={(evento) => void enviar(evento)} aria-busy={status === "sending"}
           style={{ display: "flex", flexDirection: "column", minHeight: 0, width: "100%", margin: 0 }}>
-          <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, padding: `24px ${espacamento}`, borderBottom: `1px solid ${COR.borda}`, flexShrink: 0 }}>
+          <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, margin: "-1px 0", padding: `11px ${espacamento}`, borderBottom: `1px solid ${COR.borda}`, flexShrink: 0, fontSize: 15, color: "rgba(198, 216, 236, 1)", backgroundColor: "rgba(0, 4, 14, 1)" }}>
             <div style={{ minWidth: 0 }}>
               <p style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 9px", color: COR.secundario, fontSize: 11, lineHeight: "16px", letterSpacing: "0.1em", fontWeight: 700, textTransform: "uppercase" }}><Mail size={15} aria-hidden="true" /> Comunicação com o cliente</p>
-              <h2 id={`${id}-titulo`} style={{ margin: 0, fontSize: 22, lineHeight: "29px", fontWeight: 700, letterSpacing: "-0.4px" }}>Enviar por e-mail</h2>
-              <p id={`${id}-descricao`} style={{ ...ajuda, marginTop: 7 }}>Revise a mensagem e os documentos antes de enviar.</p>
+              <h2 id={`${id}-titulo`} style={{ margin: 0, fontSize: 20, lineHeight: "29px", fontWeight: 700, letterSpacing: "-0.4px" }}>Enviar por e-mail</h2>
             </div>
             <button type="button" onClick={fechar} disabled={bloqueado} aria-label="Fechar janela"
-              style={{ ...botao, minWidth: 44, padding: 10, flexShrink: 0, opacity: bloqueado ? 0.45 : 1, cursor: bloqueado ? "default" : "pointer" }}><X size={18} aria-hidden="true" /></button>
+              style={{ ...botao, minWidth: 8, minHeight: 14, maxWidth: "94%", padding: "6px 7px", margin: "4px -4px", flexShrink: 0, backgroundColor: "#e9cece", borderColor: "transparent", color: "#d0021b", opacity: bloqueado ? 0.45 : 1, cursor: bloqueado ? "default" : "pointer" }}><X size={18} aria-hidden="true" /></button>
           </header>
 
-          <div ref={corpoRef} style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", padding: `24px ${espacamento} 28px` }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingBottom: 24 }} role="group" aria-label="Modo de visualização">
+          <div ref={corpoRef} style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", padding: `24px ${espacamento} 28px`, color: "#dfe4eb", backgroundColor: "#06101b" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 24, paddingBottom: 18, margin: "-12px 0", fontSize: 12, fontWeight: 300, lineHeight: "21px" }} role="group" aria-label="Modo de visualização">
               <button type="button" aria-pressed={visualizacao === "editar"} onClick={() => setVisualizacao("editar")}
-                style={{ ...botao, backgroundColor: visualizacao === "editar" ? "#edf1f5" : "#ffffff", borderColor: visualizacao === "editar" ? "#c3cdd8" : COR.borda }}><Pencil size={15} aria-hidden="true" /> Escrever</button>
+                style={{ ...botao, backgroundColor: visualizacao === "editar" ? "#c3c8cf" : "#ffffff", borderColor: visualizacao === "editar" ? "#c3cdd8" : COR.borda }}><Pencil size={15} aria-hidden="true" /> Escrever</button>
               <button type="button" aria-pressed={visualizacao === "previa"} onClick={() => setVisualizacao("previa")}
-                style={{ ...botao, backgroundColor: visualizacao === "previa" ? "#edf1f5" : "#ffffff", borderColor: visualizacao === "previa" ? "#c3cdd8" : COR.borda }}><Eye size={16} aria-hidden="true" /> Prévia do conteúdo</button>
+                style={{ ...botao, padding: "11px 8px", margin: "0 9px", fontSize: 12, lineHeight: "18px", fontWeight: 600, backgroundColor: visualizacao === "previa" ? "#edf1f5" : "#c5cfcb", borderColor: visualizacao === "previa" ? "#c3cdd8" : COR.borda }}><Eye size={16} aria-hidden="true" /> Prévia do conteúdo</button>
             </div>
 
             {visualizacao === "editar" ? <div style={{ display: "grid", gap: 24, minWidth: 0 }}>
               <div>
-                <label htmlFor={`${id}-para`} style={rotulo}>Para</label>
+                <label htmlFor={`${id}-para`} style={{ ...rotulo, color: "#eaf1fa" }}>Para</label>
                 <input ref={destinatarioRef} id={`${id}-para`} name="destinatarios" type="text" inputMode="email" autoComplete="off" spellCheck={false}
                   value={destinatario} onChange={(evento) => { setDestinatario(evento.target.value); setErro(""); }}
-                  placeholder="nome@empresa.com" disabled={bloqueado} aria-describedby={`${id}-para-ajuda`} style={campo} />
+                  placeholder="nome@empresa.com" disabled={bloqueado} aria-describedby={`${id}-para-ajuda`} style={{ ...campo, backgroundColor: "#010a11", color: "#b9c7df", borderColor: "#0b1b2a" }} />
                 <p id={`${id}-para-ajuda`} style={ajuda}>Separe vários endereços por ponto e vírgula.</p>
                 <div style={{ position: "relative", marginTop: 14 }}>
                   <Search size={17} aria-hidden="true" style={{ position: "absolute", left: 14, top: 15, color: "#637083", pointerEvents: "none" }} />
@@ -304,7 +303,7 @@ export function EnviarEmailClienteDialog({
                     aria-controls={`${id}-contatos`} aria-activedescendant={buscaContato.trim() && contatosFiltrados.length ? `${id}-contato-${Math.min(indiceContato, contatosFiltrados.length - 1)}` : undefined}
                     value={buscaContato} onChange={(evento) => { setBuscaContato(evento.target.value); setIndiceContato(0); }} onKeyDown={navegarContatos}
                     placeholder={carregando ? "Carregando contatos…" : "Buscar cliente ou sócio holding"} disabled={bloqueado || carregando}
-                    autoComplete="off" style={{ ...campo, paddingLeft: 40, backgroundColor: COR.fundo }} />
+                    autoComplete="off" style={{ ...campo, paddingLeft: 40, backgroundColor: "#010a11", color: "#d6e3f3", borderColor: "#050f19" }} />
                   {buscaContato.trim() && !carregando && <div id={`${id}-contatos`} role="listbox" aria-label="Contatos encontrados"
                     style={{ marginTop: 8, maxHeight: 224, overflowY: "auto", border: `1px solid ${COR.borda}`, borderRadius: 6, backgroundColor: "#ffffff" }}>
                     {contatosFiltrados.length ? contatosFiltrados.map((contato, indice) => <div key={`${contato.id}:${contato.email}`} id={`${id}-contato-${indice}`} role="option" aria-selected={indiceContato === indice}
@@ -319,25 +318,24 @@ export function EnviarEmailClienteDialog({
               </div>
 
               <div>
-                <label htmlFor={`${id}-assunto`} style={rotulo}>Assunto</label>
-                <input id={`${id}-assunto`} name="assunto" value={assunto} onChange={(evento) => { setAssunto(evento.target.value); setErro(""); }} placeholder="Informe o assunto da mensagem" disabled={bloqueado} style={campo} />
+                <label htmlFor={`${id}-assunto`} style={{ ...rotulo, color: "#d5dfeb" }}>Assunto</label>
+                <input id={`${id}-assunto`} name="assunto" value={assunto} onChange={(evento) => { setAssunto(evento.target.value); setErro(""); }} placeholder="Informe o assunto da mensagem" disabled={bloqueado} style={{ ...campo, backgroundColor: "#010a11", color: "#c7d3e2", borderColor: "#041627" }} />
               </div>
               <div>
-                <label htmlFor={`${id}-mensagem`} style={rotulo}>Mensagem</label>
+                <label htmlFor={`${id}-mensagem`} style={{ ...rotulo, color: "#cad6e7" }}>Mensagem</label>
                 <textarea id={`${id}-mensagem`} name="mensagem" value={mensagem} onChange={(evento) => { setMensagem(evento.target.value); setErro(""); }} placeholder="Escreva sua mensagem…"
-                  disabled={bloqueado} rows={8} aria-describedby={`${id}-mensagem-ajuda`} style={{ ...campo, minHeight: 208, resize: "vertical", lineHeight: "26px", padding: "14px 16px" }} />
-                <p id={`${id}-mensagem-ajuda`} style={ajuda}>A assinatura configurada no sistema é adicionada no envio.</p>
+                  disabled={bloqueado} rows={8} style={{ ...campo, minHeight: 208, resize: "vertical", lineHeight: "26px", padding: "14px 16px", backgroundColor: "#010a11", color: "#e6effa", borderColor: "#182c41" }} />
               </div>
 
-              {contas.length > 0 && <section aria-label="Dados bancários" style={{ border: `1px solid ${COR.borda}`, borderRadius: 6, backgroundColor: COR.fundo }}>
+              {contas.length > 0 && <section aria-label="Dados bancários" style={{ border: "1px solid #09141f", borderRadius: 6, backgroundColor: "#010a11", overflow: "hidden" }}>
                 <button type="button" disabled={bloqueado} aria-expanded={bancosAbertos} aria-controls={`${id}-bancos`} onClick={() => setBancosAbertos((atual) => !atual)}
-                  style={{ ...botao, width: "100%", justifyContent: "space-between", padding: "14px 16px", border: 0, backgroundColor: "transparent", textAlign: "left" }}>
+                  style={{ ...botao, width: "100%", justifyContent: "space-between", padding: "14px 16px", border: "1px solid #16263a", borderRadius: 4, overflow: "hidden", color: "#d8dee6", backgroundColor: "#010a11", textAlign: "left" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 10 }}><Building2 size={17} aria-hidden="true" /> Inserir dados bancários</span><ChevronDown size={16} aria-hidden="true" style={{ transform: bancosAbertos ? "rotate(180deg)" : undefined, flexShrink: 0 }} />
                 </button>
-                {bancosAbertos && <div id={`${id}-bancos`} style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "0 16px 16px" }}>
+                {bancosAbertos && <div id={`${id}-bancos`} style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "0 16px 16px", backgroundColor: "rgba(1, 10, 17, 0.92)" }}>
                   {contas.map((conta) => <button key={conta.id} type="button" disabled={bloqueado}
                     onClick={() => setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto)}
-                    style={{ ...botao, fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%" }}><Building2 size={15} aria-hidden="true" style={{ flexShrink: 0 }} />{conta.banco}</button>)}
+                    style={{ ...botao, fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%", backgroundColor: "rgba(1, 10, 17, 0.92)", borderColor: "rgba(5, 14, 25, 0.16)" }}><Building2 size={15} aria-hidden="true" style={{ flexShrink: 0 }} />{conta.banco}</button>)}
                 </div>}
               </section>}
               {avisoCarga && <div role="status" style={aviso}><AlertCircle size={17} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{avisoCarga}</span></div>}
@@ -348,10 +346,10 @@ export function EnviarEmailClienteDialog({
             </section>}
 
             {anexos.length > 0 && <section aria-labelledby={`${id}-anexos`} style={{ marginTop: 28, paddingTop: 24, borderTop: `1px solid ${COR.borda}` }}>
-              <h3 id={`${id}-anexos`} style={{ ...rotulo, display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px" }}><Paperclip size={16} aria-hidden="true" />Documentos anexados ({anexos.length})</h3>
+              <h3 id={`${id}-anexos`} style={{ ...rotulo, display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px", color: "#cad5e2" }}>Documentos anexados ({anexos.length})</h3>
               <div style={{ display: "grid", gap: 8 }}>
                 {anexos.map((anexo, indice) => <div key={`${anexo.id || anexo.url || "anexo"}-${indice}`}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 14px", backgroundColor: COR.fundo, border: `1px solid ${COR.borda}`, borderRadius: 6 }}>
+                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 14px", backgroundColor: "#010a11", border: "1px solid #0a1622", borderRadius: 6 }}>
                   <Paperclip size={17} aria-hidden="true" style={{ flexShrink: 0, color: COR.secundario, marginTop: 2 }} />
                   <div style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}><p style={{ margin: 0, fontSize: 13, lineHeight: "21px", fontWeight: 700 }}>{anexo.label || anexo.filename || `Documento ${indice + 1}`}</p>
                     <p style={{ ...ajuda, marginTop: 3, color: anexo.id?.trim() ? COR.secundario : "#765622" }}>{anexo.id?.trim() ? "Incluído automaticamente no envio" : "Documento indisponível para envio"}</p></div>
@@ -363,7 +361,7 @@ export function EnviarEmailClienteDialog({
             {erro && <div role="alert" style={{ ...aviso, marginTop: 24, borderColor: "#edcaca", backgroundColor: "#fff7f7", color: "#9b3030" }}><AlertCircle size={17} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{erro}</span></div>}
           </div>
 
-          <footer style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, padding: `20px ${espacamento}`, borderTop: `1px solid ${COR.borda}`, backgroundColor: COR.fundo }}>
+          <footer style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, padding: `20px ${espacamento}`, borderTop: `1px solid ${COR.borda}`, backgroundColor: "#06101b" }}>
             <p role="status" aria-live="polite" style={{ margin: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 12, lineHeight: "20px", color: status === "sent" ? "#276045" : COR.secundario }}>
               {status === "sent" && <Check size={16} aria-hidden="true" />}
               {status === "sent" ? "E-mail enviado com sucesso." : status === "sending" ? "Enviando mensagem. Aguarde…" : "Revise os dados antes de enviar."}

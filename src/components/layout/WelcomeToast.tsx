@@ -62,8 +62,7 @@ export default function WelcomeToast({ name, onClose }: WelcomeToastProps) {
         position: "fixed",
         right: "calc(env(safe-area-inset-right, 0px) + 12px)",
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
-        // Menor: era clamp(300px, 42vw, 540px). Ajuste aqui se quiser mais/menos.
-        width: "clamp(260px, 26vw, 340px)",
+        width: "clamp(190px, 19vw, 240px)",
         maxWidth: "calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))",
         zIndex: 9999,
         pointerEvents: "none",

@@ -232,7 +232,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
           </div>
         </header>
 
-        <div className="db-summary">
+        {entryEditor !== null && <div className="db-summary">
           <section className="db-panel db-aircraft">
             <div className="db-section-title db-title-cyan"><span>Aeronave</span><small>{selected.matricula_registro} · {selected.modelo || "—"}</small></div>
             <div className="db-stats db-four db-aircraft-stats">
@@ -269,7 +269,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
             </div>}
             </div>
           </section>
-        </div>
+        </div>}
 
         {(error || notice) && <div className={`rounded-xl border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}
         {optionsLoading && <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">Carregando opções do formulário de voo…</div>}
@@ -421,7 +421,7 @@ const diarioStyles = `
 .db-month> *+*{margin-top:15px}
 .db-month .db-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px;margin-bottom:15px}
 .db-heading{display:flex;align-items:center;gap:12px;min-width:0}
-.db-heading h1{font-size:15px;font-weight:800;line-height:1.35;margin:0}
+.db-heading h1{font-size:15px;font-weight:400;line-height:1.35;margin:0}
 .db-actions{display:flex;align-items:center;gap:23px;flex-shrink:0;margin:0 -34px;padding:0 142px}
 .db-month .db-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;border:1px solid #293445;border-radius:9px;padding:0 12px;background:#141b25;color:#98a4b6;font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;line-height:1}
 .db-month button:disabled{opacity:.45;cursor:not-allowed}
@@ -450,6 +450,9 @@ const diarioStyles = `
 .db-stat small{font-size:8px;color:#686764;margin-top:5px;margin-bottom:5px}
 .db-aircraft-stats .db-stat{min-height:54px;padding:9px 10px}
 .db-aircraft-stats .db-stat-label{color:#04d2ed}
+.db-aircraft-stats .db-stat strong{font-weight:400}
+.db-horimeter .db-stat strong{font-weight:400}
+.db-cell-stats .db-stat strong{font-weight:400}
 .db-cell{border-top:1px solid #1e2633;margin-top:10px;padding-top:10px}
 .db-cell .db-section-title:before{height:11px}
 .db-cell-stats .db-stat-label{color:#ad88ff}
@@ -480,8 +483,8 @@ const diarioStyles = `
 .db-table-options{border-bottom:1px solid #1e2633;color:#98a4b6;font-size:10px}.db-table-options>summary{padding:7px 14px;cursor:pointer}.db-table-options p{padding:0 14px;font-size:10px}
 .db-table-scroll{overflow-x:auto;max-width:100%;touch-action:pan-y}
 .db-month .db-table-scroll table{font-size:11px}.db-month .db-table-scroll :is(td,th){padding-top:8px;padding-bottom:8px}
-@media(max-width:1100px){.db-month .db-topbar{flex-wrap:wrap}.db-actions{margin-left:auto}.db-heading h1{font-size:14px}}
-@media(max-width:700px){.db-month .db-summary{grid-template-columns:1fr}.db-actions{width:100%;flex-wrap:wrap;margin-left:0}.db-actions .db-period{margin-right:auto}.db-four{grid-template-columns:repeat(2,minmax(0,1fr))}.db-panel{padding:12px}.db-toolbar{flex-wrap:wrap}.db-search{flex-basis:100%}.db-heading{align-items:flex-start}.db-heading h1{padding-top:4px}.db-month .db-back{flex-shrink:0}.db-section-title small{font-size:10px}}
+@media(max-width:1100px){.db-month .db-topbar{flex-wrap:wrap}.db-actions{flex-shrink:1;flex-wrap:wrap;max-width:100%;row-gap:8px;margin:0 0 0 auto;padding:0}.db-month .db-period{margin:0}.db-heading h1{font-size:14px}}
+@media(max-width:700px){.db-month .db-summary{grid-template-columns:1fr}.db-actions{width:100%;flex-wrap:wrap;margin:0;padding:0;gap:8px}.db-month .db-period{margin:0 auto 0 0;padding:6px 12px}.db-month .db-period select{margin:0 4px;padding:0 8px}.db-month .db-btn{padding:0 10px}.db-four{grid-template-columns:repeat(2,minmax(0,1fr))}.db-panel{padding:12px}.db-toolbar{flex-wrap:wrap}.db-search{flex-basis:100%}.db-heading{align-items:flex-start}.db-heading h1{padding-top:4px}.db-month .db-back{flex-shrink:0}.db-section-title small{font-size:10px}}
 @media print{
  @page{size:A4 landscape;margin:8mm}
  body *{visibility:hidden}

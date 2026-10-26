@@ -232,7 +232,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
           </div>
         </header>
 
-        <div className="db-summary">
+        {entryEditor !== null && <div className="db-summary">
           <section className="db-panel db-aircraft">
             <div className="db-section-title db-title-cyan"><span>Aeronave</span><small>{selected.matricula_registro} · {selected.modelo || "—"}</small></div>
             <div className="db-stats db-four db-aircraft-stats">
@@ -269,7 +269,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
             </div>}
             </div>
           </section>
-        </div>
+        </div>}
 
         {(error || notice) && <div className={`rounded-xl border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}
         {optionsLoading && <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">Carregando opções do formulário de voo…</div>}

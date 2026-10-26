@@ -451,6 +451,7 @@ const diarioStyles = `
 .db-aircraft-stats .db-stat{min-height:54px;padding:9px 10px}
 .db-aircraft-stats .db-stat-label{color:#04d2ed}
 .db-aircraft-stats .db-stat strong{font-weight:400}
+.db-horimeter .db-stat strong{font-weight:400}
 .db-cell{border-top:1px solid #1e2633;margin-top:10px;padding-top:10px}
 .db-cell .db-section-title:before{height:11px}
 .db-cell-stats .db-stat-label{color:#ad88ff}

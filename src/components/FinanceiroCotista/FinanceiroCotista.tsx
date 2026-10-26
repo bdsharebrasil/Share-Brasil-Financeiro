@@ -334,6 +334,7 @@ type AeronaveOpcao = {
   matricula_registro: string;
   fabricante: string;
   modelo: string;
+  url_imagem?: string | null;
 };
 
 export function NovoLancamentoCotistaDialog({
@@ -2572,9 +2573,13 @@ export default function FinanceiroCotista() {
                   }}
                   className="group flex items-center gap-4 rounded-xl border border-white/10 bg-card/60 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg"
                 >
-                  <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
-                    <Plane size={20} />
-                  </span>
+                  {a.url_imagem ? (
+                    <img src={a.url_imagem} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
+                      <Plane size={20} />
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-base font-semibold">{a.matricula_registro}</span>
                     <span className="block truncate text-xs text-muted-foreground">{a.modelo}</span>

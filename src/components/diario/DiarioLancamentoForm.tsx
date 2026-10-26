@@ -75,6 +75,22 @@ type VooOpcao = {
   jornadas?: NumeroVooJornada[] | null;
 };
 
+function pagadorAbastecimentoDoVoo(voo?: VooOpcao | null) {
+  if (!voo) return { clienteId: "", socioId: "" };
+
+  const emprestado =
+    voo.voo_emprestado === "sim" ||
+    voo.voo_emprestado === 1 ||
+    voo.voo_emprestado === true;
+
+  return {
+    clienteId: emprestado
+      ? voo.cliente_emprestimo_id || ""
+      : voo.cliente_id || "",
+    socioId: emprestado ? voo.socio_emprestimo_id || "" : voo.socio_id || "",
+  };
+}
+
 const naturezas = [
   "AE - Aérea/Regular",
   "CQ - Cheque",
@@ -580,6 +596,28 @@ export default function DiarioLancamentoForm({
     [vooSelecionado],
   );
 
+  useEffect(() => {
+    if (!vooSelecionado || abastecimentoModo !== "novo") return;
+
+    const sugestao = pagadorAbastecimentoDoVoo(vooSelecionado);
+    if (!sugestao.clienteId && !sugestao.socioId) return;
+
+    setForm((current) => {
+      if (
+        valor(current, "abastecimento_cliente_id") ||
+        valor(current, "abastecimento_socio_id")
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        abastecimento_cliente_id: sugestao.clienteId,
+        abastecimento_socio_id: sugestao.socioId,
+      };
+    });
+  }, [abastecimentoModo, vooSelecionado]);
+
   const jornada = jornadas.find(
     (item) => item.jornada_id === value("jornada_id"),
   );
@@ -848,6 +886,8 @@ export default function DiarioLancamentoForm({
     const voo = voos.find((item) => item.solicitacao_id === id);
     if (!voo) return;
 
+    const pagadorAbastecimento = pagadorAbastecimentoDoVoo(voo);
+
     setSolicitacaoSelecionada(id);
 
     setForm((current) => ({
@@ -869,6 +909,8 @@ export default function DiarioLancamentoForm({
         voo.voo_emprestado === "sim" ||
         voo.voo_emprestado === 1 ||
         voo.voo_emprestado === true,
+      abastecimento_cliente_id: pagadorAbastecimento.clienteId,
+      abastecimento_socio_id: pagadorAbastecimento.socioId,
       cliente_tomador_emprestimo_id:
         voo.cliente_emprestimo_id || "",
       socio_tomador_emprestimo_id: voo.socio_emprestimo_id || "",

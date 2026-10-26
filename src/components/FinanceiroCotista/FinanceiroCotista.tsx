@@ -2153,6 +2153,13 @@ export default function FinanceiroCotista() {
   const [erroDashboard, setErroDashboard] = useState<string | null>(null);
   const [aeronaves, setAeronaves] = useState<AeronaveOpcao[]>([]);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
+  const [buscaMatricula, setBuscaMatricula] = useState("");
+  const aeronavesFiltradas = useMemo(() => {
+    const termo = buscaMatricula.trim().toLowerCase();
+    return termo
+      ? aeronaves.filter((a) => a.matricula_registro.toLowerCase().includes(termo))
+      : aeronaves;
+  }, [aeronaves, buscaMatricula]);
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>(
     [],
   );
@@ -2539,11 +2546,23 @@ export default function FinanceiroCotista() {
             <h2 className="text-xl font-semibold tracking-tight md:text-2xl">Selecione uma aeronave para começar</h2>
             <p className="text-sm text-muted-foreground">Os dados financeiros e de cotistas serão carregados após a seleção.</p>
           </header>
+          <div className="mx-auto max-w-4xl">
+            <Input
+              type="search"
+              value={buscaMatricula}
+              onChange={(e) => setBuscaMatricula(e.target.value)}
+              placeholder="Digite a matrícula (ex.: PR-GJM)"
+              aria-label="Filtrar aeronaves pela matrícula"
+              className="h-10"
+            />
+          </div>
           {aeronaves.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave cadastrada.</p>
+          ) : aeronavesFiltradas.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave encontrada para &quot;{buscaMatricula}&quot;.</p>
           ) : (
             <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {aeronaves.map((a) => (
+              {aeronavesFiltradas.map((a) => (
                 <button
                   key={a.id}
                   type="button"

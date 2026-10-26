@@ -1131,14 +1131,8 @@ export default function DiarioLancamentoForm({
 
       <header className="db-header">
         <div className="db-heading">
-          <div className="db-app-icon" aria-hidden="true">
-            <BookOpen size={22} strokeWidth={1.6} />
-          </div>
-
           <div>
-            <p className="db-eyebrow">Operação aérea</p>
             <h2>{initialData ? "Editar lançamento" : "Novo lançamento"}</h2>
-            <p className="db-subtitle">Diário de bordo digital</p>
           </div>
         </div>
 
@@ -2400,7 +2394,9 @@ const styles = `
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 5px 0 20px;
+  margin: -6px 0;
+  padding: 1px 0 3px;
+  font-weight: 300;
 }
 .db-heading {
   display: flex;
@@ -2408,36 +2404,12 @@ const styles = `
   min-width: 0;
   gap: 12px;
 }
-.db-app-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  border: 1px solid rgba(123,199,239,.2);
-  border-radius: 16px;
-  color: #b6e4ff;
-  background: linear-gradient(145deg, #233c50, #142131);
-}
-.db-entry .db-eyebrow {
-  margin-bottom: 4px;
-  color: var(--db-accent);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-}
 .db-entry h2 {
-  font-size: 21px;
+  margin: 7px 0;
+  font-size: 17px;
   font-weight: 650;
   line-height: 1.2;
   letter-spacing: -.65px;
-}
-.db-entry .db-subtitle {
-  margin-top: 5px;
-  color: var(--db-muted);
-  font-size: 12px;
-  line-height: 1.5;
 }
 .db-close {
   display: grid;
@@ -2451,15 +2423,18 @@ const styles = `
   background: rgba(255,255,255,.04);
   color: #b8c7d8;
   cursor: pointer;
+  line-height: 15px;
+  font-weight: 200;
 }
 .db-overview {
   min-width: 0;
-  padding: 16px;
+  margin: 7px 0;
+  padding: 10px 12px;
   border: 1px solid rgba(139,183,222,.14);
-  border-radius: 20px;
-  background:
-    radial-gradient(ellipse at 50% 0, rgba(80,145,190,.13), transparent 75%),
-    #111d2a;
+  border-radius: 26px;
+  overflow: hidden;
+  line-height: 12px;
+  background: rgba(12,21,31,1);
 }
 .db-route-preview {
   display: flex;

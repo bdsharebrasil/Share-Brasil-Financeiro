@@ -2869,7 +2869,7 @@ const styles = `
   padding: 13px;
   border: 1px solid var(--db-border);
   border-radius: 14px;
-  background: rgba(255,255,255,.02);
+  background: rgba(1, 2, 12, 0.56);
 }
 .db-time-card-heading {
   display: flex;

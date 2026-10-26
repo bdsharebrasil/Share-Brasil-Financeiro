@@ -9,8 +9,10 @@ import {
   enviarPdfRecibo,
   enviarDemonstrativoRecibo,
   buscarDetalhesDiario,
+  buscarNumerosVooAeronave,
   type CotistaRecibo,
   type DiarioLancamento,
+  type NumeroVooOpcao,
   type OpcoesRecibos,
   type Recibo,
 } from "@/lib/colaborador-api";
@@ -27,6 +29,7 @@ type ItemDemonstrativo = {
   destino?: string | null;
   matricula?: string | null;
   numero_voo?: string | null;
+  solicitacao_id?: string | null;
   valor: number;
 };
 
@@ -58,6 +61,7 @@ type ReciboGerado = Pick<Recibo, "id" | "numero_recibo" | "nome_pagador" | "valo
 
 type Props = {
   opcoes: OpcoesRecibos;
+  dataVencimento: string;
   onCancel: () => void;
   onCreated: () => Promise<void> | void;
 };
@@ -237,13 +241,14 @@ function naturezaEspecialDoLancamento(lancamento: DiarioLancamento | null) {
   return undefined;
 }
 
-export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }: Props) {
+export default function ImportarDemonstrativoIA({ opcoes, dataVencimento, onCancel, onCreated }: Props) {
   const [tipo, setTipo] = useState<TipoDemonstrativo>("INFRAERO");
   const [aeronaveId, setAeronaveId] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [demonstrativo, setDemonstrativo] = useState<DemonstrativoLido | null>(null);
   const [linhas, setLinhas] = useState<LinhaRateio[]>([]);
+  const [voosAeronave, setVoosAeronave] = useState<NumeroVooOpcao[]>([]);
   const [carregandoLeitura, setCarregandoLeitura] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [progresso, setProgresso] = useState("");
@@ -278,7 +283,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
     [categoriaId, opcoes.categorias],
   );
   const consolidado = useMemo(() => {
-    const grupos = new Map<string, { cotista: CotistaRecibo; nome: string; valor: number; operacoes: number }>();
+    const grupos = new Map<string, { cotista: CotistaRecibo; nome: string; valor: number; operacoes: number; numerosVoo: Set<string>; solicitacoesVoo: Set<string> }>();
     for (const linha of linhas) {
       const rateios = linha.percentuaisCotistas
         ? Object.entries(linha.percentuaisCotistas).map(([cotistaId, percentual]) => ({ cotistaId, percentual }))
@@ -286,14 +291,18 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
       for (const rateio of rateios) {
         const cotista = cotistas.find((item) => item.id === rateio.cotistaId);
         if (!cotista || rateio.percentual <= 0) continue;
-        const grupo = grupos.get(cotista.id) || { cotista, nome: cotista.nome, valor: 0, operacoes: 0 };
+        const grupo = grupos.get(cotista.id) || { cotista, nome: cotista.nome, valor: 0, operacoes: 0, numerosVoo: new Set<string>(), solicitacoesVoo: new Set<string>() };
         grupo.valor += (Number(linha.valor) || 0) * rateio.percentual / 100;
         grupo.operacoes += 1;
+        if (linha.numero_voo?.trim()) grupo.numerosVoo.add(linha.numero_voo.trim());
+        if (linha.solicitacao_id) grupo.solicitacoesVoo.add(linha.solicitacao_id);
         grupos.set(cotista.id, grupo);
       }
     }
-    return [...grupos.values()].map((grupo) => ({
+    return [...grupos.values()].map(({ numerosVoo, solicitacoesVoo, ...grupo }) => ({
       ...grupo,
+      numero_voo: solicitacoesVoo.size === 1 ? [...solicitacoesVoo][0] : null,
+      numero_voo_exibicao: numerosVoo.size === 1 ? [...numerosVoo][0] : null,
       valor: Math.round(grupo.valor * 100) / 100,
     }));
   }, [cotistas, linhas]);
@@ -348,11 +357,17 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           return null;
         }
       }));
+      const respostaVoos = await buscarNumerosVooAeronave(aeronaveId).catch(() => ({ voos: [] }));
+      setVoosAeronave(respostaVoos.voos || []);
       const lancamentos = detalhes.flatMap((detalhe) => detalhe?.lancamentos || []);
       const cotistasDaAeronave = opcoes.cotistas.filter((cotista) => cotista.aeronave_id === aeronaveId);
       const novasLinhas = resultado.itens.map((item) => {
         const candidatos = encontrarLancamentos(item, lancamentos, tipo);
         const lancamento = candidatos.find((candidato) => naturezaEspecialDoLancamento(candidato)) || (candidatos.length === 1 ? candidatos[0] : null);
+        const numeroVoo = item.numero_voo || lancamento?.numero_voo || null;
+        const solicitacoesCorrespondentes = numeroVoo
+          ? respostaVoos.voos.filter((voo) => normalizar(voo.numero_voo) === normalizar(numeroVoo))
+          : [];
         const responsavel = lancamento ? responsavelDoLancamento(lancamento) : null;
         const cotista = cotistaDoLancamento(cotistasDaAeronave, lancamento) || (!lancamento?.voo_emprestado ? cotistaPorNome(cotistasDaAeronave, responsavel) : null);
         const emprestimoSemTomador = Boolean(lancamento && [1, "1", true, "true", "sim"].includes(lancamento.voo_emprestado as never) && !lancamento.cliente_tomador_emprestimo_id && !lancamento.socio_tomador_emprestimo_id);
@@ -362,7 +377,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           : undefined;
         return {
           ...item,
-          numero_voo: item.numero_voo || lancamento?.numero_voo || null,
+          numero_voo: numeroVoo,
+          solicitacao_id: solicitacoesCorrespondentes.length === 1 ? solicitacoesCorrespondentes[0].solicitacao_id : null,
           cotistaId: cotista?.id || "",
           nomeCotista: naturezaEspecial ? "Rateio entre cotistas" : cotista?.nome || responsavel || "",
           responsavelSugerido: responsavel,
@@ -477,7 +493,8 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
           valor_centavos: Math.round(grupo.valor * 100),
           descricao,
           data_emissao: hoje(),
-          data_vencimento: hoje(),
+          data_vencimento: dataVencimento,
+          numero_voo: grupo.numero_voo,
           categoria_movimentacao_id: categoriaSelecionada.id,
           categoria_nome: categoriaSelecionada.nome,
           grupo_categoria: categoriaSelecionada.grupo_categoria || "DESPESAS REEMBOLSÁVEIS",
@@ -701,7 +718,7 @@ export default function ImportarDemonstrativoIA({ opcoes, onCancel, onCreated }:
               <div className="divide-y divide-border">
                 {consolidadoComPercentual.map((grupo) => (
                   <div key={grupo.cotista.id} className="flex items-center justify-between gap-4 px-4 py-3 text-[11px]">
-                    <span className="font-semibold">{grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s) · {grupo.percentual.toFixed(2)}%</span></span>
+                    <span className="font-semibold">{grupo.nome} <span className="font-normal text-muted-foreground">· {grupo.operacoes} voo(s){grupo.numero_voo_exibicao ? ` · ${grupo.numero_voo_exibicao}` : ""} · {grupo.percentual.toFixed(2)}%</span></span>
                     <span className="font-mono font-bold">{moeda(grupo.valor)} <span className="font-normal text-muted-foreground">/ {moeda(totalLinhas)}</span></span>
                   </div>
                 ))}

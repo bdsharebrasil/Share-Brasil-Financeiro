@@ -1375,10 +1375,6 @@ export type Recibo = {
   aeronave_id: string | null;
   categoria_movimentacao_id?: string | null;
   numero_voo?: string | null;
-  subcategoria_1?: string | null;
-  subcategoria_2?: string | null;
-  subcategoria_3?: string | null;
-  subcategoria_4?: string | null;
   rateado: number;
   nome_pagador: string;
   documento_pagador: string | null;
@@ -1442,20 +1438,17 @@ export type CriarReciboPayload = {
   data_emissao: string;
   data_vencimento?: string | null;
   forma_pagamento?: string | null;
-  categoria_movimentacao_id?: string | null;
+  categoria_movimentacao_id: string;
+  categoria_despesa_subcategoria?: string | null;
   numero_voo?: string | null;
-  subcategoria_1?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;
   codigo_cliente?: string | null;
   abastecimentos_id?: string | null;
-  pagador_tipo?: "empresa" | "cotista_aeronave" | "cliente";
-  pagador_id?: string | null;
+  pagador_tipo: "empresa" | "cotista_aeronave" | "cliente";
+  pagador_id: string;
   periodicidade?: string | null;
   tipo_rateio?: string | null;
-  subcategoria_2?: string | null;
-  subcategoria_3?: string | null;
-  subcategoria_4?: string | null;
   tipo_despesa?: "fixo" | "variável" | null;
   grupo_categoria?: string | null;
   boleto_url?: string | null;
@@ -1526,7 +1519,7 @@ export function buscarRecibos(filtro?: { status?: StatusRecibo; beneficiario_tip
 }
 export function buscarRecibo(id: string) { return colaboradorRequest<{ recibo: Recibo; rateio: RateioLinhaRecibo[] }>(`/api/financeiro/recibos/${encodeURIComponent(id)}`); }
 export function criarRecibo(payload: CriarReciboPayload) {
-  return colaboradorRequest<{ recibo: Recibo; lancamento_id: string; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
+  return colaboradorRequest<{ recibo: Recibo; lancamento_id: string | null; rateio_ids: string[]; rateio_linhas: RateioLinhaEnvio[] }>("/api/financeiro/recibos", { method: "POST", body: JSON.stringify(payload) });
 }
 export type LeituraDemonstrativoResponse = { sucesso: boolean; persistido: false; tipo: string; dados_extraidos: Record<string, any> };
 export function lerDemonstrativoRecibo(payload: { imageBase64: string; mimeType: string; tipo: string }) {
@@ -1544,6 +1537,7 @@ export type GrupoReciboDemonstrativo = {
   descricao: string;
   data_emissao: string;
   data_vencimento: string;
+  numero_voo?: string | null;
   categoria_movimentacao_id: string;
   categoria_nome: string;
   grupo_categoria?: string | null;

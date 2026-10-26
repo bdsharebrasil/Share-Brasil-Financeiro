@@ -64,9 +64,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setCategoriaId(recibo.categoria_id || recibo.categoria_movimentacao_id || "");
     setFornecedorId("");
     setFornecedorNome("");
-    setSubcategoria(
-      recibo.subcategoria_1 || recibo.subcategoria_2 || recibo.subcategoria_3 || recibo.subcategoria_4 || "",
-    );
+    setSubcategoria("");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
     setObservacoes("");

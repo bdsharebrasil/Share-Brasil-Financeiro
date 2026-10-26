@@ -32,6 +32,7 @@ import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import {
   buscarOpcoesRecibos,
   buscarRecibos,
+  buscarNumerosVooAeronave,
   carregarArquivoColaborador,
   cancelarRecibo,
   reativarRecibo,
@@ -42,6 +43,7 @@ import {
   enviarDespesaRateioRecibo,
   atualizarStatusRecibo,
   type OpcoesRecibos,
+  type NumeroVooOpcao,
   type Recibo as ReciboFinanceiro,
 } from "@/lib/colaborador-api";
 import { parseReaisToCentavos } from "@/lib/money";
@@ -312,6 +314,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     recebedores: [],
   });
   const [recibos, setRecibos] = useState<ReciboFinanceiro[]>([]);
+  const [voosDisponiveis, setVoosDisponiveis] = useState<NumeroVooOpcao[]>([]);
+  const [vooSelecionadoId, setVooSelecionadoId] = useState("");
+  const [carregandoVoos, setCarregandoVoos] = useState(false);
+  const [erroVoos, setErroVoos] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -377,6 +383,43 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   useEffect(() => {
     void carregar();
   }, []);
+
+  useEffect(() => {
+    if (!["recibo_reembolso", "recibo_pagamento"].includes(form.tipo || "") || !form.aeronave_id) {
+      setVoosDisponiveis([]);
+      setVooSelecionadoId("");
+      setErroVoos("");
+      setCarregandoVoos(false);
+      return;
+    }
+
+    let ativo = true;
+    setVoosDisponiveis([]);
+    setVooSelecionadoId("");
+    setErroVoos("");
+    setCarregandoVoos(true);
+
+    void buscarNumerosVooAeronave(form.aeronave_id)
+      .then((resposta) => {
+        if (ativo) setVoosDisponiveis(resposta.voos || []);
+      })
+      .catch((cause: unknown) => {
+        if (ativo) {
+          setErroVoos(
+            cause instanceof Error
+              ? cause.message
+              : "Não foi possível carregar os voos da aeronave.",
+          );
+        }
+      })
+      .finally(() => {
+        if (ativo) setCarregandoVoos(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [form.tipo, form.aeronave_id]);
 
   const buscarHistorico = async (filtros: FiltrosHistoricoRecibos) => {
     setCarregando(true);
@@ -698,10 +741,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
               ""
             : form.recebedor_nome.trim();
 
-      // Payload enviado para criarRecibo — 1:1 com as colunas de `recibos`
-      // que fazem sentido virem do cliente. numero_recibo, status,
-      // lancamento_id, criado_por, criado_em e url_recibo são geridos pelo
-      // backend e não são enviados aqui.
+      // categoria_despesa_subcategoria é uma entrada para o backend aplicar
+      // nas tabelas financeiras relacionadas; não é uma coluna de `recibos`.
+      // Os campos numero_recibo, status, lancamento_id, criado_por, criado_em
+      // e url_recibo são geridos pelo backend.
       const payload = {
         tipo_recibo: form.tipo,
         colaborador_id:
@@ -731,7 +774,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento"
             ? form.forma_pagamento || null
             : null,
-        numero_voo: form.numero_voo.trim() || null,
+        numero_voo: vooSelecionadoId || null,
         tipo_caixa: tipoCaixaPara(form),
         categoria_movimentacao_id: form.categoria_id,
         categoria_nome: form.categoria_nome || null,
@@ -739,14 +782,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso"
             ? form.categoria_despesa_subcategoria || null
             : null,
-        subcategoria_1:
-          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_1 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
-        subcategoria_2:
-          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_2 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
-        subcategoria_3:
-          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_3 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
-        subcategoria_4:
-          form.categoria_despesa_subcategoria && categoriaClienteSelecionada?.subcategoria_4 === form.categoria_despesa_subcategoria ? form.categoria_despesa_subcategoria : null,
         grupo_categoria:
           form.tipo === "recibo_colaborador"
             ? form.natureza_despesa === "aeronave"
@@ -767,13 +802,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       };
 
       const resposta = await criarRecibo(payload);
-      const reciboCriado: ReciboFinanceiro = {
-        ...resposta.recibo,
-        subcategoria_1: payload.subcategoria_1,
-        subcategoria_2: payload.subcategoria_2,
-        subcategoria_3: payload.subcategoria_3,
-        subcategoria_4: payload.subcategoria_4,
-      };
+      const reciboCriado: ReciboFinanceiro = resposta.recibo;
 
       setEstadoEmissao("CRIADO");
       setRecibos((atual) => [
@@ -1167,26 +1196,56 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                 {form.tipo === "recibo_pagamento" && (
                   <>
                     <Campo label="Aeronave (opcional)">
-                      <select
+                      <SearchableCombobox
+                        items={opcoes.aeronaves.map((aeronave) => ({
+                          id: aeronave.id,
+                          label: `${aeronave.matricula_registro}${aeronave.modelo ? ` · ${aeronave.modelo}` : ""}`,
+                        }))}
                         value={form.aeronave_id}
-                        onChange={(e) => alterar("aeronave_id", e.target.value)}
-                        className="campo"
-                      >
-                        <option value="">Selecione a aeronave</option>
-                        {opcoes.aeronaves.map((aeronave) => (
-                          <option key={aeronave.id} value={aeronave.id}>
-                            {aeronave.matricula_registro}{aeronave.modelo ? ` · ${aeronave.modelo}` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(id) => {
+                          alterar("aeronave_id", id);
+                          alterar("numero_voo", "");
+                          setVooSelecionadoId("");
+                        }}
+                        placeholder="Selecione a aeronave"
+                        searchPlaceholder="Buscar aeronave..."
+                        emptyMessage="Nenhuma aeronave encontrada."
+                      />
                     </Campo>
                     <Campo label="Número do voo (opcional)">
-                      <input
-                        value={form.numero_voo}
-                        onChange={(e) => alterar("numero_voo", e.target.value)}
-                        placeholder="Ex.: 1234"
-                        className="campo"
+                      <SearchableCombobox
+                        items={voosDisponiveis.map((voo) => ({
+                          id: voo.solicitacao_id,
+                          label: [
+                            voo.numero_voo || "Voo sem número",
+                            voo.data_agendada
+                              ? new Date(`${voo.data_agendada.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")
+                              : "",
+                            voo.origem && voo.destino
+                              ? `${voo.origem} → ${voo.destino}`
+                              : "",
+                          ].filter(Boolean).join(" · "),
+                        }))}
+                        value={vooSelecionadoId}
+                        selectedLabel={voosDisponiveis.find((voo) => voo.solicitacao_id === vooSelecionadoId)?.numero_voo || form.numero_voo}
+                        onChange={(id) => {
+                          const voo = voosDisponiveis.find((item) => item.solicitacao_id === id);
+                          setVooSelecionadoId(id);
+                          alterar("numero_voo", voo?.numero_voo || "");
+                        }}
+                        placeholder={
+                          carregandoVoos
+                            ? "Carregando voos..."
+                            : form.aeronave_id
+                              ? "Selecione ou busque um voo"
+                              : "Selecione a aeronave primeiro"
+                        }
+                        searchPlaceholder="Buscar número, rota ou data..."
+                        emptyMessage="Nenhum voo encontrado para esta aeronave."
+                        disabled={!form.aeronave_id || carregandoVoos}
+                        clearable
                       />
+                      {erroVoos && <p className="mt-1 text-xs text-destructive">{erroVoos}</p>}
                     </Campo>
                     <Campo label="RECEBEDOR (nome)" obrigatorio>
                       <input
@@ -1239,6 +1298,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         onChange={(id) => {
                           alterar("abastecimentos_id", "");
                           alterar("aeronave_id", id);
+                          alterar("numero_voo", "");
+                          setVooSelecionadoId("");
                           alterar("pagador_id", "");
                           alterar("pagador_tipo", "empresa");
                         }}
@@ -1246,6 +1307,41 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                         searchPlaceholder="Buscar aeronave..."
                         emptyMessage="Nenhuma aeronave encontrada."
                       />
+                    </Campo>
+                    <Campo label="Número do voo (opcional)">
+                      <SearchableCombobox
+                        items={voosDisponiveis.map((voo) => ({
+                          id: voo.solicitacao_id,
+                          label: [
+                            voo.numero_voo || "Voo sem número",
+                            voo.data_agendada
+                              ? new Date(`${voo.data_agendada.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")
+                              : "",
+                            voo.origem && voo.destino
+                              ? `${voo.origem} → ${voo.destino}`
+                              : "",
+                          ].filter(Boolean).join(" · "),
+                        }))}
+                        value={vooSelecionadoId}
+                        selectedLabel={voosDisponiveis.find((voo) => voo.solicitacao_id === vooSelecionadoId)?.numero_voo || form.numero_voo}
+                        onChange={(id) => {
+                          const voo = voosDisponiveis.find((item) => item.solicitacao_id === id);
+                          setVooSelecionadoId(id);
+                          alterar("numero_voo", voo?.numero_voo || "");
+                        }}
+                        placeholder={
+                          carregandoVoos
+                            ? "Carregando voos..."
+                            : form.aeronave_id
+                              ? "Selecione ou busque um voo"
+                              : "Selecione a aeronave primeiro"
+                        }
+                        searchPlaceholder="Buscar número, rota ou data..."
+                        emptyMessage="Nenhum voo encontrado para esta aeronave."
+                        disabled={!form.aeronave_id || carregandoVoos}
+                        clearable
+                      />
+                      {erroVoos && <p className="mt-1 text-xs text-destructive">{erroVoos}</p>}
                     </Campo>
                     <Campo label="Abastecimento vinculado (opcional)">
                       <SearchableCombobox
@@ -1718,6 +1814,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       {abaAtiva === "emissao" && leitorDemonstrativoAberto && (
         <ImportarDemonstrativoIA
           opcoes={opcoes}
+          dataVencimento={form.data_vencimento}
           onCancel={() => setLeitorDemonstrativoAberto(false)}
           onCreated={async () => {
             await carregar();

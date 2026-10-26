@@ -198,8 +198,7 @@ const DESPESAS_ESTILOS = `
 .despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
 .despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
 .despesa-table .despesa-row td { padding:12px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
-[data-density="compacto"] .despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
-[data-density="confortavel"] .despesa-table .despesa-row td { padding-top:18px; padding-bottom:18px; }
+.despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
 .despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
 .despesa-table .despesa-row td:nth-child(2) { position:sticky; left:0; z-index:1; border-right:1px solid hsl(var(--border)); }
@@ -1418,7 +1417,6 @@ function LancamentosDespesa({
   aoAtualizar: () => Promise<void>;
 }) {
   const [baixaSelecionada, setBaixaSelecionada] = useState<LancamentoEconomico | null>(null);
-  const [compacto, setCompacto] = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
   const [documentoAberto, setDocumentoAberto] = useState<{
@@ -1706,7 +1704,7 @@ function LancamentosDespesa({
   ];
 
   return (
-    <div className="despesas-theme despesas-shell min-w-0 space-y-3" data-density={compacto ? "compacto" : "confortavel"}>
+    <div className="despesas-theme despesas-shell min-w-0 space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       <div className="despesa-metrics">
         {cards.map(({ titulo, valor }) => (
@@ -1728,10 +1726,6 @@ function LancamentosDespesa({
             </h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" aria-pressed={compacto}
-            onClick={() => setCompacto((atual) => !atual)} className="h-9 text-xs">
-            {compacto ? "Compacto" : "Confortável"}
-          </Button>
           <Button
             type="button"
             onClick={aoNovo}

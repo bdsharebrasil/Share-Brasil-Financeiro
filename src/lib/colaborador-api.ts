@@ -1101,7 +1101,7 @@ export type DiarioOpcaoCliente = { id: string; nome: string | null; codigo_clien
 export type DiarioOpcaoHolding = { id: string; nome: string; proprietario?: string | null };
 export type DiarioOpcaoSocio = { id: string; nome: string; cliente_id: string | null; holding_id?: string | null };
 export type DiarioOpcaoAerodromo = { id: string; designativo: string; nome: string };
-export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; holdings: DiarioOpcaoHolding[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[] };
+export type DiarioOpcoesResponse = { clientes: DiarioOpcaoCliente[]; holdings: DiarioOpcaoHolding[]; socios: DiarioOpcaoSocio[]; tripulantes: DiarioTripulante[]; aerodromos: DiarioOpcaoAerodromo[]; fornecedores_combustivel?: Array<{ id: string; nome_fornecedor: string }> };
 export type DiarioMes = {
   id: string;
   aeronave_id: string;
@@ -1201,6 +1201,9 @@ export type DiarioLancamento = {
   abastecimento_pagador_nome?: string | null;
   abastecimento_comanda?: string | null;
   abastecimento_nota?: string | null;
+  abastecimento_tipo_combustivel?: string | null;
+  abastecimento_valor_unitario?: number | null;
+  abastecimento_fornecedor_id?: string | null;
 };
 export type DiarioDetalhesResponse = { aeronave: DiarioAeronaveResumo; diario_mes: DiarioMes | null; lancamentos: DiarioLancamento[]; meses_disponiveis: Array<Pick<DiarioMes, "id" | "ano" | "mes" | "fechado" | "celula_atual_ttotal" | "celula_prox_revisao_ttotal" | "celula_disponivel_ttotal" | "celula_atual_tvoo" | "celula_prox_revisao_tvoo" | "celula_disponivel_tvoo">>; horas_cotistas?: Array<{ cotista_id: string | null; cotista_nome: string; horas_voo: number }>; horas_emprestadas?: { horas_total: number; quantidade: number } };
 

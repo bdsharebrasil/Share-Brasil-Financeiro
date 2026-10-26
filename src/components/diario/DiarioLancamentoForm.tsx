@@ -14,6 +14,7 @@ import {
   Clock,
   Fuel,
   Loader2,
+  Upload,
   PlaneTakeoff,
   Save,
   Users,
@@ -46,7 +47,10 @@ type Props = {
   initialData?: DiarioLancamento | null;
   sugestaoTrecho?: string;
   temDiaria?: boolean;
-  onSubmit: (payload: Record<string, unknown>) => Promise<void>;
+  onSubmit: (
+    payload: Record<string, unknown>,
+    arquivos?: { comanda?: File | null; nota?: File | null },
+  ) => Promise<void>;
   onCancel: () => void;
   saving: boolean;
 };
@@ -327,6 +331,9 @@ function formFromEntry(
       extra?.abastecimento_numero_comanda,
     ),
     abastecimento_numero_nf: texto(extra?.abastecimento_numero_nf),
+    abastecimento_tipo_combustivel: texto(extra?.abastecimento_tipo_combustivel),
+    abastecimento_valor_unitario: texto(extra?.abastecimento_valor_unitario),
+    abastecimento_fornecedor_id: texto(extra?.abastecimento_fornecedor_id),
 
     ocorrencias: entry?.ocorrencias || "",
     discrepancias: entry?.discrepancias || "",
@@ -384,6 +391,8 @@ export default function DiarioLancamentoForm({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [arquivoComanda, setArquivoComanda] = useState<File | null>(null);
+  const [arquivoNota, setArquivoNota] = useState<File | null>(null);
 
   const [voos, setVoos] = useState<VooOpcao[]>([]);
   const [voosError, setVoosError] = useState("");
@@ -1111,6 +1120,15 @@ export default function DiarioLancamentoForm({
               numero_comanda:
                 value("abastecimento_numero_comanda") || null,
               numero_nf: value("abastecimento_numero_nf") || null,
+              tipo_combustivel: value("abastecimento_tipo_combustivel") || null,
+              valor_unitario: number("abastecimento_valor_unitario"),
+              valor_total: Number(
+                (
+                  number("abastecimento_litros") *
+                  number("abastecimento_valor_unitario")
+                ).toFixed(2),
+              ),
+              fornecedor_id: value("abastecimento_fornecedor_id") || null,
             }
           : null,
     };
@@ -1128,7 +1146,7 @@ export default function DiarioLancamentoForm({
     setSubmitting(true);
 
     try {
-      await onSubmit(payload);
+      await onSubmit(payload, { comanda: arquivoComanda, nota: arquivoNota });
     } catch (cause: unknown) {
       mostrarErro(
         cause instanceof Error
@@ -1953,6 +1971,33 @@ export default function DiarioLancamentoForm({
                     step="0.01"
                   />
 
+                  <Field label="Tipo de combustível">
+                    <select
+                      value={value("abastecimento_tipo_combustivel")}
+                      onChange={(event) => setField("abastecimento_tipo_combustivel", event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Selecione o combustível</option>
+                      <option value="AVGAS">AVGAS</option>
+                      <option value="JETA1">JET A-1</option>
+                    </select>
+                  </Field>
+                  <Field label="Fornecedor">
+                    <SearchableCombobox
+                      items={(opcoes.fornecedores_combustivel || []).map((item) => ({
+                        id: item.id,
+                        label: item.nome_fornecedor,
+                      }))}
+                      value={value("abastecimento_fornecedor_id")}
+                      onChange={(id) => setField("abastecimento_fornecedor_id", id)}
+                      placeholder="Selecione o fornecedor"
+                      searchPlaceholder="Buscar fornecedor..."
+                      emptyMessage="Nenhum fornecedor cadastrado."
+                      clearable
+                      wrapItemLabels
+                      className={comboClass}
+                    />
+                  </Field>
                   <Field label="Data do abastecimento">
                     <input
                       type="date"
@@ -1965,6 +2010,28 @@ export default function DiarioLancamentoForm({
                     />
                   </Field>
 
+                  <NumberField
+                    label="Valor unitário"
+                    unit="R$/L"
+                    value={value("abastecimento_valor_unitario")}
+                    onChange={(next) =>
+                      setField("abastecimento_valor_unitario", next)
+                    }
+                    step="0.01"
+                  />
+                  <Field label="Valor total">
+                    <input
+                      readOnly
+                      value={(
+                        Number(value("abastecimento_litros") || 0) *
+                        Number(value("abastecimento_valor_unitario") || 0)
+                      ).toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                      className={inputClass}
+                    />
+                  </Field>
                   <Field label="Local do abastecimento">
                     <input
                       value={value("abastecimento_local")}
@@ -2004,6 +2071,32 @@ export default function DiarioLancamentoForm({
                     />
                   </Field>
 
+                  <Field label="Imagem da comanda">
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-white/15 bg-white/[.03] px-3 text-sm text-slate-300">
+                      <Upload size={15} /> <span className="truncate">{arquivoComanda?.name || "Selecionar imagem"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(event) =>
+                          setArquivoComanda(event.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </Field>
+                  <Field label="Imagem da nota fiscal">
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-white/15 bg-white/[.03] px-3 text-sm text-slate-300">
+                      <Upload size={15} /> <span className="truncate">{arquivoNota?.name || "Selecionar imagem"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(event) =>
+                          setArquivoNota(event.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </Field>
                   <Field label="Pagador · cliente">
                     <SearchableCombobox
                       items={clientesItems}

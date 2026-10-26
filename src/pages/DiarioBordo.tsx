@@ -7,7 +7,7 @@ import DiarioAeronaveCard from "@/components/diario/DiarioAeronaveCard";
 import { CreateMonthDialog } from "@/components/diario/CreateMonthDialog";
 import DiarioBancoHoras from "@/components/diario/DiarioBancoHoras";
 import DiarioLancamentoFormIntegrado from "@/components/diario/DiarioLancamentoForm";
-import { atualizarHorimetroDiario, atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
+import { atualizarHorimetroDiario, atualizarLancamentoDiario, atualizarMesDiario, buscarDetalhesDiario, buscarOpcoesDiario, buscarResumoDiario, criarLancamentoDiario, criarMesDiario, excluirLancamentoDiario, anexarArquivoAbastecimento, type DiarioAeronaveResumo, type DiarioDetalhesResponse, type DiarioLancamento, type DiarioOpcoesResponse } from "@/lib/colaborador-api";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const monthName = (month: number) => new Date(2000, month - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
@@ -118,19 +118,46 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
     finally { setSaving(false); }
   };
 
-  const saveEntry = async (payload: Record<string, unknown>) => {
+  const saveEntry = async (payload: Record<string, unknown>, arquivos?: { comanda?: File | null; nota?: File | null }) => {
     if (!selected || !details?.diario_mes) return;
     setSaving(true); setError(null);
+    let abastecimentoId: string | null = null;
     try {
-      if (entryEditor) await atualizarLancamentoDiario(entryEditor.id, payload); else await criarLancamentoDiario(payload);
+      const salvo = entryEditor
+        ? await atualizarLancamentoDiario(entryEditor.id, payload)
+        : await criarLancamentoDiario(payload);
+      abastecimentoId = salvo.abastecimento_id || null;
     } catch (cause) {
       const message = cause instanceof Error && cause.message.trim() ? cause.message : "Não foi possível salvar o lançamento.";
       setError(message);
       setSaving(false);
       return;
     }
+    let falhaUpload = false;
+    if (abastecimentoId) {
+      try {
+        await Promise.all([
+          arquivos?.comanda
+            ? anexarArquivoAbastecimento(abastecimentoId, "comanda", arquivos.comanda)
+            : Promise.resolve(),
+          arquivos?.nota
+            ? anexarArquivoAbastecimento(abastecimentoId, "nota", arquivos.nota)
+            : Promise.resolve(),
+        ]);
+      } catch {
+        falhaUpload = true;
+      }
+    } else if (arquivos?.comanda || arquivos?.nota) {
+      falhaUpload = true;
+    }
     setEntryEditor(false);
-    setNotice(entryEditor ? "Lançamento atualizado." : "Voo registrado no diário.");
+    setNotice(
+      falhaUpload
+        ? "Lançamento salvo, mas não foi possível enviar uma ou mais imagens do abastecimento."
+        : entryEditor
+          ? "Lançamento atualizado."
+          : "Voo registrado no diário.",
+    );
     try {
       await Promise.all([loadDetails(selected, period), loadList(true)]);
       setError(null);

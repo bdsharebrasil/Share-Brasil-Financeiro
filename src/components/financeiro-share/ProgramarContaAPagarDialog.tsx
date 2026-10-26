@@ -210,7 +210,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
   const valor = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(recibo.valor || 0) / 100);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 mt-[5px] -mr-[35px] -mb-[27px] -ml-[10px] flex items-center justify-center bg-black/70 px-[3px] py-[34px]" role="dialog" aria-modal="true">
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-2xl md:p-7">
         <div className="mb-5 flex items-start justify-between border-b border-border/60 pb-4">
           <div>

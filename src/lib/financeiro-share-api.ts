@@ -342,6 +342,7 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     valorCentavos: Number(row.valorCentavos ?? row.valor_centavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
 
     pagoPor: String(row.pagoPor ?? row.pago_por ?? row.pago_por_cotista_id ?? ""), caixa: ((String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" || String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "HOLDING") ? String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() : "SHARE") as "CLIENTE" | "HOLDING" | "SHARE",
+    contaBancaria: row.contaBancaria ?? row.banco_pagamento_nome ?? null,
 
     pagoDiretamente: flagFinanceira(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: flagFinanceira(row.reembolsavel),
 

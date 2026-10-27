@@ -29,6 +29,7 @@ export interface Lancamento {
   valorCentavos: number;
   pagoPor: string;
   caixa: CaixaLancamento;
+  contaBancaria?: string | null;
   pagoDiretamente: boolean;
   reembolsavel: boolean;
   reembolsoQuitado: boolean;

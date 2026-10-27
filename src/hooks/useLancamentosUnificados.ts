@@ -32,7 +32,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     if (idsRelacionados.has(l.id)) continue;
     linhas.push({ id: l.id, codigo: l.id.slice(-8).toUpperCase(), documento: l.documento || null, fluxo: l.fluxo, natureza: l.grupoCategoria || l.tipo || l.categoria,
       caixa: l.caixa === "CLIENTE" ? "CLIENTE" : "SHARE", descricao: l.descricao || "—", categoria: l.categoria || "—",
-      favorecido: l.fornecedor || l.pagoPor || "—", contaBancaria: "—", dataLancamento: l.data,
+      favorecido: l.fornecedor || l.pagoPor || "—", contaBancaria: l.contaBancaria || "—", dataLancamento: l.data,
       dataVencimento: l.prazo || null, dataPagamento: ["PAGO", "RECEBIDO"].includes(l.status) ? l.data : null,
       situacao: situacao(l.status, l.prazo), valor: l.valorCentavos / 100, reembolsavel: l.reembolsavel,
       cotistaId: l.cotistaId, origem: "lancamentos", origemId: l.id, lancamentoId: l.id,

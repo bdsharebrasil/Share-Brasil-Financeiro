@@ -38,7 +38,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   const [seletorMesAberto, setSeletorMesAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [ordenacao, setOrdenacao] = useState<{ chave: "documento" | "descricao" | "favorecido" | "caixa" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
+  const [ordenacao, setOrdenacao] = useState<{ chave: "documento" | "descricao" | "favorecido" | "contaBancaria" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -68,7 +68,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     const valor = ordenacao.chave === "documento" ? (a.documento || "").localeCompare(b.documento || "")
       : ordenacao.chave === "descricao" ? a.descricao.localeCompare(b.descricao, "pt-BR")
       : ordenacao.chave === "favorecido" ? a.favorecido.localeCompare(b.favorecido, "pt-BR")
-      : ordenacao.chave === "caixa" ? a.caixa.localeCompare(b.caixa)
+      : ordenacao.chave === "contaBancaria" ? a.contaBancaria.localeCompare(b.contaBancaria, "pt-BR")
       : ordenacao.chave === "situacao" ? a.situacao.localeCompare(b.situacao)
       : ordenacao.chave === "valor" ? a.valor - b.valor
       : a.dataLancamento.localeCompare(b.dataLancamento);
@@ -152,7 +152,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     { label: "DOC", key: "documento" },
     { label: "Descrição", key: "descricao" },
     { label: "Favorecido", key: "favorecido" },
-    { label: "Conta", key: "caixa" },
+    { label: "Conta", key: "contaBancaria" },
     { label: "Data", key: "data" },
     { label: "Situação", key: "situacao" },
     { label: "Valor", key: "valor" },

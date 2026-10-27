@@ -441,7 +441,7 @@ function StatusEmail({ item, onClick }: { item: MovimentacaoFinanceira; onClick?
 function CartaoOperacao({ op, onEmailPendente }: { op: Operacao; onEmailPendente: (item: MovimentacaoFinanceira) => void }) {
   const rotulo: Record<PapelCaixa, string> = {
     share: "Caixa Share · a pagar",
-    cliente: "Caixa Cliente · a reembolsar",
+    cliente: "Despesa Cliente",
     indefinido: "Origem",
   };
 

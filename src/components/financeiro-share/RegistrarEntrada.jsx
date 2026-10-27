@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import DataGrid, { CellText } from './components/DataGrid/DataGrid';
+import DataGrid, { CellText } from '../components/DataGrid/DataGrid';
 import styles from './RegistrarEntrada.module.css';
 
 // ---------- helpers ----------

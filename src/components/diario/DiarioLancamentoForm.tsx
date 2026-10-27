@@ -367,6 +367,9 @@ function dadosAbastecimento(item: Abastecimento): FormValues {
     abastecimento_socio_id: item.socio_id || "",
     abastecimento_numero_comanda: item.numero_comanda || "",
     abastecimento_numero_nf: item.numero_nf || "",
+    abastecimento_tipo_combustivel: item.tipo_combustivel || "",
+    abastecimento_valor_unitario: texto(item.valor_unitario),
+    abastecimento_fornecedor_id: item.fornecedor_id || "",
   };
 }
 
@@ -976,6 +979,11 @@ export default function DiarioLancamentoForm({
 
     selecionarAbastecimento("");
     setAbastecimentoModo(modo);
+  };
+
+  const editarAbastecimentoVinculado = () => {
+    setForm((current) => ({ ...current, abastecimento_id: "", abastecido: true }));
+    setAbastecimentoModo("novo");
   };
 
   const navegar = (section: string) => {
@@ -1998,6 +2006,9 @@ export default function DiarioLancamentoForm({
                           value={value("abastecimento_numero_nf") || "—"}
                         />
                       </div>
+                      <button type="button" className="db-text-button mt-3" onClick={editarAbastecimentoVinculado}>
+                        Editar dados deste abastecimento
+                      </button>
                     </div>
                   )}
                 </>

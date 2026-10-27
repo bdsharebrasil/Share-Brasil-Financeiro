@@ -601,13 +601,13 @@ function AbastecimentoRow({ record, onEdit, onDelete, onUpload, onPreview }: { r
 function AbastecimentoForm({ form, options, voos, editing, saving, files, setFiles, setField, onClose, onSave }: { form: Form; options: AbastecimentoOpcoes | null; voos: NumeroVooOpcao[]; editing: Abastecimento | null; saving: boolean; files: Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>; setFiles: React.Dispatch<React.SetStateAction<Record<"comanda" | "nota" | "boleto" | "comprovante", File | null>>>; setField: (key: keyof Form, value: string | boolean) => void; onClose: () => void; onSave: () => void }) {
   const aeronaves = Array.isArray(options?.aeronaves) ? options.aeronaves : [];
   const fornecedores = Array.isArray(options?.fornecedores) ? options.fornecedores : [];
-  const diarios = (options?.diarios || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
+  const diarios = (options?.trechos_diario || []).filter((diario: any) => diario.aeronave_id === form.aeronave_id);
   const voosUnicos = new Map<string, NumeroVooOpcao>();
   voos.forEach((voo) => { if (voo.numero_voo?.trim() && !voosUnicos.has(voo.numero_voo.trim())) voosUnicos.set(voo.numero_voo.trim(), voo); });
   if (form.numero_voo.trim() && !voosUnicos.has(form.numero_voo.trim())) voosUnicos.set(form.numero_voo.trim(), { solicitacao_id: "registro-atual", numero_voo: form.numero_voo.trim(), origem: null, destino: null, data_agendada: null, cliente_id: null, socio_id: null, voo_emprestado: null, cliente_emprestimo_id: null, socio_emprestimo_id: null, piloto_id: null, copiloto_id: null, pic_canac: null, pic_nome: null, sic_canac: null, sic_nome: null });
   const opcoesVoo = Array.from(voosUnicos.values());
   const [trechosAberto, setTrechosAberto] = useState(false);
-  const [mesTrechos, setMesTrechos] = useState(new Date().toISOString().slice(0, 7));
+  const [mesTrechos, setMesTrechos] = useState(() => form.data.slice(0, 7) || new Date().toISOString().slice(0, 7));
   const [confirmarVooEmprestado, setConfirmarVooEmprestado] = useState(false);
   const diariosDoMes = diarios.filter((diario: any) => String(diario.data_registro || "").slice(0, 7) === mesTrechos);
   const selecionarTrecho = (diario: any) => {

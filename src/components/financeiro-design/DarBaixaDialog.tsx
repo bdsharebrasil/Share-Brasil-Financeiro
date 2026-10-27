@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Banknote, CheckCircle2, Landmark } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { CampoFormulario } from "./CampoFormulario";
 import { StatusBadge } from "./StatusBadge";
 import { type LancamentoTabela, formatarBRL, formatarData, hojeISO } from "./lancamento-tabela";
@@ -211,6 +210,12 @@ export function DarBaixaDialog({
             <strong className="font-mono">{formatarData(dados.dataPagamento)}</strong>.
           </span>
         </div>
+
+        {erro && (
+          <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            {erro}
+          </p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onFechar} disabled={enviando}>

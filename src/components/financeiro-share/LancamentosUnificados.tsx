@@ -1,203 +1,152 @@
-/**
- * Substitua o LancamentosUnificados.tsx atual por este arquivo, na mesma pasta.
- * Mantém os imports dos hooks, APIs e modais enviados no código original.
- * O CSS está embutido no fim do arquivo; não é necessário criar outro CSS.
- * Uso: <LancamentosUnificados fluxo="ENTRADA" dashboardHref="/seu-dashboard" />
- * Para preencher os campos adicionais, passe obterDetalhes={(linha) => ({ ... })}.
- * Esses campos são opcionais e aparecem como “—” enquanto não forem mapeados.
- * PAGO continua sendo exibido como Conciliado, conforme seu modelo existente.
- */
-import {
-  Fragment,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import {
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsUpDown,
-  Columns2,
-  Filter,
-  List,
-  Loader2,
-  Paperclip,
-  Plus,
-  Printer,
-  ScanLine,
-  Search,
-  X,
-} from "lucide-react";
+import { Fragment, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Filter, List, Loader2, PanelLeft, Paperclip, Plus, Printer, ScanLine, Search } from "lucide-react";
 import { toast } from "sonner";
-import {
-  buscarOpcoesFinanceiroShare,
-  darBaixaContaAPagar,
-  darBaixaContaAReceber,
-  formatarData,
-  formatarMoeda,
-  type CategoriaCaixaShare,
-  type ContaBancaria,
-} from "@/lib/financeiro-share-api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { buscarOpcoesFinanceiroShare, darBaixaContaAPagar, darBaixaContaAReceber, formatarData, formatarMoeda, type CategoriaCaixaShare, type ContaBancaria } from "@/lib/financeiro-share-api";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
 import type { ContaAPagar, ContaAReceber } from "./tipos";
-import {
-  linhasDeContasAPagar,
-  linhasDeContasAReceber,
-  type FluxoLinha,
-  type LinhaConta,
-  type SituacaoLinha,
-} from "./linhas-contas";
+import { linhasDeContasAPagar, linhasDeContasAReceber, type FluxoLinha, type LinhaConta, type SituacaoLinha } from "./linhas-contas";
 import { ModalContaAPagar } from "./ModalContaAPagar";
 import { ModalContaAReceber } from "./ModalContaAReceber";
 import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 
-/** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
-export type DetalhesLancamento = {
-  centroCusto?: string;
-  formaPagamento?: string;
-  competencia?: string;
-  emissao?: string;
-  observacoes?: string;
-  anexos?: Array<{ nome: string; url: string }>;
-  criadoPor?: string;
-  criadoEm?: string;
-  ultimaAlteracao?: string;
+/* ───────────────────────── helpers ───────────────────────── */
+
+const mesAtualIso = () => new Date().toISOString().slice(0, 7);
+const nomeMes = (m: string, formato: "long" | "short") => new Date(`${m}-01T12:00:00`).toLocaleDateString("pt-BR", { month: formato });
+const podeBaixar = (l: LinhaConta) => l.situacao !== "PAGO" && l.situacao !== "CANCELADO";
+const data = (v?: string | null) => (v ? formatarData(v) : "—");
+
+type ChaveOrdenacao = "documento" | "descricao" | "favorecido" | "favorecidoPessoa" | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
+type Coluna = { key: ChaveOrdenacao; label: string; largura?: number; minimo: number };
+
+/** Situação exibida no badge. "BAIXADO" = baixa dada, ainda sem conciliação (Recebido / Pago). */
+type SituacaoExibida = "PENDENTE" | "ATRASADO" | "CANCELADO" | "BAIXADO" | "CONCILIADO";
+
+/**
+ * ATENÇÃO: se o seu `raw` tiver outro campo para indicar conciliação, ajuste aqui.
+ * Sem o campo, todo lançamento PAGO continua aparecendo como "Conciliado" (comportamento antigo).
+ */
+function situacaoExibida(l: LinhaConta): SituacaoExibida {
+  if (l.situacao !== "PAGO") return l.situacao as SituacaoExibida;
+  const raw = (l.raw ?? {}) as Record<string, any>;
+  return raw.conciliado === false || raw.conciliada === false ? "BAIXADO" : "CONCILIADO";
+}
+
+const rotuloSituacao = (s: SituacaoExibida, ehEntrada: boolean) =>
+  ({ PENDENTE: "Pendente", ATRASADO: "Atrasado", CANCELADO: "Cancelado", CONCILIADO: "Conciliado", BAIXADO: ehEntrada ? "Recebido" : "Pago" })[s];
+
+/** Badges sólidos, como na referência. */
+const COR_SITUACAO: Record<SituacaoExibida, string> = {
+  PENDENTE: "bg-amber-400 text-amber-950",
+  ATRASADO: "bg-red-500 text-white",
+  CANCELADO: "bg-slate-500 text-white",
+  BAIXADO: "bg-emerald-500 text-emerald-950",
+  CONCILIADO: "bg-emerald-500 text-emerald-950",
 };
 
-type Props = {
-  fluxo: FluxoLinha;
-  filtroInicial?: { situacao?: SituacaoLinha; inicio?: string; fim?: string };
-  /** Caminho da página de dashboard no seu projeto. */
-  dashboardHref?: string;
-  obterDetalhes?: (linha: LinhaConta) => DetalhesLancamento;
-};
+const COLUNAS_ENTRADA: Coluna[] = [
+  { key: "documento", label: "DOC", largura: 165, minimo: 110 },
+  { key: "descricao", label: "Descrição", largura: 370, minimo: 200 },
+  { key: "favorecido", label: "Favorecido", largura: 280, minimo: 160 },
+  { key: "contaBancaria", label: "Conta", largura: 150, minimo: 110 },
+  { key: "data", label: "Data", largura: 170, minimo: 120 },
+  { key: "situacao", label: "Situação", largura: 160, minimo: 120 },
+  { key: "valor", label: "Valor", minimo: 120 }, // sem largura = ocupa o espaço que sobrar
+];
 
-type ChaveColuna =
-  | "documento" | "descricao" | "favorecido" | "favorecidoPessoa"
-  | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
-type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
-type FiltroSituacao = SituacaoLinha | "TODAS";
+const COLUNAS_SAIDA: Coluna[] = [
+  { key: "documento", label: "DOC", largura: 165, minimo: 110 },
+  { key: "descricao", label: "Descrição", largura: 320, minimo: 200 },
+  { key: "favorecidoPessoa", label: "Favorecido", largura: 220, minimo: 140 },
+  { key: "fornecedor", label: "Fornecedor", largura: 220, minimo: 140 },
+  { key: "contaBancaria", label: "Conta", largura: 150, minimo: 110 },
+  { key: "data", label: "Data", largura: 170, minimo: 120 },
+  { key: "situacao", label: "Situação", largura: 160, minimo: 120 },
+  { key: "valor", label: "Valor", minimo: 120 },
+];
 
-const ROTULOS: Record<string, string> = {
-  PAGO: "Conciliado",
-  PENDENTE: "Pendente",
-  ATRASADO: "Atrasado",
-  CANCELADO: "Cancelado",
-};
-const TONS: Record<string, string> = {
-  PAGO: "sucesso", PENDENTE: "pendente", ATRASADO: "atrasado", CANCELADO: "cancelado",
-};
-
-// Usa o calendário local para não avançar o mês por causa do fuso UTC.
-function mesAtualIso() {
-  const agora = new Date();
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
-}
-function nomeMes(mes: string, formato: "long" | "short" = "long") {
-  return new Date(`${mes}-01T12:00:00`).toLocaleDateString("pt-BR", { month: formato });
-}
-function rotuloMes(mes: string) {
-  const nome = nomeMes(mes);
-  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} ${mes.slice(0, 4)}`;
-}
-function podeBaixar(linha: LinhaConta) {
-  return linha.situacao !== "PAGO" && linha.situacao !== "CANCELADO";
-}
-function dataOuTraco(valor?: string) {
-  return valor ? formatarData(valor.slice(0, 10)) : "—";
-}
-function urlSegura(valor: string) {
-  // Aceita links web e caminhos relativos. Bloqueia javascript:, data: etc.
-  try {
-    const url = new URL(valor, "https://app.local/");
-    return url.protocol === "https:" || url.protocol === "http:" ? valor : undefined;
-  } catch {
-    return undefined;
+function comparar(a: LinhaConta, b: LinhaConta, chave: ChaveOrdenacao): number {
+  const txt = (x?: string, y?: string) => (x || "").localeCompare(y || "", "pt-BR", { numeric: true });
+  switch (chave) {
+    case "valor": return a.valor - b.valor;
+    case "data": return (a.dataLancamento || "").localeCompare(b.dataLancamento || "");
+    case "situacao": return a.situacao.localeCompare(b.situacao);
+    case "documento": return txt(a.documento, b.documento);
+    case "descricao": return txt(a.descricao, b.descricao);
+    case "favorecido": return txt(a.favorecido, b.favorecido);
+    case "favorecidoPessoa": return txt(a.favorecidoPessoa, b.favorecidoPessoa);
+    case "fornecedor": return txt(a.fornecedor, b.fornecedor);
+    case "contaBancaria": return txt(a.contaBancaria, b.contaBancaria);
   }
 }
 
-function Checkbox({
-  marcado, parcial = false, desabilitado = false, rotulo, aoMudar,
-}: {
-  marcado: boolean;
-  parcial?: boolean;
-  desabilitado?: boolean;
-  rotulo: string;
-  aoMudar: () => void;
+/**
+ * Lê os dados do detalhe expandido a partir de `l.raw`.
+ * Os nomes dos campos abaixo são tentativas (snake_case e camelCase) — ajuste para os campos reais dos seus tipos.
+ */
+function lerDetalhes(l: LinhaConta) {
+  const r = (l.raw ?? {}) as Record<string, any>;
+  const txt = (...chaves: string[]) => {
+    for (const k of chaves) {
+      const v = r[k];
+      if (typeof v === "string" && v.trim()) return v;
+      if (typeof v === "number") return String(v);
+    }
+    return "";
+  };
+  const anexosBrutos: any[] = Array.isArray(r.anexos) ? r.anexos : r.anexo_url ? [r.anexo_url] : [];
+  const anexos = anexosBrutos.map((a) => typeof a === "string"
+    ? { nome: decodeURIComponent(a.split("/").pop() || "anexo"), url: a }
+    : { nome: String(a?.nome ?? a?.name ?? a?.arquivo ?? "anexo"), url: a?.url ?? a?.link ?? "" });
+  return {
+    categoria: l.categoria,
+    centroCusto: txt("centro_custo", "centroCusto", "centro_de_custo"),
+    formaPagamento: txt("forma_pagamento", "formaPagamento", "meio_pagamento"),
+    competencia: txt("competencia", "data_competencia", "competencia_data"),
+    emissao: txt("data_emissao", "dataEmissao", "emissao"),
+    documento: l.documento || "",
+    observacoes: txt("observacoes", "observacao", "obs"),
+    anexos,
+    criadoPor: txt("criado_por_nome", "criado_por", "criadoPor", "usuario_nome"),
+    criadoEm: txt("criado_em", "criadoEm", "created_at"),
+    atualizadoEm: txt("atualizado_em", "atualizadoEm", "updated_at"),
+  };
+}
+
+function Campo({ rotulo, children }: { rotulo: string; children?: ReactNode }) {
+  return <div>
+    <p className="text-xs text-muted-foreground">{rotulo}</p>
+    <div className="mt-0.5 text-sm font-medium">{children || "—"}</div>
+  </div>;
+}
+
+/* ───────────────────────── componente ───────────────────────── */
+
+export function LancamentosUnificados({ fluxo, filtroInicial, aoVoltar }: {
+  fluxo: FluxoLinha;
+  filtroInicial?: { situacao?: SituacaoLinha; inicio?: string; fim?: string };
+  /** Ação do breadcrumb "Voltar ao Dashboard". Se omitido, o link não aparece. */
+  aoVoltar?: () => void;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (ref.current) ref.current.indeterminate = parcial; }, [parcial]);
-  return (
-    <label className="erp-checkbox">
-      <input ref={ref} type="checkbox" checked={marcado} disabled={desabilitado}
-        aria-label={rotulo} onChange={aoMudar} />
-      <span aria-hidden="true">{parcial ? <span className="erp-checkbox-traco" /> : <Check size={12} strokeWidth={3} />}</span>
-    </label>
-  );
-}
-
-function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamento }) {
-  const anexos = (dados.anexos ?? []).flatMap((anexo) => {
-    const href = urlSegura(anexo.url);
-    return href ? [{ ...anexo, href }] : [];
-  });
-  return (
-    <div className="erp-detalhes">
-      <dl>
-        <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
-        <div><dt>Centro de custo</dt><dd>{dados.centroCusto || "—"}</dd></div>
-        <div><dt>Forma de pagamento</dt><dd>{dados.formaPagamento || "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Competência</dt><dd>{dataOuTraco(dados.competencia)}</dd></div>
-        <div><dt>Emissão</dt><dd>{dataOuTraco(dados.emissao)}</dd></div>
-        <div><dt>Nº do documento</dt><dd>{linha.documento || "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Observações</dt><dd className="erp-observacoes">{dados.observacoes || "—"}</dd></div>
-        <div><dt>Anexos</dt><dd>{anexos.length ? anexos.map((anexo, i) => (
-          <a key={`${anexo.href}-${i}`} href={anexo.href} target="_blank" rel="noopener noreferrer" className="erp-anexo">
-            <Paperclip size={15} aria-hidden="true" />{anexo.nome}
-          </a>
-        )) : "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Criado por/em</dt><dd>
-          {[dados.criadoPor, dados.criadoEm ? dataOuTraco(dados.criadoEm) : undefined].filter(Boolean).join(" • ") || "—"}
-        </dd></div>
-        <div><dt>Última alteração</dt><dd>{dataOuTraco(dados.ultimaAlteracao)}</dd></div>
-      </dl>
-    </div>
-  );
-}
-
-export function LancamentosUnificados({ fluxo, filtroInicial, dashboardHref = "/", obterDetalhes }: Props) {
   const pagar = useContasAPagar();
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
-  const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";
+  const lancamentos = useMemo(
+    () => (ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)),
+    [ehEntrada, pagar.contas, receber.contas]
+  );
   const carregando = ehEntrada ? receber.carregando : pagar.carregando;
   const erro = ehEntrada ? receber.erro : pagar.erro;
   const recarregar = ehEntrada ? receber.recarregar : pagar.recarregar;
-  const id = useId().replace(/:/g, "");
-  const periodoRef = useRef<HTMLDivElement>(null);
-  const botaoPeriodoRef = useRef<HTMLButtonElement>(null);
-  const dialogoPeriodoRef = useRef<HTMLDivElement>(null);
-  const pararResizeRef = useRef<(() => void) | null>(null);
-
-  const lancamentos = useMemo(() => (
-    ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)
-  ), [ehEntrada, receber.contas, pagar.contas]);
+  const colunas = ehEntrada ? COLUNAS_ENTRADA : COLUNAS_SAIDA;
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
-  const [situacaoFiltro, setSituacaoFiltro] = useState<FiltroSituacao>(filtroInicial?.situacao ?? "TODAS");
+  const [situacaoFiltro, setSituacaoFiltro] = useState<string>(filtroInicial?.situacao || "TODAS");
   const [caixaFiltro, setCaixaFiltro] = useState("TODOS");
   const [naturezaFiltro, setNaturezaFiltro] = useState("TODAS");
   const [mes, setMes] = useState(mesAtualIso);
@@ -205,520 +154,334 @@ export function LancamentosUnificados({ fluxo, filtroInicial, dashboardHref = "/
   const [seletorMesAberto, setSeletorMesAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [ordenacao, setOrdenacao] = useState<{ chave: ChaveColuna; crescente: boolean }>({ chave: "data", crescente: false });
-  const [larguras, setLarguras] = useState<Partial<Record<ChaveColuna, number>>>({});
+  const [ordenacao, setOrdenacao] = useState<{ chave: ChaveOrdenacao; crescente: boolean }>({ chave: "data", crescente: false });
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [selecionados, setSelecionados] = useState<string[]>([]);
-  const [expandidos, setExpandidos] = useState<string[]>([]);
+  const [expandidas, setExpandidas] = useState<string[]>([]);
+  const [larguras, setLarguras] = useState<Record<string, number>>({});
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
 
   useEffect(() => {
-    let ativo = true;
-    void buscarOpcoesFinanceiroShare().then((opcoes) => {
-      if (ativo) { setCategorias(opcoes.categorias); setContasBancarias(opcoes.contas_bancarias); }
-    }).catch(() => {
-      if (ativo) toast.error("Não foi possível carregar as opções financeiras. Tente novamente.");
-    });
-    return () => { ativo = false; };
+    void buscarOpcoesFinanceiroShare()
+      .then((o) => { setCategorias(o.categorias); setContasBancarias(o.contas_bancarias); })
+      .catch(() => { setCategorias([]); setContasBancarias([]); });
   }, []);
 
-  useEffect(() => {
-    setSelecionados([]);
-    setExpandidos([]);
-    setContaBaixa(null);
-    setNovo(false);
-    setLarguras({});
-  }, [fluxo]);
+  const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";
 
-  useEffect(() => { setSituacaoFiltro(filtroInicial?.situacao ?? "TODAS"); }, [filtroInicial?.situacao]);
-  useEffect(() => {
-    setPagina(1);
-  }, [busca, situacaoFiltro, caixaFiltro, naturezaFiltro, mesesSelecionados,
-    porPagina, fluxo, filtroInicial?.inicio, filtroInicial?.fim]);
-  useEffect(() => () => { pararResizeRef.current?.(); }, []);
+  const filtrados = useMemo(() => lancamentos.filter((l) => {
+    if (filtroInicial?.inicio && (l.dataVencimento || "") < filtroInicial.inicio) return false;
+    if (filtroInicial?.fim && (l.dataVencimento || "") > filtroInicial.fim) return false;
+    if (!filtroInicial?.inicio && !filtroInicial?.fim && !mesesSelecionados.includes((l.dataLancamento || "").slice(0, 7))) return false;
+    if (situacaoFiltro === "PAGO") { if (l.situacao !== "PAGO") return false; } // legado: todos os baixados
+    else if (situacaoFiltro !== "TODAS" && situacaoExibida(l) !== situacaoFiltro) return false;
+    if (caixaFiltro !== "TODOS" && l.caixa !== caixaFiltro) return false;
+    if (naturezaFiltro !== "TODAS" && l.natureza !== naturezaFiltro) return false;
+    const texto = `${l.documento || ""} ${l.descricao} ${l.categoria} ${l.favorecido} ${l.natureza}`.toLocaleLowerCase("pt-BR");
+    return texto.includes(busca.toLocaleLowerCase("pt-BR"));
+  }).sort((a, b) => {
+    const v = comparar(a, b, ordenacao.chave);
+    return ordenacao.crescente ? v : -v;
+  }), [lancamentos, mesesSelecionados, situacaoFiltro, caixaFiltro, naturezaFiltro, busca, filtroInicial, ordenacao]);
 
-  useEffect(() => {
-    if (!seletorMesAberto) return;
-    const fecharFora = (evento: PointerEvent) => {
-      if (evento.target instanceof Node && !periodoRef.current?.contains(evento.target)) setSeletorMesAberto(false);
-    };
-    const fecharEscape = (evento: KeyboardEvent) => {
-      if (evento.key === "Escape") { setSeletorMesAberto(false); botaoPeriodoRef.current?.focus(); }
-    };
-    dialogoPeriodoRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
-    document.addEventListener("pointerdown", fecharFora);
-    document.addEventListener("keydown", fecharEscape);
-    return () => {
-      document.removeEventListener("pointerdown", fecharFora);
-      document.removeEventListener("keydown", fecharEscape);
-    };
-  }, [seletorMesAberto]);
-
-  const colunas = useMemo<Coluna[]>(() => [
-    { chave: "documento", rotulo: "DOC", largura: 162 },
-    { chave: "descricao", rotulo: "Descrição" },
-    ...(ehEntrada
-      ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 280 }]
-      : [{ chave: "favorecidoPessoa" as const, rotulo: "Favorecido", largura: 200 },
-        { chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
-    { chave: "contaBancaria", rotulo: "Conta", largura: 153 },
-    { chave: "data", rotulo: "Data", largura: 172 },
-    { chave: "situacao", rotulo: "Situação", largura: 158 },
-    { chave: "valor", rotulo: "Valor", largura: 180 },
-  ], [ehEntrada]);
-
-  const temPeriodoInicial = Boolean(filtroInicial?.inicio || filtroInicial?.fim);
-  const filtrados = useMemo(() => {
-    const textoBusca = busca.trim().toLocaleLowerCase("pt-BR");
-    return lancamentos.filter((linha) => {
-      const vencimento = (linha.dataVencimento || "").slice(0, 10);
-      if (filtroInicial?.inicio && vencimento < filtroInicial.inicio.slice(0, 10)) return false;
-      if (filtroInicial?.fim && (!vencimento || vencimento > filtroInicial.fim.slice(0, 10))) return false;
-      if (!temPeriodoInicial && !mesesSelecionados.includes((linha.dataLancamento || "").slice(0, 7))) return false;
-      if (situacaoFiltro !== "TODAS" && linha.situacao !== situacaoFiltro) return false;
-      if (caixaFiltro !== "TODOS" && linha.caixa !== caixaFiltro) return false;
-      if (naturezaFiltro !== "TODAS" && linha.natureza !== naturezaFiltro) return false;
-      const texto = [linha.documento, linha.descricao, linha.categoria, linha.favorecido,
-        linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.natureza].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
-      return texto.includes(textoBusca);
-    }).sort((a, b) => {
-      const chave = ordenacao.chave;
-      const comparacao = chave === "valor" ? a.valor - b.valor
-        : String(chave === "data" ? a.dataLancamento ?? "" : a[chave] ?? "").localeCompare(
-          String(chave === "data" ? b.dataLancamento ?? "" : b[chave] ?? ""), "pt-BR", { numeric: true });
-      return ordenacao.crescente ? comparacao : -comparacao;
-    });
-  }, [lancamentos, busca, situacaoFiltro, caixaFiltro, naturezaFiltro, mesesSelecionados,
-    filtroInicial?.inicio, filtroInicial?.fim, temPeriodoInicial, ordenacao]);
-
-  const selecao = useMemo(() => new Set(selecionados), [selecionados]);
-  const expansao = useMemo(() => new Set(expandidos), [expandidos]);
-  const selecionadosVisiveis = filtrados.filter((linha) => selecao.has(linha.id));
-  const unicoSelecionado = selecionadosVisiveis.length === 1 ? selecionadosVisiveis[0] : null;
-  const totalListado = filtrados.reduce((soma, linha) => soma + linha.valor, 0);
+  const total = filtrados.reduce((s, l) => s + l.valor, 0);
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
-  const paginaAtual = Math.max(1, Math.min(pagina, paginas));
+  const paginaAtual = Math.min(pagina, paginas);
   const linhas = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
-  const todasSelecionadas = linhas.length > 0 && linhas.every((linha) => selecao.has(linha.id));
-  const algumasSelecionadas = linhas.some((linha) => selecao.has(linha.id));
-  const todasExpandidas = linhas.length > 0 && linhas.every((linha) => expansao.has(linha.id));
-  const itensRelatorio = selecionadosVisiveis.length ? selecionadosVisiveis : filtrados;
-  const totalRelatorio = itensRelatorio.reduce((soma, linha) => soma + linha.valor, 0);
-  const anoSeletor = Number(mes.slice(0, 4));
-  const mesesDoAno = Array.from({ length: 12 }, (_, indice) => `${anoSeletor}-${String(indice + 1).padStart(2, "0")}`);
-  const periodo = temPeriodoInicial
-    ? `${filtroInicial?.inicio ? dataOuTraco(filtroInicial.inicio) : "Início"} a ${filtroInicial?.fim ? dataOuTraco(filtroInicial.fim) : "hoje"}`
-    : mesesSelecionados.length === 1 ? rotuloMes(mesesSelecionados[0]) : `${mesesSelecionados.length} meses selecionados`;
-  const periodoImpressao = temPeriodoInicial ? periodo : [...mesesSelecionados].sort().map(rotuloMes).join(", ");
-  const naturezas = [...new Set(lancamentos.map((linha) => linha.natureza).filter(Boolean))];
-  const filtrosAtivos = Number(Boolean(busca.trim())) + Number(situacaoFiltro !== "TODAS")
-    + Number(caixaFiltro !== "TODOS") + Number(naturezaFiltro !== "TODAS");
 
-  // Se uma atualização reduzir o número de páginas, mantém a página válida.
-  useEffect(() => { setPagina((atual) => Math.min(atual, paginas)); }, [paginas]);
+  const selecionadosVisiveis = filtrados.filter((l) => selecionados.includes(l.id));
+  const usaSelecao = selecionadosVisiveis.length > 0;
+  const unicoSelecionado = selecionadosVisiveis.length === 1 ? selecionadosVisiveis[0] : null;
+  const todasDaPaginaSelecionadas = linhas.length > 0 && linhas.every((l) => selecionados.includes(l.id));
+  const todasExpandidas = linhas.length > 0 && linhas.every((l) => expandidas.includes(l.id));
 
-  function alternarSelecao(idLinha: string) {
-    setSelecionados((atuais) => atuais.includes(idLinha) ? atuais.filter((item) => item !== idLinha) : [...atuais, idLinha]);
-  }
-  function alternarPagina() {
-    const ids = new Set(linhas.map((linha) => linha.id));
-    setSelecionados((atuais) => todasSelecionadas ? atuais.filter((item) => !ids.has(item)) : [...new Set([...atuais, ...ids])]);
-  }
-  function alternarExpansao(idLinha: string) {
-    setExpandidos((atuais) => atuais.includes(idLinha) ? atuais.filter((item) => item !== idLinha) : [...atuais, idLinha]);
-  }
-  function alternarTodas() {
-    const ids = new Set(linhas.map((linha) => linha.id));
-    setExpandidos((atuais) => todasExpandidas ? atuais.filter((item) => !ids.has(item)) : [...new Set([...atuais, ...ids])]);
-  }
-  function mudarMes(delta: number) {
-    const data = new Date(`${mes}-01T12:00:00`);
-    data.setMonth(data.getMonth() + delta);
-    const proximo = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
+  const rotuloMes = mesesSelecionados.length === 1
+    ? `${nomeMes(mesesSelecionados[0], "long").replace(/^./, (c) => c.toUpperCase())} ${mesesSelecionados[0].slice(0, 4)}`
+    : `${mesesSelecionados.length} meses selecionados`;
+  const periodoImpressao = filtroInicial?.inicio || filtroInicial?.fim
+    ? `${filtroInicial?.inicio ? formatarData(filtroInicial.inicio) : "início"} a ${filtroInicial?.fim ? formatarData(filtroInicial.fim) : "hoje"}`
+    : [...mesesSelecionados].sort().map((m) => `${nomeMes(m, "long")} ${m.slice(0, 4)}`).join(", ");
+  const itensRelatorio = usaSelecao ? selecionadosVisiveis : filtrados;
+  const totalRelatorio = itensRelatorio.reduce((s, l) => s + l.valor, 0);
+
+  const anoSeletor = mes.slice(0, 4);
+  const mesesDoAno = Array.from({ length: 12 }, (_, i) => `${anoSeletor}-${String(i + 1).padStart(2, "0")}`);
+  const mudarMes = (delta: number) => {
+    const d = new Date(`${mes}-01T12:00:00`);
+    d.setMonth(d.getMonth() + delta);
+    const proximo = d.toISOString().slice(0, 7);
     setMes(proximo); setMesesSelecionados([proximo]); setPagina(1);
-  }
-  function alternarMes(valor: string) {
-    setMes(valor);
-    setMesesSelecionados((atuais) => atuais.includes(valor)
-      ? atuais.length > 1 ? atuais.filter((item) => item !== valor) : atuais
-      : [...atuais, valor]);
-  }
-  function irParaMesAtual() {
-    const atual = mesAtualIso();
-    setMes(atual); setMesesSelecionados([atual]); setSeletorMesAberto(false); setPagina(1);
-    botaoPeriodoRef.current?.focus();
-  }
-  function limparFiltros() {
-    setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setNaturezaFiltro("TODAS");
-  }
-  function iniciarResize(evento: ReactPointerEvent<HTMLSpanElement>, chave: ChaveColuna) {
-    evento.preventDefault(); evento.stopPropagation();
-    const cabecalho = evento.currentTarget.closest("th");
-    if (!cabecalho) return;
-    pararResizeRef.current?.();
-    const inicio = evento.clientX;
-    const larguraInicial = cabecalho.getBoundingClientRect().width;
-    const mover = (e: PointerEvent) => setLarguras((atuais) => ({ ...atuais, [chave]: Math.max(110, larguraInicial + e.clientX - inicio) }));
-    const parar = () => {
-      window.removeEventListener("pointermove", mover);
-      window.removeEventListener("pointerup", parar);
-      window.removeEventListener("pointercancel", parar);
-      pararResizeRef.current = null;
-    };
-    pararResizeRef.current = parar;
+  };
+  const mudarAno = (delta: number) => setMes(`${Number(anoSeletor) + delta}-${mes.slice(5)}`);
+  const irParaMesAtual = () => { const atual = mesAtualIso(); setMes(atual); setMesesSelecionados([atual]); setPagina(1); };
+  const alternarMes = (m: string) => {
+    setMes(m); setPagina(1);
+    setMesesSelecionados((atual) => atual.includes(m) ? (atual.length > 1 ? atual.filter((x) => x !== m) : atual) : [...atual, m]);
+  };
+
+  const alternarSelecao = (id: string) => setSelecionados((atual) => atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]);
+  const alternarPagina = () => setSelecionados((atual) => todasDaPaginaSelecionadas
+    ? atual.filter((id) => !linhas.some((l) => l.id === id))
+    : [...new Set([...atual, ...linhas.map((l) => l.id)])]);
+
+  const alternarExpansao = (id: string) => setExpandidas((atual) => atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]);
+  const alternarTodas = () => setExpandidas((atual) => todasExpandidas
+    ? atual.filter((id) => !linhas.some((l) => l.id === id))
+    : [...new Set([...atual, ...linhas.map((l) => l.id)])]);
+
+  const larguraDe = (c: Coluna) => larguras[c.key] ?? c.largura;
+  const larguraMinimaTabela = 84 + colunas.reduce((s, c) => s + (larguraDe(c) ?? c.minimo), 0);
+  const restaurarColunas = () => { setLarguras({}); setOrdenacao({ chave: "data", crescente: false }); };
+
+  function iniciarRedimensionar(e: ReactPointerEvent, c: Coluna) {
+    e.preventDefault();
+    e.stopPropagation();
+    const x0 = e.clientX;
+    const w0 = (e.currentTarget.closest("th") as HTMLElement | null)?.offsetWidth ?? larguraDe(c) ?? c.minimo;
+    const mover = (ev: PointerEvent) => setLarguras((a) => ({ ...a, [c.key]: Math.max(c.minimo, Math.round(w0 + ev.clientX - x0)) }));
+    const soltar = () => { window.removeEventListener("pointermove", mover); window.removeEventListener("pointerup", soltar); };
     window.addEventListener("pointermove", mover);
-    window.addEventListener("pointerup", parar);
-    window.addEventListener("pointercancel", parar);
+    window.addEventListener("pointerup", soltar);
   }
 
-  return (
-    <section className={`erp-financeiro ${ehEntrada ? "erp-entrada" : "erp-saida"}`} aria-labelledby={`${id}-titulo`}>
-      <style>{ESTILOS_FINANCEIRO}</style>
-      <div className="erp-tela">
-        <nav className="erp-breadcrumb" aria-label="Navegação estrutural">
-          <a href={dashboardHref}><ChevronLeft size={14} aria-hidden="true" />Voltar ao Dashboard</a>
-          <span aria-hidden="true">/</span><span aria-current="page">{ehEntrada ? "Registrar entrada" : "Registrar saída"}</span>
-        </nav>
+  function abrirBaixa(l: LinhaConta) {
+    if (podeBaixar(l)) setContaBaixa(l);
+  }
 
-        <header className="erp-cabecalho">
-          <div><p className="erp-sobretitulo">Módulo financeiro</p><h2 id={`${id}-titulo`}>{titulo}</h2></div>
-          <div className="erp-resumo"><span>Total listado</span><strong>{carregando ? "—" : formatarMoeda(totalListado)}</strong></div>
-        </header>
+  const TD = "overflow-hidden border-r border-border/50 px-3 py-1.5 align-middle last:border-r-0";
 
-        <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
-          <div className="erp-acoes">
-            <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}><Plus size={17} aria-hidden="true" />Novo</button>
-            <button type="button" className="erp-btn" disabled={carregando || !unicoSelecionado || !podeBaixar(unicoSelecionado)}
-              title="Selecione um lançamento pendente ou atrasado para conciliar"
-              onClick={() => { if (unicoSelecionado && podeBaixar(unicoSelecionado)) setContaBaixa(unicoSelecionado); }}>
-              <ScanLine size={16} aria-hidden="true" />Conciliar
-            </button>
-            <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}><Printer size={17} aria-hidden="true" />Imprimir</button>
-            <button type="button" className={`erp-btn ${mostrarFiltros ? "erp-btn-ativo" : ""}`} aria-expanded={mostrarFiltros}
-              aria-controls={`${id}-filtros`} onClick={() => setMostrarFiltros((atual) => !atual)}>
-              <Filter size={17} aria-hidden="true" />Filtrar{filtrosAtivos > 0 && <span className="erp-contador">{filtrosAtivos}</span>}
-            </button>
-            <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" disabled={carregando || !linhas.length} onClick={alternarTodas}>
-              <List size={18} aria-hidden="true" />{todasExpandidas ? "Recolher todas" : "Expandir todas"}
-            </button>
-            <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" onClick={() => setLarguras({})}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
-          </div>
+  function celula(l: LinhaConta, c: Coluna) {
+    switch (c.key) {
+      case "documento":
+        return <td key={c.key} className={`${TD} font-mono text-xs text-muted-foreground`}><div className="truncate">{l.documento || "—"}</div></td>;
+      case "descricao":
+        return <td key={c.key} className={TD}>
+          <div className="truncate font-medium">{l.descricao}</div>
+          <div className="truncate text-xs text-muted-foreground">{l.categoria}</div>
+        </td>;
+      case "favorecido":
+        return <td key={c.key} className={TD}><div className="truncate" title={l.favorecido}>{l.favorecido}</div></td>;
+      case "favorecidoPessoa":
+        return <td key={c.key} className={TD}><div className="truncate">{l.favorecidoPessoa || "—"}</div></td>;
+      case "fornecedor":
+        return <td key={c.key} className={TD}><div className="truncate">{l.fornecedor || "—"}</div></td>;
+      case "contaBancaria":
+        return <td key={c.key} className={TD}><div className="truncate">{l.contaBancaria}</div></td>;
+      case "data":
+        return <td key={c.key} className={TD}>
+          <div>{data(l.dataLancamento)}</div>
+          {l.dataVencimento && <div className="text-xs text-muted-foreground">Venc. {formatarData(l.dataVencimento)}</div>}
+        </td>;
+      case "situacao": {
+        const s = situacaoExibida(l);
+        return <td key={c.key} className={TD}>
+          <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold leading-4 ${COR_SITUACAO[s] ?? COR_SITUACAO.PENDENTE}`}>{rotuloSituacao(s, ehEntrada) ?? l.situacao}</span>
+        </td>;
+      }
+      case "valor":
+        return <td key={c.key} className={`${TD} text-right font-semibold tabular-nums`}>{formatarMoeda(l.valor)}</td>;
+    }
+  }
 
-          <div className="erp-periodo" ref={periodoRef}>
-            {!temPeriodoInicial && <button type="button" ref={botaoPeriodoRef} className="erp-btn" aria-expanded={seletorMesAberto}
-              aria-haspopup="dialog" aria-controls={`${id}-meses`} onClick={() => setSeletorMesAberto((atual) => !atual)}>
-              Mês Atual<ChevronDown size={12} aria-hidden="true" />
-            </button>}
-            <div className="erp-navegacao-mes">
-              {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><ChevronLeft size={18} /></button>}
-              <span className="erp-rotulo-periodo">{periodo}</span>
-              {!temPeriodoInicial && <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo mês" onClick={() => mudarMes(1)}><ChevronRight size={18} /></button>}
-            </div>
-            {seletorMesAberto && !temPeriodoInicial && (
-              <div id={`${id}-meses`} ref={dialogoPeriodoRef} className="erp-seletor-mes" role="dialog" aria-label="Selecionar meses">
-                <div className="erp-seletor-cabecalho">
-                  <button type="button" className="erp-btn erp-btn-icone" aria-label="Ano anterior" onClick={() => setMes(`${anoSeletor - 1}-${mes.slice(5)}`)}><ChevronLeft size={16} /></button>
-                  <strong>{anoSeletor}</strong>
-                  <button type="button" className="erp-btn erp-btn-icone" aria-label="Próximo ano" onClick={() => setMes(`${anoSeletor + 1}-${mes.slice(5)}`)}><ChevronRight size={16} /></button>
-                </div>
-                <div className="erp-meses">{mesesDoAno.map((valor) => (
-                  <button type="button" key={valor} aria-pressed={mesesSelecionados.includes(valor)} onClick={() => alternarMes(valor)}>{nomeMes(valor, "short").replace(".", "")}</button>
-                ))}</div>
-                <div className="erp-seletor-rodape"><span>Selecione um ou mais meses.</span><button type="button" className="erp-btn" onClick={irParaMesAtual}>Mês atual</button></div>
-              </div>
-            )}
-          </div>
-        </div>
+  return <section className="space-y-4">
+    {aoVoltar && <nav aria-label="Navegação" className="flex items-center gap-2 text-xs text-muted-foreground">
+      <button type="button" onClick={aoVoltar} className="inline-flex items-center gap-1 text-primary hover:underline"><ChevronLeft size={13}/>Voltar ao Dashboard</button>
+      <span>/</span>
+      <span>{ehEntrada ? "Registrar entrada" : "Registrar saída"}</span>
+    </nav>}
 
-        {mostrarFiltros && <div className="erp-filtros" id={`${id}-filtros`}>
-          <label className="erp-busca"><span className="erp-sr-only">Buscar lançamento</span><Search size={16} aria-hidden="true" />
-            <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
-          </label>
-          <label><span className="erp-sr-only">Situação</span><select value={situacaoFiltro} onChange={(e) => setSituacaoFiltro(e.target.value as FiltroSituacao)}>
-            <option value="TODAS">Todas as situações</option><option value="PENDENTE">Pendente</option>
-            <option value="ATRASADO">Atrasado</option><option value="PAGO">Conciliado</option><option value="CANCELADO">Cancelado</option>
-          </select></label>
-          <label><span className="erp-sr-only">Caixa</span><select value={caixaFiltro} onChange={(e) => setCaixaFiltro(e.target.value)}>
-            <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>
-          </select></label>
-          <label><span className="erp-sr-only">Natureza</span><select value={naturezaFiltro} onChange={(e) => setNaturezaFiltro(e.target.value)}>
-            <option value="TODAS">Todas as naturezas</option>{naturezas.map((natureza) => <option key={natureza} value={natureza}>{natureza}</option>)}
-          </select></label>
-          <button type="button" className="erp-btn erp-btn-texto" onClick={limparFiltros}><X size={15} aria-hidden="true" />Limpar</button>
-        </div>}
-
-        {erro && <div className="erp-erro" role="alert"><span>{String(erro)}</span><button type="button" className="erp-btn" onClick={() => void recarregar()}>Tentar novamente</button></div>}
-
-        <div className="erp-tabela-container" role="region" aria-label="Tabela de lançamentos" tabIndex={0} aria-busy={carregando}>
-          <table className={`erp-tabela ${!ehEntrada ? "erp-tabela-saidas" : ""}`}>
-            <caption className="erp-sr-only">{titulo} — {periodo}</caption>
-            <colgroup><col style={{ width: 80 }} />{colunas.map((coluna) => (
-              <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
-            ))}</colgroup>
-            <thead><tr>
-              <th scope="col"><div className="erp-celula-selecao erp-selecao-cabecalho">
-                <Checkbox marcado={todasSelecionadas} parcial={algumasSelecionadas && !todasSelecionadas}
-                  desabilitado={carregando || !linhas.length} rotulo="Selecionar todos desta página" aoMudar={alternarPagina} />
-              </div></th>
-              {colunas.map((coluna) => <th scope="col" key={coluna.chave}
-                aria-sort={ordenacao.chave === coluna.chave ? ordenacao.crescente ? "ascending" : "descending" : "none"}>
-                <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
-                  {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
-                </button>
-                <span className="erp-redimensionar" onPointerDown={(e) => iniciarResize(e, coluna.chave)} aria-hidden="true" title="Arraste para ajustar a coluna" />
-              </th>)}
-            </tr></thead>
-            <tbody>
-              {carregando ? <tr><td colSpan={colunas.length + 1} className="erp-estado"><Loader2 size={18} className="erp-girando" aria-hidden="true" />Carregando lançamentos...</td></tr>
-                : linhas.length ? linhas.map((linha) => {
-                  const aberta = expansao.has(linha.id);
-                  const indiceLinha = lancamentos.findIndex((item) => item.id === linha.id);
-                  const detalheId = `${id}-detalhes-${indiceLinha}`;
-                  return <Fragment key={linha.id}>
-                    <tr className={`erp-linha ${selecao.has(linha.id) ? "erp-linha-selecionada" : ""} ${aberta ? "erp-linha-aberta" : ""}`}
-                      onClick={() => alternarExpansao(linha.id)}>
-                      <td onClick={(e) => e.stopPropagation()}><div className="erp-celula-selecao">
-                        <button type="button" className="erp-expandir" aria-label={`${aberta ? "Recolher" : "Expandir"} ${linha.descricao}`}
-                          aria-expanded={aberta} aria-controls={aberta ? detalheId : undefined} onClick={() => alternarExpansao(linha.id)}>
-                          <ChevronRight size={15} aria-hidden="true" />
-                        </button>
-                        <Checkbox marcado={selecao.has(linha.id)} rotulo={`Selecionar ${linha.descricao}`} aoMudar={() => alternarSelecao(linha.id)} />
-                      </div></td>
-                      <td className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>
-                      <td><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
-                      {ehEntrada ? <td title={linha.favorecido}>{linha.favorecido || "—"}</td> : <>
-                        <td title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>
-                        <td title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>
-                      </>}
-                      <td title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>
-                      <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
-                      <td><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[linha.situacao] ?? linha.situacao}</span></td>
-                      <td className="erp-valor">{formatarMoeda(linha.valor)}</td>
-                    </tr>
-                    {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunas.length + 1}>
-                      <div id={detalheId}><Detalhes linha={linha} dados={obterDetalhes?.(linha) ?? {}} /></div>
-                    </td></tr>}
-                  </Fragment>;
-                }) : <tr><td colSpan={colunas.length + 1} className="erp-estado">Nenhum lançamento encontrado para os filtros.</td></tr>}
-            </tbody>
-            <tfoot><tr><td colSpan={colunas.length}>TOTAL LISTADO ({filtrados.length} {filtrados.length === 1 ? "item" : "itens"})</td>
-              <td className="erp-total-rodape">{carregando ? "—" : formatarMoeda(totalListado)}</td></tr></tfoot>
-          </table>
-        </div>
-
-        <footer className="erp-rodape">
-          <div className="erp-rodape-info"><span>{selecionadosVisiveis.length} {selecionadosVisiveis.length === 1 ? "selecionado" : "selecionados"}</span>
-            <span className="erp-barra" aria-hidden="true">|</span><span>{filtrados.length} registros</span><span className="erp-barra" aria-hidden="true">|</span>
-            <label className="erp-por-pagina"><span className="erp-sr-only">Linhas por página</span><select value={porPagina} onChange={(e) => setPorPagina(Number(e.target.value))}>
-              {[10, 25, 50, 100].map((quantidade) => <option key={quantidade} value={quantidade}>{quantidade} linhas por página</option>)}
-            </select><ChevronDown size={12} aria-hidden="true" /></label>
-          </div>
-          <div className="erp-paginacao"><span>{filtrados.length ? `${(paginaAtual - 1) * porPagina + 1}–${Math.min(paginaAtual * porPagina, filtrados.length)} de ${filtrados.length}` : "0 itens"}</span>
-            <button type="button" className="erp-pagina-btn" aria-label="Página anterior" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}><ChevronLeft size={16} /></button>
-            <span aria-live="polite">{paginaAtual} / {paginas}</span>
-            <button type="button" className="erp-pagina-btn" aria-label="Próxima página" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={16} /></button>
-          </div>
-        </footer>
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Módulo financeiro</p>
+        <h2 className="mt-0.5 text-2xl font-bold tracking-tight">{titulo}</h2>
       </div>
+      <div className="text-right">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Total listado</p>
+        <strong className={`text-2xl font-bold tabular-nums ${ehEntrada ? "text-emerald-400" : "text-red-400"}`}>{formatarMoeda(total)}</strong>
+      </div>
+    </header>
 
-      <div className="erp-relatorio-impressao">
-        <h1>{titulo}</h1><p>Período: {periodoImpressao}</p><p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
-        <table><thead><tr>{colunas.map((coluna) => <th key={coluna.chave}>{coluna.rotulo}</th>)}</tr></thead>
-          <tbody>{itensRelatorio.map((linha) => <tr key={linha.id}>
-            <td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
-            {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <><td>{linha.favorecidoPessoa || "—"}</td><td>{linha.fornecedor || "—"}</td></>}
-            <td>{linha.contaBancaria}</td><td>{dataOuTraco(linha.dataLancamento)}</td>
-            <td>{ROTULOS[linha.situacao] ?? linha.situacao}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
-          </tr>)}</tbody>
-          <tfoot><tr><td colSpan={colunas.length - 1}>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"} ({itensRelatorio.length} {itensRelatorio.length === 1 ? "item" : "itens"})</td><td className="erp-direita">{formatarMoeda(totalRelatorio)}</td></tr></tfoot>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button onClick={() => setNovo(true)} className="gap-2"><Plus size={16}/>Novo</Button>
+      <Button variant="outline" className="gap-2" title="Dar baixa / conciliar o lançamento selecionado" disabled={!unicoSelecionado || !podeBaixar(unicoSelecionado)} onClick={() => unicoSelecionado && abrirBaixa(unicoSelecionado)}><ScanLine size={16}/>Conciliar</Button>
+      <Button variant="outline" className="gap-2" onClick={() => window.print()}><Printer size={16}/>Imprimir</Button>
+      <Button variant="outline" className="gap-2" aria-expanded={mostrarFiltros} onClick={() => setMostrarFiltros((v) => !v)}><Filter size={16}/>Filtrar</Button>
+      <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+      <Button variant="ghost" className="gap-2" disabled={!linhas.length} onClick={alternarTodas}><List size={16}/>{todasExpandidas ? "Recolher todas" : "Expandir todas"}</Button>
+      <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+      <Button variant="ghost" className="gap-2" onClick={restaurarColunas}><PanelLeft size={16}/>Restaurar colunas</Button>
+
+      <span className="relative ml-auto flex items-center gap-2">
+        <Button variant="outline" className="gap-2" aria-expanded={seletorMesAberto} onClick={() => setSeletorMesAberto((v) => !v)}>Mês Atual<ChevronDown size={14}/></Button>
+        <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><ChevronLeft size={16}/></Button>
+        <span className="min-w-[8.5rem] text-center text-sm font-medium">{rotuloMes}</span>
+        <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => mudarMes(1)}><ChevronRight size={16}/></Button>
+        {seletorMesAberto && <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-xl border border-border bg-card p-3 shadow-lg">
+          <div className="mb-3 flex items-center justify-between">
+            <Button variant="ghost" size="icon" aria-label="Ano anterior" onClick={() => mudarAno(-1)}><ChevronLeft size={16}/></Button>
+            <strong className="text-sm">{anoSeletor}</strong>
+            <Button variant="ghost" size="icon" aria-label="Próximo ano" onClick={() => mudarAno(1)}><ChevronRight size={16}/></Button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {mesesDoAno.map((m) => <button key={m} type="button" aria-pressed={mesesSelecionados.includes(m)} onClick={() => alternarMes(m)} className={`rounded-lg border px-2 py-2 text-xs capitalize ${mesesSelecionados.includes(m) ? "border-primary bg-primary/10 font-semibold text-primary" : "border-border text-muted-foreground hover:bg-muted/30"}`}>{nomeMes(m, "short")}</button>)}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Clique em mais de um mês para somar.</span>
+            <Button variant="outline" size="sm" onClick={irParaMesAtual}>Mês atual</Button>
+          </div>
+        </div>}
+      </span>
+    </div>
+
+    {mostrarFiltros && <div className="grid gap-2 rounded-xl border border-border bg-card/60 p-3 md:grid-cols-4">
+      <label className="relative"><Search size={15} className="absolute left-3 top-3 text-muted-foreground"/><Input className="pl-9" placeholder="Buscar lançamento" value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }}/></label>
+      <Select value={situacaoFiltro} onValueChange={(v) => { setSituacaoFiltro(v); setPagina(1); }}>
+        <SelectTrigger><SelectValue placeholder="Situação"/></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="TODAS">Todas as situações</SelectItem>
+          <SelectItem value="PENDENTE">Pendente</SelectItem>
+          <SelectItem value="ATRASADO">Atrasado</SelectItem>
+          <SelectItem value="BAIXADO">{ehEntrada ? "Recebido" : "Pago"}</SelectItem>
+          <SelectItem value="CONCILIADO">Conciliado</SelectItem>
+          <SelectItem value="PAGO">{ehEntrada ? "Recebidos + conciliados" : "Pagos + conciliados"}</SelectItem>
+          <SelectItem value="CANCELADO">Cancelado</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={caixaFiltro} onValueChange={(v) => { setCaixaFiltro(v); setPagina(1); }}><SelectTrigger><SelectValue placeholder="Caixa"/></SelectTrigger><SelectContent><SelectItem value="TODOS">Todos os caixas</SelectItem><SelectItem value="SHARE">Share</SelectItem><SelectItem value="CLIENTE">Cliente</SelectItem></SelectContent></Select>
+      <Select value={naturezaFiltro} onValueChange={(v) => { setNaturezaFiltro(v); setPagina(1); }}><SelectTrigger><SelectValue placeholder="Natureza"/></SelectTrigger><SelectContent><SelectItem value="TODAS">Todas as naturezas</SelectItem>{[...new Set(lancamentos.map((l) => l.natureza).filter(Boolean))].map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select>
+    </div>}
+
+    {erro && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{erro}</div>}
+
+    <div className="overflow-hidden rounded-xl border border-border bg-card/60">
+      <div className="overflow-x-auto">
+        <table className="w-full table-fixed text-left text-[13px]" style={{ minWidth: larguraMinimaTabela }}>
+          <colgroup>
+            <col style={{ width: 40 }}/>
+            <col style={{ width: 44 }}/>
+            {colunas.map((c) => <col key={c.key} style={{ width: larguraDe(c) }}/>)}
+          </colgroup>
+          <thead>
+            <tr className="border-b border-border bg-muted/30 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <th className="px-2 py-2.5" aria-label="Expandir"/>
+              <th className="px-2 py-2.5"><input type="checkbox" aria-label="Selecionar todos desta página" checked={todasDaPaginaSelecionadas} disabled={!linhas.length} onChange={alternarPagina} className="accent-primary"/></th>
+              {colunas.map((c) => <th key={c.key} className="relative border-l border-border/50 px-3 py-2.5 font-bold" aria-sort={ordenacao.chave === c.key ? (ordenacao.crescente ? "ascending" : "descending") : "none"}>
+                <button type="button" className={`inline-flex items-center gap-1.5 uppercase ${ordenacao.chave === c.key ? "text-foreground" : ""}`} onClick={() => setOrdenacao((atual) => ({ chave: c.key, crescente: atual.chave === c.key ? !atual.crescente : true }))}>
+                  {c.label}<ArrowUpDown size={12}/>
+                </button>
+                {/* alça de redimensionar (ícone à direita do cabeçalho, como na referência) */}
+                <span role="separator" aria-orientation="vertical" aria-label={`Redimensionar coluna ${c.label}`} onPointerDown={(e) => iniciarRedimensionar(e, c)} className="absolute right-0 top-0 flex h-full w-8 cursor-col-resize touch-none items-center justify-end pr-3 opacity-60 hover:opacity-100"><ArrowUpDown size={12}/></span>
+              </th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {carregando
+              ? <tr><td colSpan={colunas.length + 2} className="p-10 text-center text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16}/>Carregando lançamentos…</td></tr>
+              : linhas.length ? linhas.map((l) => {
+                const aberta = expandidas.includes(l.id);
+                const marcada = selecionados.includes(l.id);
+                const d = aberta ? lerDetalhes(l) : null;
+                return <Fragment key={l.id}>
+                  <tr onClick={() => alternarExpansao(l.id)} className={`cursor-pointer border-b border-border/60 hover:bg-muted/20 ${marcada ? "bg-primary/10" : ""}`}>
+                    <td className="px-2 py-1.5 text-center">
+                      <button type="button" aria-label={aberta ? "Recolher detalhes" : "Expandir detalhes"} aria-expanded={aberta} onClick={(e) => { e.stopPropagation(); alternarExpansao(l.id); }} className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted/40 hover:text-foreground">
+                        {aberta ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" aria-label={`Selecionar ${l.descricao}`} checked={marcada} onChange={() => alternarSelecao(l.id)} className="accent-primary"/>
+                    </td>
+                    {colunas.map((c) => celula(l, c))}
+                  </tr>
+                  {d && <tr className={`border-b border-border/60 ${marcada ? "bg-primary/10" : "bg-muted/20"}`}>
+                    <td colSpan={colunas.length + 2} className="p-0">
+                      <div className="grid gap-y-5 py-4 md:grid-cols-2 xl:grid-cols-[1.05fr_1fr_1.1fr_.9fr] xl:divide-x xl:divide-border/60">
+                        <div className="space-y-3 pl-12 pr-6">
+                          <Campo rotulo="Categoria">{d.categoria}</Campo>
+                          <Campo rotulo="Centro de custo">{d.centroCusto}</Campo>
+                          <Campo rotulo="Forma de pagamento">{d.formaPagamento}</Campo>
+                        </div>
+                        <div className="space-y-3 px-6">
+                          <Campo rotulo="Competência">{data(d.competencia)}</Campo>
+                          <Campo rotulo="Emissão">{data(d.emissao)}</Campo>
+                          <Campo rotulo="Nº do documento">{d.documento}</Campo>
+                        </div>
+                        <div className="space-y-3 px-6">
+                          <Campo rotulo="Observações">{d.observacoes}</Campo>
+                          <Campo rotulo="Anexos">{d.anexos.length ? <div className="space-y-1">{d.anexos.map((a, i) => a.url
+                            ? <a key={i} href={a.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 font-normal text-primary hover:underline"><Paperclip size={14}/>{a.nome}</a>
+                            : <span key={i} className="flex items-center gap-1.5 font-normal"><Paperclip size={14}/>{a.nome}</span>)}</div> : null}</Campo>
+                        </div>
+                        <div className="space-y-3 px-6">
+                          <Campo rotulo="Criado por/em">{d.criadoPor || d.criadoEm ? `${d.criadoPor || "—"} • ${data(d.criadoEm)}` : null}</Campo>
+                          <Campo rotulo="Última alteração">{d.atualizadoEm ? data(d.atualizadoEm) : null}</Campo>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>}
+                </Fragment>;
+              })
+              : <tr><td colSpan={colunas.length + 2} className="p-10 text-center text-muted-foreground">Nenhum lançamento encontrado para os filtros.</td></tr>}
+          </tbody>
+          {linhas.length > 0 && <tfoot>
+            <tr className="border-t border-border bg-muted/20 text-xs font-bold">
+              <td colSpan={colunas.length + 1} className="px-4 py-2.5 uppercase">Total listado ({filtrados.length} {filtrados.length === 1 ? "item" : "itens"})</td>
+              <td className={`px-3 py-2.5 text-right text-[13px] tabular-nums ${ehEntrada ? "text-emerald-400" : "text-red-400"}`}>{formatarMoeda(total)}</td>
+            </tr>
+          </tfoot>}
         </table>
       </div>
+    </div>
 
-      <NovoLancamentoShareDialog aberto={novo} aoFechar={() => setNovo(false)} categorias={categorias}
-        aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada} />
-      {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
-        onConfirmar={async (dados) => {
-          await darBaixaContaAReceber(contaBaixa.id, dados);
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
-          await recarregar(); toast.success("Baixa registrada.");
-        }} />}
-      {contaBaixa && !ehEntrada && <ModalContaAPagar conta={contaBaixa.raw as ContaAPagar} aberto onFechar={() => setContaBaixa(null)}
-        onConfirmar={async (dados) => {
-          await darBaixaContaAPagar(contaBaixa.id, dados);
-          setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
-          await recarregar(); toast.success("Baixa registrada.");
-        }} />}
-    </section>
-  );
-}
+    <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+      <div className="flex items-center">
+        <span className="pr-3">{selecionadosVisiveis.length === 0 ? "Nenhum selecionado" : `${selecionadosVisiveis.length} ${selecionadosVisiveis.length === 1 ? "selecionado" : "selecionados"}`}</span>
+        <span className="border-l border-border px-3">{filtrados.length} {filtrados.length === 1 ? "registro" : "registros"}</span>
+        <div className="border-l border-border pl-2">
+          <Select value={String(porPagina)} onValueChange={(v) => { setPorPagina(Number(v)); setPagina(1); }}>
+            <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-1 text-xs shadow-none focus:ring-0"><SelectValue>{porPagina} linhas por página</SelectValue></SelectTrigger>
+            <SelectContent>{[10, 25, 50, 100].map((n) => <SelectItem key={n} value={String(n)}>{n} linhas por página</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="inline-flex items-center overflow-hidden rounded-md border border-border">
+        <Button variant="ghost" size="icon" aria-label="Página anterior" className="h-8 w-9 rounded-none" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)}><ChevronLeft size={16}/></Button>
+        <span className="min-w-16 border-x border-border px-3 text-center text-sm text-foreground">{paginaAtual} / {paginas}</span>
+        <Button variant="ghost" size="icon" aria-label="Próxima página" className="h-8 w-9 rounded-none" disabled={paginaAtual >= paginas} onClick={() => setPagina(paginaAtual + 1)}><ChevronRight size={16}/></Button>
+      </div>
+    </footer>
 
-// CSS isolado por prefixo. O componente não depende das cores do tema Tailwind.
-const ESTILOS_FINANCEIRO = `
-.erp-financeiro {
-  --erp-bg: #10151a; --erp-panel: #13191f; --erp-border: #27313b;
-  --erp-text: #e7edf6; --erp-muted: #a6b5c9; --erp-blue: #0798ff; --erp-total: #2ed48d;
-  width: 100%; min-width: 0; padding: 10px 11px 5px; color: var(--erp-text); color-scheme: dark;
-  background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px; line-height: 1.35; border-radius: 5px; -webkit-font-smoothing: antialiased;
+    {/* ───────── impressão ───────── */}
+    <style>{`
+      .relatorio-impressao { display: none; }
+      @media print {
+        body * { visibility: hidden !important; }
+        .relatorio-impressao, .relatorio-impressao * { visibility: visible !important; }
+        .relatorio-impressao { display: block !important; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11px; }
+        .relatorio-impressao table { width: 100%; border-collapse: collapse; }
+        .relatorio-impressao th, .relatorio-impressao td { border-bottom: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+        .relatorio-impressao .direita { text-align: right; }
+        .relatorio-impressao tfoot td { font-weight: 700; }
+        @page { margin: 12mm; }
+      }
+    `}</style>
+    <div className="relatorio-impressao">
+      <h1 style={{ fontSize: 18, fontWeight: 700 }}>{titulo}</h1>
+      <p>Período: {periodoImpressao}</p>
+      <p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
+      <table>
+        <thead><tr><th>DOC</th><th>Descrição</th><th>Favorecido</th><th>Conta</th><th>Data</th><th>Situação</th><th className="direita">Valor</th></tr></thead>
+        <tbody>{itensRelatorio.map((l) => <tr key={l.id}>
+          <td>{l.documento || "—"}</td><td>{l.descricao}</td><td>{l.favorecido}</td><td>{l.contaBancaria}</td><td>{formatarData(l.dataLancamento)}</td><td>{rotuloSituacao(situacaoExibida(l), ehEntrada) ?? l.situacao}</td><td className="direita">{l.fluxo === "ENTRADA" ? "+ " : "− "}{formatarMoeda(l.valor)}</td>
+        </tr>)}</tbody>
+        <tfoot><tr><td colSpan={6}>{usaSelecao ? `Total dos selecionados (${itensRelatorio.length} itens)` : `Total listado (${itensRelatorio.length} itens)`}</td><td className="direita">{formatarMoeda(totalRelatorio)}</td></tr></tfoot>
+      </table>
+    </div>
+
+    <NovoLancamentoShareDialog aberto={novo} aoFechar={() => setNovo(false)} categorias={categorias} aoCriar={() => void recarregar()} somenteDespesa={!ehEntrada} somenteEntrada={ehEntrada}/>
+    {contaBaixa && ehEntrada && <ModalContaAReceber conta={contaBaixa.raw as ContaAReceber} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias} onConfirmar={async (dados) => { await darBaixaContaAReceber(contaBaixa.id, dados); setContaBaixa(null); await recarregar(); toast.success("Baixa registrada."); }}/>}
+    {contaBaixa && !ehEntrada && <ModalContaAPagar conta={contaBaixa.raw as ContaAPagar} aberto onFechar={() => setContaBaixa(null)} onConfirmar={async (dados) => { await darBaixaContaAPagar(contaBaixa.id, dados); setContaBaixa(null); await recarregar(); toast.success("Baixa registrada."); }}/>}
+  </section>;
 }
-.erp-financeiro.erp-saida { --erp-total: #fb7185; }
-.erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { box-sizing: border-box; }
-.erp-financeiro button, .erp-financeiro input, .erp-financeiro select { font: inherit; }
-.erp-financeiro button { cursor: pointer; }
-.erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
-.erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
-.erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-breadcrumb { display: flex; align-items: center; gap: 7px; color: var(--erp-muted); padding: 0 8px; margin-bottom: 13px; font-size: 12px; }
-.erp-financeiro .erp-breadcrumb a { display: inline-flex; align-items: center; gap: 4px; color: #84bcec; text-decoration: none; }
-.erp-financeiro .erp-breadcrumb a:hover { color: #b6dbff; }
-.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 8px; margin-bottom: 9px; }
-.erp-financeiro .erp-sobretitulo { margin: 0 0 2px; color: var(--erp-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .65px; }
-.erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
-.erp-financeiro .erp-resumo { text-align: right; white-space: nowrap; }
-.erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
-.erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 9px; border: 1px solid var(--erp-border); border-radius: 5px; margin-bottom: 4px; background: #12181d88; }
-.erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
-.erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
-.erp-financeiro .erp-btn > svg { flex-shrink: 0; }
-.erp-financeiro .erp-btn-primario { background: linear-gradient(#089eff, #0789dc); border-color: #159bfa; box-shadow: inset 0 1px #ffffff22, 0 0 8px #0798ff15; color: #fff; }
-.erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: #4dbaff; }
-.erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
-.erp-financeiro .erp-btn-ativo { border-color: #078fe6; background: #078fe61a; }
-.erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
-.erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
-.erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 10px; margin-left: auto; }
-.erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
-.erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }
-.erp-financeiro .erp-seletor-mes { position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 290px; padding: 12px; border: 1px solid #394856; border-radius: 7px; background: #171f28; box-shadow: 0 16px 40px #0008; }
-.erp-financeiro .erp-seletor-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.erp-financeiro .erp-meses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.erp-financeiro .erp-meses button { height: 34px; color: var(--erp-muted); border: 1px solid #33404e; border-radius: 4px; background: #10171e; text-transform: capitalize; }
-.erp-financeiro .erp-meses button:hover { background: #253344; }
-.erp-financeiro .erp-meses button[aria-pressed="true"] { color: #fff; border-color: #169efd; background: #078fe644; }
-.erp-financeiro .erp-seletor-rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
-.erp-financeiro .erp-seletor-rodape > span { color: var(--erp-muted); font-size: 11px; }
-.erp-financeiro .erp-seletor-rodape .erp-btn { height: 30px; padding: 0 9px; font-size: 11px; }
-.erp-financeiro .erp-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(140px, 1fr)) auto; gap: 9px; padding: 10px; margin: 7px 0; background: var(--erp-panel); border: 1px solid var(--erp-border); border-radius: 4px; }
-.erp-financeiro .erp-filtros label { min-width: 0; }
-.erp-financeiro .erp-filtros input, .erp-financeiro .erp-filtros select { width: 100%; height: 35px; background: #0f151c; color: var(--erp-text); border: 1px solid #34414e; border-radius: 4px; padding: 0 10px; }
-.erp-financeiro .erp-filtros input::placeholder { color: #8c9bae; }
-.erp-financeiro .erp-busca { position: relative; }
-.erp-financeiro .erp-busca > svg { position: absolute; top: 10px; left: 11px; color: var(--erp-muted); }
-.erp-financeiro .erp-busca input { padding-left: 35px; }
-.erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid #a83b4b; border-radius: 4px; color: #ffb7bf; background: #7b263322; }
-.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--erp-border); border-radius: 5px 5px 3px 3px; scrollbar-color: #3c4b5d #10151a; }
-.erp-financeiro .erp-tabela { width: 100%; min-width: 1380px; border-collapse: collapse; table-layout: fixed; text-align: left; color: var(--erp-text); }
-.erp-financeiro .erp-tabela-saidas { min-width: 1550px; }
-.erp-financeiro .erp-tabela thead { background: linear-gradient(#19212877, #12181d55); }
-.erp-financeiro .erp-tabela th { position: relative; height: 32px; padding: 0 16px; border-bottom: 1px solid var(--erp-border); border-right: 1px solid #27313b88; font-weight: 600; }
-.erp-financeiro .erp-tabela th:first-child { padding: 0; }
-.erp-financeiro .erp-ordenar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; height: 32px; padding: 0; border: 0; background: transparent; color: #c5d5ea; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; text-align: left; }
-.erp-financeiro .erp-ordenar > svg { color: #a6bbd4; }
-.erp-financeiro .erp-redimensionar { position: absolute; right: -3px; top: 0; bottom: 0; z-index: 1; width: 7px; cursor: col-resize; touch-action: none; }
-.erp-financeiro .erp-redimensionar:hover { background: #159cff66; }
-.erp-financeiro .erp-tabela td { padding: 3px 16px; border-bottom: 1px solid #27313b99; border-right: 1px solid #27313b77; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.erp-financeiro .erp-tabela th:last-child, .erp-financeiro .erp-tabela td:last-child { border-right: 0; }
-.erp-financeiro .erp-linha { height: 39px; cursor: pointer; background: #11171c66; }
-.erp-financeiro .erp-linha:nth-child(even) { background: #151c2255; }
-.erp-financeiro .erp-linha:hover { background: #202a3488; }
-.erp-financeiro .erp-linha.erp-linha-selecionada, .erp-financeiro .erp-linha.erp-linha-aberta { background: #27313c88; }
-.erp-financeiro .erp-descricao { display: block; font-size: 13px; line-height: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
-.erp-financeiro .erp-texto-secundario { display: block; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }
-.erp-financeiro .erp-tabela .erp-documento { color: #b3c2d8; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
-.erp-financeiro .erp-celula-selecao { display: flex; align-items: center; justify-content: space-between; gap: 13px; }
-.erp-financeiro .erp-tabela td:first-child { padding-left: 8px; padding-right: 16px; }
-.erp-financeiro .erp-selecao-cabecalho { justify-content: flex-end; padding-right: 16px; }
-.erp-financeiro .erp-expandir { display: flex; align-items: center; justify-content: center; width: 20px; height: 27px; flex-shrink: 0; padding: 0; border: 0; color: #d6e2ee; background: transparent; }
-.erp-financeiro .erp-expandir svg { transition: transform .15s; }
-.erp-financeiro .erp-expandir[aria-expanded="true"] svg { transform: rotate(90deg); }
-.erp-financeiro .erp-checkbox { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; }
-.erp-financeiro .erp-checkbox input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
-.erp-financeiro .erp-checkbox > span { display: flex; align-items: center; justify-content: center; width: 17px; height: 17px; border: 1px solid #9cafc5; border-radius: 3px; color: transparent; background: #10151a; box-shadow: 0 1px 2px #0009, inset 0 0 0 2px #ffffff04; }
-.erp-financeiro .erp-checkbox input:checked + span, .erp-financeiro .erp-checkbox input:indeterminate + span { color: #fff; border-color: #0798ff; background: linear-gradient(#06a4ff, #0787e8); }
-.erp-financeiro .erp-checkbox input:focus-visible + span { outline: 2px solid #5ebdff; outline-offset: 3px; }
-.erp-financeiro .erp-checkbox input:disabled + span { opacity: .4; }
-.erp-financeiro .erp-checkbox-traco { width: 9px; height: 2px; background: currentColor; }
-.erp-financeiro .erp-status { display: inline-flex; justify-content: center; align-items: center; min-width: 71px; max-width: 100%; min-height: 24px; border: 1px solid #ffffff1a; border-radius: 4px; padding: 2px 9px; font-size: 11px; font-weight: 700; line-height: 16px; color: #07160f; box-shadow: inset 0 1px #ffffff15; }
-.erp-financeiro .erp-status-sucesso { background: linear-gradient(100deg, #22c77e, #33cd8f); }
-.erp-financeiro .erp-status-pendente { background: linear-gradient(100deg, #efba20, #f6c52f); color: #241b02; }
-.erp-financeiro .erp-status-atrasado { background: linear-gradient(100deg, #ff5359, #f64750); color: #290a0c; }
-.erp-financeiro .erp-status-cancelado { background: #657386; color: #fff; }
-.erp-financeiro .erp-valor { text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: #11171c88; }
-.erp-financeiro .erp-detalhes { display: grid; grid-template-columns: 1fr 1fr 1.1fr .85fr; gap: 0; padding: 14px 16px 14px 49px; }
-.erp-financeiro .erp-detalhes dl { min-width: 0; margin: 0; padding: 0 32px; border-left: 1px solid #27313b88; }
-.erp-financeiro .erp-detalhes dl:first-child { padding-left: 0; border-left: 0; }
-.erp-financeiro .erp-detalhes dl:last-child { padding-right: 0; }
-.erp-financeiro .erp-detalhes dl > div + div { margin-top: 6px; }
-.erp-financeiro .erp-detalhes dt { color: var(--erp-muted); font-size: 12px; line-height: 17px; }
-.erp-financeiro .erp-detalhes dd { margin: 0; color: var(--erp-text); font-size: 13px; line-height: 18px; overflow-wrap: anywhere; }
-.erp-financeiro .erp-observacoes { white-space: pre-wrap; }
-.erp-financeiro .erp-anexo { display: flex; align-items: center; gap: 7px; color: #0b9fff; text-decoration: none; margin-top: 2px; }
-.erp-financeiro .erp-anexo:hover { text-decoration: underline; }
-.erp-financeiro .erp-anexo svg { flex-shrink: 0; color: var(--erp-text); }
-.erp-financeiro .erp-tabela tfoot { background: #18202988; }
-.erp-financeiro .erp-tabela tfoot td { height: 25px; padding: 3px 10px; border-bottom: 0; border-top: 1px solid var(--erp-border); font-size: 11px; font-weight: 700; letter-spacing: .2px; }
-.erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: var(--erp-total); text-align: right; padding-right: 16px; font-size: 14px; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-tabela .erp-estado { text-align: center; padding: 45px 16px; color: var(--erp-muted); }
-.erp-financeiro .erp-estado > svg { display: inline-block; vertical-align: middle; margin-right: 8px; }
-.erp-financeiro .erp-rodape { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 4px; color: #b5c3d8; font-size: 12px; }
-.erp-financeiro .erp-rodape-info, .erp-financeiro .erp-paginacao { display: flex; align-items: center; gap: 12px; }
-.erp-financeiro .erp-barra { color: #7c8b9d; }
-.erp-financeiro .erp-por-pagina { position: relative; display: inline-flex; align-items: center; }
-.erp-financeiro .erp-por-pagina select { appearance: none; border: 0; border-radius: 3px; padding: 3px 17px 3px 0; background: transparent; color: #b5c3d8; cursor: pointer; }
-.erp-financeiro select option { color: var(--erp-text); background: #16202a; }
-.erp-financeiro .erp-por-pagina > svg { position: absolute; right: 0; pointer-events: none; }
-.erp-financeiro .erp-paginacao { gap: 9px; }
-.erp-financeiro .erp-paginacao > span:first-child { color: #91a3ba; font-size: 11px; margin-right: 5px; }
-.erp-financeiro .erp-pagina-btn { display: flex; align-items: center; justify-content: center; width: 22px; height: 23px; padding: 0; border: 0; background: transparent; color: #b7c8dc; }
-.erp-financeiro .erp-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.erp-financeiro .erp-relatorio-impressao { display: none; }
-.erp-financeiro .erp-girando { animation: erp-girar 1s linear infinite; }
-@keyframes erp-girar { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } }
-@media (max-width: 1100px) {
-  .erp-financeiro .erp-toolbar { gap: 8px; }
-  .erp-financeiro .erp-periodo { margin-left: 0; }
-  .erp-financeiro .erp-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .erp-financeiro .erp-detalhes dl { padding: 0 22px; }
-}
-@media (max-width: 600px) {
-  .erp-financeiro { padding: 10px 8px; }
-  .erp-financeiro .erp-cabecalho { padding: 0; align-items: center; }
-  .erp-financeiro h2 { font-size: 19px; }
-  .erp-financeiro .erp-resumo strong { font-size: 16px; }
-  .erp-financeiro .erp-acoes { gap: 7px; }
-  .erp-financeiro .erp-divisor { display: none; }
-  .erp-financeiro .erp-btn { padding: 0 10px; font-size: 12px; gap: 6px; }
-  .erp-financeiro .erp-btn-icone { width: 32px; padding: 0; }
-  .erp-financeiro .erp-periodo { width: 100%; justify-content: space-between; gap: 5px; }
-  .erp-financeiro .erp-navegacao-mes { gap: 3px; }
-  .erp-financeiro .erp-rotulo-periodo { min-width: 105px; font-size: 12px; }
-  .erp-financeiro .erp-filtros { grid-template-columns: minmax(0, 1fr); }
-  .erp-financeiro .erp-rodape { font-size: 11px; }
-  .erp-financeiro .erp-rodape-info { gap: 7px; flex-wrap: wrap; }
-  .erp-financeiro .erp-paginacao { margin-left: auto; }
-}
-@media print {
-  body:has(.erp-financeiro) * { visibility: hidden !important; }
-  .erp-financeiro .erp-tela { display: none !important; }
-  .erp-financeiro .erp-relatorio-impressao, .erp-financeiro .erp-relatorio-impressao * { visibility: visible !important; }
-  .erp-financeiro .erp-relatorio-impressao { display: block !important; position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; font: 11px Arial, sans-serif; }
-  .erp-financeiro .erp-relatorio-impressao h1 { margin: 0 0 12px; font-size: 18px; }
-  .erp-financeiro .erp-relatorio-impressao p { margin: 4px 0; }
-  .erp-financeiro .erp-relatorio-impressao table { width: 100%; margin-top: 14px; border-collapse: collapse; }
-  .erp-financeiro .erp-relatorio-impressao th, .erp-financeiro .erp-relatorio-impressao td { padding: 5px 6px; border-bottom: 1px solid #ccc; text-align: left; }
-  .erp-financeiro .erp-relatorio-impressao .erp-direita { text-align: right; white-space: nowrap; }
-  .erp-financeiro .erp-relatorio-impressao tfoot { font-weight: 700; }
-  .erp-financeiro .erp-relatorio-impressao tr { break-inside: avoid; }
-  @page { size: A4 landscape; margin: 12mm; }
-}
-`;

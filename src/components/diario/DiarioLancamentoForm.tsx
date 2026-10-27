@@ -1243,7 +1243,7 @@ export default function DiarioLancamentoForm({
       <div className="db-overview">
         <div className="db-route-preview">
           <div>
-            <span className="db-caption">Origem</span>
+            <span className="db-caption ml-[17px]">Origem</span>
             <strong>{value("aerodromo_partida") || "————"}</strong>
           </div>
 
@@ -1254,7 +1254,7 @@ export default function DiarioLancamentoForm({
           </div>
 
           <div className="db-route-destination">
-            <span className="db-caption">Destino</span>
+            <span className="db-caption mr-[28px]">Destino</span>
             <strong>{value("aerodromo_chegada") || "————"}</strong>
           </div>
         </div>
@@ -1339,7 +1339,7 @@ export default function DiarioLancamentoForm({
         <FormSection
           section="voo"
           number="01"
-          icon={<PlaneTakeoff size={19} />}
+          icon={<PlaneTakeoff size={19} color="rgba(80,227,194,1)" />}
           title="Voo e rota"
           description="Identificação do voo e aeródromos da operação."
           badge="Dados do voo"
@@ -1551,7 +1551,7 @@ export default function DiarioLancamentoForm({
         <FormSection
           section="tripulacao"
           number="02"
-          icon={<Users size={19} />}
+          icon={<Users size={19} color="rgba(22,41,212,1)" />}
           title="Tripulação e cotista"
           description="Responsáveis pela operação e identificação do cotista."
         >
@@ -1719,7 +1719,7 @@ export default function DiarioLancamentoForm({
         <FormSection
           section="tempos"
           number="03"
-          icon={<Clock size={19} />}
+          icon={<Clock size={19} color="rgba(126,211,33,1)" />}
           title="Tempos operacionais"
           description="Registre os horários na sequência da operação."
           badge="UTC / Zulu"
@@ -1819,7 +1819,7 @@ export default function DiarioLancamentoForm({
         <FormSection
           section="combustivel"
           number="04"
-          icon={<Fuel size={19} />}
+          icon={<Fuel size={19} color="rgba(245,166,35,1)" />}
           title="Combustível"
           description="Quantidade inicial, consumo e abastecimento da operação."
         >
@@ -2187,7 +2187,7 @@ export default function DiarioLancamentoForm({
         <FormSection
           section="registros"
           number="05"
-          icon={<BookOpen size={19} />}
+          icon={<BookOpen size={19} color="rgba(25,134,192,1)" />}
           title="Registros da operação"
           description="Ocorrências, discrepâncias e ações corretivas."
         >
@@ -2562,8 +2562,8 @@ const styles = `
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin: -6px 0;
-  padding: 1px 0 3px;
+  margin: -10px 0;
+  padding: 1px 0 17px;
   font-weight: 300;
 }
 .db-heading {
@@ -2585,21 +2585,25 @@ const styles = `
   flex: 0 0 44px;
   width: 44px;
   height: 44px;
-  padding: 0;
+  max-width: 87%;
+  margin: 6px -3px;
+  padding: 4px 0;
   border: 1px solid var(--db-border);
-  border-radius: 50%;
+  border-radius: 33%;
+  overflow: hidden;
   background: rgba(255,255,255,.04);
-  color: #b8c7d8;
+  color: rgba(245,76,102,1);
   cursor: pointer;
-  line-height: 15px;
+  font-size: 9px;
+  line-height: 9px;
   font-weight: 200;
 }
 .db-overview {
   min-width: 0;
-  margin: 7px 0;
-  padding: 10px 12px;
+  margin: -5px 0;
+  padding: 8px 12px;
   border: 1px solid rgba(139,183,222,.14);
-  border-radius: 26px;
+  border-radius: 16px;
   overflow: hidden;
   line-height: 12px;
   background: rgba(12,21,31,1);
@@ -2657,7 +2661,7 @@ const styles = `
   padding-top: 14px;
   border-top: 1px solid var(--db-border);
   color: #a9bbcd;
-  font-size: 12px;
+  font-size: 11px;
 }
 .db-utc-badge {
   margin-left: auto;
@@ -2732,14 +2736,27 @@ const styles = `
   gap: 12px;
   padding: 10px 18px;
   border-bottom: 1px solid rgba(195,213,235,.07);
-  background: rgba(2,17,34,1);
-  border-radius: 18px;
+  background: rgba(2,15,29,1);
+  border-radius: 9px;
   overflow: hidden;
 }
 .db-section:first-of-type > .db-section-header {
-  margin: -7px 0;
-  padding-left: 25px;
-  padding-right: 25px;
+  margin: -3px -1px;
+  padding: 5px 18px;
+}
+.db-section[data-section="tripulacao"] > .db-section-header {
+  margin: -6px -1px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.db-section[data-section="tempos"] > .db-section-header {
+  margin: -2px -3px;
+}
+.db-section[data-section="combustivel"] > .db-section-header {
+  margin: -5px -1px;
+}
+.db-section[data-section="registros"] > .db-section-header {
+  margin: -1px;
 }
 .db-section-heading {
   display: flex;

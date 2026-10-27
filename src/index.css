@@ -203,6 +203,30 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
   [data-radix-dialog-content] { padding: 1rem; }
 }
 
+.abastecimento-registros {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.abastecimento-tabela {
+  display: none;
+}
+
+.abastecimento-cartoes {
+  display: grid;
+  gap: 0.5rem;
+}
+
+@container (min-width: 56rem) {
+  .abastecimento-tabela {
+    display: block;
+  }
+
+  .abastecimento-cartoes {
+    display: none;
+  }
+}
+
 /* Diário de bordo: proteção contra overflow em celular */
 .diario-bordo,
 .diario-bordo * {

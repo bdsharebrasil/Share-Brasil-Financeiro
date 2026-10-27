@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
 import { formatarMoeda, buscarOpcoesFinanceiroShare, buscarSolicitacoesBaixaPortal, type ContaBancaria, type SolicitacaoBaixaPortal } from "@/lib/financeiro-share-api";
 import { buscarFeriasCorporativas, buscarPerfilColaborador, type SolicitacaoFerias } from "@/lib/colaborador-api";
-import { useLancamentosUnificados, type FluxoUnificado } from "@/hooks/useLancamentosUnificados";
+import { useContasAPagar } from "@/hooks/useContasAPagar";
+import { useContasAReceber } from "@/hooks/useContasAReceber";
 import { LancamentosUnificados } from "@/components/financeiro-share/LancamentosUnificados";
+import { linhasDeContasAPagar, linhasDeContasAReceber, type FluxoLinha } from "@/components/financeiro-share/linhas-contas";
 import { AbaSolicitacoesBaixaPortal } from "@/components/financeiro-share/AbaSolicitacoesBaixaPortal";
 import { AbaMovimentosHolding } from "@/components/financeiro-share/AbaMovimentosHolding";
 import { AbaSalarios } from "@/components/financeiro-share/AbaSalarios";
@@ -31,7 +33,9 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
   const [nome, setNome] = useState("Gestor"); const [baixas, setBaixas] = useState<SolicitacaoBaixaPortal[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]); const [ferias, setFerias] = useState<SolicitacaoFerias[]>([]);
   const [carregando, setCarregando] = useState(true); const [atualizando, setAtualizando] = useState(false); const [erro, setErro] = useState<string | null>(null);
-  const quantidadeAnterior = useRef<number | null>(null); const { lancamentos, recarregar: recarregarLancamentos } = useLancamentosUnificados();
+  const quantidadeAnterior = useRef<number | null>(null); const contasPagar = useContasAPagar(); const contasReceber = useContasAReceber();
+  const lancamentos = useMemo(() => [...linhasDeContasAPagar(contasPagar.contas), ...linhasDeContasAReceber(contasReceber.contas)], [contasPagar.contas, contasReceber.contas]);
+  const recarregarLancamentos = () => { contasPagar.recarregar(); contasReceber.recarregar(); };
   const carregar = useCallback(async (silencioso = false) => {
     if (silencioso) setAtualizando(true); else setCarregando(true); setErro(null);
     try { const [baixasResp, feriasResp] = await Promise.all([buscarSolicitacoesBaixaPortal(), buscarFeriasCorporativas(hojeISO()).catch(() => null)]); setBaixas(baixasResp.solicitacoes || []); setFerias(feriasResp?.registros || []); }
@@ -47,8 +51,8 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
   useEffect(() => { if (quantidadeAnterior.current !== null && baixas.length > quantidadeAnterior.current) { const novas = baixas.length - quantidadeAnterior.current; toast.info(`${novas} nova${novas === 1 ? " solicitação" : "s solicitações"} de baixa do Portal Cliente.`); } quantidadeAnterior.current = baixas.length; }, [baixas.length]);
   const resumo = useMemo(() => {
     const hoje = hojeISO(); const limite = dataMaisDias(7); const pendentes = lancamentos.filter((l) => l.situacao === "PENDENTE" || l.situacao === "ATRASADO");
-    const hojeFluxo = (fluxo: FluxoUnificado) => pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento === hoje);
-    const semanaFluxo = (fluxo: FluxoUnificado) => pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento && l.dataVencimento >= hoje && l.dataVencimento <= limite);
+    const hojeFluxo = (fluxo: FluxoLinha) => pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento === hoje);
+    const semanaFluxo = (fluxo: FluxoLinha) => pendentes.filter((l) => l.fluxo === fluxo && l.dataVencimento && l.dataVencimento >= hoje && l.dataVencimento <= limite);
     return { receberHoje: hojeFluxo("ENTRADA"), pagarHoje: hojeFluxo("SAIDA"), receberSemana: semanaFluxo("ENTRADA"), pagarSemana: semanaFluxo("SAIDA"), feriasPendentes: ferias.filter((f) => f.status === "solicitada"), feriasProximas: ferias.filter((f) => f.status === "aprovada" && f.data_inicio >= hoje && f.data_inicio <= dataMaisDias(10)) };
   }, [lancamentos, ferias]);
   const abrir = (id: Modulo, filtros?: { situacao?: string; inicio?: string; fim?: string }) => { const params = new URLSearchParams({ modulo: id }); if (filtros?.situacao) params.set("situacao", filtros.situacao); if (filtros?.inicio) params.set("inicio", filtros.inicio); if (filtros?.fim) params.set("fim", filtros.fim); navigate(`/?${params.toString()}`); }; const voltar = () => navigate("/");

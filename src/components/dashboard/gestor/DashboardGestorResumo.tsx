@@ -8,7 +8,7 @@ import { formatarMoeda, buscarOpcoesFinanceiroShare, buscarSolicitacoesBaixaPort
 import { buscarFeriasCorporativas, buscarPerfilColaborador, type SolicitacaoFerias } from "@/lib/colaborador-api";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
-import { LancamentosUnificados } from "@/components/financeiro-share/LancamentosUnificados";
+import { LancamentosUnificados } from "@/components/financeiro-share/RegistrarEntrada";
 import { linhasDeContasAPagar, linhasDeContasAReceber, type FluxoLinha } from "@/components/financeiro-share/linhas-contas";
 import { AbaSolicitacoesBaixaPortal } from "@/components/financeiro-share/AbaSolicitacoesBaixaPortal";
 import { AbaMovimentosHolding } from "@/components/financeiro-share/AbaMovimentosHolding";

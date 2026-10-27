@@ -811,7 +811,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     ];
     const documentos: AnexoLinha[] = urls.flatMap(({ key, tipo: anexoTipo, numero }) => {
       const url = item[key];
-      return typeof url === "string" && url ? [{ id: crypto.randomUUID(), tipo: anexoTipo, numero: numero || "", url, file: null, cotista_id: form.cotista_ids[0] }] : [];
+      return typeof url === "string" && url ? [{ id: crypto.randomUUID(), tipo: anexoTipo, numero: numero || "", url, file: null }] : [];
     });
     const categoria = dadosOpcoes.categorias_cliente.find((opcao) => opcao.nome.toLocaleLowerCase() === String(item.grupo_categoria || item.categoria_nome || "").toLocaleLowerCase());
     const gruposValidos: Categoria[] = ["FOLHA DE PAGAMENTO", "DESPESAS EMPRESA", "DESPESAS EMPRESA-BANCO", "DESPESAS PARTICULARES", "IMPOSTOS", "RECEITAS OPERACIONAIS", "CAIXA CLIENTE", "DESPESAS REEMBOLSÁVEIS", "REEMBOLSOS ENTRADAS"];

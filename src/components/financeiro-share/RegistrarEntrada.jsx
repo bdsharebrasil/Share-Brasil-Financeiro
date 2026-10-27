@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
 import DataGrid, { CellText } from '../../components/DataGrid/DataGrid';
-import { mockRows } from './mockData';
 import styles from './RegistrarEntrada.module.css';
 
 // ---------- helpers ----------

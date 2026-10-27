@@ -270,6 +270,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [statusEmailCotista, setStatusEmailCotista] = useState<Record<string, string>>({});
   const chaveRascunhoRef = useRef<string | null>(null);
   const filaSalvamento = useRef<Promise<void>>(Promise.resolve());
+  const rascunhosExcluidosRef = useRef(new Set<string>());
 
   const carregarOpcoes = async () => {
     try {
@@ -343,9 +344,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const tipoRascunho = tipo || envioRecemCriado?.tipo;
     if (!tipoRascunho) return;
     const { id, chave } = garantirIdentidadeRascunho();
+    if (rascunhosExcluidosRef.current.has(id)) return;
     const statusRascunho = opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado && envioRecemCriado.tipo !== "share" ? "EMAIL_PENDENTE" : "PREENCHIMENTO");
     setStatusSalvamento("salvando");
     const gravacao = filaSalvamento.current.then(async () => {
+      if (rascunhosExcluidosRef.current.has(id)) return null;
       const resultado = await salvarRascunhoEnvioPagamento({
         id,
         tipo_envio: tipoRascunho,
@@ -356,6 +359,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         status: statusRascunho,
         destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))).map((cotista) => cotista.id),
       });
+      return resultado;
+    });
+    filaSalvamento.current = gravacao.then(() => undefined, () => undefined);
+    try {
+      const resultado = await gravacao;
+      if (!resultado) return;
       setStatusSalvamento("salvo");
       setSalvoEm(resultado.atualizado_em);
       setRascunhos((atuais) => {
@@ -369,9 +378,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         };
         return [atualizado, ...atuais.filter((rascunho) => rascunho.id !== id && rascunho.status !== "CONCLUIDO")].map((rascunho) => existente?.id === rascunho.id ? atualizado : rascunho);
       });
-    });
-    filaSalvamento.current = gravacao.then(() => undefined, () => undefined);
-    try { await gravacao; } catch (cause) {
+    } catch (cause) {
       setStatusSalvamento("erro");
       throw cause;
     }
@@ -611,11 +618,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const excluirRascunho = async (rascunho: RascunhoEnvioPagamento) => {
     setRascunhoParaExcluir(null);
+    rascunhosExcluidosRef.current.add(rascunho.id);
     try {
+      await filaSalvamento.current;
       await excluirRascunhoEnvioPagamento(rascunho.id);
       setRascunhos((atuais) => atuais.filter((item) => item.id !== rascunho.id));
       if (rascunhoId === rascunho.id) {
         setTipo(null);
+        setEnvioRecemCriado(null);
+        setEnvioConvertido(false);
+        setModalEmail(false);
         setRascunhoId(null);
         setChaveRascunho(null);
         chaveRascunhoRef.current = null;
@@ -624,6 +636,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       }
       toast.success("Rascunho excluído.");
     } catch (cause) {
+      rascunhosExcluidosRef.current.delete(rascunho.id);
       toast.error(cause instanceof Error ? cause.message : "Não foi possível excluir o rascunho.");
     }
   };

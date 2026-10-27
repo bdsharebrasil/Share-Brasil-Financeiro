@@ -227,6 +227,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [envioEmRestauracaoId, setEnvioEmRestauracaoId] = useState<string | null>(null);
   const [rascunhoConcluido, setRascunhoConcluido] = useState(false);
   const [convertendoEnvioId, setConvertendoEnvioId] = useState<string | null>(null);
+  const [rascunhoParaExcluir, setRascunhoParaExcluir] = useState<RascunhoEnvioPagamento | null>(null);
   const [etapa, setEtapa] = useState(0);
   const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
   const [modoNumeroVooCliente, setModoNumeroVooCliente] = useState<"com_voo" | "sem_voo" | null>(null);
@@ -269,7 +270,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [statusEmailCotista, setStatusEmailCotista] = useState<Record<string, string>>({});
   const chaveRascunhoRef = useRef<string | null>(null);
   const filaSalvamento = useRef<Promise<void>>(Promise.resolve());
-  const persistirRascunhoRef = useRef<() => Promise<void>>(async () => undefined);
 
   const carregarOpcoes = async () => {
     try {
@@ -376,7 +376,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       throw cause;
     }
   };
-  persistirRascunhoRef.current = () => persistirRascunho();
 
   const atualizarStatusLocal = (id: string, status: string) =>
     setEnvios((atual) => atual.map((envio) => (envio.id === id ? ({ ...envio, status } as EnvioPagamento) : envio)));
@@ -411,13 +410,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   useEffect(() => { void carregar(); void carregarOpcoes(); }, []);
 
-  useEffect(() => {
-    if ((!tipo && !envioRecemCriado) || !rascunhoId || restaurandoRascunho || rascunhoConcluido) return;
-    const temporizador = window.setTimeout(() => {
-      void persistirRascunhoRef.current().catch(() => toast.error("Não foi possível salvar o rascunho."));
-    }, 800);
-    return () => window.clearTimeout(temporizador);
-  }, [tipo, rascunhoId, restaurandoRascunho, rascunhoConcluido, etapa, form, vincularAeronave, modoNumeroVooCliente, origemDespesa, envioRecemCriado, envioConvertido, assunto, corpoEmail, destinatario, nomeDestinatario, anexosSelecionados, anexosEnvioEmail, arquivosPersistidos, cotistasEmail, emailsPorCotista, rascunhosEmailPorCotista, statusEmailCotista]);
+  const salvarAoSairRef = useRef<() => void>(() => undefined);
+  salvarAoSairRef.current = () => {
+    if ((!tipo && !envioRecemCriado) || rascunhoConcluido || restaurandoRascunho) return;
+    void persistirRascunho().catch(() => toast.error("Não foi possível salvar o rascunho."));
+  };
+  useEffect(() => () => salvarAoSairRef.current(), []);
 
   useEffect(() => { void carregarCotistas(form.aeronave_id); }, [form.aeronave_id]);
 
@@ -612,7 +610,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   const excluirRascunho = async (rascunho: RascunhoEnvioPagamento) => {
-    if (!window.confirm("Excluir este rascunho? Essa ação não pode ser desfeita.")) return;
+    setRascunhoParaExcluir(null);
     try {
       await excluirRascunhoEnvioPagamento(rascunho.id);
       setRascunhos((atuais) => atuais.filter((item) => item.id !== rascunho.id));
@@ -1083,11 +1081,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         if (todosConcluidos) setRascunhoConcluido(true);
         await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
         if (todosConcluidos) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-        const mensagemSucesso = todosEmailsCotistasEnviados
-          ? `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`
-          : `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Há outros destinatários pendentes.`;
-        notificarEnvioCliente("success", mensagemSucesso);
-        fecharModalEmail();
+        if (todosConcluidos) {
+          notificarEnvioCliente("success", `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`);
+          fecharModalEmail();
+        } else {
+          setSucessoEmail(`E-mail para ${cotistaAlvo.nome} enviado. Ainda há destinatários pendentes.`);
+        }
       } else {
         if (idRascunhoAtual) {
           setRascunhoConcluido(true);
@@ -1323,7 +1322,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{progresso.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento"} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p><div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 lg:grid-cols-4">{etapas.map(([nome, valor]) => <div key={nome} className="flex min-w-0 items-center gap-1.5"><CheckCircle2 size={12} className={valor === "Concluído" || valor === "Não se aplica" || valor.startsWith("Concluído") ? "shrink-0 text-emerald-500" : "shrink-0 text-amber-500"} /><span className="truncate"><strong>{nome}:</strong> {valor}</span></div>)}</div></div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
-                    <Button type="button" size="sm" variant="ghost" className="h-8 gap-2 rounded-sm px-3 text-[10px] text-rose-500 hover:text-rose-400" disabled={restaurandoRascunho} onClick={() => void excluirRascunho(rascunho)} aria-label="Excluir rascunho"><Trash2 size={12} /> Excluir</Button>
+                    <Button type="button" size="sm" variant="ghost" className="h-8 gap-2 rounded-sm px-3 text-[10px] text-rose-500 hover:text-rose-400" disabled={restaurandoRascunho} onClick={() => setRascunhoParaExcluir(rascunho)} aria-label="Excluir rascunho"><Trash2 size={12} /> Excluir</Button>
                   </div>
                 </div>;
               })}
@@ -1365,6 +1364,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </section>
         </>
       )}
+
+      <Dialog open={rascunhoParaExcluir !== null} onOpenChange={(open) => { if (!open) setRascunhoParaExcluir(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-base font-bold">Excluir rascunho?</DialogTitle><DialogDescription className="text-[11px]">Essa ação não pode ser desfeita.</DialogDescription></DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setRascunhoParaExcluir(null)}>Cancelar</Button>
+            <Button type="button" variant="destructive" onClick={() => rascunhoParaExcluir && void excluirRascunho(rascunhoParaExcluir)}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogoAnexos} onOpenChange={setDialogoAnexos}>
         <DialogContent className="max-w-2xl">

@@ -105,6 +105,7 @@ import type {
   LancamentoEconomico,
 } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
+import { allocateCentavos } from "@/lib/money";
 import {
   buscarAeronavesShare,
   buscarCotistasAeronave,
@@ -297,28 +298,12 @@ function percentualNumerico(valor: string) {
   return normalizado ? Number(normalizado) : NaN;
 }
 
-function preverValoresRateio(totalCentavos: number, percentuais: number[]): number[] | null {
-  if (!Number.isInteger(totalCentavos) || totalCentavos <= 0 || !percentuais.length || percentuais.some((p) => !Number.isFinite(p) || p < 0)) return null;
-  const basesBrutas = percentuais.map((p) => p * 100);
-  const bases = basesBrutas.map(Math.floor);
-  let restantePercentual = 10_000 - bases.reduce((soma, base) => soma + base, 0);
-  const restosPercentual = basesBrutas.map((valor, indice) => ({ indice, resto: valor - bases[indice] })).sort((a, b) => b.resto - a.resto || a.indice - b.indice);
-  for (const item of restosPercentual) {
-    if (restantePercentual <= 0) break;
-    bases[item.indice] += 1;
-    restantePercentual -= 1;
-  }
-  if (restantePercentual !== 0) return null;
-  const exatos = bases.map((base) => totalCentavos * base / 10_000);
-  const valores = exatos.map(Math.floor);
-  let centavosRestantes = totalCentavos - valores.reduce((soma, valor) => soma + valor, 0);
-  const restosCentavos = exatos.map((valor, indice) => ({ indice, resto: valor - valores[indice] })).sort((a, b) => b.resto - a.resto || a.indice - b.indice);
-  for (const item of restosCentavos) {
-    if (centavosRestantes <= 0) break;
-    valores[item.indice] += 1;
-    centavosRestantes -= 1;
-  }
-  return centavosRestantes === 0 ? valores : null;
+function dividirPorSociedade(ids: string[], cotistas: CotistaAeronave[]): RateioDraft[] {
+  if (!ids.length) return [{ cotista: "", percentual: "100" }];
+  const pesos = ids.map((id) => Number(cotistas.find((c) => c.id === id)?.percentual_sociedade || 0));
+  const soma = pesos.reduce((total, peso) => total + peso, 0);
+  if (soma <= 0) return dividirPercentuais(ids);
+  return ids.map((cotista, index) => ({ cotista, percentual: String((pesos[index] / soma) * 100) }));
 }
 
 function dividirPercentuais(ids: string[]): RateioDraft[] {
@@ -418,10 +403,11 @@ export function NovoLancamentoCotistaDialog({
     setPagoPorCotista(cotistasCliente[0]?.id || "");
     setHoldingId(opcoes.holdings?.[0]?.id || "");
     setRateios(
-      dividirPercentuais(
+      dividirPorSociedade(
         (modoInicial === "CLIENTE" ? cotistasCliente : cotistasHolding).map(
           (c) => c.id,
         ),
+        cotistasAeronave,
       ),
     );
   }, [
@@ -439,10 +425,11 @@ export function NovoLancamentoCotistaDialog({
     setModo(proximo);
     setErroLocal(null);
     setRateios(
-      dividirPercentuais(
+      dividirPorSociedade(
         (proximo === "CLIENTE" ? cotistasCliente : cotistasHolding).map(
           (c) => c.id,
         ),
+        cotistasAeronave,
       ),
     );
   };
@@ -450,10 +437,16 @@ export function NovoLancamentoCotistaDialog({
     (total, r) => total + (percentualNumerico(r.percentual) || 0),
     0,
   );
-  const valorPreviewRateios = preverValoresRateio(
-    parseValorReais(valor),
-    rateios.map((r) => percentualNumerico(r.percentual)),
-  );
+  const totalCentavos = parseValorReais(valor);
+  const pesosRateio = rateios.map((r) => percentualNumerico(r.percentual));
+  const valorPreviewRateios =
+    Number.isInteger(totalCentavos) &&
+    totalCentavos > 0 &&
+    pesosRateio.length > 0 &&
+    pesosRateio.every((p) => Number.isFinite(p) && p >= 0) &&
+    pesosRateio.some((p) => p > 0)
+      ? allocateCentavos(totalCentavos, pesosRateio)
+      : null;
 
   const salvar = async () => {
     if (salvandoRef.current) return;
@@ -516,9 +509,10 @@ export function NovoLancamentoCotistaDialog({
           fluxo: fluxoCliente,
           cotista_aeronave_id: pagoPorCotista,
           pago_diretamente: pagoDiretamenteCliente,
-          rateios: rateios.map((r) => ({
+          rateios: rateios.map((r, i) => ({
             cotista_id: r.cotista,
             percentual: percentualNumerico(r.percentual),
+            valor_centavos: valorPreviewRateios?.[i],
           })),
         }),
 
@@ -529,7 +523,7 @@ export function NovoLancamentoCotistaDialog({
           cotista_aeronave_id: rateios[0]?.cotista || undefined,
           rateios:
             tipoMovimentoHold === "DESPESA"
-              ? rateios.map((r) => {
+              ? rateios.map((r, i) => {
                   const cotista = cotistasAeronave.find(
                     (item) => item.id === r.cotista,
                   );
@@ -537,6 +531,7 @@ export function NovoLancamentoCotistaDialog({
                     cotista_id: r.cotista,
                     socio_id: cotista?.socio_id || undefined,
                     percentual: percentualNumerico(r.percentual),
+                    valor_centavos: valorPreviewRateios?.[i],
                   };
                 })
               : [],
@@ -1008,6 +1003,21 @@ export function NovoLancamentoCotistaDialog({
                       className="h-10 rounded-xl text-xs"
                     >
                       Dividir igualmente
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        setRateios((atual) =>
+                          dividirPorSociedade(
+                            atual.map((r) => r.cotista),
+                            cotistasAeronave,
+                          ),
+                        )
+                      }
+                      className="h-10 rounded-xl text-xs"
+                    >
+                      Dividir pela sociedade
                     </Button>
                   </div>
                 </section>

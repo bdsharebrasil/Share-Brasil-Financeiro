@@ -2,7 +2,7 @@
  * Substitua o LancamentosUnificados.tsx atual por este arquivo, na mesma pasta.
  * Mantém os imports dos hooks, APIs e modais enviados no código original.
  * O CSS está embutido no fim do arquivo; não é necessário criar outro CSS.
- * Uso: <LancamentosUnificados fluxo="ENTRADA" dashboardHref="/seu-dashboard" />
+ * Uso: <LancamentosUnificados fluxo="ENTRADA" />
  * Para preencher os campos adicionais, passe obterDetalhes={(linha) => ({ ... })}.
  * Esses campos são opcionais e aparecem como “—” enquanto não forem mapeados.
  * PAGO continua sendo exibido como Conciliado, conforme seu modelo existente.
@@ -73,8 +73,6 @@ export type DetalhesLancamento = {
 type Props = {
   fluxo: FluxoLinha;
   filtroInicial?: { situacao?: SituacaoLinha; inicio?: string; fim?: string };
-  /** Caminho da página de dashboard no seu projeto. */
-  dashboardHref?: string;
   obterDetalhes?: (linha: LinhaConta) => DetalhesLancamento;
 };
 
@@ -177,7 +175,7 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
   );
 }
 
-export function LancamentosUnificados({ fluxo, filtroInicial, dashboardHref = "/", obterDetalhes }: Props) {
+export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: Props) {
   const pagar = useContasAPagar();
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
@@ -377,13 +375,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, dashboardHref = "/
     <section className={`erp-financeiro ${ehEntrada ? "erp-entrada" : "erp-saida"}`} aria-labelledby={`${id}-titulo`}>
       <style>{ESTILOS_FINANCEIRO}</style>
       <div className="erp-tela">
-        <nav className="erp-breadcrumb" aria-label="Navegação estrutural">
-          <a href={dashboardHref}><ChevronLeft size={14} aria-hidden="true" />Voltar ao Dashboard</a>
-          <span aria-hidden="true">/</span><span aria-current="page">{ehEntrada ? "Registrar entrada" : "Registrar saída"}</span>
-        </nav>
-
         <header className="erp-cabecalho">
-          <div><p className="erp-sobretitulo">Módulo financeiro</p><h2 id={`${id}-titulo`}>{titulo}</h2></div>
+          <div><h2 id={`${id}-titulo`}>{titulo}</h2></div>
           <div className="erp-resumo"><span>Total listado</span><strong>{carregando ? "—" : formatarMoeda(totalListado)}</strong></div>
         </header>
 
@@ -559,7 +552,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, dashboardHref = "/
 // CSS isolado por prefixo. O componente não depende das cores do tema Tailwind.
 const ESTILOS_FINANCEIRO = `
 .erp-financeiro {
-  --erp-bg: #10151a; --erp-panel: #13191f; --erp-border: #27313b;
+  --erp-bg: #06080f; --erp-panel: #13191f; --erp-border: #27313b;
   --erp-text: #e7edf6; --erp-muted: #a6b5c9; --erp-blue: #0798ff; --erp-total: #2ed48d;
   width: 100%; min-width: 0; padding: 10px 11px 5px; color: var(--erp-text); color-scheme: dark;
   background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
@@ -573,16 +566,12 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-breadcrumb { display: flex; align-items: center; gap: 7px; color: var(--erp-muted); padding: 0 8px; margin-bottom: 13px; font-size: 12px; }
-.erp-financeiro .erp-breadcrumb a { display: inline-flex; align-items: center; gap: 4px; color: #84bcec; text-decoration: none; }
-.erp-financeiro .erp-breadcrumb a:hover { color: #b6dbff; }
 .erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 8px; margin-bottom: 9px; }
-.erp-financeiro .erp-sobretitulo { margin: 0 0 2px; color: var(--erp-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .65px; }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
 .erp-financeiro .erp-resumo { text-align: right; white-space: nowrap; }
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 9px; border: 1px solid var(--erp-border); border-radius: 5px; margin-bottom: 4px; background: #12181d88; }
+.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 9px; border: 1px solid var(--erp-border); border-radius: 5px; margin-bottom: 4px; background: #060a13; }
 .erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }

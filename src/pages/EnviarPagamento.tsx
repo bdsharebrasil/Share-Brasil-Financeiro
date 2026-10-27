@@ -195,18 +195,16 @@ function converterValor(valor: string) {
 }
 
 function rateioProporcional(cotistaIds: string[], cotistas: CotistaAeronave[]) {
-  const somaSociedade = cotistaIds.reduce((total, id) => total + Number(cotistas.find((cotista) => cotista.id === id)?.percentual_sociedade || 0), 0);
-  const linhas = cotistaIds.map((cotistaId) => ({
+  // Usa o percentual_sociedade real da tabela cotista_aeronave, sem arredondar:
+  // os centavos do rateio dependem da precisão integral do percentual.
+  const percentuais = cotistaIds.map((id) => Number(cotistas.find((cotista) => cotista.id === id)?.percentual_sociedade || 0));
+  const somaSociedade = percentuais.reduce((total, percentual) => total + percentual, 0);
+  return cotistaIds.map((cotistaId, index) => ({
     cotista_id: cotistaId,
-    percentual: (somaSociedade > 0
-      ? Number(cotistas.find((cotista) => cotista.id === cotistaId)?.percentual_sociedade || 0) / somaSociedade * 100
-      : 100 / (cotistaIds.length || 1)).toFixed(2),
+    percentual: somaSociedade > 0
+      ? String(percentuais[index] / somaSociedade * 100)
+      : String(100 / (cotistaIds.length || 1)),
   }));
-  if (linhas.length) {
-    const somaPercentuais = linhas.reduce((total, linha) => total + Number(linha.percentual), 0);
-    linhas[linhas.length - 1].percentual = (Number(linhas[linhas.length - 1].percentual) + 100 - somaPercentuais).toFixed(2);
-  }
-  return linhas;
 }
 
 export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCaixaShare?: boolean }) {

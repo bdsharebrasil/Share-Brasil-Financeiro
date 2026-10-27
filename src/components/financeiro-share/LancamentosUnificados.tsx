@@ -38,7 +38,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   const [seletorMesAberto, setSeletorMesAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [ordenacao, setOrdenacao] = useState<{ chave: "documento" | "descricao" | "favorecido" | "contaBancaria" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
+  const [ordenacao, setOrdenacao] = useState<{ chave: "documento" | "descricao" | "favorecido" | "favorecidoPessoa" | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor"; crescente: boolean }>({ chave: "data", crescente: false });
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -68,6 +68,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     const valor = ordenacao.chave === "documento" ? (a.documento || "").localeCompare(b.documento || "")
       : ordenacao.chave === "descricao" ? a.descricao.localeCompare(b.descricao, "pt-BR")
       : ordenacao.chave === "favorecido" ? a.favorecido.localeCompare(b.favorecido, "pt-BR")
+      : ordenacao.chave === "favorecidoPessoa" ? (a.favorecidoPessoa || "").localeCompare(b.favorecidoPessoa || "", "pt-BR")
+      : ordenacao.chave === "fornecedor" ? (a.fornecedor || "").localeCompare(b.fornecedor || "", "pt-BR")
       : ordenacao.chave === "contaBancaria" ? a.contaBancaria.localeCompare(b.contaBancaria, "pt-BR")
       : ordenacao.chave === "situacao" ? a.situacao.localeCompare(b.situacao)
       : ordenacao.chave === "valor" ? a.valor - b.valor
@@ -148,7 +150,16 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     }
   }
 
-  const colunas = [
+  const colunas: { label: string; key: typeof ordenacao.chave }[] = fluxo === "SAIDA" ? [
+    { label: "DOC", key: "documento" },
+    { label: "Descrição", key: "descricao" },
+    { label: "Favorecido", key: "favorecidoPessoa" },
+    { label: "Fornecedor", key: "fornecedor" },
+    { label: "Conta", key: "contaBancaria" },
+    { label: "Data", key: "data" },
+    { label: "Situação", key: "situacao" },
+    { label: "Valor", key: "valor" },
+  ] : [
     { label: "DOC", key: "documento" },
     { label: "Descrição", key: "descricao" },
     { label: "Favorecido", key: "favorecido" },
@@ -156,7 +167,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
     { label: "Data", key: "data" },
     { label: "Situação", key: "situacao" },
     { label: "Valor", key: "valor" },
-  ] as const;
+  ];
 
   return <section className="space-y-4">
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -205,17 +216,17 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
         <th className="w-10 px-4 py-3"><input type="checkbox" aria-label="Selecionar todos desta página" checked={todasDaPaginaSelecionadas} disabled={!linhas.length} onChange={alternarPagina} className="accent-primary"/></th>
         {colunas.map(({label,key}) => <th key={label} className={`px-4 py-3 ${key === "valor" ? "text-right" : ""}`}><button type="button" className="inline-flex items-center gap-1" onClick={() => setOrdenacao((atual) => ({ chave: key, crescente: atual.chave === key ? !atual.crescente : true }))}>{label}<ArrowUpDown size={11}/></button></th>)}
       </tr></thead>
-        <tbody>{carregando ? <tr><td colSpan={8} className="p-10 text-center text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16}/>Carregando lançamentos…</td></tr> : linhas.length ? linhas.map((l) => <tr key={`${l.origem}:${l.id}`} onClick={() => { setSelecionados([l.id]); abrirBaixa(l); }} className={`cursor-pointer border-b border-border/60 hover:bg-muted/20 ${selecionados.includes(l.id) ? "bg-primary/5" : ""}`}>
+        <tbody>{carregando ? <tr><td colSpan={colunas.length + 1} className="p-10 text-center text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16}/>Carregando lançamentos…</td></tr> : linhas.length ? linhas.map((l) => <tr key={`${l.origem}:${l.id}`} onClick={() => { setSelecionados([l.id]); abrirBaixa(l); }} className={`cursor-pointer border-b border-border/60 hover:bg-muted/20 ${selecionados.includes(l.id) ? "bg-primary/5" : ""}`}>
           <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${l.descricao}`} checked={selecionados.includes(l.id)} onChange={() => alternarSelecao(l.id)} className="accent-primary"/></td>
           <td className="px-4 py-3 font-mono text-primary">{l.documento || "—"}</td>
           <td className="px-4 py-3"><strong>{l.descricao}</strong><div className="mt-1 text-[10px] text-muted-foreground">{l.categoria}</div></td>
-          <td className="px-4 py-3">{l.favorecido}</td>
+          {fluxo === "SAIDA" ? <><td className="px-4 py-3">{l.favorecidoPessoa || "—"}</td><td className="px-4 py-3">{l.fornecedor || "—"}</td></> : <td className="px-4 py-3">{l.favorecido}</td>}
           <td className="px-4 py-3 font-mono">{l.contaBancaria}</td>
           <td className="px-4 py-3">{formatarData(l.dataLancamento)}{l.dataVencimento && <div className="mt-1 text-[10px] text-muted-foreground">Venc. {formatarData(l.dataVencimento)}</div>}</td>
           <td className="px-4 py-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${CORES_SITUACAO[l.situacao] ?? CORES_SITUACAO.PENDENTE}`}>{ROTULO_SITUACAO[l.situacao] ?? l.situacao}</span></td>
           <td className={`px-4 py-3 text-right font-mono font-bold ${l.fluxo === "ENTRADA" ? "text-emerald-400" : "text-red-400"}`}>{l.fluxo === "ENTRADA" ? "+ " : "− "}{formatarMoeda(l.valor)}</td>
-        </tr>) : <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">Nenhum lançamento encontrado para os filtros.</td></tr>}</tbody>
-        {linhas.length > 0 && <tfoot className="border-t border-border bg-muted/20 font-bold"><tr><td colSpan={7} className="px-4 py-3">{usaSelecao ? `TOTAL SELECIONADO (${selecionadosVisiveis.length} itens)` : `TOTAL LISTADO (${filtrados.length} itens)`}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(total)}</td></tr></tfoot>}
+        </tr>) : <tr><td colSpan={colunas.length + 1} className="p-10 text-center text-muted-foreground">Nenhum lançamento encontrado para os filtros.</td></tr>}</tbody>
+        {linhas.length > 0 && <tfoot className="border-t border-border bg-muted/20 font-bold"><tr><td colSpan={colunas.length} className="px-4 py-3">{usaSelecao ? `TOTAL SELECIONADO (${selecionadosVisiveis.length} itens)` : `TOTAL LISTADO (${filtrados.length} itens)`}</td><td className="px-4 py-3 text-right font-mono">{formatarMoeda(total)}</td></tr></tfoot>}
       </table>
     </div>
     <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"><span>{filtrados.length ? `${(pagina-1)*porPagina+1}–${Math.min(pagina*porPagina,filtrados.length)} de ${filtrados.length}` : "0 itens"}</span><div className="flex items-center gap-2"><Select value={String(porPagina)} onValueChange={(v) => {setPorPagina(Number(v));setPagina(1);}}><SelectTrigger className="h-8 w-24"><SelectValue/></SelectTrigger><SelectContent>{[10,25,50,100].map((n)=><SelectItem key={n} value={String(n)}>{n} / pág.</SelectItem>)}</SelectContent></Select><Button variant="outline" size="sm" disabled={pagina<=1} onClick={()=>setPagina(pagina-1)}>Anterior</Button><Button variant="outline" size="sm" disabled={pagina>=paginas} onClick={()=>setPagina(pagina+1)}>Próxima</Button></div></footer>

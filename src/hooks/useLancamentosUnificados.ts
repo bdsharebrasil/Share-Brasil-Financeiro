@@ -8,7 +8,7 @@ export type SituacaoUnificada = "PENDENTE" | "ATRASADO" | "PAGO" | "CANCELADO";
 export type OrigemUnificada = "lancamentos" | "contas_apagar" | "contas_areceber" | "solicitacoes_pagamento" | "solicitacoes_compra";
 export type LancamentoUnificado = {
   id: string; codigo: string; documento: string | null; fluxo: FluxoUnificado; natureza: string; caixa: "SHARE" | "CLIENTE";
-  descricao: string; categoria: string; favorecido: string; contaBancaria: string; dataLancamento: string;
+  descricao: string; categoria: string; favorecido: string; favorecidoPessoa: string | null; fornecedor: string | null; contaBancaria: string; dataLancamento: string;
   dataVencimento: string | null; dataPagamento: string | null; situacao: SituacaoUnificada; valor: number;
   reembolsavel: boolean; cotistaId: string | null; origem: OrigemUnificada; origemId: string;
   lancamentoId: string | null; documentoUrl: string | null; raw: Lancamento | ContaAPagar | ContaAReceber;
@@ -32,7 +32,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     if (idsRelacionados.has(l.id)) continue;
     linhas.push({ id: l.id, codigo: l.id.slice(-8).toUpperCase(), documento: l.documento || null, fluxo: l.fluxo, natureza: l.grupoCategoria || l.tipo || l.categoria,
       caixa: l.caixa === "CLIENTE" ? "CLIENTE" : "SHARE", descricao: l.descricao || "—", categoria: l.categoria || "—",
-      favorecido: l.fornecedor || l.pagoPor || "—", contaBancaria: l.contaBancaria || "—", dataLancamento: l.data,
+      favorecido: l.fornecedor || l.pagoPor || "—", favorecidoPessoa: l.pagoPor || null, fornecedor: l.fornecedorId ? l.fornecedor : null, contaBancaria: l.contaBancaria || "—", dataLancamento: l.data,
       dataVencimento: l.prazo || null, dataPagamento: ["PAGO", "RECEBIDO"].includes(l.status) ? l.data : null,
       situacao: situacao(l.status, l.prazo), valor: l.valorCentavos / 100, reembolsavel: l.reembolsavel,
       cotistaId: l.cotistaId, origem: "lancamentos", origemId: l.id, lancamentoId: l.id,
@@ -40,7 +40,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
   }
   for (const c of pagar) {
     linhas.push({ id: `pagar:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), documento: c.documento || null, fluxo: "SAIDA", natureza: "DESPESA",
-      caixa: "SHARE", descricao: c.descricao || "—", categoria: c.categoriaNome || "—", favorecido: c.fornecedor || "—",
+      caixa: "SHARE", descricao: c.descricao || "—", categoria: c.categoriaNome || "—", favorecido: c.fornecedor || "—", favorecidoPessoa: null, fornecedor: c.fornecedorId ? c.fornecedor : null,
       contaBancaria: c.bancoPagamento || "—", dataLancamento: c.dataEmissao || c.criadoEm || "",
       dataVencimento: c.dataVencimento || null, dataPagamento: c.dataPagamento || null,
       situacao: situacao(c.status, c.dataVencimento), valor: Number(c.valor || 0), reembolsavel: false,
@@ -50,7 +50,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
   for (const c of receber) {
     linhas.push({ id: `receber:${c.id}`, codigo: c.id.slice(-8).toUpperCase(), documento: c.documento || null, fluxo: "ENTRADA", natureza: "RECEITA",
       caixa: c.cotistaId ? "CLIENTE" : "SHARE", descricao: c.descricao || "—", categoria: c.categoriaNome || "—",
-      favorecido: c.cotistaNome || c.cotista || c.fornecedor || "—", contaBancaria: c.bancoRecebimento || "—",
+      favorecido: c.cotistaNome || c.cotista || c.fornecedor || "—", favorecidoPessoa: c.cotistaNome || c.cotista || null, fornecedor: c.fornecedorId ? c.fornecedor : null, contaBancaria: c.bancoRecebimento || "—",
       dataLancamento: c.dataEmissao || c.criadoEm || "", dataVencimento: c.dataVencimento || null,
       dataPagamento: c.dataRecebimento || null, situacao: situacao(c.status, c.dataVencimento), valor: Number(c.valor || 0),
       reembolsavel: false, cotistaId: c.cotistaId || null, origem: "contas_areceber", origemId: c.id,
@@ -64,7 +64,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     linhas.push({ id: `solicitacao:${s.id}`, codigo: s.id.slice(-8).toUpperCase(), documento: null, fluxo: "SAIDA",
       natureza: "SOLICITAÇÃO DE PAGAMENTO", caixa: s.tipo === "cliente" ? "CLIENTE" : "SHARE",
       descricao: s.descricao || "Solicitação de pagamento", categoria: s.categoria_nome || "—",
-      favorecido: s.fornecedor || "—", contaBancaria: "—", dataLancamento: s.data_despesa || s.criado_em || "",
+      favorecido: s.fornecedor || "—", favorecidoPessoa: null, fornecedor: s.fornecedor_id ? s.fornecedor : null, contaBancaria: "—", dataLancamento: s.data_despesa || s.criado_em || "",
       dataVencimento: vencimento, dataPagamento: null, situacao: situacao(estado, vencimento),
       valor: Number(s.valor ?? Number(s.valor_centavos || 0) / 100), reembolsavel: s.tipo === "reembolso",
       cotistaId: s.cotista_aeronave_id || s.socio_id || null, origem: "solicitacoes_pagamento", origemId: s.id,
@@ -77,7 +77,7 @@ export function normalizarFontesFinanceiras(lancamentos: Lancamento[], pagar: Co
     linhas.push({ id: `compra:${c.id}`, codigo: c.numero_solicitacao || c.id.slice(-8).toUpperCase(), documento: null, fluxo: "SAIDA",
       natureza: "SOLICITAÇÃO DE COMPRA", caixa: c.tipo_caixa === "CLIENTE" ? "CLIENTE" : "SHARE",
       descricao: c.descricao || "Solicitação de compra", categoria: "Solicitada para aprovação",
-      favorecido: c.solicitante_nome || "—", contaBancaria: "—", dataLancamento: c.data_solicitacao || "",
+      favorecido: c.solicitante_nome || "—", favorecidoPessoa: c.solicitante_nome || null, fornecedor: null, contaBancaria: "—", dataLancamento: c.data_solicitacao || "",
       dataVencimento: c.data_necessaria || c.vencimento || null, dataPagamento: null,
       situacao: situacao(estado === "APROVADA" ? "PENDENTE" : estado, c.data_necessaria || c.vencimento),
       valor: Number(c.valor || 0), reembolsavel: false, cotistaId: null, origem: "solicitacoes_compra",

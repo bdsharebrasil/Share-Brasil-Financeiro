@@ -485,7 +485,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   </div>
 
                   {/* FILTROS E TABELA */}
-              <section className={`${card} overflow-hidden p-4`}>
+              <section className={`${card} abastecimento-registros overflow-hidden p-4`}>
                 <div className="mb-4 grid gap-3 sm:grid-cols-3">
                   <label className="block">
                     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Buscar</span>
@@ -493,7 +493,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   </label>
                 </div>
 
-                <div className="hidden md:block">
+                <div className="abastecimento-tabela overflow-x-auto">
                   <table className="w-full table-fixed border-collapse text-left text-[11px]">
                     <colgroup>
                       <col style={{ width: "8%" }} />
@@ -532,7 +532,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                     </tbody>
                   </table>
                 </div>
-                <div className="space-y-2 md:hidden">
+                <div className="abastecimento-cartoes">
                   {pastaSelecionada[1].length ? pastaSelecionada[1].map((record) => <AbastecimentoCard key={record.id} record={record} onEdit={editRecord} onDelete={remove} onUpload={upload} onPreview={previewFile} />) : <EstadoVazio label="Nenhum abastecimento nesta pasta." />}
                 </div>
               </section>

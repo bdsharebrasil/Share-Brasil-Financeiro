@@ -107,6 +107,15 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
   }, [form.aeronave_id, formOpen]);
 
   useEffect(() => {
+    if (!formOpen || !form.aeronave_id) return;
+    let ativo = true;
+    void buscarAbastecimentoOpcoes(form.aeronave_id)
+      .then((op) => { if (ativo) setOptions((atual) => atual && { ...atual, diarios: Array.isArray(op?.diarios) ? op.diarios : [] }); })
+      .catch((reason) => { if (ativo) setError(reason instanceof Error ? reason.message : "Não foi possível buscar os lançamentos do diário de bordo."); });
+    return () => { ativo = false; };
+  }, [form.aeronave_id, formOpen]);
+
+  useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(() => setMessage(null), 3500);
     return () => window.clearTimeout(timer);

@@ -185,7 +185,15 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
   const totalValorCliente = useMemo(() => registrosCliente.reduce((sum, item) => sum + Number(item.valor_total || 0), 0), [registrosCliente]);
 
   const setField = (key: keyof Form, value: string | boolean) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "litros" || key === "valor_unitario") {
+        const litros = Number(next.litros);
+        const unitario = Number(next.valor_unitario);
+        if (litros > 0 && unitario > 0) next.valor_total = (litros * unitario).toFixed(2);
+      }
+      return next;
+    });
   };
 
   const closeForm = () => {

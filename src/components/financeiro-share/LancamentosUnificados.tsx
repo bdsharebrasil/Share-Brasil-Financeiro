@@ -56,7 +56,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial }: { fluxo?: FluxoU
   const titulo = fluxo === "ENTRADA" ? "Registrar Entrada" : fluxo === "SAIDA" ? "Registrar Saída" : "Lançamentos financeiros";
   const filtrados = useMemo(() => lancamentos.filter((l) => {
     if (fluxo && l.fluxo !== fluxo) return false;
-    if (fluxo === "SAIDA" && l.caixa === "CLIENTE") return false;
+    if (fluxo === "SAIDA" && (l.origem !== "lancamentos" || l.caixa !== "SHARE")) return false;
     if (filtroInicial?.inicio && (l.dataVencimento || "") < filtroInicial.inicio) return false;
     if (filtroInicial?.fim && (l.dataVencimento || "") > filtroInicial.fim) return false;
     if (!filtroInicial?.inicio && !filtroInicial?.fim && !mesesSelecionados.includes((l.dataLancamento || "").slice(0, 7))) return false;

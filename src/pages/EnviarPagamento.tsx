@@ -270,6 +270,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const chaveRascunhoRef = useRef<string | null>(null);
   const filaSalvamento = useRef<Promise<void>>(Promise.resolve());
   const persistirRascunhoRef = useRef<() => Promise<void>>(async () => undefined);
+  const salvarAoSairRef = useRef<() => void>(() => undefined);
 
   const carregarOpcoes = async () => {
     try {
@@ -411,13 +412,19 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   useEffect(() => { void carregar(); void carregarOpcoes(); }, []);
 
-  useEffect(() => {
+  salvarAoSairRef.current = () => {
     if ((!tipo && !envioRecemCriado) || !rascunhoId || restaurandoRascunho || rascunhoConcluido) return;
-    const temporizador = window.setTimeout(() => {
-      void persistirRascunhoRef.current().catch(() => toast.error("Não foi possível salvar o rascunho."));
-    }, 800);
-    return () => window.clearTimeout(temporizador);
-  }, [tipo, rascunhoId, restaurandoRascunho, rascunhoConcluido, etapa, form, vincularAeronave, modoNumeroVooCliente, origemDespesa, envioRecemCriado, envioConvertido, assunto, corpoEmail, destinatario, nomeDestinatario, anexosSelecionados, anexosEnvioEmail, arquivosPersistidos, cotistasEmail, emailsPorCotista, rascunhosEmailPorCotista, statusEmailCotista]);
+    void persistirRascunhoRef.current().catch(() => toast.error("Não foi possível salvar o rascunho."));
+  };
+
+  useEffect(() => {
+    const salvarAoSair = () => salvarAoSairRef.current();
+    window.addEventListener("pagehide", salvarAoSair);
+    return () => {
+      window.removeEventListener("pagehide", salvarAoSair);
+      salvarAoSair();
+    };
+  }, []);
 
   useEffect(() => { void carregarCotistas(form.aeronave_id); }, [form.aeronave_id]);
 
@@ -1087,7 +1094,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           ? `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`
           : `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Há outros destinatários pendentes.`;
         notificarEnvioCliente("success", mensagemSucesso);
-        fecharModalEmail();
+        if (todosConcluidos) fecharModalEmail();
+        else setSucessoEmail(mensagemSucesso);
       } else {
         if (idRascunhoAtual) {
           setRascunhoConcluido(true);

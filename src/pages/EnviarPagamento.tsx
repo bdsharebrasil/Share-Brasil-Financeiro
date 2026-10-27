@@ -60,6 +60,10 @@ type OpcaoEnvio = {
 };
 type ArquivoPersistidoEmail = { key: string; url: string; filename: string; content_type: string; cotista_id?: string };
 
+function anexoAplicaAoCotista(anexo: AnexoLinha, cotistaId: string) {
+  return !anexo.cotista_id || anexo.cotista_id === cotistaId;
+}
+
 function notificarEnvioCliente(tipo: "success" | "error" | "warning", mensagem: string) {
   const opcoes = {
     duration: 5000,
@@ -350,7 +354,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         idempotency_key: chave,
         envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
         status: statusRascunho,
-        destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)).map((cotista) => cotista.id),
+        destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))).map((cotista) => cotista.id),
       });
       setStatusSalvamento("salvo");
       setSalvoEm(resultado.atualizado_em);
@@ -831,7 +835,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       return;
     }
     if (!tipo || !podeAvancar()) {
-      setErro("Revise os campos obrigatórios antes de criar o lançamento. Se houver anexos, associe cada um a um cotista.");
+      setErro("Revise os campos obrigatórios antes de criar o lançamento. Anexos sem cotista selecionado serão compartilhados com todos os cotistas da aeronave.");
       return;
     }
     if (uploadsPendentes) {
@@ -873,11 +877,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
-        const emails = Object.fromEntries(cotistasSelecionados.map((cotista) => [
+        const cotistasParaEmail = form.anexos.some((anexo) => !anexo.cotista_id) ? cotistas : cotistasSelecionados;
+        const emails = Object.fromEntries(cotistasParaEmail.map((cotista) => [
           cotista.id,
           cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
         ]));
-        const rascunhosEmail = Object.fromEntries(cotistasSelecionados.map((cotista) => [cotista.id, {
+        const rascunhosEmail = Object.fromEntries(cotistasParaEmail.map((cotista) => [cotista.id, {
           assunto: `Documentos da despesa — ${form.descricao} — ${cotista.nome}`,
           mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${form.descricao}”.\n\nAtenciosamente,\n${assinaturaEmail?.nome || "Share Brasil"}`,
         }]));
@@ -888,7 +893,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
         setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
-        setCotistasEmail(cotistasSelecionados);
+        setCotistasEmail(cotistasParaEmail);
         setEmailsPorCotista(emails);
         setRascunhosEmailPorCotista(rascunhosEmail);
         setEmailsEnviados([]);
@@ -914,7 +919,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             corpoEmail: montarCorpoEmail(registro),
             anexosSelecionados: form.anexos.map((anexo) => anexo.id).filter(Boolean),
             anexosEnvioEmail: form.anexos.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo),
-            cotistasEmail: cotistasSelecionados,
+            cotistasEmail: cotistasParaEmail,
             emailsPorCotista: emails,
             rascunhosEmailPorCotista: rascunhosEmail,
             statusEmailCotista: {},
@@ -1001,7 +1006,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     let emailEnviadoNestaExecucao = false;
     try {
       const grupos = envioPorCotista
-        ? [{ cotista: cotistaAlvo!, anexos: anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotistaAlvo!.id && anexosSelecionados.includes(anexo.id)) }]
+        ? [{ cotista: cotistaAlvo!, anexos: anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotistaAlvo!.id) && anexosSelecionados.includes(anexo.id)) }]
         : [{ cotista: null, anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)) }];
       const gruposComAnexo = grupos.filter((grupo) => !envioPorCotista || grupo.anexos.length > 0);
       if (!gruposComAnexo.length) throw new Error("Selecione ao menos um documento para enviar a um cotista.");
@@ -1037,7 +1042,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "ENVIADO" }));
       }
       const gruposSelecionados = envioPorCotista
-        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id && anexosSelecionados.includes(anexo.id)))
+        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id) && anexosSelecionados.includes(anexo.id)))
         : [];
       const todosEmailsCotistasEnviados = envioPorCotista && gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
       if (envioRecemCriado && (!envioPorCotista || todosEmailsCotistasEnviados)) {
@@ -1246,7 +1251,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento e distribuídos por cotista no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId) : undefined} /></div>
+                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento. Deixe “Todos os cotistas da aeronave” para compartilhar o anexo com todos no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} storagePrefix="nf-boletos-clients" cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={tipo === "cliente" ? async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId) : undefined} /></div>
                   {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
                 </div>
               )}
@@ -1390,7 +1395,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Cada cotista receberá uma mensagem separada, somente com os documentos marcados abaixo.</p>
                       </div>
                       {cotistasEmail.map((cotista) => {
-                        const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexo.cotista_id === cotista.id);
+                        const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id));
                         if (!anexosDoCotista.length) return null;
                         const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
                         const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
@@ -1434,7 +1439,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                           </div>
                         );
                       })}
-                      {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexo.cotista_id === cotista.id)) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Associe os anexos a um cotista antes de enviar os e-mails.</p>}
+                      {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Adicione anexos para disponibilizá-los aos cotistas.</p>}
                     </section>
                   ) : (
                     <div className="space-y-2">

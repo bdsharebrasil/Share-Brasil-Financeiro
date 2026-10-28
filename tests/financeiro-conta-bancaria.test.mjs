@@ -10,8 +10,10 @@ const dashboard = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx",
 test("o banco associado ao lançamento é exibido e ordenado na coluna Conta", () => {
   assert.match(api, /contaBancaria: row\.contaBancaria \?\? row\.banco_pagamento_nome \?\? null/);
   assert.match(linhas, /contaBancaria: c\.bancoPagamento \|\| "—"/);
-  assert.match(tabela, /\{ label: "Conta", key: "contaBancaria" \}/);
-  assert.match(tabela, /ordenacao\.chave === "contaBancaria" \? a\.contaBancaria\.localeCompare\(b\.contaBancaria/);
+  assert.match(tabela, /\{ chave: "contaBancaria", rotulo: "Conta", largura: 153 \}/);
+  assert.match(tabela, /"fornecedor" \| "contaBancaria" \| "data"/);
+  assert.match(tabela, /String\(chave === "data" \? a\.dataLancamento \?\? "" : a\[chave\] \?\? ""\)\.localeCompare\(/);
+  assert.match(tabela, /<td title=\{linha\.contaBancaria\}>\{linha\.contaBancaria \|\| "—"\}<\/td>/);
 });
 
 test("despesas do caixa cliente não recebem rótulo de reembolso", () => {

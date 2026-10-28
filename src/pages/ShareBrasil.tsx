@@ -37,6 +37,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Upload,
   UserRound,
   Users,
@@ -1086,6 +1087,8 @@ export function ContatosClientesShareBrasil() {
     empresa: "",
     cargo: "",
     categoria: "",
+    categoria_tipo: "",
+    categoria_personalizada: "",
     endereco: "",
     cidade: "",
     uf: "",
@@ -1224,19 +1227,41 @@ export function ContatosClientesShareBrasil() {
     setProfileTab("visao-geral");
   };
   const addContact = async () => {
-    if (!form.nome) return;
+    const categoriaTipo = form.categoria_tipo.trim().toLocaleUpperCase("pt-BR") as "FORNECEDOR" | "HANGAR" | "OUTRO";
+    const categoriaPersonalizada = form.categoria_personalizada.trim();
+    const categoriaInformada = categoriaTipo === "OUTRO" ? categoriaPersonalizada : categoriaTipo;
+    const categoriaNormalizada = categoriaInformada.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+    if (!form.nome.trim()) {
+      setError("Informe o nome do contato.");
+      return;
+    }
+    if (!["FORNECEDOR", "HANGAR", "OUTRO"].includes(categoriaTipo)) {
+      setError("Selecione uma categoria válida.");
+      return;
+    }
+    if (categoriaTipo === "OUTRO" && !categoriaPersonalizada) {
+      setError("Informe a categoria para a opção OUTRO.");
+      return;
+    }
+    if (["hotel", "hoteis"].includes(categoriaNormalizada)) {
+      setError("ESSE FORNECEDOR DEVERÁ SER SALVO EM SHARE BRASIL -> HOTEIS");
+      return;
+    }
+    if (["combustivel", "combustiveis", "abastecimento"].includes(categoriaNormalizada)) {
+      setError("ESSE FORNECEDOR DEVE SER SALVO EM OPERAÇÕES -> ABASTECIMENTO -> FORNECEDORES");
+      return;
+    }
+    const payload = { ...form, categoria: categoriaInformada, categoria_tipo: categoriaTipo, categoria_personalizada: categoriaTipo === "OUTRO" ? categoriaPersonalizada : "" };
     try {
-      if (editingContact) await atualizarContatoShare(editingContact, form);
-      else await criarContatoShare(form);
-      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", endereco: "", cidade: "", uf: "", observacoes: "" });
+      if (editingContact) await atualizarContatoShare(editingContact, payload);
+      else await criarContatoShare(payload);
+      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", endereco: "", cidade: "", uf: "", observacoes: "" });
       setEditingContact(undefined);
       setShowNewContact(false);
       setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
       refresh();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Não foi possível salvar o contato.",
-      );
+      setError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
     }
   };
   const editContact = (contact: ContatoAgenda) => {
@@ -1247,6 +1272,8 @@ export function ContatosClientesShareBrasil() {
       empresa: contact.empresa || "",
       cargo: contact.cargo || "",
       categoria: contact.categoria || "",
+      categoria_tipo: contact.categoria_tipo || (["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria : "OUTRO"),
+      categoria_personalizada: contact.categoria_personalizada || (!contact.categoria_tipo && !["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria || "" : ""),
       endereco: contact.endereco || "",
       cidade: contact.cidade || "",
       uf: contact.uf || "",
@@ -1575,18 +1602,27 @@ export function ContatosClientesShareBrasil() {
             title={editingContact ? "Editar contato" : "Novo contato"}
             detail="Adicione pessoas e parceiros à agenda."
           />
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:min-w-0">
             <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
             <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
             <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
             <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
             <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
-            <Input placeholder="Categoria" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} className={field} />
-            <Input placeholder="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-10 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2" />
+            <label className="grid min-w-0 gap-1 text-xs text-slate-400">
+              <span>Categoria</span>
+              <select value={form.categoria_tipo} onChange={(e) => setForm({ ...form, categoria_tipo: e.target.value, categoria_personalizada: "" })} className={`${field} w-full min-w-0`}>
+                <option value="">Selecione uma categoria</option>
+                <option value="FORNECEDOR">Fornecedor</option>
+                <option value="HANGAR">Hangar</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </label>
+            {form.categoria_tipo === "OUTRO" && <Input placeholder="Qual categoria?" aria-label="Descreva a categoria" value={form.categoria_personalizada} onChange={(e) => setForm({ ...form, categoria_personalizada: e.target.value })} className={`${field} w-full min-w-0`} />}
+            <Input placeholder="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-10 w-full min-w-0 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2" />
             <Input placeholder="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} className={field} />
             <Input placeholder="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} className={field} />
             <Textarea placeholder="Observações" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="min-h-10 bg-background/70 text-sm sm:col-span-2" />
-            <div className="flex gap-2">
+            <div className="flex min-w-0 flex-col gap-2 sm:col-span-2 sm:flex-row lg:col-span-3 xl:col-span-2">
               <Button type="button" onClick={() => void addContact()} className="h-10 flex-1 gap-2 text-xs"><Plus size={14} /> Salvar</Button>
               <Button type="button" variant="outline" onClick={() => { setShowNewContact(false); setEditingContact(undefined); }} className="h-10 gap-2 text-xs"><X size={14} /> Cancelar</Button>
             </div>
@@ -1612,17 +1648,17 @@ export function ContatosClientesShareBrasil() {
                 className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
-            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
+            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
               <Plus size={14} /> Novo contato
             </Button>
           </div>
         </header>
 
         {visibleContacts.length ? (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full flex-col rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
+                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
                   <div className="flex min-w-0 items-start gap-3">
                     <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
                       {item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("") || "?"}
@@ -1641,12 +1677,12 @@ export function ContatosClientesShareBrasil() {
                     {!item.telefone && !item.email && !item.cidade && !item.uf && !item.endereco && <div className="text-slate-500">Sem dados adicionais de contato</div>}
                   </dl>
 
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex min-w-0 items-center gap-2">
                     <Button type="button" variant="outline" onClick={() => setSelectedContact(item)} className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100">
                       <Eye size={14} aria-hidden="true" /> Ver
                     </Button>
                     <Button type="button" variant="ghost" size="icon" onClick={() => editContact(item)} aria-label={`Editar contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"><Pencil size={14} /></Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-red-300"><X size={14} /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} title="Remover contato" className="ml-auto h-9 w-9 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
                   </div>
                 </article>
               </li>

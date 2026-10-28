@@ -798,6 +798,24 @@ export default function RelatorioDespesaViagem({
       setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível gerar o PDF." });
     } finally { setSalvando(false); }
   };
+  const visualizarPreviaRascunho = async () => {
+    if (!relatorio || relatorio.status !== "rascunho") return;
+    const salvo = await salvar(true);
+    if (!salvo) return;
+    setSalvando(true);
+    try {
+      const blob = await prepararPdf(salvo);
+      const url = URL.createObjectURL(blob);
+      setPdfPreview((atual) => {
+        if (atual) URL.revokeObjectURL(atual.url);
+        return { item: salvo, blob, url };
+      });
+    } catch (error) {
+      setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível gerar a prévia do PDF." });
+    } finally {
+      setSalvando(false);
+    }
+  };
   const fecharPdfPreview = () => {
     if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
     setPdfPreview(null);
@@ -1049,15 +1067,26 @@ export default function RelatorioDespesaViagem({
             </Button>
           )}
           {relatorio?.status === "rascunho" && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => void excluirRascunho()}
-              disabled={salvando}
-              className="gap-2 text-rose-300 hover:text-rose-200"
-            >
-              <Trash2 size={15} /> Excluir rascunho
-            </Button>
+            <div className="flex flex-col items-start gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void excluirRascunho()}
+                disabled={salvando}
+                className="gap-2 text-rose-300 hover:text-rose-200"
+              >
+                <Trash2 size={15} /> Excluir rascunho
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void visualizarPreviaRascunho()}
+                disabled={salvando}
+                className="gap-2"
+              >
+                <FileText size={15} /> VER PRÉVIA
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -1134,6 +1163,7 @@ export default function RelatorioDespesaViagem({
                     return { id: item.numero_voo, label: [item.numero_voo, trecho, dataAgendada].filter(Boolean).join(" ") };
                   })}
                   value={form.numero_voo}
+                  selectedLabel={form.numero_voo}
                   onChange={(valor) => setCampo("numero_voo", valor)}
                   placeholder="Busque por um voo válido..."
                   searchPlaceholder="Buscar voo..."
@@ -1583,12 +1613,20 @@ export default function RelatorioDespesaViagem({
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-5xl flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>Prévia do relatório em PDF</DialogTitle>
-            <DialogDescription>O PDF foi salvo no relatório. Você pode conferir a prévia e baixar uma cópia agora.</DialogDescription>
+            <DialogDescription>{pdfPreview?.item.status === "rascunho" ? "Prévia do rascunho. Este PDF ainda não foi finalizado nem salvo no relatório." : "O PDF foi salvo no relatório. Você pode conferir a prévia e baixar uma cópia agora."}</DialogDescription>
           </DialogHeader>
           {pdfPreview && <iframe src={pdfPreview.url} title="Prévia do relatório" className="h-[min(70dvh,720px)] min-h-[320px] w-full min-w-0 flex-1 rounded-md border bg-white" />}
           <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={fecharPdfPreview}>Fechar</Button>
-            {pdfPreview && <Button type="button" onClick={() => void baixarPdf(pdfPreview.item)}><FileDown size={15} /> Baixar PDF</Button>}
+            {pdfPreview && <Button type="button" onClick={() => {
+              const link = document.createElement("a");
+              const nomeSeguro = String(pdfPreview.item.numero_relatorio || pdfPreview.item.id).replace(/[^a-zA-Z0-9._-]+/g, "_");
+              link.href = pdfPreview.url;
+              link.download = `relatorio-${nomeSeguro}.pdf`;
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            }}><FileDown size={15} /> Baixar PDF</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

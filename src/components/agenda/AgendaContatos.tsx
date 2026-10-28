@@ -277,7 +277,8 @@ export function AgendaContatos() {
     if (mutationLock.current) return;
     mutationLock.current = true; setSalvando(true); setErroForm(null);
     try {
-      if (editando) await atualizarContatoShare(editando.id, payload); else await criarContatoShare(payload);
+      const dados = { ...payload, categoria_tipo: payload.categoria_tipo as ContatoAgenda["categoria_tipo"] };
+      if (editando) await atualizarContatoShare(editando.id, dados); else await criarContatoShare(dados);
       setCadastro(false); setEditando(undefined); setAviso(editando ? "Contato atualizado." : "Contato cadastrado.");
       await carregar();
     } catch (e) { setErroForm(e instanceof Error ? e.message : "Não foi possível salvar o contato."); }

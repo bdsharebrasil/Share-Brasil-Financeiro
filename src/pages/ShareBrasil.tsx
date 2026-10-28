@@ -1436,10 +1436,10 @@ export function ContatosClientesShareBrasil() {
   const contactsContent = (
     <div className="space-y-4">
       <Dialog open={showNewContact} onOpenChange={(open) => { if (!savingContact) { setShowNewContact(open); if (!open) setEditingContact(undefined); } }}>
-        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-white/10 bg-[#071226] p-4 text-slate-100 sm:w-[calc(100vw-2rem)] sm:p-6">
-          <DialogHeader className="pr-8 text-left">
-            <DialogTitle className="text-lg font-semibold text-white">{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
-            <DialogDescription className="text-sm text-slate-400">Cadastre contatos e fornecedores. Os dados serão salvos na agenda de fornecedores.</DialogDescription>
+        <DialogContent className="ac-dialog">
+          <DialogHeader className="ac-dialog-header">
+            <DialogTitle>{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
+            <DialogDescription>Preencha os dados para organizar o contato na agenda corporativa.</DialogDescription>
           </DialogHeader>
           <FormularioCadastroContato contato={editingContact} salvando={savingContact} erro={contactError} aoSalvar={salvarContato} aoCancelar={() => setShowNewContact(false)} />
         </DialogContent>

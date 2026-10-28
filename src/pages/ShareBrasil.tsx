@@ -105,6 +105,10 @@ import { copyText } from "@/lib/utils";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
+const CAMPOS_SERVICO_HANGAR = [
+  { nome: "GPU", disponibilidade: "gpu", custo: "custo_gpu", valor: "valor_gpu" },
+  { nome: "Transfer", disponibilidade: "transfer", custo: "custo_transfer", valor: "valor_transfer" },
+] as const;
 const categoriasDocumentos = [
   { value: "cartao-cnpj", label: "Cartão CNPJ" },
   { value: "comprovante-endereco", label: "Comprovante de endereço" },
@@ -1085,8 +1089,16 @@ export function ContatosClientesShareBrasil() {
     telefone: "",
     email: "",
     empresa: "",
+    razao_social: "",
+    cnpj: "",
     cargo: "",
     categoria: "",
+    gpu: "",
+    transfer: "",
+    valor_gpu: "",
+    valor_transfer: "",
+    custo_gpu: "",
+    custo_transfer: "",
     categoria_tipo: "",
     categoria_personalizada: "",
     endereco: "",
@@ -1251,11 +1263,39 @@ export function ContatosClientesShareBrasil() {
       setError("ESSE FORNECEDOR DEVE SER SALVO EM OPERAÇÕES -> ABASTECIMENTO -> FORNECEDORES");
       return;
     }
-    const payload = { ...form, categoria: categoriaInformada, categoria_tipo: categoriaTipo, categoria_personalizada: categoriaTipo === "OUTRO" ? categoriaPersonalizada : "" };
+    if (categoriaTipo === "HANGAR") {
+      for (const servico of [
+        { nome: "GPU", disponivel: form.gpu, custo: form.custo_gpu, valor: form.valor_gpu },
+        { nome: "Transfer", disponivel: form.transfer, custo: form.custo_transfer, valor: form.valor_transfer },
+      ]) {
+        if (!["SIM", "NAO"].includes(servico.disponivel)) {
+          setError(`Informe se o hangar disponibiliza ${servico.nome}.`);
+          return;
+        }
+        if (servico.disponivel === "SIM" && !["GRATUITO", "COBRADO"].includes(servico.custo)) {
+          setError(`Informe se o serviço de ${servico.nome} é gratuito ou cobrado.`);
+          return;
+        }
+        if (servico.disponivel === "SIM" && servico.custo === "COBRADO" && (!Number.isFinite(Number(servico.valor)) || Number(servico.valor) <= 0)) {
+          setError(`Informe um valor válido para o serviço de ${servico.nome}.`);
+          return;
+        }
+      }
+    }
+    const payload = {
+      ...form,
+      categoria: categoriaInformada,
+      categoria_tipo: categoriaTipo,
+      categoria_personalizada: categoriaTipo === "OUTRO" ? categoriaPersonalizada : "",
+      gpu: categoriaTipo === "HANGAR" ? form.gpu : "",
+      transfer: categoriaTipo === "HANGAR" ? form.transfer : "",
+      valor_gpu: categoriaTipo === "HANGAR" ? form.valor_gpu : "",
+      valor_transfer: categoriaTipo === "HANGAR" ? form.valor_transfer : "",
+    };
     try {
       if (editingContact) await atualizarContatoShare(editingContact, payload);
       else await criarContatoShare(payload);
-      setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", endereco: "", cidade: "", uf: "", observacoes: "" });
+      setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" });
       setEditingContact(undefined);
       setShowNewContact(false);
       setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
@@ -1270,10 +1310,18 @@ export function ContatosClientesShareBrasil() {
       telefone: contact.telefone || "",
       email: contact.email || "",
       empresa: contact.empresa || "",
+      razao_social: contact.razao_social || "",
+      cnpj: contact.cnpj || "",
       cargo: contact.cargo || "",
       categoria: contact.categoria || "",
       categoria_tipo: contact.categoria_tipo || (["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria : "OUTRO"),
       categoria_personalizada: contact.categoria_personalizada || (!contact.categoria_tipo && !["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria || "" : ""),
+      gpu: contact.gpu || "",
+      transfer: contact.transfer || "",
+      valor_gpu: contact.valor_gpu === "GRATUITO" ? "" : contact.valor_gpu || "",
+      valor_transfer: contact.valor_transfer === "GRATUITO" ? "" : contact.valor_transfer || "",
+      custo_gpu: contact.valor_gpu === "GRATUITO" ? "GRATUITO" : contact.valor_gpu ? "COBRADO" : "",
+      custo_transfer: contact.valor_transfer === "GRATUITO" ? "GRATUITO" : contact.valor_transfer ? "COBRADO" : "",
       endereco: contact.endereco || "",
       cidade: contact.cidade || "",
       uf: contact.uf || "",
@@ -1606,11 +1654,13 @@ export function ContatosClientesShareBrasil() {
             <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
             <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
             <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
-            <Input placeholder="Empresa" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
+            <Input placeholder="Empresa / nome fantasia" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
+            <Input placeholder="Razão social" value={form.razao_social} onChange={(e) => setForm({ ...form, razao_social: e.target.value })} className={field} />
+            <Input placeholder="CNPJ" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} className={field} />
             <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
             <label className="grid min-w-0 gap-1 text-xs text-slate-400">
               <span>Categoria</span>
-              <select value={form.categoria_tipo} onChange={(e) => setForm({ ...form, categoria_tipo: e.target.value, categoria_personalizada: "" })} className={`${field} w-full min-w-0`}>
+              <select value={form.categoria_tipo} onChange={(e) => setForm({ ...form, categoria_tipo: e.target.value, categoria_personalizada: "", ...(e.target.value !== "HANGAR" ? { gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "" } : {}) })} className={`${field} w-full min-w-0`}>
                 <option value="">Selecione uma categoria</option>
                 <option value="FORNECEDOR">Fornecedor</option>
                 <option value="HANGAR">Hangar</option>
@@ -1618,6 +1668,13 @@ export function ContatosClientesShareBrasil() {
               </select>
             </label>
             {form.categoria_tipo === "OUTRO" && <Input placeholder="Qual categoria?" aria-label="Descreva a categoria" value={form.categoria_personalizada} onChange={(e) => setForm({ ...form, categoria_personalizada: e.target.value })} className={`${field} w-full min-w-0`} />}
+            {form.categoria_tipo === "HANGAR" && <fieldset className="grid min-w-0 gap-3 rounded-xl border border-white/10 bg-white/[.025] p-3 sm:col-span-2 lg:col-span-3 xl:col-span-6 sm:grid-cols-2"><legend className="px-1 text-xs font-semibold text-sky-200">Serviços do hangar</legend>
+              {CAMPOS_SERVICO_HANGAR.map((servico) => <div key={servico.nome} className="grid min-w-0 gap-2 rounded-lg border border-white/[.06] p-3">
+                <span className="text-sm font-medium text-slate-200">{servico.nome}</span>
+                <label className="grid min-w-0 gap-1 text-xs text-slate-400"><span>Disponibiliza {servico.nome}?</span><select value={form[servico.disponibilidade]} onChange={(e) => { const disponivel = e.target.value; setForm({ ...form, [servico.disponibilidade]: disponivel, [servico.custo]: "", [servico.valor]: "" }); }} className={`${field} w-full min-w-0`}><option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option></select></label>
+                {form[servico.disponibilidade] === "SIM" && <><label className="grid min-w-0 gap-1 text-xs text-slate-400"><span>O serviço é gratuito ou cobrado?</span><select value={form[servico.custo]} onChange={(e) => setForm({ ...form, [servico.custo]: e.target.value, [servico.valor]: e.target.value === "GRATUITO" ? "GRATUITO" : "" })} className={`${field} w-full min-w-0`}><option value="">Selecione</option><option value="GRATUITO">Gratuito</option><option value="COBRADO">Cobrado</option></select></label>{form[servico.custo] === "COBRADO" && <Input type="number" min="0.01" step="0.01" placeholder={`Valor cobrado pela ${servico.nome}`} aria-label={`Valor cobrado pela ${servico.nome}`} value={form[servico.valor]} onChange={(e) => setForm({ ...form, [servico.valor]: e.target.value })} className={`${field} w-full min-w-0`} />}</>}
+              </div>)}
+            </fieldset>}
             <Input placeholder="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-10 w-full min-w-0 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2" />
             <Input placeholder="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} className={field} />
             <Input placeholder="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} className={field} />
@@ -1648,7 +1705,7 @@ export function ContatosClientesShareBrasil() {
                 className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
-            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
+            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
               <Plus size={14} /> Novo contato
             </Button>
           </div>
@@ -1709,6 +1766,9 @@ export function ContatosClientesShareBrasil() {
             {selectedContact?.telefone && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Phone size={14} />Telefone</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.telefone}</dd></div>}
             {selectedContact?.email && <div className="min-w-0 rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Mail size={14} />E-mail</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.email}</dd></div>}
             {selectedContact?.empresa && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Briefcase size={14} />Empresa</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.empresa}</dd></div>}
+            {selectedContact?.razao_social && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">Razão social</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.razao_social}</dd></div>}
+            {selectedContact?.cnpj && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">CNPJ</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.cnpj}</dd></div>}
+            {selectedContact?.categoria_tipo === "HANGAR" && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Serviços do hangar</dt><dd className="mt-2 grid gap-2 sm:grid-cols-2"><span className="rounded-md bg-white/[.04] p-2 text-sm">GPU: {selectedContact.gpu === "SIM" ? selectedContact.valor_gpu === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_gpu}` : "Não disponível"}</span><span className="rounded-md bg-white/[.04] p-2 text-sm">Transfer: {selectedContact.transfer === "SIM" ? selectedContact.valor_transfer === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_transfer}` : "Não disponível"}</span></dd></div>}
             {(selectedContact?.cidade || selectedContact?.uf || selectedContact?.endereco) && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><MapPin size={14} />Localização</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{[selectedContact.cidade, selectedContact.uf].filter(Boolean).join(" / ") || selectedContact.endereco}</dd></div>}
             {selectedContact?.observacoes && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Observações</dt><dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">{selectedContact.observacoes}</dd></div>}
           </dl>

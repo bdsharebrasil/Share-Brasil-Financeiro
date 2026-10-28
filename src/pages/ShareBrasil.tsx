@@ -12,9 +12,9 @@ import {
   Clock3,
   Columns3,
   Copy,
+  Eye,
   FilePlus2,
   FileText,
-  Eye,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -59,18 +59,17 @@ import {
   buscarPastasDocumentos,
   buscarDocumentosInternos,
   criarPastaDocumento,
-  enviarDocumentoInterno,
   marcarPonto,
   enviarJustificativaAusencia,
   buscarSenhas,
   revelarSenha,
   criarSenha,
   excluirSenha,
+  buscarClientesShare,
   buscarContatosShare,
   criarContatoShare,
   atualizarContatoShare,
   excluirContatoShare,
-  buscarClientesShare,
   criarClienteShare,
   criarHoldingShare,
   criarSocioHoldingShare,
@@ -79,10 +78,6 @@ import {
   atualizarSocioShare,
   vincularAeronaveCliente,
   vincularAeronaveSocioShare,
-  enviarLogoCliente,
-  enviarLogoHolding,
-  enviarDocumentoCliente,
-  enviarDocumentoSocioShare,
   buscarTarefas,
   buscarUsuariosTarefas,
   criarTarefaShare,
@@ -97,27 +92,16 @@ import {
   type PastaDocumento,
   type DocumentoInterno,
   type SenhaEmpresa,
-  type ContatoAgenda,
   type ClienteShare,
+  type ContatoAgenda,
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
+import { FormularioCadastroContato, type FormularioContato } from "@/components/agenda/AgendaContatos";
+import { AnexoCliente, AnexoPasta, AnexoSocio } from "@/components/agenda/AnexosIntegrados";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
 const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
-const CAMPOS_SERVICO_HANGAR = [
-  { nome: "GPU", disponibilidade: "gpu", custo: "custo_gpu", valor: "valor_gpu" },
-  { nome: "Transfer", disponibilidade: "transfer", custo: "custo_transfer", valor: "valor_transfer" },
-] as const;
-const categoriasDocumentos = [
-  { value: "cartao-cnpj", label: "Cartão CNPJ" },
-  { value: "comprovante-endereco", label: "Comprovante de endereço" },
-  { value: "contrato-share", label: "Contrato Share" },
-  { value: "contrato-social", label: "Contrato social" },
-  { value: "documentos-pessoais", label: "Documentos pessoais" },
-  { value: "inscricao-estadual", label: "Inscrição estadual" },
-];
-
 function emailsCadastrados(registro?: Record<string, any> | null) {
   if (!registro) return [];
   const adicionais = Array.isArray(registro.emails)
@@ -646,7 +630,6 @@ export function DocumentosShareBrasil() {
   const [docs, setDocs] = useState<DocumentoInterno[]>([]);
   const [folder, setFolder] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string>();
-  const [file, setFile] = useState<File>();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
@@ -665,14 +648,12 @@ export function DocumentosShareBrasil() {
   useEffect(refresh, [selectedFolderId]);
   const openFolder = (id: string) => {
     setSelectedFolderId(id);
-    setFile(undefined);
     setError(null);
     setOk(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const closeFolder = () => {
     setSelectedFolderId(undefined);
-    setFile(undefined);
     setError(null);
     setOk(null);
   };
@@ -686,19 +667,6 @@ export function DocumentosShareBrasil() {
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Não foi possível criar a pasta.",
-      );
-    }
-  };
-  const addDoc = async () => {
-    if (!file || !selectedFolderId) return;
-    try {
-      await enviarDocumentoInterno(file, selectedFolderId);
-      setFile(undefined);
-      setOk("Documento anexado à pasta.");
-      refresh();
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Não foi possível anexar o documento.",
       );
     }
   };
@@ -802,39 +770,17 @@ export function DocumentosShareBrasil() {
           </div>
           <section className="overflow-hidden rounded-2xl border border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]" style={{ backgroundColor: "rgba(16, 26, 40, 0.76)" }}>
             <div className="relative overflow-hidden border-b border-white/[.08] p-5 md:p-7" style={{ backgroundColor: "rgba(3, 3, 17, 0.87)" }}>
-              <div className="absolute -right-10 -top-14 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
-              <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-200">
-                      Conteúdo da pasta
-                    </p>
-                    <h2 className="mt-1 text-2xl font-extrabold tracking-[-.04em] text-white">
-                      {selectedFolder?.nome || "Pasta"}
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {docs.length}{" "}
-                      {docs.length === 1
-                        ? "arquivo encontrado"
-                        : "arquivos encontrados"}
-                    </p>
-                  </div>
+              <div className="flex min-w-0 flex-wrap items-end gap-4">
+                <div className="min-w-0 flex-[1_1_16rem]">
+                  <h2 className="break-words text-xl font-semibold text-slate-100">
+                    {selectedFolder?.nome || "Pasta"}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">{docs.length} arquivo(s)</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-cyan-300/20 bg-cyan-300/[.04] p-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => setFile(e.target.files?.[0])}
-                    className="h-8 max-w-[210px] text-[10px]"
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void addDoc()}
-                    disabled={!file}
-                    className="h-8 gap-1.5 text-[10px]"
-                    style={{ color: "rgba(0, 0, 0, 1)", backgroundColor: "rgba(205, 230, 243, 0.93)" }}
-                  >
-                    <Upload size={12} /> Anexar arquivo
-                  </Button>
+                <div className="min-w-0 max-w-full flex-[2_1_28rem]">
+                  {selectedFolderId && (
+                    <AnexoPasta key={selectedFolderId} pastaId={selectedFolderId} aoConcluir={refresh} />
+                  )}
                 </div>
               </div>
             </div>
@@ -1060,51 +1006,26 @@ export function ContatosClientesShareBrasil() {
     "ativos",
   );
   const [showNewContact, setShowNewContact] = useState(false);
-  const [editingContact, setEditingContact] = useState<string>();
+  const [editingContact, setEditingContact] = useState<ContatoAgenda>();
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(null);
   const [showNewCotista, setShowNewCotista] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
-  const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
-  const [contactSearch, setContactSearch] = useState("");
-  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(null);
   const [clients, setClients] = useState<ClienteShare[]>([]);
   const [socios, setSocios] = useState<ClienteShare[]>([]);
   const [links, setLinks] = useState<ClienteShare[]>([]);
   const [aircraft, setAircraft] = useState<ClienteShare[]>([]);
   const [documents, setDocuments] = useState<ClienteShare[]>([]);
-  const [documentCategory, setDocumentCategory] = useState(
-    "documentos-pessoais",
-  );
-  const [socioDocumentCategory, setSocioDocumentCategory] = useState(
-    "documentos-pessoais",
-  );
   const [search, setSearch] = useState("");
   const [profileTab, setProfileTab] = useState<
     "visao-geral" | "dados" | "documentos" | "socio"
   >("visao-geral");
   const [selectedSocio, setSelectedSocio] = useState<string>();
-  const [form, setForm] = useState({
-    nome: "",
-    telefone: "",
-    email: "",
-    empresa: "",
-    razao_social: "",
-    cnpj: "",
-    categoria: "",
-    gpu: "",
-    transfer: "",
-    valor_gpu: "",
-    valor_transfer: "",
-    custo_gpu: "",
-    custo_transfer: "",
-    categoria_tipo: "",
-    categoria_personalizada: "",
-    endereco: "",
-    cidade: "",
-    uf: "",
-    observacoes: "",
-  });
   const [clientForm, setClientForm] = useState<Record<string, any>>({
     razao_social: "",
     codigo_cliente: "",
@@ -1237,95 +1158,26 @@ export function ContatosClientesShareBrasil() {
     setSelectedSocio(undefined);
     setProfileTab("visao-geral");
   };
-  const addContact = async () => {
-    const categoriaTipo = form.categoria_tipo.trim().toLocaleUpperCase("pt-BR") as "FORNECEDOR" | "HANGAR" | "OUTRO";
-    const categoriaPersonalizada = form.categoria_personalizada.trim();
-    const categoriaInformada = categoriaTipo === "OUTRO" ? categoriaPersonalizada : categoriaTipo;
-    const categoriaNormalizada = categoriaInformada.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-    if (!form.nome.trim()) {
-      setError("Informe o nome do contato.");
-      return;
-    }
-    if (!["FORNECEDOR", "HANGAR", "OUTRO"].includes(categoriaTipo)) {
-      setError("Selecione uma categoria válida.");
-      return;
-    }
-    if (categoriaTipo === "OUTRO" && !categoriaPersonalizada) {
-      setError("Informe a categoria para a opção OUTRO.");
-      return;
-    }
-    if (["hotel", "hoteis"].includes(categoriaNormalizada)) {
-      setError("ESSE FORNECEDOR DEVERÁ SER SALVO EM SHARE BRASIL -> HOTEIS");
-      return;
-    }
-    if (["combustivel", "combustiveis", "abastecimento"].includes(categoriaNormalizada)) {
-      setError("ESSE FORNECEDOR DEVE SER SALVO EM OPERAÇÕES -> ABASTECIMENTO -> FORNECEDORES");
-      return;
-    }
-    if (categoriaTipo === "HANGAR") {
-      for (const servico of [
-        { nome: "GPU", disponivel: form.gpu, custo: form.custo_gpu, valor: form.valor_gpu },
-        { nome: "Transfer", disponivel: form.transfer, custo: form.custo_transfer, valor: form.valor_transfer },
-      ]) {
-        if (!["SIM", "NAO"].includes(servico.disponivel)) {
-          setError(`Informe se o hangar disponibiliza ${servico.nome}.`);
-          return;
-        }
-        if (servico.disponivel === "SIM" && !["GRATUITO", "COBRADO"].includes(servico.custo)) {
-          setError(`Informe se o serviço de ${servico.nome} é gratuito ou cobrado.`);
-          return;
-        }
-        if (servico.disponivel === "SIM" && servico.custo === "COBRADO" && (!Number.isFinite(Number(servico.valor)) || Number(servico.valor) <= 0)) {
-          setError(`Informe um valor válido para o serviço de ${servico.nome}.`);
-          return;
-        }
-      }
-    }
-    const payload = {
-      ...form,
-      categoria: categoriaInformada,
-      categoria_tipo: categoriaTipo,
-      categoria_personalizada: categoriaTipo === "OUTRO" ? categoriaPersonalizada : "",
-      gpu: categoriaTipo === "HANGAR" ? form.gpu : "",
-      transfer: categoriaTipo === "HANGAR" ? form.transfer : "",
-      valor_gpu: categoriaTipo === "HANGAR" ? form.valor_gpu : "",
-      valor_transfer: categoriaTipo === "HANGAR" ? form.valor_transfer : "",
-    };
+  const salvarContato = async (payload: FormularioContato) => {
+    setSavingContact(true);
+    setContactError(null);
     try {
-      if (editingContact) await atualizarContatoShare(editingContact, payload);
-      else await criarContatoShare(payload);
-      setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" });
-      setEditingContact(undefined);
+      const dados = { ...payload, categoria_tipo: payload.categoria_tipo as ContatoAgenda["categoria_tipo"] };
+      if (editingContact) await atualizarContatoShare(editingContact.id, dados);
+      else await criarContatoShare(dados);
       setShowNewContact(false);
+      setEditingContact(undefined);
       setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
+      setContactError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
+    } finally {
+      setSavingContact(false);
     }
   };
   const editContact = (contact: ContatoAgenda) => {
-    setForm({
-      nome: contact.nome || "",
-      telefone: contact.telefone || "",
-      email: contact.email || "",
-      empresa: contact.empresa || "",
-      razao_social: contact.razao_social || "",
-      cnpj: contact.cnpj || "",
-      categoria: contact.categoria || "",
-      categoria_tipo: contact.categoria_tipo || (["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria : "OUTRO"),
-      categoria_personalizada: contact.categoria_personalizada || (!contact.categoria_tipo && !["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria || "" : ""),
-      gpu: contact.gpu || "",
-      transfer: contact.transfer || "",
-      valor_gpu: contact.valor_gpu === "GRATUITO" ? "" : contact.valor_gpu || "",
-      valor_transfer: contact.valor_transfer === "GRATUITO" ? "" : contact.valor_transfer || "",
-      custo_gpu: contact.valor_gpu === "GRATUITO" ? "GRATUITO" : contact.valor_gpu ? "COBRADO" : "",
-      custo_transfer: contact.valor_transfer === "GRATUITO" ? "GRATUITO" : contact.valor_transfer ? "COBRADO" : "",
-      endereco: contact.endereco || "",
-      cidade: contact.cidade || "",
-      uf: contact.uf || "",
-      observacoes: contact.observacoes || "",
-    });
-    setEditingContact(contact.id);
+    setEditingContact(contact);
+    setContactError(null);
     setShowNewContact(true);
   };
   const removeContact = async (id: string) => {
@@ -1334,9 +1186,7 @@ export function ContatosClientesShareBrasil() {
       setOk("Contato removido.");
       refresh();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Não foi possível remover o contato.",
-      );
+      setError(e instanceof Error ? e.message : "Não foi possível remover o contato.");
     }
   };
   const emptyClientForm = () => {
@@ -1507,43 +1357,6 @@ export function ContatosClientesShareBrasil() {
       );
     }
   };
-  const upload = async (kind: "logo" | "doc", file?: File) => {
-    if (!selectedClient || !file) return;
-    try {
-      if (kind === "logo") {
-        if (selected?.holding) await enviarLogoHolding(selectedClient, file);
-        else await enviarLogoCliente(selectedClient, file);
-      } else await enviarDocumentoCliente(selectedClient, file, documentCategory);
-      setOk(
-        kind === "logo"
-          ? "Logo salva na pasta avatar_logo."
-          : "Documento salvo na pasta correspondente.",
-      );
-      refresh();
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Não foi possível enviar o arquivo.",
-      );
-    }
-  };
-  const uploadSocio = async (file?: File) => {
-    if (!currentSocio || !file) return;
-    try {
-      await enviarDocumentoSocioShare(
-        currentSocio.id,
-        file,
-        socioDocumentCategory,
-      );
-      setOk("Documento do sócio salvo na pasta correspondente.");
-      refresh();
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Não foi possível enviar o documento do sócio.",
-      );
-    }
-  };
   const input = (name: string, placeholder: string, wide = false) => (
     <Input
       placeholder={placeholder}
@@ -1620,68 +1433,15 @@ export function ContatosClientesShareBrasil() {
       </div>
     );
   };
-  const categorySelect = (
-    value: string,
-    onChange: (value: string) => void,
-    label: string,
-  ) => (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-9 rounded-lg border border-border/70 bg-background/70 px-2 text-[10px]"
-    >
-      {categoriasDocumentos.map((categoria) => (
-        <option key={categoria.value} value={categoria.value}>
-          {categoria.label}
-        </option>
-      ))}
-    </select>
-  );
-
   const contactsContent = (
     <div className="space-y-4">
-      <Dialog open={showNewContact} onOpenChange={(open) => { setShowNewContact(open); if (!open) setEditingContact(undefined); }}>
-        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-white/10 bg-[#071226] p-4 text-slate-100 sm:w-[calc(100vw-2rem)] sm:p-6">
-          <DialogHeader className="pr-8 text-left">
-            <DialogTitle className="text-lg font-semibold text-white">{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
-            <DialogDescription className="text-sm text-slate-400">Cadastre contatos e fornecedores. Os dados serão salvos na agenda de fornecedores.</DialogDescription>
+      <Dialog open={showNewContact} onOpenChange={(open) => { if (!savingContact) { setShowNewContact(open); if (!open) setEditingContact(undefined); } }}>
+        <DialogContent className="ac-dialog">
+          <DialogHeader className="ac-dialog-header">
+            <DialogTitle>{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
+            <DialogDescription>Preencha os dados para organizar o contato na agenda corporativa.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={(event) => { event.preventDefault(); void addContact(); }}>
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
-            <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
-            <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
-            <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
-            <Input placeholder="Empresa / nome fantasia" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
-            <Input placeholder="Razão social" value={form.razao_social} onChange={(e) => setForm({ ...form, razao_social: e.target.value })} className={field} />
-            <Input placeholder="CNPJ" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} className={field} />
-            <label className="grid min-w-0 gap-1 text-xs text-slate-400">
-              <span>Categoria</span>
-              <select value={form.categoria_tipo} onChange={(e) => setForm({ ...form, categoria_tipo: e.target.value, categoria_personalizada: "", ...(e.target.value !== "HANGAR" ? { gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "" } : {}) })} className={`${field} w-full min-w-0`}>
-                <option value="">Selecione uma categoria</option>
-                <option value="FORNECEDOR">Fornecedor</option>
-                <option value="HANGAR">Hangar</option>
-                <option value="OUTRO">Outro</option>
-              </select>
-            </label>
-            {form.categoria_tipo === "OUTRO" && <Input placeholder="Qual categoria?" aria-label="Descreva a categoria" value={form.categoria_personalizada} onChange={(e) => setForm({ ...form, categoria_personalizada: e.target.value })} className={`${field} w-full min-w-0`} />}
-            {form.categoria_tipo === "HANGAR" && <fieldset className="grid min-w-0 gap-3 rounded-xl border border-white/10 bg-white/[.025] p-3 sm:col-span-2 lg:col-span-3 xl:col-span-6 sm:grid-cols-2"><legend className="px-1 text-xs font-semibold text-sky-200">Serviços do hangar</legend>
-              {CAMPOS_SERVICO_HANGAR.map((servico) => <div key={servico.nome} className="grid min-w-0 gap-2 rounded-lg border border-white/[.06] p-3">
-                <span className="text-sm font-medium text-slate-200">{servico.nome}</span>
-                <label className="grid min-w-0 gap-1 text-xs text-slate-400"><span>Disponibiliza {servico.nome}?</span><select value={form[servico.disponibilidade]} onChange={(e) => { const disponivel = e.target.value; setForm({ ...form, [servico.disponibilidade]: disponivel, [servico.custo]: "", [servico.valor]: "" }); }} className={`${field} w-full min-w-0`}><option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option></select></label>
-                {form[servico.disponibilidade] === "SIM" && <><label className="grid min-w-0 gap-1 text-xs text-slate-400"><span>O serviço é gratuito ou cobrado?</span><select value={form[servico.custo]} onChange={(e) => setForm({ ...form, [servico.custo]: e.target.value, [servico.valor]: e.target.value === "GRATUITO" ? "GRATUITO" : "" })} className={`${field} w-full min-w-0`}><option value="">Selecione</option><option value="GRATUITO">Gratuito</option><option value="COBRADO">Cobrado</option></select></label>{form[servico.custo] === "COBRADO" && <Input type="number" min="0.01" step="0.01" placeholder={`Valor cobrado pela ${servico.nome}`} aria-label={`Valor cobrado pela ${servico.nome}`} value={form[servico.valor]} onChange={(e) => setForm({ ...form, [servico.valor]: e.target.value })} className={`${field} w-full min-w-0`} />}</>}
-              </div>)}
-            </fieldset>}
-            <Input placeholder="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-10 w-full min-w-0 rounded-lg border-border/70 bg-background/70 text-sm sm:col-span-2" />
-            <Input placeholder="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} className={field} />
-            <Input placeholder="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} className={field} />
-            <Textarea placeholder="Observações" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="min-h-10 bg-background/70 text-sm sm:col-span-2" />
-            <div className="flex min-w-0 flex-col-reverse gap-2 pt-2 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-3">
-              <Button type="submit" className="h-10 flex-1 gap-2 text-xs"><Plus size={14} /> Salvar</Button>
-              <Button type="button" variant="outline" onClick={() => { setShowNewContact(false); setEditingContact(undefined); }} className="h-10 gap-2 text-xs"><X size={14} /> Cancelar</Button>
-            </div>
-          </div>
-          </form>
+          <FormularioCadastroContato contato={editingContact} salvando={savingContact} erro={contactError} aoSalvar={salvarContato} aoCancelar={() => setShowNewContact(false)} />
         </DialogContent>
       </Dialog>
       <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
@@ -1702,7 +1462,7 @@ export function ContatosClientesShareBrasil() {
                 className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
-            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
+            <Button type="button" onClick={() => { setEditingContact(undefined); setShowNewContact(true); }} className="h-10 gap-2 text-xs">
               <Plus size={14} /> Novo contato
             </Button>
           </div>
@@ -1746,7 +1506,6 @@ export function ContatosClientesShareBrasil() {
           <EstadoVazio label={contactSearch ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"} />
         )}
       </section>
-
       <Dialog open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
           <DialogHeader>
@@ -1777,6 +1536,7 @@ export function ContatosClientesShareBrasil() {
       </Dialog>
     </div>
   );
+
   const clientListContent = (
     <div className="space-y-4">
       <section className="rounded-2xl border border-white/[.08] bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
@@ -2394,15 +2154,10 @@ export function ContatosClientesShareBrasil() {
                     </Button>
                   </>
                 )}
-                <Input
-                  type="file"
-                  accept="image/*"
-                  aria-label={`Enviar logo do ${selected.holding ? "holding" : "cliente"}`}
-                  onChange={(e) => void upload("logo", e.target.files?.[0])}
-                  className="h-9 max-w-[220px] text-[10px]"
-                />
-                <span className="text-[10px] text-slate-500">Logo opcional</span>
               </div>
+              {selectedClient && (
+                <AnexoCliente key={`logo-${selectedClient}`} clienteId={selectedClient} holding={Boolean(selected?.holding)} tipo="logo" aoConcluir={refresh} />
+              )}
             </div>
           )}
           {profileTab === "documentos" && (
@@ -2417,20 +2172,10 @@ export function ContatosClientesShareBrasil() {
                       Cada arquivo é salvo na pasta da categoria selecionada.
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {categorySelect(
-                      documentCategory,
-                      setDocumentCategory,
-                      "Categoria para novo documento",
-                    )}
-                    <Input
-                      type="file"
-                      aria-label="Enviar novo documento do cliente"
-                      onChange={(e) => void upload("doc", e.target.files?.[0])}
-                      className="h-9 max-w-[220px] text-[10px]"
-                    />
-                  </div>
                 </div>
+                {selectedClient && (
+                  <AnexoCliente key={`documentos-${selectedClient}`} clienteId={selectedClient} tipo="documento" aoConcluir={refresh} />
+                )}
                 {clientDocuments.length ? (
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {clientDocuments.map((doc) => (
@@ -2577,18 +2322,10 @@ export function ContatosClientesShareBrasil() {
                   {currentSocioInactive ? <CheckCircle2 size={13} /> : <ShieldCheck size={13} />}
                   {currentSocioInactive ? "Reativar" : "Tornar inativo"}
                 </Button>
-                {categorySelect(
-                  socioDocumentCategory,
-                  setSocioDocumentCategory,
-                  "Categoria para documento do sócio",
-                )}
-                <Input
-                  type="file"
-                  aria-label="Enviar documento do sócio"
-                  onChange={(e) => void uploadSocio(e.target.files?.[0])}
-                  className="h-9 max-w-[220px] text-[10px]"
-                />
               </div>
+              {currentSocio && (
+                <AnexoSocio key={currentSocio.id} socioId={currentSocio.id} aoConcluir={refresh} />
+              )}
               {socioDocuments.filter((doc) => doc.socio_id === currentSocio.id)
                 .length ? (
                 <div>

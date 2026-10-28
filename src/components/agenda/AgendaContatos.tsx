@@ -129,7 +129,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
 
   return (
     <form className="ac-dialog-form" onSubmit={(e) => void submit(e)} aria-busy={salvando}>
-      <div className="ac-form-body">
+      <div className="ac-form-body bg-[#030a14]">
         <p className="ac-muted">Os campos com * são obrigatórios.</p>
         {mensagem && <div ref={resumoRef} tabIndex={-1} role="alert" className="ac-notice ac-notice--error">{mensagem}</div>}
         <section className="ac-section" aria-labelledby="ac-identificacao">
@@ -277,7 +277,8 @@ export function AgendaContatos() {
     if (mutationLock.current) return;
     mutationLock.current = true; setSalvando(true); setErroForm(null);
     try {
-      if (editando) await atualizarContatoShare(editando.id, payload); else await criarContatoShare(payload);
+      const dados = { ...payload, categoria_tipo: payload.categoria_tipo as ContatoAgenda["categoria_tipo"] };
+      if (editando) await atualizarContatoShare(editando.id, dados); else await criarContatoShare(dados);
       setCadastro(false); setEditando(undefined); setAviso(editando ? "Contato atualizado." : "Contato cadastrado.");
       await carregar();
     } catch (e) { setErroForm(e instanceof Error ? e.message : "Não foi possível salvar o contato."); }

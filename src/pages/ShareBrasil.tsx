@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  Briefcase,
   Building2,
   CalendarDays,
   Cake,
@@ -11,6 +12,7 @@ import {
   Clock3,
   Columns3,
   Copy,
+  Eye,
   FilePlus2,
   FileText,
   Folder,
@@ -35,12 +37,14 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Upload,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
@@ -62,6 +66,10 @@ import {
   criarSenha,
   excluirSenha,
   buscarClientesShare,
+  buscarContatosShare,
+  criarContatoShare,
+  atualizarContatoShare,
+  excluirContatoShare,
   criarClienteShare,
   criarHoldingShare,
   criarSocioHoldingShare,
@@ -85,10 +93,11 @@ import {
   type DocumentoInterno,
   type SenhaEmpresa,
   type ClienteShare,
+  type ContatoAgenda,
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
-import { AgendaContatos } from "@/components/agenda/AgendaContatos";
+import { FormularioCadastroContato, type FormularioContato } from "@/components/agenda/AgendaContatos";
 import { AnexoCliente, AnexoPasta, AnexoSocio } from "@/components/agenda/AnexosIntegrados";
 
 const card = "rounded-xl border border-border bg-card/75 shadow-sm";
@@ -996,6 +1005,13 @@ export function ContatosClientesShareBrasil() {
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
     "ativos",
   );
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<ContatoAgenda>();
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(null);
   const [showNewCotista, setShowNewCotista] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
@@ -1054,8 +1070,8 @@ export function ContatosClientesShareBrasil() {
   const [ok, setOk] = useState<string | null>(null);
 
   const refresh = () => {
-    void buscarClientesShare()
-      .then((data) => {
+    void Promise.all([buscarContatosShare(), buscarClientesShare()])
+      .then(([c, data]) => {
         const holdingsAsClients = (data.holdings || []).map((holding) => ({
           ...holding,
           id: holding.id,
@@ -1064,6 +1080,7 @@ export function ContatosClientesShareBrasil() {
           status: holding.ativo === 0 ? "inativo" : "ativo",
           conta_bancaria: holding.conta_bancaria,
         }));
+        setContacts(c);
         setClients([...data.clientes, ...holdingsAsClients]);
         setSocios(data.socios);
         setLinks(data.vinculos);
@@ -1099,6 +1116,13 @@ export function ContatosClientesShareBrasil() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const visibleContacts = contacts
+    .filter((item) =>
+      [item.nome, item.categoria, item.empresa, item.telefone, item.email, item.cnpj, item.razao_social]
+        .some((value) => value?.toLocaleLowerCase("pt-BR").includes(contactSearch.trim().toLocaleLowerCase("pt-BR"))),
+    )
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
   useEffect(() => {
     if (selected) {
       const emails = emailsCadastrados(selected);
@@ -1133,6 +1157,37 @@ export function ContatosClientesShareBrasil() {
     setSelectedClient(undefined);
     setSelectedSocio(undefined);
     setProfileTab("visao-geral");
+  };
+  const salvarContato = async (payload: FormularioContato) => {
+    setSavingContact(true);
+    setContactError(null);
+    try {
+      const dados = { ...payload, categoria_tipo: payload.categoria_tipo as ContatoAgenda["categoria_tipo"] };
+      if (editingContact) await atualizarContatoShare(editingContact.id, dados);
+      else await criarContatoShare(dados);
+      setShowNewContact(false);
+      setEditingContact(undefined);
+      setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
+      refresh();
+    } catch (e) {
+      setContactError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
+    } finally {
+      setSavingContact(false);
+    }
+  };
+  const editContact = (contact: ContatoAgenda) => {
+    setEditingContact(contact);
+    setContactError(null);
+    setShowNewContact(true);
+  };
+  const removeContact = async (id: string) => {
+    try {
+      await excluirContatoShare(id);
+      setOk("Contato removido.");
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover o contato.");
+    }
   };
   const emptyClientForm = () => {
     setClientForm({
@@ -1378,7 +1433,109 @@ export function ContatosClientesShareBrasil() {
       </div>
     );
   };
-  const contactsContent = <AgendaContatos />;
+  const contactsContent = (
+    <div className="space-y-4">
+      <Dialog open={showNewContact} onOpenChange={(open) => { if (!savingContact) { setShowNewContact(open); if (!open) setEditingContact(undefined); } }}>
+        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-white/10 bg-[#071226] p-4 text-slate-100 sm:w-[calc(100vw-2rem)] sm:p-6">
+          <DialogHeader className="pr-8 text-left">
+            <DialogTitle className="text-lg font-semibold text-white">{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
+            <DialogDescription className="text-sm text-slate-400">Cadastre contatos e fornecedores. Os dados serão salvos na agenda de fornecedores.</DialogDescription>
+          </DialogHeader>
+          <FormularioCadastroContato contato={editingContact} salvando={savingContact} erro={contactError} aoSalvar={salvarContato} aoCancelar={() => setShowNewContact(false)} />
+        </DialogContent>
+      </Dialog>
+      <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="titulo-agenda-contatos" className="text-lg font-semibold tracking-tight text-white">Agenda de contatos</h2>
+            <p className="mt-0.5 text-sm text-slate-400">{contacts.length} {contacts.length === 1 ? "contato interno" : "contatos internos"}</p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-60">
+              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Input
+                type="search"
+                value={contactSearch}
+                onChange={(event) => setContactSearch(event.target.value)}
+                placeholder="Nome, setor, ramal..."
+                aria-label="Buscar contatos por nome, setor, telefone ou e-mail"
+                className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
+              />
+            </div>
+            <Button type="button" onClick={() => { setEditingContact(undefined); setShowNewContact(true); }} className="h-10 gap-2 text-xs">
+              <Plus size={14} /> Novo contato
+            </Button>
+          </div>
+        </header>
+
+        {visibleContacts.length ? (
+          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleContacts.map((item) => (
+              <li key={item.id}>
+                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
+                      {item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("") || "?"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-semibold text-white">{item.nome}</h3>
+                      <p className="truncate text-xs text-slate-400">{item.empresa || item.razao_social || "Contato profissional"}</p>
+                      {(item.categoria || item.empresa) && <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">{item.categoria || item.empresa}</span>}
+                    </div>
+                  </div>
+
+                  <dl className="mt-4 flex-1 space-y-2 border-t border-white/5 pt-3 text-xs text-slate-300">
+                    {item.telefone && <div className="flex min-w-0 items-center gap-2"><Phone size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Telefone</dt><dd className="truncate">{item.telefone}</dd></div>}
+                    {item.email && <div className="flex min-w-0 items-center gap-2"><Mail size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">E-mail</dt><dd className="truncate">{item.email}</dd></div>}
+                    {(item.cidade || item.uf || item.endereco) && <div className="flex min-w-0 items-center gap-2"><MapPin size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Localização</dt><dd className="truncate">{[item.cidade, item.uf].filter(Boolean).join(" / ") || item.endereco}</dd></div>}
+                    {!item.telefone && !item.email && !item.cidade && !item.uf && !item.endereco && <div className="text-slate-500">Sem dados adicionais de contato</div>}
+                  </dl>
+
+                  <div className="mt-4 flex min-w-0 items-center gap-2">
+                    <Button type="button" variant="outline" onClick={() => setSelectedContact(item)} className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100">
+                      <Eye size={14} aria-hidden="true" /> Ver
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => editContact(item)} aria-label={`Editar contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"><Pencil size={14} /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} title="Remover contato" className="ml-auto h-9 w-9 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EstadoVazio label={contactSearch ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"} />
+        )}
+      </section>
+      <Dialog open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-4 pr-6">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">{selectedContact?.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("")}</span>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="truncate text-lg text-white">{selectedContact?.nome}</DialogTitle>
+                <DialogDescription className="truncate text-slate-400">{selectedContact?.empresa || selectedContact?.razao_social || "Contato profissional"}</DialogDescription>
+                {(selectedContact?.categoria || selectedContact?.empresa) && <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">{selectedContact.categoria || selectedContact.empresa}</span>}
+              </div>
+            </div>
+          </DialogHeader>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {selectedContact?.telefone && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Phone size={14} />Telefone</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.telefone}</dd></div>}
+            {selectedContact?.email && <div className="min-w-0 rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Mail size={14} />E-mail</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.email}</dd></div>}
+            {selectedContact?.empresa && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Briefcase size={14} />Empresa</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.empresa}</dd></div>}
+            {selectedContact?.razao_social && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">Razão social</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.razao_social}</dd></div>}
+            {selectedContact?.cnpj && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">CNPJ</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.cnpj}</dd></div>}
+            {selectedContact?.categoria_tipo === "HANGAR" && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Serviços do hangar</dt><dd className="mt-2 grid gap-2 sm:grid-cols-2"><span className="rounded-md bg-white/[.04] p-2 text-sm">GPU: {selectedContact.gpu === "SIM" ? selectedContact.valor_gpu === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_gpu}` : "Não disponível"}</span><span className="rounded-md bg-white/[.04] p-2 text-sm">Transfer: {selectedContact.transfer === "SIM" ? selectedContact.valor_transfer === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_transfer}` : "Não disponível"}</span></dd></div>}
+            {(selectedContact?.cidade || selectedContact?.uf || selectedContact?.endereco) && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><MapPin size={14} />Localização</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{[selectedContact.cidade, selectedContact.uf].filter(Boolean).join(" / ") || selectedContact.endereco}</dd></div>}
+            {selectedContact?.observacoes && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Observações</dt><dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">{selectedContact.observacoes}</dd></div>}
+          </dl>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={() => setSelectedContact(null)}>Fechar</Button>
+            {selectedContact && <Button type="button" onClick={() => { const contact = selectedContact; setSelectedContact(null); editContact(contact); }}><Pencil size={14} className="mr-2" />Editar contato</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 
   const clientListContent = (
     <div className="space-y-4">

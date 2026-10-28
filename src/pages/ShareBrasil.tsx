@@ -1091,7 +1091,6 @@ export function ContatosClientesShareBrasil() {
     empresa: "",
     razao_social: "",
     cnpj: "",
-    cargo: "",
     categoria: "",
     gpu: "",
     transfer: "",
@@ -1198,7 +1197,7 @@ export function ContatosClientesShareBrasil() {
   );
   const visibleContacts = contacts
     .filter((item) =>
-      [item.nome, item.cargo, item.categoria, item.empresa, item.telefone, item.email]
+      [item.nome, item.categoria, item.empresa, item.telefone, item.email, item.cnpj, item.razao_social]
         .some((value) => value?.toLocaleLowerCase("pt-BR").includes(contactSearch.trim().toLocaleLowerCase("pt-BR"))),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
@@ -1295,7 +1294,7 @@ export function ContatosClientesShareBrasil() {
     try {
       if (editingContact) await atualizarContatoShare(editingContact, payload);
       else await criarContatoShare(payload);
-      setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" });
+      setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" });
       setEditingContact(undefined);
       setShowNewContact(false);
       setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
@@ -1312,7 +1311,6 @@ export function ContatosClientesShareBrasil() {
       empresa: contact.empresa || "",
       razao_social: contact.razao_social || "",
       cnpj: contact.cnpj || "",
-      cargo: contact.cargo || "",
       categoria: contact.categoria || "",
       categoria_tipo: contact.categoria_tipo || (["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria : "OUTRO"),
       categoria_personalizada: contact.categoria_personalizada || (!contact.categoria_tipo && !["FORNECEDOR", "HANGAR"].includes(contact.categoria || "") ? contact.categoria || "" : ""),
@@ -1643,21 +1641,20 @@ export function ContatosClientesShareBrasil() {
 
   const contactsContent = (
     <div className="space-y-4">
-      {showNewContact && (
-        <section className={`${card} p-4 md:p-5`}>
-          <CabecalhoSecao
-            icon={<Plus size={15} />}
-            title={editingContact ? "Editar contato" : "Novo contato"}
-            detail="Adicione pessoas e parceiros à agenda."
-          />
-          <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:min-w-0">
+      <Dialog open={showNewContact} onOpenChange={(open) => { setShowNewContact(open); if (!open) setEditingContact(undefined); }}>
+        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-white/10 bg-[#071226] p-4 text-slate-100 sm:w-[calc(100vw-2rem)] sm:p-6">
+          <DialogHeader className="pr-8 text-left">
+            <DialogTitle className="text-lg font-semibold text-white">{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
+            <DialogDescription className="text-sm text-slate-400">Cadastre contatos e fornecedores. Os dados serão salvos na agenda de fornecedores.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(event) => { event.preventDefault(); void addContact(); }}>
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
             <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={field} />
             <Input placeholder="Telefone" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className={field} />
             <Input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={field} />
             <Input placeholder="Empresa / nome fantasia" value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} className={field} />
             <Input placeholder="Razão social" value={form.razao_social} onChange={(e) => setForm({ ...form, razao_social: e.target.value })} className={field} />
             <Input placeholder="CNPJ" value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} className={field} />
-            <Input placeholder="Cargo" value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} className={field} />
             <label className="grid min-w-0 gap-1 text-xs text-slate-400">
               <span>Categoria</span>
               <select value={form.categoria_tipo} onChange={(e) => setForm({ ...form, categoria_tipo: e.target.value, categoria_personalizada: "", ...(e.target.value !== "HANGAR" ? { gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "" } : {}) })} className={`${field} w-full min-w-0`}>
@@ -1679,14 +1676,14 @@ export function ContatosClientesShareBrasil() {
             <Input placeholder="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} className={field} />
             <Input placeholder="UF" value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} className={field} />
             <Textarea placeholder="Observações" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} className="min-h-10 bg-background/70 text-sm sm:col-span-2" />
-            <div className="flex min-w-0 flex-col gap-2 sm:col-span-2 sm:flex-row lg:col-span-3 xl:col-span-2">
-              <Button type="button" onClick={() => void addContact()} className="h-10 flex-1 gap-2 text-xs"><Plus size={14} /> Salvar</Button>
+            <div className="flex min-w-0 flex-col-reverse gap-2 pt-2 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-3">
+              <Button type="submit" className="h-10 flex-1 gap-2 text-xs"><Plus size={14} /> Salvar</Button>
               <Button type="button" variant="outline" onClick={() => { setShowNewContact(false); setEditingContact(undefined); }} className="h-10 gap-2 text-xs"><X size={14} /> Cancelar</Button>
             </div>
           </div>
-        </section>
-      )}
-
+          </form>
+        </DialogContent>
+      </Dialog>
       <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1705,7 +1702,7 @@ export function ContatosClientesShareBrasil() {
                 className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
-            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", cargo: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
+            <Button type="button" onClick={() => { setForm({ nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "", categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", valor_gpu: "", valor_transfer: "", custo_gpu: "", custo_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" }); setEditingContact(undefined); setShowNewContact((open) => !open); }} className="h-10 gap-2 text-xs">
               <Plus size={14} /> Novo contato
             </Button>
           </div>
@@ -1722,7 +1719,7 @@ export function ContatosClientesShareBrasil() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-white">{item.nome}</h3>
-                      <p className="truncate text-xs text-slate-400">{item.cargo || item.empresa || "Contato profissional"}</p>
+                      <p className="truncate text-xs text-slate-400">{item.empresa || item.razao_social || "Contato profissional"}</p>
                       {(item.categoria || item.empresa) && <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">{item.categoria || item.empresa}</span>}
                     </div>
                   </div>
@@ -1757,7 +1754,7 @@ export function ContatosClientesShareBrasil() {
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">{selectedContact?.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("")}</span>
               <div className="min-w-0 text-left">
                 <DialogTitle className="truncate text-lg text-white">{selectedContact?.nome}</DialogTitle>
-                <DialogDescription className="truncate text-slate-400">{selectedContact?.cargo || selectedContact?.empresa || "Contato profissional"}</DialogDescription>
+                <DialogDescription className="truncate text-slate-400">{selectedContact?.empresa || selectedContact?.razao_social || "Contato profissional"}</DialogDescription>
                 {(selectedContact?.categoria || selectedContact?.empresa) && <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">{selectedContact.categoria || selectedContact.empresa}</span>}
               </div>
             </div>

@@ -1475,7 +1475,7 @@ export function ContatosClientesShareBrasil() {
           <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
+                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#030916] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
                   <div className="flex min-w-0 items-start gap-3">
                     <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
                       {item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("") || "?"}

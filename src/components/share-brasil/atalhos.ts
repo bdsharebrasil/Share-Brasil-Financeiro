@@ -16,7 +16,7 @@ export type AbaDashboard = "share-brasil" | "minha-central";
 export interface AtalhoDashboard {
   menu: string;
   label: string;
-  detail: string;
+  detail?: string;
   icon: LucideIcon;
   tone: string;
 }
@@ -46,7 +46,6 @@ export const ATALHOS_POR_ABA: Record<
     {
       menu: "aniversarios",
       label: "Aniversários",
-      detail: "Datas comemorativas",
       icon: Cake,
       tone: "border-pink-500/25 bg-pink-500/10 text-pink-700 dark:text-pink-300",
     },

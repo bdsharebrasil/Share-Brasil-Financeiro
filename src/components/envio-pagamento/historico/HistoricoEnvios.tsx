@@ -1,20 +1,25 @@
 import { useMemo, useState } from "react";
 import { MousePointerClick, SearchX } from "lucide-react";
-import type { EnvioPagamento } from "@/lib/colaborador-api";
+import type { EnvioPagamento, RascunhoEnvioPagamento } from "@/lib/colaborador-api";
 import { EnvioFolderCard, type EnvioFolder } from "./EnvioFolderCard";
 import { HistoryToolbar, type OpcaoFiltroStatus } from "./HistoryToolbar";
+import { RascunhosEmAndamento } from "./RascunhosEmAndamento";
 import { RequestDetail } from "./RequestDetail";
 import { SummaryStrip } from "./SummaryStrip";
 import { STATUS_PENDENTES, chaveStatus, estaPendente, rotuloStatus, type TipoEnvio } from "./status";
 
 type HistoricoEnviosProps = {
   envios: EnvioPagamento[];
+  rascunhos: RascunhoEnvioPagamento[];
   carregando: boolean;
   rotuloTipo: (tipo: TipoEnvio) => string;
   restauracaoId: string | null;
   conversaoId: string | null;
+  restaurandoRascunho: boolean;
   onAbrirPendente: (envio: EnvioPagamento) => void;
   onRecuperarConversao: (envio: EnvioPagamento) => void;
+  onContinuarRascunho: (rascunho: RascunhoEnvioPagamento) => void;
+  onExcluirRascunho: (rascunho: RascunhoEnvioPagamento) => void;
 };
 
 const TODOS = "todos";
@@ -22,12 +27,16 @@ const PENDENTES = "pendentes";
 
 export function HistoricoEnvios({
   envios,
+  rascunhos,
   carregando,
   rotuloTipo,
   restauracaoId,
   conversaoId,
+  restaurandoRascunho,
   onAbrirPendente,
   onRecuperarConversao,
+  onContinuarRascunho,
+  onExcluirRascunho,
 }: HistoricoEnviosProps) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState(TODOS);
@@ -35,6 +44,16 @@ export function HistoricoEnvios({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filtrosAtivos = query.trim() !== "" || status !== TODOS;
+
+  const rascunhosFiltrados = useMemo(() => {
+    if (status !== TODOS && status !== PENDENTES) return [];
+    const termo = query.trim().toLowerCase();
+    return rascunhos.filter((rascunho) => {
+      if (!termo) return true;
+      return [rascunho.tipo_envio, rotuloTipo(rascunho.tipo_envio), rascunho.dados_json]
+        .some((campo) => (campo ?? "").toLowerCase().includes(termo));
+    });
+  }, [rascunhos, query, status, rotuloTipo]);
 
   const opcoesStatus = useMemo<OpcaoFiltroStatus[]>(() => {
     const contagem = new Map<string, number>();
@@ -106,7 +125,7 @@ export function HistoricoEnvios({
           <div className="skeleton h-9 rounded-sm" />
           <div className="skeleton h-9 rounded-sm" />
         </div>
-      ) : envios.length === 0 ? (
+      ) : envios.length === 0 && rascunhos.length === 0 ? (
         <p className="rounded-sm border border-border bg-card/60 p-6 text-center text-[11px] text-muted-foreground">Nenhum lançamento enviado ainda.</p>
       ) : (
         <>
@@ -121,7 +140,7 @@ export function HistoricoEnvios({
             resultLabel={`${filtrados.length} de ${envios.length} programações`}
           />
 
-          {pastas.length === 0 ? (
+          {pastas.length === 0 && rascunhosFiltrados.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-sm border border-border bg-card/60 px-6 py-12 text-center">
               <SearchX className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
               <p className="text-[11px] font-bold text-foreground">Nenhuma programação encontrada</p>
@@ -137,6 +156,15 @@ export function HistoricoEnvios({
           ) : (
             <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
               <div className="space-y-3">
+                {rascunhosFiltrados.length > 0 && (
+                  <RascunhosEmAndamento
+                    rascunhos={rascunhosFiltrados}
+                    rotuloTipo={rotuloTipo}
+                    restaurando={restaurandoRascunho}
+                    onContinuar={onContinuarRascunho}
+                    onExcluir={onExcluirRascunho}
+                  />
+                )}
                 {pastas.map((folder) => (
                   <EnvioFolderCard
                     key={folder.tipo}

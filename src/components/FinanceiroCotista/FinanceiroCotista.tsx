@@ -143,7 +143,7 @@ const DESPESAS_ESTILOS = `
 }
 .financeiro-profissional.financeiro-shell {
   width:100%; min-width:0; max-width:100%; padding:0;
-  background:hsl(var(--background)); filter:none; backdrop-filter:none;
+  background:rgba(8,10,18,0); filter:none; backdrop-filter:none;
   -webkit-backdrop-filter:none; box-shadow:none; animation:none; transform:none;
 }
 .financeiro-profissional *, .despesas-theme * { box-sizing:border-box; }
@@ -186,35 +186,32 @@ const DESPESAS_ESTILOS = `
 .despesa-control:hover,.despesa-control[aria-expanded="true"] { background:hsl(var(--muted)); }
 .despesa-filter-count { font-size:11px; font-weight:600; }
 .despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:12px; margin-top:12px; border-top:1px solid hsl(var(--border)); }
-.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; }
-.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; }
+.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:#3c4b5d #10151a; scrollbar-width:auto; border:1px solid #27313b; border-radius:5px 5px 3px 3px; }
+.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; text-align:left; color:#e7edf6; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table-scroll[data-recolhido="true"] > table > thead > tr > th { height:34px; padding:6px 12px; font-size:9px; transition:none; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; transition:height .15s ease, padding .15s ease; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
-.despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
-.despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
-.despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
-.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
-.despesa-table .despesa-row td { padding:12px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
-.despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
-.despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:32px; padding:0 16px; background:#161e25; border-bottom:1px solid #27313b; border-right:1px solid #27313b88; color:#c5d5ea; font-size:10px; line-height:1.5; font-weight:700; letter-spacing:.9px; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th:last-child { border-right:0; }
+.despesa-table .despesa-row { --row-bg:#11171c66; background:var(--row-bg); }
+.despesa-table .despesa-row:nth-child(even) { --row-bg:#151c2255; }
+.despesa-table .despesa-row:hover { --row-bg:#202a3488; }
+.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:#27313c88; }
+.despesa-table .despesa-row { height:39px; }
+.despesa-table .despesa-row td { padding:3px 16px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid #27313b99; border-right:1px solid #27313b77; overflow-wrap:break-word; }
+.despesa-table .despesa-row td:last-child { border-right:0; }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
-.despesa-table .despesa-row td:nth-child(2) { position:sticky; left:0; z-index:1; border-right:1px solid hsl(var(--border)); }
-.despesa-table > thead > tr > th:nth-child(2) { left:0; z-index:4; border-right:1px solid hsl(var(--border)); }
-.despesa-table .despesa-row td:last-child { position:sticky; right:0; z-index:2; border-left:1px solid hsl(var(--border)); padding:8px; }
-.despesa-table > thead > tr > th:last-child { right:0; z-index:4; }
-.despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.despesa-table .despesa-row td:last-child { padding:8px; }
+.despesa-table .despesa-month th { padding:10px 16px; background:#161e25; border-bottom:1px solid #27313b; text-align:left; }
 .despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
 .despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
 .despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
-.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:hsl(var(--muted-foreground)); overflow-wrap:break-word; }
+.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:#a6b5c9; overflow-wrap:break-word; }
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
 .despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
 .despesa-cotista-heading { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 .despesa-cotista-heading small { font-size:11px; font-weight:400; }
 .despesa-date { margin:0; white-space:nowrap; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
 .despesa-date-caption { margin:4px 0 0; color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
-.despesa-category { margin:0; font-size:11px; color:hsl(var(--muted-foreground)); line-height:1.5; }
+.despesa-category { margin:0; font-size:11px; color:#a6b5c9; line-height:1.5; }
 .despesa-sort-date { display:flex; width:100%; align-items:center; justify-content:space-between; gap:4px; font:inherit; text-align:left; }
 .despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid hsl(var(--input)); border-radius:3px; background:hsl(var(--card)); color:hsl(var(--primary-foreground)); box-shadow:none; }
 .despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:hsl(var(--primary)); border-color:hsl(var(--primary)); }
@@ -1849,7 +1846,7 @@ function LancamentosDespesa({
         {filtradas.length > 0 ? (
           <>
             {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
-            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0} onScroll={(e) => { e.currentTarget.dataset.recolhido = String(e.currentTarget.scrollTop > 8); }}>
+            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0}>
               <table className="despesa-table" style={{ minWidth: 1048 + cotistasAeronave.length * 168 }}>
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores
@@ -2365,14 +2362,14 @@ export default function FinanceiroCotista() {
     | "portal-cliente"
   >("lancamentos");
   const [paginaAberta, setPaginaAberta] = useState(false);
-  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText }> = [
-    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText },
-    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard },
-    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel },
-    { id: "medias", rotulo: "Médias", Icon: Gauge },
-    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3 },
-    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound },
-    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark }] : []),
+  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText; corIcone: string }> = [
+    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText, corIcone: "bg-sky-400/10 text-sky-400" },
+    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard, corIcone: "bg-violet-400/10 text-violet-400" },
+    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel, corIcone: "bg-amber-400/10 text-amber-400" },
+    { id: "medias", rotulo: "Médias", Icon: Gauge, corIcone: "bg-emerald-400/10 text-emerald-400" },
+    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3, corIcone: "bg-rose-400/10 text-rose-400" },
+    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound, corIcone: "bg-teal-400/10 text-teal-400" },
+    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark, corIcone: "bg-orange-400/10 text-orange-400" }] : []),
   ];
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
@@ -2548,7 +2545,7 @@ export default function FinanceiroCotista() {
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
         <div className="flex justify-start">
-          <Button type="button" variant="ghost" size="sm" className="h-9 gap-2 text-xs"
+          <Button type="button" variant="ghost" size="sm" className="m-3 h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] py-[21px] text-[15px]"
             onClick={() => { setAeronaveSelecionada(""); setPaginaAberta(false); }}>
             <Plane size={14} /> Trocar aeronave
           </Button>
@@ -2692,8 +2689,8 @@ export default function FinanceiroCotista() {
           )}
 
           {!paginaAberta ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {abasCotista.map(({ id, rotulo, Icon }) => (
+            <div className="!mt-[14px] grid gap-[29px] overflow-hidden rounded-[7px] px-[22px] py-[32px] sm:grid-cols-2 xl:grid-cols-3">
+              {abasCotista.map(({ id, rotulo, Icon, corIcone }) => (
                 <button
                   key={id}
                   type="button"
@@ -2701,9 +2698,9 @@ export default function FinanceiroCotista() {
                     setAbaAtiva(id as typeof abaAtiva);
                     setPaginaAberta(true);
                   }}
-                  className="financeiro-panel flex items-center gap-3 rounded-xl p-4 text-left transition hover:bg-card"
+                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
                 >
-                  <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                  <span className={`rounded-lg p-2.5 ${corIcone}`}>
                     <Icon size={17} />
                   </span>
                   <span className="text-sm font-semibold">{rotulo}</span>

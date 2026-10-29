@@ -113,7 +113,7 @@ import {
   AnexoPasta,
   AnexoSocio,
 } from "@/components/agenda/AnexosIntegrados";
-import { AreaAnexo, LinhaDocumento } from "./share-brasil/LayoutAnexos";
+import { AreaAnexo, LinhaDocumento } from "@/components/share-brasil/LayoutAnexos";
 
 const card =
   "min-w-0 max-w-full rounded-xl border border-border bg-card/75 shadow-sm";

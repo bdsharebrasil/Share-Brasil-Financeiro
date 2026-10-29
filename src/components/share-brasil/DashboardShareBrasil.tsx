@@ -6,6 +6,7 @@ import {
   type AbaDashboard,
   type AtalhoDashboard,
 } from "./atalhos";
+import aviationHero from "@/assets/aviation-hero1.jpg";
 
 interface DashboardShareBrasilProps {
   aoNavegar: (menu: string) => void;
@@ -79,7 +80,10 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
 
   return (
     <div className="route-enter box-border w-full min-w-0 max-w-full space-y-5 py-4 sm:py-6">
-      <header className="min-w-0 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-sm sm:p-6">
+      <header
+        className="min-w-0 rounded-2xl border border-primary/20 bg-cover bg-center p-4 shadow-sm sm:p-6"
+        style={{ backgroundImage: `linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)), url(${aviationHero})` }}
+      >
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">
           Portal do colaborador
         </p>
@@ -141,7 +145,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:gap-4">
+          <div className="grid min-w-0 grid-cols-3 gap-3 sm:gap-4">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}

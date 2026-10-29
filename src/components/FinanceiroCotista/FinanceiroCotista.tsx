@@ -186,23 +186,21 @@ const DESPESAS_ESTILOS = `
 .despesa-control:hover,.despesa-control[aria-expanded="true"] { background:hsl(var(--muted)); }
 .despesa-filter-count { font-size:11px; font-weight:600; }
 .despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:12px; margin-top:12px; border-top:1px solid hsl(var(--border)); }
-.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; }
-.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; }
+.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; border:1px solid hsl(var(--border)); border-radius:5px 5px 3px 3px; }
+.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; text-align:left; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table-scroll[data-recolhido="true"] > table > thead > tr > th { height:34px; padding:6px 12px; font-size:9px; transition:none; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:64px; padding:12px; transition:height .15s ease, padding .15s ease; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:32px; padding:0 16px; background:hsl(var(--muted) / 0.5); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:700; letter-spacing:.09em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
 .despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
 .despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
 .despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
 .despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
-.despesa-table .despesa-row td { padding:12px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
-.despesa-table .despesa-row td { padding-top:10px; padding-bottom:10px; }
+.despesa-table .despesa-row { height:39px; }
+.despesa-table .despesa-row td { padding:3px 16px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
 .despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
-.despesa-table .despesa-row td:nth-child(2) { position:sticky; left:0; z-index:1; border-right:1px solid hsl(var(--border)); }
-.despesa-table > thead > tr > th:nth-child(2) { left:0; z-index:4; border-right:1px solid hsl(var(--border)); }
-.despesa-table .despesa-row td:last-child { position:sticky; right:0; z-index:2; border-left:1px solid hsl(var(--border)); padding:8px; }
-.despesa-table > thead > tr > th:last-child { right:0; z-index:4; }
+.despesa-table .despesa-row td:nth-child(2) { border-right:1px solid hsl(var(--border)); }
+.despesa-table > thead > tr > th:nth-child(2) { border-right:1px solid hsl(var(--border)); }
+.despesa-table .despesa-row td:last-child { border-left:1px solid hsl(var(--border)); padding:8px; }
 .despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
 .despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
@@ -1849,7 +1847,7 @@ function LancamentosDespesa({
         {filtradas.length > 0 ? (
           <>
             {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
-            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0} onScroll={(e) => { e.currentTarget.dataset.recolhido = String(e.currentTarget.scrollTop > 8); }}>
+            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0}>
               <table className="despesa-table" style={{ minWidth: 1048 + cotistasAeronave.length * 168 }}>
                 <caption className="sr-only">
                   Despesas agrupadas por mês, com descrições completas, valores

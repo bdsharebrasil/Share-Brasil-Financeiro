@@ -143,7 +143,7 @@ const DESPESAS_ESTILOS = `
 }
 .financeiro-profissional.financeiro-shell {
   width:100%; min-width:0; max-width:100%; padding:0;
-  background:hsl(var(--background)); filter:none; backdrop-filter:none;
+  background:rgba(8,10,18,0); filter:none; backdrop-filter:none;
   -webkit-backdrop-filter:none; box-shadow:none; animation:none; transform:none;
 }
 .financeiro-profissional *, .despesas-theme * { box-sizing:border-box; }
@@ -2689,7 +2689,7 @@ export default function FinanceiroCotista() {
           )}
 
           {!paginaAberta ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 overflow-hidden rounded-[7px] sm:grid-cols-2 xl:grid-cols-3">
               {abasCotista.map(({ id, rotulo, Icon }) => (
                 <button
                   key={id}
@@ -2698,7 +2698,7 @@ export default function FinanceiroCotista() {
                     setAbaAtiva(id as typeof abaAtiva);
                     setPaginaAberta(true);
                   }}
-                  className="financeiro-panel flex items-center gap-3 rounded-xl p-4 text-left transition hover:bg-card"
+                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
                 >
                   <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
                     <Icon size={17} />

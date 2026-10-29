@@ -25,7 +25,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className="group -mx-[3px] flex h-full min-h-0 w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-[22px] border border-[rgba(41,71,129,1)] bg-card px-[92px] py-3 text-center shadow-[0_0_2px_0_rgba(62,79,87,0.32)] transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group -mx-[3px] flex h-full min-h-0 w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-[22px] border border-[rgba(41,71,129,1)] bg-card px-[91px] py-3 text-center shadow-[0_0_2px_0_rgba(62,79,87,0.32)] transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
@@ -139,10 +139,10 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           aria-labelledby={`${id}-tab-${item.id}`}
           hidden={abaAtiva !== item.id}
           tabIndex={0}
-          className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="min-w-0 max-w-full rounded-xl px-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-3 gap-12 mx-[96px] my-0 px-[74px] py-2 justify-center items-center">
+          <div className="grid min-w-0 grid-cols-3 gap-12 mx-[96px] my-0 px-[56px] py-2 justify-center items-center">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}

@@ -316,40 +316,40 @@ export function DashboardShareBrasil({
             </span>
           </button>
         ))}
-      </section>
 
-      <section className="!mt-[38px] ml-[28px] mr-[54px] rounded-xl border border-border bg-card py-5 px-[42px] shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">
-              Minha jornada
-            </p>
-            <h2 className="mt-1 text-lg font-extrabold text-white">
-              Ponto de hoje
-            </h2>
+        <section className="col-span-2 mt-[38px] ml-[28px] mr-[54px] rounded-xl border border-border bg-card py-5 px-[42px] shadow-sm sm:col-span-1 xl:col-span-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">
+                Minha jornada
+              </p>
+              <h2 className="mt-1 text-lg font-extrabold text-white">
+                Ponto de hoje
+              </h2>
+            </div>
+            <Clock3 size={19} className="text-primary" />
           </div>
-          <Clock3 size={19} className="text-primary" />
-        </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-secondary/35 p-4">
-          <div>
-            <p className="font-mono text-2xl font-bold">
-              {new Date().toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[.1em] text-slate-500">
-              Registro de entrada
-            </p>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-secondary/35 p-4">
+            <div>
+              <p className="font-mono text-2xl font-bold">
+                {new Date().toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-[.1em] text-slate-500">
+                Registro de entrada
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => aoNavegar("ponto")}
+              className="h-10 gap-2 rounded-lg px-4 text-[10px] font-extrabold uppercase"
+            >
+              <Play size={13} /> Abrir ponto
+            </Button>
           </div>
-          <Button
-            type="button"
-            onClick={() => aoNavegar("ponto")}
-            className="h-10 gap-2 rounded-lg px-4 text-[10px] font-extrabold uppercase"
-          >
-            <Play size={13} /> Abrir ponto
-          </Button>
-        </div>
+        </section>
       </section>
     </div>
   );

@@ -250,7 +250,7 @@ function pontoEncerrado(registro?: PontoLancamento) {
   );
 }
 
-export { DashboardShareBrasil } from "./share-brasil/DashboardShareBrasil";
+export { DashboardShareBrasil } from "@components/share-brasil/DashboardShareBrasil";
 
 export function PontoShareBrasil() {
   const currentMonth = chaveMes(new Date());

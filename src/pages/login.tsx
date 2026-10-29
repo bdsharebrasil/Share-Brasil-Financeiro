@@ -50,7 +50,7 @@ function InstallPrompt() {
     <button
       type="button"
       onClick={() => void install()}
-      className="fixed left-1/2 top-2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-1.5 text-xs font-semibold text-[#8be8ff] backdrop-blur transition-colors hover:bg-[#38d7ff]/20"
+      className="fixed left-1/2 top-2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-1.5 text-xs font-semibold text-[#8be8ff] transition-colors hover:bg-[#38d7ff]/20"
     >
       Instalar Share Brasil
     </button>
@@ -67,6 +67,28 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isUsernameFocused, setIsUsernameFocused] = useState(false);
+
+  // Trava a rolagem da página inteira enquanto o login está aberto
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlHeight: html.style.height,
+      bodyHeight: body.style.height,
+    };
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.height = "100%";
+    body.style.height = "100%";
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.height = prev.htmlHeight;
+      body.style.height = prev.bodyHeight;
+    };
+  }, []);
 
   useEffect(() => {
     const savedUser = window.localStorage.getItem("login_username");
@@ -150,11 +172,11 @@ export default function Login() {
   const isValid = isValidUsername(username);
 
   if (isCheckingSession) {
-    return <div className="h-dvh bg-[#030814]" aria-label="Verificando sessão" />;
+    return <div className="fixed inset-0 bg-[#030814]" aria-label="Verificando sessão" />;
   }
 
   return (
-    <main className="login-root relative flex h-dvh w-full items-center justify-center overflow-hidden bg-[#030814] p-[clamp(0.5rem,2dvh,2rem)] text-white">
+    <main className="login-root fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#030814] p-[clamp(0.5rem,2dvh,2rem)] text-white">
       <InstallPrompt />
 
       <style>{`

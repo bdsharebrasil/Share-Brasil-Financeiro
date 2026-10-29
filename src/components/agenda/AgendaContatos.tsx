@@ -17,14 +17,16 @@ export type FormularioContato = {
   nome: string; telefone: string; email: string; empresa: string; razao_social: string;
   cnpj: string; categoria: string; categoria_tipo: string; categoria_personalizada: string;
   gpu: string; transfer: string; custo_gpu: string; custo_transfer: string;
-  valor_gpu: string; valor_transfer: string; endereco: string; cidade: string;
+  valor_gpu: string; valor_transfer: string; ar_condicionado: string; pernoite: string;
+  atendimento_pista: string; endereco: string; cidade: string;
   uf: string; observacoes: string;
 };
 
 function vazio(): FormularioContato {
   return { nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "",
     categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", custo_gpu: "",
-    custo_transfer: "", valor_gpu: "", valor_transfer: "", endereco: "", cidade: "", uf: "", observacoes: "" };
+    custo_transfer: "", valor_gpu: "", valor_transfer: "", ar_condicionado: "", pernoite: "",
+    atendimento_pista: "", endereco: "", cidade: "", uf: "", observacoes: "" };
 }
 
 function normalizar(value: string) {
@@ -87,6 +89,19 @@ export function prepararContato(form: FormularioContato): FormularioContato {
     }
     payload[servico.valor] = valor;
   }
+  if (payload.categoria_tipo !== "HANGAR") {
+    payload.ar_condicionado = ""; payload.pernoite = ""; payload.atendimento_pista = "";
+  } else {
+    if (!["SIM", "NAO"].includes(payload.atendimento_pista)) throw new Error("Informe se o hangar possui atendimento de pista.");
+    for (const key of ["ar_condicionado", "pernoite"] as const) {
+      if (!payload[key] || payload[key] === "SIM") continue;
+      const valor = valorDecimal(payload[key]);
+      if (!/^\d+(\.\d{1,2})?$/.test(valor) || !Number.isFinite(Number(valor)) || Number(valor) <= 0) {
+        throw new Error(`Informe um valor válido, maior que zero, para ${key === "ar_condicionado" ? "ar condicionado" : "pernoite"} (até duas casas decimais).`);
+      }
+      payload[key] = valor;
+    }
+  }
   return payload;
 }
 
@@ -144,6 +159,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
                 onChange={(e) => { const tipo = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual,
                   categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? {
                     gpu: "", transfer: "", custo_gpu: "", custo_transfer: "", valor_gpu: "", valor_transfer: "",
+                    ar_condicionado: "", pernoite: "", atendimento_pista: "",
                   } : {}),
                 })); }}>
                 <option value="">Selecione uma categoria</option><option value="FORNECEDOR">Fornecedor</option>
@@ -164,6 +180,29 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
         {form.categoria_tipo === "HANGAR" && (
           <section className="ac-section" aria-labelledby="ac-servicos">
             <h3 id="ac-servicos" className="ac-section-heading">Serviços do hangar</h3>
+            <label className="ac-field" htmlFor="contato-atendimento_pista">
+              <span>Possui atendimento de pista? *</span>
+              <select id="contato-atendimento_pista" className="ac-control" value={form.atendimento_pista} required disabled={salvando}
+                onChange={(e) => alterar("atendimento_pista", e.target.value)}>
+                <option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option>
+              </select>
+            </label>
+            <div className="ac-service-grid">
+              {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
+                const marcado = Boolean(form[key]);
+                return <fieldset key={key} className="ac-service" disabled={salvando}>
+                  <legend>{label}</legend>
+                  <label className="ac-field" htmlFor={`contato-${key}-check`}>
+                    <span><input id={`contato-${key}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => alterar(key, e.target.checked ? "SIM" : "")} /> {label}</span>
+                  </label>
+                  {marcado && <Campo id={`contato-${key}`} label="Valor opcional (R$)"
+                    value={form[key] === "SIM" ? "" : form[key]} disabled={salvando} inputMode="decimal"
+                    placeholder="Deixe em branco se não houver cobrança"
+                    onChange={(e) => alterar(key, e.target.value || "SIM")} />}
+                </fieldset>;
+              })}
+            </div>
             <div className="ac-service-grid">
               {SERVICOS.map((servico) => (
                 <fieldset key={servico.nome} className="ac-service" disabled={salvando}>
@@ -234,6 +273,15 @@ function Detalhes({ contato }: { contato: ContatoAgenda }) {
     ["Endereço", contato.endereco], ["Cidade / UF", [contato.cidade, contato.uf].filter(Boolean).join(" / ")],
   ];
   return <dl className="ac-details">{dados.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Não informado"}</dd></div>)}
+    {(contato.categoria_tipo === "HANGAR" || contato.categoria === "HANGAR") && <>
+      <div><dt>Atendimento de pista</dt><dd>{contato.atendimento_pista === "SIM" ? "Sim" : contato.atendimento_pista === "NAO" ? "Não" : "Não informado"}</dd></div>
+      {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
+        const valor = String(contato[key] || "");
+        if (!valor) return null;
+        const preco = valor === "SIM" ? "Valor não informado" : Number(valorDecimal(valor)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        return <div key={key}><dt>{label}</dt><dd>Disponível · {preco}</dd></div>;
+      })}
+    </>}
     {(contato.categoria_tipo === "HANGAR" || contato.categoria === "HANGAR") && SERVICOS.map((servico) => <div key={servico.nome}><dt>{servico.nome}</dt><dd>{descricaoServico(contato, servico)}</dd></div>)}
     {contato.observacoes && <div className="ac-full"><dt>Observações</dt><dd>{contato.observacoes}</dd></div>}
   </dl>;

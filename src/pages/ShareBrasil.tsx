@@ -285,14 +285,14 @@ export function DashboardShareBrasil({
   return (
     <div className="route-enter space-y-5">
       <section className="overflow-hidden relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[.14] via-card to-card shadow-sm">
-        <div className="relative px-5 py-6 md:px-7">
+        <div className="relative px-5 py-6 md:px-7" style={{ backgroundColor: "rgba(7, 18, 34, 0.86)" }}>
           <h1 className="text-2xl font-extrabold tracking-[-.045em] text-foreground md:text-[32px]">
             Central de trabalho
           </h1>
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-[29px] sm:grid-cols-3 xl:grid-cols-6">
         {atalhos.map((item) => (
           <button
             type="button"
@@ -318,7 +318,7 @@ export function DashboardShareBrasil({
         ))}
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <section className="!mt-[38px] ml-[28px] mr-[54px] rounded-xl border border-border bg-card py-5 px-[42px] shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">

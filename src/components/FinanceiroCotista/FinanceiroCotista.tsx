@@ -186,33 +186,32 @@ const DESPESAS_ESTILOS = `
 .despesa-control:hover,.despesa-control[aria-expanded="true"] { background:hsl(var(--muted)); }
 .despesa-filter-count { font-size:11px; font-weight:600; }
 .despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:12px; margin-top:12px; border-top:1px solid hsl(var(--border)); }
-.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:hsl(var(--input)) hsl(var(--card)); scrollbar-width:auto; border:1px solid hsl(var(--border)); border-radius:5px 5px 3px 3px; }
-.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; text-align:left; }
+.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:#3c4b5d #10151a; scrollbar-width:auto; border:1px solid #27313b; border-radius:5px 5px 3px 3px; }
+.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; text-align:left; color:#e7edf6; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:32px; padding:0 16px; background:hsl(var(--muted) / 0.5); border-bottom:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.5; font-weight:700; letter-spacing:.09em; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
-.despesa-table > thead > tr > th + th { border-left:1px solid hsl(var(--border)); }
-.despesa-table .despesa-row { --row-bg:hsl(var(--card)); background:var(--row-bg); }
-.despesa-table .despesa-row:hover { --row-bg:hsl(var(--muted)); }
-.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:hsl(var(--accent)); }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:32px; padding:0 16px; background:#161e25; border-bottom:1px solid #27313b; border-right:1px solid #27313b88; color:#c5d5ea; font-size:10px; line-height:1.5; font-weight:700; letter-spacing:.9px; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th:last-child { border-right:0; }
+.despesa-table .despesa-row { --row-bg:#11171c66; background:var(--row-bg); }
+.despesa-table .despesa-row:nth-child(even) { --row-bg:#151c2255; }
+.despesa-table .despesa-row:hover { --row-bg:#202a3488; }
+.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:#27313c88; }
 .despesa-table .despesa-row { height:39px; }
-.despesa-table .despesa-row td { padding:3px 16px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid hsl(var(--border)); overflow-wrap:break-word; }
-.despesa-table .despesa-row td + td { border-left:1px solid hsl(var(--border)); }
+.despesa-table .despesa-row td { padding:3px 16px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid #27313b99; border-right:1px solid #27313b77; overflow-wrap:break-word; }
+.despesa-table .despesa-row td:last-child { border-right:0; }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
-.despesa-table .despesa-row td:nth-child(2) { border-right:1px solid hsl(var(--border)); }
-.despesa-table > thead > tr > th:nth-child(2) { border-right:1px solid hsl(var(--border)); }
-.despesa-table .despesa-row td:last-child { border-left:1px solid hsl(var(--border)); padding:8px; }
-.despesa-table .despesa-month th { padding:10px 16px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); text-align:left; }
+.despesa-table .despesa-row td:last-child { padding:8px; }
+.despesa-table .despesa-month th { padding:10px 16px; background:#161e25; border-bottom:1px solid #27313b; text-align:left; }
 .despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
 .despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
 .despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
-.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:hsl(var(--muted-foreground)); overflow-wrap:break-word; }
+.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:#a6b5c9; overflow-wrap:break-word; }
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
 .despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
 .despesa-cotista-heading { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 .despesa-cotista-heading small { font-size:11px; font-weight:400; }
 .despesa-date { margin:0; white-space:nowrap; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
 .despesa-date-caption { margin:4px 0 0; color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
-.despesa-category { margin:0; font-size:11px; color:hsl(var(--muted-foreground)); line-height:1.5; }
+.despesa-category { margin:0; font-size:11px; color:#a6b5c9; line-height:1.5; }
 .despesa-sort-date { display:flex; width:100%; align-items:center; justify-content:space-between; gap:4px; font:inherit; text-align:left; }
 .despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid hsl(var(--input)); border-radius:3px; background:hsl(var(--card)); color:hsl(var(--primary-foreground)); box-shadow:none; }
 .despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:hsl(var(--primary)); border-color:hsl(var(--primary)); }

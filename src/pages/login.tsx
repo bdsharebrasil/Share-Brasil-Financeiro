@@ -158,10 +158,10 @@ export default function Login() {
       <InstallPrompt />
       <style>{`
         @keyframes login-flight {
-          0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(90deg) scale(.8); }
+          0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(45deg) scale(.8); }
           15% { opacity: var(--flight-opacity); }
           85% { opacity: var(--flight-opacity); }
-          100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(90deg) scale(1); }
+          100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(45deg) scale(1); }
         }
         .login-flight { animation: login-flight var(--flight-duration) linear var(--flight-delay) infinite; }
       `}</style>

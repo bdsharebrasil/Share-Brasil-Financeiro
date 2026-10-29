@@ -76,7 +76,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
   }
 
   return (
-    <div className="route-enter box-border w-full min-w-0 max-w-full space-y-5 py-4 sm:py-6">
+    <div className="route-enter box-border -mx-[12px] -my-[4px] w-full min-w-0 max-w-full space-y-5 px-[5px] py-[3px]">
       <header
         className="min-w-0 rounded-2xl border border-primary/20 bg-cover bg-center p-4 shadow-sm sm:p-6"
         style={{ backgroundImage: `linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)), url(${aviationHero})` }}
@@ -142,7 +142,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-3 gap-[27px] mx-[39px] my-[-3px] px-[11px] py-[17px] justify-center items-center">
+          <div className="grid min-w-0 grid-cols-3 gap-[27px] mx-[39px] my-[11px] px-[11px] py-[17px] justify-center items-center">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}

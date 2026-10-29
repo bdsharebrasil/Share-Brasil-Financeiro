@@ -265,7 +265,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={isSubmitting || !isValid || !password}
-            className="h-12 w-full min-h-[5px] rounded-[95px] [@media(min-height:820px)]:h-14 overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] ml-[9px] mr-[80px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+            className="h-12 w-full min-h-[5px] rounded-[95px] [@media(min-height:820px)]:h-14 overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
           >
             {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
           </Button>

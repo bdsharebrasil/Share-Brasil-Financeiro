@@ -43,10 +43,16 @@ export const ATALHOS_POR_ABA: Record<
 > = {
   "share-brasil": [
     {
-      menu: "aniversarios",
-      label: "Aniversários",
-      icon: Cake,
-      tone: "border-pink-500/25 bg-pink-500/10 text-pink-700 dark:text-pink-300",
+      menu: "contatos-clientes",
+      label: "Agenda cotistas",
+      icon: Users,
+      tone: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    },
+    {
+      menu: "aeronaves",
+      label: "Aeronaves",
+      icon: Plane,
+      tone: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
     },
     {
       menu: "documentos",
@@ -61,22 +67,16 @@ export const ATALHOS_POR_ABA: Record<
       tone: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
     },
     {
-      menu: "contatos-clientes",
-      label: "Agenda cotistas",
-      icon: Users,
-      tone: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-    },
-    {
       menu: "hoteis",
       label: "Hotéis",
       icon: Building2,
       tone: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
     },
     {
-      menu: "aeronaves",
-      label: "Aeronaves",
-      icon: Plane,
-      tone: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+      menu: "aniversarios",
+      label: "Aniversários",
+      icon: Cake,
+      tone: "border-pink-500/25 bg-pink-500/10 text-pink-700 dark:text-pink-300",
     },
   ],
   "minha-central": [

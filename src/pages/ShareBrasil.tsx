@@ -44,7 +44,14 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
@@ -97,11 +104,21 @@ import {
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
-import { FormularioCadastroContato, type FormularioContato } from "@/components/agenda/AgendaContatos";
-import { AnexoCliente, AnexoPasta, AnexoSocio } from "@/components/agenda/AnexosIntegrados";
+import {
+  FormularioCadastroContato,
+  type FormularioContato,
+} from "@/components/agenda/AgendaContatos";
+import {
+  AnexoCliente,
+  AnexoPasta,
+  AnexoSocio,
+} from "@/components/agenda/AnexosIntegrados";
+import { AreaAnexo, LinhaDocumento } from "@/components/share-brasil/LayoutAnexos";
 
-const card = "rounded-xl border border-border bg-card/75 shadow-sm";
-const field = "h-10 rounded-lg border-border/70 bg-background/70 text-sm";
+const card =
+  "min-w-0 max-w-full rounded-xl border border-border bg-card/75 shadow-sm";
+const field =
+  "h-10 min-w-0 max-w-full rounded-lg border-border/70 bg-background/70 text-sm";
 function emailsCadastrados(registro?: Record<string, any> | null) {
   if (!registro) return [];
   const adicionais = Array.isArray(registro.emails)
@@ -111,17 +128,33 @@ function emailsCadastrados(registro?: Record<string, any> | null) {
           const parsed = JSON.parse(String(registro.emails || "[]"));
           return Array.isArray(parsed) ? parsed : [];
         } catch {
-          return String(registro.emails || "").split(/[;,\s]+/).filter(Boolean);
+          return String(registro.emails || "")
+            .split(/[;,\s]+/)
+            .filter(Boolean);
         }
       })();
-  return [...new Set([registro.email_principal, ...adicionais]
-    .map((email) => String(email || "").trim().toLowerCase())
-    .filter(Boolean))];
+  return [
+    ...new Set(
+      [registro.email_principal, ...adicionais]
+        .map((email) =>
+          String(email || "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function emailsParaSalvar(value: unknown) {
-  const values = Array.isArray(value) ? value : String(value || "").split(/[;,\s]+/);
-  return [...new Set(values.map((email) => String(email).trim().toLowerCase()).filter(Boolean))];
+  const values = Array.isArray(value)
+    ? value
+    : String(value || "").split(/[;,\s]+/);
+  return [
+    ...new Set(
+      values.map((email) => String(email).trim().toLowerCase()).filter(Boolean),
+    ),
+  ];
 }
 
 function Shell({
@@ -136,9 +169,9 @@ function Shell({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="route-enter space-y-5">
-      <div className="flex items-end justify-between gap-4">
-        <div>
+    <div className="route-enter w-full min-w-0 max-w-full space-y-5">
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 flex-[1_1_16rem] [overflow-wrap:anywhere]">
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">
             {title}
           </h1>
@@ -146,7 +179,7 @@ function Shell({
             {detail}
           </p>
         </div>
-        {action}
+        {action && <div className="min-w-0 max-w-full">{action}</div>}
       </div>
       {children}
     </div>
@@ -208,152 +241,17 @@ function pontoValor(value: unknown) {
     : null;
 }
 function pontoEncerrado(registro?: PontoLancamento) {
-  const status = String(registro?.status || "").trim().toLowerCase();
-  return ["finished", "encerrado", "closed"].includes(status) || Boolean(pontoValor(registro?.saida_hora));
-}
-
-export function DashboardShareBrasil({
-  aoNavegar,
-}: {
-  aoNavegar: (menu: string) => void;
-}) {
-  const atalhos: Array<{
-    menu: string;
-    label: string;
-    detail: string;
-    icon: import("lucide-react").LucideIcon;
-    tone: string;
-  }> = [
-    {
-      menu: "aniversarios",
-      label: "ANIVERSÁRIOS",
-      detail: "Datas comemorativas",
-      icon: Cake,
-      tone: "text-pink-700 dark:text-pink-300 bg-pink-500/10 border-pink-500/25",
-    },
-    {
-      menu: "documentos",
-      label: "DOCUMENTOS",
-      detail: "Pastas internas",
-      icon: Folder,
-      tone: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/25",
-    },
-    {
-      menu: "senhas",
-      label: "SENHAS",
-      detail: "Cofre corporativo",
-      icon: KeyRound,
-      tone: "text-violet-700 dark:text-violet-300 bg-violet-500/10 border-violet-500/25",
-    },
-    {
-      menu: "tarefas",
-      label: "TAREFAS",
-      detail: "Kanban e agenda",
-      icon: ListTodo,
-      tone: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25",
-    },
-    {
-      menu: "contatos-clientes",
-      label: "AGENDA\nCOTISTAS",
-      detail: "Relacionamento",
-      icon: Users,
-      tone: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25",
-    },
-    {
-      menu: "centro-treinamento",
-      label: "CENTRO\nTREINAMENTO",
-      detail: "Salas e materiais",
-      icon: GraduationCap,
-      tone: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/25",
-    },
-    {
-      menu: "hoteis",
-      label: "HOTÉIS",
-      detail: "Reservas e contatos",
-      icon: Building2,
-      tone: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/25",
-    },
-    {
-      menu: "aeronaves",
-      label: "AERONAVES",
-      detail: "Frota Share Brasil",
-      icon: Plane,
-      tone: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/25",
-    },
-  ];
-
+  const status = String(registro?.status || "")
+    .trim()
+    .toLowerCase();
   return (
-    <div className="route-enter space-y-5">
-      <section className="overflow-hidden relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[.14] via-card to-card shadow-sm">
-        <div className="relative px-5 py-6 md:px-7">
-          <h1 className="text-2xl font-extrabold tracking-[-.045em] text-foreground md:text-[32px]">
-            Central de trabalho
-          </h1>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {atalhos.map((item) => (
-          <button
-            type="button"
-            key={item.menu + "-" + item.label}
-            onClick={() => aoNavegar(item.menu)}
-            className="group flex min-h-[132px] flex-col items-center justify-between rounded-xl border border-border bg-card px-3 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
-          >
-            <span
-              className={
-                "flex h-12 w-12 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 " +
-                item.tone
-              }
-            >
-              <item.icon size={23} strokeWidth={1.8} />
-            </span>
-            <span className="whitespace-pre-line text-[11px] font-extrabold leading-[1.15] tracking-[.03em] text-foreground">
-              {item.label}
-            </span>
-            <span className="text-[9px] text-muted-foreground">
-              {item.detail}
-            </span>
-          </button>
-        ))}
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">
-              Minha jornada
-            </p>
-            <h2 className="mt-1 text-lg font-extrabold text-white">
-              Ponto de hoje
-            </h2>
-          </div>
-          <Clock3 size={19} className="text-primary" />
-        </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-secondary/35 p-4">
-          <div>
-            <p className="font-mono text-2xl font-bold">
-              {new Date().toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[.1em] text-slate-500">
-              Registro de entrada
-            </p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => aoNavegar("ponto")}
-            className="h-10 gap-2 rounded-lg px-4 text-[10px] font-extrabold uppercase"
-          >
-            <Play size={13} /> Abrir ponto
-          </Button>
-        </div>
-      </section>
-    </div>
+    ["finished", "encerrado", "closed"].includes(status) ||
+    Boolean(pontoValor(registro?.saida_hora))
   );
 }
+
+export { DashboardShareBrasil } from "@/components/share-brasil/DashboardShareBrasil";
+
 export function PontoShareBrasil() {
   const currentMonth = chaveMes(new Date());
   const today = chaveData(new Date());
@@ -392,7 +290,9 @@ export function PontoShareBrasil() {
     };
   }, [month]);
   const todayEntry = Array.isArray(data?.lancamentos)
-    ? data.lancamentos.find((item) => String(item.data_entrada).slice(0, 10) === today)
+    ? data.lancamentos.find(
+        (item) => String(item.data_entrada).slice(0, 10) === today,
+      )
     : undefined;
   const jornadaEncerrada = pontoEncerrado(todayEntry);
   const action = async (
@@ -440,7 +340,7 @@ export function PontoShareBrasil() {
       detail="Seu ponto e seu histórico mensal são privados e vinculados ao seu usuário."
     >
       <Feedback error={error} ok={ok} />
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
         <section className={`${card} p-5`}>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -479,36 +379,39 @@ export function PontoShareBrasil() {
                     <LogIn size={14} /> Iniciar dia
                   </Button>
                 )}
-                {pontoValor(todayEntry?.entrada_hora) && !pontoValor(todayEntry.inicio_almoco) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void action("inicio_almoco")}
-                    className="h-10 gap-2 text-xs"
-                  >
-                    <Pause size={14} /> Saída almoço
-                  </Button>
-                )}
-                {pontoValor(todayEntry?.inicio_almoco) && !pontoValor(todayEntry.fim_almoco) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void action("fim_almoco")}
-                    className="h-10 gap-2 text-xs"
-                  >
-                    <Play size={14} /> Volta almoço
-                  </Button>
-                )}
-                {pontoValor(todayEntry?.entrada_hora) && !pontoValor(todayEntry?.saida_hora) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void action("encerrar")}
-                    className="h-10 gap-2 text-xs"
-                  >
-                    <LogOut size={14} /> Encerrar dia
-                  </Button>
-                )}
+                {pontoValor(todayEntry?.entrada_hora) &&
+                  !pontoValor(todayEntry.inicio_almoco) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void action("inicio_almoco")}
+                      className="h-10 gap-2 text-xs"
+                    >
+                      <Pause size={14} /> Saída almoço
+                    </Button>
+                  )}
+                {pontoValor(todayEntry?.inicio_almoco) &&
+                  !pontoValor(todayEntry.fim_almoco) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void action("fim_almoco")}
+                      className="h-10 gap-2 text-xs"
+                    >
+                      <Play size={14} /> Volta almoço
+                    </Button>
+                  )}
+                {pontoValor(todayEntry?.entrada_hora) &&
+                  !pontoValor(todayEntry?.saida_hora) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void action("encerrar")}
+                      className="h-10 gap-2 text-xs"
+                    >
+                      <LogOut size={14} /> Encerrar dia
+                    </Button>
+                  )}
               </>
             )}
           </div>
@@ -579,7 +482,7 @@ export function PontoShareBrasil() {
             Carregando histórico...
           </p>
         ) : Array.isArray(data?.lancamentos) && data.lancamentos.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="w-full min-w-0 max-w-full overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-[10px]">
               <thead>
                 <tr className="border-b border-border text-[9px] uppercase tracking-[.1em] text-muted-foreground">
@@ -600,12 +503,18 @@ export function PontoShareBrasil() {
                     <td className="px-4 py-3 font-mono">
                       {dataPt(item.data_entrada)}
                     </td>
-                    <td className="px-4 py-3">{pontoValor(item.entrada_hora) || "—"}</td>
+                    <td className="px-4 py-3">
+                      {pontoValor(item.entrada_hora) || "—"}
+                    </td>
                     <td className="px-4 py-3">
                       {pontoValor(item.inicio_almoco) || "—"}{" "}
-                      {pontoValor(item.fim_almoco) ? `→ ${pontoValor(item.fim_almoco)}` : ""}
+                      {pontoValor(item.fim_almoco)
+                        ? `→ ${pontoValor(item.fim_almoco)}`
+                        : ""}
                     </td>
-                    <td className="px-4 py-3">{pontoValor(item.saida_hora) || "—"}</td>
+                    <td className="px-4 py-3">
+                      {pontoValor(item.saida_hora) || "—"}
+                    </td>
                     <td className="px-4 py-3">
                       {item.horas_totais ? `${item.horas_totais} h` : "—"}
                     </td>
@@ -705,7 +614,10 @@ export function DocumentosShareBrasil() {
       <Feedback error={error} ok={ok} />
       {isOverview ? (
         <div className="space-y-5">
-          <section className="rounded-2xl border border-white/[.08] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5" style={{ backgroundColor: "rgba(16, 26, 40, 0.54)" }}>
+          <section
+            className="rounded-2xl border border-white/[.08] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5"
+            style={{ backgroundColor: "rgba(16, 26, 40, 0.54)" }}
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm font-bold text-white">Todas as pastas</p>
@@ -713,7 +625,7 @@ export function DocumentosShareBrasil() {
                   Visualização lado a lado · clique em um card para abrir
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 flex-wrap gap-2">
                 <Input
                   value={folder}
                   onChange={(e) => setFolder(e.target.value)}
@@ -721,7 +633,7 @@ export function DocumentosShareBrasil() {
                     if (e.key === "Enter") void addFolder();
                   }}
                   placeholder="Nome da nova pasta"
-                  className="h-9 w-full bg-white/[.04] text-xs sm:w-[190px]"
+                  className="h-9 w-full min-w-0 max-w-full flex-[1_1_12rem] bg-white/[.04] text-xs"
                 />
                 <Button
                   type="button"
@@ -768,18 +680,32 @@ export function DocumentosShareBrasil() {
               <FolderOpen size={13} /> {selectedFolder?.nome || "Pasta"}
             </span>
           </div>
-          <section className="overflow-hidden rounded-2xl border border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]" style={{ backgroundColor: "rgba(16, 26, 40, 0.76)" }}>
-            <div className="relative overflow-hidden border-b border-white/[.08] p-5 md:p-7" style={{ backgroundColor: "rgba(3, 3, 17, 0.87)" }}>
-              <div className="flex min-w-0 flex-wrap items-end gap-4">
-                <div className="min-w-0 flex-[1_1_16rem]">
+          <section
+            className="overflow-hidden rounded-2xl border border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]"
+            style={{ backgroundColor: "rgba(16, 26, 40, 0.76)" }}
+          >
+            <div
+              className="relative overflow-hidden border-b border-white/[.08] p-5 md:p-7"
+              style={{ backgroundColor: "rgba(3, 3, 17, 0.87)" }}
+            >
+              <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-end gap-4">
+                <div className="min-w-0 [overflow-wrap:anywhere]">
                   <h2 className="break-words text-xl font-semibold text-slate-100">
                     {selectedFolder?.nome || "Pasta"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-400">{docs.length} arquivo(s)</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {docs.length} arquivo(s)
+                  </p>
                 </div>
-                <div className="min-w-0 max-w-full flex-[2_1_28rem]">
+                <div className="min-w-0 w-full max-w-full">
                   {selectedFolderId && (
-                    <AnexoPasta key={selectedFolderId} pastaId={selectedFolderId} aoConcluir={refresh} />
+                    <AreaAnexo>
+                      <AnexoPasta
+                        key={selectedFolderId}
+                        pastaId={selectedFolderId}
+                        aoConcluir={refresh}
+                      />
+                    </AreaAnexo>
                   )}
                 </div>
               </div>
@@ -791,17 +717,17 @@ export function DocumentosShareBrasil() {
                     type="button"
                     key={item.id}
                     onClick={() => void download(item)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-cyan-300/[.04] md:px-7"
+                    className="flex w-full min-w-0 max-w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-cyan-300/[.04] md:px-7"
                   >
-                    <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-200">
                         <FilePlus2 size={17} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-white">
+                        <span className="block text-sm font-bold text-white [overflow-wrap:anywhere]">
                           {item.nome}
                         </span>
-                        <span className="mt-1 block text-[10px] text-slate-500">
+                        <span className="mt-1 block text-[10px] text-slate-500 [overflow-wrap:anywhere]">
                           {item.tipo_arquivo || "Arquivo"} ·{" "}
                           {Math.max(1, Math.round(item.tamanho_arquivo / 1024))}{" "}
                           KB
@@ -1011,7 +937,9 @@ export function ContatosClientesShareBrasil() {
   const [contactError, setContactError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
   const [contactSearch, setContactSearch] = useState("");
-  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(
+    null,
+  );
   const [showNewCotista, setShowNewCotista] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
@@ -1064,7 +992,8 @@ export function ContatosClientesShareBrasil() {
   const [aircraftId, setAircraftId] = useState("");
   const [aircraftPercent, setAircraftPercent] = useState("100");
   const [newCotistaAircraftId, setNewCotistaAircraftId] = useState("");
-  const [newCotistaAircraftPercent, setNewCotistaAircraftPercent] = useState("100");
+  const [newCotistaAircraftPercent, setNewCotistaAircraftPercent] =
+    useState("100");
   const [selectedClient, setSelectedClient] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -1099,8 +1028,12 @@ export function ContatosClientesShareBrasil() {
   const currentSocio = selectedClientSocios.find(
     (item) => item.id === selectedSocio,
   );
-  const currentSocioLinks = links.filter((item) => item.socio_id === selectedSocio);
-  const currentSocioInactive = currentSocioLinks.length > 0 && currentSocioLinks.every((item) => item.status === "inativo");
+  const currentSocioLinks = links.filter(
+    (item) => item.socio_id === selectedSocio,
+  );
+  const currentSocioInactive =
+    currentSocioLinks.length > 0 &&
+    currentSocioLinks.every((item) => item.status === "inativo");
   const clientDocuments = documents.filter(
     (item) => item.cliente_id === selectedClient && !item.socio_id,
   );
@@ -1118,8 +1051,19 @@ export function ContatosClientesShareBrasil() {
   );
   const visibleContacts = contacts
     .filter((item) =>
-      [item.nome, item.categoria, item.empresa, item.telefone, item.email, item.cnpj, item.razao_social]
-        .some((value) => value?.toLocaleLowerCase("pt-BR").includes(contactSearch.trim().toLocaleLowerCase("pt-BR"))),
+      [
+        item.nome,
+        item.categoria,
+        item.empresa,
+        item.telefone,
+        item.email,
+        item.cnpj,
+        item.razao_social,
+      ].some((value) =>
+        value
+          ?.toLocaleLowerCase("pt-BR")
+          .includes(contactSearch.trim().toLocaleLowerCase("pt-BR")),
+      ),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
@@ -1128,7 +1072,9 @@ export function ContatosClientesShareBrasil() {
       const emails = emailsCadastrados(selected);
       setClientForm({
         ...selected,
-        emails: emails.filter((email) => email !== selected.email_principal).join(", "),
+        emails: emails
+          .filter((email) => email !== selected.email_principal)
+          .join(", "),
         conta_bancaria: selected.conta_bancaria || "",
       });
       setEditingClient(false);
@@ -1139,7 +1085,9 @@ export function ContatosClientesShareBrasil() {
       const emails = emailsCadastrados(currentSocio);
       setSocioForm({
         ...currentSocio,
-        emails: emails.filter((email) => email !== currentSocio.email_principal).join(", "),
+        emails: emails
+          .filter((email) => email !== currentSocio.email_principal)
+          .join(", "),
       });
       setEditingSocio(false);
     }
@@ -1162,7 +1110,11 @@ export function ContatosClientesShareBrasil() {
     setSavingContact(true);
     setContactError(null);
     try {
-      const dados = { ...payload, categoria_tipo: payload.categoria_tipo as ContatoAgenda["categoria_tipo"] };
+      const dados = {
+        ...payload,
+        categoria_tipo:
+          payload.categoria_tipo as ContatoAgenda["categoria_tipo"],
+      };
       if (editingContact) await atualizarContatoShare(editingContact.id, dados);
       else await criarContatoShare(dados);
       setShowNewContact(false);
@@ -1170,7 +1122,9 @@ export function ContatosClientesShareBrasil() {
       setOk(editingContact ? "Contato atualizado." : "Contato salvo.");
       refresh();
     } catch (e) {
-      setContactError(e instanceof Error ? e.message : "Não foi possível salvar o contato.");
+      setContactError(
+        e instanceof Error ? e.message : "Não foi possível salvar o contato.",
+      );
     } finally {
       setSavingContact(false);
     }
@@ -1186,7 +1140,9 @@ export function ContatosClientesShareBrasil() {
       setOk("Contato removido.");
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível remover o contato.");
+      setError(
+        e instanceof Error ? e.message : "Não foi possível remover o contato.",
+      );
     }
   };
   const emptyClientForm = () => {
@@ -1224,7 +1180,8 @@ export function ContatosClientesShareBrasil() {
       if (clientForm.holding) {
         const holding = await criarHoldingShare({
           nome: clientForm.razao_social,
-          conta_bancaria: clientForm.conta_bancaria || clientForm.codigo_cliente,
+          conta_bancaria:
+            clientForm.conta_bancaria || clientForm.codigo_cliente,
           cnpj: clientForm.cnpj,
           inscricao_estadual: clientForm.inscricao_estadual,
           proprietario: clientForm.proprietario,
@@ -1242,7 +1199,10 @@ export function ContatosClientesShareBrasil() {
         );
       } else {
         const percentual = Number(newCotistaAircraftPercent);
-        if (newCotistaAircraftId && (!Number.isFinite(percentual) || percentual < 0 || percentual > 100)) {
+        if (
+          newCotistaAircraftId &&
+          (!Number.isFinite(percentual) || percentual < 0 || percentual > 100)
+        ) {
           throw new Error("Informe um percentual entre 0 e 100.");
         }
         const result = await criarClienteShare({
@@ -1255,9 +1215,11 @@ export function ContatosClientesShareBrasil() {
         setSelectedClient(result.id);
         setShowNewCotista(false);
         setProfileTab("visao-geral");
-        setOk(newCotistaAircraftId
-          ? "Cliente cotista criado com a aeronave e o percentual vinculados."
-          : "Cliente cotista criado. Você poderá vincular aeronaves no perfil.");
+        setOk(
+          newCotistaAircraftId
+            ? "Cliente cotista criado com a aeronave e o percentual vinculados."
+            : "Cliente cotista criado. Você poderá vincular aeronaves no perfil.",
+        );
       }
       refresh();
     } catch (e) {
@@ -1273,7 +1235,8 @@ export function ContatosClientesShareBrasil() {
         ...clientForm,
         emails: emailsParaSalvar(clientForm.emails),
       };
-      if (selected.holding) await atualizarHoldingShare(selectedClient, payload);
+      if (selected.holding)
+        await atualizarHoldingShare(selectedClient, payload);
       else await atualizarClienteShare(selectedClient, payload);
       setEditingClient(false);
       setOk("Cadastro atualizado.");
@@ -1290,7 +1253,10 @@ export function ContatosClientesShareBrasil() {
     if (!selectedClient || !selected) return;
     try {
       const next = selected.status === "inativo" ? "ativo" : "inativo";
-      if (selected.holding) await atualizarHoldingShare(selectedClient, { ativo: next !== "inativo" });
+      if (selected.holding)
+        await atualizarHoldingShare(selectedClient, {
+          ativo: next !== "inativo",
+        });
       else await atualizarClienteShare(selectedClient, { status: next });
       setClientStatus(next === "inativo" ? "inativos" : "ativos");
       setOk(
@@ -1324,11 +1290,21 @@ export function ContatosClientesShareBrasil() {
   const toggleSocioStatus = async () => {
     if (!selectedSocio || !currentSocio) return;
     try {
-      await atualizarSocioShare(selectedSocio, { status: currentSocioInactive ? "ativo" : "inativo" });
-      setOk(currentSocioInactive ? "Sócio reativado." : "Sócio movido para inativos.");
+      await atualizarSocioShare(selectedSocio, {
+        status: currentSocioInactive ? "ativo" : "inativo",
+      });
+      setOk(
+        currentSocioInactive
+          ? "Sócio reativado."
+          : "Sócio movido para inativos.",
+      );
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível atualizar o status do sócio.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Não foi possível atualizar o status do sócio.",
+      );
     }
   };
   const linkAircraft = async () => {
@@ -1412,47 +1388,93 @@ export function ContatosClientesShareBrasil() {
       </p>
     </div>
   );
-  const profileEmails = (registro?: Record<string, any> | null, violet = false) => {
+  const profileEmails = (
+    registro?: Record<string, any> | null,
+    violet = false,
+  ) => {
     const emails = emailsCadastrados(registro);
     return (
       <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-4 sm:col-span-2">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
-          <Mail size={13} className={violet ? "text-violet-300" : "text-primary"} />
+          <Mail
+            size={13}
+            className={violet ? "text-violet-300" : "text-primary"}
+          />
           E-mails cadastrados
-          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-400">{emails.length}</span>
+          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-400">
+            {emails.length}
+          </span>
         </div>
         {emails.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {emails.map((email) => (
-              <a key={email} href={`mailto:${email}`} className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/[.08] ${violet ? "border-violet-300/20 bg-violet-300/5 text-violet-100" : "border-primary/20 bg-primary/5 text-slate-100"}`}>
+              <a
+                key={email}
+                href={`mailto:${email}`}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/[.08] ${violet ? "border-violet-300/20 bg-violet-300/5 text-violet-100" : "border-primary/20 bg-primary/5 text-slate-100"}`}
+              >
                 {email}
               </a>
             ))}
           </div>
-        ) : <p className="mt-2 text-sm font-semibold text-slate-100">Não informado</p>}
+        ) : (
+          <p className="mt-2 text-sm font-semibold text-slate-100">
+            Não informado
+          </p>
+        )}
       </div>
     );
   };
   const contactsContent = (
     <div className="space-y-4">
-      <Dialog open={showNewContact} onOpenChange={(open) => { if (!savingContact) { setShowNewContact(open); if (!open) setEditingContact(undefined); } }}>
+      <Dialog
+        open={showNewContact}
+        onOpenChange={(open) => {
+          if (!savingContact) {
+            setShowNewContact(open);
+            if (!open) setEditingContact(undefined);
+          }
+        }}
+      >
         <DialogContent className="ac-dialog">
           <DialogHeader className="ac-dialog-header">
-            <DialogTitle>{editingContact ? "Editar contato" : "Novo contato"}</DialogTitle>
-            <DialogDescription>Preencha os dados para organizar o contato na agenda corporativa.</DialogDescription>
+            <DialogTitle>
+              {editingContact ? "Editar contato" : "Novo contato"}
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os dados para organizar o contato na agenda corporativa.
+            </DialogDescription>
           </DialogHeader>
-          <FormularioCadastroContato contato={editingContact} salvando={savingContact} erro={contactError} aoSalvar={salvarContato} aoCancelar={() => setShowNewContact(false)} />
+          <FormularioCadastroContato
+            contato={editingContact}
+            salvando={savingContact}
+            erro={contactError}
+            aoSalvar={salvarContato}
+            aoCancelar={() => setShowNewContact(false)}
+          />
         </DialogContent>
       </Dialog>
       <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 id="titulo-agenda-contatos" className="text-lg font-semibold tracking-tight text-white">Agenda de contatos</h2>
-            <p className="mt-0.5 text-sm text-slate-400">{contacts.length} {contacts.length === 1 ? "contato interno" : "contatos internos"}</p>
+            <h2
+              id="titulo-agenda-contatos"
+              className="text-lg font-semibold tracking-tight text-white"
+            >
+              Agenda de contatos
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-400">
+              {contacts.length}{" "}
+              {contacts.length === 1 ? "contato interno" : "contatos internos"}
+            </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-60">
-              <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
               <Input
                 type="search"
                 value={contactSearch}
@@ -1462,7 +1484,14 @@ export function ContatosClientesShareBrasil() {
                 className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
-            <Button type="button" onClick={() => { setEditingContact(undefined); setShowNewContact(true); }} className="h-10 gap-2 text-xs">
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingContact(undefined);
+                setShowNewContact(true);
+              }}
+              className="h-10 gap-2 text-xs"
+            >
               <Plus size={14} /> Novo contato
             </Button>
           </div>
@@ -1474,63 +1503,279 @@ export function ContatosClientesShareBrasil() {
               <li key={item.id}>
                 <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200">
-                      {item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("") || "?"}
+                    <span
+                      aria-hidden="true"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200"
+                    >
+                      {item.nome
+                        .trim()
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((parte) => parte[0]?.toUpperCase())
+                        .join("") || "?"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-white">{item.nome}</h3>
-                      <p className="truncate text-xs text-slate-400">{item.empresa || item.razao_social || "Contato profissional"}</p>
-                      {(item.categoria || item.empresa) && <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">{item.categoria || item.empresa}</span>}
+                      <h3 className="truncate text-sm font-semibold text-white">
+                        {item.nome}
+                      </h3>
+                      <p className="truncate text-xs text-slate-400">
+                        {item.empresa ||
+                          item.razao_social ||
+                          "Contato profissional"}
+                      </p>
+                      {(item.categoria || item.empresa) && (
+                        <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
+                          {item.categoria || item.empresa}
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   <dl className="mt-4 flex-1 space-y-2 border-t border-white/5 pt-3 text-xs text-slate-300">
-                    {item.telefone && <div className="flex min-w-0 items-center gap-2"><Phone size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Telefone</dt><dd className="truncate">{item.telefone}</dd></div>}
-                    {item.email && <div className="flex min-w-0 items-center gap-2"><Mail size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">E-mail</dt><dd className="truncate">{item.email}</dd></div>}
-                    {(item.cidade || item.uf || item.endereco) && <div className="flex min-w-0 items-center gap-2"><MapPin size={14} aria-hidden="true" className="shrink-0 text-slate-500" /><dt className="sr-only">Localização</dt><dd className="truncate">{[item.cidade, item.uf].filter(Boolean).join(" / ") || item.endereco}</dd></div>}
-                    {!item.telefone && !item.email && !item.cidade && !item.uf && !item.endereco && <div className="text-slate-500">Sem dados adicionais de contato</div>}
+                    {item.telefone && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Phone
+                          size={14}
+                          aria-hidden="true"
+                          className="shrink-0 text-slate-500"
+                        />
+                        <dt className="sr-only">Telefone</dt>
+                        <dd className="truncate">{item.telefone}</dd>
+                      </div>
+                    )}
+                    {item.email && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Mail
+                          size={14}
+                          aria-hidden="true"
+                          className="shrink-0 text-slate-500"
+                        />
+                        <dt className="sr-only">E-mail</dt>
+                        <dd className="truncate">{item.email}</dd>
+                      </div>
+                    )}
+                    {(item.cidade || item.uf || item.endereco) && (
+                      <div className="flex min-w-0 items-center gap-2">
+                        <MapPin
+                          size={14}
+                          aria-hidden="true"
+                          className="shrink-0 text-slate-500"
+                        />
+                        <dt className="sr-only">Localização</dt>
+                        <dd className="truncate">
+                          {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
+                            item.endereco}
+                        </dd>
+                      </div>
+                    )}
+                    {!item.telefone &&
+                      !item.email &&
+                      !item.cidade &&
+                      !item.uf &&
+                      !item.endereco && (
+                        <div className="text-slate-500">
+                          Sem dados adicionais de contato
+                        </div>
+                      )}
                   </dl>
 
                   <div className="mt-4 flex min-w-0 items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => setSelectedContact(item)} className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelectedContact(item)}
+                      className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100"
+                    >
                       <Eye size={14} aria-hidden="true" /> Ver
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => editContact(item)} aria-label={`Editar contato ${item.nome}`} className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"><Pencil size={14} /></Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(item.id)} aria-label={`Remover contato ${item.nome}`} title="Remover contato" className="ml-auto h-9 w-9 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => editContact(item)}
+                      aria-label={`Editar contato ${item.nome}`}
+                      className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void removeContact(item.id)}
+                      aria-label={`Remover contato ${item.nome}`}
+                      title="Remover contato"
+                      className="ml-auto h-9 w-9 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </article>
               </li>
             ))}
           </ul>
         ) : (
-          <EstadoVazio label={contactSearch ? "Nenhum contato encontrado" : "Nenhum contato cadastrado"} />
+          <EstadoVazio
+            label={
+              contactSearch
+                ? "Nenhum contato encontrado"
+                : "Nenhum contato cadastrado"
+            }
+          />
         )}
       </section>
-      <Dialog open={Boolean(selectedContact)} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
+      <Dialog
+        open={Boolean(selectedContact)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedContact(null);
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4 pr-6">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">{selectedContact?.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("")}</span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">
+                {selectedContact?.nome
+                  .trim()
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((parte) => parte[0]?.toUpperCase())
+                  .join("")}
+              </span>
               <div className="min-w-0 text-left">
-                <DialogTitle className="truncate text-lg text-white">{selectedContact?.nome}</DialogTitle>
-                <DialogDescription className="truncate text-slate-400">{selectedContact?.empresa || selectedContact?.razao_social || "Contato profissional"}</DialogDescription>
-                {(selectedContact?.categoria || selectedContact?.empresa) && <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">{selectedContact.categoria || selectedContact.empresa}</span>}
+                <DialogTitle className="truncate text-lg text-white">
+                  {selectedContact?.nome}
+                </DialogTitle>
+                <DialogDescription className="truncate text-slate-400">
+                  {selectedContact?.empresa ||
+                    selectedContact?.razao_social ||
+                    "Contato profissional"}
+                </DialogDescription>
+                {(selectedContact?.categoria || selectedContact?.empresa) && (
+                  <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">
+                    {selectedContact.categoria || selectedContact.empresa}
+                  </span>
+                )}
               </div>
             </div>
           </DialogHeader>
           <dl className="grid gap-2 sm:grid-cols-2">
-            {selectedContact?.telefone && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Phone size={14} />Telefone</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.telefone}</dd></div>}
-            {selectedContact?.email && <div className="min-w-0 rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Mail size={14} />E-mail</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.email}</dd></div>}
-            {selectedContact?.empresa && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Briefcase size={14} />Empresa</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.empresa}</dd></div>}
-            {selectedContact?.razao_social && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">Razão social</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{selectedContact.razao_social}</dd></div>}
-            {selectedContact?.cnpj && <div className="rounded-lg border border-white/5 p-3"><dt className="text-xs text-slate-500">CNPJ</dt><dd className="mt-1.5 text-sm font-medium text-slate-100">{selectedContact.cnpj}</dd></div>}
-            {selectedContact?.categoria_tipo === "HANGAR" && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Serviços do hangar</dt><dd className="mt-2 grid gap-2 sm:grid-cols-2"><span className="rounded-md bg-white/[.04] p-2 text-sm">GPU: {selectedContact.gpu === "SIM" ? selectedContact.valor_gpu === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_gpu}` : "Não disponível"}</span><span className="rounded-md bg-white/[.04] p-2 text-sm">Transfer: {selectedContact.transfer === "SIM" ? selectedContact.valor_transfer === "GRATUITO" ? "Disponível · gratuito" : `Disponível · R$ ${selectedContact.valor_transfer}` : "Não disponível"}</span></dd></div>}
-            {(selectedContact?.cidade || selectedContact?.uf || selectedContact?.endereco) && <div className="rounded-lg border border-white/5 p-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><MapPin size={14} />Localização</dt><dd className="mt-1.5 break-words text-sm font-medium text-slate-100">{[selectedContact.cidade, selectedContact.uf].filter(Boolean).join(" / ") || selectedContact.endereco}</dd></div>}
-            {selectedContact?.observacoes && <div className="rounded-lg border border-white/5 p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Observações</dt><dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">{selectedContact.observacoes}</dd></div>}
+            {selectedContact?.telefone && (
+              <div className="rounded-lg border border-white/5 p-3">
+                <dt className="flex items-center gap-2 text-xs text-slate-500">
+                  <Phone size={14} />
+                  Telefone
+                </dt>
+                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                  {selectedContact.telefone}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.email && (
+              <div className="min-w-0 rounded-lg border border-white/5 p-3">
+                <dt className="flex items-center gap-2 text-xs text-slate-500">
+                  <Mail size={14} />
+                  E-mail
+                </dt>
+                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                  {selectedContact.email}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.empresa && (
+              <div className="rounded-lg border border-white/5 p-3">
+                <dt className="flex items-center gap-2 text-xs text-slate-500">
+                  <Briefcase size={14} />
+                  Empresa
+                </dt>
+                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                  {selectedContact.empresa}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.razao_social && (
+              <div className="rounded-lg border border-white/5 p-3">
+                <dt className="text-xs text-slate-500">Razão social</dt>
+                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                  {selectedContact.razao_social}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.cnpj && (
+              <div className="rounded-lg border border-white/5 p-3">
+                <dt className="text-xs text-slate-500">CNPJ</dt>
+                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                  {selectedContact.cnpj}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.categoria_tipo === "HANGAR" && (
+              <div className="rounded-lg border border-white/5 p-3 sm:col-span-2">
+                <dt className="text-xs text-slate-500">Serviços do hangar</dt>
+                <dd className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <span className="rounded-md bg-white/[.04] p-2 text-sm">
+                    GPU:{" "}
+                    {selectedContact.gpu === "SIM"
+                      ? selectedContact.valor_gpu === "GRATUITO"
+                        ? "Disponível · gratuito"
+                        : `Disponível · R$ ${selectedContact.valor_gpu}`
+                      : "Não disponível"}
+                  </span>
+                  <span className="rounded-md bg-white/[.04] p-2 text-sm">
+                    Transfer:{" "}
+                    {selectedContact.transfer === "SIM"
+                      ? selectedContact.valor_transfer === "GRATUITO"
+                        ? "Disponível · gratuito"
+                        : `Disponível · R$ ${selectedContact.valor_transfer}`
+                      : "Não disponível"}
+                  </span>
+                </dd>
+              </div>
+            )}
+            {(selectedContact?.cidade ||
+              selectedContact?.uf ||
+              selectedContact?.endereco) && (
+              <div className="rounded-lg border border-white/5 p-3">
+                <dt className="flex items-center gap-2 text-xs text-slate-500">
+                  <MapPin size={14} />
+                  Localização
+                </dt>
+                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                  {[selectedContact.cidade, selectedContact.uf]
+                    .filter(Boolean)
+                    .join(" / ") || selectedContact.endereco}
+                </dd>
+              </div>
+            )}
+            {selectedContact?.observacoes && (
+              <div className="rounded-lg border border-white/5 p-3 sm:col-span-2">
+                <dt className="text-xs text-slate-500">Observações</dt>
+                <dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">
+                  {selectedContact.observacoes}
+                </dd>
+              </div>
+            )}
           </dl>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={() => setSelectedContact(null)}>Fechar</Button>
-            {selectedContact && <Button type="button" onClick={() => { const contact = selectedContact; setSelectedContact(null); editContact(contact); }}><Pencil size={14} className="mr-2" />Editar contato</Button>}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSelectedContact(null)}
+            >
+              Fechar
+            </Button>
+            {selectedContact && (
+              <Button
+                type="button"
+                onClick={() => {
+                  const contact = selectedContact;
+                  setSelectedContact(null);
+                  editContact(contact);
+                }}
+              >
+                <Pencil size={14} className="mr-2" />
+                Editar contato
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1616,7 +1861,9 @@ export function ContatosClientesShareBrasil() {
             {input("contato_financeiro", "Contato financeiro")}
             {input("telefone_financeiro", "Telefone financeiro")}
             {input("telefone_cliente", "Telefone principal")}
-            {clientForm.holding ? input("conta_bancaria", "Conta bancária") : null}
+            {clientForm.holding
+              ? input("conta_bancaria", "Conta bancária")
+              : null}
             {input("endereco", "Endereço", true)}
             {input("cidade", "Cidade")}
             {input("uf", "UF")}
@@ -1626,9 +1873,12 @@ export function ContatosClientesShareBrasil() {
               <div className="flex items-start gap-2">
                 <Plane size={16} className="mt-0.5 shrink-0 text-cyan-300" />
                 <div>
-                  <p className="text-xs font-bold text-white">Vincular aeronave</p>
+                  <p className="text-xs font-bold text-white">
+                    Vincular aeronave
+                  </p>
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Opcional. O vínculo será salvo em <code>cotista_aeronave</code> junto com o percentual.
+                    Opcional. O vínculo será salvo em{" "}
+                    <code>cotista_aeronave</code> junto com o percentual.
                   </p>
                 </div>
               </div>
@@ -1641,7 +1891,8 @@ export function ContatosClientesShareBrasil() {
                   <option value="">Não vincular agora</option>
                   {aircraft.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.matricula_registro || "Aeronave"} · {[item.fabricante, item.modelo].filter(Boolean).join(" ")}
+                      {item.matricula_registro || "Aeronave"} ·{" "}
+                      {[item.fabricante, item.modelo].filter(Boolean).join(" ")}
                     </option>
                   ))}
                 </select>
@@ -2061,18 +2312,44 @@ export function ContatosClientesShareBrasil() {
                 <Building2 size={13} />,
               )}
               {profileField("CNPJ", selected.cnpj, <FileText size={13} />)}
-              {profileField("Código do cliente", selected.codigo_cliente, <Clipboard size={13} />)}
-              {profileField("Inscrição estadual", selected.inscricao_estadual, <FileText size={13} />)}
-              {selected.holding ? profileField("Conta bancária", selected.conta_bancaria, <Building2 size={13} />) : null}
+              {profileField(
+                "Código do cliente",
+                selected.codigo_cliente,
+                <Clipboard size={13} />,
+              )}
+              {profileField(
+                "Inscrição estadual",
+                selected.inscricao_estadual,
+                <FileText size={13} />,
+              )}
+              {selected.holding
+                ? profileField(
+                    "Conta bancária",
+                    selected.conta_bancaria,
+                    <Building2 size={13} />,
+                  )
+                : null}
               {profileEmails(selected)}
               {profileField(
                 "Telefone principal",
                 selected.telefone_cliente,
                 <Phone size={13} />,
               )}
-              {profileField("Telefone financeiro", selected.telefone_financeiro, <Phone size={13} />)}
-              {profileField("Telefone alternativo", selected.telefone_outro, <Phone size={13} />)}
-              {profileField("Contato financeiro", selected.contato_financeiro, <UserRound size={13} />)}
+              {profileField(
+                "Telefone financeiro",
+                selected.telefone_financeiro,
+                <Phone size={13} />,
+              )}
+              {profileField(
+                "Telefone alternativo",
+                selected.telefone_outro,
+                <Phone size={13} />,
+              )}
+              {profileField(
+                "Contato financeiro",
+                selected.contato_financeiro,
+                <UserRound size={13} />,
+              )}
               {profileField(
                 "Endereço",
                 [selected.endereco, selected.cidade, selected.uf]
@@ -2098,18 +2375,66 @@ export function ContatosClientesShareBrasil() {
             <div className="space-y-4">
               {!editingClient ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {profileField("Razão social", selected.razao_social, <Building2 size={13} />)}
-                  {profileField("Código do cliente", selected.codigo_cliente, <Clipboard size={13} />)}
+                  {profileField(
+                    "Razão social",
+                    selected.razao_social,
+                    <Building2 size={13} />,
+                  )}
+                  {profileField(
+                    "Código do cliente",
+                    selected.codigo_cliente,
+                    <Clipboard size={13} />,
+                  )}
                   {profileField("CNPJ", selected.cnpj, <FileText size={13} />)}
-                  {profileField("Inscrição estadual", selected.inscricao_estadual, <FileText size={13} />)}
-                  {selected.holding ? profileField("Conta bancária", selected.conta_bancaria, <Building2 size={13} />) : null}
-                  {profileField("Responsável / proprietário", selected.proprietario, <UserRound size={13} />)}
-                  {profileField("Telefone principal", selected.telefone_cliente, <Phone size={13} />)}
-                  {profileField("Telefone financeiro", selected.telefone_financeiro, <Phone size={13} />)}
-                  {profileField("Telefone alternativo", selected.telefone_outro, <Phone size={13} />)}
-                  {profileField("Contato financeiro", selected.contato_financeiro, <UserRound size={13} />)}
-                  {profileField("Endereço", [selected.endereco, selected.cidade, selected.uf].filter(Boolean).join(" · "), <MapPin size={13} />)}
-                  {profileField("Observações", selected.observacoes, <FileText size={13} />)}
+                  {profileField(
+                    "Inscrição estadual",
+                    selected.inscricao_estadual,
+                    <FileText size={13} />,
+                  )}
+                  {selected.holding
+                    ? profileField(
+                        "Conta bancária",
+                        selected.conta_bancaria,
+                        <Building2 size={13} />,
+                      )
+                    : null}
+                  {profileField(
+                    "Responsável / proprietário",
+                    selected.proprietario,
+                    <UserRound size={13} />,
+                  )}
+                  {profileField(
+                    "Telefone principal",
+                    selected.telefone_cliente,
+                    <Phone size={13} />,
+                  )}
+                  {profileField(
+                    "Telefone financeiro",
+                    selected.telefone_financeiro,
+                    <Phone size={13} />,
+                  )}
+                  {profileField(
+                    "Telefone alternativo",
+                    selected.telefone_outro,
+                    <Phone size={13} />,
+                  )}
+                  {profileField(
+                    "Contato financeiro",
+                    selected.contato_financeiro,
+                    <UserRound size={13} />,
+                  )}
+                  {profileField(
+                    "Endereço",
+                    [selected.endereco, selected.cidade, selected.uf]
+                      .filter(Boolean)
+                      .join(" · "),
+                    <MapPin size={13} />,
+                  )}
+                  {profileField(
+                    "Observações",
+                    selected.observacoes,
+                    <FileText size={13} />,
+                  )}
                   {profileEmails(selected)}
                 </div>
               ) : (
@@ -2120,20 +2445,31 @@ export function ContatosClientesShareBrasil() {
                     {input("cnpj", "CNPJ")}
                     {input("inscricao_estadual", "Inscrição estadual")}
                     {input("proprietario", "Responsável / proprietário")}
-                    {selected.holding ? input("conta_bancaria", "Conta bancária") : null}
+                    {selected.holding
+                      ? input("conta_bancaria", "Conta bancária")
+                      : null}
                     {input("contato_financeiro", "Contato financeiro")}
                     {input("telefone_financeiro", "Telefone financeiro")}
                     {input("telefone_cliente", "Telefone principal")}
                     {input("telefone_outro", "Telefone alternativo")}
                     {input("email_principal", "E-mail principal")}
-                    {input("emails", "E-mails adicionais, separados por vírgula", true)}
+                    {input(
+                      "emails",
+                      "E-mails adicionais, separados por vírgula",
+                      true,
+                    )}
                     {input("endereco", "Endereço", true)}
                     {input("cidade", "Cidade")}
                     {input("uf", "UF")}
                   </div>
                   <Textarea
                     value={String(clientForm.observacoes ?? "")}
-                    onChange={(e) => setClientForm({ ...clientForm, observacoes: e.target.value })}
+                    onChange={(e) =>
+                      setClientForm({
+                        ...clientForm,
+                        observacoes: e.target.value,
+                      })
+                    }
                     placeholder="Observações e informações complementares"
                     className="min-h-24 bg-background/70 text-sm"
                   />
@@ -2141,22 +2477,43 @@ export function ContatosClientesShareBrasil() {
               )}
               <div className="flex flex-wrap items-center gap-2">
                 {!editingClient ? (
-                  <Button type="button" onClick={() => setEditingClient(true)} className="h-9 gap-2 text-xs">
+                  <Button
+                    type="button"
+                    onClick={() => setEditingClient(true)}
+                    className="h-9 gap-2 text-xs"
+                  >
                     <Pencil size={14} /> Editar dados cadastrais
                   </Button>
                 ) : (
                   <>
-                    <Button type="button" onClick={() => void saveClient()} className="h-9 gap-2 text-xs">
+                    <Button
+                      type="button"
+                      onClick={() => void saveClient()}
+                      className="h-9 gap-2 text-xs"
+                    >
                       <CheckCircle2 size={14} /> Salvar alterações
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => setEditingClient(false)} className="h-9 text-xs">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingClient(false)}
+                      className="h-9 text-xs"
+                    >
                       Cancelar
                     </Button>
                   </>
                 )}
               </div>
               {selectedClient && (
-                <AnexoCliente key={`logo-${selectedClient}`} clienteId={selectedClient} holding={Boolean(selected?.holding)} tipo="logo" aoConcluir={refresh} />
+                <AreaAnexo>
+                  <AnexoCliente
+                    key={`logo-${selectedClient}`}
+                    clienteId={selectedClient}
+                    holding={Boolean(selected?.holding)}
+                    tipo="logo"
+                    aoConcluir={refresh}
+                  />
+                </AreaAnexo>
               )}
             </div>
           )}
@@ -2174,26 +2531,23 @@ export function ContatosClientesShareBrasil() {
                   </div>
                 </div>
                 {selectedClient && (
-                  <AnexoCliente key={`documentos-${selectedClient}`} clienteId={selectedClient} tipo="documento" aoConcluir={refresh} />
+                  <AreaAnexo>
+                    <AnexoCliente
+                      key={`documentos-${selectedClient}`}
+                      clienteId={selectedClient}
+                      tipo="documento"
+                      aoConcluir={refresh}
+                    />
+                  </AreaAnexo>
                 )}
                 {clientDocuments.length ? (
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {clientDocuments.map((doc) => (
-                      <div
+                      <LinhaDocumento
                         key={doc.id}
-                        className="flex items-center justify-between rounded-xl border border-white/[.07] bg-white/[.025] p-3"
-                      >
-                        <span className="flex min-w-0 items-center gap-2 text-xs">
-                          <FileText
-                            size={14}
-                            className="shrink-0 text-primary"
-                          />
-                          <span className="truncate">{doc.nome_arquivo}</span>
-                        </span>
-                        <span className="ml-2 shrink-0 text-[10px] text-slate-500">
-                          {doc.categoria || "geral"}
-                        </span>
-                      </div>
+                        nome={doc.nome_arquivo}
+                        categoria={doc.categoria}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -2211,7 +2565,7 @@ export function ContatosClientesShareBrasil() {
                     aria-label="Selecionar aeronave"
                     value={aircraftId}
                     onChange={(e) => setAircraftId(e.target.value)}
-                    className={`${field} min-w-[230px]`}
+                    className={`${field} w-full flex-[1_1_14rem]`}
                   >
                     <option value="">Selecionar aeronave</option>
                     {aircraft.map((item) => (
@@ -2267,27 +2621,56 @@ export function ContatosClientesShareBrasil() {
                     Sócio da holding · dados e documentos individuais
                   </p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${currentSocioInactive ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${currentSocioInactive ? "bg-amber-400/15 text-amber-300" : "bg-emerald-400/15 text-emerald-300"}`}
+                >
                   {currentSocioInactive ? "Inativo" : "Ativo"}
                 </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {profileField("Nome completo", currentSocio.nome, <UserRound size={13} />)}
+                {profileField(
+                  "Nome completo",
+                  currentSocio.nome,
+                  <UserRound size={13} />,
+                )}
                 {profileField("CPF", currentSocio.cpf, <FileText size={13} />)}
-                {profileField("Telefone", currentSocio.telefone, <Phone size={13} />)}
-                {profileField("Contato financeiro", currentSocio.contato_financeiro, <UserRound size={13} />)}
-                {profileField("Telefone financeiro", currentSocio.telefone_financeiro, <Phone size={13} />)}
-                {profileField("Endereço", [currentSocio.endereco, currentSocio.cidade, currentSocio.uf].filter(Boolean).join(" · "), <MapPin size={13} />)}
+                {profileField(
+                  "Telefone",
+                  currentSocio.telefone,
+                  <Phone size={13} />,
+                )}
+                {profileField(
+                  "Contato financeiro",
+                  currentSocio.contato_financeiro,
+                  <UserRound size={13} />,
+                )}
+                {profileField(
+                  "Telefone financeiro",
+                  currentSocio.telefone_financeiro,
+                  <Phone size={13} />,
+                )}
+                {profileField(
+                  "Endereço",
+                  [currentSocio.endereco, currentSocio.cidade, currentSocio.uf]
+                    .filter(Boolean)
+                    .join(" · "),
+                  <MapPin size={13} />,
+                )}
                 {profileEmails(currentSocio, true)}
               </div>
               {editingSocio && (
                 <div className="space-y-3 rounded-xl border border-violet-300/15 bg-violet-300/[.03] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-violet-200">Editar cadastro do sócio</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-violet-200">
+                    Editar cadastro do sócio
+                  </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {socioInput("nome", "Nome completo")}
                     {socioInput("cpf", "CPF")}
                     {socioInput("email_principal", "E-mail principal")}
-                    {socioInput("emails", "E-mails adicionais, separados por vírgula")}
+                    {socioInput(
+                      "emails",
+                      "E-mails adicionais, separados por vírgula",
+                    )}
                     {socioInput("contato_financeiro", "Contato financeiro")}
                     {socioInput("telefone_financeiro", "Telefone financeiro")}
                     {socioInput("telefone", "Telefone")}
@@ -2297,7 +2680,12 @@ export function ContatosClientesShareBrasil() {
                   </div>
                   <Textarea
                     value={String(socioForm.observacoes ?? "")}
-                    onChange={(e) => setSocioForm({ ...socioForm, observacoes: e.target.value })}
+                    onChange={(e) =>
+                      setSocioForm({
+                        ...socioForm,
+                        observacoes: e.target.value,
+                      })
+                    }
                     placeholder="Observações do sócio"
                     className="min-h-20 bg-background/70 text-sm"
                   />
@@ -2305,26 +2693,54 @@ export function ContatosClientesShareBrasil() {
               )}
               <div className="flex flex-wrap items-center gap-2">
                 {!editingSocio ? (
-                  <Button type="button" onClick={() => setEditingSocio(true)} className="h-9 gap-2 text-xs">
+                  <Button
+                    type="button"
+                    onClick={() => setEditingSocio(true)}
+                    className="h-9 gap-2 text-xs"
+                  >
                     <Pencil size={14} /> Editar cadastro do sócio
                   </Button>
                 ) : (
                   <>
-                    <Button type="button" onClick={() => void saveSocio()} className="h-9 gap-2 text-xs">
+                    <Button
+                      type="button"
+                      onClick={() => void saveSocio()}
+                      className="h-9 gap-2 text-xs"
+                    >
                       <CheckCircle2 size={14} /> Salvar perfil do sócio
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => setEditingSocio(false)} className="h-9 text-xs">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingSocio(false)}
+                      className="h-9 text-xs"
+                    >
                       Cancelar
                     </Button>
                   </>
                 )}
-                <Button type="button" variant="outline" onClick={() => void toggleSocioStatus()} className="h-9 gap-2 text-xs">
-                  {currentSocioInactive ? <CheckCircle2 size={13} /> : <ShieldCheck size={13} />}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void toggleSocioStatus()}
+                  className="h-9 gap-2 text-xs"
+                >
+                  {currentSocioInactive ? (
+                    <CheckCircle2 size={13} />
+                  ) : (
+                    <ShieldCheck size={13} />
+                  )}
                   {currentSocioInactive ? "Reativar" : "Tornar inativo"}
                 </Button>
               </div>
               {currentSocio && (
-                <AnexoSocio key={currentSocio.id} socioId={currentSocio.id} aoConcluir={refresh} />
+                <AreaAnexo>
+                  <AnexoSocio
+                    key={currentSocio.id}
+                    socioId={currentSocio.id}
+                    aoConcluir={refresh}
+                  />
+                </AreaAnexo>
               )}
               {socioDocuments.filter((doc) => doc.socio_id === currentSocio.id)
                 .length ? (
@@ -2336,21 +2752,12 @@ export function ContatosClientesShareBrasil() {
                     {socioDocuments
                       .filter((doc) => doc.socio_id === currentSocio.id)
                       .map((doc) => (
-                        <div
+                        <LinhaDocumento
                           key={doc.id}
-                          className="flex items-center justify-between rounded-xl border border-white/[.07] bg-white/[.025] p-3"
-                        >
-                          <span className="flex min-w-0 items-center gap-2 text-xs">
-                            <FileText
-                              size={14}
-                              className="shrink-0 text-violet-300"
-                            />
-                            <span className="truncate">{doc.nome_arquivo}</span>
-                          </span>
-                          <span className="ml-2 shrink-0 text-[10px] text-slate-500">
-                            {doc.categoria || "geral"}
-                          </span>
-                        </div>
+                          nome={doc.nome_arquivo}
+                          categoria={doc.categoria}
+                          socio
+                        />
                       ))}
                   </div>
                 </div>
@@ -2825,7 +3232,7 @@ export function TarefasShareBrasil() {
               ))}
             </div>
           ) : tasks.length ? (
-            <div className="overflow-x-auto">
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">
               <table className="w-full min-w-[650px] text-left text-[10px]">
                 <thead>
                   <tr className="border-b border-border text-[9px] uppercase tracking-[.1em] text-muted-foreground">
@@ -3125,7 +3532,7 @@ function CalendarPanel({
           </Button>
         </div>
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
         <div>
           <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold uppercase text-muted-foreground">
             {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => (

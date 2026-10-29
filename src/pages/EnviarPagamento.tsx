@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Plus, Send, Smartphone, Trash2, Users, WalletCards, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Plus, Send, Smartphone, Users, WalletCards, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,11 @@ import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { HistoricoEnvios } from "@/components/envio-pagamento/historico/HistoricoEnvios";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
 import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarFornecedorCombustivel, criarFornecedorFavorito, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
-import { lerDadosRascunho, progressoRascunho } from "@/lib/rascunho-envio";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -151,15 +151,6 @@ const opcoes: OpcaoEnvio[] = [
   },
 ];
 const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
-const statusEnvio: Record<string, { label: string; className: string }> = {
-  pendente: { label: "Pendente", className: "bg-amber-400/10 text-amber-600 dark:text-amber-300" },
-  pago: { label: "Pago", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
-  cancelado: { label: "Cancelado", className: "bg-red-400/10 text-red-700 dark:text-red-300" },
-  enviado: { label: "Enviado", className: "bg-sky-400/10 text-sky-700 dark:text-sky-300" },
-  email_enviado: { label: "E-mail enviado", className: "bg-sky-400/10 text-sky-700 dark:text-sky-300" },
-  email_nao_enviado: { label: "E-mail não enviado", className: "bg-amber-400/10 text-amber-600 dark:text-amber-300" },
-  convertido: { label: "Convertido", className: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" },
-};
 
 const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();
 const statusChaveConvertido = (status?: string | null) => normalizarStatus(status) === "convertido";
@@ -427,7 +418,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   useEffect(() => { void carregarCotistas(form.aeronave_id); }, [form.aeronave_id]);
 
   const selecionada = opcoes.find((opcao) => opcao.tipo === tipo) ?? null;
-  const recentes = useMemo(() => envios.slice(0, 8), [envios]);
   const valorInformado = converterValor(form.valor);
   const valorCentavos = parseReaisToCentavos(form.valor);
   const uploadsPendentes = form.anexos.some((anexo) => anexo.uploading);
@@ -1322,61 +1312,19 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       )}
 
       {historico && (
-        <>
-          {rascunhos.length > 0 && <section className="overflow-hidden rounded-sm border border-border bg-card/60">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/20 px-5 py-3">
-              <div><p className="text-[11px] font-bold uppercase tracking-[.16em]">Rascunhos e envios em andamento</p><p className="mt-1 text-[10px] text-muted-foreground">Confira exatamente o que foi concluído antes de retomar o envio.</p></div>
-              <span className="text-[10px] text-muted-foreground">{rascunhos.length} registro(s)</span>
-            </div>
-            <div className="divide-y divide-border/60">
-              {rascunhos.map((rascunho) => {
-                const progresso = progressoRascunho(rascunho, lerDadosRascunho(rascunho.dados_json));
-                const etapas = [["Preenchimento", progresso.preenchimento], ["Programação", progresso.programacao], ["Rateio", progresso.rateio], ["E-mail", progresso.email]] as const;
-                return <div key={rascunho.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                  <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-bold">{progresso.descricao}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((opcao) => opcao.tipo === rascunho.tipo_envio)?.resumo || "Pagamento"} · atualizado {new Date(rascunho.atualizado_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</p><div className="mt-2 grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 lg:grid-cols-4">{etapas.map(([nome, valor]) => <div key={nome} className="flex min-w-0 items-center gap-1.5"><CheckCircle2 size={12} className={valor === "Concluído" || valor === "Não se aplica" || valor.startsWith("Concluído") ? "shrink-0 text-emerald-500" : "shrink-0 text-amber-500"} /><span className="truncate"><strong>{nome}:</strong> {valor}</span></div>)}</div></div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 gap-2 rounded-sm px-3 text-[10px]" disabled={restaurandoRascunho} onClick={() => void continuarRascunho(rascunho)}>{restaurandoRascunho ? <Loader2 size={12} className="animate-spin" /> : <ArrowRight size={12} />}{progresso.envioCriado ? "Continuar envio" : "Continuar preenchimento"}</Button>
-                    <Button type="button" size="sm" variant="ghost" className="h-8 gap-2 rounded-sm px-3 text-[10px] text-rose-500 hover:text-rose-400" disabled={restaurandoRascunho} onClick={() => setRascunhoParaExcluir(rascunho)} aria-label="Excluir rascunho"><Trash2 size={12} /> Excluir</Button>
-                  </div>
-                </div>;
-              })}
-            </div>
-          </section>}
-
-          <section className="overflow-hidden rounded-sm border border-border bg-card/60">
-          <div className="flex items-center justify-between border-b border-border bg-secondary/20 px-5 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[.16em]">Histórico de programação</p>
-            <span className="text-[10px] text-muted-foreground">{envios.length} registro(s)</span>
-          </div>
-          {carregando ? (
-            <div className="space-y-2 p-4"><div className="skeleton h-9 rounded-sm" /><div className="skeleton h-9 rounded-sm" /></div>
-          ) : recentes.length ? (
-            <div className="divide-y divide-border/60">
-              {recentes.map((envio) => {
-                const statusChave = normalizarStatus(envio.status);
-                const status = statusEnvio[statusChave] || { label: envio.status || "Enviado", className: "bg-secondary text-muted-foreground" };
-                const statusPendente = ["pendente", "email_pendente", "email_nao_enviado", "aguardando_aprovacao", "aguardando_pagamento"].includes(statusChave);
-                return (
-                  <div key={envio.id} role={statusPendente ? "button" : undefined} tabIndex={statusPendente ? 0 : undefined} aria-label={statusPendente ? `Abrir envio pendente: ${envio.descricao}` : undefined} onClick={statusPendente ? () => void retomarEnvioHistorico(envio) : undefined} onKeyDown={statusPendente ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void retomarEnvioHistorico(envio); } } : undefined} className={`flex flex-wrap items-center justify-between gap-3 px-5 py-3 ${statusPendente ? "cursor-pointer hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" : ""}`}>
-                    <div className="min-w-0">
-                      <p className="truncate text-[11px] font-bold">{envio.descricao}</p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">{opcoes.find((o) => o.tipo === envio.tipo)?.resumo} · {dataBr(envio.criado_em)}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <strong className="font-mono text-[11px]">{formatarValor(Number(envio.valor))}</strong>
-                      <span className={`rounded-sm px-2 py-1 text-[9px] font-bold ${status.className}`}>{status.label}</span>
-                      {statusPendente && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={Boolean(envioEmRestauracaoId)} onClick={(event) => { event.stopPropagation(); void retomarEnvioHistorico(envio); }}>{envioEmRestauracaoId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Abrir envio pendente"}</Button>}
-                      {envio.tipo === "cliente" && statusChave === "email_enviado" && !envio.lancamento_id && <Button type="button" size="sm" variant="outline" className="h-7 rounded-sm px-2 text-[9px]" disabled={convertendoEnvioId === envio.id} onClick={() => void recuperarConversao(envio)}>{convertendoEnvioId === envio.id ? <Loader2 size={12} className="animate-spin" /> : "Criar rateio da despesa"}</Button>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="p-6 text-center text-[11px] text-muted-foreground">Nenhum lançamento enviado ainda.</p>
-          )}
-          </section>
-        </>
+        <HistoricoEnvios
+          envios={envios}
+          rascunhos={rascunhos}
+          carregando={carregando}
+          rotuloTipo={(tipo) => opcoes.find((opcao) => opcao.tipo === tipo)?.resumo ?? ""}
+          restauracaoId={envioEmRestauracaoId}
+          conversaoId={convertendoEnvioId}
+          restaurandoRascunho={restaurandoRascunho}
+          onAbrirPendente={retomarEnvioHistorico}
+          onRecuperarConversao={recuperarConversao}
+          onContinuarRascunho={continuarRascunho}
+          onExcluirRascunho={setRascunhoParaExcluir}
+        />
       )}
 
       <Dialog open={rascunhoParaExcluir !== null} onOpenChange={(open) => { if (!open) setRascunhoParaExcluir(null); }}>

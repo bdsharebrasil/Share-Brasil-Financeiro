@@ -7,9 +7,9 @@ import { nomesAmbiente, type Ambiente } from "@/types/navegacao";
 
 export function IndicadorPagina({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-primary sm:mb-3 sm:gap-2.5 sm:text-[11px] sm:tracking-[.16em]">
+    <div className="-mt-[3px] mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-primary sm:mb-3 sm:gap-2.5 sm:text-[11px] sm:tracking-[.16em]">
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-      <span className="truncate">{children}</span>
+      <span className="-my-[9px] truncate py-[6px]">{children}</span>
     </div>
   );
 }
@@ -36,12 +36,12 @@ export function HeroDashboard({ ambiente, title, subtitle, children }: { ambient
       <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
-      <div className="relative flex min-h-[150px] flex-col justify-between gap-5 p-4 sm:min-h-[175px] sm:gap-8 sm:p-6 md:min-h-[205px] md:p-8">
-        <div className="flex items-center justify-between gap-4">
+      <div className="relative -my-[4px] flex min-h-[139px] flex-col justify-between gap-5 px-4 py-[11px] sm:gap-8 sm:px-6 md:px-8">
+        <div className="my-[3px] flex items-center justify-between gap-4 py-[6px]">
           <IndicadorPagina>Dashboard {nomesAmbiente[ambiente]}</IndicadorPagina>
         </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-          <div className="min-w-0">
+        <div className="my-0 flex flex-col gap-4 py-0 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div className="my-0 min-w-0 py-0">
             {subtitle && <p className="mb-1.5 truncate text-[11px] font-semibold text-white/65 sm:mb-2 sm:text-xs">{subtitle}</p>}
             <h1 className="break-words text-2xl font-extrabold leading-tight tracking-[-.03em] text-white sm:text-[28px] md:text-[38px]">{title}</h1>
           </div>

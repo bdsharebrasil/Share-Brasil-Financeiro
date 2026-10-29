@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import {
   Check,
@@ -32,18 +33,19 @@ import {
   Trash2,
   Coins,
   Gauge,
-  Eye,
   MoreHorizontal,
   Search,
   ExternalLink,
   KeyRound,
   Filter,
-  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
   Clock3,
   Undo2,
+  Columns3,
+  RotateCcw,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
@@ -123,7 +125,6 @@ import {
   type PeriodoCotista,
 } from "@/lib/financeiro-cotista-periodo";
 
-
 /* Estilos locais: não alteram o tema das demais abas do financeiro.
  * Mantém os componentes e APIs; tabela com seleção, data, descrição, valor, status e ações.
  */
@@ -159,86 +160,119 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-header h2 { margin:0; font-size:20px; font-weight:600; letter-spacing:-.02em; }
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
-.financeiro-profissional .financeiro-tabs { padding:0 8px; gap:4px; }
+.financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
 .financeiro-profissional .financeiro-tabs button { border-radius:7px; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
-.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:#057baf; color:#fff; }
+.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:rgba(22,69,90,1); color:#fff; padding-left:10px; padding-right:10px; }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
-.despesas-shell { min-width:0; width:100%; }
+.despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
 .despesas-theme .text-muted-foreground { color:hsl(var(--muted-foreground)); }
 .despesas-theme .text-foreground { color:hsl(var(--foreground)); }
 .despesas-theme .text-primary { color:hsl(var(--primary)); }
 .despesas-theme .border-border { border-color:hsl(var(--border)); }
 .despesas-theme .bg-background { background:hsl(var(--background)); }
 .despesas-theme .bg-card { background:hsl(var(--card)); }
-.despesas-theme :is(input,textarea,[role="combobox"]) { border-color:hsl(var(--input)); background:hsl(var(--card)); color:hsl(var(--foreground)); border-radius:4px; box-shadow:none; }
+.despesas-theme :is(input,textarea,[role="combobox"]) { min-width:0; max-width:100%; border-color:hsl(var(--input)); background:hsl(var(--card)); color:hsl(var(--foreground)); border-radius:4px; box-shadow:none; }
 .despesas-theme :is(input,textarea)::placeholder { color:hsl(var(--muted-foreground)); }
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
-.despesas-theme .despesa-primary { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border:1px solid hsl(var(--primary)); border-radius:4px; font-weight:600; box-shadow:none; }
-.despesas-theme .despesa-primary:hover { filter:brightness(.94); }
-.despesa-ledger { min-width:0; overflow:hidden; }
-.despesa-heading { padding:12px 16px; background:hsl(var(--card)); }
-.despesa-heading h3 { font-size:14px; font-weight:600; color:hsl(var(--foreground)); }
-.despesa-toolbar { padding:12px 16px; background:hsl(var(--card)); }
-.despesa-toolbar-main { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.despesa-toolbar input { height:36px; font-size:13px; }
-.despesa-control { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:36px; padding:0 12px; border:1px solid hsl(var(--input)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--foreground)); font-size:12px; white-space:nowrap; }
-.despesa-control:hover,.despesa-control[aria-expanded="true"] { background:hsl(var(--muted)); }
-.despesa-filter-count { font-size:11px; font-weight:600; }
-.despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-top:12px; margin-top:12px; border-top:1px solid hsl(var(--border)); }
-.despesa-table-scroll { width:100%; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior:contain; scrollbar-color:#3c4b5d #10151a; scrollbar-width:auto; border:1px solid #27313b; border-radius:5px 5px 3px 3px; }
-.despesa-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; text-align:left; color:#e7edf6; }
+.despesas-theme .despesa-primary { background:#009ff0; color:#fff; border:1px solid #20b1ff; border-radius:4px; font-weight:600; box-shadow:none; }
+.despesas-theme .despesa-primary:hover { background:#008bd4; }
+.despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:0; background:#080c11; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:0; padding:9px; border:1px solid #29333e; border-radius:10px; background:rgba(5,6,14,1); margin-bottom:5px; overflow:hidden; }
+.despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; min-width:0; }
+.despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:0 12px; border:1px solid #34404d; border-radius:4px; background:#0b1118; color:#dce4ee; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
+.despesa-control svg { flex-shrink:0; }
+.despesa-control:hover,.despesa-control[aria-expanded="true"] { background:#19232e; }
+.despesa-control:disabled { opacity:.4; cursor:not-allowed; }
+.despesa-control-icon { width:36px; padding:0; }
+.despesa-control-quiet { border-color:transparent; background:transparent; }
+.despesa-toolbar-divider { width:1px; height:28px; background:#29333e; margin:0 3px; }
+.despesa-period { display:flex; align-items:center; flex:0 1 auto; gap:8px; min-width:0; max-width:100%; margin-left:auto; }
+.despesa-period-label { min-width:0; width:132px; text-align:center; font-size:12px; font-weight:600; text-transform:capitalize; overflow-wrap:anywhere; }
+.despesa-filter-count { display:inline-flex; min-width:18px; height:18px; align-items:center; justify-content:center; padding:0 4px; border-radius:3px; background:#103955; color:#78d0ff; font-size:10px; }
+.despesa-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; min-width:0; padding:14px 3px 3px; margin-top:10px; border-top:1px solid #29333e; }
+.despesa-search-field,.despesa-period-filter { grid-column:1 / -1; min-width:0; }
+.despesa-search-field { position:relative; }
+.despesa-search-field > svg { position:absolute; top:11px; left:11px; pointer-events:none; color:#8797ac; }
+.despesa-month-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:10px; }
+.despesa-month-choice { min-width:0; min-height:34px; border:1px solid #303c4a; border-radius:4px; color:#aab9cb; background:#0b1118; font-size:12px; }
+.despesa-month-choice:hover { background:#19232e; }
+.despesa-month-choice[aria-pressed="true"] { color:#91dcff; background:#063853; border-color:#087cb0; }
+.despesa-selected-months { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.despesa-selected-months button { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 8px; border:1px solid #34404d; border-radius:4px; font-size:11px; text-transform:capitalize; overflow-wrap:anywhere; }
+.despesa-selected-months button:disabled { opacity:.6; cursor:not-allowed; }
+.despesa-columns-menu { max-width:calc(100vw - 24px); width:260px; max-height:min(440px,70dvh); overflow:auto; }
+.despesa-column-option { display:flex; align-items:center; gap:9px; padding:8px; font-size:12px; cursor:pointer; }
+.despesa-column-option input { accent-color:#009ff0; }
+/* This is the only horizontal scroll viewport. Fixed column widths never size the parent. */
+.despesa-table-scroll { container-type:inline-size; width:100%; min-width:0; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior-x:contain; scrollbar-color:#637484 #10151a; scrollbar-width:auto; border:1px solid #29333e; border-radius:4px; touch-action:pan-x pan-y; cursor:grab; }
+.despesa-table-scroll::-webkit-scrollbar { width:10px; height:10px; }
+.despesa-table-scroll::-webkit-scrollbar-track { background:#10151a; }
+.despesa-table-scroll::-webkit-scrollbar-thumb { background:#637484; border:2px solid #10151a; border-radius:6px; }
+.despesa-table-scroll[data-dragging="true"] { cursor:grabbing; user-select:none; }
+.despesa-table { min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:12px; text-align:left; color:#e7edf6; }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
-.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:32px; padding:0 16px; background:#161e25; border-bottom:1px solid #27313b; border-right:1px solid #27313b88; color:#c5d5ea; font-size:10px; line-height:1.5; font-weight:700; letter-spacing:.9px; text-transform:uppercase; vertical-align:middle; overflow-wrap:break-word; }
+.despesa-table > thead > tr > th { position:sticky; top:0; z-index:3; height:34px; padding:0 14px; background:#10161d; border-bottom:1px solid #29333e; border-right:1px solid #29333e88; color:#b8c9df; font-size:10px; line-height:1.4; font-weight:700; letter-spacing:.7px; text-transform:uppercase; vertical-align:middle; }
 .despesa-table > thead > tr > th:last-child { border-right:0; }
-.despesa-table .despesa-row { --row-bg:#11171c66; background:var(--row-bg); }
-.despesa-table .despesa-row:nth-child(even) { --row-bg:#151c2255; }
-.despesa-table .despesa-row:hover { --row-bg:#202a3488; }
-.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:#27313c88; }
-.despesa-table .despesa-row { height:39px; }
-.despesa-table .despesa-row td { padding:3px 16px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid #27313b99; border-right:1px solid #27313b77; overflow-wrap:break-word; }
-.despesa-table .despesa-row td:last-child { border-right:0; }
+.despesa-sort { display:flex; width:100%; min-width:0; align-items:center; justify-content:space-between; gap:8px; min-height:34px; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; text-align:left; }
+.despesa-sort > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.despesa-sort > svg { flex-shrink:0; color:#71869f; }
+.despesa-sort[data-active="true"] { color:#70cfff; }
+.despesa-sort small { display:block; margin-top:2px; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; }
+.despesa-table .despesa-row { --row-bg:#0c1118; height:40px; background:var(--row-bg); }
+.despesa-table .despesa-row:nth-child(even) { --row-bg:#0f151d; }
+.despesa-table .despesa-row:hover { --row-bg:#17212d; }
+.despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:#162b3b; }
+.despesa-table .despesa-row td { padding:7px 14px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid #27313b99; overflow-wrap:anywhere; }
+.despesa-table .despesa-row td:last-child { padding:4px 10px; }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:8px; text-align:center; }
-.despesa-table .despesa-row td:last-child { padding:8px; }
-.despesa-table .despesa-month th { padding:10px 16px; background:#161e25; border-bottom:1px solid #27313b; text-align:left; }
-.despesa-col-resizer { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
-.despesa-col-resizer:hover,.despesa-col-resizer:active { background:hsl(var(--primary) / 0.35); }
-.despesa-row .despesa-line-supplier { margin:0; font-size:12px; line-height:1.5; font-weight:600; overflow-wrap:break-word; }
-.despesa-row .despesa-line-description { margin:4px 0 0; font-size:12px; line-height:1.5; font-weight:400; color:#a6b5c9; overflow-wrap:break-word; }
-.despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; line-height:1.5; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; overflow-wrap:normal; }
-.despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
-.despesa-cotista-heading { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
-.despesa-cotista-heading small { font-size:11px; font-weight:400; }
-.despesa-date { margin:0; white-space:nowrap; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
-.despesa-date-caption { margin:4px 0 0; color:hsl(var(--muted-foreground)); font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
-.despesa-category { margin:0; font-size:11px; color:#a6b5c9; line-height:1.5; }
-.despesa-sort-date { display:flex; width:100%; align-items:center; justify-content:space-between; gap:4px; font:inherit; text-align:left; }
-.despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid hsl(var(--input)); border-radius:3px; background:hsl(var(--card)); color:hsl(var(--primary-foreground)); box-shadow:none; }
-.despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:hsl(var(--primary)); border-color:hsl(var(--primary)); }
+.despesa-table .despesa-month th { padding:8px 14px; background:#121a24; border-bottom:1px solid #27313b; text-align:left; }
+.despesa-col-resizer { position:absolute; top:0; right:0; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
+.despesa-col-resizer:hover,.despesa-col-resizer:focus-visible { background:#009ff066; }
+.despesa-cell-text { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.despesa-row .despesa-money,.despesa-rateio-value { font-family:inherit; font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:2px; white-space:nowrap; font-size:11px; font-variant-numeric:tabular-nums; }
+.despesa-date { margin:0; white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
+.despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid #435164; border-radius:3px; background:#0b1118; color:#fff; box-shadow:none; }
+.despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:#009ff0; border-color:#009ff0; }
 .despesa-checkbox svg { width:12px; height:12px; }
 .despesa-checkbox[data-state="indeterminate"] svg { display:none; }
 .despesa-checkbox[data-state="indeterminate"]::after { content:""; width:8px; height:2px; background:currentColor; }
-.despesas-theme .despesa-status { display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:3px 6px; border:1px solid hsl(var(--border)); border-radius:4px; white-space:normal; font-size:11px; line-height:1.4; font-weight:500; background:hsl(var(--muted)); color:hsl(var(--foreground)); }
-.despesa-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border-top:1px solid hsl(var(--border)); background:hsl(var(--card)); font-size:12px; color:hsl(var(--muted-foreground)); }
-.despesa-pagination button { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid hsl(var(--border)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--foreground)); }
-.despesa-pagination button[aria-current="page"] { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); border-color:hsl(var(--primary)); }
-.despesa-pagination button:disabled { opacity:.4; cursor:not-allowed; }
-.despesa-detail { padding:20px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); }
+.despesas-theme .despesa-status { display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:3px 6px; border:1px solid hsl(var(--border)); border-radius:4px; white-space:normal; overflow-wrap:anywhere; font-size:11px; line-height:1.4; font-weight:500; background:hsl(var(--muted)); color:hsl(var(--foreground)); }
+.despesa-summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 16px; min-width:0; padding:7px 9px; background:#10161d; border:1px solid #29333e; border-top:0; font-size:11px; color:#c9d3e0; }
+.despesa-summary-values { display:flex; flex-wrap:wrap; gap:4px 16px; min-width:0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.despesa-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; min-width:0; padding:7px 0; background:#080c11; font-size:12px; color:#a6b5c9; }
+.despesa-pagination-info { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; min-width:0; }
+.despesa-pagination select { height:28px; max-width:100%; border:0; background:#080c11; color:inherit; font-size:12px; }
+.despesa-pagination button { display:flex; align-items:center; justify-content:center; width:28px; height:28px; border:0; border-radius:3px; background:transparent; color:#b7c5d6; }
+.despesa-pagination button:hover { background:#19232e; }
+.despesa-pagination button:disabled { opacity:.35; cursor:not-allowed; }
+.despesa-expanded-content { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; }
+.despesa-expanded-description { padding:16px 20px 0; margin:0; background:hsl(var(--muted)); overflow-wrap:anywhere; white-space:pre-wrap; font-size:12px; }
+.despesa-empty { min-width:0; padding:40px 16px; text-align:center; color:#a6b5c9; }
+.despesa-detail { min-width:0; max-width:100%; overflow:hidden; padding:20px; background:hsl(var(--muted)); border-bottom:1px solid hsl(var(--border)); }
 .despesa-detail-title { margin:0 0 12px; font-size:12px; font-weight:600; color:hsl(var(--foreground)); }
 .despesa-detail-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
 .despesa-detail :is(dt,dd) { font-size:12px; }
 .despesa-detail dd { overflow-wrap:break-word; }
 .despesa-supplier { margin:0 0 16px; }
 .despesa-supplier dd { margin:0; font-weight:500; }
-.despesa-documents { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+.despesa-documents > div { min-width:0; max-width:100%; }
+.despesa-documents { min-width:0; max-width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
 .despesa-document { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; max-width:100%; border:1px solid hsl(var(--input)); border-radius:4px; background:hsl(var(--card)); color:hsl(var(--primary)); font-size:12px; text-align:left; }
 .despesa-document:hover { background:hsl(var(--accent)); }
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:640px) {
-  .despesa-toolbar-main { flex-wrap:wrap; }
-  .despesa-toolbar-main > div:first-child { flex-basis:100%; }
-  .despesa-filter-panel { grid-template-columns:1fr; }
+  .despesa-toolbar-actions { flex-basis:100%; gap:6px; }
+  .despesa-toolbar-divider { display:none; }
+  .despesa-period { flex:1 1 100%; justify-content:space-between; margin-left:0; }
+  .despesa-period-label { flex:1; width:auto; }
+  .despesa-period > .despesa-control:first-child { padding:0 8px; }
+  .despesa-filter-panel { grid-template-columns:minmax(0,1fr); }
+  .despesa-month-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
   .despesa-table-scroll { max-height:65dvh; }
+  .despesa-pagination { font-size:11px; }
 }
 @media(prefers-reduced-motion:reduce) { .despesas-theme * { transition:none!important; } }
 .despesas-theme .despesa-status[data-status="EM_ABERTO"] { color: #965000; background: #fff4cc; border-color: #ffc328; }
@@ -295,12 +329,20 @@ function percentualNumerico(valor: string) {
   return normalizado ? Number(normalizado) : NaN;
 }
 
-function dividirPorSociedade(ids: string[], cotistas: CotistaAeronave[]): RateioDraft[] {
+function dividirPorSociedade(
+  ids: string[],
+  cotistas: CotistaAeronave[],
+): RateioDraft[] {
   if (!ids.length) return [{ cotista: "", percentual: "100" }];
-  const pesos = ids.map((id) => Number(cotistas.find((c) => c.id === id)?.percentual_sociedade || 0));
+  const pesos = ids.map((id) =>
+    Number(cotistas.find((c) => c.id === id)?.percentual_sociedade || 0),
+  );
   const soma = pesos.reduce((total, peso) => total + peso, 0);
   if (soma <= 0) return dividirPercentuais(ids);
-  return ids.map((cotista, index) => ({ cotista, percentual: String((pesos[index] / soma) * 100) }));
+  return ids.map((cotista, index) => ({
+    cotista,
+    percentual: String((pesos[index] / soma) * 100),
+  }));
 }
 
 function dividirPercentuais(ids: string[]): RateioDraft[] {
@@ -956,18 +998,49 @@ export function NovoLancamentoCotistaDialog({
                     ))}
                   </div>
                   <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <p className="text-xs font-semibold">Prévia do valor rateado por participante</p>
+                    <p className="text-xs font-semibold">
+                      Prévia do valor rateado por participante
+                    </p>
                     <div className="mt-2 space-y-1.5">
                       {rateios.map((rateio, index) => {
-                        const pessoa = (modo === "CLIENTE" ? cotistasCliente : cotistasHolding).find((item) => item.id === rateio.cotista);
-                        return <div key={`${rateio.cotista}-${index}`} className="flex items-center justify-between gap-3 text-xs">
-                          <span className="min-w-0 truncate text-muted-foreground">{pessoa?.nome || `${modo === "CLIENTE" ? "Cotista" : "Sócio"} ${index + 1}`} · {rateio.percentual || "0"}%</span>
-                          <strong className="shrink-0 tabular-nums">{valorPreviewRateios ? formatarCentavos(valorPreviewRateios[index]) : "—"}</strong>
-                        </div>;
+                        const pessoa = (
+                          modo === "CLIENTE" ? cotistasCliente : cotistasHolding
+                        ).find((item) => item.id === rateio.cotista);
+                        return (
+                          <div
+                            key={`${rateio.cotista}-${index}`}
+                            className="flex items-center justify-between gap-3 text-xs"
+                          >
+                            <span className="min-w-0 truncate text-muted-foreground">
+                              {pessoa?.nome ||
+                                `${modo === "CLIENTE" ? "Cotista" : "Sócio"} ${index + 1}`}{" "}
+                              · {rateio.percentual || "0"}%
+                            </span>
+                            <strong className="shrink-0 tabular-nums">
+                              {valorPreviewRateios
+                                ? formatarCentavos(valorPreviewRateios[index])
+                                : "—"}
+                            </strong>
+                          </div>
+                        );
                       })}
                     </div>
-                    {valorPreviewRateios && valorPreviewRateios.some((parte) => parte !== valorPreviewRateios[0]) && <p className="mt-2 text-[11px] text-muted-foreground">Os centavos residuais são distribuídos para que a soma seja exatamente o valor total da despesa.</p>}
-                    {pagoDiretamenteCliente && modo === "CLIENTE" && <p className="mt-2 text-[11px] text-muted-foreground">O pagador indicado permanece responsável pelo pagamento integral; os demais rateios registram apenas sua parte e continuam sem valor pago.</p>}
+                    {valorPreviewRateios &&
+                      valorPreviewRateios.some(
+                        (parte) => parte !== valorPreviewRateios[0],
+                      ) && (
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          Os centavos residuais são distribuídos para que a soma
+                          seja exatamente o valor total da despesa.
+                        </p>
+                      )}
+                    {pagoDiretamenteCliente && modo === "CLIENTE" && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        O pagador indicado permanece responsável pelo pagamento
+                        integral; os demais rateios registram apenas sua parte e
+                        continuam sem valor pago.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -1067,7 +1140,12 @@ export function NovoLancamentoCotistaDialog({
                 !(modo === "CLIENTE" ? possuiCliente : possuiHolding)
               }
               className="despesa-primary h-11 gap-2 rounded-xl px-5"
-              style={{ backgroundColor: "rgba(9, 50, 71, 1)", borderColor: "rgba(6, 54, 78, 1)", borderRadius: 12, overflow: "hidden" }}
+              style={{
+                backgroundColor: "rgba(9, 50, 71, 1)",
+                borderColor: "rgba(6, 54, 78, 1)",
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
             >
               {salvando ? (
                 <Loader2 size={17} className="animate-spin" />
@@ -1091,7 +1169,11 @@ const STATUS_LANCAMENTO = [
   { value: "EM_ATRASO", label: "Em atraso", Icon: CircleAlert },
   { value: "ESTORNO", label: "Estorno", Icon: Undo2 },
   { value: "SAIDA", label: "Saída", Icon: ReceiptText },
-  { value: "AGUARDANDO_REEMBOLSO", label: "Aguardando reembolso", Icon: Clock3 },
+  {
+    value: "AGUARDANDO_REEMBOLSO",
+    label: "Aguardando reembolso",
+    Icon: Clock3,
+  },
   { value: "REEMBOLSADO", label: "Reembolsado", Icon: Undo2 },
   { value: "CANCELADO", label: "Cancelado", Icon: X },
 ] as const;
@@ -1102,19 +1184,19 @@ function normalizarStatus(status: string | null | undefined): string {
 
 function statusLancamento(status: string | null | undefined) {
   const value = normalizarStatus(status);
-  return STATUS_LANCAMENTO.find((opcao) => opcao.value === value) ?? {
-    value,
-    label: value ? value.replace(/_/g, " ") : "Não informado",
-    Icon: CircleAlert,
-  };
+  return (
+    STATUS_LANCAMENTO.find((opcao) => opcao.value === value) ?? {
+      value,
+      label: value ? value.replace(/_/g, " ") : "Não informado",
+      Icon: CircleAlert,
+    }
+  );
 }
 
 function valorPagoLancamento(lancamento: LancamentoEconomico) {
   const pagoInformado = Math.max(0, Number(lancamento.valorPagoCentavos || 0));
   if (
-    ["PAGO", "PAGO_DIRETAMENTE"].includes(
-      normalizarStatus(lancamento.status),
-    )
+    ["PAGO", "PAGO_DIRETAMENTE"].includes(normalizarStatus(lancamento.status))
   ) {
     return Math.min(
       lancamento.valorCentavos,
@@ -1134,31 +1216,61 @@ function LancamentoExpandido({
   cotistasAeronave: CotistaAeronave[];
   aoAbrirDocumento: (nome: string, url: string) => void;
 }) {
-  const tituloDocumento = (documento: { nome?: string; tipo?: string | null; url: string }) => {
+  const tituloDocumento = (documento: {
+    nome?: string;
+    tipo?: string | null;
+    url: string;
+  }) => {
     const tipo = (documento.tipo || "").toLowerCase();
     const nome = (documento.nome || "").trim();
     const rotulos: Record<string, string> = {
-      comprovante: "Comprovante", comprovante_pagamento: "Comprovante de pagamento",
-      nota_fiscal: "Nota fiscal", nf: "Nota fiscal", recibo: "Recibo",
-      relatorio: "Relatório", relatorio_despesa_viagem: "Relatório de viagem",
-      boleto: "Boleto", demonstrativo: "Demonstrativo",
+      comprovante: "Comprovante",
+      comprovante_pagamento: "Comprovante de pagamento",
+      nota_fiscal: "Nota fiscal",
+      nf: "Nota fiscal",
+      recibo: "Recibo",
+      relatorio: "Relatório",
+      relatorio_despesa_viagem: "Relatório de viagem",
+      boleto: "Boleto",
+      demonstrativo: "Demonstrativo",
     };
-    if (nome && !["documento", "arquivo", "anexo"].includes(nome.toLowerCase())) return nome;
+    if (nome && !["documento", "arquivo", "anexo"].includes(nome.toLowerCase()))
+      return nome;
     if (rotulos[tipo]) return rotulos[tipo];
-    if (/relatorio[_-]despesa[_-]viagem|pdf_relatorios/i.test(documento.url)) return "Relatório de viagem";
+    if (/relatorio[_-]despesa[_-]viagem|pdf_relatorios/i.test(documento.url))
+      return "Relatório de viagem";
     return nome || "Documento";
   };
   const documentosLegados = [
     { nome: "Documento", url: lancamento.urlDoc, numero: lancamento.numeroDoc },
     { nome: "Nota fiscal", url: lancamento.urlNf, numero: lancamento.numeroNf },
-    { nome: "Recibo", url: lancamento.urlRecibo, numero: lancamento.numeroRecibo },
-    { nome: "Demonstrativo", url: lancamento.urlDemonstrativo, numero: lancamento.numeroDemonstrativo },
+    {
+      nome: "Recibo",
+      url: lancamento.urlRecibo,
+      numero: lancamento.numeroRecibo,
+    },
+    {
+      nome: "Demonstrativo",
+      url: lancamento.urlDemonstrativo,
+      numero: lancamento.numeroDemonstrativo,
+    },
     { nome: "Boleto", url: lancamento.urlBoleto, numero: null },
-  ].filter((item): item is { nome: string; url: string; numero: string | null | undefined } => Boolean(item.url));
+  ].filter(
+    (
+      item,
+    ): item is {
+      nome: string;
+      url: string;
+      numero: string | null | undefined;
+    } => Boolean(item.url),
+  );
   const nomePagador = (valor: string | null | undefined) => {
     const nome = (valor || "").trim();
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nome)
-      ? "Pagador não identificado" : nome;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      nome,
+    )
+      ? "Pagador não identificado"
+      : nome;
   };
 
   // Uma linha por cotista, preservando os documentos anexados àquela parcela.
@@ -1166,7 +1278,11 @@ function LancamentoExpandido({
     lancamento.rateios.length > 0
       ? lancamento.rateios.map((r, i) => ({
           chave: r.id || `${r.cotistaId || r.cotista}-${i}`,
-          cota: percentualSociedadeDoCotista(r.cotistaId, r.cotista, cotistasAeronave),
+          cota: percentualSociedadeDoCotista(
+            r.cotistaId,
+            r.cotista,
+            cotistasAeronave,
+          ),
           uso: r.percentual,
           responsavel: r.cotista,
           parcela: r.valorCentavos,
@@ -1183,8 +1299,13 @@ function LancamentoExpandido({
       : [
           {
             chave: "unico",
-            cota: percentualSociedadeDoCotista(lancamento.participanteId, lancamento.participanteNome, cotistasAeronave),
-            uso: lancamento.percentualUso ?? lancamento.percentualSociedade ?? 0,
+            cota: percentualSociedadeDoCotista(
+              lancamento.participanteId,
+              lancamento.participanteNome,
+              cotistasAeronave,
+            ),
+            uso:
+              lancamento.percentualUso ?? lancamento.percentualSociedade ?? 0,
             responsavel:
               lancamento.participanteNome || lancamento.pagoPor || "—",
             parcela:
@@ -1205,14 +1326,31 @@ function LancamentoExpandido({
       lancamento.participanteId,
       lancamento.participanteNome,
       cotistasAeronave,
-    ) ??
-    (partes.length === 1 ? partes[0].cota : null);
-  const documentosGerais = [ ...(lancamento.documentos ?? []), ...documentosLegados ]
-    .filter((doc, index, todos) => todos.findIndex((outro) => outro.url === doc.url) === index)
-    .filter((doc) => !partes.some((parte) => parte.documentos.some((outro) => outro.url === doc.url)));
+    ) ?? (partes.length === 1 ? partes[0].cota : null);
+  const documentosGerais = [
+    ...(lancamento.documentos ?? []),
+    ...documentosLegados,
+  ]
+    .filter(
+      (doc, index, todos) =>
+        todos.findIndex((outro) => outro.url === doc.url) === index,
+    )
+    .filter(
+      (doc) =>
+        !partes.some((parte) =>
+          parte.documentos.some((outro) => outro.url === doc.url),
+        ),
+    );
 
-  const fmtTipoRateio = (value: string | null | undefined) => value?.replace(/_/g, " ") || "—";
-  const tiposRateio = [...new Set(partes.map((parte) => parte.tipoRateio).filter((value): value is string => Boolean(value)))];
+  const fmtTipoRateio = (value: string | null | undefined) =>
+    value?.replace(/_/g, " ") || "—";
+  const tiposRateio = [
+    ...new Set(
+      partes
+        .map((parte) => parte.tipoRateio)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
   const fmtPct = (v: number | null | undefined) =>
     v == null
       ? "—"
@@ -1222,14 +1360,48 @@ function LancamentoExpandido({
     <div className="despesa-detail">
       <section className="mb-5 min-w-0">
         <h3 className="despesa-detail-title">Rateio e pagamento</h3>
-        <p className="mb-3 break-words text-xs text-muted-foreground">Documento: {documentoDoLancamento(lancamento) || "Não informado"}</p>
+        <p className="mb-3 break-words text-xs text-muted-foreground">
+          Documento: {documentoDoLancamento(lancamento) || "Não informado"}
+        </p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
-          <div><dt className="text-muted-foreground">Data de emissão</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.dataEmissao || lancamento.data)}</dd></div>
-          <div><dt className="text-muted-foreground">Data Vencimento</dt><dd className="mt-1 font-semibold">{formatarData(lancamento.prazo)}</dd></div>
-          <div><dt className="text-muted-foreground">Número voo</dt><dd className="mt-1 font-semibold">{lancamento.numeroVoo || "—"}</dd></div>
-          <div><dt className="text-muted-foreground">Periodicidade</dt><dd className="mt-1 font-semibold">{lancamento.periodicidade || "Não informada"}</dd></div>
-          <div><dt className="text-muted-foreground">Valor Total</dt><dd className="mt-1 font-mono font-semibold tabular-nums">{formatarCentavos(lancamento.valorCentavos)}</dd></div>
-          {lancamento.subcategorias?.length ? <div><dt className="text-muted-foreground">Subcategoria</dt><dd className="mt-1 break-words font-semibold">{lancamento.subcategorias.join(" · ")}</dd></div> : null}
+          <div>
+            <dt className="text-muted-foreground">Data de emissão</dt>
+            <dd className="mt-1 font-semibold">
+              {formatarData(lancamento.dataEmissao || lancamento.data)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Data Vencimento</dt>
+            <dd className="mt-1 font-semibold">
+              {formatarData(lancamento.prazo)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Número voo</dt>
+            <dd className="mt-1 font-semibold">
+              {lancamento.numeroVoo || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Periodicidade</dt>
+            <dd className="mt-1 font-semibold">
+              {lancamento.periodicidade || "Não informada"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Valor Total</dt>
+            <dd className="mt-1 font-mono font-semibold tabular-nums">
+              {formatarCentavos(lancamento.valorCentavos)}
+            </dd>
+          </div>
+          {lancamento.subcategorias?.length ? (
+            <div>
+              <dt className="text-muted-foreground">Subcategoria</dt>
+              <dd className="mt-1 break-words font-semibold">
+                {lancamento.subcategorias.join(" · ")}
+              </dd>
+            </div>
+          ) : null}
         </dl>
       </section>
       <section className="mb-5 min-w-0">
@@ -1240,9 +1412,15 @@ function LancamentoExpandido({
               <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
                 <th className="py-2 pr-3 font-bold">Cotista</th>
                 <th className="px-3 py-2 font-bold">Tipo de Rateio</th>
-                <th className="px-3 py-2 text-right font-bold">Percentual Sociedade</th>
-                <th className="px-3 py-2 text-right font-bold">Percentual Uso</th>
-                <th className="px-3 py-2 text-right font-bold">Valor Rateado</th>
+                <th className="px-3 py-2 text-right font-bold">
+                  Percentual Sociedade
+                </th>
+                <th className="px-3 py-2 text-right font-bold">
+                  Percentual Uso
+                </th>
+                <th className="px-3 py-2 text-right font-bold">
+                  Valor Rateado
+                </th>
                 <th className="px-3 py-2 text-right font-bold">Valor pago</th>
                 <th className="py-2 pl-3 font-bold">Pago por</th>
               </tr>
@@ -1250,13 +1428,30 @@ function LancamentoExpandido({
             <tbody>
               {partes.map((p) => (
                 <tr key={p.chave} className="border-b border-border/60">
-                  <td className="py-2.5 pr-3 font-semibold text-foreground">{p.responsavel || "Não informado"}</td>
-                  <td className="px-3 py-2.5">{fmtTipoRateio(p.tipoRateio || lancamento.tipoRateio)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.cota)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtPct(p.uso)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.parcela)}</td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">{formatarCentavos(p.valorPagoReal)}</td>
-                  <td className="py-2.5 pl-3 break-words">{nomePagador(p.pagoPor) || (p.pagoDiretamente ? nomePagador(p.responsavel) : "Não informado")}</td>
+                  <td className="py-2.5 pr-3 font-semibold text-foreground">
+                    {p.responsavel || "Não informado"}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {fmtTipoRateio(p.tipoRateio || lancamento.tipoRateio)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                    {fmtPct(p.cota)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                    {fmtPct(p.uso)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                    {formatarCentavos(p.parcela)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                    {formatarCentavos(p.valorPagoReal)}
+                  </td>
+                  <td className="py-2.5 pl-3 break-words">
+                    {nomePagador(p.pagoPor) ||
+                      (p.pagoDiretamente
+                        ? nomePagador(p.responsavel)
+                        : "Não informado")}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1270,35 +1465,72 @@ function LancamentoExpandido({
             <dd>{lancamento.fornecedor || "Não informado"}</dd>
           </dl>
           <h3 className="despesa-detail-title">Documentos vinculados</h3>
-          {partes.some((parte) => parte.documentos.length) || documentosGerais.length ? (
+          {partes.some((parte) => parte.documentos.length) ||
+          documentosGerais.length ? (
             <div className="despesa-documents">
-              {partes.map((parte) => parte.documentos.length ? (
-                <div key={`docs-${parte.chave}`} className="space-y-2">
-                  <p className="text-xs font-semibold text-foreground">{parte.responsavel}</p>
-                  <div className="flex flex-col items-start gap-2">
-                    {parte.documentos.map((documento) => (
-                      <button
-                        key={`${parte.chave}-${documento.id ?? documento.url}`}
-                        type="button"
-                        onClick={() => aoAbrirDocumento(`${parte.responsavel} · ${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
-                        className="despesa-document"
-                      >
-                        <FileText size={12} className={/nota|fiscal|\bnf\b/i.test(tituloDocumento(documento)) ? "shrink-0 text-red-500" : "shrink-0"} />
-                        <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
-                      </button>
-                    ))}
+              {partes.map((parte) =>
+                parte.documentos.length ? (
+                  <div key={`docs-${parte.chave}`} className="space-y-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      {parte.responsavel}
+                    </p>
+                    <div className="flex flex-col items-start gap-2">
+                      {parte.documentos.map((documento) => (
+                        <button
+                          key={`${parte.chave}-${documento.id ?? documento.url}`}
+                          type="button"
+                          onClick={() =>
+                            aoAbrirDocumento(
+                              `${parte.responsavel} · ${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`,
+                              documento.url,
+                            )
+                          }
+                          className="despesa-document"
+                        >
+                          <FileText
+                            size={12}
+                            className={
+                              /nota|fiscal|\bnf\b/i.test(
+                                tituloDocumento(documento),
+                              )
+                                ? "shrink-0 text-red-500"
+                                : "shrink-0"
+                            }
+                          />
+                          <span className="break-words [overflow-wrap:anywhere]">
+                            {tituloDocumento(documento)}
+                            {documento.numero ? ` · ${documento.numero}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : null)}
+                ) : null,
+              )}
               {documentosGerais.map((documento) => (
                 <button
                   key={`${tituloDocumento(documento)}-${documento.url}`}
                   type="button"
-                  onClick={() => aoAbrirDocumento(`${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`, documento.url)}
+                  onClick={() =>
+                    aoAbrirDocumento(
+                      `${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`,
+                      documento.url,
+                    )
+                  }
                   className="despesa-document"
                 >
-                  <FileText size={12} className={/nota|fiscal|\bnf\b/i.test(tituloDocumento(documento)) ? "shrink-0 text-red-500" : "shrink-0"} />
-                  <span className="break-words [overflow-wrap:anywhere]">{tituloDocumento(documento)}{documento.numero ? ` · ${documento.numero}` : ""}</span>
+                  <FileText
+                    size={12}
+                    className={
+                      /nota|fiscal|\bnf\b/i.test(tituloDocumento(documento))
+                        ? "shrink-0 text-red-500"
+                        : "shrink-0"
+                    }
+                  />
+                  <span className="break-words [overflow-wrap:anywhere]">
+                    {tituloDocumento(documento)}
+                    {documento.numero ? ` · ${documento.numero}` : ""}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1308,7 +1540,6 @@ function LancamentoExpandido({
             </p>
           )}
         </section>
-
       </div>
 
       {lancamento.observacoes && (
@@ -1340,28 +1571,38 @@ function percentualSociedadeDoCotista(
   cotistas: CotistaAeronave[],
 ) {
   const cotistaPorId = cotistas.find((item) => {
-    const idsRelacionados = [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])];
+    const idsRelacionados = [
+      item.id,
+      item.cliente_id,
+      item.socio_id,
+      ...(item.cotista_ids ?? []),
+    ];
     return Boolean(cotistaId && idsRelacionados.includes(cotistaId));
   });
   if (cotistaPorId) return cotistaPorId.percentual_sociedade;
 
-  const nomeNormalizado = cotistaNome ? normalizarBusca(cotistaNome.trim()) : "";
+  const nomeNormalizado = cotistaNome
+    ? normalizarBusca(cotistaNome.trim())
+    : "";
   if (!nomeNormalizado) return null;
   const cotistasComMesmoNome = cotistas.filter(
     (item) => normalizarBusca(item.nome.trim()) === nomeNormalizado,
   );
-  const cotista = cotistasComMesmoNome.length === 1 ? cotistasComMesmoNome[0] : null;
+  const cotista =
+    cotistasComMesmoNome.length === 1 ? cotistasComMesmoNome[0] : null;
   return cotista?.percentual_sociedade ?? null;
 }
 
 function documentoDoLancamento(lancamento: LancamentoEconomico) {
-  return lancamento.documentoNumero ||
+  return (
+    lancamento.documentoNumero ||
     lancamento.numeroNf ||
     lancamento.numeroRecibo ||
     lancamento.numeroDemonstrativo ||
     lancamento.numeroDoc ||
     lancamento.documento ||
-    null;
+    null
+  );
 }
 
 function rateioDoCotista(
@@ -1369,26 +1610,45 @@ function rateioDoCotista(
   cotista: CotistaAeronave,
   cotistas: CotistaAeronave[],
 ) {
-  const ids = [cotista.id, cotista.cliente_id, cotista.socio_id, ...(cotista.cotista_ids ?? [])];
-  const porId = lancamento.rateios.find((rateio) => rateio.cotistaId && ids.includes(rateio.cotistaId));
+  const ids = [
+    cotista.id,
+    cotista.cliente_id,
+    cotista.socio_id,
+    ...(cotista.cotista_ids ?? []),
+  ];
+  const porId = lancamento.rateios.find(
+    (rateio) => rateio.cotistaId && ids.includes(rateio.cotistaId),
+  );
   if (porId) return porId;
 
   const nome = normalizarBusca(cotista.nome.trim());
-  const nomesIguais = cotistas.filter((item) => normalizarBusca(item.nome.trim()) === nome);
+  const nomesIguais = cotistas.filter(
+    (item) => normalizarBusca(item.nome.trim()) === nome,
+  );
   if (nomesIguais.length === 1) {
-    const porNome = lancamento.rateios.find((rateio) => normalizarBusca(rateio.cotista.trim()) === nome);
+    const porNome = lancamento.rateios.find(
+      (rateio) => normalizarBusca(rateio.cotista.trim()) === nome,
+    );
     if (porNome) return porNome;
   }
 
   if (!lancamento.rateios.length) {
     const participanteId = lancamento.participanteId;
     const participanteNome = lancamento.participanteNome;
-    const pertence = Boolean(participanteId && ids.includes(participanteId)) ||
-      (!participanteId && participanteNome && nomesIguais.length === 1 && normalizarBusca(participanteNome.trim()) === nome);
+    const pertence =
+      Boolean(participanteId && ids.includes(participanteId)) ||
+      (!participanteId &&
+        participanteNome &&
+        nomesIguais.length === 1 &&
+        normalizarBusca(participanteNome.trim()) === nome);
     if (pertence) {
       return {
-        percentual: lancamento.percentualUso ?? lancamento.percentualSociedade ?? cotista.percentual_sociedade,
-        valorCentavos: lancamento.valorRateadoCentavos || lancamento.valorCentavos,
+        percentual:
+          lancamento.percentualUso ??
+          lancamento.percentualSociedade ??
+          cotista.percentual_sociedade,
+        valorCentavos:
+          lancamento.valorRateadoCentavos || lancamento.valorCentavos,
       };
     }
   }
@@ -1414,15 +1674,26 @@ function LancamentosDespesa({
   cotistasAeronave,
   aoNovo,
   aoAtualizar,
+  mesesSelecionados,
+  aoSelecionarMes,
+  aoAlterarMeses,
+  carregando = false,
 }: {
   lancamentos: LancamentoEconomico[];
   cotistasAeronave: CotistaAeronave[];
   aoNovo: () => void;
   aoAtualizar: () => Promise<void>;
+  mesesSelecionados: string[];
+  aoSelecionarMes: (mes: string) => void;
+  aoAlterarMeses: (meses: string[]) => void;
+  carregando?: boolean;
 }) {
-  const [baixaSelecionada, setBaixaSelecionada] = useState<LancamentoEconomico | null>(null);
-  const [expandido, setExpandido] = useState<string | null>(null);
-  const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
+  const [baixaSelecionada, setBaixaSelecionada] =
+    useState<LancamentoEconomico | null>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set());
+  const [selecionados, setSelecionados] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [documentoAberto, setDocumentoAberto] = useState<{
     nome: string;
     url: string;
@@ -1430,33 +1701,126 @@ function LancamentosDespesa({
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
-  const [ordem, setOrdem] = useState("recentes");
+  const [ordenacao, setOrdenacao] = useState<{
+    coluna: string;
+    direcao: "asc" | "desc";
+  }>({ coluna: "data", direcao: "desc" });
   const [larguras, setLarguras] = useState<Record<string, number>>({});
-  const estiloColuna = (id: string, padrao?: number) => {
-    const largura = larguras[id] ?? padrao;
-    return largura ? { width: largura } : undefined;
-  };
-  const iniciarRedimensionamento = (colunaId: string, evento: ReactPointerEvent<HTMLSpanElement>) => {
+  const [ocultas, setOcultas] = useState<Set<string>>(() => new Set());
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(25);
+  const [anoFiltro, setAnoFiltro] = useState(() =>
+    Number((mesesSelecionados[0] || mesAtualLocal()).slice(0, 4)),
+  );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const limparGestoRef = useRef<(() => void) | null>(null);
+  const bloquearCliqueRef = useRef(false);
+  const [arrastando, setArrastando] = useState(false);
+  // All document/window listeners are removed on cancellation, blur and unmount.
+  useEffect(() => () => limparGestoRef.current?.(), []);
+  useEffect(() => {
+    setPagina(1);
+    setExpandidos(new Set());
+    setSelecionados(new Set());
+  }, [busca, filtroStatus, filtroCategoria, ordenacao, lancamentos, porPagina]);
+
+  const iniciarRedimensionamento = (
+    colunaId: string,
+    minimo: number,
+    evento: ReactPointerEvent<HTMLSpanElement>,
+  ) => {
+    if (!evento.isPrimary || evento.button !== 0) return;
     evento.preventDefault();
     evento.stopPropagation();
+    limparGestoRef.current?.();
     const inicioX = evento.clientX;
-    const larguraInicial = evento.currentTarget.parentElement?.getBoundingClientRect().width ?? 0;
-    const mover = (e: PointerEvent) => setLarguras((atual) => ({ ...atual, [colunaId]: Math.max(56, larguraInicial + e.clientX - inicioX) }));
+    const larguraInicial =
+      evento.currentTarget.parentElement?.getBoundingClientRect().width ??
+      minimo;
+    const cursorAnterior = document.body.style.cursor;
+    const selecaoAnterior = document.body.style.userSelect;
+    const mover = (e: PointerEvent) => {
+      if (e.pointerId !== evento.pointerId) return;
+      setLarguras((atual) => ({
+        ...atual,
+        [colunaId]: Math.min(
+          800,
+          Math.max(minimo, larguraInicial + e.clientX - inicioX),
+        ),
+      }));
+    };
     const soltar = () => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      window.removeEventListener("pointercancel", soltar);
+      window.removeEventListener("blur", soltar);
+      document.body.style.cursor = cursorAnterior;
+      document.body.style.userSelect = selecaoAnterior;
+      limparGestoRef.current = null;
     };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    limparGestoRef.current = soltar;
     window.addEventListener("pointermove", mover);
     window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+    window.addEventListener("blur", soltar);
   };
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const [pagina, setPagina] = useState(1);
-  const porPagina = 10;
-  useEffect(() => { setPagina(1); setExpandido(null); setSelecionados(new Set()); }, [busca, filtroStatus, filtroCategoria, ordem, lancamentos]);
+  const iniciarArraste = (evento: ReactPointerEvent<HTMLDivElement>) => {
+    bloquearCliqueRef.current = false;
+    const viewport = scrollRef.current;
+    // Touch uses the browser's native scrolling. Interactive controls retain their gestures.
+    if (
+      !viewport ||
+      evento.pointerType !== "mouse" ||
+      evento.button !== 0 ||
+      (evento.target as HTMLElement).closest(
+        "button,a,input,select,textarea,label,[role=checkbox],[role=separator],[role=menuitem]",
+      )
+    )
+      return;
+    const rect = viewport.getBoundingClientRect();
+    if (
+      evento.clientX >=
+        rect.left + viewport.clientLeft + viewport.clientWidth ||
+      evento.clientY >= rect.top + viewport.clientTop + viewport.clientHeight
+    )
+      return;
+    limparGestoRef.current?.();
+    const inicioX = evento.clientX;
+    const inicioScroll = viewport.scrollLeft;
+    const selecaoAnterior = document.body.style.userSelect;
+    let moveu = false;
+    const mover = (e: PointerEvent) => {
+      if (e.pointerId !== evento.pointerId) return;
+      const delta = e.clientX - inicioX;
+      if (!moveu && Math.abs(delta) < 5) return;
+      moveu = true;
+      bloquearCliqueRef.current = true;
+      setArrastando(true);
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+      viewport.scrollLeft = inicioScroll - delta;
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+      window.removeEventListener("blur", soltar);
+      document.body.style.userSelect = selecaoAnterior;
+      setArrastando(false);
+      window.setTimeout(() => {
+        bloquearCliqueRef.current = false;
+      }, 0);
+      limparGestoRef.current = null;
+    };
+    limparGestoRef.current = soltar;
+    window.addEventListener("pointermove", mover, { passive: false });
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+    window.addEventListener("blur", soltar);
+  };
   const [acao, setAcao] = useState<AcaoDespesa | null>(null);
   const [descricaoEdicao, setDescricaoEdicao] = useState("");
   const [processando, setProcessando] = useState(false);
@@ -1485,6 +1849,13 @@ function LancamentosDespesa({
             item.participanteNome,
             item.participanteId,
             item.categoria,
+            documentoDoLancamento(item),
+            item.dataEmissao || item.data,
+            formatarData(item.dataEmissao || item.data),
+            formatarCentavos(item.valorCentavos),
+            formatarCentavos(valorPagoLancamento(item)),
+            item.tipoRateio || item.tipo,
+            ...item.rateios.map((rateio) => rateio.cotista),
             item.numeroDoc,
             item.numeroNf,
             item.numeroRecibo,
@@ -1506,41 +1877,230 @@ function LancamentosDespesa({
       );
     });
   }, [despesas, busca, filtroStatus, filtroCategoria]);
-  // A ordenação respeita o agrupamento mensal; valores são ordenados dentro de cada mês.
-  const gruposPorMes = useMemo(
-    () =>
-      agruparPorMes(filtradas)
-        .sort((a, b) =>
-          ordem === "antigas"
-            ? a.mes.localeCompare(b.mes)
-            : b.mes.localeCompare(a.mes),
-        )
-        .map((grupo) => ({
-          ...grupo,
-          itens: [...grupo.itens].sort((a, b) => {
-            if (ordem === "maior") return b.valorCentavos - a.valorCentavos;
-            if (ordem === "menor") return a.valorCentavos - b.valorCentavos;
-            const comparacao = String(a.dataEmissao || a.data).localeCompare(String(b.dataEmissao || b.data));
-            return ordem === "antigas" ? comparacao : -comparacao;
-          }),
-        })),
-    [filtradas, ordem],
+  type ColunaDespesa = {
+    id: string;
+    titulo: string;
+    largura: number;
+    minimo: number;
+    numerica?: boolean;
+    cotista?: boolean;
+    valor?: (item: LancamentoEconomico) => string | number | null | undefined;
+    render: (item: LancamentoEconomico) => ReactNode;
+  };
+  const texto = (valor: string | null | undefined) => (
+    <span className="despesa-cell-text" title={valor || "Não informado"}>
+      {valor || "—"}
+    </span>
   );
+  const colunas: ColunaDespesa[] = [
+    {
+      id: "documento",
+      titulo: "Doc",
+      largura: 130,
+      minimo: 96,
+      valor: documentoDoLancamento,
+      render: (item) => texto(documentoDoLancamento(item)),
+    },
+    {
+      id: "descricao",
+      titulo: "Descrição",
+      largura: 260,
+      minimo: 160,
+      valor: (item) => item.descricao,
+      render: (item) => texto(item.descricao),
+    },
+    {
+      id: "fornecedor",
+      titulo: "Favorecido",
+      largura: 220,
+      minimo: 150,
+      valor: (item) => item.fornecedor,
+      render: (item) => texto(item.fornecedor || "Fornecedor não informado"),
+    },
+    // The supplied model has a category, but no bank-account field. Keep the actual data.
+    {
+      id: "categoria",
+      titulo: "Categoria",
+      largura: 160,
+      minimo: 112,
+      valor: (item) => item.categoria || "Sem categoria",
+      render: (item) => texto(item.categoria || "Sem categoria"),
+    },
+    {
+      id: "data",
+      titulo: "Data",
+      largura: 130,
+      minimo: 110,
+      valor: (item) => item.dataEmissao || item.data,
+      render: (item) => (
+        <p className="despesa-date">
+          {formatarData(item.dataEmissao || item.data)}
+        </p>
+      ),
+    },
+    {
+      id: "status",
+      titulo: "Situação",
+      largura: 180,
+      minimo: 150,
+      valor: (item) => statusLancamento(item.status).label,
+      render: (item) => <BadgeStatus status={item.status} />,
+    },
+    {
+      id: "tipo",
+      titulo: "Tipo de rateio",
+      largura: 160,
+      minimo: 125,
+      valor: (item) => item.tipoRateio || item.tipo,
+      render: (item) =>
+        texto(
+          String(item.tipoRateio || item.tipo || "—")
+            .replace(/_/g, " ")
+            .toLocaleUpperCase("pt-BR"),
+        ),
+    },
+    {
+      id: "pago",
+      titulo: "Valor pago",
+      largura: 160,
+      minimo: 140,
+      numerica: true,
+      valor: valorPagoLancamento,
+      render: (item) => (
+        <span className="despesa-money">
+          {formatarCentavos(valorPagoLancamento(item))}
+        </span>
+      ),
+    },
+    ...cotistasAeronave.map((cotista): ColunaDespesa => ({
+      id: `cotista-${cotista.id}`,
+      titulo: cotista.nome,
+      largura: 168,
+      minimo: 148,
+      numerica: true,
+      cotista: true,
+      valor: (item) =>
+        rateioDoCotista(item, cotista, cotistasAeronave)?.valorCentavos,
+      render: (item) => {
+        const rateio = rateioDoCotista(item, cotista, cotistasAeronave);
+        return rateio ? (
+          <div className="despesa-rateio-cell">
+            <span className="text-muted-foreground">
+              {Number(rateio.percentual).toLocaleString("pt-BR", {
+                maximumFractionDigits: 2,
+              })}
+              %
+            </span>
+            <b className="despesa-rateio-value">
+              {formatarCentavos(rateio.valorCentavos)}
+            </b>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        );
+      },
+    })),
+    {
+      id: "acoes",
+      titulo: "Ações",
+      largura: 90,
+      minimo: 90,
+      render: (item) => (
+        <div className="flex items-center justify-end gap-1">
+          {acoesDaLinha(item)}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-sm text-primary"
+            onClick={() =>
+              setExpandidos((atual) => {
+                const proximo = new Set(atual);
+                if (proximo.has(item.id)) proximo.delete(item.id);
+                else proximo.add(item.id);
+                return proximo;
+              })
+            }
+            aria-expanded={expandidos.has(item.id)}
+            aria-controls={`despesa-desktop-${item.id}`}
+            aria-label={`${expandidos.has(item.id) ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
+          >
+            {expandidos.has(item.id) ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+  const colunasVisiveis = colunas.filter((coluna) => !ocultas.has(coluna.id));
+  const larguraTabela =
+    44 +
+    colunasVisiveis.reduce(
+      (total, coluna) => total + (larguras[coluna.id] ?? coluna.largura),
+      0,
+    );
+  const quantidadeColunas = colunasVisiveis.length + 1;
+  const ordenarPor = (coluna: string) =>
+    setOrdenacao((atual) => ({
+      coluna,
+      direcao:
+        atual.coluna === coluna && atual.direcao === "asc" ? "desc" : "asc",
+    }));
+  // Preserve the monthly grouping. Each data column sorts within its month;
+  // dates also control the direction of the month groups. Missing values stay last.
+  const comparador = new Intl.Collator("pt-BR", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  const colunaOrdenada = colunas.find(
+    (coluna) => coluna.id === ordenacao.coluna,
+  );
+  const gruposPorMes = agruparPorMes(filtradas)
+    .sort((a, b) =>
+      ordenacao.coluna === "data" && ordenacao.direcao === "asc"
+        ? a.mes.localeCompare(b.mes)
+        : b.mes.localeCompare(a.mes),
+    )
+    .map((grupo) => ({
+      ...grupo,
+      itens: [...grupo.itens].sort((a, b) => {
+        const primeiro = colunaOrdenada?.valor?.(a);
+        const segundo = colunaOrdenada?.valor?.(b);
+        if (primeiro == null || primeiro === "")
+          return segundo == null || segundo === "" ? 0 : 1;
+        if (segundo == null || segundo === "") return -1;
+        const resultado =
+          typeof primeiro === "number" && typeof segundo === "number"
+            ? primeiro - segundo
+            : comparador.compare(String(primeiro), String(segundo));
+        return (
+          (ordenacao.direcao === "asc" ? resultado : -resultado) ||
+          comparador.compare(a.id, b.id)
+        );
+      }),
+    }));
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const inicioPagina = (paginaAtual - 1) * porPagina;
   const gruposDaPagina = useMemo(() => {
     let deslocamento = 0;
-    return gruposPorMes.map((grupo) => {
-      const inicio = deslocamento;
-      deslocamento += grupo.itens.length;
-      return { ...grupo, itens: grupo.itens.slice(
-        Math.max(0, inicioPagina - inicio), Math.max(0, inicioPagina + porPagina - inicio),
-      ) };
-    }).filter((grupo) => grupo.itens.length > 0);
-  }, [gruposPorMes, inicioPagina]);
-  const paginasVisiveis = Array.from({ length: Math.min(3, totalPaginas) }, (_, i) =>
-    Math.max(1, Math.min(paginaAtual - 1, totalPaginas - 2)) + i);
+    return gruposPorMes
+      .map((grupo) => {
+        const inicio = deslocamento;
+        deslocamento += grupo.itens.length;
+        return {
+          ...grupo,
+          itens: grupo.itens.slice(
+            Math.max(0, inicioPagina - inicio),
+            Math.max(0, inicioPagina + porPagina - inicio),
+          ),
+        };
+      })
+      .filter((grupo) => grupo.itens.length > 0);
+  }, [gruposPorMes, inicioPagina, porPagina]);
   const totalLancado = despesas.reduce(
     (total, item) => total + item.valorCentavos,
     0,
@@ -1550,10 +2110,6 @@ function LancamentosDespesa({
     0,
   );
   const totalAberto = Math.max(0, totalLancado - totalPago);
-  const totalReembolsos = despesas.reduce(
-    (total, item) => total + (item.reembolsavel ? item.valorCentavos : 0),
-    0,
-  );
   const totalFiltrado = filtradas.reduce(
     (total, item) => total + item.valorCentavos,
     0,
@@ -1663,9 +2219,13 @@ function LancamentosDespesa({
         </DropdownMenuItem>
         {!item.reembolsavel && (
           <DropdownMenuItem
-            disabled={["PAGO", "PAGO_DIRETAMENTE", "REEMBOLSADO", "CANCELADO", "ESTORNO"].includes(
-              normalizarStatus(item.status),
-            )}
+            disabled={[
+              "PAGO",
+              "PAGO_DIRETAMENTE",
+              "REEMBOLSADO",
+              "CANCELADO",
+              "ESTORNO",
+            ].includes(normalizarStatus(item.status))}
             onSelect={() => setBaixaSelecionada(item)}
             className="gap-2 py-2.5"
           >
@@ -1704,333 +2264,686 @@ function LancamentosDespesa({
       </p>
     </div>
   );
-  const cards = [
-    { titulo: "Total lançado", valor: totalLancado },
-    { titulo: "Total pago", valor: totalPago },
-    { titulo: "Em aberto", valor: totalAberto },
-  ];
+  const mesReferencia = mesesSelecionados[0] || mesAtualLocal();
+  const mesesDoAno = MESES_CURTOS.map(
+    (_, indice) => `${anoFiltro}-${String(indice + 1).padStart(2, "0")}`,
+  );
+  const anoCompleto = mesesDoAno.every((mes) =>
+    mesesSelecionados.includes(mes),
+  );
+  const todosExpandidos =
+    itensDaPagina.length > 0 &&
+    itensDaPagina.every((item) => expandidos.has(item.id));
+  const selecionarMes = (mes: string) => {
+    setAnoFiltro(Number(mes.slice(0, 4)));
+    aoSelecionarMes(mes);
+  };
+  const alternarMes = (mes: string) =>
+    aoAlterarMeses(
+      mesesSelecionados.includes(mes)
+        ? mesesSelecionados.filter((item) => item !== mes)
+        : [...mesesSelecionados, mes],
+    );
+  const filtrosAtivos =
+    Number(Boolean(busca.trim())) +
+    Number(filtroStatus !== "todos") +
+    Number(filtroCategoria !== "todas") +
+    Number(mesesSelecionados.length > 1 || mesReferencia !== mesAtualLocal());
 
   return (
-    <div className="despesas-theme despesas-shell min-w-0 space-y-3">
+    <div className="despesas-theme despesas-shell">
       <style>{DESPESAS_ESTILOS}</style>
-      <section
-        className="despesa-ledger min-w-0"
-        aria-label="Lançamentos mensais"
-      >
-        <header className="despesa-heading flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <h3 className="text-sm font-semibold tracking-tight">
-              Lançamentos ({filtradas.length})
-            </h3>
-            {cards.map(({ titulo, valor }) => (
-              <p key={titulo} className="text-xs text-muted-foreground">
-                {titulo}{" "}
-                <span className="font-semibold tabular-nums text-foreground">{formatarCentavos(valor)}</span>
-              </p>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            onClick={aoNovo}
-            className="despesa-primary h-9 shrink-0 gap-2 rounded-lg px-3 text-xs"
-            style={{ backgroundColor: "rgba(1, 9, 24, 1)", borderColor: "rgba(4, 79, 117, 1)" }}
-          >
-            <Plus size={18} />
-            Novo lançamento
-          </Button>
-          </div>
-        </header>
-
-        <div className="despesa-toolbar border-b border-border">
+      <section className="despesa-ledger" aria-label="Lançamentos mensais">
+        <div className="despesa-toolbar">
           <div className="despesa-toolbar-main">
-            <div className="relative min-w-0 flex-1 sm:max-w-sm">
-              <Label htmlFor="despesa-busca" className="sr-only">Buscar lançamento</Label>
-              <Search size={14} className="pointer-events-none absolute left-3 top-2.5 text-muted-foreground" />
-              <Input id="despesa-busca" type="search" value={busca}
-                onChange={(e) => setBusca(e.target.value)} placeholder="Descrição, fornecedor, cotista…"
-                className="h-8 pl-9 text-xs" />
-            </div>
-            <div className="flex items-center gap-2">
-              <button type="button" className="despesa-control" aria-expanded={filtrosAbertos}
-                aria-controls="despesa-filtros" onClick={() => setFiltrosAbertos((v) => !v)}>
-                <Filter size={12} fill="currentColor" /> Filtros
-                {(filtroStatus !== "todos" || filtroCategoria !== "todas") && <span className="despesa-filter-count">{Number(filtroStatus !== "todos") + Number(filtroCategoria !== "todas")}</span>}
+            <div className="despesa-toolbar-actions">
+              <Button
+                type="button"
+                onClick={aoNovo}
+                className="despesa-primary !bg-[rgba(34,63,78,1)] !border-[rgba(9,42,59,1)] h-9 shrink-0 gap-2 px-3 text-xs"
+              >
+                <Plus size={16} />
+                Novo
+              </Button>
+              <button
+                type="button"
+                className="despesa-control"
+                aria-expanded={filtrosAbertos}
+                aria-controls="despesa-filtros"
+                onClick={() => setFiltrosAbertos((atual) => !atual)}
+              >
+                <Filter size={15} />
+                Filtrar
+                {filtrosAtivos > 0 && (
+                  <span className="despesa-filter-count">{filtrosAtivos}</span>
+                )}
+              </button>
+              <span className="despesa-toolbar-divider" aria-hidden="true" />
+              <button
+                type="button"
+                className="despesa-control despesa-control-quiet"
+                disabled={carregando || !itensDaPagina.length}
+                onClick={() =>
+                  setExpandidos(
+                    todosExpandidos
+                      ? new Set()
+                      : new Set(itensDaPagina.map((item) => item.id)),
+                  )
+                }
+              >
+                <ListOrdered size={15} />
+                {todosExpandidos ? "Recolher todas" : "Expandir todas"}
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button type="button" className="despesa-control"><ArrowUpDown size={12} /> Ordenar</button>
+                  <button
+                    type="button"
+                    className="despesa-control despesa-control-quiet"
+                  >
+                    <Columns3 size={15} />
+                    Colunas
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="despesas-theme despesa-dialog">
-                  {[["recentes", "Mais recentes"], ["antigas", "Mais antigas"], ["maior", "Maior valor no mês"], ["menor", "Menor valor no mês"]].map(([valor, rotulo]) => (
-                    <DropdownMenuItem key={valor} onSelect={() => setOrdem(valor)}>
-                      <Check size={13} className={ordem === valor ? "mr-2" : "mr-2 invisible"} />{rotulo}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent
+                  align="start"
+                  className="despesas-theme despesa-dialog despesa-columns-menu"
+                >
+                  <p className="px-2 py-2 text-xs font-semibold">
+                    Exibir colunas
+                  </p>
+                  {colunas
+                    .filter((coluna) => coluna.id !== "acoes")
+                    .map((coluna) => (
+                      <label key={coluna.id} className="despesa-column-option">
+                        <input
+                          type="checkbox"
+                          checked={!ocultas.has(coluna.id)}
+                          onChange={() =>
+                            setOcultas((atual) => {
+                              const proximo = new Set(atual);
+                              if (proximo.has(coluna.id))
+                                proximo.delete(coluna.id);
+                              else proximo.add(coluna.id);
+                              return proximo;
+                            })
+                          }
+                        />
+                        <span className="min-w-0 break-words">
+                          {coluna.titulo}
+                        </span>
+                      </label>
+                    ))}
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setOcultas(new Set());
+                      setLarguras({});
+                    }}
+                  >
+                    <RotateCcw size={13} className="mr-2" />
+                    Restaurar colunas
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <button
+                type="button"
+                className="despesa-control despesa-control-quiet"
+                title="Restaurar visibilidade e largura das colunas"
+                onClick={() => {
+                  setOcultas(new Set());
+                  setLarguras({});
+                }}
+              >
+                <RotateCcw size={14} />
+                Restaurar
+              </button>
+            </div>
+            <div
+              className="despesa-period"
+              role="group"
+              aria-label="Navegar pelas competências"
+            >
+              <button
+                type="button"
+                className="despesa-control"
+                onClick={() => selecionarMes(mesAtualLocal())}
+              >
+                Mês atual
+              </button>
+              <button
+                type="button"
+                className="despesa-control despesa-control-icon"
+                aria-label="Selecionar mês anterior"
+                onClick={() => selecionarMes(deslocarMes(mesReferencia, -1))}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="despesa-period-label" aria-live="polite">
+                {mesesSelecionados.length === 1
+                  ? rotuloMesCotista(mesReferencia)
+                  : `${mesesSelecionados.length} meses selecionados`}
+              </span>
+              <button
+                type="button"
+                className="despesa-control despesa-control-icon"
+                aria-label="Selecionar próximo mês"
+                onClick={() => selecionarMes(deslocarMes(mesReferencia, 1))}
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
-          {filtrosAbertos && <div id="despesa-filtros" className="despesa-filter-panel">
-            <div className="min-w-0 space-y-1">
-              <Label
-                htmlFor="despesa-status"
-                className="text-xs text-muted-foreground"
-              >
-                Status
-              </Label>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger
-                  id="despesa-status"
-                  className="h-9 rounded-md bg-background"
+          {filtrosAbertos && (
+            <div id="despesa-filtros" className="despesa-filter-panel">
+              <div className="despesa-search-field">
+                <Label htmlFor="despesa-busca" className="sr-only">
+                  Buscar em todos os campos
+                </Label>
+                <Search size={15} />
+                <Input
+                  id="despesa-busca"
+                  type="search"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar descrição, documento, favorecido, cotista…"
+                  className="h-9 w-full pl-9 text-xs"
+                />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <Label
+                  htmlFor="despesa-status"
+                  className="text-xs text-muted-foreground"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="despesas-theme despesa-dialog">
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  {STATUS_LANCAMENTO.map(
-                    (status) => (
+                  Situação
+                </Label>
+                <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                  <SelectTrigger id="despesa-status" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="despesas-theme despesa-dialog">
+                    <SelectItem value="todos">Todas as situações</SelectItem>
+                    {STATUS_LANCAMENTO.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}
                       </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1">
-              <Label
-                htmlFor="despesa-categoria"
-                className="text-xs text-muted-foreground"
-              >
-                Categoria
-              </Label>
-              <Select
-                value={filtroCategoria}
-                onValueChange={setFiltroCategoria}
-              >
-                <SelectTrigger
-                  id="despesa-categoria"
-                  className="h-9 min-w-0 rounded-md bg-background"
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-0 space-y-1">
+                <Label
+                  htmlFor="despesa-categoria"
+                  className="text-xs text-muted-foreground"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="despesas-theme despesa-dialog max-h-72">
-                  <SelectItem value="todas">Todas as categorias</SelectItem>
-                  {categorias.map((categoria) => (
-                    <SelectItem key={categoria} value={categoria}>
-                      {categoria}
-                    </SelectItem>
+                  Categoria
+                </Label>
+                <Select
+                  value={filtroCategoria}
+                  onValueChange={setFiltroCategoria}
+                >
+                  <SelectTrigger id="despesa-categoria" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="despesas-theme despesa-dialog max-h-72">
+                    <SelectItem value="todas">Todas as categorias</SelectItem>
+                    {categorias.map((categoria) => (
+                      <SelectItem key={categoria} value={categoria}>
+                        {categoria}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="despesa-period-filter">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">Competências</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="despesa-control despesa-control-icon"
+                      disabled={anoFiltro <= 1900}
+                      aria-label="Ano anterior"
+                      onClick={() => setAnoFiltro((ano) => ano - 1)}
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-xs tabular-nums" aria-live="polite">
+                      {anoFiltro}
+                    </span>
+                    <button
+                      type="button"
+                      className="despesa-control despesa-control-icon"
+                      disabled={anoFiltro >= 9999}
+                      aria-label="Próximo ano"
+                      onClick={() => setAnoFiltro((ano) => ano + 1)}
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="despesa-control"
+                      aria-pressed={anoCompleto}
+                      onClick={() =>
+                        aoAlterarMeses(
+                          anoCompleto
+                            ? mesesSelecionados.filter(
+                                (mes) => !mesesDoAno.includes(mes),
+                              )
+                            : [
+                                ...new Set([
+                                  ...mesesSelecionados,
+                                  ...mesesDoAno,
+                                ]),
+                              ],
+                        )
+                      }
+                    >
+                      Ano inteiro
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="despesa-month-grid"
+                  role="group"
+                  aria-label={`Selecionar meses de ${anoFiltro}`}
+                >
+                  {MESES_CURTOS.map((mes, indice) => (
+                    <button
+                      key={mesesDoAno[indice]}
+                      type="button"
+                      className="despesa-month-choice"
+                      aria-label={`${mes} ${anoFiltro}`}
+                      aria-pressed={mesesSelecionados.includes(
+                        mesesDoAno[indice],
+                      )}
+                      disabled={
+                        mesesSelecionados.length === 1 &&
+                        mesesSelecionados[0] === mesesDoAno[indice]
+                      }
+                      onClick={() => alternarMes(mesesDoAno[indice])}
+                    >
+                      {mes}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+                <div
+                  className="despesa-selected-months"
+                  aria-label="Competências selecionadas"
+                >
+                  {mesesSelecionados.map((mes) => (
+                    <button
+                      type="button"
+                      key={mes}
+                      disabled={mesesSelecionados.length === 1}
+                      aria-label={`Remover ${rotuloMesCotista(mes)}`}
+                      onClick={() => alternarMes(mes)}
+                    >
+                      {rotuloMesCotista(mes)}
+                      <X size={12} className="shrink-0" />
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Selecione um ou vários meses, inclusive de anos diferentes. As
+                  setas da barra selecionam um único mês.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs sm:col-span-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-primary"
+                  onClick={limparFiltros}
+                >
+                  <X size={12} />
+                  Limpar busca e filtros
+                </button>
+                <button
+                  type="button"
+                  className="text-muted-foreground"
+                  onClick={() => selecionarMes(mesAtualLocal())}
+                >
+                  Voltar ao mês atual
+                </button>
+              </div>
             </div>
-          </div>}
-          {temFiltros && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span role="status">{filtradas.length} de {despesas.length} despesas · Total filtrado: {formatarCentavos(totalFiltrado)}</span>
-            <button type="button" className="inline-flex items-center gap-1 text-primary" onClick={limparFiltros}><X size={12} />Limpar filtros</button>
-          </div>}
+          )}
+          {temFiltros && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span role="status">
+                {filtradas.length} de {despesas.length} despesas ·{" "}
+                {formatarCentavos(totalFiltrado)}
+              </span>
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className="text-primary"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
         </div>
 
         {itensSelecionados.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-primary/10 px-4 py-3 text-sm">
             <span role="status">
               {itensSelecionados.length}{" "}
-              {itensSelecionados.length === 1 ? "lançamento selecionado" : "lançamentos selecionados"}
+              {itensSelecionados.length === 1
+                ? "lançamento selecionado"
+                : "lançamentos selecionados"}
               {" · Soma: "}
-              <strong className="tabular-nums">{formatarCentavos(totalSelecionado)}</strong>
+              <strong className="tabular-nums">
+                {formatarCentavos(totalSelecionado)}
+              </strong>
             </span>
-            <button type="button" className="inline-flex items-center gap-1 text-primary" onClick={() => setSelecionados(new Set())}><X size={12} />Limpar seleção</button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-primary"
+              onClick={() => setSelecionados(new Set())}
+            >
+              <X size={12} />
+              Limpar seleção
+            </button>
           </div>
         )}
-        {filtradas.length > 0 ? (
-          <>
-            {/* Uma única tabela em todas as larguras; o scroll fica restrito ao painel. */}
-            <div className="despesa-table-scroll" role="region" aria-label="Tabela de despesas" tabIndex={0}>
-              <table className="despesa-table" style={{ minWidth: 1048 + cotistasAeronave.length * 168 }}>
-                <caption className="sr-only">
-                  Despesas agrupadas por mês, com descrições completas, valores
-                  e status.
-                </caption>
-                <colgroup>
-                  <col style={{ width: 42 }} />
-                  <col style={estiloColuna("data", 108)} />
-                  <col style={estiloColuna("descricao")} />
-                  <col style={estiloColuna("categoria", 122)} />
-                  <col style={estiloColuna("tipo", 110)} />
-                  <col style={estiloColuna("pago", 126)} />
-                  {cotistasAeronave.map((cotista) => <col key={cotista.id} style={estiloColuna(`cotista-${cotista.id}`, 168)} />)}
-                  <col style={estiloColuna("status", 104)} />
-                  <col style={estiloColuna("acoes", 76)} />
-                </colgroup>
-                <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                  <tr>
-                    <th scope="col" className="px-4 py-4">
-                      <Checkbox
-                        className="despesa-checkbox"
-                        aria-label="Selecionar todos os lançamentos desta página"
-                        checked={todosDaPaginaSelecionados ? true : itensDaPagina.some((item) => selecionados.has(item.id)) ? "indeterminate" : false}
-                        onCheckedChange={alternarSelecaoDaPagina}
-                      />
-                    </th>
-                    {[
-                      { id: "data", titulo: "Data / documento", numerica: false, cotista: false },
-                      { id: "descricao", titulo: "Fornecedor / descrição", numerica: false, cotista: false },
-                      { id: "categoria", titulo: "Categoria", numerica: false, cotista: false },
-                      { id: "tipo", titulo: "Tipo de rateio", numerica: false, cotista: false },
-                      { id: "pago", titulo: "Valor pago", numerica: true, cotista: false },
-                      ...cotistasAeronave.map((cotista) => ({ id: `cotista-${cotista.id}`, titulo: cotista.nome, numerica: true, cotista: true })),
-                      { id: "status", titulo: "Status", numerica: false, cotista: false },
-                      { id: "acoes", titulo: "Ações", numerica: true, cotista: false },
-                    ].map((coluna) => (
-                      <th key={coluna.id} scope="col"
-                        aria-sort={coluna.id === "data" ? ordem === "antigas" ? "ascending" : ordem === "recentes" ? "descending" : "none" : undefined}
-                        className={coluna.numerica ? "text-right" : ""}>
-                        {coluna.cotista ? (
-                          <span className="despesa-cotista-heading"><span>{coluna.titulo}</span><small>Rateio · % / valor</small></span>
-                        ) : coluna.id === "data" ? (
-                          <button type="button" className="despesa-sort-date"
-                            onClick={() => setOrdem((atual) => atual === "antigas" ? "recentes" : "antigas")}
-                            aria-label={ordem === "antigas" ? "Ordenar por data mais recente" : "Ordenar por data mais antiga"}>
-                            <span>{coluna.titulo}</span>
-                            {ordem === "antigas" ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          </button>
-                        ) : coluna.titulo}
-                        <span role="separator" aria-orientation="vertical" aria-label={`Redimensionar coluna ${coluna.titulo}`} className="despesa-col-resizer" onPointerDown={(evento) => iniciarRedimensionamento(coluna.id, evento)} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                {gruposDaPagina.map(({ mes, itens }) => (
-                  <tbody key={mes} className="divide-y divide-border">
-                    <tr className="despesa-month">
-                      <th
-                        scope="rowgroup"
-                        colSpan={8 + cotistasAeronave.length}
-                        className="px-4 py-3 font-normal"
+        <div
+          ref={scrollRef}
+          className="despesa-table-scroll"
+          role="region"
+          aria-label="Tabela de despesas. Arraste horizontalmente ou use as setas do teclado."
+          tabIndex={0}
+          data-dragging={arrastando}
+          aria-busy={carregando}
+          onPointerDown={iniciarArraste}
+          onClickCapture={(evento) => {
+            if (bloquearCliqueRef.current && evento.detail > 0) {
+              evento.preventDefault();
+              evento.stopPropagation();
+              bloquearCliqueRef.current = false;
+            }
+          }}
+        >
+          <table className="despesa-table" style={{ width: larguraTabela }}>
+            <caption className="sr-only">
+              Despesas agrupadas por mês. Clique nos cabeçalhos para ordenar
+              dentro de cada mês. Arraste a borda de uma coluna para
+              redimensioná-la ou use as setas quando a borda estiver focada.
+            </caption>
+            <colgroup>
+              <col style={{ width: 44 }} />
+              {colunasVisiveis.map((coluna) => (
+                <col
+                  key={coluna.id}
+                  style={{ width: larguras[coluna.id] ?? coluna.largura }}
+                />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">
+                  <Checkbox
+                    className="despesa-checkbox"
+                    aria-label="Selecionar todos os lançamentos desta página"
+                    disabled={carregando || !itensDaPagina.length}
+                    checked={
+                      todosDaPaginaSelecionados
+                        ? true
+                        : itensDaPagina.some((item) =>
+                              selecionados.has(item.id),
+                            )
+                          ? "indeterminate"
+                          : false
+                    }
+                    onCheckedChange={alternarSelecaoDaPagina}
+                  />
+                </th>
+                {colunasVisiveis.map((coluna) => (
+                  <th
+                    key={coluna.id}
+                    scope="col"
+                    className={coluna.numerica ? "text-right" : ""}
+                    aria-sort={
+                      coluna.valor
+                        ? ordenacao.coluna === coluna.id
+                          ? ordenacao.direcao === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                        : undefined
+                    }
+                  >
+                    {coluna.valor ? (
+                      <button
+                        type="button"
+                        className="despesa-sort"
+                        data-active={ordenacao.coluna === coluna.id}
+                        title={`${coluna.titulo}: ordenar ${ordenacao.coluna === coluna.id && ordenacao.direcao === "asc" ? "decrescente" : "crescente"}${coluna.cotista ? " por valor rateado" : ""}`}
+                        onClick={() => ordenarPor(coluna.id)}
                       >
+                        <span>
+                          {coluna.titulo}
+                          {coluna.cotista && <small>Rateio · % / valor</small>}
+                        </span>
+                        {ordenacao.coluna !== coluna.id ? (
+                          <ChevronsUpDown size={11} />
+                        ) : ordenacao.direcao === "asc" ? (
+                          <ChevronUp size={11} />
+                        ) : (
+                          <ChevronDown size={11} />
+                        )}
+                      </button>
+                    ) : (
+                      coluna.titulo
+                    )}
+                    <span
+                      role="separator"
+                      tabIndex={0}
+                      aria-orientation="vertical"
+                      aria-label={`Redimensionar coluna ${coluna.titulo}`}
+                      aria-valuemin={coluna.minimo}
+                      aria-valuemax={800}
+                      aria-valuenow={Math.round(
+                        larguras[coluna.id] ?? coluna.largura,
+                      )}
+                      className="despesa-col-resizer"
+                      onPointerDown={(evento) =>
+                        iniciarRedimensionamento(
+                          coluna.id,
+                          coluna.minimo,
+                          evento,
+                        )
+                      }
+                      onDoubleClick={() =>
+                        setLarguras((atual) => ({
+                          ...atual,
+                          [coluna.id]: coluna.largura,
+                        }))
+                      }
+                      onKeyDown={(evento) => {
+                        if (
+                          evento.key === "ArrowLeft" ||
+                          evento.key === "ArrowRight"
+                        ) {
+                          evento.preventDefault();
+                          evento.stopPropagation();
+                          setLarguras((atual) => ({
+                            ...atual,
+                            [coluna.id]: Math.min(
+                              800,
+                              Math.max(
+                                coluna.minimo,
+                                (atual[coluna.id] ?? coluna.largura) +
+                                  (evento.key === "ArrowRight" ? 16 : -16),
+                              ),
+                            ),
+                          }));
+                        }
+                      }}
+                    />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            {carregando ? (
+              <tbody>
+                <tr>
+                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                    <div
+                      className="flex items-center justify-start gap-2"
+                      role="status"
+                    >
+                      <Loader2 size={16} className="animate-spin" />
+                      Carregando lançamentos…
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            ) : gruposDaPagina.length ? (
+              gruposDaPagina.map(({ mes, itens }) => (
+                <tbody key={mes}>
+                  {mesesSelecionados.length > 1 && (
+                    <tr className="despesa-month">
+                      <th scope="rowgroup" colSpan={quantidadeColunas}>
                         {resumoMes(mes, itens)}
                       </th>
                     </tr>
-                    {itens.map((item) => {
-                      const aberto = expandido === item.id;
-                      const documento = documentoDoLancamento(item);
-                      return (
-                        <Fragment key={item.id}>
-                          <tr
-                            className="despesa-row"
-                            data-expanded={aberto}
-                            data-selected={selecionados.has(item.id)}
+                  )}
+                  {itens.map((item) => (
+                    <Fragment key={item.id}>
+                      <tr
+                        className="despesa-row"
+                        data-expanded={expandidos.has(item.id)}
+                        data-selected={selecionados.has(item.id)}
+                      >
+                        <td>
+                          <Checkbox
+                            className="despesa-checkbox"
+                            aria-label={`Selecionar lançamento: ${item.descricao}`}
+                            checked={selecionados.has(item.id)}
+                            onCheckedChange={() => alternarSelecao(item.id)}
+                          />
+                        </td>
+                        {colunasVisiveis.map((coluna) => (
+                          <td
+                            key={coluna.id}
+                            className={coluna.numerica ? "text-right" : ""}
                           >
-                            <td className="px-4 py-5 align-middle">
-                              <Checkbox
-                        className="despesa-checkbox"
-                                aria-label={`Selecionar lançamento: ${item.descricao}`}
-                                checked={selecionados.has(item.id)}
-                                onCheckedChange={() => alternarSelecao(item.id)}
+                            {coluna.render(item)}
+                          </td>
+                        ))}
+                      </tr>
+                      {expandidos.has(item.id) && (
+                        <tr id={`despesa-desktop-${item.id}`}>
+                          <td colSpan={quantidadeColunas} className="p-0">
+                            <div className="despesa-expanded-content">
+                              <p className="despesa-expanded-description">
+                                {item.descricao}
+                              </p>
+                              <LancamentoExpandido
+                                lancamento={item}
+                                cotistasAeronave={cotistasAeronave}
+                                aoAbrirDocumento={(nome, url) =>
+                                  setDocumentoAberto({ nome, url })
+                                }
                               />
-                            </td>
-                            <td className="px-2 py-3 align-top">
-                              <p className="despesa-date">
-                                {formatarData(item.dataEmissao || item.data)}
-                              </p>
-                              <p className="despesa-date-caption" title="Documento">{documento || "—"}</p>
-                            </td>
-                            <td className="px-2 py-3 align-top">
-                              <p className={`despesa-line-supplier ${TEXTO_COMPLETO}`}>{item.fornecedor || "Fornecedor não informado"}</p>
-                              <p className={`despesa-line-description ${TEXTO_COMPLETO}`}>{item.descricao}</p>
-                            </td>
-                            <td className="px-2 py-3 align-top">
-                              <p
-                                className={`despesa-category ${TEXTO_COMPLETO}`}
-                              >
-                                {item.categoria || "Sem categoria"}
-                              </p>
-                            </td>
-                            <td className="px-2 py-3 align-top">{String(item.tipoRateio || item.tipo || "—").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</td>
-                            <td className="px-2 py-3 text-right align-top"><p className="despesa-money">{formatarCentavos(valorPagoLancamento(item))}</p></td>
-                            {cotistasAeronave.map((cotista) => {
-                              const rateio = rateioDoCotista(item, cotista, cotistasAeronave);
-                              return <td key={cotista.id} className="px-2 py-3 text-right align-top">
-                                {rateio ? <div className="despesa-rateio-cell"><span className="text-muted-foreground">{Number(rateio.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</span><b className="despesa-rateio-value">{formatarCentavos(rateio.valorCentavos)}</b></div> : <span className="text-muted-foreground">—</span>}
-                              </td>;
-                            })}
-                            <td className="px-2 py-3 align-top">
-                              <BadgeStatus status={item.status} />
-                            </td>
-                            <td className="px-1 py-2 text-right align-top">
-                              <div className="flex items-center justify-end gap-1">
-                                {acoesDaLinha(item)}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 shrink-0 rounded-sm text-primary"
-                                  onClick={() => setExpandido(aberto ? null : item.id)}
-                                  aria-expanded={aberto}
-                                  aria-controls={`despesa-desktop-${item.id}`}
-                                  aria-label={`${aberto ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
-                                >
-                                  {aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                          {aberto && (
-                            <tr id={`despesa-desktop-${item.id}`}>
-                              <td colSpan={8 + cotistasAeronave.length} className="p-0">
-                                <LancamentoExpandido
-                                  lancamento={item}
-                                  cotistasAeronave={cotistasAeronave}
-                                  aoAbrirDocumento={(nome, url) =>
-                                    setDocumentoAberto({ nome, url })
-                                  }
-                                />
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                ))}
-              </table>
-            </div>
-
-          </>
-        ) : (
-          <div className="flex flex-col items-center px-5 py-16 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-              <ReceiptText size={25} />
-            </span>
-            <h4 className="mt-4 text-base font-semibold">
-              {temFiltros
-                ? "Nenhuma despesa corresponde aos filtros"
-                : "Nenhuma despesa neste período"}
-            </h4>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              {temFiltros
-                ? "Tente outro termo ou limpe os filtros para ver todos os lançamentos."
-                : "Selecione outro período ou registre uma nova movimentação para esta aeronave."}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={temFiltros ? limparFiltros : aoNovo}
-              className="mt-5 h-11 rounded-xl"
-            >
-              {temFiltros ? "Limpar filtros" : "Novo lançamento"}
-            </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              ))
+            ) : (
+              <tbody>
+                <tr>
+                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                    <div className="flex flex-col items-start gap-3">
+                      <p>
+                        {temFiltros
+                          ? "Nenhuma despesa corresponde aos filtros."
+                          : "Nenhuma despesa neste período."}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={temFiltros ? limparFiltros : aoNovo}
+                      >
+                        {temFiltros ? "Limpar filtros" : "Novo lançamento"}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            )}
+          </table>
+        </div>
+        <div className="despesa-summary">
+          <strong>
+            TOTAL LISTADO ({carregando ? 0 : filtradas.length} itens)
+            {!carregando && ` · ${formatarCentavos(totalFiltrado)}`}
+          </strong>
+          <div
+            className="despesa-summary-values"
+            aria-hidden={carregando}
+            style={carregando ? { visibility: "hidden" } : undefined}
+          >
+            <span>Lançado: {formatarCentavos(totalLancado)}</span>
+            <span>Pago: {formatarCentavos(totalPago)}</span>
+            <span>Em aberto: {formatarCentavos(totalAberto)}</span>
           </div>
-        )}
+        </div>
         <footer className="despesa-pagination">
-          <p role="status" aria-live="polite">Exibindo {filtradas.length ? inicioPagina + 1 : 0}–{Math.min(inicioPagina + porPagina, filtradas.length)} de {filtradas.length} transações</p>
-          <nav aria-label="Paginação das despesas" className="flex items-center gap-1">
-            <button type="button" disabled={paginaAtual === 1} aria-label="Página anterior" onClick={() => { setPagina(paginaAtual - 1); setExpandido(null); }}><ChevronLeft size={14} /></button>
-            {paginasVisiveis.map((numero) => <button type="button" key={numero}
-              aria-label={`Página ${numero}`} aria-current={paginaAtual === numero ? "page" : undefined}
-              onClick={() => { setPagina(numero); setExpandido(null); }}>{numero}</button>)}
-            <button type="button" disabled={paginaAtual === totalPaginas} aria-label="Próxima página" onClick={() => { setPagina(paginaAtual + 1); setExpandido(null); }}><ChevronRight size={14} /></button>
+          <div className="despesa-pagination-info">
+            <span>{itensSelecionados.length} selecionados</span>
+            <span>{carregando ? 0 : filtradas.length} registros</span>
+            <label className="inline-flex min-w-0 items-center gap-1">
+              <span className="sr-only">Linhas por página</span>
+              <select
+                value={porPagina}
+                onChange={(evento) => setPorPagina(Number(evento.target.value))}
+              >
+                {[10, 25, 50, 100].map((quantidade) => (
+                  <option key={quantidade} value={quantidade}>
+                    {quantidade} linhas por página
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <nav
+            aria-label="Paginação das despesas"
+            className="flex items-center gap-1"
+          >
+            <span className="mr-2 text-[11px]" role="status" aria-live="polite">
+              {carregando
+                ? "Carregando…"
+                : `${filtradas.length ? inicioPagina + 1 : 0}–${Math.min(inicioPagina + porPagina, filtradas.length)} de ${filtradas.length}`}
+            </span>
+            <button
+              type="button"
+              disabled={carregando || paginaAtual === 1}
+              aria-label="Página anterior"
+              onClick={() => {
+                setPagina(paginaAtual - 1);
+                setExpandidos(new Set());
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-1 tabular-nums">
+              {paginaAtual} / {totalPaginas}
+            </span>
+            <button
+              type="button"
+              disabled={carregando || paginaAtual === totalPaginas}
+              aria-label="Próxima página"
+              onClick={() => {
+                setPagina(paginaAtual + 1);
+                setExpandidos(new Set());
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
           </nav>
         </footer>
       </section>
@@ -2038,7 +2951,10 @@ function LancamentosDespesa({
       <DarBaixaCotistaDialog
         lancamento={baixaSelecionada?.reembolsavel ? null : baixaSelecionada}
         onFechar={() => setBaixaSelecionada(null)}
-        onConcluido={async () => { await aoAtualizar(); toast.success("Pagamento registrado."); }}
+        onConcluido={async () => {
+          await aoAtualizar();
+          toast.success("Pagamento registrado.");
+        }}
       />
 
       <Dialog
@@ -2086,7 +3002,6 @@ function LancamentosDespesa({
                   <p className="mt-3 text-xl font-semibold tabular-nums">
                     {formatarCentavos(acao.item.valorCentavos)}
                   </p>
-
                 </div>
               )}
               {erroAcao && (
@@ -2191,13 +3106,16 @@ export default function FinanceiroCotista() {
   const aeronavesFiltradas = useMemo(() => {
     const termo = buscaMatricula.trim().toLowerCase();
     return termo
-      ? aeronaves.filter((a) => a.matricula_registro.toLowerCase().includes(termo))
+      ? aeronaves.filter((a) =>
+          a.matricula_registro.toLowerCase().includes(termo),
+        )
       : aeronaves;
   }, [aeronaves, buscaMatricula]);
   const [cotistasAeronave, setCotistasAeronave] = useState<CotistaAeronave[]>(
     [],
   );
-  const [participacaoEditando, setParticipacaoEditando] = useState<CotistaAeronave | null>(null);
+  const [participacaoEditando, setParticipacaoEditando] =
+    useState<CotistaAeronave | null>(null);
   const [percentualEditado, setPercentualEditado] = useState("");
   const [aeronaveEditada, setAeronaveEditada] = useState("");
   const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
@@ -2253,11 +3171,18 @@ export default function FinanceiroCotista() {
   }, [aeronaveSelecionada, periodoAplicado, mesesAplicados]);
 
   useEffect(() => {
-    const atualizar = () => { void carregar(); };
-    const externo = (e: StorageEvent) => { if (e.key === 'financeiro-atualizado') atualizar(); };
-    window.addEventListener('financeiro-atualizado', atualizar);
-    window.addEventListener('storage', externo);
-    return () => { window.removeEventListener('financeiro-atualizado', atualizar); window.removeEventListener('storage', externo); };
+    const atualizar = () => {
+      void carregar();
+    };
+    const externo = (e: StorageEvent) => {
+      if (e.key === "financeiro-atualizado") atualizar();
+    };
+    window.addEventListener("financeiro-atualizado", atualizar);
+    window.addEventListener("storage", externo);
+    return () => {
+      window.removeEventListener("financeiro-atualizado", atualizar);
+      window.removeEventListener("storage", externo);
+    };
   }, [carregar]);
 
   const carregarAeronaves = useCallback(async () => {
@@ -2290,29 +3215,45 @@ export default function FinanceiroCotista() {
     }
     setSalvandoParticipacao(true);
     try {
-      await atualizarParticipacaoCotista(participacaoEditando.id, { aeronave_id: aeronaveEditada, percentual_sociedade: percentual });
+      await atualizarParticipacaoCotista(participacaoEditando.id, {
+        aeronave_id: aeronaveEditada,
+        percentual_sociedade: percentual,
+      });
       setParticipacaoEditando(null);
       await Promise.all([carregarCotistas(aeronaveSelecionada), carregar()]);
       toast.success("Participação atualizada.");
     } catch (error) {
       const codigo = error instanceof Error ? error.message : "";
       const mensagens: Record<string, string> = {
-        cotista_ja_vinculado_a_aeronave: "Esse cotista já possui vínculo ativo com a aeronave selecionada.",
-        aeronave_nao_pode_ser_alterada_com_historico_financeiro: "Não é possível mudar a aeronave deste vínculo porque ele já possui histórico financeiro.",
+        cotista_ja_vinculado_a_aeronave:
+          "Esse cotista já possui vínculo ativo com a aeronave selecionada.",
+        aeronave_nao_pode_ser_alterada_com_historico_financeiro:
+          "Não é possível mudar a aeronave deste vínculo porque ele já possui histórico financeiro.",
       };
-      toast.error(mensagens[codigo] || "Não foi possível atualizar a participação.");
+      toast.error(
+        mensagens[codigo] || "Não foi possível atualizar a participação.",
+      );
     } finally {
       setSalvandoParticipacao(false);
     }
   };
   const removerParticipacao = async (cotista: CotistaAeronave) => {
-    if (!window.confirm(`Desativar o vínculo de ${cotista.nome} com esta aeronave? O histórico financeiro será preservado.`)) return;
+    if (
+      !window.confirm(
+        `Desativar o vínculo de ${cotista.nome} com esta aeronave? O histórico financeiro será preservado.`,
+      )
+    )
+      return;
     try {
       await excluirParticipacaoCotista(cotista.id);
       await Promise.all([carregarCotistas(aeronaveSelecionada), carregar()]);
       toast.success("Vínculo desativado; o histórico foi preservado.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível desativar o vínculo.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível desativar o vínculo.",
+      );
     }
   };
 
@@ -2348,7 +3289,7 @@ export default function FinanceiroCotista() {
     setCotistaVisaoId((atual) =>
       cotistasAeronave.some((cotista) => cotista.id === atual)
         ? atual
-        : cotistasAeronave[0]?.id ?? "",
+        : (cotistasAeronave[0]?.id ?? ""),
     );
   }, [aeronaveSelecionada, cotistasAeronave]);
   const [abaAtiva, setAbaAtiva] = useState<
@@ -2362,14 +3303,58 @@ export default function FinanceiroCotista() {
     | "portal-cliente"
   >("lancamentos");
   const [paginaAberta, setPaginaAberta] = useState(false);
-  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText; corIcone: string }> = [
-    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText, corIcone: "bg-sky-400/10 text-sky-400" },
-    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard, corIcone: "bg-violet-400/10 text-violet-400" },
-    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel, corIcone: "bg-amber-400/10 text-amber-400" },
-    { id: "medias", rotulo: "Médias", Icon: Gauge, corIcone: "bg-emerald-400/10 text-emerald-400" },
-    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3, corIcone: "bg-rose-400/10 text-rose-400" },
-    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound, corIcone: "bg-teal-400/10 text-teal-400" },
-    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark, corIcone: "bg-orange-400/10 text-orange-400" }] : []),
+  const abasCotista: Array<{
+    id: string;
+    rotulo: string;
+    Icon: typeof ReceiptText;
+    corIcone: string;
+  }> = [
+    {
+      id: "lancamentos",
+      rotulo: "Lançamentos mensais",
+      Icon: ReceiptText,
+      corIcone: "bg-sky-400/10 text-sky-400",
+    },
+    {
+      id: "resumo",
+      rotulo: "Visão por cotista",
+      Icon: LayoutDashboard,
+      corIcone: "bg-violet-400/10 text-violet-400",
+    },
+    {
+      id: "emprestimos",
+      rotulo: "Voos empréstimo",
+      Icon: Fuel,
+      corIcone: "bg-amber-400/10 text-amber-400",
+    },
+    {
+      id: "medias",
+      rotulo: "Médias",
+      Icon: Gauge,
+      corIcone: "bg-emerald-400/10 text-emerald-400",
+    },
+    {
+      id: "graficos",
+      rotulo: "Gráficos",
+      Icon: BarChart3,
+      corIcone: "bg-rose-400/10 text-rose-400",
+    },
+    {
+      id: "portal-cliente",
+      rotulo: "Portal Cliente",
+      Icon: KeyRound,
+      corIcone: "bg-teal-400/10 text-teal-400",
+    },
+    ...(possuiHolding
+      ? [
+          {
+            id: "extrato",
+            rotulo: "Extrato Holding",
+            Icon: Landmark,
+            corIcone: "bg-orange-400/10 text-orange-400",
+          },
+        ]
+      : []),
   ];
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
@@ -2402,7 +3387,9 @@ export default function FinanceiroCotista() {
     atualizarMeses([mes]);
   };
   const mesReferencia = mesesAplicados[0] || mesAtual;
-  const todosOsMesesSelecionados = mesesDisponiveis.every((mes) => mesesRascunho.includes(mes));
+  const todosOsMesesSelecionados = mesesDisponiveis.every((mes) =>
+    mesesRascunho.includes(mes),
+  );
 
   const despesas = useMemo(
     () =>
@@ -2443,9 +3430,12 @@ export default function FinanceiroCotista() {
   const gruposEmprestimos = useMemo(() => {
     const [tipo, id] = cotistaEmprestimo.split(":");
     const lista = (dashboard?.emprestimos_aeronave ?? []).filter((v) => {
-      if (!mesesAplicados.includes(String(v.data ?? "").slice(0, 7))) return false;
+      if (!mesesAplicados.includes(String(v.data ?? "").slice(0, 7)))
+        return false;
       if (!id) return true;
-      return tipo === "socio" ? v.emprestador_socio_id === id : v.emprestador_cliente_id === id;
+      return tipo === "socio"
+        ? v.emprestador_socio_id === id
+        : v.emprestador_cliente_id === id;
     });
     return agruparPorMes(lista);
   }, [dashboard, mesesAplicados, cotistaEmprestimo]);
@@ -2473,9 +3463,13 @@ export default function FinanceiroCotista() {
       if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) continue;
       const valores = porMes.get(mes) ?? { pagamentos: 0, rateado: 0 };
       valores.pagamentos += valorPagoLancamento(lancamento) / 100;
-      const rateado = lancamento.rateios.length > 0
-        ? lancamento.rateios.reduce((total, rateio) => total + rateio.valorCentavos, 0)
-        : lancamento.valorRateadoCentavos || lancamento.valorCentavos;
+      const rateado =
+        lancamento.rateios.length > 0
+          ? lancamento.rateios.reduce(
+              (total, rateio) => total + rateio.valorCentavos,
+              0,
+            )
+          : lancamento.valorRateadoCentavos || lancamento.valorCentavos;
       valores.rateado += rateado / 100;
       porMes.set(mes, valores);
     }
@@ -2544,19 +3538,39 @@ export default function FinanceiroCotista() {
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="flex justify-start">
-          <Button type="button" variant="ghost" size="sm" className="m-3 h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] py-[21px] text-[15px]"
-            onClick={() => { setAeronaveSelecionada(""); setPaginaAberta(false); }}>
+        <div className="mt-[2px] flex items-center gap-2 py-[3px]">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mx-[4px] my-[-8px] min-h-[20px] h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] px-[8px] py-[1px] text-[14px] font-normal leading-[21.5px]"
+            onClick={() => {
+              setAeronaveSelecionada("");
+              setPaginaAberta(false);
+            }}
+          >
             <Plane size={14} /> Trocar aeronave
           </Button>
+          {paginaAberta && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mx-[123px] my-0 h-10 shrink-0 gap-1 border-0 px-[34px]"
+              onClick={() => setPaginaAberta(false)}
+            >
+              <ChevronLeft size={15} /> Voltar
+            </Button>
+          )}
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-1" onClick={() => setPaginaAberta(false)}>
-            <ChevronLeft size={15} /> Voltar
-          </Button>
-          <div className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4" role="tablist" aria-label="Visões do financeiro cotista">
+        <div className="mt-[13px] flex items-center gap-[3px] border-0 border-transparent py-[5px]">
+          <div
+            className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-4"
+            role="tablist"
+            aria-label="Visões do financeiro cotista"
+          >
             {abasCotista.map(({ id, rotulo, Icon }) => (
               <button
                 key={id}
@@ -2577,8 +3591,13 @@ export default function FinanceiroCotista() {
       {!aeronaveSelecionada ? (
         <section className="space-y-5 py-6">
           <header className="space-y-1.5 text-center">
-            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">Selecione uma aeronave para começar</h2>
-            <p className="text-sm text-muted-foreground">Os dados financeiros e de cotistas serão carregados após a seleção.</p>
+            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
+              Selecione uma aeronave para começar
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Os dados financeiros e de cotistas serão carregados após a
+              seleção.
+            </p>
           </header>
           <div className="mx-auto max-w-4xl">
             <Input
@@ -2591,9 +3610,13 @@ export default function FinanceiroCotista() {
             />
           </div>
           {aeronaves.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave cadastrada.</p>
+            <p className="text-center text-sm text-muted-foreground">
+              Nenhuma aeronave cadastrada.
+            </p>
           ) : aeronavesFiltradas.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground">Nenhuma aeronave encontrada para &quot;{buscaMatricula}&quot;.</p>
+            <p className="text-center text-sm text-muted-foreground">
+              Nenhuma aeronave encontrada para &quot;{buscaMatricula}&quot;.
+            </p>
           ) : (
             <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {aeronavesFiltradas.map((a) => (
@@ -2607,15 +3630,23 @@ export default function FinanceiroCotista() {
                   className="group flex items-center gap-4 rounded-xl border border-white/10 bg-card/60 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg"
                 >
                   {a.url_imagem ? (
-                    <img src={a.url_imagem} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />
+                    <img
+                      src={a.url_imagem}
+                      alt=""
+                      className="h-14 w-20 shrink-0 rounded-lg object-cover"
+                    />
                   ) : (
                     <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
                       <Plane size={20} />
                     </span>
                   )}
                   <span className="min-w-0">
-                    <span className="block truncate text-base font-semibold">{a.matricula_registro}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{a.modelo}</span>
+                    <span className="block truncate text-base font-semibold">
+                      {a.matricula_registro}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {a.modelo}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -2624,69 +3655,152 @@ export default function FinanceiroCotista() {
         </section>
       ) : (
         <>
-          {paginaAberta && abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
-                <p className="mt-1 text-base font-semibold">{aeronaves.find((a) => a.id === aeronaveSelecionada)?.matricula_registro || "Aeronave selecionada"}</p>
-                <p className="text-[10px] text-muted-foreground"></p>
-              </div>
-              <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
-                {[
-                  ["Lançamentos", String(lancamentosFiltrados.length), ""],
-                  ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0), ""],
-                ].map(([label, value, tone]) => (
-                  <div key={label} className="min-w-[104px] px-3 py-2.5 first:pl-3">
-                    <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p>
-                    <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>}
-
-          {paginaAberta && abaAtiva !== "portal-cliente" && (
-            <section className="financeiro-panel px-4 py-3" aria-label="Competência dos lançamentos">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CalendarDays size={16} className="text-muted-foreground" />
-                  <span className="text-xs font-semibold">Competência</span>
-                  <Button type="button" variant="outline" size="sm" className="h-10 px-3"
-                    aria-label="Mês anterior" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}>‹</Button>
-                  <Input type="month" aria-label="Selecionar competência" value={mesReferencia}
-                    onChange={(e) => selecionarMesUnico(e.target.value)} className="h-10 w-[160px] text-sm" />
-                  <Button type="button" variant="outline" size="sm" className="h-10 px-3"
-                    aria-label="Próximo mês" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}>›</Button>
-                  <Button type="button" variant="ghost" size="sm" className="h-10 text-xs" onClick={limparMeses}>Mês atual</Button>
+          {paginaAberta && abaAtiva !== "lancamentos" && (
+            <section className="financeiro-panel overflow-hidden">
+              <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <div>
+                  <p className="financeiro-eyebrow">
+                    CENTRO DE CUSTOS DA AERONAVE
+                  </p>
+                  <p className="mt-1 text-base font-semibold">
+                    {aeronaves.find((a) => a.id === aeronaveSelecionada)
+                      ?.matricula_registro || "Aeronave selecionada"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground"></p>
                 </div>
-                <span className="text-xs text-muted-foreground" aria-live="polite">
-                  {mesesAplicados.length === 1 ? rotuloMesCotista(mesReferencia) : `${mesesAplicados.length} meses selecionados`}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Selecionar meses">
-                <Input type="number" min="1900" max="9999" aria-label="Ano para seleção de meses" value={anoMeses}
-                  onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setAnoMeses(e.target.value); }}
-                  className="h-8 w-24" />
-                <label className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
-                  <Checkbox
-                    checked={todosOsMesesSelecionados}
-                    onCheckedChange={(marcado) => (marcado ? selecionarTodosOsMeses() : limparMeses())}
-                    aria-label={`Selecionar todo o ano ${anoMeses}`}
-                  />
-                  Ano inteiro
-                </label>
-                {MESES_CURTOS.map((mes, indice) => {
-                  const competencia = mesesDisponiveis[indice];
-                  const selecionado = mesesRascunho.includes(competencia);
-                  return <button key={competencia} type="button" onClick={() => alternarMes(competencia)}
-                    aria-pressed={selecionado} aria-label={`${mes} ${anoMeses}`}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
-                    {mes}
-                  </button>;
-                })}
+                <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
+                  {[
+                    ["Lançamentos", String(lancamentosFiltrados.length), ""],
+                    [
+                      "Total do mês",
+                      formatarMoeda(dashboard?.resumo?.saidas ?? 0),
+                      "",
+                    ],
+                  ].map(([label, value, tone]) => (
+                    <div
+                      key={label}
+                      className="min-w-[104px] px-3 py-2.5 first:pl-3"
+                    >
+                      <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
           )}
+
+          {paginaAberta &&
+            abaAtiva !== "portal-cliente" &&
+            abaAtiva !== "lancamentos" && (
+              <section
+                className="financeiro-panel px-4 py-3"
+                aria-label="Competência dos lançamentos"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CalendarDays size={16} className="text-muted-foreground" />
+                    <span className="text-xs font-semibold">Competência</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-3"
+                      aria-label="Mês anterior"
+                      onClick={() =>
+                        selecionarMesUnico(deslocarMes(mesReferencia, -1))
+                      }
+                    >
+                      ‹
+                    </Button>
+                    <Input
+                      type="month"
+                      aria-label="Selecionar competência"
+                      value={mesReferencia}
+                      onChange={(e) => selecionarMesUnico(e.target.value)}
+                      className="h-10 w-[160px] text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-3"
+                      aria-label="Próximo mês"
+                      onClick={() =>
+                        selecionarMesUnico(deslocarMes(mesReferencia, 1))
+                      }
+                    >
+                      ›
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 text-xs"
+                      onClick={limparMeses}
+                    >
+                      Mês atual
+                    </Button>
+                  </div>
+                  <span
+                    className="text-xs text-muted-foreground"
+                    aria-live="polite"
+                  >
+                    {mesesAplicados.length === 1
+                      ? rotuloMesCotista(mesReferencia)
+                      : `${mesesAplicados.length} meses selecionados`}
+                  </span>
+                </div>
+                <div
+                  className="mt-3 flex flex-wrap items-center gap-2"
+                  role="group"
+                  aria-label="Selecionar meses"
+                >
+                  <Input
+                    type="number"
+                    min="1900"
+                    max="9999"
+                    aria-label="Ano para seleção de meses"
+                    value={anoMeses}
+                    onChange={(e) => {
+                      if (/^\d{4}$/.test(e.target.value))
+                        setAnoMeses(e.target.value);
+                    }}
+                    className="h-8 w-24"
+                  />
+                  <label className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+                    <Checkbox
+                      checked={todosOsMesesSelecionados}
+                      onCheckedChange={(marcado) =>
+                        marcado ? selecionarTodosOsMeses() : limparMeses()
+                      }
+                      aria-label={`Selecionar todo o ano ${anoMeses}`}
+                    />
+                    Ano inteiro
+                  </label>
+                  {MESES_CURTOS.map((mes, indice) => {
+                    const competencia = mesesDisponiveis[indice];
+                    const selecionado = mesesRascunho.includes(competencia);
+                    return (
+                      <button
+                        key={competencia}
+                        type="button"
+                        onClick={() => alternarMes(competencia)}
+                        aria-pressed={selecionado}
+                        aria-label={`${mes} ${anoMeses}`}
+                        className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}
+                      >
+                        {mes}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
           {!paginaAberta ? (
             <div className="!mt-[14px] grid gap-[29px] overflow-hidden rounded-[7px] px-[22px] py-[32px] sm:grid-cols-2 xl:grid-cols-3">
@@ -2698,7 +3812,7 @@ export default function FinanceiroCotista() {
                     setAbaAtiva(id as typeof abaAtiva);
                     setPaginaAberta(true);
                   }}
-                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
+                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(29,32,32,1)] p-4 text-left transition hover:!bg-card"
                 >
                   <span className={`rounded-lg p-2.5 ${corIcone}`}>
                     <Icon size={17} />
@@ -2709,7 +3823,7 @@ export default function FinanceiroCotista() {
             </div>
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
-          ) : carregando ? (
+          ) : carregando && abaAtiva !== "lancamentos" ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />
             </div>
@@ -2743,10 +3857,16 @@ export default function FinanceiroCotista() {
                   <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-bold">Visão por cotista</p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">Selecione o cotista para consultar seus dados.</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Selecione o cotista para consultar seus dados.
+                      </p>
                     </div>
                     <SearchableCombobox
-                      items={cotistasAeronave.map((cotista) => ({ id: cotista.id, label: cotista.nome, descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%` }))}
+                      items={cotistasAeronave.map((cotista) => ({
+                        id: cotista.id,
+                        label: cotista.nome,
+                        descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
+                      }))}
                       value={cotistaVisaoId}
                       onChange={(id) => setCotistaVisaoId(id)}
                       placeholder="Selecione um cotista"
@@ -2777,7 +3897,9 @@ export default function FinanceiroCotista() {
                   mediasMensais={dashboard?.medias_mensais ?? []}
                   mediasPorCotista={mediasPorCotista}
                   totalAeronave={formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
-                  mediaMensal={formatarMoeda(dashboard?.resumo?.media_mensal ?? 0)}
+                  mediaMensal={formatarMoeda(
+                    dashboard?.resumo?.media_mensal ?? 0,
+                  )}
                   mesesConsiderados={mesesAplicados.length}
                 />
               )}
@@ -2787,6 +3909,10 @@ export default function FinanceiroCotista() {
                   cotistasAeronave={cotistasAeronave}
                   aoNovo={() => setAberto(true)}
                   aoAtualizar={carregar}
+                  mesesSelecionados={mesesAplicados}
+                  aoSelecionarMes={selecionarMesUnico}
+                  aoAlterarMeses={atualizarMeses}
+                  carregando={carregando}
                 />
               )}
               {abaAtiva === "extrato" && possuiHolding && (
@@ -2858,9 +3984,12 @@ export default function FinanceiroCotista() {
                 <div className="financeiro-panel overflow-hidden">
                   <div className="financeiro-panel-header">
                     <div>
-                      <p className="text-sm font-bold">Voos de empréstimo nesta aeronave</p>
+                      <p className="text-sm font-bold">
+                        Voos de empréstimo nesta aeronave
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Custo do tomador, fora do rateio. Escolha um cotista para ver os voos emprestados em nome dele.
+                        Custo do tomador, fora do rateio. Escolha um cotista
+                        para ver os voos emprestados em nome dele.
                       </p>
                     </div>
                     <Select
@@ -2962,19 +4091,60 @@ export default function FinanceiroCotista() {
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="financeiro-panel overflow-hidden">
                     <div className="financeiro-panel-header">
-                      <p className="text-sm font-semibold">Pagamentos × rateio</p>
+                      <p className="text-sm font-semibold">
+                        Pagamentos × rateio
+                      </p>
                     </div>
                     <div className="h-52 p-4 sm:h-64">
                       {dadosPagamentosRateio.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={dadosPagamentosRateio} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 4" vertical={false} />
-                            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#748399" }} axisLine={false} tickLine={false} />
-                            <YAxis tickFormatter={formatarValorGrafico} tick={{ fontSize: 10, fill: "#748399" }} axisLine={false} tickLine={false} width={60} />
-                            <Tooltip formatter={(valor: number) => formatarMoeda(valor)} {...estiloTooltip} />
-                            <Legend align="right" verticalAlign="top" height={28} iconType="square" wrapperStyle={{ fontSize: 10 }} />
-                            <Bar dataKey="pagamentos" name="Pago" fill="#08a4c9" radius={[2, 2, 0, 0]} />
-                            <Bar dataKey="rateado" name="Rateado" fill="#319b59" radius={[2, 2, 0, 0]} />
+                          <BarChart
+                            data={dadosPagamentosRateio}
+                            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                          >
+                            <CartesianGrid
+                              stroke="hsl(var(--border))"
+                              strokeDasharray="3 4"
+                              vertical={false}
+                            />
+                            <XAxis
+                              dataKey="mes"
+                              tick={{ fontSize: 10, fill: "#748399" }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tickFormatter={formatarValorGrafico}
+                              tick={{ fontSize: 10, fill: "#748399" }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={60}
+                            />
+                            <Tooltip
+                              formatter={(valor: number) =>
+                                formatarMoeda(valor)
+                              }
+                              {...estiloTooltip}
+                            />
+                            <Legend
+                              align="right"
+                              verticalAlign="top"
+                              height={28}
+                              iconType="square"
+                              wrapperStyle={{ fontSize: 10 }}
+                            />
+                            <Bar
+                              dataKey="pagamentos"
+                              name="Pago"
+                              fill="#08a4c9"
+                              radius={[2, 2, 0, 0]}
+                            />
+                            <Bar
+                              dataKey="rateado"
+                              name="Rateado"
+                              fill="#319b59"
+                              radius={[2, 2, 0, 0]}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
@@ -2986,9 +4156,19 @@ export default function FinanceiroCotista() {
                     {maiorDiferencaPagamentosRateio && (
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-[10px]">
                         <span className="text-muted-foreground">
-                          Maior diferença em <b className="text-foreground">{maiorDiferencaPagamentosRateio.mes}: {formatarMoeda(maiorDiferencaPagamentosRateio.valor)}</b>
+                          Maior diferença em{" "}
+                          <b className="text-foreground">
+                            {maiorDiferencaPagamentosRateio.mes}:{" "}
+                            {formatarMoeda(
+                              maiorDiferencaPagamentosRateio.valor,
+                            )}
+                          </b>
                         </span>
-                        <button type="button" className="inline-flex items-center gap-1 font-semibold text-primary" onClick={() => setAbaAtiva("lancamentos")}>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 font-semibold text-primary"
+                          onClick={() => setAbaAtiva("lancamentos")}
+                        >
                           Ver detalhamento <ChevronRight size={13} />
                         </button>
                       </div>
@@ -2997,50 +4177,89 @@ export default function FinanceiroCotista() {
                   <div className="financeiro-panel min-w-0 overflow-hidden">
                     <div className="financeiro-panel-header">
                       <div>
-                        <p className="text-sm font-bold">Custos por categoria</p>
+                        <p className="text-sm font-bold">
+                          Custos por categoria
+                        </p>
                       </div>
                     </div>
-                    {dadosCategorias.length > 0 ? <>
-                    <div className="relative mx-auto h-44 w-full max-w-[220px]">
-                      <div className="absolute inset-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RechartsPieChart>
-                            <Pie
-                              data={dadosCategorias}
-                              dataKey="valor"
-                              nameKey="nome"
-                              innerRadius="62%"
-                              outerRadius="88%"
-                              paddingAngle={2}
-                            >
-                              {dadosCategorias.map((item, i) => (
-                                <Cell key={item.nome} fill={coresCategorias[i % coresCategorias.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(v: number) => formatarMoeda(v)} {...estiloTooltip} />
-                          </RechartsPieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                        <strong className="font-mono text-sm font-bold">{totalCategoriasCompacto}</strong>
-                        <span className="text-[8px] uppercase tracking-wider text-muted-foreground">Total</span>
-                      </div>
-                    </div>
-                    <div className="px-4 pb-3">
-                      {dadosCategorias.map((item, i) => (
-                        <div key={item.nome} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-border/70 py-2 text-[10px]">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <i className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: coresCategorias[i % coresCategorias.length] }} />
-                            <span className="truncate">{item.nome}</span>
-                          </span>
-                          <span className="font-mono text-muted-foreground">{formatarMoeda(item.valor)}</span>
-                          <strong className="w-12 text-right font-mono">
-                            {totalCategorias > 0 ? ((item.valor / totalCategorias) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "0"}%
-                          </strong>
+                    {dadosCategorias.length > 0 ? (
+                      <>
+                        <div className="relative mx-auto h-44 w-full max-w-[220px]">
+                          <div className="absolute inset-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RechartsPieChart>
+                                <Pie
+                                  data={dadosCategorias}
+                                  dataKey="valor"
+                                  nameKey="nome"
+                                  innerRadius="62%"
+                                  outerRadius="88%"
+                                  paddingAngle={2}
+                                >
+                                  {dadosCategorias.map((item, i) => (
+                                    <Cell
+                                      key={item.nome}
+                                      fill={
+                                        coresCategorias[
+                                          i % coresCategorias.length
+                                        ]
+                                      }
+                                    />
+                                  ))}
+                                </Pie>
+                                <Tooltip
+                                  formatter={(v: number) => formatarMoeda(v)}
+                                  {...estiloTooltip}
+                                />
+                              </RechartsPieChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                            <strong className="font-mono text-sm font-bold">
+                              {totalCategoriasCompacto}
+                            </strong>
+                            <span className="text-[8px] uppercase tracking-wider text-muted-foreground">
+                              Total
+                            </span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                    </> : (
+                        <div className="px-4 pb-3">
+                          {dadosCategorias.map((item, i) => (
+                            <div
+                              key={item.nome}
+                              className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-border/70 py-2 text-[10px]"
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <i
+                                  className="h-2 w-2 shrink-0 rounded-[2px]"
+                                  style={{
+                                    backgroundColor:
+                                      coresCategorias[
+                                        i % coresCategorias.length
+                                      ],
+                                  }}
+                                />
+                                <span className="truncate">{item.nome}</span>
+                              </span>
+                              <span className="font-mono text-muted-foreground">
+                                {formatarMoeda(item.valor)}
+                              </span>
+                              <strong className="w-12 text-right font-mono">
+                                {totalCategorias > 0
+                                  ? (
+                                      (item.valor / totalCategorias) *
+                                      100
+                                    ).toLocaleString("pt-BR", {
+                                      maximumFractionDigits: 1,
+                                    })
+                                  : "0"}
+                                %
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
                       <div className="flex h-44 items-center justify-center px-4 text-center text-xs text-muted-foreground">
                         Dados insuficientes para o período.
                       </div>
@@ -3175,17 +4394,72 @@ export default function FinanceiroCotista() {
           aoCriar={carregar}
         />
       )}
-      <Dialog open={Boolean(participacaoEditando)} onOpenChange={(open) => { if (!open && !salvandoParticipacao) setParticipacaoEditando(null); }}>
+      <Dialog
+        open={Boolean(participacaoEditando)}
+        onOpenChange={(open) => {
+          if (!open && !salvandoParticipacao) setParticipacaoEditando(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar participação do cotista</DialogTitle>
-            <DialogDescription>Atualize a aeronave vinculada e o percentual da cota de {participacaoEditando?.nome}. Alterar aeronave é bloqueado quando existe histórico financeiro associado.</DialogDescription>
+            <DialogDescription>
+              Atualize a aeronave vinculada e o percentual da cota de{" "}
+              {participacaoEditando?.nome}. Alterar aeronave é bloqueado quando
+              existe histórico financeiro associado.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="cotista-aeronave-editada">Aeronave</Label><select id="cotista-aeronave-editada" value={aeronaveEditada} onChange={(event) => setAeronaveEditada(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{aeronaves.map((aeronave) => <option key={aeronave.id} value={aeronave.id}>{aeronave.matricula_registro} · {aeronave.modelo}</option>)}</select></div>
-            <div className="space-y-2"><Label htmlFor="cotista-percentual-editado">Percentual da cota (%)</Label><Input id="cotista-percentual-editado" type="number" min="0" max="100" step="0.01" value={percentualEditado} onChange={(event) => setPercentualEditado(event.target.value)} /></div>
+            <div className="space-y-2">
+              <Label htmlFor="cotista-aeronave-editada">Aeronave</Label>
+              <select
+                id="cotista-aeronave-editada"
+                value={aeronaveEditada}
+                onChange={(event) => setAeronaveEditada(event.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {aeronaves.map((aeronave) => (
+                  <option key={aeronave.id} value={aeronave.id}>
+                    {aeronave.matricula_registro} · {aeronave.modelo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cotista-percentual-editado">
+                Percentual da cota (%)
+              </Label>
+              <Input
+                id="cotista-percentual-editado"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={percentualEditado}
+                onChange={(event) => setPercentualEditado(event.target.value)}
+              />
+            </div>
           </div>
-          <DialogFooter><Button type="button" variant="outline" disabled={salvandoParticipacao} onClick={() => setParticipacaoEditando(null)}>Cancelar</Button><Button type="button" disabled={salvandoParticipacao} onClick={() => void salvarParticipacao()}>{salvandoParticipacao ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}Salvar alterações</Button></DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={salvandoParticipacao}
+              onClick={() => setParticipacaoEditando(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={salvandoParticipacao}
+              onClick={() => void salvarParticipacao()}
+            >
+              {salvandoParticipacao ? (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              ) : null}
+              Salvar alterações
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

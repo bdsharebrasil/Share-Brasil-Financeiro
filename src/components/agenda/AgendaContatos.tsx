@@ -13,6 +13,8 @@ const SERVICOS = [
   { nome: "Transfer", disponibilidade: "transfer", custo: "custo_transfer", valor: "valor_transfer" },
 ] as const;
 
+const SEM_SERVICOS_HANGAR = { gpu: "", transfer: "", custo_gpu: "", custo_transfer: "", valor_gpu: "", valor_transfer: "", ar_condicionado: "", pernoite: "" };
+
 export type FormularioContato = {
   nome: string; telefone: string; email: string; empresa: string; razao_social: string;
   cnpj: string; categoria: string; categoria_tipo: string; categoria_personalizada: string;
@@ -71,36 +73,34 @@ export function prepararContato(form: FormularioContato): FormularioContato {
   if (["combustivel", "combustiveis", "abastecimento"].includes(normalizar(payload.categoria))) throw new Error("Esse fornecedor deve ser salvo em Operações → Abastecimento → Fornecedores.");
   if (payload.categoria_tipo !== "OUTRO") payload.categoria_personalizada = "";
   payload.uf = payload.uf.toUpperCase();
+  if (payload.categoria_tipo !== "HANGAR") payload.atendimento_pista = "";
+  else if (!["SIM", "NAO"].includes(payload.atendimento_pista)) throw new Error("Informe se o hangar possui atendimento de pista.");
+  if (payload.categoria_tipo !== "HANGAR" || payload.atendimento_pista !== "SIM") {
+    Object.assign(payload, SEM_SERVICOS_HANGAR);
+    return payload;
+  }
   for (const servico of SERVICOS) {
-    if (payload.categoria_tipo !== "HANGAR") {
-      payload[servico.disponibilidade] = ""; payload[servico.custo] = ""; payload[servico.valor] = "";
+    if (payload[servico.disponibilidade] !== "SIM") {
+      payload[servico.disponibilidade] = "NAO"; payload[servico.custo] = ""; payload[servico.valor] = "";
       continue;
     }
-    if (!["SIM", "NAO"].includes(payload[servico.disponibilidade])) throw new Error(`Informe se o hangar disponibiliza ${servico.nome}.`);
-    if (payload[servico.disponibilidade] === "NAO") {
-      payload[servico.custo] = ""; payload[servico.valor] = "";
+    if (!payload[servico.valor]) {
+      payload[servico.custo] = "GRATUITO"; payload[servico.valor] = "GRATUITO";
       continue;
     }
-    if (!["GRATUITO", "COBRADO"].includes(payload[servico.custo])) throw new Error(`Informe se ${servico.nome} é gratuito ou cobrado.`);
-    if (payload[servico.custo] === "GRATUITO") { payload[servico.valor] = "GRATUITO"; continue; }
     const valor = valorDecimal(payload[servico.valor]);
     if (!/^\d+(\.\d{1,2})?$/.test(valor) || !Number.isFinite(Number(valor)) || Number(valor) <= 0) {
       throw new Error(`Informe um valor válido, maior que zero, para ${servico.nome} (até duas casas decimais).`);
     }
-    payload[servico.valor] = valor;
+    payload[servico.custo] = "COBRADO"; payload[servico.valor] = valor;
   }
-  if (payload.categoria_tipo !== "HANGAR") {
-    payload.ar_condicionado = ""; payload.pernoite = ""; payload.atendimento_pista = "";
-  } else {
-    if (!["SIM", "NAO"].includes(payload.atendimento_pista)) throw new Error("Informe se o hangar possui atendimento de pista.");
-    for (const key of ["ar_condicionado", "pernoite"] as const) {
-      if (!payload[key] || payload[key] === "SIM") continue;
-      const valor = valorDecimal(payload[key]);
-      if (!/^\d+(\.\d{1,2})?$/.test(valor) || !Number.isFinite(Number(valor)) || Number(valor) <= 0) {
-        throw new Error(`Informe um valor válido, maior que zero, para ${key === "ar_condicionado" ? "ar condicionado" : "pernoite"} (até duas casas decimais).`);
-      }
-      payload[key] = valor;
+  for (const key of ["ar_condicionado", "pernoite"] as const) {
+    if (!payload[key] || payload[key] === "SIM") continue;
+    const valor = valorDecimal(payload[key]);
+    if (!/^\d+(\.\d{1,2})?$/.test(valor) || !Number.isFinite(Number(valor)) || Number(valor) <= 0) {
+      throw new Error(`Informe um valor válido, maior que zero, para ${key === "ar_condicionado" ? "ar condicionado" : "pernoite"} (até duas casas decimais).`);
     }
+    payload[key] = valor;
   }
   return payload;
 }
@@ -144,7 +144,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
 
   return (
     <form className="ac-dialog-form" onSubmit={(e) => void submit(e)} aria-busy={salvando}>
-      <div className="ac-form-body bg-[#030a14]">
+      <div className="ac-form-body bg-[#020811]">
         <p className="ac-muted">Os campos com * são obrigatórios.</p>
         {mensagem && <div ref={resumoRef} tabIndex={-1} role="alert" className="ac-notice ac-notice--error">{mensagem}</div>}
         <section className="ac-section" aria-labelledby="ac-identificacao">
@@ -157,10 +157,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
               <span>Categoria *</span>
               <select id="contato-categoria" className="ac-control" value={form.categoria_tipo} required disabled={salvando}
                 onChange={(e) => { const tipo = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual,
-                  categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? {
-                    gpu: "", transfer: "", custo_gpu: "", custo_transfer: "", valor_gpu: "", valor_transfer: "",
-                    ar_condicionado: "", pernoite: "", atendimento_pista: "",
-                  } : {}),
+                  categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? { ...SEM_SERVICOS_HANGAR, atendimento_pista: "" } : {}),
                 })); }}>
                 <option value="">Selecione uma categoria</option><option value="FORNECEDOR">Fornecedor</option>
                 <option value="HANGAR">Hangar</option><option value="OUTRO">Outro</option>
@@ -180,53 +177,47 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
         {form.categoria_tipo === "HANGAR" && (
           <section className="ac-section" aria-labelledby="ac-servicos">
             <h3 id="ac-servicos" className="ac-section-heading">Serviços do hangar</h3>
-            <label className="ac-field" htmlFor="contato-atendimento_pista">
-              <span>Possui atendimento de pista? *</span>
-              <select id="contato-atendimento_pista" className="ac-control" value={form.atendimento_pista} required disabled={salvando}
-                onChange={(e) => alterar("atendimento_pista", e.target.value)}>
-                <option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option>
-              </select>
-            </label>
-            <div className="ac-service-grid">
+            <fieldset className="ac-service" disabled={salvando}>
+              <legend>Possui atendimento de pista? *</legend>
+              <label className="ac-field" htmlFor="contato-atendimento_pista-sim">
+                <span><input id="contato-atendimento_pista-sim" type="checkbox" checked={form.atendimento_pista === "SIM"}
+                  onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, atendimento_pista: e.target.checked ? "SIM" : "", ...(e.target.checked ? {} : SEM_SERVICOS_HANGAR) })); }} /> Sim</span>
+              </label>
+              <label className="ac-field" htmlFor="contato-atendimento_pista-nao">
+                <span><input id="contato-atendimento_pista-nao" type="checkbox" checked={form.atendimento_pista === "NAO"}
+                  onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, atendimento_pista: e.target.checked ? "NAO" : "", ...SEM_SERVICOS_HANGAR })); }} /> Não</span>
+              </label>
+            </fieldset>
+            {form.atendimento_pista === "SIM" && <div className="ac-expand"><div className="ac-expand-body">
+            <fieldset className="ac-service-list" disabled={salvando}>
               {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
                 const marcado = Boolean(form[key]);
-                return <fieldset key={key} className="ac-service" disabled={salvando}>
-                  <legend>{label}</legend>
-                  <label className="ac-field" htmlFor={`contato-${key}-check`}>
-                    <span><input id={`contato-${key}-check`} type="checkbox" checked={marcado}
-                      onChange={(e) => alterar(key, e.target.checked ? "SIM" : "")} /> {label}</span>
+                return <div key={key} className="ac-service-row">
+                  <label className="ac-service-check" htmlFor={`contato-${key}-check`}>
+                    <input id={`contato-${key}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => alterar(key, e.target.checked ? "SIM" : "")} />
+                    <span>{label}</span>
                   </label>
-                  {marcado && <Campo id={`contato-${key}`} label="Valor opcional (R$)"
-                    value={form[key] === "SIM" ? "" : form[key]} disabled={salvando} inputMode="decimal"
-                    placeholder="Deixe em branco se não houver cobrança"
+                  {marcado && <input id={`contato-${key}`} className="ac-control ac-service-value" aria-label={`Valor de ${label} (R$)`}
+                    value={form[key] === "SIM" ? "" : form[key]} inputMode="decimal" placeholder="Valor (R$)"
                     onChange={(e) => alterar(key, e.target.value || "SIM")} />}
-                </fieldset>;
+                </div>;
               })}
-            </div>
-            <div className="ac-service-grid">
-              {SERVICOS.map((servico) => (
-                <fieldset key={servico.nome} className="ac-service" disabled={salvando}>
-                  <legend>{servico.nome}</legend>
-                  <label className="ac-field" htmlFor={`contato-${servico.disponibilidade}`}>
-                    <span>Disponibiliza {servico.nome}? *</span>
-                    <select id={`contato-${servico.disponibilidade}`} className="ac-control" value={form[servico.disponibilidade]} required
-                      onChange={(e) => { const valor = e.target.value; setForm((atual) => ({ ...atual, [servico.disponibilidade]: valor, [servico.custo]: "", [servico.valor]: "" })); setErroLocal(null); }}>
-                      <option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option>
-                    </select>
+              {SERVICOS.map((servico) => {
+                const marcado = form[servico.disponibilidade] === "SIM";
+                return <div key={servico.nome} className="ac-service-row">
+                  <label className="ac-service-check" htmlFor={`contato-${servico.disponibilidade}-check`}>
+                    <input id={`contato-${servico.disponibilidade}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, [servico.disponibilidade]: e.target.checked ? "SIM" : "NAO", [servico.valor]: "" })); }} />
+                    <span>{servico.nome}</span>
                   </label>
-                  {form[servico.disponibilidade] === "SIM" && <>
-                    <label className="ac-field" htmlFor={`contato-${servico.custo}`}>
-                      <span>Forma de cobrança *</span>
-                      <select id={`contato-${servico.custo}`} className="ac-control" value={form[servico.custo]} required
-                        onChange={(e) => { const valor = e.target.value; setForm((atual) => ({ ...atual, [servico.custo]: valor, [servico.valor]: "" })); setErroLocal(null); }}>
-                        <option value="">Selecione</option><option value="GRATUITO">Gratuito</option><option value="COBRADO">Cobrado</option>
-                      </select>
-                    </label>
-                    {form[servico.custo] === "COBRADO" && campo(servico.valor, "Valor cobrado (R$)", { inputMode: "decimal", required: true, placeholder: "0,00" })}
-                  </>}
-                </fieldset>
-              ))}
-            </div>
+                  {marcado && <input id={`contato-${servico.valor}`} className="ac-control ac-service-value" aria-label={`Valor de ${servico.nome} (R$)`}
+                    value={form[servico.valor]} inputMode="decimal" placeholder="Valor (R$)"
+                    onChange={(e) => { const valor = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual, [servico.valor]: valor })); }} />}
+                </div>;
+              })}
+            </fieldset>
+            </div></div>}
           </section>
         )}
         <section className="ac-section" aria-labelledby="ac-localizacao">

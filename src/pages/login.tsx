@@ -154,7 +154,7 @@ export default function Login() {
   }
 
   return (
-    <main className="relative m-0 flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-0 text-white sm:px-8">
+    <main className="relative m-0 flex h-dvh flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-0 text-white sm:px-8">
       <InstallPrompt />
       <style>{`
         @keyframes login-flight {
@@ -195,7 +195,7 @@ export default function Login() {
         ))}
       </div>
 
-      <section className="relative z-20 my-3 w-full max-w-[416px] overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-2 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 [@media(min-height:820px)]:py-3">
+      <section className="relative z-20 my-3 w-full max-w-[416px] [@media(max-height:700px)]:my-0 overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-2 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 [@media(min-height:820px)]:py-3">
         <div className="text-center">
           <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-12 w-auto object-contain [@media(min-height:820px)]:h-20" />
           <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>

@@ -160,9 +160,9 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-header h2 { margin:0; font-size:20px; font-weight:600; letter-spacing:-.02em; }
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
-.financeiro-profissional .financeiro-tabs { padding:0 8px; gap:4px; }
+.financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; }
 .financeiro-profissional .financeiro-tabs button { border-radius:7px; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
-.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:#057baf; color:#fff; }
+.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:rgba(22,69,90,1); color:#fff; padding-left:10px; padding-right:10px; }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
@@ -2300,7 +2300,7 @@ function LancamentosDespesa({
               <Button
                 type="button"
                 onClick={aoNovo}
-                className="despesa-primary h-9 shrink-0 gap-2 px-3 text-xs"
+                className="despesa-primary !bg-[rgba(34,63,78,1)] !border-[rgba(9,42,59,1)] h-9 shrink-0 gap-2 px-3 text-xs"
               >
                 <Plus size={16} />
                 Novo
@@ -3556,7 +3556,7 @@ export default function FinanceiroCotista() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-10 shrink-0 gap-1"
+              className="mx-[123px] my-0 h-10 shrink-0 gap-1 border-0 px-[34px]"
               onClick={() => setPaginaAberta(false)}
             >
               <ChevronLeft size={15} /> Voltar
@@ -3565,7 +3565,7 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="mt-[26px] flex items-center gap-[3px]">
+        <div className="mt-[13px] flex items-center gap-[3px] py-[5px]">
           <div
             className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4"
             role="tablist"

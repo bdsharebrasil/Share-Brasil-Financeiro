@@ -11,6 +11,7 @@ import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { HistoricoEnvios } from "@/components/envio-pagamento/historico/HistoricoEnvios";
+import { usePaginaHistorico } from "@/components/envio-pagamento/historico/usePaginaHistorico";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
 import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarFornecedorCombustivel, criarFornecedorFavorito, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
@@ -120,7 +121,7 @@ const opcoes: OpcaoEnvio[] = [
     tipo: "share",
     titulo: "Envio de pagamento para o caixa Share",
     resumo: "Caixa Share",
-    detalhe: "Despesa da própria Share (luz, compras, administrativo). Gera apenas contas a pagar no caixa Share.",
+    detalhe: "Despesa da própria Share (luz, compras, administrativo).",
     pagador: "Share Brasil",
     destino: "Caixa Share",
     regra: "Não gera rateio",
@@ -131,7 +132,7 @@ const opcoes: OpcaoEnvio[] = [
     tipo: "reembolso",
     titulo: "Envio despesa cliente com reembolso",
     resumo: "Share antecipa",
-    detalhe: "A Share paga adiantado e cobra o reembolso do cliente após a baixa.",
+    detalhe: "A Share paga adiantado e cobra o reembolso.",
     pagador: "Share Brasil",
     destino: "Caixa Share + rateio",
     regra: "Cliente reembolsa depois",
@@ -142,7 +143,7 @@ const opcoes: OpcaoEnvio[] = [
     tipo: "cliente",
     titulo: "Envio cliente direto",
     resumo: "Cliente paga direto",
-    detalhe: "Despesa vinculada ao cliente e distribuída entre os cotistas selecionados.",
+    detalhe: "Despesa paga pelo caixa do cliente.",
     pagador: "Cliente / sócio",
     destino: "Caixa Cliente + rateio",
     regra: "Pago diretamente",
@@ -205,6 +206,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [dadosOpcoes, setDadosOpcoes] = useState<OpcaoEnvioPagamento>({ fornecedores: [], fornecedores_combustivel: [], aeronaves: [], voos: [], categorias: [], categorias_cliente: [] });
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [origemDespesa, setOrigemDespesa] = useState<OrigemDespesaEnvio | "">("");
+  const [vincularDespesaExistente, setVincularDespesaExistente] = useState(false);
   const [despesasOrigem, setDespesasOrigem] = useState<DespesaOrigemEnvio[]>([]);
   const [carregandoOrigem, setCarregandoOrigem] = useState(false);
   const [carregando, setCarregando] = useState(true);
@@ -223,7 +225,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
   const [modoNumeroVooCliente, setModoNumeroVooCliente] = useState<"com_voo" | "sem_voo" | null>(null);
   const opcoesVisiveis = apenasCaixaShare ? opcoes.filter((opcao) => opcao.tipo !== "cliente") : opcoes;
-  const [historico, setHistorico] = useState(false);
+  const { historico, abrirHistorico, fecharHistorico } = usePaginaHistorico();
+  const [erroHistorico, setErroHistorico] = useState("");
+  const [abrindoHistorico, setAbrindoHistorico] = useState(false);
+  const [excluindoRascunhoId, setExcluindoRascunhoId] = useState<string | null>(null);
+  const rascunhosVisiveis = useMemo(
+    () => rascunhos.filter((item) => !["CONCLUIDO", "CANCELADO", "EXCLUIDO"].includes(item.status.toUpperCase()) && (!apenasCaixaShare || item.tipo_envio !== "cliente")),
+    [rascunhos, apenasCaixaShare],
+  );
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const anexos = form.anexos;
@@ -288,6 +297,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const carregar = async () => {
     setCarregando(true);
+    setErroHistorico("");
     try {
       const [respostas, rascunhosResposta] = await Promise.all([
         apenasCaixaShare ? Promise.all([buscarEnviosPagamento("share"), buscarEnviosPagamento("reembolso")]) : Promise.all([buscarEnviosPagamento()]),
@@ -296,6 +306,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setEnvios(respostas.flatMap((resposta) => resposta.envios).sort((a, b) => (b.criado_em || "").localeCompare(a.criado_em || "")));
       setRascunhos(rascunhosResposta.rascunhos);
     } catch {
+      setErroHistorico("Não foi possível carregar os envios de pagamento. Tente novamente.");
       setErro("Não foi possível carregar os envios de pagamento.");
     } finally {
       setCarregando(false);
@@ -316,6 +327,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     vincularAeronave,
     modoNumeroVooCliente,
     origemDespesa,
+    vincularDespesaExistente,
     envioId: envioRecemCriado?.id || null,
     envioConvertido,
     assunto,
@@ -372,6 +384,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     } catch (cause) {
       setStatusSalvamento("erro");
       throw cause;
+    }
+  };
+
+  const abrirPaginaHistorico = async () => {
+    if (abrindoHistorico || salvando || enviandoEmail || restaurandoRascunho) return;
+    setAbrindoHistorico(true);
+    try {
+      if ((tipo || envioRecemCriado) && !rascunhoConcluido) await persistirRascunho();
+      await filaSalvamento.current;
+      abrirHistorico();
+      void carregar();
+    } catch {
+      toast.error("Não foi possível salvar o preenchimento atual. Tente abrir o histórico novamente.");
+    } finally {
+      setAbrindoHistorico(false);
     }
   };
 
@@ -439,7 +466,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = 3;
   const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
-  const tituloEtapa = etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : tipo === "cliente" ? "Aeronave, cotistas e valor" : "Voo, aeronave e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
+  const tituloEtapa = etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : tipo === "cliente" ? "Aeronave, cotistas e valor" : "Aeronave, voo e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
   const alterarPercentual = (cotistaId: string, bruto: string) => setForm((atual) => {
     const percentual = bruto.replace(",", ".");
@@ -574,6 +601,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setVincularAeronave(dados.vincularAeronave ?? null);
       setModoNumeroVooCliente(dados.modoNumeroVooCliente ?? null);
       setOrigemDespesa(dados.origemDespesa || "");
+      setVincularDespesaExistente(dados.vincularDespesaExistente ?? Boolean(dados.origemDespesa));
       setEnvioRecemCriado(envioSalvo ? { ...envioSalvo, tipo: rascunho.tipo_envio } : null);
       setEnvioConvertido(Boolean(dados.envioConvertido));
       setAssunto(dados.assunto || "");
@@ -599,7 +627,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setStatusSalvamento("salvo");
       setErro("");
       setMensagem("");
+      setVincularDespesaExistente(false);
+      setOrigemDespesa("");
+      setDespesasOrigem([]);
       setModalEmail(false);
+      fecharHistorico();
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível abrir o rascunho.");
     } finally {
@@ -608,7 +640,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   const excluirRascunho = async (rascunho: RascunhoEnvioPagamento) => {
-    setRascunhoParaExcluir(null);
+    if (excluindoRascunhoId) return;
+    setExcluindoRascunhoId(rascunho.id);
     rascunhosExcluidosRef.current.add(rascunho.id);
     try {
       await filaSalvamento.current;
@@ -625,10 +658,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setRascunhoConcluido(false);
         setStatusSalvamento("ocioso");
       }
+      setRascunhoParaExcluir(null);
       toast.success("Rascunho excluído.");
     } catch (cause) {
       rascunhosExcluidosRef.current.delete(rascunho.id);
       toast.error(cause instanceof Error ? cause.message : "Não foi possível excluir o rascunho.");
+    } finally {
+      setExcluindoRascunhoId(null);
     }
   };
 
@@ -724,6 +760,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setEmailsPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, cotista.email || ""])));
         setRascunhosEmailPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, { assunto: `Solicitação de pagamento — ${envio.descricao} — ${cotista.nome}`, mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${envio.descricao}”.\n\nAtenciosamente, Share Brasil` }])));
       }
+      fecharHistorico();
       toast.success("Envio pendente aberto com os dados salvos.");
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Não foi possível retomar o envio pendente.");
@@ -737,6 +774,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setTipo(null);
     setModoNumeroVooCliente(null);
     setVincularAeronave(null);
+    setVincularDespesaExistente(false);
+    setOrigemDespesa("");
+    setDespesasOrigem([]);
     setErro("");
   };
 
@@ -826,7 +866,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     if (etapa === 1) {
       const dadosDeRateioValidos = !exigeDadosAeronave || Boolean(form.aeronave_id && form.cotista_ids.length && (tipo === "share" || validarRateio()));
       const valorDiretoValido = tipo !== "cliente" || valorInformado > 0;
-      const modoVooValido = tipo !== "cliente" || Boolean(modoNumeroVooCliente);
+      const modoVooValido = (tipo !== "cliente" && tipo !== "reembolso") || Boolean(modoNumeroVooCliente);
       return (tipo !== "share" || vincularAeronave !== null) && dadosDeRateioValidos && valorDiretoValido && modoVooValido;
     }
     if (etapa === 2) return Boolean(form.descricao.trim() && valorInformado > 0 && (tipo === "share" ? Boolean(form.vencimento) : true));
@@ -837,7 +877,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const proxima = async () => {
     setErro("");
     if (!podeAvancar()) {
-      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" && vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : tipo === "cliente" && !modoNumeroVooCliente ? "Selecione se a despesa terá número de voo." : tipo === "cliente" && form.aeronave_id && form.cotista_ids.length && valorInformado <= 0 ? "Informe o valor da despesa depois de selecionar a aeronave e os cotistas." : "Selecione a aeronave e pelo menos um cotista.") : "Informe descrição e valor da despesa.");
+      setErro(etapa === 0 ? "Marque um modo de solicitação para continuar." : etapa === 1 ? (tipo === "share" && vincularAeronave === null ? "Informe se deseja vincular uma aeronave à despesa." : (tipo === "cliente" || tipo === "reembolso") && !modoNumeroVooCliente ? "Selecione se a despesa terá número de voo." : tipo === "cliente" && form.aeronave_id && form.cotista_ids.length && valorInformado <= 0 ? "Informe o valor da despesa depois de selecionar a aeronave e os cotistas." : "Selecione a aeronave e pelo menos um cotista.") : "Informe descrição e valor da despesa.");
       return;
     }
     const proximaEtapa = Math.min(totalEtapas, etapa + 1);
@@ -1131,16 +1171,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   };
 
   return (
-    <div className="route-enter mx-[115px] min-h-[113px] w-full max-w-[1072px] space-y-5 py-[12px] px-0">
-      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-5 py-6 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-7 sm:py-7" style={{ backgroundColor: "rgb(16, 20, 39)" }}>
+    <div className={`route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
+      {!historico && <>
+      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "rgb(16, 20, 39)" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
         </div>
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
-        <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-5 py-3.5 md:gap-5 md:px-6">
+        <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
@@ -1158,14 +1199,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </div>
         </div>
 
-        <div className="flex flex-col gap-[4px] px-5 py-6 md:px-6">
+        <div className="flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[.16em] text-muted-foreground">Modo da solicitação <sup className="text-primary">*</sup></p>
                 <p className="mt-1 text-[11px] text-muted-foreground">Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.</p>
               </div>
-              <div className="flex flex-col gap-[13px] px-[16px]">
+              <div className="grid gap-2 sm:grid-cols-3">
                 {opcoesVisiveis.map((opcao) => {
                   const ativo = tipo === opcao.tipo;
                   const Icon = opcao.icon;
@@ -1175,7 +1216,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`flex w-full items-start gap-3.5 rounded-[10px] border px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow] ${ativo ? "border-primary/65 bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[#182336] bg-[#070c15] hover:border-primary/35 hover:bg-[#0b1422]"}`}
+                      className={`relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[#182336] bg-[#070c15] hover:border-primary/35 hover:bg-[#0b1422]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -1184,7 +1225,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         <span className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">{opcao.titulo}</span>
                         {opcao.detalhe && <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{opcao.detalhe}</span>}
                       </span>
-                      <Icon size={16} className={`mt-0.5 shrink-0 ${ativo ? opcao.cor : "text-muted-foreground"}`} />
+                      <Icon size={16} aria-hidden="true" className={`absolute right-3 top-3 ${ativo ? opcao.cor : "text-muted-foreground"}`} />
                     </button>
                   );
                 })}
@@ -1193,8 +1234,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           )}
 
           {etapa > 0 && selecionada && (
-            <div className="space-y-5">
-              <div className="rounded-sm border border-primary/30 bg-primary/[.07] px-4 py-3">
+            <div className="space-y-3 lg:space-y-2">
+              <div className="rounded-sm border border-primary/30 bg-primary/[.07] px-3 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" />{selecionada.titulo}</span>
                   <button type="button" onClick={trocarModo} className="text-[11px] font-bold text-foreground underline-offset-4 hover:underline">Trocar modo</button>
@@ -1203,15 +1244,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               </div>
 
               {etapa === 1 && (
-                <div className="mx-[-11px] mb-[16px] ml-[-10px] mt-[27px] grid gap-[40px] px-[20px] py-[17px] sm:grid-cols-2">
-                  {tipo === "share" && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {tipo === "share" && <div className="rounded-sm border border-primary/25 bg-primary/[.05] p-3 sm:col-span-2">
                     <p className="text-[12px] font-bold text-foreground">Deseja vincular uma aeronave nessa despesa?</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {([true, false] as const).map((opcao) => <button key={String(opcao)} type="button" onClick={() => { setVincularAeronave(opcao); if (!opcao) { setForm((atual) => ({ ...atual, aeronave_id: "", cotista_ids: [], rateio_linhas: [], numero_voo: "" })); setCotistas([]); } }} className={`rounded-sm border px-4 py-2 text-[11px] font-bold transition-colors ${vincularAeronave === opcao ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary/50"}`}>{opcao ? "Sim, vincular" : "Não, seguir sem aeronave"}</button>)}
                     </div>
                   </div>}
                   {exigeDadosAeronave && <>
-                    {tipo === "cliente" ? <>
+                    {tipo === "cliente" || tipo === "reembolso" ? <>
                       <Campo label="Aeronave" obrigatorio><SearchableCombobox items={dadosOpcoes.aeronaves.map((a) => ({ id: a.id, label: `${a.matricula_registro} · ${a.modelo}` }))} value={form.aeronave_id} onChange={selecionarAeronaveCliente} placeholder="Selecione a aeronave" searchPlaceholder="Buscar matrícula ou modelo" emptyMessage="Nenhuma aeronave encontrada." /></Campo>
                       <Campo label="Vínculo com voo" obrigatorio><div className="flex flex-wrap gap-2">{([ ["com_voo", "Com número de voo"], ["sem_voo", "Sem número de voo"] ] as const).map(([modo, titulo]) => <button key={modo} type="button" aria-pressed={modoNumeroVooCliente === modo} onClick={() => selecionarModoNumeroVooCliente(modo)} className={`rounded-sm border px-3 py-2 text-[11px] font-bold transition-colors ${modoNumeroVooCliente === modo ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary/50"}`}>{titulo}</button>)}</div></Campo>
                       {modoNumeroVooCliente === "com_voo" && <Campo label="Número do voo" obrigatorio><SearchableCombobox items={dadosOpcoes.voos.filter((voo) => voo.aeronave_id === form.aeronave_id).map((voo) => { const aeronave = dadosOpcoes.aeronaves.find((item) => item.id === voo.aeronave_id); const rota = [voo.origem, voo.destino].filter(Boolean).join(" → "); const data = dataBr(voo.ultima_data); return { id: voo.numero_voo, label: [voo.numero_voo, aeronave?.matricula_registro, rota, data !== "—" ? data : ""].filter(Boolean).join("  ") }; })} value={form.numero_voo} onChange={selecionarVooCliente} placeholder="Selecione o voo" searchPlaceholder="Buscar número do voo, rota ou data" emptyMessage="Nenhum voo para esta aeronave." disabled={!form.aeronave_id} /></Campo>}
@@ -1223,8 +1264,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       <Campo label="Cotista(s) da aeronave" obrigatorio><SearchableCombobox items={[{ id: "__todos__", label: "Todos os cotistas — ratear proporcionalmente" }, ...cotistas.map((c) => ({ id: c.id, label: `${c.nome} · ${Number(c.percentual_sociedade || 0).toFixed(2)}%${c.eh_holding ? " · Holding" : ""}` }))]} value={form.cotista_ids.length === cotistas.length && cotistas.length ? "__todos__" : form.cotista_ids.length ? "__selecionados__" : ""} selectedLabel={form.cotista_ids.length ? `${form.cotista_ids.length} cotista(s) selecionado(s)` : undefined} selectedValues={[...form.cotista_ids, ...(form.cotista_ids.length === cotistas.length && cotistas.length ? ["__todos__"] : [])]} onChange={atualizarSelecaoCotistas} placeholder="Selecione cotistas (adicione mais de um)" searchPlaceholder="Buscar cotista" emptyMessage="Nenhum cotista vinculado a esta aeronave." disabled={!form.aeronave_id} /></Campo>
                     </>}
                     {form.cotista_ids.length > 0 && <>
-                      <Campo label="Deseja vincular uma despesa existente?" className="sm:col-span-2"><SearchableCombobox items={[{ id: "ABASTECIMENTO", label: "ABASTECIMENTOS" }, { id: "RECIBOS", label: "RECIBOS" }, { id: "RELATORIOS DE VIAGEM", label: "RELATÓRIO DE VIAGEM" }]} value={origemDespesa} onChange={(id) => void selecionarOrigemDespesa(id as OrigemDespesaEnvio | "")} placeholder="Selecione a origem da despesa" searchPlaceholder="Buscar recibos, abastecimentos ou relatório" /></Campo>
-                      {origemDespesa && <Campo label="Despesa encontrada" className="sm:col-span-2"><SearchableCombobox items={despesasOrigem.map((item) => ({ id: item.id, label: [item.descricao || item.numero_recibo || item.numero_relatorio || origemDespesa, item.numero_voo ? `Voo ${item.numero_voo}` : "", item.data_despesa ? dataBr(item.data_despesa) : "", item.valor != null ? formatarValor(Number(item.valor)) : "", item.fornecedor].filter(Boolean).join(" · ") }))} value="" onChange={selecionarDespesaOrigem} placeholder={carregandoOrigem ? "Buscando despesas…" : "Selecione uma despesa para preencher o formulário"} searchPlaceholder="Buscar por descrição, data ou valor" emptyMessage="Nenhuma despesa encontrada para esta aeronave." disabled={carregandoOrigem || !despesasOrigem.length} /></Campo>}
+                      <label className="sm:col-span-2 flex min-h-9 cursor-pointer items-center gap-2 text-[11px] font-semibold text-foreground">
+                        <input type="checkbox" checked={vincularDespesaExistente} onChange={(event) => { const marcado = event.target.checked; setVincularDespesaExistente(marcado); if (!marcado) { setOrigemDespesa(""); setDespesasOrigem([]); } }} className="h-4 w-4 accent-primary" />
+                        Deseja vincular uma despesa existente?
+                      </label>
+                      {vincularDespesaExistente && <Campo label="Origem da despesa" className="sm:col-span-2"><SearchableCombobox items={[{ id: "ABASTECIMENTO", label: "ABASTECIMENTOS" }, { id: "RECIBOS", label: "RECIBOS" }, { id: "RELATORIOS DE VIAGEM", label: "RELATÓRIO DE VIAGEM" }]} value={origemDespesa} onChange={(id) => void selecionarOrigemDespesa(id as OrigemDespesaEnvio | "")} placeholder="Selecione a origem da despesa" searchPlaceholder="Buscar recibos, abastecimentos ou relatório" /></Campo>}
+                      {vincularDespesaExistente && origemDespesa && <Campo label="Despesa encontrada" className="sm:col-span-2"><SearchableCombobox items={despesasOrigem.map((item) => ({ id: item.id, label: [item.descricao || item.numero_recibo || item.numero_relatorio || origemDespesa, item.numero_voo ? `Voo ${item.numero_voo}` : "", item.data_despesa ? dataBr(item.data_despesa) : "", item.valor != null ? formatarValor(Number(item.valor)) : "", item.fornecedor].filter(Boolean).join(" · ") }))} value="" onChange={selecionarDespesaOrigem} placeholder={carregandoOrigem ? "Buscando despesas…" : "Selecione uma despesa para preencher o formulário"} searchPlaceholder="Buscar por descrição, data ou valor" emptyMessage="Nenhuma despesa encontrada para esta aeronave." disabled={carregandoOrigem || !despesasOrigem.length} /></Campo>}
                     </>}
                     {tipo === "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                     {tipo !== "share" && <Campo label="Tipo de rateio" obrigatorio><SearchableCombobox items={["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => ({ id: item, label: item }))} value={form.tipo_rateio} onChange={(id) => alterar("tipo_rateio", id)} placeholder="Selecione o tipo de rateio" searchPlaceholder="Buscar tipo de rateio" /></Campo>}
@@ -1233,7 +1278,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               )}
               {etapa === 2 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {tipo === "cliente" && <div role="status" className="rounded-sm border border-primary/25 bg-primary/[.05] p-4 sm:col-span-2">
                     <p className="text-[11px] font-bold uppercase tracking-[.12em] text-foreground">Resumo do rateio direto</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">Aeronave, cotistas e valor foram informados na etapa anterior. A divisão segue os percentuais definidos.</p>
@@ -1243,7 +1288,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       return <span key={cotista.id} className="rounded-sm border border-border/70 bg-background/50 px-2 py-1 text-[10px] text-muted-foreground">{cotista.nome} · {Number(linha?.percentual || 0).toFixed(2)}%</span>;
                     })}</div>
                   </div>}
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   {tipo !== "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                   <Campo label="Vencimento" obrigatorio={tipo === "share"}><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
@@ -1258,8 +1303,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                 </div>
               )}
               {etapa === totalEtapas && (
-                <div className="space-y-4">
-                  <div className="rounded-sm border border-border bg-secondary/[.14] p-4">
+                <div className="space-y-3">
+                  <div className="rounded-sm border border-border bg-secondary/[.14] p-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground">Revisão antes do envio</p>
                       <strong className="rounded-sm bg-primary px-3 py-1.5 font-mono text-sm text-primary-foreground">{formatarValor(valorInformado)}</strong>
@@ -1291,10 +1336,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="my-[9px] flex flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-5 py-[19px] md:px-6">
+        <div className="my-0 flex flex-wrap items-center justify-between gap-2 border-t border-[#172235] bg-[#080e19] px-4 py-2.5 md:px-5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
-            <Button type="button" variant="ghost" onClick={() => setHistorico((atual) => !atual)} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
+            <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
           </div>
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
@@ -1304,18 +1349,18 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </div>
       </section>
 
-      {!historico && rascunhos.length > 0 && (
-        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-[11px] text-amber-700 dark:text-amber-200">
-          <span>Você tem {rascunhos.length} programação(ões) em andamento.</span>
-          <button type="button" onClick={() => setHistorico(true)} className="font-bold underline">Ver no histórico</button>
-        </div>
-      )}
+      </>}
 
       {historico && (
         <HistoricoEnvios
           envios={envios}
-          rascunhos={rascunhos}
+          rascunhos={rascunhosVisiveis}
+          aeronaves={dadosOpcoes.aeronaves}
           carregando={carregando}
+          erro={erroHistorico}
+          onVoltar={fecharHistorico}
+          onAtualizar={carregar}
+          excluindoRascunhoId={excluindoRascunhoId}
           rotuloTipo={(tipo) => opcoes.find((opcao) => opcao.tipo === tipo)?.resumo ?? ""}
           restauracaoId={envioEmRestauracaoId}
           conversaoId={convertendoEnvioId}
@@ -1327,12 +1372,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         />
       )}
 
-      <Dialog open={rascunhoParaExcluir !== null} onOpenChange={(open) => { if (!open) setRascunhoParaExcluir(null); }}>
-        <DialogContent className="max-w-md">
+      <Dialog open={rascunhoParaExcluir !== null} onOpenChange={(open) => { if (!open && !excluindoRascunhoId) setRascunhoParaExcluir(null); }}>
+        <DialogContent className="w-[calc(100%_-_2rem)] max-w-md" onEscapeKeyDown={(event) => { if (excluindoRascunhoId) event.preventDefault(); }} onPointerDownOutside={(event) => { if (excluindoRascunhoId) event.preventDefault(); }}>
           <DialogHeader><DialogTitle className="text-base font-bold">Excluir rascunho?</DialogTitle><DialogDescription className="text-[11px]">Essa ação não pode ser desfeita.</DialogDescription></DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setRascunhoParaExcluir(null)}>Cancelar</Button>
-            <Button type="button" variant="destructive" onClick={() => rascunhoParaExcluir && void excluirRascunho(rascunhoParaExcluir)}>Excluir</Button>
+            <Button type="button" variant="outline" disabled={Boolean(excluindoRascunhoId)} onClick={() => setRascunhoParaExcluir(null)}>Cancelar</Button>
+            <Button type="button" variant="destructive" disabled={Boolean(excluindoRascunhoId)} onClick={() => rascunhoParaExcluir && void excluirRascunho(rascunhoParaExcluir)}>{excluindoRascunhoId ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}{excluindoRascunhoId ? "Excluindo…" : "Excluir"}</Button>
           </div>
         </DialogContent>
       </Dialog>

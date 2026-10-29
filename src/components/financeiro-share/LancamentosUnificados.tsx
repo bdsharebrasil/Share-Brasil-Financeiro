@@ -38,6 +38,7 @@ import {
   buscarOpcoesFinanceiroShare,
   darBaixaContaAPagar,
   darBaixaContaAReceber,
+  darBaixaLancamento,
   formatarData,
   formatarMoeda,
   type CategoriaCaixaShare,
@@ -80,13 +81,48 @@ type ChaveColuna =
   | "documento" | "descricao" | "favorecido" | "favorecidoPessoa"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
-type FiltroSituacao = SituacaoLinha | "TODAS";
+type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
+
+const STATUS_FILTRO: Array<{ valor: Exclude<FiltroSituacao, "TODAS">; rotulo: string }> = [
+  { valor: "EM_ABERTO", rotulo: "EM ABERTO" },
+  { valor: "PAGO", rotulo: "PAGO" },
+  { valor: "EM_ATRASO", rotulo: "EM ATRASO" },
+  { valor: "RECEBIDO", rotulo: "RECEBIDO" },
+  { valor: "AGUARDANDO_REEMBOLSO", rotulo: "AGUARDANDO REEMBOLSO" },
+  { valor: "REEMBOLSADO", rotulo: "REEMBOLSADO" },
+  { valor: "CANCELADO", rotulo: "CANCELADO" },
+];
+
+const FLUXOS_FILTRO: FluxoLinha[] = [
+  "ESTORNO", "RECEITA", "DESPESA", "SAIDA REEMBOLSO",
+  "ENTRADA REEMBOLSO", "SAIDA", "ENTRADA",
+];
+
+const rotuloStatus = (status: Exclude<FiltroSituacao, "TODAS">) =>
+  status.replace(/_/g, " ");
+
+function situacaoFiltroInicial(situacao?: SituacaoLinha): FiltroSituacao {
+  if (situacao === "PENDENTE") return "EM_ABERTO";
+  if (situacao === "ATRASADO") return "EM_ATRASO";
+  return situacao ?? "TODAS";
+}
+
+function statusParaFiltro(linha: LinhaConta): Exclude<FiltroSituacao, "TODAS"> {
+  if (linha.situacao === "ATRASADO") return "EM_ATRASO";
+  if (linha.statusOriginal === "PENDENTE") return "EM_ABERTO";
+  return linha.statusOriginal as Exclude<FiltroSituacao, "TODAS">;
+}
 
 const ROTULOS: Record<string, string> = {
-  PAGO: "Conciliado",
-  PENDENTE: "Pendente",
-  ATRASADO: "Atrasado",
-  CANCELADO: "Cancelado",
+  EM_ABERTO: "EM ABERTO",
+  PENDENTE: "EM ABERTO",
+  PAGO: "PAGO",
+  ATRASADO: "EM ATRASO",
+  EM_ATRASO: "EM ATRASO",
+  RECEBIDO: "RECEBIDO",
+  AGUARDANDO_REEMBOLSO: "AGUARDANDO REEMBOLSO",
+  REEMBOLSADO: "REEMBOLSADO",
+  CANCELADO: "CANCELADO",
 };
 const TONS: Record<string, string> = {
   PAGO: "sucesso", PENDENTE: "pendente", ATRASADO: "atrasado", CANCELADO: "cancelado",
@@ -176,7 +212,7 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
 }
 
 export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: Props) {
-  const pagar = useContasAPagar();
+  const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA" });
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
   const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";
@@ -187,7 +223,12 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const periodoRef = useRef<HTMLDivElement>(null);
   const botaoPeriodoRef = useRef<HTMLButtonElement>(null);
   const dialogoPeriodoRef = useRef<HTMLDivElement>(null);
+  const statusFiltroRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointerId: number; x: number; scrollLeft: number; dragged: boolean } | null>(null);
+  const stopDragRef = useRef<(() => void) | null>(null);
+  const suppressClickRef = useRef(false);
   const pararResizeRef = useRef<(() => void) | null>(null);
+  const [arrastandoTabela, setArrastandoTabela] = useState(false);
 
   const lancamentos = useMemo(() => (
     ehEntrada ? linhasDeContasAReceber(receber.contas) : linhasDeContasAPagar(pagar.contas)
@@ -195,9 +236,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 
   const [busca, setBusca] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
-  const [situacaoFiltro, setSituacaoFiltro] = useState<FiltroSituacao>(filtroInicial?.situacao ?? "TODAS");
+  const [situacaoFiltro, setSituacaoFiltro] = useState<FiltroSituacao>(situacaoFiltroInicial(filtroInicial?.situacao));
+  const [statusFiltroAberto, setStatusFiltroAberto] = useState(false);
   const [caixaFiltro, setCaixaFiltro] = useState("TODOS");
-  const [naturezaFiltro, setNaturezaFiltro] = useState("TODAS");
+  const [fluxoFiltro, setFluxoFiltro] = useState<"TODOS" | FluxoLinha>("TODOS");
   const [mes, setMes] = useState(mesAtualIso);
   const [mesesSelecionados, setMesesSelecionados] = useState<string[]>(() => [mesAtualIso()]);
   const [seletorMesAberto, setSeletorMesAberto] = useState(false);
@@ -211,6 +253,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
+  const [arrastando, setArrastando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -230,12 +273,12 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     setLarguras({});
   }, [fluxo]);
 
-  useEffect(() => { setSituacaoFiltro(filtroInicial?.situacao ?? "TODAS"); }, [filtroInicial?.situacao]);
+  useEffect(() => { setSituacaoFiltro(situacaoFiltroInicial(filtroInicial?.situacao)); }, [filtroInicial?.situacao]);
   useEffect(() => {
     setPagina(1);
-  }, [busca, situacaoFiltro, caixaFiltro, naturezaFiltro, mesesSelecionados,
+  }, [busca, situacaoFiltro, caixaFiltro, fluxoFiltro, mesesSelecionados,
     porPagina, fluxo, filtroInicial?.inicio, filtroInicial?.fim]);
-  useEffect(() => () => { pararResizeRef.current?.(); }, []);
+  useEffect(() => () => { pararResizeRef.current?.(); stopDragRef.current?.(); }, []);
 
   useEffect(() => {
     if (!seletorMesAberto) return;
@@ -254,6 +297,24 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     };
   }, [seletorMesAberto]);
 
+  useEffect(() => {
+    if (!statusFiltroAberto) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Node && !statusFiltroRef.current?.contains(evento.target)) {
+        setStatusFiltroAberto(false);
+      }
+    };
+    const fecharEscape = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setStatusFiltroAberto(false);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    document.addEventListener("keydown", fecharEscape);
+    return () => {
+      document.removeEventListener("pointerdown", fecharFora);
+      document.removeEventListener("keydown", fecharEscape);
+    };
+  }, [statusFiltroAberto]);
+
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "documento", rotulo: "DOC", largura: 162 },
     { chave: "descricao", rotulo: "Descrição" },
@@ -263,7 +324,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         { chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
     { chave: "contaBancaria", rotulo: "Conta", largura: 153 },
     { chave: "data", rotulo: "Data", largura: 172 },
-    { chave: "situacao", rotulo: "Situação", largura: 158 },
+    { chave: "situacao", rotulo: "Status", largura: 190 },
     { chave: "valor", rotulo: "Valor", largura: 180 },
   ], [ehEntrada]);
 
@@ -275,11 +336,11 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       if (filtroInicial?.inicio && vencimento < filtroInicial.inicio.slice(0, 10)) return false;
       if (filtroInicial?.fim && (!vencimento || vencimento > filtroInicial.fim.slice(0, 10))) return false;
       if (!temPeriodoInicial && !mesesSelecionados.includes((linha.dataLancamento || "").slice(0, 7))) return false;
-      if (situacaoFiltro !== "TODAS" && linha.situacao !== situacaoFiltro) return false;
+      if (situacaoFiltro !== "TODAS" && statusParaFiltro(linha) !== situacaoFiltro) return false;
       if (caixaFiltro !== "TODOS" && linha.caixa !== caixaFiltro) return false;
-      if (naturezaFiltro !== "TODAS" && linha.natureza !== naturezaFiltro) return false;
+      if (fluxoFiltro !== "TODOS" && linha.fluxo !== fluxoFiltro) return false;
       const texto = [linha.documento, linha.descricao, linha.categoria, linha.favorecido,
-        linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.natureza].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+        linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
       return texto.includes(textoBusca);
     }).sort((a, b) => {
       const chave = ordenacao.chave;
@@ -288,7 +349,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           String(chave === "data" ? b.dataLancamento ?? "" : b[chave] ?? ""), "pt-BR", { numeric: true });
       return ordenacao.crescente ? comparacao : -comparacao;
     });
-  }, [lancamentos, busca, situacaoFiltro, caixaFiltro, naturezaFiltro, mesesSelecionados,
+  }, [lancamentos, busca, situacaoFiltro, caixaFiltro, fluxoFiltro, mesesSelecionados,
     filtroInicial?.inicio, filtroInicial?.fim, temPeriodoInicial, ordenacao]);
 
   const selecao = useMemo(() => new Set(selecionados), [selecionados]);
@@ -310,9 +371,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     ? `${filtroInicial?.inicio ? dataOuTraco(filtroInicial.inicio) : "Início"} a ${filtroInicial?.fim ? dataOuTraco(filtroInicial.fim) : "hoje"}`
     : mesesSelecionados.length === 1 ? rotuloMes(mesesSelecionados[0]) : `${mesesSelecionados.length} meses selecionados`;
   const periodoImpressao = temPeriodoInicial ? periodo : [...mesesSelecionados].sort().map(rotuloMes).join(", ");
-  const naturezas = [...new Set(lancamentos.map((linha) => linha.natureza).filter(Boolean))];
   const filtrosAtivos = Number(Boolean(busca.trim())) + Number(situacaoFiltro !== "TODAS")
-    + Number(caixaFiltro !== "TODOS") + Number(naturezaFiltro !== "TODAS");
+    + Number(caixaFiltro !== "TODOS") + Number(fluxoFiltro !== "TODOS");
 
   // Se uma atualização reduzir o número de páginas, mantém a página válida.
   useEffect(() => { setPagina((atual) => Math.min(atual, paginas)); }, [paginas]);
@@ -349,7 +409,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     botaoPeriodoRef.current?.focus();
   }
   function limparFiltros() {
-    setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setNaturezaFiltro("TODAS");
+    setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setFluxoFiltro("TODOS");
   }
   function iniciarResize(evento: ReactPointerEvent<HTMLSpanElement>, chave: ChaveColuna) {
     evento.preventDefault(); evento.stopPropagation();
@@ -366,6 +426,46 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       pararResizeRef.current = null;
     };
     pararResizeRef.current = parar;
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", parar);
+    window.addEventListener("pointercancel", parar);
+  }
+  function iniciarArrasteTabela(evento: ReactPointerEvent<HTMLDivElement>) {
+    if (!evento.isPrimary || evento.button !== 0 || evento.pointerType === "touch") return;
+    if (evento.target instanceof Element && evento.target.closest("button, a, input, select, textarea, .erp-redimensionar")) return;
+
+    stopDragRef.current?.();
+    const container = evento.currentTarget;
+    const inicioX = evento.clientX;
+    const scrollInicial = container.scrollLeft;
+    const ponteiroId = evento.pointerId;
+    let arrastou = false;
+
+    const mover = (movimento: PointerEvent) => {
+      if (movimento.pointerId !== ponteiroId) return;
+      const deslocamento = movimento.clientX - inicioX;
+      if (!arrastou && Math.abs(deslocamento) > 5) {
+        arrastou = true;
+        setArrastandoTabela(true);
+      }
+      if (arrastou) {
+        movimento.preventDefault();
+        container.scrollLeft = scrollInicial - deslocamento;
+      }
+    };
+    const parar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", parar);
+      window.removeEventListener("pointercancel", parar);
+      if (arrastou) {
+        suppressClickRef.current = true;
+        window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      }
+      setArrastandoTabela(false);
+      stopDragRef.current = null;
+    };
+
+    stopDragRef.current = parar;
     window.addEventListener("pointermove", mover);
     window.addEventListener("pointerup", parar);
     window.addEventListener("pointercancel", parar);
@@ -431,22 +531,32 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           <label className="erp-busca"><span className="erp-sr-only">Buscar lançamento</span><Search size={16} aria-hidden="true" />
             <input type="search" placeholder="Buscar lançamento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
           </label>
-          <label><span className="erp-sr-only">Situação</span><select value={situacaoFiltro} onChange={(e) => setSituacaoFiltro(e.target.value as FiltroSituacao)}>
-            <option value="TODAS">Todas as situações</option><option value="PENDENTE">Pendente</option>
-            <option value="ATRASADO">Atrasado</option><option value="PAGO">Conciliado</option><option value="CANCELADO">Cancelado</option>
-          </select></label>
           <label><span className="erp-sr-only">Caixa</span><select value={caixaFiltro} onChange={(e) => setCaixaFiltro(e.target.value)}>
             <option value="TODOS">Todos os caixas</option><option value="SHARE">Share</option><option value="CLIENTE">Cliente</option>
           </select></label>
-          <label><span className="erp-sr-only">Natureza</span><select value={naturezaFiltro} onChange={(e) => setNaturezaFiltro(e.target.value)}>
-            <option value="TODAS">Todas as naturezas</option>{naturezas.map((natureza) => <option key={natureza} value={natureza}>{natureza}</option>)}
+          <label><span className="erp-sr-only">Fluxo</span><select value={fluxoFiltro} onChange={(e) => setFluxoFiltro(e.target.value as "TODOS" | FluxoLinha)}>
+            <option value="TODOS">Todos os fluxos</option>{FLUXOS_FILTRO.map((item) => <option key={item} value={item}>{item}</option>)}
           </select></label>
           <button type="button" className="erp-btn erp-btn-texto" onClick={limparFiltros}><X size={15} aria-hidden="true" />Limpar</button>
         </div>}
 
         {erro && <div className="erp-erro" role="alert"><span>{String(erro)}</span><button type="button" className="erp-btn" onClick={() => void recarregar()}>Tentar novamente</button></div>}
 
-        <div className="erp-tabela-container" role="region" aria-label="Tabela de lançamentos" tabIndex={0} aria-busy={carregando}>
+        <div
+          className={`erp-tabela-container ${arrastandoTabela ? "erp-arrastando" : ""}`}
+          role="region"
+          aria-label="Tabela de lançamentos; arraste para rolar horizontalmente"
+          tabIndex={0}
+          aria-busy={carregando}
+          onPointerDown={iniciarArrasteTabela}
+          onClickCapture={(evento) => {
+            if (suppressClickRef.current) {
+              evento.preventDefault();
+              evento.stopPropagation();
+              suppressClickRef.current = false;
+            }
+          }}
+        >
           <table className={`erp-tabela ${!ehEntrada ? "erp-tabela-saidas" : ""}`}>
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
             <colgroup><col style={{ width: 80 }} />{colunas.map((coluna) => (
@@ -458,10 +568,42 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                   desabilitado={carregando || !linhas.length} rotulo="Selecionar todos desta página" aoMudar={alternarPagina} />
               </div></th>
               {colunas.map((coluna) => <th scope="col" key={coluna.chave}
+                className={coluna.chave === "situacao" ? "erp-th-status" : undefined}
                 aria-sort={ordenacao.chave === coluna.chave ? ordenacao.crescente ? "ascending" : "descending" : "none"}>
-                <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
-                  {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
-                </button>
+                {coluna.chave === "situacao" ? (
+                  <div className="erp-status-th-conteudo">
+                    <div className="erp-status-filtro-anchor" ref={statusFiltroRef}>
+                      <button
+                        type="button"
+                        className={`erp-status-filtro-trigger ${situacaoFiltro !== "TODAS" ? "erp-status-filtro-ativo" : ""}`}
+                        aria-label="Filtrar por status"
+                        title="Filtrar por status"
+                        aria-haspopup="dialog"
+                        aria-expanded={statusFiltroAberto}
+                        onClick={() => setStatusFiltroAberto((aberto) => !aberto)}
+                      >
+                        <Filter size={13} aria-hidden="true" />
+                      </button>
+                      {statusFiltroAberto && (
+                        <div className="erp-status-filtro-menu" role="dialog" aria-label="Filtrar por status">
+                          <button type="button" aria-pressed={situacaoFiltro === "TODAS"} onClick={() => { setSituacaoFiltro("TODAS"); setStatusFiltroAberto(false); }}>Todos os status</button>
+                          {STATUS_FILTRO.filter(({ valor }) => !ehEntrada || valor !== "PAGO").map(({ valor, rotulo }) => (
+                            <button key={valor} type="button" aria-pressed={situacaoFiltro === valor} onClick={() => { setSituacaoFiltro(valor); setStatusFiltroAberto(false); }}>
+                              {rotulo}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                      {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                    {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                  </button>
+                )}
                 <span className="erp-redimensionar" onPointerDown={(e) => iniciarResize(e, coluna.chave)} aria-hidden="true" title="Arraste para ajustar a coluna" />
               </th>)}
             </tr></thead>
@@ -489,7 +631,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                       </>}
                       <td title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>
                       <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
-                      <td><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[linha.situacao] ?? linha.situacao}</span></td>
+                      <td><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>
                       <td className="erp-valor">{formatarMoeda(linha.valor)}</td>
                     </tr>
                     {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunas.length + 1}>
@@ -525,7 +667,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             <td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
             {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <><td>{linha.favorecidoPessoa || "—"}</td><td>{linha.fornecedor || "—"}</td></>}
             <td>{linha.contaBancaria}</td><td>{dataOuTraco(linha.dataLancamento)}</td>
-            <td>{ROTULOS[linha.situacao] ?? linha.situacao}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
+            <td>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
           </tr>)}</tbody>
           <tfoot><tr><td colSpan={colunas.length - 1}>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"} ({itensRelatorio.length} {itensRelatorio.length === 1 ? "item" : "itens"})</td><td className="erp-direita">{formatarMoeda(totalRelatorio)}</td></tr></tfoot>
         </table>
@@ -541,7 +683,17 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         }} />}
       {contaBaixa && !ehEntrada && <ModalContaAPagar conta={contaBaixa.raw as ContaAPagar} aberto onFechar={() => setContaBaixa(null)}
         onConfirmar={async (dados) => {
-          await darBaixaContaAPagar(contaBaixa.id, dados);
+          const conta = contaBaixa.raw as ContaAPagar;
+          if (conta.fonteLancamento) {
+            await darBaixaLancamento(contaBaixa.id, {
+              dataPagamento: dados.dataPagamento,
+              pagoPor: dados.bancoPagamento,
+              contaBancariaId: conta.contaBancariaId,
+              comprovanteUrl: dados.comprovantePagamentoUrl,
+            });
+          } else {
+            await darBaixaContaAPagar(contaBaixa.id, dados);
+          }
           setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
@@ -595,7 +747,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-seletor-rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
 .erp-financeiro .erp-seletor-rodape > span { color: var(--erp-muted); font-size: 11px; }
 .erp-financeiro .erp-seletor-rodape .erp-btn { height: 30px; padding: 0 9px; font-size: 11px; }
-.erp-financeiro .erp-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(140px, 1fr)) auto; gap: 9px; padding: 10px; margin: 7px 0; background: var(--erp-panel); border: 1px solid var(--erp-border); border-radius: 4px; }
+.erp-financeiro .erp-filtros { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(140px, 1fr)) auto; gap: 9px; padding: 10px; margin: 7px 0; background: var(--erp-panel); border: 1px solid var(--erp-border); border-radius: 4px; }
 .erp-financeiro .erp-filtros label { min-width: 0; }
 .erp-financeiro .erp-filtros input, .erp-financeiro .erp-filtros select { width: 100%; height: 35px; background: #0f151c; color: var(--erp-text); border: 1px solid #34414e; border-radius: 4px; padding: 0 10px; }
 .erp-financeiro .erp-filtros input::placeholder { color: #8c9bae; }
@@ -603,13 +755,23 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-busca > svg { position: absolute; top: 10px; left: 11px; color: var(--erp-muted); }
 .erp-financeiro .erp-busca input { padding-left: 35px; }
 .erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid #a83b4b; border-radius: 4px; color: #ffb7bf; background: #7b263322; }
-.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--erp-border); border-radius: 5px 5px 3px 3px; scrollbar-color: #3c4b5d #10151a; }
+.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--erp-border); border-radius: 5px 5px 3px 3px; scrollbar-color: #3c4b5d #10151a; cursor: grab; }
+.erp-financeiro .erp-tabela-container.erp-arrastando, .erp-financeiro .erp-tabela-container.erp-arrastando * { cursor: grabbing !important; user-select: none; }
 .erp-financeiro .erp-tabela { width: 100%; min-width: 1380px; border-collapse: collapse; table-layout: fixed; text-align: left; color: var(--erp-text); }
 .erp-financeiro .erp-tabela-saidas { min-width: 1550px; }
 .erp-financeiro .erp-tabela thead { background: linear-gradient(#19212877, #12181d55); }
 .erp-financeiro .erp-tabela th { position: relative; height: 32px; padding: 0 16px; border-bottom: 1px solid var(--erp-border); border-right: 1px solid #27313b88; font-weight: 600; }
+.erp-financeiro .erp-tabela th.erp-th-status { height: 32px; padding: 0 8px; }
 .erp-financeiro .erp-tabela th:first-child { padding: 0; }
 .erp-financeiro .erp-ordenar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; height: 32px; padding: 0; border: 0; background: transparent; color: #c5d5ea; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; text-align: left; }
+.erp-financeiro .erp-status-th-conteudo { display: flex; align-items: center; gap: 5px; }
+.erp-financeiro .erp-status-th-conteudo .erp-ordenar { flex: 1; }
+.erp-financeiro .erp-status-filtro-anchor { position: relative; z-index: 20; flex: 0 0 auto; }
+.erp-financeiro .erp-status-filtro-trigger { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #159dff; cursor: pointer; }
+.erp-financeiro .erp-status-filtro-trigger:hover, .erp-financeiro .erp-status-filtro-trigger.erp-status-filtro-ativo { background: #159dff22; color: #49b3ff; }
+.erp-financeiro .erp-status-filtro-menu { position: absolute; top: calc(100% + 5px); left: 0; z-index: 50; width: 190px; max-height: 250px; overflow-y: auto; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
+.erp-financeiro .erp-status-filtro-menu button { display: block; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: #b7c5d5; font-size: 10px; text-align: left; cursor: pointer; }
+.erp-financeiro .erp-status-filtro-menu button:hover, .erp-financeiro .erp-status-filtro-menu button[aria-pressed="true"] { background: #159dff22; color: #61bbff; }
 .erp-financeiro .erp-ordenar > svg { color: #a6bbd4; }
 .erp-financeiro .erp-redimensionar { position: absolute; right: -3px; top: 0; bottom: 0; z-index: 1; width: 7px; cursor: col-resize; touch-action: none; }
 .erp-financeiro .erp-redimensionar:hover { background: #159cff66; }

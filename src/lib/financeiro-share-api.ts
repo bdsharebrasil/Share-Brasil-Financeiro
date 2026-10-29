@@ -285,6 +285,8 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     bancoPagamento: row.bancoPagamento ?? row.banco_pagamento ?? null,
 
+    contaBancariaId: row.contaBancariaId ?? row.conta_bancaria_id ?? null,
+
     comprovantePagamentoUrl: row.comprovantePagamentoUrl ?? row.comprovante_pagamento_url ?? null,
 
     dataRecebimento: row.dataRecebimento ?? row.data_recebimento ?? null,
@@ -337,12 +339,13 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
 
     grupoCategoria: String(row.grupoCategoria ?? row.grupo_categoria ?? ""), tipo: row.tipo ?? row.tipo_despesa ?? null,
 
-    prazo: row.prazo ?? row.data_vencimento ?? null, fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "SAIDA").toUpperCase()) ? "ENTRADA" : "SAIDA",
+    prazo: row.prazo ?? row.data_vencimento ?? null, fluxoOriginal: String(row.fluxo ?? ""), fluxo: ["ENTRADA", "RECEITA"].includes(String(row.fluxo ?? "SAIDA").toUpperCase()) ? "ENTRADA" : "SAIDA",
 
     valorCentavos: Number(row.valorCentavos ?? row.valor_centavos ?? Math.round(Number(row.valor_total ?? row.valor ?? 0) * 100)),
 
     pagoPor: String(row.pagoPor ?? row.pago_por ?? row.pago_por_cotista_id ?? ""), caixa: ((String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "CLIENTE" || String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() === "HOLDING") ? String(row.caixa ?? row.tipo_caixa ?? "SHARE").toUpperCase() : "SHARE") as "CLIENTE" | "HOLDING" | "SHARE",
-    contaBancaria: row.contaBancaria ?? row.banco_pagamento_nome ?? null,
+    contaBancariaId: row.contaBancariaId ?? row.conta_bancaria_id ?? null,
+    contaBancaria: row.contaBancaria ?? row.conta_bancaria_nome ?? row.nome_conta_bancaria ?? row.banco_pagamento_nome ?? null,
 
     pagoDiretamente: flagFinanceira(row.pagoDiretamente ?? row.pago_diretamente), reembolsavel: flagFinanceira(row.reembolsavel),
 
@@ -380,6 +383,55 @@ export async function buscarCaixaEmpresa(filtros: FiltrosCaixaEmpresa = {}): Pro
 
     (!filtros.fluxo || item.fluxo === filtros.fluxo) && (!filtros.status || item.status === filtros.status) && (!filtros.categoriaId || item.categoriaId === filtros.categoriaId));
 
+}
+
+export type ContaBancariaLancamento = { id: string; nome: string | null };
+
+type LancamentosComContas = { lancamentos: Lancamento[]; contasPorLancamento: Map<string, ContaBancariaLancamento> };
+let consultaLancamentosComContas: Promise<LancamentosComContas> | null = null;
+
+function buscarDadosLancamentosComContas(): Promise<LancamentosComContas> {
+  if (!consultaLancamentosComContas) {
+    const consulta = Promise.all([
+      Promise.all((['SHARE', 'CLIENTE', 'HOLDING'] as const).map((caixa) => buscarCaixaEmpresa({ caixa }))),
+      buscarOpcoesFinanceiroShare(),
+    ]).then(([gruposLancamentos, opcoes]) => {
+      const nomesPorConta = new Map(
+        opcoes.contas_bancarias.map((conta) => [conta.id, conta.nome?.trim() || null]),
+      );
+      const lancamentos = gruposLancamentos.flat().map((lancamento) => ({
+        ...lancamento,
+        contaBancaria: lancamento.contaBancariaId
+          ? nomesPorConta.get(lancamento.contaBancariaId) || lancamento.contaBancaria || null
+          : lancamento.contaBancaria,
+      }));
+      const contasPorLancamento = new Map<string, ContaBancariaLancamento>();
+      for (const lancamento of lancamentos) {
+        if (lancamento.contaBancariaId) {
+          contasPorLancamento.set(lancamento.id, {
+            id: lancamento.contaBancariaId,
+            nome: lancamento.contaBancaria ?? null,
+          });
+        }
+      }
+      return { lancamentos, contasPorLancamento };
+    });
+    consultaLancamentosComContas = consulta;
+    void consulta.then(
+      () => { if (consultaLancamentosComContas === consulta) consultaLancamentosComContas = null; },
+      () => { if (consultaLancamentosComContas === consulta) consultaLancamentosComContas = null; },
+    );
+  }
+  return consultaLancamentosComContas;
+}
+
+/** Resolve contas pelo ID gravado em `lancamentos.conta_bancaria_id`. */
+export async function buscarContasBancariasPorLancamento(): Promise<Map<string, ContaBancariaLancamento>> {
+  return (await buscarDadosLancamentosComContas()).contasPorLancamento;
+}
+
+export async function buscarLancamentosComContasBancarias(): Promise<Lancamento[]> {
+  return (await buscarDadosLancamentosComContas()).lancamentos;
 }
 
 export type SolicitacaoCompraFinanceira = {
@@ -517,7 +569,7 @@ export type CategoriaCaixaShare = {
 
 };
 
-export type ContaBancaria = { id: string; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null; tipo_caixa?: string | null; ativo?: number | boolean | null };
+export type ContaBancaria = { id: string; nome?: string | null; banco: string; numero_conta: string | null; tipo_conta: string | null; holding_id?: string | null; tipo_caixa?: string | null; ativo?: number | boolean | null };
 
 export type SolicitacaoBaixaPortal = {
   id: string;
@@ -1636,13 +1688,13 @@ export function editarLancamento(id: string, dados: Record<string, unknown>) {
 
 }
 
-export function darBaixaLancamento(id: string, dados: { dataPagamento?: string; valorPagoRealCentavos?: number; pagoPor?: string | null } = {}) {
+export function darBaixaLancamento(id: string, dados: { dataPagamento?: string; valorPagoRealCentavos?: number; pagoPor?: string | null; contaBancariaId?: string | null; comprovanteUrl?: string | null } = {}) {
 
   return financeiroRequest<Record<string, unknown>>(`/api/financeiro/lancamentos/${encodeURIComponent(id)}/baixa`, {
 
     method: "POST",
 
-    body: JSON.stringify({ data_pagamento: dados.dataPagamento, valor_pago_real_centavos: dados.valorPagoRealCentavos, pago_por: dados.pagoPor }),
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, valor_pago_real_centavos: dados.valorPagoRealCentavos, pago_por: dados.pagoPor, conta_bancaria_id: dados.contaBancariaId, comprovante_url: dados.comprovanteUrl }),
 
   });
 

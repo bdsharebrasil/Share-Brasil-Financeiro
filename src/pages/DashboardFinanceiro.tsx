@@ -18,7 +18,6 @@ import { TabelaAbastecimentosPendentes } from "@/components/dashboard/financeiro
 import {
   AcaoRapida,
   CabecalhoSecao,
-  CartaoKpi,
   EtiquetaStatus,
   EstadoVazio,
   HeroDashboard,
@@ -277,27 +276,7 @@ export default function DashboardFinanceiro({
         </div>
       )}
 
-      <div className="mx-auto mb-6 grid w-full max-w-[820px] gap-3 sm:grid-cols-2">
-        <CartaoKpi
-          label="Despesas não enviadas"
-          value={carregando ? "—" : String(operacoesNaoEnviadas.length)}
-          detail="Despesas sem e-mail enviado"
-          tone="amber"
-          icon={<Clock3 size={16} />}
-          className="min-w-0"
-          onClick={() => setMostrarPendencias((atual) => !atual)}
-        />
-        <CartaoKpi
-          label="Total a receber"
-          value={carregando ? "—" : formatarMoeda(Number(resumo?.total_a_receber ?? 0))}
-          detail="Valores pendentes de recebimento"
-          tone="green"
-          icon={<TrendingUp size={16} />}
-          className="min-w-0"
-        />
-      </div>
-
-      <section className="mx-auto mb-5 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
+      <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="Recibos"
@@ -339,7 +318,23 @@ export default function DashboardFinanceiro({
           title="Movimentações financeiras"
           detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                <button
+                  type="button"
+                  aria-pressed={mostrarPendencias}
+                  onClick={() => setMostrarPendencias((atual) => !atual)}
+                  className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-1 py-1 transition-colors hover:text-amber-600 dark:hover:text-amber-300 ${mostrarPendencias ? "text-amber-600 dark:text-amber-300" : ""}`}
+                  title="Filtrar despesas sem e-mail enviado"
+                >
+                  <Clock3 size={12} /> {carregando ? "—" : operacoesNaoEnviadas.length} sem envio
+                </button>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap" title="Valores pendentes de recebimento">
+                  <TrendingUp size={12} className="text-emerald-600 dark:text-emerald-400" />
+                  A receber {carregando ? "—" : formatarMoeda(Number(resumo?.total_a_receber ?? 0))}
+                </span>
+              </div>
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button
                 type="button"
                 variant="outline"
@@ -357,6 +352,7 @@ export default function DashboardFinanceiro({
               >
                 <RefreshCw size={12} className={atualizando ? "animate-spin" : ""} /> Atualizar
               </Button>
+              </div>
             </div>
           }
         />

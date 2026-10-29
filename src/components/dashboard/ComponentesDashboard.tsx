@@ -32,26 +32,24 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
 export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   const heroImage = ambiente === "operacoes" ? aviationHeroOperacoes : aviationHero;
   return (
-    <section className="hero-panel relative mb-5 overflow-hidden rounded-xl border border-white/10 bg-[#111b29] shadow-[0_18px_55px_rgba(0,0,0,.22)] sm:mb-6 sm:rounded-2xl">
+    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-white/10 bg-[#111b29] shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
       <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_38%,rgba(5,12,22,.22)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.55)_0%,transparent_58%)]" />
-      <div className="relative -my-[4px] flex min-h-[139px] flex-col justify-between gap-5 px-4 py-[11px] sm:gap-8 sm:px-6 md:px-8">
-        <div className="my-[3px] flex items-center justify-between gap-4 py-[6px]">
-          <IndicadorPagina>Dashboard {nomesAmbiente[ambiente]}</IndicadorPagina>
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_45%,rgba(5,12,22,.28)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.45)_0%,transparent_60%)]" />
+      <div className="relative flex min-h-[84px] items-center justify-between gap-3 px-4 py-3 sm:min-h-[96px] sm:gap-6 sm:px-6 sm:py-4 md:px-8">
+        <div className="min-w-0">
+          <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            <span className="truncate">Dashboard {nomesAmbiente[ambiente]}</span>
+          </p>
+          <h1 className="truncate text-xl font-extrabold leading-tight tracking-[-.02em] text-white sm:text-2xl md:text-[28px]">{title}</h1>
+          {subtitle && <p className="mt-0.5 truncate text-[11px] font-medium text-white/65 sm:text-xs">{subtitle}</p>}
         </div>
-        <div className="my-0 flex flex-col gap-4 py-0 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-          <div className="my-0 min-w-0 py-0">
-            {subtitle && <p className="mb-1.5 truncate text-[11px] font-semibold text-white/65 sm:mb-2 sm:text-xs">{subtitle}</p>}
-            <h1 className="break-words text-2xl font-extrabold leading-tight tracking-[-.03em] text-white sm:text-[28px] md:text-[38px]">{title}</h1>
-          </div>
-          {children && <div className="shrink-0">{children}</div>}
-        </div>
+        {children && <div className="shrink-0">{children}</div>}
       </div>
     </section>
   );
 }
-
 export type TomKpi = "blue" | "green" | "amber" | "red" | "violet";
 
 export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, className, onClick }: { label: string; value: string; detail: string; tone?: TomKpi; icon: ReactNode; trend?: string; className?: string; onClick?: () => void }) {

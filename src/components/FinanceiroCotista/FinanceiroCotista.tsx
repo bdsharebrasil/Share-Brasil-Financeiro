@@ -52,6 +52,7 @@ import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -303,19 +304,64 @@ function deslocarMes(competencia: string, deslocamento: number): string {
 }
 
 const MESES_CURTOS = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ] as const;
+
+function SeletorMesesCotista({
+  mesesSelecionados,
+  aoAlternar,
+  aoSelecionarMesAtual,
+}: {
+  mesesSelecionados: string[];
+  aoAlternar: (mes: string) => void;
+  aoSelecionarMesAtual: () => void;
+}) {
+  const mesAtual = mesAtualLocal();
+  const mesReferencia = mesesSelecionados[mesesSelecionados.length - 1] || mesAtual;
+  const [ano, setAno] = useState(Number(mesReferencia.slice(0, 4)));
+  const [aberto, setAberto] = useState(false);
+
+  useEffect(() => {
+    setAno(Number(mesReferencia.slice(0, 4)));
+  }, [mesReferencia]);
+
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <button type="button" className="despesa-control inline-flex items-center gap-1.5" aria-expanded={aberto}>
+          Mês Atual <ChevronDown size={12} aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="despesas-theme w-[290px] border-border bg-popover p-3 text-popover-foreground">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <button type="button" className="despesa-control despesa-control-icon" aria-label="Ano anterior" onClick={() => setAno((valor) => Math.max(1900, valor - 1))}><ChevronLeft size={14} /></button>
+            <strong className="min-w-10 text-center text-sm tabular-nums">{ano}</strong>
+            <button type="button" className="despesa-control despesa-control-icon" aria-label="Próximo ano" onClick={() => setAno((valor) => Math.min(9999, valor + 1))}><ChevronRight size={14} /></button>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label={`Meses de ${ano}`}>
+          {MESES_CURTOS.map((mes, indice) => {
+            const competencia = `${ano}-${String(indice + 1).padStart(2, "0")}`;
+            const selecionado = mesesSelecionados.includes(competencia);
+            return (
+              <button key={competencia} type="button" aria-pressed={selecionado} onClick={() => aoAlternar(competencia)} className={`rounded-md border px-2 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
+                {mes}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-muted-foreground">Selecione um ou mais meses.</span>
+          <button type="button" className="despesa-control h-[30px] px-2 text-[11px]" onClick={() => { aoSelecionarMesAtual(); setAberto(false); }}>
+            Mês atual
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function hoje() {
   const data = new Date();
@@ -1710,9 +1756,6 @@ function LancamentosDespesa({
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [anoFiltro, setAnoFiltro] = useState(() =>
-    Number((mesesSelecionados[0] || mesAtualLocal()).slice(0, 4)),
-  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const limparGestoRef = useRef<(() => void) | null>(null);
   const bloquearCliqueRef = useRef(false);
@@ -1894,6 +1937,18 @@ function LancamentosDespesa({
   );
   const colunas: ColunaDespesa[] = [
     {
+      id: "data",
+      titulo: "Data",
+      largura: 130,
+      minimo: 110,
+      valor: (item) => item.dataEmissao || item.data,
+      render: (item) => (
+        <p className="despesa-date">
+          {formatarData(item.dataEmissao || item.data)}
+        </p>
+      ),
+    },
+    {
       id: "documento",
       titulo: "Doc",
       largura: 130,
@@ -1925,18 +1980,6 @@ function LancamentosDespesa({
       minimo: 112,
       valor: (item) => item.categoria || "Sem categoria",
       render: (item) => texto(item.categoria || "Sem categoria"),
-    },
-    {
-      id: "data",
-      titulo: "Data",
-      largura: 130,
-      minimo: 110,
-      valor: (item) => item.dataEmissao || item.data,
-      render: (item) => (
-        <p className="despesa-date">
-          {formatarData(item.dataEmissao || item.data)}
-        </p>
-      ),
     },
     {
       id: "status",
@@ -2264,18 +2307,12 @@ function LancamentosDespesa({
       </p>
     </div>
   );
-  const mesReferencia = mesesSelecionados[0] || mesAtualLocal();
-  const mesesDoAno = MESES_CURTOS.map(
-    (_, indice) => `${anoFiltro}-${String(indice + 1).padStart(2, "0")}`,
-  );
-  const anoCompleto = mesesDoAno.every((mes) =>
-    mesesSelecionados.includes(mes),
-  );
+  const mesReferencia =
+    mesesSelecionados[mesesSelecionados.length - 1] || mesAtualLocal();
   const todosExpandidos =
     itensDaPagina.length > 0 &&
     itensDaPagina.every((item) => expandidos.has(item.id));
   const selecionarMes = (mes: string) => {
-    setAnoFiltro(Number(mes.slice(0, 4)));
     aoSelecionarMes(mes);
   };
   const alternarMes = (mes: string) =>
@@ -2284,6 +2321,9 @@ function LancamentosDespesa({
         ? mesesSelecionados.filter((item) => item !== mes)
         : [...mesesSelecionados, mes],
     );
+  const selecionarMesUnico = (mes: string) => {
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) aoAlterarMeses([mes]);
+  };
   const filtrosAtivos =
     Number(Boolean(busca.trim())) +
     Number(filtroStatus !== "todos") +
@@ -2402,18 +2442,18 @@ function LancamentosDespesa({
               role="group"
               aria-label="Navegar pelas competências"
             >
-              <button
-                type="button"
-                className="despesa-control"
-                onClick={() => selecionarMes(mesAtualLocal())}
-              >
-                Mês atual
-              </button>
+              <SeletorMesesCotista
+                mesesSelecionados={mesesSelecionados}
+                aoAlternar={alternarMes}
+                aoSelecionarMesAtual={() => selecionarMes(mesAtualLocal())}
+              />
               <button
                 type="button"
                 className="despesa-control despesa-control-icon"
                 aria-label="Selecionar mês anterior"
-                onClick={() => selecionarMes(deslocarMes(mesReferencia, -1))}
+                onClick={() =>
+                  selecionarMesUnico(deslocarMes(mesReferencia, -1))
+                }
               >
                 <ChevronLeft size={16} />
               </button>
@@ -2426,7 +2466,9 @@ function LancamentosDespesa({
                 type="button"
                 className="despesa-control despesa-control-icon"
                 aria-label="Selecionar próximo mês"
-                onClick={() => selecionarMes(deslocarMes(mesReferencia, 1))}
+                onClick={() =>
+                  selecionarMesUnico(deslocarMes(mesReferencia, 1))
+                }
               >
                 <ChevronRight size={16} />
               </button>
@@ -2493,100 +2535,6 @@ function LancamentosDespesa({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="despesa-period-filter">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-semibold">Competências</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="despesa-control despesa-control-icon"
-                      disabled={anoFiltro <= 1900}
-                      aria-label="Ano anterior"
-                      onClick={() => setAnoFiltro((ano) => ano - 1)}
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <span className="text-xs tabular-nums" aria-live="polite">
-                      {anoFiltro}
-                    </span>
-                    <button
-                      type="button"
-                      className="despesa-control despesa-control-icon"
-                      disabled={anoFiltro >= 9999}
-                      aria-label="Próximo ano"
-                      onClick={() => setAnoFiltro((ano) => ano + 1)}
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="despesa-control"
-                      aria-pressed={anoCompleto}
-                      onClick={() =>
-                        aoAlterarMeses(
-                          anoCompleto
-                            ? mesesSelecionados.filter(
-                                (mes) => !mesesDoAno.includes(mes),
-                              )
-                            : [
-                                ...new Set([
-                                  ...mesesSelecionados,
-                                  ...mesesDoAno,
-                                ]),
-                              ],
-                        )
-                      }
-                    >
-                      Ano inteiro
-                    </button>
-                  </div>
-                </div>
-                <div
-                  className="despesa-month-grid"
-                  role="group"
-                  aria-label={`Selecionar meses de ${anoFiltro}`}
-                >
-                  {MESES_CURTOS.map((mes, indice) => (
-                    <button
-                      key={mesesDoAno[indice]}
-                      type="button"
-                      className="despesa-month-choice"
-                      aria-label={`${mes} ${anoFiltro}`}
-                      aria-pressed={mesesSelecionados.includes(
-                        mesesDoAno[indice],
-                      )}
-                      disabled={
-                        mesesSelecionados.length === 1 &&
-                        mesesSelecionados[0] === mesesDoAno[indice]
-                      }
-                      onClick={() => alternarMes(mesesDoAno[indice])}
-                    >
-                      {mes}
-                    </button>
-                  ))}
-                </div>
-                <div
-                  className="despesa-selected-months"
-                  aria-label="Competências selecionadas"
-                >
-                  {mesesSelecionados.map((mes) => (
-                    <button
-                      type="button"
-                      key={mes}
-                      disabled={mesesSelecionados.length === 1}
-                      aria-label={`Remover ${rotuloMesCotista(mes)}`}
-                      onClick={() => alternarMes(mes)}
-                    >
-                      {rotuloMesCotista(mes)}
-                      <X size={12} className="shrink-0" />
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  Selecione um ou vários meses, inclusive de anos diferentes. As
-                  setas da barra selecionam um único mês.
-                </p>
-              </div>
               <div className="flex flex-wrap items-center gap-3 text-xs sm:col-span-2">
                 <button
                   type="button"
@@ -2595,13 +2543,6 @@ function LancamentosDespesa({
                 >
                   <X size={12} />
                   Limpar busca e filtros
-                </button>
-                <button
-                  type="button"
-                  className="text-muted-foreground"
-                  onClick={() => selecionarMes(mesAtualLocal())}
-                >
-                  Voltar ao mês atual
                 </button>
               </div>
             </div>
@@ -3121,15 +3062,6 @@ export default function FinanceiroCotista() {
   const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
   const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const mesAtual = mesAtualLocal();
-  const [anoMeses, setAnoMeses] = useState(mesAtual.slice(0, 4));
-  const mesesDisponiveis = useMemo(
-    () =>
-      MESES_CURTOS.map(
-        (_, indice) => `${anoMeses}-${String(indice + 1).padStart(2, "0")}`,
-      ),
-    [anoMeses],
-  );
-  const [mesesRascunho, setMesesRascunho] = useState<string[]>([mesAtual]);
   const [mesesAplicados, setMesesAplicados] = useState<string[]>([mesAtual]);
   const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(
     () => periodoDoMes(mesAtual) ?? { inicio: hoje(), fim: hoje() },
@@ -3368,28 +3300,22 @@ export default function FinanceiroCotista() {
   const atualizarMeses = (proximos: string[]) => {
     const ordenados = [...new Set(proximos)].sort();
     if (!ordenados.length) return; // Mantém ao menos uma competência válida.
-    setMesesRascunho(ordenados);
     setMesesAplicados(ordenados);
     setPeriodoAplicado(periodoDosMeses(ordenados));
   };
-  const alternarMes = (mes: string) => {
+  const alternarMesSelecionado = (mes: string) => {
+    if (!periodoDoMes(mes)) return;
     atualizarMeses(
-      mesesRascunho.includes(mes)
-        ? mesesRascunho.filter((item) => item !== mes)
-        : [...mesesRascunho, mes],
+      mesesAplicados.includes(mes)
+        ? mesesAplicados.filter((item) => item !== mes)
+        : [...mesesAplicados, mes],
     );
   };
-  const selecionarTodosOsMeses = () => atualizarMeses(mesesDisponiveis);
-  const limparMeses = () => selecionarMesUnico(mesAtual);
   const selecionarMesUnico = (mes: string) => {
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes) || !periodoDoMes(mes)) return;
-    setAnoMeses(mes.slice(0, 4));
+    if (!periodoDoMes(mes)) return;
     atualizarMeses([mes]);
   };
-  const mesReferencia = mesesAplicados[0] || mesAtual;
-  const todosOsMesesSelecionados = mesesDisponiveis.every((mes) =>
-    mesesRascunho.includes(mes),
-  );
+  const mesReferencia = mesesAplicados[mesesAplicados.length - 1] || mesAtual;
 
   const despesas = useMemo(
     () =>
@@ -3551,23 +3477,12 @@ export default function FinanceiroCotista() {
           >
             <Plane size={14} /> Trocar aeronave
           </Button>
-          {paginaAberta && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mx-[123px] my-0 h-10 shrink-0 gap-1 border-0 px-[34px]"
-              onClick={() => setPaginaAberta(false)}
-            >
-              <ChevronLeft size={15} /> Voltar
-            </Button>
-          )}
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="mt-[13px] flex items-center gap-[3px] border-0 border-transparent py-[5px]">
+        <div className="relative mt-[13px] flex items-center justify-center border-0 border-transparent py-[5px]">
           <div
-            className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-4"
+            className="financeiro-tabs flex min-w-0 max-w-[calc(100%_-_14rem)] gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1 sm:max-w-[calc(100%_-_8rem)] lg:max-w-full"
             role="tablist"
             aria-label="Visões do financeiro cotista"
           >
@@ -3585,6 +3500,15 @@ export default function FinanceiroCotista() {
               </button>
             ))}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="absolute right-0 my-0 h-9 shrink-0 gap-1 border-0 px-3 sm:px-5"
+            onClick={() => setPaginaAberta(false)}
+          >
+            <ChevronLeft size={15} /> Voltar
+          </Button>
         </div>
       )}
 
@@ -3703,8 +3627,11 @@ export default function FinanceiroCotista() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <CalendarDays size={16} className="text-muted-foreground" />
-                    <span className="text-xs font-semibold">Competência</span>
+                    <SeletorMesesCotista
+                      mesesSelecionados={mesesAplicados}
+                      aoAlternar={alternarMesSelecionado}
+                      aoSelecionarMesAtual={() => selecionarMesUnico(mesAtual)}
+                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -3717,13 +3644,11 @@ export default function FinanceiroCotista() {
                     >
                       ‹
                     </Button>
-                    <Input
-                      type="month"
-                      aria-label="Selecionar competência"
-                      value={mesReferencia}
-                      onChange={(e) => selecionarMesUnico(e.target.value)}
-                      className="h-10 w-[160px] text-sm"
-                    />
+                    <span className="min-w-32 text-center text-xs text-muted-foreground" aria-live="polite">
+                      {mesesAplicados.length === 1
+                        ? rotuloMesCotista(mesReferencia)
+                        : `${mesesAplicados.length} meses selecionados`}
+                    </span>
                     <Button
                       type="button"
                       variant="outline"
@@ -3736,68 +3661,7 @@ export default function FinanceiroCotista() {
                     >
                       ›
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-10 text-xs"
-                      onClick={limparMeses}
-                    >
-                      Mês atual
-                    </Button>
                   </div>
-                  <span
-                    className="text-xs text-muted-foreground"
-                    aria-live="polite"
-                  >
-                    {mesesAplicados.length === 1
-                      ? rotuloMesCotista(mesReferencia)
-                      : `${mesesAplicados.length} meses selecionados`}
-                  </span>
-                </div>
-                <div
-                  className="mt-3 flex flex-wrap items-center gap-2"
-                  role="group"
-                  aria-label="Selecionar meses"
-                >
-                  <Input
-                    type="number"
-                    min="1900"
-                    max="9999"
-                    aria-label="Ano para seleção de meses"
-                    value={anoMeses}
-                    onChange={(e) => {
-                      if (/^\d{4}$/.test(e.target.value))
-                        setAnoMeses(e.target.value);
-                    }}
-                    className="h-8 w-24"
-                  />
-                  <label className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium">
-                    <Checkbox
-                      checked={todosOsMesesSelecionados}
-                      onCheckedChange={(marcado) =>
-                        marcado ? selecionarTodosOsMeses() : limparMeses()
-                      }
-                      aria-label={`Selecionar todo o ano ${anoMeses}`}
-                    />
-                    Ano inteiro
-                  </label>
-                  {MESES_CURTOS.map((mes, indice) => {
-                    const competencia = mesesDisponiveis[indice];
-                    const selecionado = mesesRascunho.includes(competencia);
-                    return (
-                      <button
-                        key={competencia}
-                        type="button"
-                        onClick={() => alternarMes(competencia)}
-                        aria-pressed={selecionado}
-                        aria-label={`${mes} ${anoMeses}`}
-                        className={`rounded-md border px-3 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}
-                      >
-                        {mes}
-                      </button>
-                    );
-                  })}
                 </div>
               </section>
             )}

@@ -6,7 +6,7 @@
 export type FluxoLancamento = 'ENTRADA' | 'SAIDA';
 export type CaixaLancamento = 'SHARE' | 'CLIENTE' | 'HOLDING';
 export type StatusLancamento = 'EM_ABERTO' | 'PENDENTE' | 'PAGO' | 'RECEBIDO' | 'ATRASADO' | 'EM_ATRASO' | 'CANCELADO' | 'RECEITA' | 'ESTORNO' | 'ENTRADA' | 'SAIDA' | 'AGUARDANDO_REEMBOLSO' | 'REEMBOLSADO';
-export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO' | 'EM_ATRASO';
+export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO' | 'EM_ATRASO' | 'AGUARDANDO_REEMBOLSO' | 'REEMBOLSADO';
 /** @deprecated use StatusContaFinanceira — mantido para não quebrar imports existentes */
 export type StatusContaAPagar = StatusContaFinanceira;
 
@@ -26,9 +26,11 @@ export interface Lancamento {
   tipo: string | null;
   prazo: string | null;
   fluxo: FluxoLancamento;
+  fluxoOriginal?: string;
   valorCentavos: number;
   pagoPor: string;
   caixa: CaixaLancamento;
+  contaBancariaId?: string | null;
   contaBancaria?: string | null;
   pagoDiretamente: boolean;
   reembolsavel: boolean;
@@ -64,6 +66,9 @@ export interface ContaAPagar {
   nfUrl: string | null;
   dataPagamento: string | null;
   bancoPagamento: string | null;
+  contaBancariaId?: string | null;
+  fluxo?: string | null;
+  fonteLancamento?: boolean;
   comprovantePagamentoUrl: string | null;
   documento: string | null;
   documentoUrl: string | null;
@@ -97,6 +102,7 @@ export interface ContaAReceber {
   dataRecebimento: string | null;
   email_enviado_em?: string | null;
   bancoRecebimento: string | null;
+  contaBancariaId?: string | null;
   comprovanteRecebimentoUrl: string | null;
   documento: string | null;
   documentoUrl: string | null;
@@ -154,6 +160,7 @@ export interface FiltrosContasAPagar {
   status?: StatusContaFinanceira;
   vencidasAte?: string; // ISO date
   fornecedorId?: string;
+  incluirLancamentos?: boolean;
 }
 
 /** Filtros aceitos pela listagem de contas a receber. */

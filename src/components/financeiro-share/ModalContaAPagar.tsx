@@ -20,7 +20,7 @@ interface ModalContaAPagarProps {
 
 export function ModalContaAPagar({ conta, aberto, onFechar, onConfirmar }: ModalContaAPagarProps) {
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().slice(0, 10));
-  const [bancoPagamento, setBancoPagamento] = useState('');
+  const [bancoPagamento, setBancoPagamento] = useState(conta.bancoPagamento ?? '');
   const [comprovanteUrl, setComprovanteUrl] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);

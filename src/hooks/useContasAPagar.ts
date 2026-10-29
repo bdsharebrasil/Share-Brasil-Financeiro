@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { buscarContasAPagar, darBaixaContaAPagar } from '../lib/financeiro-share-api';
-import type { ContaAPagar, FiltrosContasAPagar } from '../components/financeiro-share/tipos';
+import { buscarContasAPagar, buscarContasBancariasPorLancamento, buscarLancamentosComContasBancarias, darBaixaContaAPagar } from '../lib/financeiro-share-api';
+import type { ContaAPagar, FiltrosContasAPagar, Lancamento, StatusContaFinanceira } from '../components/financeiro-share/tipos';
 
 export interface DadosBaixaAPagar {
   dataPagamento: string;
@@ -18,21 +18,82 @@ interface RetornoUseContasAPagar {
   recarregar: () => void;
 }
 
+function fluxoSaida(lancamento: Lancamento) {
+  const fluxo = String(lancamento.fluxoOriginal || lancamento.fluxo).trim().toUpperCase().replace(/_/g, " ");
+  return lancamento.caixa === "SHARE" && ["SAIDA", "DESPESA", "SAIDA REEMBOLSO", "REEMBOLSO"].includes(fluxo);
+}
+
+function comoContaAPagar(lancamento: Lancamento): ContaAPagar {
+  return {
+    id: lancamento.id,
+    dataEmissao: lancamento.data || null,
+    dataVencimento: lancamento.prazo || "",
+    valor: lancamento.valorCentavos / 100,
+    categoriaId: lancamento.categoriaId,
+    categoriaNome: lancamento.categoria,
+    descricao: lancamento.descricao,
+    criadoPor: lancamento.criadoPor,
+    aeronaveId: lancamento.aeronaveId,
+    fornecedor: lancamento.fornecedor,
+    fornecedorId: lancamento.fornecedorId,
+    cotistaId: lancamento.cotistaId,
+    boletoUrl: lancamento.anexos.find((anexo) => anexo.tipo === "boleto")?.url ?? null,
+    nfUrl: lancamento.anexos.find((anexo) => anexo.tipo === "nf")?.url ?? null,
+    dataPagamento: null,
+    bancoPagamento: lancamento.contaBancaria ?? null,
+    contaBancariaId: lancamento.contaBancariaId ?? null,
+    fluxo: lancamento.fluxoOriginal ?? lancamento.fluxo,
+    fonteLancamento: true,
+    comprovantePagamentoUrl: lancamento.anexos.find((anexo) => anexo.tipo === "comprovante")?.url ?? null,
+    documento: lancamento.documento,
+    documentoUrl: lancamento.documentoUrl ?? null,
+    lancamentoId: lancamento.id,
+    status: lancamento.status as StatusContaFinanceira,
+    criadoEm: lancamento.criadoEm,
+    atualizadoEm: lancamento.atualizadoEm,
+  };
+}
+
 /** Busca as contas a pagar e expõe a ação de dar baixa (marcar como pago). */
 export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseContasAPagar {
   const [contas, setContas] = useState<ContaAPagar[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const carregar = useCallback(() => {
+  const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
-    buscarContasAPagar(filtros)
-      .then(setContas)
-      .catch((e: Error) => setErro(e.message))
-      .finally(() => setCarregando(false));
+    try {
+      const [contasLegadas, contasPorLancamento, lancamentos] = await Promise.all([
+        buscarContasAPagar(filtros),
+        buscarContasBancariasPorLancamento().catch(() => new Map<string, { id: string; nome: string | null }>()),
+        filtros.incluirLancamentos
+          ? buscarLancamentosComContasBancarias().catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      const contas = contasLegadas.map((conta) => {
+        const contaLancamento = conta.lancamentoId
+          ? contasPorLancamento.get(conta.lancamentoId)
+          : undefined;
+        return contaLancamento
+          ? { ...conta, contaBancariaId: contaLancamento.id, bancoPagamento: contaLancamento.nome ?? conta.bancoPagamento }
+          : conta;
+      });
+      const vinculados = new Set(contas.flatMap((conta) => [conta.id, conta.lancamentoId].filter((id): id is string => Boolean(id))));
+      const adicionais = lancamentos
+        .filter((lancamento) => fluxoSaida(lancamento) && !vinculados.has(lancamento.id))
+        .filter((lancamento) => !filtros.status || lancamento.status === filtros.status)
+        .filter((lancamento) => !filtros.fornecedorId || lancamento.fornecedorId === filtros.fornecedorId)
+        .filter((lancamento) => !filtros.vencidasAte || (lancamento.prazo || "") <= filtros.vencidasAte)
+        .map(comoContaAPagar);
+      setContas([...contas, ...adicionais]);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível carregar as contas a pagar.");
+    } finally {
+      setCarregando(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.status, filtros.vencidasAte, filtros.fornecedorId]);
+  }, [filtros.status, filtros.vencidasAte, filtros.fornecedorId, filtros.incluirLancamentos]);
 
   useEffect(() => {
     carregar();
@@ -41,9 +102,9 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
   const darBaixa = useCallback(
     async (id: string, dados: DadosBaixaAPagar) => {
       await darBaixaContaAPagar(id, dados);
-      setContas(await buscarContasAPagar(filtros));
+      await carregar();
     },
-    [filtros]
+    [carregar]
   );
 
   return { contas, carregando, erro, darBaixa, recarregar: carregar };

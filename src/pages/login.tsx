@@ -50,7 +50,7 @@ function InstallPrompt() {
     <button
       type="button"
       onClick={() => void install()}
-      className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-2 text-xs font-semibold text-[#8be8ff] transition-colors hover:bg-[#38d7ff]/20"
+      className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-2 text-xs font-semibold text-[#8be8ff] transition-colors hover:bg-[#38d7ff]/20"
     >
       Instalar Share Brasil
     </button>
@@ -154,7 +154,7 @@ export default function Login() {
   }
 
   return (
-    <main className="relative m-0 flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-8 py-0 text-white">
+    <main className="relative m-0 flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-0 text-white sm:px-8">
       <InstallPrompt />
       <style>{`
         @keyframes login-flight {
@@ -195,13 +195,13 @@ export default function Login() {
         ))}
       </div>
 
-      <section className="relative z-20 my-[14px] w-full max-w-[416px] overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-3 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 sm:py-3">
+      <section className="relative z-20 my-3 w-full max-w-[416px] overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-2 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 [@media(min-height:820px)]:py-3">
         <div className="text-center">
-          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain" />
+          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-12 w-auto object-contain [@media(min-height:820px)]:h-20" />
           <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
         </div>
 
-        <form className="mt-3 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-3 space-y-3 [@media(min-height:820px)]:space-y-5" onSubmit={handleSubmit}>
           <div className="my-1 space-y-2 bg-transparent py-px">
             <Label htmlFor="username" className="ml-1 text-sm font-medium text-[#cbd5e1]">LOGIN</Label>
             <div className="group relative mt-2 -mb-[2px] bg-transparent">
@@ -216,7 +216,7 @@ export default function Login() {
                 placeholder="seu.nome"
                 autoComplete="username"
                 disabled={isSubmitting}
-                className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 sm:pr-40"
+                className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 [@media(min-height:820px)]:h-14 sm:pr-40"
               />
               <span className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium sm:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}>
                 @share-brasil.com
@@ -237,7 +237,7 @@ export default function Login() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isSubmitting}
-                className="h-14 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base tracking-widest text-white placeholder:text-white/20 placeholder:tracking-normal focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50"
+                className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base tracking-widest [@media(min-height:820px)]:h-14 text-white placeholder:text-white/20 placeholder:tracking-normal focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50"
               />
               <button
                 type="button"
@@ -265,7 +265,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={isSubmitting || !isValid || !password}
-            className="h-14 w-full min-h-[5px] rounded-[95px] overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] ml-[9px] mr-[80px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+            className="h-12 w-full min-h-[5px] rounded-[95px] [@media(min-height:820px)]:h-14 overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] ml-[9px] mr-[80px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
           >
             {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
           </Button>

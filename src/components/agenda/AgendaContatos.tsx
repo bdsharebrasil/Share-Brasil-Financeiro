@@ -80,18 +80,19 @@ export function prepararContato(form: FormularioContato): FormularioContato {
     return payload;
   }
   for (const servico of SERVICOS) {
-    if (!["SIM", "NAO"].includes(payload[servico.disponibilidade])) throw new Error(`Informe se o hangar disponibiliza ${servico.nome}.`);
-    if (payload[servico.disponibilidade] === "NAO") {
-      payload[servico.custo] = ""; payload[servico.valor] = "";
+    if (payload[servico.disponibilidade] !== "SIM") {
+      payload[servico.disponibilidade] = "NAO"; payload[servico.custo] = ""; payload[servico.valor] = "";
       continue;
     }
-    if (!["GRATUITO", "COBRADO"].includes(payload[servico.custo])) throw new Error(`Informe se ${servico.nome} é gratuito ou cobrado.`);
-    if (payload[servico.custo] === "GRATUITO") { payload[servico.valor] = "GRATUITO"; continue; }
+    if (!payload[servico.valor]) {
+      payload[servico.custo] = "GRATUITO"; payload[servico.valor] = "GRATUITO";
+      continue;
+    }
     const valor = valorDecimal(payload[servico.valor]);
     if (!/^\d+(\.\d{1,2})?$/.test(valor) || !Number.isFinite(Number(valor)) || Number(valor) <= 0) {
       throw new Error(`Informe um valor válido, maior que zero, para ${servico.nome} (até duas casas decimais).`);
     }
-    payload[servico.valor] = valor;
+    payload[servico.custo] = "COBRADO"; payload[servico.valor] = valor;
   }
   for (const key of ["ar_condicionado", "pernoite"] as const) {
     if (!payload[key] || payload[key] === "SIM") continue;
@@ -176,13 +177,17 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
         {form.categoria_tipo === "HANGAR" && (
           <section className="ac-section" aria-labelledby="ac-servicos">
             <h3 id="ac-servicos" className="ac-section-heading">Serviços do hangar</h3>
-            <label className="ac-field" htmlFor="contato-atendimento_pista">
-              <span>Possui atendimento de pista? *</span>
-              <select id="contato-atendimento_pista" className="ac-control" value={form.atendimento_pista} required disabled={salvando}
-                onChange={(e) => { const valor = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual, atendimento_pista: valor, ...(valor === "SIM" ? {} : SEM_SERVICOS_HANGAR) })); }}>
-                <option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option>
-              </select>
-            </label>
+            <fieldset className="ac-service" disabled={salvando}>
+              <legend>Possui atendimento de pista? *</legend>
+              <label className="ac-field" htmlFor="contato-atendimento_pista-sim">
+                <span><input id="contato-atendimento_pista-sim" type="checkbox" checked={form.atendimento_pista === "SIM"}
+                  onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, atendimento_pista: e.target.checked ? "SIM" : "", ...(e.target.checked ? {} : SEM_SERVICOS_HANGAR) })); }} /> Sim</span>
+              </label>
+              <label className="ac-field" htmlFor="contato-atendimento_pista-nao">
+                <span><input id="contato-atendimento_pista-nao" type="checkbox" checked={form.atendimento_pista === "NAO"}
+                  onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, atendimento_pista: e.target.checked ? "NAO" : "", ...SEM_SERVICOS_HANGAR })); }} /> Não</span>
+              </label>
+            </fieldset>
             {form.atendimento_pista === "SIM" && <div className="ac-expand"><div className="ac-expand-body">
             <div className="ac-service-grid">
               {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
@@ -201,28 +206,19 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
               })}
             </div>
             <div className="ac-service-grid">
-              {SERVICOS.map((servico) => (
-                <fieldset key={servico.nome} className="ac-service" disabled={salvando}>
+              {SERVICOS.map((servico) => {
+                const marcado = form[servico.disponibilidade] === "SIM";
+                return <fieldset key={servico.nome} className="ac-service" disabled={salvando}>
                   <legend>{servico.nome}</legend>
-                  <label className="ac-field" htmlFor={`contato-${servico.disponibilidade}`}>
-                    <span>Disponibiliza {servico.nome}? *</span>
-                    <select id={`contato-${servico.disponibilidade}`} className="ac-control" value={form[servico.disponibilidade]} required
-                      onChange={(e) => { const valor = e.target.value; setForm((atual) => ({ ...atual, [servico.disponibilidade]: valor, [servico.custo]: "", [servico.valor]: "" })); setErroLocal(null); }}>
-                      <option value="">Selecione</option><option value="SIM">Sim</option><option value="NAO">Não</option>
-                    </select>
+                  <label className="ac-field" htmlFor={`contato-${servico.disponibilidade}-check`}>
+                    <span><input id={`contato-${servico.disponibilidade}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, [servico.disponibilidade]: e.target.checked ? "SIM" : "NAO", [servico.valor]: "" })); }} /> Disponibiliza {servico.nome}</span>
                   </label>
-                  {form[servico.disponibilidade] === "SIM" && <>
-                    <label className="ac-field" htmlFor={`contato-${servico.custo}`}>
-                      <span>Forma de cobrança *</span>
-                      <select id={`contato-${servico.custo}`} className="ac-control" value={form[servico.custo]} required
-                        onChange={(e) => { const valor = e.target.value; setForm((atual) => ({ ...atual, [servico.custo]: valor, [servico.valor]: "" })); setErroLocal(null); }}>
-                        <option value="">Selecione</option><option value="GRATUITO">Gratuito</option><option value="COBRADO">Cobrado</option>
-                      </select>
-                    </label>
-                    {form[servico.custo] === "COBRADO" && campo(servico.valor, "Valor cobrado (R$)", { inputMode: "decimal", required: true, placeholder: "0,00" })}
-                  </>}
-                </fieldset>
-              ))}
+                  {marcado && <Campo id={`contato-${servico.valor}`} label="Valor (R$)" value={form[servico.valor]} disabled={salvando} inputMode="decimal"
+                    placeholder="Deixe em branco se não houver cobrança"
+                    onChange={(e) => { const valor = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual, [servico.valor]: valor })); }} />}
+                </fieldset>;
+              })}
             </div>
             </div></div>}
           </section>

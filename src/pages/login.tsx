@@ -50,7 +50,7 @@ function InstallPrompt() {
     <button
       type="button"
       onClick={() => void install()}
-      className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-2 text-xs font-semibold text-[#8be8ff] transition-colors hover:bg-[#38d7ff]/20"
+      className="fixed left-1/2 top-2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#38d7ff]/30 bg-[#38d7ff]/10 px-4 py-1.5 text-xs font-semibold text-[#8be8ff] backdrop-blur transition-colors hover:bg-[#38d7ff]/20"
     >
       Instalar Share Brasil
     </button>
@@ -150,13 +150,43 @@ export default function Login() {
   const isValid = isValidUsername(username);
 
   if (isCheckingSession) {
-    return <div className="min-h-screen bg-[#030814]" aria-label="Verificando sessão" />;
+    return <div className="h-dvh bg-[#030814]" aria-label="Verificando sessão" />;
   }
 
   return (
-    <main className="relative m-0 flex h-dvh flex-col items-center justify-center overflow-hidden bg-[#030814] px-4 py-0 text-white sm:px-8">
+    <main className="login-root relative flex h-dvh w-full items-center justify-center overflow-hidden bg-[#030814] p-[clamp(0.5rem,2dvh,2rem)] text-white">
       <InstallPrompt />
+
       <style>{`
+        .login-root {
+          --lg-field-h: clamp(2.5rem, 6.4dvh, 3.5rem);
+          --lg-gap: clamp(0.4rem, 1.8dvh, 1.25rem);
+          --lg-logo-h: clamp(2rem, 8.5dvh, 5rem);
+          --lg-pad-y: clamp(0.75rem, 3dvh, 2.25rem);
+          --lg-pad-x: clamp(1rem, 3.2vw + 0.5rem, 2rem);
+          --lg-radius: clamp(1.5rem, 5dvh, 3.25rem);
+          --lg-font: clamp(0.875rem, 1.9dvh + 0.25rem, 1rem);
+        }
+        .login-root .lg-card {
+          width: 100%;
+          max-width: 416px;
+          max-height: 100%;
+          padding: var(--lg-pad-y) var(--lg-pad-x);
+          border-radius: var(--lg-radius);
+          overflow-y: auto;
+          scrollbar-width: none;
+        }
+        .login-root .lg-card::-webkit-scrollbar { display: none; }
+        .login-root .lg-logo { height: var(--lg-logo-h); width: auto; }
+        .login-root .lg-form { display: flex; flex-direction: column; gap: var(--lg-gap); margin-top: var(--lg-gap); }
+        .login-root .lg-group { display: flex; flex-direction: column; gap: clamp(0.25rem, 1dvh, 0.5rem); }
+        .login-root .lg-field { height: var(--lg-field-h); font-size: var(--lg-font); }
+        .login-root .lg-btn {
+          height: var(--lg-field-h);
+          font-size: var(--lg-font);
+          padding: 0 1rem;
+          border-radius: 9999px;
+        }
         @keyframes login-flight {
           0% { opacity: 0; transform: translate3d(-25vw, var(--flight-y), 0) rotate(45deg) scale(.8); }
           15% { opacity: var(--flight-opacity); }
@@ -164,21 +194,25 @@ export default function Login() {
           100% { opacity: 0; transform: translate3d(125vw, var(--flight-y), 0) rotate(45deg) scale(1); }
         }
         .login-flight { animation: login-flight var(--flight-duration) linear var(--flight-delay) infinite; }
+        @media (prefers-reduced-motion: reduce) { .login-flight { animation: none; opacity: 0; } }
       `}</style>
-      <div className="absolute inset-0 my-[10px] p-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
+
+      {/* Fundo */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
       <div
-        className="pointer-events-none absolute inset-0 z-0 bg-no-repeat bg-center opacity-20 mix-blend-screen"
+        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat opacity-20 mix-blend-screen"
         style={{
           backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')",
-          backgroundSize: "90% auto",
+          backgroundSize: "min(90%, 1400px) auto",
           filter: "invert(70%) sepia(100%) saturate(300%) hue-rotate(150deg) brightness(120%) drop-shadow(0 0 10px rgba(57,208,255,0.2))",
           maskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
           WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
         }}
       />
-      <div className="pointer-events-none absolute inset-0 py-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
 
-      <div className="pointer-events-none absolute inset-0 z-10 mx-[7px] my-0 overflow-hidden p-0">
+      {/* Aviões */}
+      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
         {flightRoutes.map((route, index) => (
           <div
             key={index}
@@ -195,16 +229,19 @@ export default function Login() {
         ))}
       </div>
 
-      <section className="relative z-20 my-3 w-full max-w-[416px] [@media(max-height:700px)]:my-0 overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-2 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 [@media(min-height:820px)]:py-3">
+      {/* Card */}
+      <section className="lg-card relative z-20 border border-white/10 bg-[#061223]/75 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl">
         <div className="text-center">
-          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-12 w-auto object-contain [@media(min-height:820px)]:h-20" />
-          <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
+          <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="lg-logo mx-auto object-contain" />
+          <p className="mt-[clamp(0.15rem,0.8dvh,0.5rem)] text-[clamp(0.75rem,1.6dvh+0.2rem,0.875rem)] text-[#94a3b8]">
+            Acesso ao Portal do Colaborador
+          </p>
         </div>
 
-        <form className="mt-3 space-y-3 [@media(min-height:820px)]:space-y-5" onSubmit={handleSubmit}>
-          <div className="my-1 space-y-2 bg-transparent py-px">
+        <form className="lg-form" onSubmit={handleSubmit}>
+          <div className="lg-group">
             <Label htmlFor="username" className="ml-1 text-sm font-medium text-[#cbd5e1]">LOGIN</Label>
-            <div className="group relative mt-2 -mb-[2px] bg-transparent">
+            <div className="group relative">
               <User className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isUsernameFocused ? "text-[#38d7ff]" : "text-white/30"}`} />
               <Input
                 id="username"
@@ -216,16 +253,16 @@ export default function Login() {
                 placeholder="seu.nome"
                 autoComplete="username"
                 disabled={isSubmitting}
-                className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 [@media(min-height:820px)]:h-14 sm:pr-40"
+                className="lg-field rounded-2xl border-white/10 bg-white/5 pl-12 pr-4 text-white placeholder:text-white/20 focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50 min-[420px]:pr-44"
               />
-              <span className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium sm:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}>
+              <span className={`pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-2 text-sm font-medium min-[420px]:flex ${isUsernameFocused || isValid ? "text-white/60" : "text-white/30"}`}>
                 @share-brasil.com
                 {isValid && !isUsernameFocused && <CheckCircle2 className="h-4 w-4 text-[#38d7ff]" />}
               </span>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="lg-group">
             <Label htmlFor="password" className="ml-1 text-sm font-medium text-[#cbd5e1]">Senha</Label>
             <div className="group relative">
               <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/30 transition-colors group-focus-within:text-[#38d7ff]" />
@@ -237,7 +274,7 @@ export default function Login() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isSubmitting}
-                className="h-12 rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 text-base tracking-widest [@media(min-height:820px)]:h-14 text-white placeholder:text-white/20 placeholder:tracking-normal focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50"
+                className="lg-field rounded-2xl border-white/10 bg-white/5 pl-12 pr-12 tracking-widest text-white placeholder:text-white/20 placeholder:tracking-normal focus-visible:border-[#38d7ff]/50 focus-visible:bg-white/10 focus-visible:ring-[#38d7ff]/50"
               />
               <button
                 type="button"
@@ -251,7 +288,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 px-1 pt-1">
+          <div className="flex items-center gap-3 px-1">
             <Checkbox
               id="remember-user"
               checked={rememberUser}
@@ -259,13 +296,15 @@ export default function Login() {
               disabled={isSubmitting}
               className="h-5 w-5 rounded-md border-white/20 bg-white/5 data-[state=checked]:border-[#38d7ff] data-[state=checked]:bg-[#38d7ff] data-[state=checked]:text-[#02111f]"
             />
-            <Label htmlFor="remember-user" className="cursor-pointer text-sm font-medium text-[#94a3b8] transition-colors hover:text-white">Lembrar meu acesso</Label>
+            <Label htmlFor="remember-user" className="cursor-pointer text-sm font-medium text-[#94a3b8] transition-colors hover:text-white">
+              Lembrar meu acesso
+            </Label>
           </div>
 
           <Button
             type="submit"
             disabled={isSubmitting || !isValid || !password}
-            className="h-12 w-full min-h-[5px] rounded-[95px] [@media(min-height:820px)]:h-14 overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+            className="lg-btn w-full border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] font-medium text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
           >
             {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
           </Button>

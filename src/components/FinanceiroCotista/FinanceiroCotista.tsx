@@ -3543,7 +3543,7 @@ export default function FinanceiroCotista() {
             type="button"
             variant="ghost"
             size="sm"
-            className="m-3 h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] py-[21px] text-[15px]"
+            className="mx-[24px] my-[-4px] h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] px-[8px] py-[22px] text-[14px] font-normal leading-[21.5px]"
             onClick={() => {
               setAeronaveSelecionada("");
               setPaginaAberta(false);
@@ -3810,7 +3810,7 @@ export default function FinanceiroCotista() {
                     setAbaAtiva(id as typeof abaAtiva);
                     setPaginaAberta(true);
                   }}
-                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
+                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(29,32,32,1)] p-4 text-left transition hover:!bg-card"
                 >
                   <span className={`rounded-lg p-2.5 ${corIcone}`}>
                     <Icon size={17} />

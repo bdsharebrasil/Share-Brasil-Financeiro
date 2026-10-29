@@ -160,7 +160,7 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-header h2 { margin:0; font-size:20px; font-weight:600; letter-spacing:-.02em; }
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
-.financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; }
+.financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
 .financeiro-profissional .financeiro-tabs button { border-radius:7px; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
 .financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:rgba(22,69,90,1); color:#fff; padding-left:10px; padding-right:10px; }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
@@ -178,7 +178,7 @@ const DESPESAS_ESTILOS = `
 .despesas-theme .despesa-primary { background:#009ff0; color:#fff; border:1px solid #20b1ff; border-radius:4px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-primary:hover { background:#008bd4; }
 .despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:0; background:#080c11; }
-.despesa-toolbar { display:flex; flex-direction:column; gap:0; padding:9px; border:1px solid #29333e; border-radius:5px; background:#090e14; margin-bottom:5px; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:0; padding:9px; border:1px solid #29333e; border-radius:10px; background:rgba(5,6,14,1); margin-bottom:5px; overflow:hidden; }
 .despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; min-width:0; }
 .despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
 .despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:0 12px; border:1px solid #34404d; border-radius:4px; background:#0b1118; color:#dce4ee; font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
@@ -3565,9 +3565,9 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="mt-[13px] flex items-center gap-[3px] py-[5px]">
+        <div className="mt-[13px] flex items-center gap-[3px] border-0 border-transparent py-[5px]">
           <div
-            className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4"
+            className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-4"
             role="tablist"
             aria-label="Visões do financeiro cotista"
           >

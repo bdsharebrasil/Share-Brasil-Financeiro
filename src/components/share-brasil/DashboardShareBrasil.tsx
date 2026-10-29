@@ -142,7 +142,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl px-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-3 gap-12 mx-[96px] my-0 px-[56px] py-2 justify-center items-center">
+          <div className="grid min-w-0 grid-cols-3 gap-12 mx-[96px] my-0 px-[7px] py-2 justify-center items-center">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}

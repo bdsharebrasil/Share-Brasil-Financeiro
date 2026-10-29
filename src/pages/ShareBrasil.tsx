@@ -283,7 +283,7 @@ export function DashboardShareBrasil({
   ];
 
   return (
-    <div className="route-enter space-y-5">
+    <div className="route-enter my-[44px] space-y-5">
       <section className="overflow-hidden relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[.14] via-card to-card shadow-sm">
         <div className="relative px-5 py-6 md:px-7" style={{ backgroundColor: "rgba(7, 18, 34, 0.86)" }}>
           <h1 className="text-2xl font-extrabold tracking-[-.045em] text-foreground md:text-[32px]">
@@ -292,13 +292,16 @@ export function DashboardShareBrasil({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-[29px] sm:grid-cols-3 xl:grid-cols-6">
+      <section className="!mt-[49px] grid grid-cols-2 gap-[29px] sm:grid-cols-3 xl:grid-cols-6">
         {atalhos.map((item) => (
           <button
             type="button"
             key={item.menu + "-" + item.label}
             onClick={() => aoNavegar(item.menu)}
-            className="group flex min-h-[132px] flex-col items-center justify-between rounded-xl border border-border bg-card px-3 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
+            className={
+              "group flex min-h-[132px] flex-col items-center justify-between rounded-xl border border-border bg-card px-3 py-[17px] text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md" +
+              (item.menu === "hoteis" || item.menu === "aeronaves" ? " my-[44px]" : "")
+            }
           >
             <span
               className={
@@ -317,7 +320,7 @@ export function DashboardShareBrasil({
           </button>
         ))}
 
-        <section className="col-span-2 mt-[38px] ml-[28px] mr-[54px] rounded-xl border border-border bg-card py-5 px-[42px] shadow-sm sm:col-span-1 xl:col-span-4">
+        <section className="col-span-2 mt-[20px] mr-[124px] mb-[16px] ml-[48px] rounded-xl border border-border bg-card py-[23px] px-[55px] font-light leading-[13px] shadow-sm sm:col-span-1 xl:col-span-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[.17em] text-primary">

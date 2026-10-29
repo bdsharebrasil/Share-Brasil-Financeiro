@@ -189,37 +189,34 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
               </label>
             </fieldset>
             {form.atendimento_pista === "SIM" && <div className="ac-expand"><div className="ac-expand-body">
-            <div className="ac-service-grid">
+            <fieldset className="ac-service-list" disabled={salvando}>
               {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
                 const marcado = Boolean(form[key]);
-                return <fieldset key={key} className="ac-service" disabled={salvando}>
-                  <legend>{label}</legend>
-                  <label className="ac-field" htmlFor={`contato-${key}-check`}>
-                    <span><input id={`contato-${key}-check`} type="checkbox" checked={marcado}
-                      onChange={(e) => alterar(key, e.target.checked ? "SIM" : "")} /> {label}</span>
+                return <div key={key} className="ac-service-row">
+                  <label className="ac-service-check" htmlFor={`contato-${key}-check`}>
+                    <input id={`contato-${key}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => alterar(key, e.target.checked ? "SIM" : "")} />
+                    <span>{label}</span>
                   </label>
-                  {marcado && <Campo id={`contato-${key}`} label="Valor opcional (R$)"
-                    value={form[key] === "SIM" ? "" : form[key]} disabled={salvando} inputMode="decimal"
-                    placeholder="Deixe em branco se não houver cobrança"
+                  {marcado && <input id={`contato-${key}`} className="ac-control ac-service-value" aria-label={`Valor de ${label} (R$)`}
+                    value={form[key] === "SIM" ? "" : form[key]} inputMode="decimal" placeholder="Valor (R$)"
                     onChange={(e) => alterar(key, e.target.value || "SIM")} />}
-                </fieldset>;
+                </div>;
               })}
-            </div>
-            <div className="ac-service-grid">
               {SERVICOS.map((servico) => {
                 const marcado = form[servico.disponibilidade] === "SIM";
-                return <fieldset key={servico.nome} className="ac-service" disabled={salvando}>
-                  <legend>{servico.nome}</legend>
-                  <label className="ac-field" htmlFor={`contato-${servico.disponibilidade}-check`}>
-                    <span><input id={`contato-${servico.disponibilidade}-check`} type="checkbox" checked={marcado}
-                      onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, [servico.disponibilidade]: e.target.checked ? "SIM" : "NAO", [servico.valor]: "" })); }} /> Disponibiliza {servico.nome}</span>
+                return <div key={servico.nome} className="ac-service-row">
+                  <label className="ac-service-check" htmlFor={`contato-${servico.disponibilidade}-check`}>
+                    <input id={`contato-${servico.disponibilidade}-check`} type="checkbox" checked={marcado}
+                      onChange={(e) => { setErroLocal(null); setForm((atual) => ({ ...atual, [servico.disponibilidade]: e.target.checked ? "SIM" : "NAO", [servico.valor]: "" })); }} />
+                    <span>{servico.nome}</span>
                   </label>
-                  {marcado && <Campo id={`contato-${servico.valor}`} label="Valor (R$)" value={form[servico.valor]} disabled={salvando} inputMode="decimal"
-                    placeholder="Deixe em branco se não houver cobrança"
+                  {marcado && <input id={`contato-${servico.valor}`} className="ac-control ac-service-value" aria-label={`Valor de ${servico.nome} (R$)`}
+                    value={form[servico.valor]} inputMode="decimal" placeholder="Valor (R$)"
                     onChange={(e) => { const valor = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual, [servico.valor]: valor })); }} />}
-                </fieldset>;
+                </div>;
               })}
-            </div>
+            </fieldset>
             </div></div>}
           </section>
         )}

@@ -3538,7 +3538,7 @@ export default function FinanceiroCotista() {
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="mt-[2px] flex justify-start py-[3px]">
+        <div className="mt-[2px] flex items-center gap-2 py-[3px]">
           <Button
             type="button"
             variant="ghost"
@@ -3551,19 +3551,21 @@ export default function FinanceiroCotista() {
           >
             <Plane size={14} /> Trocar aeronave
           </Button>
+          {paginaAberta && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 shrink-0 gap-1"
+              onClick={() => setPaginaAberta(false)}
+            >
+              <ChevronLeft size={15} /> Voltar
+            </Button>
+          )}
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
         <div className="mt-[26px] flex items-center gap-[3px]">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 shrink-0 gap-1"
-            onClick={() => setPaginaAberta(false)}
-          >
-            <ChevronLeft size={15} /> Voltar
-          </Button>
           <div
             className="financeiro-tabs flex min-w-0 max-w-full flex-1 gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 py-1 px-4"
             role="tablist"

@@ -25,14 +25,14 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className="group flex h-full min-h-40 w-full min-w-0 max-w-full flex-col items-start gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
+      className="group flex h-full min-h-40 w-full min-w-0 max-w-full flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card px-[52px] py-4 text-center shadow-sm transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:py-5"
     >
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${item.tone}`}
       >
         <Icone size={23} strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <span className="min-w-0 w-full space-y-1 [overflow-wrap:anywhere]">
+      <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:anywhere]">
         <span className="block text-sm font-bold leading-snug text-foreground">
           {item.label}
         </span>
@@ -119,7 +119,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`flex min-h-12 min-w-0 flex-wrap items-center justify-center gap-2 whitespace-normal rounded-lg px-2 py-3 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4 sm:text-sm ${
+              className={`flex min-h-12 min-w-0 flex-wrap items-center justify-center gap-2 whitespace-normal rounded-lg border border-[#223c5d] px-2 py-3 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4 sm:text-sm ${
                 selecionada
                   ? "bg-card text-primary shadow-sm"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
@@ -145,7 +145,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid min-w-0 grid-cols-3 gap-[27px] mx-[39px] my-[-3px] px-[11px] py-[17px] justify-center items-center">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}

@@ -3538,12 +3538,12 @@ export default function FinanceiroCotista() {
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="flex justify-start">
+        <div className="mt-[2px] flex justify-start py-[3px]">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="mx-[24px] my-[-4px] h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] px-[8px] py-[22px] text-[14px] font-normal leading-[21.5px]"
+            className="mx-[4px] my-[-8px] min-h-[20px] h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] px-[8px] py-[1px] text-[14px] font-normal leading-[21.5px]"
             onClick={() => {
               setAeronaveSelecionada("");
               setPaginaAberta(false);
@@ -3554,7 +3554,7 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="flex items-center gap-2">
+        <div className="mt-[26px] flex items-center gap-[3px]">
           <Button
             type="button"
             variant="outline"

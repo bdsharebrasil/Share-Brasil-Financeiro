@@ -1,0 +1,66 @@
+/* Escopo restrito aos uploads, sem cortar conteúdo nem afetar outros formulários. */
+.area-anexo {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.area-anexo *,
+.area-anexo *::before,
+.area-anexo *::after {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.area-anexo > * {
+  inline-size: 100%;
+}
+
+/* O componente legado pode usar form ou uma div.flex para a linha. */
+.area-anexo form,
+.area-anexo .flex {
+  flex-wrap: wrap;
+}
+
+.area-anexo form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.area-anexo form > *,
+.area-anexo .flex > * {
+  flex-shrink: 1;
+}
+
+.area-anexo form > :where(div, label),
+.area-anexo .flex > :where(div, label) {
+  flex: 1 1 12rem;
+}
+
+.area-anexo input,
+.area-anexo select,
+.area-anexo textarea {
+  inline-size: 100%;
+}
+
+.area-anexo input[type="file"] {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.area-anexo input[type="file"]::file-selector-button {
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.area-anexo button {
+  block-size: auto;
+  min-block-size: 2.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

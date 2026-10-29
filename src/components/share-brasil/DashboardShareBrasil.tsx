@@ -36,11 +36,6 @@ function CardAtalho({
         <span className="block text-sm font-bold leading-snug text-foreground">
           {item.label}
         </span>
-        {item.detail && (
-          <span className="block text-xs leading-relaxed text-muted-foreground">
-            {item.detail}
-          </span>
-        )}
       </span>
     </button>
   );

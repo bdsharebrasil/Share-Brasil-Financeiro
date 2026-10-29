@@ -2545,7 +2545,7 @@ export default function FinanceiroCotista() {
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
         <div className="flex justify-start">
-          <Button type="button" variant="ghost" size="sm" className="h-9 gap-2 text-xs"
+          <Button type="button" variant="ghost" size="sm" className="m-3 h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] py-[21px] text-[15px]"
             onClick={() => { setAeronaveSelecionada(""); setPaginaAberta(false); }}>
             <Plane size={14} /> Trocar aeronave
           </Button>
@@ -2689,7 +2689,7 @@ export default function FinanceiroCotista() {
           )}
 
           {!paginaAberta ? (
-            <div className="grid gap-3 overflow-hidden rounded-[7px] sm:grid-cols-2 xl:grid-cols-3">
+            <div className="!mt-[14px] grid gap-[29px] overflow-hidden rounded-[7px] px-[22px] py-[32px] sm:grid-cols-2 xl:grid-cols-3">
               {abasCotista.map(({ id, rotulo, Icon }) => (
                 <button
                   key={id}
@@ -2698,7 +2698,7 @@ export default function FinanceiroCotista() {
                     setAbaAtiva(id as typeof abaAtiva);
                     setPaginaAberta(true);
                   }}
-                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
+                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
                 >
                   <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
                     <Icon size={17} />

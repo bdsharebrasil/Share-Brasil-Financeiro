@@ -99,7 +99,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
         role="tablist"
         aria-label="Áreas do portal"
         aria-orientation="horizontal"
-        className="grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl border border-border bg-muted/40 p-1"
+        className="grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1"
       >
         {ABAS_DASHBOARD.map((item, indice) => {
           const selecionada = abaAtiva === item.id;
@@ -119,9 +119,9 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`flex min-h-12 min-w-0 flex-wrap items-center justify-center gap-2 whitespace-normal rounded-lg border border-[#223c5d] px-2 py-3 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4 sm:text-sm ${
+              className={`flex min-h-12 min-w-0 flex-wrap items-center justify-center gap-2 whitespace-normal rounded-lg px-2 py-3 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "bg-card text-primary shadow-sm"
+                  ? "border border-[#223c5d] bg-card text-primary shadow-sm"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >

@@ -93,11 +93,11 @@ textarea.ac-control { min-height: 100px; resize: vertical; }
 .ac-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); min-width: 0; }
 .ac-field { display: grid; align-content: start; gap: 6px; min-width: 0; font-size: 13px; color: #bac6d6; }
 .ac-full { grid-column: 1 / -1; min-width: 0; }
-.ac-service-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr)); min-width: 0; }
-.ac-service { min-inline-size: 0; margin: 0; padding: 14px; display: grid; align-content: start; gap: 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); }
+.ac-service-grid { display: grid; gap: 36px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr)); min-width: 0; }
+.ac-service { min-inline-size: 0; margin: 0; padding: 14px; display: grid; align-content: start; gap: 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: rgba(4, 10, 15, 1); }
 .ac-service legend { padding: 0 6px; font-weight: 600; font-size: 13px; }
 .ac-expand { display: grid; grid-template-rows: 1fr; opacity: 1; animation: ac-expand .35s cubic-bezier(.2, .7, .2, 1) both; }
-.ac-expand-body { min-height: 0; overflow: hidden; display: grid; gap: 14px; padding: 4px; margin: -4px; }
+.ac-expand-body { min-height: 0; overflow: hidden; display: grid; gap: 39px; padding: 5px 4px; margin: 15px 17px; background: transparent; }
 @keyframes ac-expand {
   from { grid-template-rows: 0fr; opacity: 0; }
   to { grid-template-rows: 1fr; opacity: 1; }

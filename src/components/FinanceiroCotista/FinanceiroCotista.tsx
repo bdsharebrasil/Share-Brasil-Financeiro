@@ -2362,14 +2362,14 @@ export default function FinanceiroCotista() {
     | "portal-cliente"
   >("lancamentos");
   const [paginaAberta, setPaginaAberta] = useState(false);
-  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText }> = [
-    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText },
-    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard },
-    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel },
-    { id: "medias", rotulo: "Médias", Icon: Gauge },
-    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3 },
-    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound },
-    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark }] : []),
+  const abasCotista: Array<{ id: string; rotulo: string; Icon: typeof ReceiptText; corIcone: string }> = [
+    { id: "lancamentos", rotulo: "Lançamentos mensais", Icon: ReceiptText, corIcone: "bg-sky-400/10 text-sky-400" },
+    { id: "resumo", rotulo: "Visão por cotista", Icon: LayoutDashboard, corIcone: "bg-violet-400/10 text-violet-400" },
+    { id: "emprestimos", rotulo: "Voos empréstimo", Icon: Fuel, corIcone: "bg-amber-400/10 text-amber-400" },
+    { id: "medias", rotulo: "Médias", Icon: Gauge, corIcone: "bg-emerald-400/10 text-emerald-400" },
+    { id: "graficos", rotulo: "Gráficos", Icon: BarChart3, corIcone: "bg-rose-400/10 text-rose-400" },
+    { id: "portal-cliente", rotulo: "Portal Cliente", Icon: KeyRound, corIcone: "bg-teal-400/10 text-teal-400" },
+    ...(possuiHolding ? [{ id: "extrato", rotulo: "Extrato Holding", Icon: Landmark, corIcone: "bg-orange-400/10 text-orange-400" }] : []),
   ];
 
   const periodoDosMeses = (meses: string[]): PeriodoCotista => {
@@ -2690,7 +2690,7 @@ export default function FinanceiroCotista() {
 
           {!paginaAberta ? (
             <div className="!mt-[14px] grid gap-[29px] overflow-hidden rounded-[7px] px-[22px] py-[32px] sm:grid-cols-2 xl:grid-cols-3">
-              {abasCotista.map(({ id, rotulo, Icon }) => (
+              {abasCotista.map(({ id, rotulo, Icon, corIcone }) => (
                 <button
                   key={id}
                   type="button"
@@ -2700,7 +2700,7 @@ export default function FinanceiroCotista() {
                   }}
                   className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(64,70,73,1)] p-4 text-left transition hover:!bg-card"
                 >
-                  <span className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                  <span className={`rounded-lg p-2.5 ${corIcone}`}>
                     <Icon size={17} />
                   </span>
                   <span className="text-sm font-semibold">{rotulo}</span>

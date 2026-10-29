@@ -154,7 +154,7 @@ export default function Login() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-5 py-10 text-white sm:px-8">
+    <main className="relative m-0 flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030814] px-8 py-0 text-white">
       <InstallPrompt />
       <style>{`
         @keyframes login-flight {
@@ -165,7 +165,7 @@ export default function Login() {
         }
         .login-flight { animation: login-flight var(--flight-duration) linear var(--flight-delay) infinite; }
       `}</style>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
+      <div className="absolute inset-0 my-[10px] p-0 bg-[radial-gradient(circle_at_top,rgba(20,67,122,.5),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(17,94,133,.3),transparent_42%)]" />
       <div
         className="pointer-events-none absolute inset-0 z-0 bg-no-repeat bg-center opacity-20 mix-blend-screen"
         style={{
@@ -176,9 +176,9 @@ export default function Login() {
           WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 80%)",
         }}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
+      <div className="pointer-events-none absolute inset-0 py-0 bg-gradient-to-br from-[#02050d]/95 via-[#061225]/80 to-[#081b31]/95" />
 
-      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 z-10 mx-[7px] my-0 overflow-hidden p-0">
         {flightRoutes.map((route, index) => (
           <div
             key={index}
@@ -195,16 +195,16 @@ export default function Login() {
         ))}
       </div>
 
-      <section className="relative z-20 w-full max-w-[416px] rounded-[28px] border border-white/10 bg-[#061223]/75 px-6 py-8 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:rounded-[32px] sm:px-8 sm:py-10">
+      <section className="relative z-20 my-[14px] w-full max-w-[416px] overflow-hidden rounded-[52px] border border-white/10 bg-[#061223]/75 px-6 py-3 shadow-[0_40px_80px_-20px_rgba(0,10,20,.85)] backdrop-blur-xl sm:px-8 sm:py-3">
         <div className="text-center">
           <img src="/logoshare.branco.png" alt="Logo Share Brasil" className="mx-auto h-20 w-auto object-contain" />
           <p className="mt-1.5 text-sm text-[#94a3b8]">Acesso ao Portal do Colaborador</p>
         </div>
 
-        <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="mt-3 space-y-5" onSubmit={handleSubmit}>
+          <div className="my-1 space-y-2 bg-transparent py-px">
             <Label htmlFor="username" className="ml-1 text-sm font-medium text-[#cbd5e1]">LOGIN</Label>
-            <div className="group relative">
+            <div className="group relative mt-2 -mb-[2px] bg-transparent">
               <User className={`pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isUsernameFocused ? "text-[#38d7ff]" : "text-white/30"}`} />
               <Input
                 id="username"
@@ -265,7 +265,7 @@ export default function Login() {
           <Button
             type="submit"
             disabled={isSubmitting || !isValid || !password}
-            className="h-14 w-full rounded-2xl bg-[#38d7ff] text-base font-semibold text-[#02111f] shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
+            className="h-14 w-full min-h-[5px] rounded-[95px] overflow-hidden border-[rgb(8,108,144)] bg-[rgba(7,119,146,0.92)] p-[15px] ml-[9px] mr-[80px] text-base font-medium leading-[21px] text-black shadow-[0_8px_16px_-10px_rgba(56,215,255,.4)] transition-all hover:bg-[#6be4ff] hover:shadow-[0_12px_24px_-10px_rgba(56,215,255,.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38d7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#061223] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
           >
             {isSubmitting ? "Autenticando..." : "Acessar Plataforma"}
           </Button>

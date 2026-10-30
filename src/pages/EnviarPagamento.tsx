@@ -14,7 +14,7 @@ import { HistoricoEnvios } from "@/components/envio-pagamento/historico/Historic
 import { usePaginaHistorico } from "@/components/envio-pagamento/historico/usePaginaHistorico";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { atualizarStatusEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarFornecedorCombustivel, criarFornecedorFavorito, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
+import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarFornecedorCombustivel, criarFornecedorFavorito, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -1114,7 +1114,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         : [];
       const todosEmailsCotistasEnviados = envioPorCotista && gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
       if (envioRecemCriado && (!envioPorCotista || todosEmailsCotistasEnviados)) {
-        await atualizarStatusEnvioPagamento(envioRecemCriado.id, "EMAIL_ENVIADO");
+        await registrarEmailEnvioPagamento(envioRecemCriado.id);
         if (envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
           atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");

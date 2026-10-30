@@ -1350,7 +1350,7 @@ export function enviarDespesaAoCliente(id: string, payload: { data_vencimento: s
 
 // ─── Emissão de recibos (cliente reembolsável / caixa cliente / colaborador) ────────────────
 export type ClienteRecibo = { id: string; razao_social: string; cnpj: string | null; endereco: string | null; cidade: string | null; uf: string | null; holding: number | boolean | null; status: string | null; codigo_cliente?: string | null };
-export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null; nome_banco: string | null; tipo_conta: string | null; conta_numero: string | null; agencia_numero: string | null; pix: string | null };
+export type ColaboradorRecibo = { id: string; nome_completo: string; nome_exibicao: string | null; cpf: string | null };
 export type RecebedorRecibo = { id: string; nome: string; nome_completo?: string | null; cpf: string | null; email: string | null; telefone: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; tipo_user: string | null; origem: "user_profiles" | "tripulacao_freelancer"; canac?: string | null };
 export type AeronaveRecibo = { id: string; matricula_registro: string; fabricante: string | null; modelo: string | null };
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };

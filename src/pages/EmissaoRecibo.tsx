@@ -231,6 +231,7 @@ function caminhoPdfRecibo(recibo: ReciboFinanceiro) {
 async function gerarPdfRecibo(
   recibo: ReciboFinanceiro,
   colaborador?: OpcoesRecibos["colaboradores"][number],
+  aeronaves: OpcoesRecibos["aeronaves"] = [],
 ) {
   const ehReembolso = recibo.tipo_recibo === "recibo_reembolso";
   const ehColaborador = recibo.tipo_recibo === "recibo_colaborador";
@@ -239,11 +240,15 @@ async function gerarPdfRecibo(
   const nomeColaborador =
     colaborador?.nome_completo || recibo.recebedor_nome || "";
   const documentoColaborador = colaborador?.cpf || "";
+  const matriculaAeronave = aeronaves.find(
+    (aeronave) => aeronave.id === recibo.aeronave_id,
+  )?.matricula_registro;
 
   const blob = await gerarReciboPdf({
     numero: recibo.numero_recibo,
     valor: Number(recibo.valor || 0) / 100,
     descricao: [
+      matriculaAeronave ? `Aeronave: ${matriculaAeronave}` : null,
       recibo.descricao,
       recibo.numero_documento_anexo
         ? `Documento anexo: ${recibo.numero_documento_anexo}`
@@ -607,7 +612,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         const colaborador = opcoes.colaboradores.find(
           (item) => item.id === recibo.colaborador_id,
         );
-        const pdf = await gerarPdfRecibo(recibo, colaborador);
+        const pdf = await gerarPdfRecibo(recibo, colaborador, opcoes.aeronaves);
         const salvo = await enviarPdfRecibo(recibo.id, pdf);
         caminho = `/api/financeiro/recibos/anexos/${encodeURIComponent(salvo.anexo_id)}/arquivo`;
         setRecibos((atual) =>
@@ -833,6 +838,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         let pdf = await gerarPdfRecibo(
           resposta.recibo,
           colaboradorSelecionado,
+          opcoes.aeronaves,
         );
         if (arquivo) {
           pdf = await anexarArquivoAoReciboPdf(pdf, arquivo);

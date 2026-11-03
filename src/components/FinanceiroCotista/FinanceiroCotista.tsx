@@ -3513,36 +3513,43 @@ export default function FinanceiroCotista() {
       )}
 
       {!aeronaveSelecionada ? (
-        <section className="space-y-5 py-6">
-          <header className="space-y-1.5 text-center">
-            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-              Selecione uma aeronave para começar
+        <section className="space-y-4 py-4">
+          <header className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Financeiro Cotista
+            </p>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Selecione uma aeronave
             </h2>
             <p className="text-sm text-muted-foreground">
-              Os dados financeiros e de cotistas serão carregados após a
-              seleção.
+              Selecione uma aeronave para consultar os dados financeiros e os
+              lançamentos dos cotistas.
             </p>
           </header>
-          <div className="mx-auto max-w-4xl">
+          <div className="relative w-full max-w-md">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               type="search"
               value={buscaMatricula}
               onChange={(e) => setBuscaMatricula(e.target.value)}
               placeholder="Digite a matrícula (ex.: PR-GJM)"
               aria-label="Filtrar aeronaves pela matrícula"
-              className="h-10"
+              className="h-10 pl-9"
             />
           </div>
           {aeronaves.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
               Nenhuma aeronave cadastrada.
             </p>
           ) : aeronavesFiltradas.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
               Nenhuma aeronave encontrada para &quot;{buscaMatricula}&quot;.
             </p>
           ) : (
-            <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {aeronavesFiltradas.map((a) => (
                 <button
                   key={a.id}
@@ -3551,27 +3558,32 @@ export default function FinanceiroCotista() {
                     setAeronaveSelecionada(a.id);
                     setPaginaAberta(false);
                   }}
-                  className="group flex items-center gap-4 rounded-xl border border-white/10 bg-card/60 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg"
+                  className="group flex h-[68px] w-full items-center gap-3 rounded-md border border-border bg-card px-3 text-left transition-colors hover:border-muted-foreground/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   {a.url_imagem ? (
                     <img
                       src={a.url_imagem}
                       alt=""
-                      className="h-14 w-20 shrink-0 rounded-lg object-cover"
+                      className="h-12 w-16 shrink-0 rounded object-cover"
                     />
                   ) : (
-                    <span className="rounded-lg bg-primary/10 p-3 text-primary transition group-hover:bg-primary/20">
-                      <Plane size={20} />
+                    <span className="flex h-12 w-16 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                      <Plane size={18} aria-hidden />
                     </span>
                   )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-base font-semibold">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono text-sm font-semibold tracking-wide text-foreground">
                       {a.matricula_registro}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {a.modelo}
                     </span>
                   </span>
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+                    aria-hidden
+                  />
                 </button>
               ))}
             </div>

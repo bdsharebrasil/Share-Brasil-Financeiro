@@ -209,7 +209,7 @@ const DESPESAS_ESTILOS = `
 .despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:var(--ledger-accent); border:1px solid var(--ledger-accent); border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-toolbar .despesa-primary:hover { background:var(--ledger-accent); filter:brightness(.92); }
 .despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:0; border-radius:4px; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; }
-.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:0 0 8px; border:0; background:transparent; overflow:visible; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:8px 10px; border:0; border-bottom:1px solid var(--ledger-border); background:var(--bg-surface); overflow:visible; }
 .despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 16px; min-width:0; }
 .despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
 .despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); color:var(--text); font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
@@ -310,7 +310,7 @@ const DESPESAS_ESTILOS = `
   .despesa-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media(max-width:760px) {
-  .despesa-toolbar { padding:8px 0; gap:6px; }
+  .despesa-toolbar { padding:8px; gap:6px; }
   .despesa-period { margin-left:0; }
 }
 @media(max-width:640px) {
@@ -2841,13 +2841,15 @@ function LancamentosDespesa({
                           ? "Nenhuma despesa corresponde aos filtros."
                           : "Nenhuma despesa neste período."}
                       </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={temFiltros ? limparFiltros : aoNovo}
-                      >
-                        {temFiltros ? "Limpar filtros" : "Novo lançamento"}
-                      </Button>
+                      {temFiltros && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={limparFiltros}
+                        >
+                          Limpar filtros
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

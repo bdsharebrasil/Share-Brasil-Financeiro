@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, Svg, Rect, StyleSheet, pdf } from '@react-pdf/renderer';
-import type { Balanco } from '../types/balanco';
-import { COR_GRUPO, NOME_GRUPO, brl, destaques, hhmm, montarResumo, type Grupo, type Resumo } from '../utils/balancoResumo';
+import type { Balanco } from '../../types/balanco';
+import { COR_GRUPO, NOME_GRUPO, brl, destaques, hhmm, montarResumo, type Grupo, type Resumo } from './BalancoResumo';
 
 // Anexos opcionais: vêm do mesmo dashboard (lançamentos e voos do período).
 export type LancamentoPdf = { data: string; doc?: string; fornecedor: string; descricao: string; categoria: string; valor: number };

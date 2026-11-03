@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, Download, Lightbulb, PieChart, TrendingDown } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SectionCard } from './SectionCard';
-import { COR_GRUPO, NOME_GRUPO, brl, destaques, type Resumo } from '../../utils/balancoResumo';
+import { COR_GRUPO, NOME_GRUPO, brl, destaques, type Resumo } from './BalancoResumo';
 
 const compacto = (v: number) => new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(v);
 

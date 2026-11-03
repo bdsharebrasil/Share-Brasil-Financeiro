@@ -1,4 +1,4 @@
-import type { Balanco, LinhaBalanco } from '../types/balanco';
+import type { Balanco, LinhaBalanco } from '../../types/balanco';
 
 export type Grupo = 'fixo' | 'variavel' | 'extra';
 type Chave =

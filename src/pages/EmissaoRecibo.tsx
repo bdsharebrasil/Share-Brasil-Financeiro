@@ -333,7 +333,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const [abaAtiva, setAbaAtiva] = useState<"emissao" | "historico">("emissao");
+  const [abaAtiva, setAbaAtiva] = useState<"emissao" | "historico" | "rateio">("emissao");
   const [leitorDemonstrativoAberto, setLeitorDemonstrativoAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
@@ -353,6 +353,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   >(null);
   const [reciboEmail, setReciboEmail] = useState<ReciboFinanceiro | null>(null);
   const [reciboProgramacao, setReciboProgramacao] = useState<ReciboFinanceiro | null>(null);
+  const [reciboRateio, setReciboRateio] = useState<ReciboFinanceiro | null>(null);
   const [rateioAposEmail, setRateioAposEmail] = useState<{ recibo: ReciboFinanceiro; payload: RateioDiretoPayload } | null>(null);
   const [modalEmail, setModalEmail] = useState(false);
   const [cadastroFornecedorAberto, setCadastroFornecedorAberto] = useState(false);
@@ -1007,9 +1008,16 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     setMensagem("Recibo reativado corretamente.");
   };
 
+  const voltarAoHistorico = () => {
+    setReciboRateio(null);
+    setRateioAposEmail(null);
+    setAbaAtiva("historico");
+  };
+
   const programarEmail = (recibo: ReciboFinanceiro) => {
     if (recibo.tipo_recibo === "recibo_pagamento") {
-      setReciboProgramacao(recibo);
+      setReciboRateio(recibo);
+      setAbaAtiva("rateio");
       return;
     }
     setReciboEmail(recibo);
@@ -1052,6 +1060,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       setRecibos((atual) => atual.map((item) => item.id === recibo.id ? { ...atualizado, despesa_programada: Boolean(rateioPendente) || item.despesa_programada } : item));
       setModalEmail(false);
       setReciboProgramacao(null);
+      if (rateioPendente) voltarAoHistorico();
       if (erroStatus) {
         mostrarFeedback(
           "erro",
@@ -1070,6 +1079,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
       }
     } catch (cause) {
+      if (rateioPendente) {
+        setModalEmail(false);
+        voltarAoHistorico();
+      }
       mostrarFeedback(
         "erro",
         rateioPendente
@@ -1091,6 +1104,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           </div>
         </div>
       )}
+      {abaAtiva !== "rateio" && (
+      <>
       <header className="flex flex-wrap items-start justify-between gap-5 md:gap-6">
         <div className="min-w-0">
           <IndicadorPagina>Financeiro / Emissão de recibo</IndicadorPagina>
@@ -1133,6 +1148,8 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           <History size={14} /> Histórico de recibos
         </button>
       </nav>
+      </>
+      )}
 
       {abaAtiva === "historico" && (
         <HistoricoRecibos
@@ -1169,20 +1186,24 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         referencias={reciboEmail ? [`recibo:${reciboEmail.id}`] : []}
       />
       <ProgramarContaAPagarDialog
-        open={Boolean(reciboProgramacao)}
-        recibo={reciboProgramacao}
+        open={Boolean(reciboProgramacao || reciboRateio)}
+        recibo={reciboRateio ?? reciboProgramacao}
         aeronaves={opcoes.aeronaves}
         categorias={opcoes.categorias_cliente}
         onRequestEmail={(recibo, payload) => {
           setRateioAposEmail({ recibo, payload });
           setReciboEmail(recibo);
-          setReciboProgramacao(null);
           setModalEmail(true);
         }}
-        onOpenChange={(aberto) => { if (!aberto) setReciboProgramacao(null); }}
+        onOpenChange={(aberto) => {
+          if (aberto) return;
+          if (reciboRateio) voltarAoHistorico();
+          else setReciboProgramacao(null);
+        }}
         onSaved={() => {
-          if (reciboProgramacao) {
-            setRecibos((atual) => atual.map((item) => item.id === reciboProgramacao.id ? { ...item, despesa_programada: true } : item));
+          const alvo = reciboRateio ?? reciboProgramacao;
+          if (alvo) {
+            setRecibos((atual) => atual.map((item) => item.id === alvo.id ? { ...item, despesa_programada: true } : item));
           }
           mostrarFeedback("sucesso", "SUA PROGRAMAÇÃO FOI CONCLUIDA");
         }}

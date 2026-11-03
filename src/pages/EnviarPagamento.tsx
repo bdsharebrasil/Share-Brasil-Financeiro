@@ -60,6 +60,7 @@ type OpcaoEnvio = {
   cor: string;
 };
 type ArquivoPersistidoEmail = { key: string; url: string; filename: string; content_type: string; cotista_id?: string };
+type RateioDuplicado = { id: string; tabela: string; data_vencimento?: string | null; categoria_nome?: string | null; valor_total_centavos?: number; documento_url?: string | null; numero_nf?: string | null; numero_recibo?: string | null; numero_boleto?: string | null; numero_demonstrativo?: string | null; numero_voo?: string | null; url_nf?: string | null; url_recibo?: string | null; url_boleto?: string | null; url_demonstrativo?: string | null; url_doc?: string | null };
 
 function anexoAplicaAoCotista(anexo: AnexoLinha, cotistaId: string) {
   return !anexo.cotista_id || anexo.cotista_id === cotistaId;
@@ -246,6 +247,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [envioRecemCriado, setEnvioRecemCriado] = useState<EnvioPagamento | null>(null);
   const [envioConvertido, setEnvioConvertido] = useState(false);
   const [modalEmail, setModalEmail] = useState(false);
+  const [rateiosDuplicados, setRateiosDuplicados] = useState<RateioDuplicado[]>([]);
+  const confirmarDuplicidadeRef = useRef(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [assinaturaEmail, setAssinaturaEmail] = useState<AssinaturaEmail | null>(null);
   const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
@@ -939,8 +942,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         subcategoria_3: form.subcategoria_3,
         subcategoria_4: form.subcategoria_4,
         rateio_linhas: montarRateioLinhas(),
+        ...(confirmarDuplicidadeRef.current ? { confirmar_duplicidade: true } : {}),
       };
       const registro = await criarEnvioPagamento(payload);
+      confirmarDuplicidadeRef.current = false;
       setEnvios((atual) => [registro, ...atual]);
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
@@ -1000,6 +1005,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setTipo(null);
       setEtapa(0);
     } catch (cause) {
+      const duplicados = (cause as Error & { rateiosDuplicados?: RateioDuplicado[] }).rateiosDuplicados;
+      if (duplicados?.length) {
+        confirmarDuplicidadeRef.current = false;
+        setRateiosDuplicados(duplicados);
+        return;
+      }
+      confirmarDuplicidadeRef.current = false;
       setErro(cause instanceof Error ? cause.message : "Não foi possível criar o lançamento.");
     } finally {
       setSalvando(false);
@@ -1296,7 +1308,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
-                  {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={form.subcategoria_1} onChange={(id) => setForm((atual) => ({ ...atual, subcategoria_1: id, subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
+                  {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].find(Boolean) || ""} onChange={(id) => { const nivel = (["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const).find((campo) => categoriaSelecionada?.[campo] === id); setForm((atual) => ({ ...atual, subcategoria_1: nivel === "subcategoria_1" ? id : "", subcategoria_2: nivel === "subcategoria_2" ? id : "", subcategoria_3: nivel === "subcategoria_3" ? id : "", subcategoria_4: nivel === "subcategoria_4" ? id : "" })); }} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
                   {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
                   <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   </div>
@@ -1417,6 +1429,20 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </DialogContent>
       </Dialog>
 
+      <Dialog open={rateiosDuplicados.length > 0} onOpenChange={(open) => { if (!open) { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = false; } }}>
+        <DialogContent className="max-h-[85dvh] max-w-2xl overflow-y-auto">
+          <DialogHeader><DialogTitle>Despesa já consta no rateio</DialogTitle><DialogDescription>Encontramos lançamento(s) com a mesma data de vencimento, categoria, valor total e números de documento/voo. Confira antes de continuar.</DialogDescription></DialogHeader>
+          <div className="space-y-3">{rateiosDuplicados.map((rateio) => {
+            const imagens = [rateio.documento_url, rateio.url_nf, rateio.url_recibo, rateio.url_boleto, rateio.url_demonstrativo, rateio.url_doc].filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
+            return <section key={`${rateio.tabela}-${rateio.id}`} className="rounded-lg border border-border p-3 text-sm">
+              <p className="font-semibold">{rateio.categoria_nome || "Rateio"} · {formatarValor(Number(rateio.valor_total_centavos || 0) / 100)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{rateio.tabela} · vencimento {dataBr(rateio.data_vencimento)} · documento {rateio.numero_nf || rateio.numero_recibo || rateio.numero_boleto || rateio.numero_demonstrativo || "—"} · voo {rateio.numero_voo || "—"}</p>
+              <details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-primary">Ver lançamento e abrir resumo</summary><div className="mt-2 break-all text-xs">ID: {rateio.id}{imagens.length > 0 && <ul className="mt-2 list-inside list-disc">{imagens.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer" className="text-primary underline">{/\.(?:png|jpe?g|webp|gif)(?:[?#]|$)/i.test(url) && <img src={url} alt="Imagem do comprovante" className="my-2 max-h-40 max-w-full rounded border border-border object-contain" />}Abrir comprovante/imagem</a></li>)}</ul>}</div></details>
+            </section>;
+          })}</div>
+          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = false; }}>Cancelar envio</Button><Button type="button" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = true; void enviar(); }}>Concluir envio mesmo assim</Button></div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={modalEmail} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
         <DialogContent
           className="

@@ -110,10 +110,10 @@ export async function colaboradorRequest<T>(path: string, init: RequestInit = {}
   headers.set("Authorization", `Bearer ${session.access_token}`);
   if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit", cache: "no-store" });
-  const data = await response.json().catch(() => null) as T & { error?: string; message?: string; detail?: string; solicitacao_id?: string; numero_voo?: string | null; tripulante_id?: string | null; tripulante_nome?: string | null; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
+  const data = await response.json().catch(() => null) as T & { error?: string; message?: string; detail?: string; rateios?: Array<Record<string, unknown>>; solicitacao_id?: string; numero_voo?: string | null; tripulante_id?: string | null; tripulante_nome?: string | null; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
   if (!response.ok) {
     const diagnostico = [data?.message, data?.detail, data?.numero_voo ? `voo=${data.numero_voo}` : data?.solicitacao_id && `solicitacao=${data.solicitacao_id}`, data?.tripulante_nome ? `tripulante=${data.tripulante_nome}` : data?.tripulante_id && `tripulante_id=${data.tripulante_id}`, data?.cliente_id && `cliente=${data.cliente_id}`, data?.socio_id && `socio=${data.socio_id}`, data?.aeronave_id && `aeronave=${data.aeronave_id}`].filter(Boolean).join(" | ");
-    throw new Error([data?.error || `api_${response.status}`, diagnostico].filter(Boolean).join(" — "));
+    throw Object.assign(new Error([data?.error || `api_${response.status}`, diagnostico].filter(Boolean).join(" — ")), { rateiosDuplicados: data?.rateios });
   }
   return data as T;
 }

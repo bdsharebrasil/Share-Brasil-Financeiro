@@ -60,16 +60,18 @@ import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
-  centroCusto?: string;
   formaPagamento?: string;
-  competencia?: string;
-  emissao?: string;
   observacoes?: string;
   anexos?: Array<{ nome: string; url: string }>;
-  criadoPor?: string;
-  criadoEm?: string;
-  ultimaAlteracao?: string;
 };
+
+const CAMPOS_ANEXO: Array<{ campo: "url_recibo" | "url_demonstrativo" | "url_nf" | "url_boleto" | "url_doc"; rotulo: string }> = [
+  { campo: "url_recibo", rotulo: "Recibo" },
+  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
+  { campo: "url_nf", rotulo: "Nota fiscal" },
+  { campo: "url_boleto", rotulo: "Boleto" },
+  { campo: "url_doc", rotulo: "Documento" },
+];
 
 type Props = {
   fluxo: FluxoLinha;
@@ -177,7 +179,11 @@ function Checkbox({
 }
 
 function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamento }) {
-  const anexos = (dados.anexos ?? []).flatMap((anexo) => {
+  const anexosDaLinha = CAMPOS_ANEXO.flatMap(({ campo, rotulo }) => {
+    const url = linha.raw[campo];
+    return url ? [{ nome: rotulo, url }] : [];
+  });
+  const anexos = [...anexosDaLinha, ...(dados.anexos ?? [])].flatMap((anexo) => {
     const href = urlSegura(anexo.url);
     return href ? [{ ...anexo, href }] : [];
   });
@@ -185,12 +191,7 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
     <div className="erp-detalhes">
       <dl>
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
-        <div><dt>Centro de custo</dt><dd>{dados.centroCusto || "—"}</dd></div>
         <div><dt>Forma de pagamento</dt><dd>{dados.formaPagamento || "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Competência</dt><dd>{dataOuTraco(dados.competencia)}</dd></div>
-        <div><dt>Emissão</dt><dd>{dataOuTraco(dados.emissao)}</dd></div>
         <div><dt>Nº do documento</dt><dd>{linha.documento || "—"}</dd></div>
       </dl>
       <dl>
@@ -200,12 +201,6 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
             <Paperclip size={15} aria-hidden="true" />{anexo.nome}
           </a>
         )) : "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Criado por/em</dt><dd>
-          {[dados.criadoPor, dados.criadoEm ? dataOuTraco(dados.criadoEm) : undefined].filter(Boolean).join(" • ") || "—"}
-        </dd></div>
-        <div><dt>Última alteração</dt><dd>{dataOuTraco(dados.ultimaAlteracao)}</dd></div>
       </dl>
     </div>
   );

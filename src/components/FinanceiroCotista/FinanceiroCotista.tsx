@@ -198,18 +198,18 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :is(input,textarea,[role="combobox"]) { min-width:0; max-width:100%; border-color:hsl(var(--input)); background:hsl(var(--card)); color:hsl(var(--foreground)); border-radius:4px; box-shadow:none; }
 .despesas-theme :is(input,textarea)::placeholder { color:hsl(var(--muted-foreground)); }
 .despesas-theme {
-  --bg-page:#0f1115; --bg-surface:#14171c; --bg-hover:#181c22; --bg-selected:#202630;
-  --ledger-border:#232832; --text:#e6e8eb; --text-muted:#8b93a0; --ledger-accent:#1f8fd6;
+  --bg-page:#090d13; --bg-surface:#111820; --bg-hover:#151d27; --bg-selected:#164d6d;
+  --ledger-border:#293542; --text:#e1e7ef; --text-muted:#9ba9ba; --ledger-accent:#1599df;
   --success:#3fb27f; --danger:#f53228e0; --warning:#f3e141d3;
   --row-height:40px; --header-height:32px; --toolbar-height:36px;
   --font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
 }
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-ledger :focus-visible { outline:2px solid var(--ledger-accent); outline-offset:2px; }
-.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:rgba(8,74,116,1); border:1px solid rgba(8,74,116,1); border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
-.despesas-theme .despesa-toolbar .despesa-primary:hover { background:rgba(8,74,116,1); filter:brightness(.92); }
-.despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:0; border-radius:4px; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; }
-.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:8px 10px; border:0; border-bottom:1px solid var(--ledger-border); border-radius:5px; background:rgba(6,8,15,.56); overflow:hidden; }
+.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:#167fb5; border:1px solid #167fb5; border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
+.despesas-theme .despesa-toolbar .despesa-primary:hover { background:#167fb5; filter:brightness(.92); }
+.despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:6px 8px; border:1px solid var(--ledger-border); border-radius:4px; background:#0d131b; overflow:visible; }
 .despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 16px; min-width:0; }
 .despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
 .despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); color:var(--text); font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
@@ -292,7 +292,7 @@ const DESPESAS_ESTILOS = `
 .despesa-pagination button:disabled { opacity:.35; cursor:not-allowed; }
 .despesa-expanded-content { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; }
 .despesa-expanded-description { margin:0; padding:12px 16px 0 40px; background:var(--bg-hover); color:var(--text); overflow-wrap:anywhere; white-space:pre-wrap; font-size:12px; line-height:17px; }
-.despesa-empty { min-width:0; padding:40px 16px; text-align:center; color:var(--text-muted); }
+.despesa-empty { min-width:0; padding:30px 16px; text-align:center; color:var(--text-muted); }
 .despesa-detail { min-width:0; max-width:100%; overflow:hidden; padding:12px 16px 12px 40px; background:var(--bg-hover); border-bottom:1px solid var(--ledger-border); }
 .despesa-detail-title { margin:0 0 8px; font-size:12px; font-weight:600; color:var(--text); }
 .despesa-detail-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 24px; min-width:0; }
@@ -381,7 +381,7 @@ function SeletorMesesCotista({
             const competencia = `${ano}-${String(indice + 1).padStart(2, "0")}`;
             const selecionado = mesesSelecionados.includes(competencia);
             return (
-              <button key={competencia} type="button" aria-pressed={selecionado} onClick={() => aoAlternar(competencia)} className={`rounded-md border px-2 py-1.5 text-xs font-medium ${selecionado ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>
+              <button key={competencia} type="button" aria-pressed={selecionado} onClick={() => aoAlternar(competencia)} className="despesa-month-choice">
                 {mes}
               </button>
             );
@@ -1974,18 +1974,6 @@ function LancamentosDespesa({
   );
   const colunas: ColunaDespesa[] = [
     {
-      id: "data",
-      titulo: "Data",
-      largura: 130,
-      minimo: 110,
-      valor: (item) => item.dataEmissao || item.data,
-      render: (item) => (
-        <p className="despesa-date">
-          {formatarData(item.dataEmissao || item.data)}
-        </p>
-      ),
-    },
-    {
       id: "documento",
       titulo: "Doc",
       largura: 130,
@@ -2038,6 +2026,18 @@ function LancamentosDespesa({
             .replace(/_/g, " ")
             .toLocaleUpperCase("pt-BR"),
         ),
+    },
+    {
+      id: "data",
+      titulo: "Data",
+      largura: 130,
+      minimo: 110,
+      valor: (item) => item.dataEmissao || item.data,
+      render: (item) => (
+        <p className="despesa-date">
+          {formatarData(item.dataEmissao || item.data)}
+        </p>
+      ),
     },
     {
       id: "pago",
@@ -2411,56 +2411,6 @@ function LancamentosDespesa({
                 <ListOrdered size={15} />
                 {todosExpandidos ? "Recolher todas" : "Expandir todas"}
               </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="despesa-control despesa-control-quiet"
-                  >
-                    <Columns3 size={15} />
-                    Colunas
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="despesas-theme despesa-dialog despesa-columns-menu"
-                >
-                  <p className="px-2 py-2 text-xs font-semibold">
-                    Exibir colunas
-                  </p>
-                  {colunas
-                    .filter((coluna) => coluna.id !== "acoes")
-                    .map((coluna) => (
-                      <label key={coluna.id} className="despesa-column-option">
-                        <input
-                          type="checkbox"
-                          checked={!ocultas.has(coluna.id)}
-                          onChange={() =>
-                            setOcultas((atual) => {
-                              const proximo = new Set(atual);
-                              if (proximo.has(coluna.id))
-                                proximo.delete(coluna.id);
-                              else proximo.add(coluna.id);
-                              return proximo;
-                            })
-                          }
-                        />
-                        <span className="min-w-0 break-words">
-                          {coluna.titulo}
-                        </span>
-                      </label>
-                    ))}
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setOcultas(new Set());
-                      setLarguras({});
-                    }}
-                  >
-                    <RotateCcw size={13} className="mr-2" />
-                    Restaurar colunas
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <button
                 type="button"
                 className="despesa-control despesa-control-quiet"
@@ -2471,8 +2421,24 @@ function LancamentosDespesa({
                 }}
               >
                 <RotateCcw size={14} />
-                Restaurar
-              </button>
+                  Restaurar colunas
+                </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="despesa-control despesa-control-quiet" aria-label="Configurar colunas">
+                    <Columns3 size={15} /> Colunas
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="despesas-theme despesa-dialog despesa-columns-menu">
+                  <p className="px-2 py-2 text-xs font-semibold">Exibir colunas</p>
+                  {colunas.filter((coluna) => coluna.id !== "acoes").map((coluna) => (
+                    <label key={coluna.id} className="despesa-column-option">
+                      <input type="checkbox" checked={!ocultas.has(coluna.id)} onChange={() => setOcultas((atual) => { const proximo = new Set(atual); if (proximo.has(coluna.id)) proximo.delete(coluna.id); else proximo.add(coluna.id); return proximo; })}/>
+                      <span className="min-w-0 break-words">{coluna.titulo}</span>
+                    </label>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div
               className="despesa-period"
@@ -2835,22 +2801,7 @@ function LancamentosDespesa({
               <tbody>
                 <tr>
                   <td colSpan={quantidadeColunas} className="despesa-empty">
-                    <div className="flex flex-col items-start gap-3">
-                      <p>
-                        {temFiltros
-                          ? "Nenhuma despesa corresponde aos filtros."
-                          : "Nenhuma despesa neste período."}
-                      </p>
-                      {temFiltros && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={limparFiltros}
-                        >
-                          Limpar filtros
-                        </Button>
-                      )}
-                    </div>
+                    Nenhum lançamento encontrado para os filtros.
                   </td>
                 </tr>
               </tbody>

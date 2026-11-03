@@ -653,14 +653,14 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
                               {cotista.eh_holding && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">Holding</span>}
                             </span>
                             <span className="text-xs text-muted-foreground sm:text-right">
-                              <span className="sm:hidden">Sociedade: </span>{Number(cotista.percentual_sociedade || 0).toFixed(2)}%
+                              <span className="sm:hidden">Sociedade: </span>{Number(cotista.percentual_sociedade || 0).toLocaleString("pt-BR", { maximumFractionDigits: 10 })}%
                             </span>
                             <div className="relative justify-self-end sm:w-full">
                               <input
                                 type="number"
                                 min="0"
                                 max="100"
-                                step="0.01"
+                                step="any"
                                 inputMode="decimal"
                                 aria-label={`Percentual de uso de ${cotista.nome}`}
                                 value={percentuais[cotista.id] ?? ""}

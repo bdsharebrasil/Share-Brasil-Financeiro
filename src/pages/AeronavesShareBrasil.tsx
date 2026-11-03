@@ -1,193 +1,47 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ImageOff, Loader2, Plane, Plus, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ImageOff, Loader2, Plane, Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buscarAeronavesShare, buscarAeronaveShare, criarAeronaveShare, type AeronavePayload, type AeronaveShare } from "@/lib/colaborador-api";
+import { atualizarAeronaveShare, buscarAeronavesShare, buscarAeronaveShare, criarAeronaveShare, enviarImagemAeronave, type AeronavePayload, type AeronaveShare } from "@/lib/colaborador-api";
 import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/ComponentesDashboard";
 
-const camposCadastro: Array<[keyof AeronavePayload, string, string]> = [
-  ["matricula_registro", "Matrícula de registro", "PR-XXX"],
-  ["fabricante", "Fabricante", "Cirrus"],
-  ["modelo", "Modelo", "SR20"],
-  ["numero_serie", "Número de série", "Opcional"],
-  ["nome_proprietario", "Proprietário", "Nome ou empresa"],
-  ["tipo_aeronave", "Tipo de aeronave", "Monomotor"],
-  ["ano", "Ano", "2024"],
-  ["base", "Base", "SBSP"],
-  ["numero_motores", "Motores", "1"],
-  ["consumo_combustivel", "Consumo de combustível", "L/h"],
-  ["velocidade_cruzeiro", "Velocidade de cruzeiro", "kt"],
-  ["preco_hora", "Preço hora", "R$"],
-  ["url_imagem", "URL da foto", "https://..."],
-  ["performance_categoria", "Categoria performance", "Normal / Utility"],
-  ["performance_teto_servico_ft", "Teto de serviço", "ft"],
-  ["performance_nivel_cruzeiro_min_ft", "Nível cruzeiro mínimo", "ft"],
-  ["performance_nivel_cruzeiro_max_ft", "Nível cruzeiro máximo", "ft"],
-  ["performance_velocidade_cruzeiro_kt", "Performance — velocidade", "kt"],
-  ["performance_taxa_subida_fpm", "Taxa de subida", "fpm"],
-  ["performance_taxa_descida_fpm", "Taxa de descida", "fpm"],
+type Form = Record<string, string>;
+const vazio: Form = { status: "ativa", tipo_aeronave: "", aprovado_rvsm: "false" };
+const obrigatorios = ["matricula_registro", "fabricante", "modelo", "numero_serie", "nome_proprietario"];
+const campos: Array<[string, string, string, string?]> = [
+  ["matricula_registro", "Matrícula / Registro", "Ex.: PR-XXX"], ["fabricante", "Fabricante", "Ex.: Cirrus"], ["modelo", "Modelo", "Ex.: SR20"], ["numero_serie", "Número de série", "Número de série"], ["nome_proprietario", "Nome do proprietário", "Nome ou empresa"],
+  ["numero_motores", "Número de motores", "Ex.: 1", "number"], ["ano", "Ano de fabricação", "AAAA", "text"], ["base", "Base", "Ex.: SBSP"],
+  ["consumo_combustivel", "Consumo de combustível (L/h)", "L/h", "number"], ["velocidade_cruzeiro", "Velocidade de cruzeiro (kt)", "kt", "text"], ["preco_hora", "Preço por hora (R$)", "R$", "text"],
 ];
-
-function valorAeronave(aeronave: AeronaveShare, chave: string) {
-  const valor = aeronave[chave as keyof AeronaveShare];
-  return valor === null || valor === undefined || valor === "" ? "Não informado" : String(valor);
-}
-
-function moeda(valor: unknown) {
-  const numero = Number(valor);
-  return Number.isFinite(numero) && numero > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numero) : "Não informado";
-}
+const camposPerformance: Array<[string, string, string]> = [["performance_categoria", "Categoria de performance", "Categoria"], ["performance_teto_servico_ft", "Teto de serviço (ft)", "ft"], ["performance_nivel_cruzeiro_min_ft", "Nível de cruzeiro mínimo (ft)", "ft"], ["performance_nivel_cruzeiro_max_ft", "Nível de cruzeiro máximo (ft)", "ft"], ["performance_velocidade_cruzeiro_kt", "Performance — velocidade (kt)", "kt"], ["performance_taxa_subida_fpm", "Taxa de subida (fpm)", "fpm"], ["performance_taxa_descida_fpm", "Taxa de descida (fpm)", "fpm"]];
+const camposNumericos = new Set(["numero_motores", "consumo_combustivel", ...camposPerformance.slice(1).map(([key]) => key)]);
+function valorAeronave(a: AeronaveShare, chave: string) { const valor = a[chave as keyof AeronaveShare]; return valor == null || valor === "" ? "Não informado" : String(valor); }
+function moeda(valor: unknown) { const n = Number(valor); return Number.isFinite(n) && n > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n) : "Não informado"; }
 
 export default function AeronavesShareBrasil() {
-  const [ativas, setAtivas] = useState<AeronaveShare[]>([]);
-  const [inativas, setInativas] = useState<AeronaveShare[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [atualizando, setAtualizando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [selecionada, setSelecionada] = useState<AeronaveShare | null>(null);
-  const [novaAberta, setNovaAberta] = useState(false);
-  const [salvando, setSalvando] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({ status: "ativa" });
-
-  const carregar = useCallback(async (silencioso = false) => {
-    if (silencioso) setAtualizando(true); else setCarregando(true);
-    setErro(null);
-    try {
-      const [ativasResponse, inativasResponse] = await Promise.all([buscarAeronavesShare("ativa"), buscarAeronavesShare("inativa")]);
-      setAtivas(ativasResponse.aeronaves || []);
-      setInativas(inativasResponse.aeronaves || []);
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível carregar as aeronaves.");
-    } finally {
-      setCarregando(false);
-      setAtualizando(false);
-    }
-  }, []);
-
+  const [ativas, setAtivas] = useState<AeronaveShare[]>([]); const [inativas, setInativas] = useState<AeronaveShare[]>([]); const [carregando, setCarregando] = useState(true); const [atualizando, setAtualizando] = useState(false); const [erro, setErro] = useState<string | null>(null);
+  const [selecionada, setSelecionada] = useState<AeronaveShare | null>(null); const [formAberto, setFormAberto] = useState(false); const [editando, setEditando] = useState<AeronaveShare | null>(null); const [form, setForm] = useState<Form>(vazio); const [imagem, setImagem] = useState<File | null>(null); const [preview, setPreview] = useState(""); const [salvando, setSalvando] = useState(false); const [validacao, setValidacao] = useState<Record<string, string>>({}); const fileRef = useRef<HTMLInputElement>(null); const baseline = useRef("");
+  const carregar = useCallback(async (silencioso = false) => { if (silencioso) setAtualizando(true); else setCarregando(true); setErro(null); try { const [a, i] = await Promise.all([buscarAeronavesShare("ativa"), buscarAeronavesShare("inativa")]); setAtivas(a.aeronaves || []); setInativas(i.aeronaves || []); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível carregar as aeronaves."); } finally { setCarregando(false); setAtualizando(false); } }, []);
   useEffect(() => { void carregar(); }, [carregar]);
-
-  const abrirDetalhe = async (aeronave: AeronaveShare) => {
-    try {
-      const response = await buscarAeronaveShare(aeronave.id);
-      setSelecionada(response.aeronave);
-    } catch {
-      setSelecionada(aeronave);
-      toast.error("Não foi possível atualizar o detalhe; exibindo os dados da listagem.");
-    }
-  };
-
-  const atualizarCampo = (campo: string, valor: string) => setForm((atual) => ({ ...atual, [campo]: valor }));
-  const abrirNova = () => { setForm({ status: "ativa" }); setNovaAberta(true); };
-  const salvar = async () => {
-    if (!form.matricula_registro || !form.fabricante || !form.modelo) { toast.error("Matrícula, fabricante e modelo são obrigatórios."); return; }
-    setSalvando(true);
-    try {
-      const payload: Record<string, unknown> = { ...form };
-      for (const campo of ["ano", "numero_motores", "consumo_combustivel", "velocidade_cruzeiro", "preco_hora", "performance_teto_servico_ft", "performance_nivel_cruzeiro_min_ft", "performance_nivel_cruzeiro_max_ft", "performance_velocidade_cruzeiro_kt", "performance_taxa_subida_fpm", "performance_taxa_descida_fpm"]) if (payload[campo] !== undefined && payload[campo] !== "") payload[campo] = Number(payload[campo]);
-      payload.aprovado_rvsm = form.aprovado_rvsm === "true";
-      await criarAeronaveShare(payload as AeronavePayload);
-      setNovaAberta(false);
-      toast.success("Aeronave cadastrada com sucesso.");
-      await carregar(true);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível cadastrar a aeronave.");
-    } finally { setSalvando(false); }
-  };
-
+  useEffect(() => { if (!imagem) return; const url = URL.createObjectURL(imagem); setPreview(url); return () => URL.revokeObjectURL(url); }, [imagem]);
   const total = useMemo(() => ativas.length + inativas.length, [ativas.length, inativas.length]);
-
-const renderCards = (lista: AeronaveShare[], vazia: string) =>
-  lista.length ? (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {lista.map((aeronave) => (
-        <button
-          key={aeronave.id}
-          type="button"
-          onClick={() => void abrirDetalhe(aeronave)}
-          className="group overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/60"
-        >
-          {/* Imagem da aeronave */}
-          <div className="relative aspect-[2.2] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-primary/30">
-            {aeronave.url_imagem ? (
-              <img
-                src={aeronave.url_imagem}
-                alt={`${aeronave.matricula_registro} — ${aeronave.fabricante} ${aeronave.modelo}`}
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-primary/70">
-                <Plane size={36} strokeWidth={1.2} />
-              </div>
-            )}
-
-            {/* Degradê e identificação */}
-            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
-
-            <div className="absolute inset-x-0 bottom-0 p-3">
-              <p className="truncate text-sm font-bold text-white">
-                {aeronave.matricula_registro || "Matrícula não informada"}
-              </p>
-
-              <p className="truncate text-[10px] font-semibold uppercase tracking-[.08em] text-slate-300">
-                {[aeronave.fabricante, aeronave.modelo]
-                  .filter(Boolean)
-                  .join(" ") || "Aeronave"}
-              </p>
-            </div>
-          </div>
-
-          {/* Informações da aeronave */}
-          <div className="grid grid-cols-3 gap-2 p-3">
-            <div className="min-w-0">
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                Base
-              </p>
-              <p className="mt-0.5 truncate text-[11px] font-bold">
-                {aeronave.base || "—"}
-              </p>
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                Ano
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold">
-                {aeronave.ano || "—"}
-              </p>
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                Performance
-              </p>
-              <p className="mt-0.5 text-[11px] font-bold">
-                {aeronave.performance_velocidade_cruzeiro_kt
-                  ? `${aeronave.performance_velocidade_cruzeiro_kt} kt`
-                  : "—"}
-              </p>
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  ) : (
-    <EstadoVazio label={vazia} />
-  );
-
-  if (carregando) return <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="animate-spin text-primary" size={28} /></div>;
-  return <div className="route-enter space-y-5"><header className="flex flex-col gap-4 rounded-2xl border border-border bg-card/70 p-5 shadow-sm md:flex-row md:items-end md:justify-between"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-primary"><Plane size={14} /> Frota Share Brasil</div><h1 className="text-2xl font-extrabold tracking-tight">Aeronaves</h1><p className="mt-1 max-w-2xl text-xs text-muted-foreground"></p></div><div className="flex items-center gap-2"><Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-10 gap-2 text-xs"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button><Button type="button" onClick={abrirNova} className="h-10 gap-2 text-xs"><Plus size={15} /> Nova aeronave</Button></div></header>{erro && <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-500"><span>{erro}</span><Button type="button" variant="outline" onClick={() => void carregar()} className="h-8 text-[10px]">Tentar novamente</Button></div>}<CabecalhoSecao icon={<Plane size={15} />} title="" detail={`${total} aeronave(s) no cadastro `} /><Tabs defaultValue="ativas" className="space-y-4"><TabsList className="bg-card/80"><TabsTrigger value="ativas">Ativas <span className="ml-1 rounded-full bg-emerald-500/15 px-1.5 text-[9px] text-emerald-400">{ativas.length}</span></TabsTrigger><TabsTrigger value="inativas">Inativas <span className="ml-1 rounded-full bg-amber-500/15 px-1.5 text-[9px] text-amber-300">{inativas.length}</span></TabsTrigger></TabsList><TabsContent value="ativas">{renderCards(ativas, "Nenhuma aeronave ativa cadastrada.")}</TabsContent><TabsContent value="inativas">{renderCards(inativas, "Nenhuma aeronave inativa cadastrada.")}</TabsContent></Tabs>
-
-    <Dialog open={Boolean(selecionada)} onOpenChange={(aberta) => !aberta && setSelecionada(null)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><Plane size={18} className="text-primary" /> {selecionada?.matricula_registro} · {selecionada?.fabricante} {selecionada?.modelo}</DialogTitle><DialogDescription>Dados completos do cadastro da aeronave e sua ficha de performance.</DialogDescription></DialogHeader>{selecionada && <div className="space-y-5">{selecionada.url_imagem && <img src={selecionada.url_imagem} alt={selecionada.matricula_registro} className="max-h-64 w-full rounded-xl object-cover" />}<DetailGroup title="Cadastro" items={[["Matrícula", valorAeronave(selecionada, "matricula_registro")], ["Fabricante", valorAeronave(selecionada, "fabricante")], ["Modelo", valorAeronave(selecionada, "modelo")], ["Número de série", valorAeronave(selecionada, "numero_serie")], ["Proprietário", valorAeronave(selecionada, "nome_proprietario")], ["Tipo", valorAeronave(selecionada, "tipo_aeronave")], ["Ano", valorAeronave(selecionada, "ano")], ["Base", valorAeronave(selecionada, "base")], ["Motores", valorAeronave(selecionada, "numero_motores")], ["Consumo", valorAeronave(selecionada, "consumo_combustivel")], ["Velocidade de cruzeiro", valorAeronave(selecionada, "velocidade_cruzeiro")], ["Preço por hora", moeda(selecionada.preco_hora)]]} /><DetailGroup title="Performance" items={[["Categoria", valorAeronave(selecionada, "performance_categoria")], ["Modelo performance", valorAeronave(selecionada, "performance_modelo")], ["Teto de serviço", valorAeronave(selecionada, "performance_teto_servico_ft")], ["Nível cruzeiro mínimo", valorAeronave(selecionada, "performance_nivel_cruzeiro_min_ft")], ["Nível cruzeiro máximo", valorAeronave(selecionada, "performance_nivel_cruzeiro_max_ft")], ["RVSM aprovado", Number(selecionada.performance_aprovado_rvsm) ? "Sim" : "Não informado"], ["Velocidade performance", valorAeronave(selecionada, "performance_velocidade_cruzeiro_kt")], ["Taxa de subida", valorAeronave(selecionada, "performance_taxa_subida_fpm")], ["Taxa de descida", valorAeronave(selecionada, "performance_taxa_descida_fpm")]]} /></div>}<DialogFooter><Button type="button" variant="outline" onClick={() => setSelecionada(null)}>Fechar</Button></DialogFooter></DialogContent></Dialog>
-
-    <Dialog open={novaAberta} onOpenChange={setNovaAberta}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>Nova aeronave</DialogTitle><DialogDescription>Cadastre os dados principais e a ficha de performance. A foto pode ser informada por URL.</DialogDescription></DialogHeader><div className="grid gap-3 sm:grid-cols-2">{camposCadastro.map(([campo, label, placeholder]) => <div key={String(campo)} className="space-y-1.5"><Label className="text-[10px]">{label}</Label><Input type={["ano", "numero_motores", "consumo_combustivel", "velocidade_cruzeiro", "preco_hora", "performance_teto_servico_ft", "performance_nivel_cruzeiro_min_ft", "performance_nivel_cruzeiro_max_ft", "performance_velocidade_cruzeiro_kt", "performance_taxa_subida_fpm", "performance_taxa_descida_fpm"].includes(String(campo)) ? "number" : "text"} value={form[String(campo)] || ""} onChange={(event) => atualizarCampo(String(campo), event.target.value)} placeholder={placeholder} className="h-9 text-xs" /></div>)}<div className="space-y-1.5"><Label className="text-[10px]">RVSM aprovado</Label><select value={form.aprovado_rvsm || "false"} onChange={(event) => atualizarCampo("aprovado_rvsm", event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"><option value="false">Não informado</option><option value="true">Sim</option></select></div></div><DialogFooter><Button type="button" variant="outline" onClick={() => setNovaAberta(false)} disabled={salvando}>Cancelar</Button><Button type="button" onClick={() => void salvar()} disabled={salvando} className="gap-2">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Salvar aeronave</Button></DialogFooter></DialogContent></Dialog>
+  const atualizarCampo = (chave: string, valor: string) => { setForm(atual => ({ ...atual, [chave]: valor })); setValidacao(atual => ({ ...atual, [chave]: "" })); };
+  const abrirFormulario = (a?: AeronaveShare) => { const dados: Form = a ? Object.fromEntries(Object.entries(a).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])) : { ...vazio }; if (a) dados.aprovado_rvsm = a.performance_aprovado_rvsm ? "true" : "false"; setEditando(a || null); setForm(dados); setImagem(null); setPreview(a?.url_imagem || ""); setValidacao({}); baseline.current = JSON.stringify({ dados, preview: a?.url_imagem || "" }); setFormAberto(true); setSelecionada(null); };
+  const fecharFormulario = (open: boolean) => { if (!open && !salvando) { const changed = JSON.stringify({ dados: form, preview }) !== baseline.current || Boolean(imagem); if (changed && !window.confirm("Descartar as alterações não salvas?")) return; setFormAberto(false); } };
+  const escolherImagem = (file?: File) => { if (!file) return; if (!/^image\/(jpeg|png|webp)$/.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) { toast.error("Selecione uma imagem JPG, JPEG, PNG ou WEBP."); return; } if (file.size > 25 * 1024 * 1024) { toast.error("A imagem deve ter no máximo 25 MB."); return; } setImagem(file); };
+  const salvar = async () => { const errs: Record<string, string> = {}; for (const key of obrigatorios) if (!form[key]?.trim()) errs[key] = "Campo obrigatório."; if (form.tipo_aeronave && !["PISTAO", "TURBOELICE", "JATO"].includes(form.tipo_aeronave)) errs.tipo_aeronave = "Selecione um tipo válido."; if (Object.keys(errs).length) { setValidacao(errs); toast.error("Revise os campos obrigatórios."); return; } if (salvando) return; setSalvando(true);
+    try { let url = form.url_imagem || ""; if (imagem) url = (await enviarImagemAeronave(imagem)).url; const payload: Record<string, unknown> = { ...form, url_imagem: url || null }; for (const key of camposNumericos) if (payload[key] === "") payload[key] = key === "consumo_combustivel" ? 0 : null; else if (payload[key] != null) payload[key] = Number(payload[key]); payload.aprovado_rvsm = form.aprovado_rvsm === "true"; if (!payload.numero_motores) payload.numero_motores = null; if (editando) await atualizarAeronaveShare(editando.id, payload as AeronavePayload); else await criarAeronaveShare(payload as AeronavePayload); setFormAberto(false); setImagem(null); toast.success(editando ? "Alterações salvas." : "Aeronave cadastrada com sucesso."); await carregar(true); } catch (e) { toast.error(e instanceof Error ? e.message : "Não foi possível salvar a aeronave."); } finally { setSalvando(false); }
+  };
+  const renderCards = (lista: AeronaveShare[], vaziaLabel: string) => lista.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{lista.map(a => <button key={a.id} type="button" onClick={async () => { try { setSelecionada((await buscarAeronaveShare(a.id)).aeronave); } catch { setSelecionada(a); toast.error("Não foi possível atualizar o detalhe."); } }} className="overflow-hidden rounded-lg border border-border bg-card text-left transition-colors hover:border-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"><div className="relative aspect-[2.2] overflow-hidden bg-muted">{a.url_imagem ? <img src={a.url_imagem} alt={`${a.matricula_registro} — ${a.fabricante} ${a.modelo}`} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-muted-foreground"><Plane size={32}/></div>}<div className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-2 text-white"><p className="truncate text-sm font-semibold">{a.matricula_registro}</p><p className="truncate text-xs text-white/80">{a.fabricante} {a.modelo}</p></div></div><div className="grid grid-cols-3 gap-2 p-3 text-xs"><div><p className="text-muted-foreground">Base</p><b>{a.base || "—"}</b></div><div><p className="text-muted-foreground">Ano</p><b>{a.ano || "—"}</b></div><div><p className="text-muted-foreground">Performance</p><b>{a.performance_velocidade_cruzeiro_kt ? `${a.performance_velocidade_cruzeiro_kt} kt` : "—"}</b></div></div></button>)}</div> : <EstadoVazio label={vaziaLabel}/>;
+  const renderField = (key: string, label: string, placeholder: string, type = "text", required = false) => <div key={key} className="space-y-1"><Label htmlFor={`aircraft-${key}`} className="text-xs">{label}{required && <span className="ml-1 text-destructive">*</span>}</Label><Input id={`aircraft-${key}`} type={type} value={form[key] || ""} onChange={e => atualizarCampo(key, e.target.value)} placeholder={placeholder} className="h-9 text-sm" aria-invalid={Boolean(validacao[key])}/>{validacao[key] && <p className="text-xs text-destructive">{validacao[key]}</p>}</div>;
+  if (carregando) return <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" size={26}/></div>;
+  return <div className="space-y-5"><header className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:flex-row md:items-center md:justify-between"><div><div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Plane size={15}/> Frota Share Brasil</div><h1 className="text-xl font-semibold">Aeronaves</h1><p className="text-xs text-muted-foreground">Cadastro e controle operacional da frota.</p></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="h-9 gap-2 text-xs"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""}/> Atualizar</Button><Button type="button" onClick={() => abrirFormulario()} className="h-9 gap-2 text-xs"><Plus size={14}/> Nova aeronave</Button></div></header>{erro && <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive"><span>{erro}</span><Button variant="outline" size="sm" onClick={() => void carregar()}>Tentar novamente</Button></div>}<CabecalhoSecao icon={<Plane size={15}/>} title="" detail={`${total} aeronave(s) no cadastro`}/><Tabs defaultValue="ativas" className="space-y-4"><TabsList><TabsTrigger value="ativas">Ativas ({ativas.length})</TabsTrigger><TabsTrigger value="inativas">Inativas ({inativas.length})</TabsTrigger></TabsList><TabsContent value="ativas">{renderCards(ativas, "Nenhuma aeronave ativa cadastrada.")}</TabsContent><TabsContent value="inativas">{renderCards(inativas, "Nenhuma aeronave inativa cadastrada.")}</TabsContent></Tabs>
+    <Dialog open={Boolean(selecionada)} onOpenChange={open => !open && setSelecionada(null)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{selecionada?.matricula_registro} · {selecionada?.fabricante} {selecionada?.modelo}</DialogTitle><DialogDescription>Cadastro, informações operacionais e performance.</DialogDescription></DialogHeader>{selecionada && <div className="space-y-5">{selecionada.url_imagem && <img src={selecionada.url_imagem} alt={selecionada.matricula_registro} className="max-h-64 w-full rounded-md object-cover"/>}<DetailGroup title="Identificação e operação" items={[["Matrícula", valorAeronave(selecionada,"matricula_registro")],["Fabricante",valorAeronave(selecionada,"fabricante")],["Modelo",valorAeronave(selecionada,"modelo")],["Número de série",valorAeronave(selecionada,"numero_serie")],["Proprietário",valorAeronave(selecionada,"nome_proprietario")],["Tipo",valorAeronave(selecionada,"tipo_aeronave")],["Status",valorAeronave(selecionada,"status")],["Ano",valorAeronave(selecionada,"ano")],["Base",valorAeronave(selecionada,"base")],["Motores",valorAeronave(selecionada,"numero_motores")],["Consumo (L/h)",valorAeronave(selecionada,"consumo_combustivel")],["Velocidade (kt)",valorAeronave(selecionada,"velocidade_cruzeiro")],["Preço/hora",moeda(selecionada.preco_hora)]]}/><DetailGroup title="Performance" items={[["Categoria",valorAeronave(selecionada,"performance_categoria")],["Teto de serviço",valorAeronave(selecionada,"performance_teto_servico_ft")],["Cruzeiro mínimo",valorAeronave(selecionada,"performance_nivel_cruzeiro_min_ft")],["Cruzeiro máximo",valorAeronave(selecionada,"performance_nivel_cruzeiro_max_ft")],["RVSM",Number(selecionada.performance_aprovado_rvsm)?"Sim":"Não"],["Velocidade",valorAeronave(selecionada,"performance_velocidade_cruzeiro_kt")],["Subida",valorAeronave(selecionada,"performance_taxa_subida_fpm")],["Descida",valorAeronave(selecionada,"performance_taxa_descida_fpm")]]}/></div>}<DialogFooter><Button variant="outline" onClick={() => setSelecionada(null)}>Fechar</Button><Button onClick={() => selecionada && abrirFormulario(selecionada)}>Editar aeronave</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={formAberto} onOpenChange={fecharFormulario}><DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{editando ? "Editar aeronave" : "Nova aeronave"}</DialogTitle><DialogDescription>Os campos marcados com * são obrigatórios.</DialogDescription></DialogHeader><div className="space-y-5"><section><h3 className="mb-3 border-b border-border pb-2 text-sm font-semibold">Identificação da aeronave</h3><div className="grid gap-3 sm:grid-cols-2">{campos.slice(0,8).map(([k,l,p,t]) => renderField(k,l,p,t,obrigatorios.includes(k)))}<div className="space-y-1"><Label htmlFor="aircraft-type" className="text-xs">Tipo de aeronave</Label><select id="aircraft-type" value={form.tipo_aeronave || ""} onChange={e => atualizarCampo("tipo_aeronave",e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Não informado</option><option value="PISTAO">PISTAO</option><option value="TURBOELICE">TURBOELICE</option><option value="JATO">JATO</option></select>{validacao.tipo_aeronave && <p className="text-xs text-destructive">{validacao.tipo_aeronave}</p>}</div></div></section><section><h3 className="mb-3 border-b border-border pb-2 text-sm font-semibold">Informações operacionais</h3><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label className="text-xs">Status</Label><select value={form.status || "ativa"} onChange={e => atualizarCampo("status",e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="ativa">Ativa</option><option value="inativa">Inativa</option><option value="cancelada">Cancelada</option></select></div>{campos.slice(8).map(([k,l,p,t]) => renderField(k,l,p,t))}</div></section><section><h3 className="mb-3 border-b border-border pb-2 text-sm font-semibold">Imagem da aeronave</h3><div className="grid gap-3 sm:grid-cols-[1fr_220px]"><div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); escolherImagem(e.dataTransfer.files[0]); }} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-4 text-center"><Upload size={18} className="text-muted-foreground"/><p className="text-xs text-muted-foreground">Arraste uma imagem até aqui ou selecione um arquivo<br/>JPG, JPEG, PNG ou WEBP · máximo 25 MB</p><input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => escolherImagem(e.target.files?.[0])}/><Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>{preview ? "Substituir imagem" : "Selecionar imagem"}</Button>{preview && <Button type="button" variant="ghost" size="sm" onClick={() => { setImagem(null); setPreview(""); atualizarCampo("url_imagem",""); }}><Trash2 size={13} className="mr-1"/> Remover imagem</Button>}</div><div className="flex min-h-28 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/30">{preview ? <img src={preview} alt="Pré-visualização da aeronave" className="h-full max-h-40 w-full object-cover"/> : <ImageOff size={24} className="text-muted-foreground"/>}</div></div></section><section><h3 className="mb-3 border-b border-border pb-2 text-sm font-semibold">Performance</h3><div className="grid gap-3 sm:grid-cols-2">{camposPerformance.map(([k,l,p]) => renderField(k,l,p,camposNumericos.has(k)?"number":"text"))}<div className="space-y-1"><Label className="text-xs">RVSM aprovado</Label><select value={form.aprovado_rvsm || "false"} onChange={e => atualizarCampo("aprovado_rvsm",e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="false">Não</option><option value="true">Sim</option></select></div></div></section></div><DialogFooter className="sticky bottom-0 border-t border-border bg-background pt-3"><Button type="button" variant="outline" onClick={() => fecharFormulario(false)} disabled={salvando}><X size={14} className="mr-1"/> Cancelar</Button><Button type="button" onClick={() => void salvar()} disabled={salvando} className="gap-2">{salvando ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>} {editando ? "Salvar alterações" : "Cadastrar aeronave"}</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }
-
-function DetailGroup({ title, items }: { title: string; items: Array<[string, string]> }) { return <section><h3 className="mb-2 text-[10px] font-bold uppercase tracking-[.16em] text-primary">{title}</h3><div className="grid gap-2 sm:grid-cols-3">{items.map(([label, value]) => <div key={label} className="rounded-lg border border-border/70 bg-muted/20 p-3"><p className="text-[9px] text-muted-foreground">{label}</p><p className="mt-1 break-words text-xs font-semibold">{value}</p></div>)}</div></section>; }
+function DetailGroup({ title, items }: { title: string; items: Array<[string,string]> }) { return <section><h3 className="mb-2 border-b border-border pb-2 text-sm font-semibold">{title}</h3><div className="grid gap-2 sm:grid-cols-3">{items.map(([label,value]) => <div key={label} className="rounded-md border border-border bg-muted/20 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-medium">{value}</p></div>)}</div></section>; }

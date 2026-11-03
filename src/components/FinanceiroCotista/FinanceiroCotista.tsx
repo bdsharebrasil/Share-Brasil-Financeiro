@@ -3707,7 +3707,7 @@ export default function FinanceiroCotista() {
                     }}
                     className="group flex min-h-[64px] w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:border-muted-foreground/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded ${corIcone}`}>
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg ${corIcone}`}>
                       <Icon size={17} aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{rotulo}</span>

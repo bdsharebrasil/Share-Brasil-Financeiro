@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type ComponentProps } from 'react';
 import { Document, Page, Text, View, Svg, Rect, StyleSheet, pdf } from '@react-pdf/renderer';
 import type { Balanco } from '../../types/balanco';
 import { COR_GRUPO, NOME_GRUPO, brl, destaques, hhmm, montarResumo, type Grupo, type Resumo } from './BalancoResumo';
@@ -36,7 +36,7 @@ function Kpi({ l, v }: { l: string; v: string }) {
 }
 
 function Tabela({ cols, rows, total }: { cols: { t: string; f: number; r?: boolean }[]; rows: string[][]; total?: string[] }) {
-  const linha = (cells: string[], extra: object = {}, key?: number) => (
+  const linha = (cells: string[], extra: ComponentProps<typeof View>['style'] = {}, key?: number) => (
     <View key={key} style={[s.tr, extra]} wrap={false}>
       {cells.map((c, i) => <Text key={i} style={{ flex: cols[i].f, textAlign: cols[i].r ? 'right' : 'left', paddingHorizontal: 4 }}>{c}</Text>)}
     </View>

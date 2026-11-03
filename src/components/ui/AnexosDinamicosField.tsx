@@ -13,9 +13,9 @@ const TIPOS: { id: AnexoTipoId; label: string }[] = [
   { id: "boleto", label: "BOLETO" }, { id: "comanda", label: "COMANDA" }, { id: "demonstrativo", label: "DEMONSTRATIVO" }, { id: "outro", label: "OUTRO DOCUMENTO" },
 ];
 export function anexoTipoLabel(id: AnexoTipoId) { return TIPOS.find((t) => t.id === id)?.label || id; }
-interface Props { anexos: AnexoLinha[]; onChange: (next: AnexoLinha[]) => void; storagePrefix: string; bucket?: string; cotistas?: Array<{ id: string; label: string }>; uploadFile?: (file: File, id: string) => Promise<string | { url: string; key: string }>; className?: string; onView?: (url: string, name?: string, type?: "pdf" | "image") => void; }
+interface Props { anexos: AnexoLinha[]; onChange: (next: AnexoLinha[]) => void; cotistas?: Array<{ id: string; label: string }>; uploadFile: (file: File, id: string) => Promise<string | { url: string; key: string }>; className?: string; onView?: (url: string, name?: string, type?: "pdf" | "image") => void; }
 
-export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, bucket = "client-documents", cotistas = [], uploadFile, className, onView }: Props) {
+export default function AnexosDinamicosField({ anexos, onChange, cotistas = [], uploadFile, className, onView }: Props) {
   const anexosRef = useRef(anexos);
   useEffect(() => { anexosRef.current = anexos; }, [anexos]);
   const updateLinha = useCallback((id: string, patch: Partial<AnexoLinha>) => { const next = anexosRef.current.map((a) => a.id === id ? { ...a, ...patch } : a); anexosRef.current = next; onChange(next); }, [onChange]);
@@ -25,21 +25,9 @@ export default function AnexosDinamicosField({ anexos, onChange, storagePrefix, 
     if (!file) { updateLinha(id, { file: null, url: null, storage_key: undefined }); return; }
     updateLinha(id, { file, uploading: true });
     try {
-      let url: string;
-      let storageKey: string | undefined;
-      if (uploadFile) {
-        const uploaded = await uploadFile(file, id);
-        if (typeof uploaded === "string") url = uploaded;
-        else { url = uploaded.url; storageKey = uploaded.key; }
-      }
-      else {
-        const { supabase } = await import("@/lib/supabase");
-        const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-        const path = `${storagePrefix}/${id}-${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
-        if (error) throw error;
-        url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-      }
+      const uploaded = await uploadFile(file, id);
+      const url = typeof uploaded === "string" ? uploaded : uploaded.url;
+      const storageKey = typeof uploaded === "string" ? undefined : uploaded.key;
       updateLinha(id, { url, storage_key: storageKey, uploading: false });
     } catch (error: any) { toast.error(`Erro no upload: ${error?.message || error}`); updateLinha(id, { uploading: false, file: null }); }
   };

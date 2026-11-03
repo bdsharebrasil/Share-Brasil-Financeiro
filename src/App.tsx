@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import LayoutInterno from "@/components/layout/LayoutInterno";
-import Login from "@/pages/login";
-import AprovacaoRelatorioViagem from "@/components/relatorio-viagem/AprovacaoRelatorioViagem";
+
+const Login = lazy(() => import("@/pages/login"));
+const AprovacaoRelatorioViagem = lazy(
+  () => import("@/components/relatorio-viagem/AprovacaoRelatorioViagem"),
+);
 
 function ProtecaoColaborador() {
   const [verificando, setVerificando] = useState(true);
@@ -35,5 +38,28 @@ function ProtecaoColaborador() {
 }
 
 export default function App() {
-  return <><Routes><Route path="/login" element={<Login />} /><Route path="/aprovar-relatorio" element={<AprovacaoRelatorioViagem />} /><Route path="*" element={<ProtecaoColaborador />} /></Routes><Toaster /></>;
+  return (
+    <>
+      <Suspense
+        fallback={
+          <div
+            className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground"
+            role="status"
+          >
+            Carregando…
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/aprovar-relatorio"
+            element={<AprovacaoRelatorioViagem />}
+          />
+          <Route path="*" element={<ProtecaoColaborador />} />
+        </Routes>
+      </Suspense>
+      <Toaster />
+    </>
+  );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, Building2, Check, ChevronDown, Eye, Mail, Paperclip, Pencil, Search, Send, X } from "lucide-react";
 import {
@@ -10,6 +10,7 @@ import { gerarEmailClienteHtml } from "@/lib/email-cliente-template";
 export type AnexoEmail = { id?: string; url?: string; label?: string; filename?: string };
 
 type SendStatus = "idle" | "sending" | "sent";
+type Tema = "light" | "dark";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,32 +24,6 @@ type Props = {
   nomeEmpresa?: string;
 };
 
-const FONT = 'Arial, Helvetica, "Segoe UI", sans-serif';
-const COR = { tinta: "#202a37", secundario: "#596575", borda: "#dce2e8", fundo: "#f8f9fa", azul: "#24364b" };
-const espacamento = "clamp(20px, 5vw, 32px)";
-const campo: CSSProperties = {
-  boxSizing: "border-box", display: "block", width: "100%", minWidth: 0,
-  border: `1px solid ${COR.borda}`, borderRadius: 6, backgroundColor: "#ffffff",
-  padding: "12px 14px", color: COR.tinta, fontFamily: FONT, fontSize: 16,
-  lineHeight: "24px", outlineOffset: 3, accentColor: COR.azul,
-};
-const rotulo: CSSProperties = {
-  display: "block", marginBottom: 8, color: COR.tinta, fontSize: 13, lineHeight: "20px", fontWeight: 700,
-};
-const ajuda: CSSProperties = { margin: "8px 0 0", color: COR.secundario, fontSize: 12, lineHeight: "19px" };
-const botao: CSSProperties = {
-  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-  boxSizing: "border-box", minHeight: 44, padding: "11px 18px", borderRadius: 6,
-  border: `1px solid ${COR.borda}`, backgroundColor: "#ffffff", color: COR.tinta,
-  fontFamily: FONT, fontSize: 13, lineHeight: "20px", fontWeight: 700,
-  cursor: "pointer", outlineOffset: 3, textDecoration: "none",
-};
-const aviso: CSSProperties = {
-  display: "flex", alignItems: "flex-start", gap: 10, padding: "14px 16px",
-  border: "1px solid #e5d8bd", borderRadius: 6, backgroundColor: "#fffcf5",
-  color: "#765622", fontSize: 13, lineHeight: "21px", overflowWrap: "anywhere",
-};
-
 export const normalizarEmails = (valor: string): string[] => Array.from(new Set(
   valor.split(/[;,\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean),
 ));
@@ -56,11 +31,246 @@ export const normalizarEmails = (valor: string): string[] => Array.from(new Set(
 // Validação prática para endereços simples; a validação definitiva pertence ao servidor.
 const emailValido = (email: string) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email);
 
+const iniciais = (nome: string) =>
+  nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]?.toUpperCase() ?? "").join("") || "?";
+
+/* ------------------------------------------------------------------ */
+/* Tema: segue a classe/atributo do app (.dark, data-theme) e, na      */
+/* ausência deles, a preferência do sistema operacional.               */
+/* ------------------------------------------------------------------ */
+function lerTema(): Tema {
+  if (typeof document === "undefined") return "light";
+  for (const el of [document.documentElement, document.body]) {
+    if (el.classList.contains("dark") || el.dataset.theme === "dark") return "dark";
+    if (el.classList.contains("light") || el.dataset.theme === "light") return "light";
+  }
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function useTema(): Tema {
+  const [tema, setTema] = useState<Tema>(lerTema);
+  useEffect(() => {
+    const atualizar = () => setTema(lerTema());
+    const observador = new MutationObserver(atualizar);
+    const opcoes = { attributes: true, attributeFilter: ["class", "data-theme"] };
+    observador.observe(document.documentElement, opcoes);
+    observador.observe(document.body, opcoes);
+    const midia = window.matchMedia?.("(prefers-color-scheme: dark)");
+    midia?.addEventListener("change", atualizar);
+    atualizar();
+    return () => { observador.disconnect(); midia?.removeEventListener("change", atualizar); };
+  }, []);
+  return tema;
+}
+
+/* ------------------------------------------------------------------ */
+/* Estilos (escopados em .ec-root). Tokens por tema + responsividade.  */
+/* ------------------------------------------------------------------ */
+const CSS = `
+/* Tokens ligados às variáveis do tema do app (index.css): mudam sozinhos com .dark */
+.ec-root{
+  --ec-overlay:rgba(8,14,22,.55);
+  --ec-surface:hsl(var(--card)); --ec-canvas:hsl(var(--muted)); --ec-field:hsl(var(--secondary) / .4);
+  --ec-border:hsl(var(--border)); --ec-border-strong:hsl(var(--input));
+  --ec-text:hsl(var(--foreground)); --ec-muted:hsl(var(--muted-foreground)); --ec-faint:hsl(var(--muted-foreground) / .8);
+  --ec-primary:hsl(var(--primary)); --ec-primary-hover:hsl(var(--primary) / .88); --ec-on-primary:hsl(var(--primary-foreground));
+  --ec-primary-soft:hsl(var(--primary) / .12); --ec-ring:hsl(var(--ring) / .3);
+  --ec-danger:hsl(var(--destructive)); --ec-danger-soft:hsl(var(--destructive) / .1); --ec-danger-border:hsl(var(--destructive) / .35);
+  --ec-warn:#7a5a14; --ec-warn-soft:hsl(var(--chart-3) / .14); --ec-warn-border:hsl(var(--chart-3) / .4);
+  --ec-ok:hsl(var(--accent)); --ec-on-ok:hsl(var(--accent-foreground)); --ec-hover:hsl(var(--secondary));
+  --ec-shadow:0 24px 64px rgba(16,28,44,.22), 0 2px 6px rgba(16,28,44,.08);
+}
+.ec-root[data-tema="dark"]{
+  --ec-overlay:rgba(2,6,12,.66);
+  --ec-warn:hsl(var(--chart-3));
+  --ec-shadow:0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02);
+}
+.ec-root, .ec-root *{box-sizing:border-box}
+.ec-root{
+  position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:var(--ec-overlay); color:var(--ec-text);
+  font-family:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  font-size:14px; line-height:22px; -webkit-font-smoothing:antialiased;
+  color-scheme:light;
+}
+.ec-root[data-tema="dark"]{color-scheme:dark}
+.ec-dialog{
+  display:flex; flex-direction:column; width:100%; max-width:760px; min-width:0;
+  max-height:calc(100dvh - 40px); background:var(--ec-surface);
+  border:1px solid var(--ec-border); border-radius:10px; box-shadow:var(--ec-shadow); overflow:hidden;
+}
+.ec-dialog:focus{outline:none}
+.ec-form{display:flex; flex-direction:column; min-height:0; margin:0}
+
+.ec-header{
+  display:flex; align-items:center; gap:14px; padding:18px 28px;
+  border-bottom:1px solid var(--ec-border); flex-shrink:0;
+}
+.ec-header-icon{
+  display:grid; place-items:center; width:40px; height:40px; flex-shrink:0;
+  border-radius:8px; background:var(--ec-primary-soft); color:var(--ec-primary);
+}
+.ec-header-text{min-width:0; flex:1}
+.ec-title{margin:0; font-size:18px; line-height:26px; font-weight:650; letter-spacing:-.01em}
+.ec-subtitle{margin:0; font-size:13px; line-height:20px; color:var(--ec-muted)}
+
+.ec-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:42px; padding:9px 18px; border-radius:6px; border:1px solid var(--ec-border-strong);
+  background:var(--ec-surface); color:var(--ec-text); font:inherit; font-size:14px; font-weight:600;
+  cursor:pointer; text-decoration:none; transition:background-color .15s, border-color .15s, box-shadow .15s;
+}
+.ec-btn:hover:not(:disabled){background:var(--ec-hover)}
+.ec-btn:disabled{opacity:.5; cursor:default}
+.ec-btn-primary{background:var(--ec-primary); border-color:var(--ec-primary); color:var(--ec-on-primary); min-width:148px}
+.ec-btn-primary:hover:not(:disabled){background:var(--ec-primary-hover); border-color:var(--ec-primary-hover)}
+.ec-btn-primary[data-sent="true"]{background:var(--ec-ok); border-color:var(--ec-ok); color:var(--ec-on-ok); opacity:1}
+.ec-btn-icon{min-height:36px; width:36px; padding:0; border-color:transparent; background:transparent; color:var(--ec-muted)}
+.ec-root :is(.ec-btn,.ec-input,.ec-chip-x,.ec-tab,.ec-option):focus-visible{
+  outline:none; box-shadow:0 0 0 3px var(--ec-ring); border-color:var(--ec-primary);
+}
+
+.ec-body{
+  flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain;
+  padding:24px 28px 28px; background:var(--ec-surface);
+}
+.ec-tabs{
+  display:inline-flex; gap:2px; padding:3px; margin-bottom:24px;
+  background:var(--ec-canvas); border:1px solid var(--ec-border); border-radius:8px;
+}
+.ec-tab{
+  display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:6px 16px;
+  border:1px solid transparent; border-radius:6px; background:transparent; color:var(--ec-muted);
+  font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+}
+.ec-tab[aria-pressed="true"]{background:var(--ec-surface); color:var(--ec-text); border-color:var(--ec-border); box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ec-tab:hover:not([aria-pressed="true"]){color:var(--ec-text)}
+
+.ec-fields{display:grid; gap:24px; min-width:0}
+.ec-label{display:block; margin-bottom:8px; font-size:13px; line-height:20px; font-weight:600; color:var(--ec-text)}
+.ec-help{margin:8px 0 0; font-size:12px; line-height:18px; color:var(--ec-muted)}
+.ec-input{
+  display:block; width:100%; min-width:0; min-height:46px; padding:11px 14px;
+  background:var(--ec-field); color:var(--ec-text); border:1px solid var(--ec-border-strong); border-radius:6px;
+  font:inherit; font-size:15px; line-height:24px; transition:border-color .15s, box-shadow .15s;
+}
+.ec-input::placeholder{color:var(--ec-faint)}
+.ec-input:hover:not(:disabled):not(:focus){border-color:var(--ec-muted)}
+.ec-input:disabled{opacity:.6; cursor:not-allowed}
+textarea.ec-input{min-height:220px; padding:14px 16px; line-height:26px; resize:vertical}
+.ec-input-icon{padding-left:42px}
+.ec-search{position:relative; margin-top:12px}
+.ec-search > svg{position:absolute; left:14px; top:14px; color:var(--ec-faint); pointer-events:none}
+.ec-sr{position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap}
+
+.ec-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+.ec-chip{
+  display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:3px 4px 3px 12px;
+  border:1px solid var(--ec-border); border-radius:6px; background:var(--ec-canvas);
+  font-size:13px; line-height:20px; overflow-wrap:anywhere;
+}
+.ec-chip[data-invalido="true"]{border-color:var(--ec-danger-border); background:var(--ec-danger-soft); color:var(--ec-danger)}
+.ec-chip-x{
+  display:grid; place-items:center; width:24px; height:24px; flex-shrink:0; padding:0;
+  border:1px solid transparent; border-radius:4px; background:transparent; color:inherit; cursor:pointer; opacity:.7;
+}
+.ec-chip-x:hover:not(:disabled){opacity:1; background:var(--ec-hover)}
+.ec-chip-x:disabled{cursor:default; opacity:.35}
+
+.ec-list{
+  margin-top:8px; max-height:256px; overflow-y:auto; border:1px solid var(--ec-border-strong);
+  border-radius:6px; background:var(--ec-surface); box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.ec-option{
+  display:flex; align-items:center; gap:12px; padding:10px 14px; cursor:pointer; overflow-wrap:anywhere;
+  border-bottom:1px solid var(--ec-border);
+}
+.ec-option:last-child{border-bottom:0}
+.ec-option[aria-selected="true"]{background:var(--ec-hover)}
+.ec-avatar{
+  display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border-radius:50%;
+  background:var(--ec-primary-soft); color:var(--ec-primary); font-size:12px; font-weight:700;
+}
+.ec-option-main{min-width:0; flex:1}
+.ec-option-nome{display:block; font-size:14px; line-height:20px; font-weight:600}
+.ec-option-email{display:block; font-size:13px; line-height:19px; color:var(--ec-muted)}
+.ec-tag{
+  flex-shrink:0; padding:1px 8px; border:1px solid var(--ec-border); border-radius:999px;
+  font-size:11px; line-height:18px; color:var(--ec-muted); background:var(--ec-canvas);
+}
+.ec-empty{margin:0; padding:14px; font-size:13px; color:var(--ec-muted)}
+
+.ec-bank{border:1px solid var(--ec-border); border-radius:8px; background:var(--ec-canvas); overflow:hidden}
+.ec-bank-toggle{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:48px;
+  padding:12px 16px; border:0; background:transparent; color:var(--ec-text); font:inherit; font-size:14px; font-weight:600;
+  text-align:left; cursor:pointer;
+}
+.ec-bank-toggle:hover:not(:disabled){background:var(--ec-hover)}
+.ec-bank-toggle:focus-visible{outline:none; box-shadow:inset 0 0 0 3px var(--ec-ring)}
+.ec-bank-toggle > span{display:flex; align-items:center; gap:10px}
+.ec-bank-items{display:flex; flex-wrap:wrap; gap:8px; padding:4px 16px 16px}
+.ec-bank-items .ec-btn{font-weight:500; min-height:38px; max-width:100%; overflow-wrap:anywhere; text-align:left}
+
+.ec-notice{
+  display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:6px;
+  border:1px solid var(--ec-warn-border); background:var(--ec-warn-soft); color:var(--ec-warn);
+  font-size:13px; line-height:20px; overflow-wrap:anywhere;
+}
+.ec-notice > svg{flex-shrink:0; margin-top:2px}
+.ec-notice[data-tipo="erro"]{border-color:var(--ec-danger-border); background:var(--ec-danger-soft); color:var(--ec-danger)}
+
+.ec-preview-frame{
+  display:block; width:100%; height:460px; border:1px solid var(--ec-border); border-radius:8px; background:#f8f9fa;
+}
+
+.ec-attach{margin-top:28px; padding-top:22px; border-top:1px solid var(--ec-border)}
+.ec-attach h3{margin:0 0 12px; font-size:13px; line-height:20px; font-weight:600}
+.ec-attach-list{display:grid; gap:8px}
+.ec-attach-item{
+  display:flex; align-items:center; gap:12px; padding:11px 14px; border:1px solid var(--ec-border);
+  border-radius:6px; background:var(--ec-canvas);
+}
+.ec-attach-item > svg{flex-shrink:0; color:var(--ec-muted)}
+.ec-attach-item .ec-attach-nome{margin:0; font-size:13px; line-height:20px; font-weight:600; overflow-wrap:anywhere}
+.ec-attach-item .ec-help{margin:0}
+.ec-attach-item[data-ok="false"]{border-color:var(--ec-warn-border); background:var(--ec-warn-soft)}
+.ec-attach-item[data-ok="false"] .ec-help{color:var(--ec-warn)}
+
+.ec-footer{
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 16px;
+  padding:16px 28px; border-top:1px solid var(--ec-border); background:var(--ec-canvas); flex-shrink:0;
+}
+.ec-status{display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:20px; color:var(--ec-muted)}
+.ec-status[data-sent="true"]{color:var(--ec-ok); font-weight:600}
+.ec-actions{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; margin-left:auto}
+
+@media (max-width:640px){
+  .ec-root{padding:0; align-items:flex-end}
+  .ec-dialog{max-width:none; max-height:100dvh; border-radius:12px 12px 0 0; border-left:0; border-right:0; border-bottom:0}
+  .ec-header{padding:14px 18px}
+  .ec-body{padding:18px 18px 24px}
+  .ec-footer{padding:12px 18px calc(12px + env(safe-area-inset-bottom, 0px)); flex-direction:column; align-items:stretch}
+  .ec-status{justify-content:center}
+  .ec-actions{flex-direction:column-reverse; margin-left:0}
+  .ec-actions .ec-btn{width:100%; min-height:46px}
+  .ec-input{font-size:16px}
+  .ec-tabs{display:flex}
+  .ec-tab{flex:1; justify-content:center}
+  .ec-preview-frame{height:360px}
+  textarea.ec-input{min-height:200px}
+}
+@media (prefers-reduced-motion:reduce){
+  .ec-root *{transition:none !important}
+}
+`;
+
 export function EnviarEmailClienteDialog({
   open, onOpenChange, onSent, destinatarioInicial = "", assuntoSugerido = "",
   mensagemSugerida = "", anexos = [], referencias = [], nomeEmpresa = "Share Brasil",
 }: Props) {
   const id = useId();
+  const tema = useTema();
   const dialogRef = useRef<HTMLDivElement>(null);
   const destinatarioRef = useRef<HTMLInputElement>(null);
   const corpoRef = useRef<HTMLDivElement>(null);
@@ -71,6 +281,7 @@ export function EnviarEmailClienteDialog({
   recentes.current = { onOpenChange, onSent, destinatarioInicial, assuntoSugerido, mensagemSugerida };
 
   const [destinatario, setDestinatario] = useState("");
+  const [paraFocado, setParaFocado] = useState(false);
   const [buscaContato, setBuscaContato] = useState("");
   const [indiceContato, setIndiceContato] = useState(0);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
@@ -89,10 +300,10 @@ export function EnviarEmailClienteDialog({
   useEffect(() => {
     if (!open) return;
     const atual = ++sessao.current;
-    const iniciais = recentes.current;
-    setDestinatario(iniciais.destinatarioInicial || "");
-    setAssunto(iniciais.assuntoSugerido);
-    setMensagem(iniciais.mensagemSugerida);
+    const iniciaisProps = recentes.current;
+    setDestinatario(iniciaisProps.destinatarioInicial || "");
+    setAssunto(iniciaisProps.assuntoSugerido);
+    setMensagem(iniciaisProps.mensagemSugerida);
     setBuscaContato("");
     setIndiceContato(0);
     setStatus("idle");
@@ -124,7 +335,7 @@ export function EnviarEmailClienteDialog({
     };
   }, [open]);
 
-  // Portal + limite de altura + rolagem interna evitam cortes dentro do layout pai.
+  // Portal + trava de rolagem + armadilha de foco.
   useEffect(() => {
     if (!open || typeof document === "undefined") return;
     const anterior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -163,6 +374,8 @@ export function EnviarEmailClienteDialog({
     };
   }, [open]);
 
+  const listaDestinatarios = useMemo(() => normalizarEmails(destinatario), [destinatario]);
+
   const contatosFiltrados = useMemo(() => {
     const termo = buscaContato.trim().toLowerCase();
     if (!termo) return [];
@@ -191,6 +404,12 @@ export function EnviarEmailClienteDialog({
     setBuscaContato("");
     setIndiceContato(0);
     destinatarioRef.current?.focus();
+  };
+
+  const removerDestinatario = (email: string) => {
+    if (bloqueado) return;
+    setDestinatario(listaDestinatarios.filter((item) => item !== email).join("; "));
+    setErro("");
   };
 
   const navegarContatos = (evento: KeyboardEvent<HTMLInputElement>) => {
@@ -266,110 +485,147 @@ export function EnviarEmailClienteDialog({
 
   if (!open || typeof document === "undefined") return null;
 
+  const listaAberta = Boolean(buscaContato.trim() && contatosFiltrados.length);
+
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 12, boxSizing: "border-box", backgroundColor: "rgba(24, 34, 47, 0.48)", fontFamily: FONT, color: COR.tinta }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={`${id}-titulo`} tabIndex={-1}
-        style={{ boxSizing: "border-box", display: "flex", flexDirection: "column", width: "100%", maxWidth: 640, maxHeight: "calc(100dvh - 24px)", minWidth: 0, border: "1px solid #0c2f5a", borderRadius: 10, backgroundColor: "#034377", boxShadow: "0 24px 80px rgba(18,32,49,0.18)", overflow: "hidden" }}>
-        <form onSubmit={(evento) => void enviar(evento)} aria-busy={status === "sending"}
-          style={{ display: "flex", flexDirection: "column", minHeight: 0, width: "100%", margin: 0 }}>
-          <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, margin: "-1px 0", padding: `11px ${espacamento}`, borderBottom: `1px solid ${COR.borda}`, flexShrink: 0, fontSize: 15, color: "rgba(198, 216, 236, 1)", backgroundColor: "rgba(0, 4, 14, 1)" }}>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 9px", color: COR.secundario, fontSize: 11, lineHeight: "16px", letterSpacing: "0.1em", fontWeight: 700, textTransform: "uppercase" }}><Mail size={15} aria-hidden="true" /> Comunicação com o cliente</p>
-              <h2 id={`${id}-titulo`} style={{ margin: 0, fontSize: 20, lineHeight: "29px", fontWeight: 700, letterSpacing: "-0.4px" }}>Enviar por e-mail</h2>
+    <div className="ec-root" data-tema={tema}>
+      <style>{CSS}</style>
+      <div ref={dialogRef} className="ec-dialog" role="dialog" aria-modal="true" aria-labelledby={`${id}-titulo`} tabIndex={-1}>
+        <form className="ec-form" onSubmit={(evento) => void enviar(evento)} aria-busy={status === "sending"}>
+          <header className="ec-header">
+            <span className="ec-header-icon"><Mail size={20} aria-hidden="true" /></span>
+            <div className="ec-header-text">
+              <h2 id={`${id}-titulo`} className="ec-title">Enviar por e-mail</h2>
+              <p className="ec-subtitle">Comunicação com o cliente</p>
             </div>
-            <button type="button" onClick={fechar} disabled={bloqueado} aria-label="Fechar janela"
-              style={{ ...botao, minWidth: 8, minHeight: 14, maxWidth: "94%", padding: "6px 7px", margin: "4px -4px", flexShrink: 0, backgroundColor: "#e9cece", borderColor: "transparent", color: "#d0021b", opacity: bloqueado ? 0.45 : 1, cursor: bloqueado ? "default" : "pointer" }}><X size={18} aria-hidden="true" /></button>
+            <button type="button" className="ec-btn ec-btn-icon" onClick={fechar} disabled={bloqueado} aria-label="Fechar janela">
+              <X size={18} aria-hidden="true" />
+            </button>
           </header>
 
-          <div ref={corpoRef} style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", padding: `24px ${espacamento} 28px`, color: "#dfe4eb", backgroundColor: "#06101b" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 24, paddingBottom: 18, margin: "-12px 0", fontSize: 12, fontWeight: 300, lineHeight: "21px" }} role="group" aria-label="Modo de visualização">
-              <button type="button" aria-pressed={visualizacao === "editar"} onClick={() => setVisualizacao("editar")}
-                style={{ ...botao, backgroundColor: visualizacao === "editar" ? "#c3c8cf" : "#ffffff", borderColor: visualizacao === "editar" ? "#c3cdd8" : COR.borda }}><Pencil size={15} aria-hidden="true" /> Escrever</button>
-              <button type="button" aria-pressed={visualizacao === "previa"} onClick={() => setVisualizacao("previa")}
-                style={{ ...botao, padding: "11px 8px", margin: "0 9px", fontSize: 12, lineHeight: "18px", fontWeight: 600, backgroundColor: visualizacao === "previa" ? "#edf1f5" : "#c5cfcb", borderColor: visualizacao === "previa" ? "#c3cdd8" : COR.borda }}><Eye size={16} aria-hidden="true" /> Prévia do conteúdo</button>
+          <div ref={corpoRef} className="ec-body">
+            <div className="ec-tabs" role="group" aria-label="Modo de visualização">
+              <button type="button" className="ec-tab" aria-pressed={visualizacao === "editar"} onClick={() => setVisualizacao("editar")}>
+                <Pencil size={15} aria-hidden="true" /> Escrever
+              </button>
+              <button type="button" className="ec-tab" aria-pressed={visualizacao === "previa"} onClick={() => setVisualizacao("previa")}>
+                <Eye size={15} aria-hidden="true" /> Prévia
+              </button>
             </div>
 
-            {visualizacao === "editar" ? <div style={{ display: "grid", gap: 24, minWidth: 0 }}>
+            {visualizacao === "editar" ? <div className="ec-fields">
               <div>
-                <label htmlFor={`${id}-para`} style={{ ...rotulo, color: "#eaf1fa" }}>Para</label>
-                <input ref={destinatarioRef} id={`${id}-para`} name="destinatarios" type="text" inputMode="email" autoComplete="off" spellCheck={false}
-                  value={destinatario} onChange={(evento) => { setDestinatario(evento.target.value); setErro(""); }}
-                  placeholder="nome@empresa.com" disabled={bloqueado} aria-describedby={`${id}-para-ajuda`} style={{ ...campo, backgroundColor: "#010a11", color: "#b9c7df", borderColor: "#0b1b2a" }} />
-                <p id={`${id}-para-ajuda`} style={ajuda}>Separe vários endereços por ponto e vírgula.</p>
-                <div style={{ position: "relative", marginTop: 14 }}>
-                  <Search size={17} aria-hidden="true" style={{ position: "absolute", left: 14, top: 15, color: "#637083", pointerEvents: "none" }} />
-                  <label htmlFor={`${id}-busca`} style={{ ...rotulo, position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" }}>Buscar cliente ou sócio holding</label>
-                  <input id={`${id}-busca`} role="combobox" aria-autocomplete="list" aria-expanded={Boolean(buscaContato.trim() && contatosFiltrados.length)}
-                    aria-controls={`${id}-contatos`} aria-activedescendant={buscaContato.trim() && contatosFiltrados.length ? `${id}-contato-${Math.min(indiceContato, contatosFiltrados.length - 1)}` : undefined}
-                    value={buscaContato} onChange={(evento) => { setBuscaContato(evento.target.value); setIndiceContato(0); }} onKeyDown={navegarContatos}
-                    placeholder={carregando ? "Carregando contatos…" : "Buscar cliente ou sócio holding"} disabled={bloqueado || carregando}
-                    autoComplete="off" style={{ ...campo, paddingLeft: 40, backgroundColor: "#010a11", color: "#d6e3f3", borderColor: "#050f19" }} />
-                  {buscaContato.trim() && !carregando && <div id={`${id}-contatos`} role="listbox" aria-label="Contatos encontrados"
-                    style={{ marginTop: 8, maxHeight: 224, overflowY: "auto", border: `1px solid ${COR.borda}`, borderRadius: 6, backgroundColor: "#ffffff" }}>
-                    {contatosFiltrados.length ? contatosFiltrados.map((contato, indice) => <div key={`${contato.id}:${contato.email}`} id={`${id}-contato-${indice}`} role="option" aria-selected={indiceContato === indice}
-                      onMouseDown={(evento) => evento.preventDefault()} onClick={() => selecionarContato(contato)}
-                      style={{ padding: "12px 14px", backgroundColor: indiceContato === indice ? "#edf1f5" : "#ffffff", cursor: "pointer", borderBottom: indice < contatosFiltrados.length - 1 ? `1px solid ${COR.borda}` : undefined, overflowWrap: "anywhere" }}>
-                      <span style={{ display: "block", color: COR.tinta, fontSize: 13, lineHeight: "20px", fontWeight: 700 }}>{contato.nome}</span>
-                      <span style={{ display: "block", color: COR.secundario, fontSize: 13, lineHeight: "21px" }}>{contato.email}</span>
-                      <span style={{ display: "block", marginTop: 3, color: COR.secundario, fontSize: 11, lineHeight: "17px" }}>{contato.tipo === "socio" ? "Sócio holding" : "Cliente"}</span>
-                    </div>) : <p style={{ ...ajuda, padding: "12px 14px", margin: 0 }}>Nenhum contato encontrado.</p>}
+                <label htmlFor={`${id}-para`} className="ec-label">Para</label>
+                <input ref={destinatarioRef} id={`${id}-para`} name="destinatarios" className="ec-input" type="text"
+                  inputMode="email" autoComplete="off" spellCheck={false} value={destinatario}
+                  onChange={(evento) => { setDestinatario(evento.target.value); setErro(""); }}
+                  onFocus={() => setParaFocado(true)} onBlur={() => setParaFocado(false)}
+                  placeholder="nome@empresa.com" disabled={bloqueado} aria-describedby={`${id}-para-ajuda`} />
+                <p id={`${id}-para-ajuda`} className="ec-help">Separe vários endereços por ponto e vírgula.</p>
+
+                {listaDestinatarios.length > 0 && <div className="ec-chips" aria-label="Destinatários">
+                  {listaDestinatarios.map((email) => <span key={email} className="ec-chip"
+                    data-invalido={!paraFocado && !emailValido(email)}>
+                    {email}
+                    <button type="button" className="ec-chip-x" disabled={bloqueado} onClick={() => removerDestinatario(email)}
+                      aria-label={`Remover ${email}`}><X size={14} aria-hidden="true" /></button>
+                  </span>)}
+                </div>}
+
+                <div className="ec-search">
+                  <Search size={17} aria-hidden="true" />
+                  <label htmlFor={`${id}-busca`} className="ec-sr">Buscar cliente ou sócio holding</label>
+                  <input id={`${id}-busca`} className="ec-input ec-input-icon" role="combobox" aria-autocomplete="list"
+                    aria-expanded={listaAberta} aria-controls={`${id}-contatos`}
+                    aria-activedescendant={listaAberta ? `${id}-contato-${Math.min(indiceContato, contatosFiltrados.length - 1)}` : undefined}
+                    value={buscaContato} onChange={(evento) => { setBuscaContato(evento.target.value); setIndiceContato(0); }}
+                    onKeyDown={navegarContatos} autoComplete="off" disabled={bloqueado || carregando}
+                    placeholder={carregando ? "Carregando contatos…" : "Buscar cliente ou sócio holding"} />
+                  {buscaContato.trim() && !carregando && <div id={`${id}-contatos`} className="ec-list" role="listbox" aria-label="Contatos encontrados">
+                    {contatosFiltrados.length ? contatosFiltrados.map((contato, indice) => <div key={`${contato.id}:${contato.email}`}
+                      id={`${id}-contato-${indice}`} className="ec-option" role="option" aria-selected={indiceContato === indice}
+                      onMouseDown={(evento) => evento.preventDefault()} onMouseEnter={() => setIndiceContato(indice)}
+                      onClick={() => selecionarContato(contato)}>
+                      <span className="ec-avatar" aria-hidden="true">{iniciais(contato.nome)}</span>
+                      <span className="ec-option-main">
+                        <span className="ec-option-nome">{contato.nome}</span>
+                        <span className="ec-option-email">{contato.email}</span>
+                      </span>
+                      <span className="ec-tag">{contato.tipo === "socio" ? "Sócio holding" : "Cliente"}</span>
+                    </div>) : <p className="ec-empty">Nenhum contato encontrado.</p>}
                   </div>}
                 </div>
               </div>
 
               <div>
-                <label htmlFor={`${id}-assunto`} style={{ ...rotulo, color: "#d5dfeb" }}>Assunto</label>
-                <input id={`${id}-assunto`} name="assunto" value={assunto} onChange={(evento) => { setAssunto(evento.target.value); setErro(""); }} placeholder="Informe o assunto da mensagem" disabled={bloqueado} style={{ ...campo, backgroundColor: "#010a11", color: "#c7d3e2", borderColor: "#041627" }} />
-              </div>
-              <div>
-                <label htmlFor={`${id}-mensagem`} style={{ ...rotulo, color: "#cad6e7" }}>Mensagem</label>
-                <textarea id={`${id}-mensagem`} name="mensagem" value={mensagem} onChange={(evento) => { setMensagem(evento.target.value); setErro(""); }} placeholder="Escreva sua mensagem…"
-                  disabled={bloqueado} rows={8} style={{ ...campo, minHeight: 208, resize: "vertical", lineHeight: "26px", padding: "14px 16px", backgroundColor: "#010a11", color: "#e6effa", borderColor: "#182c41" }} />
+                <label htmlFor={`${id}-assunto`} className="ec-label">Assunto</label>
+                <input id={`${id}-assunto`} name="assunto" className="ec-input" value={assunto}
+                  onChange={(evento) => { setAssunto(evento.target.value); setErro(""); }}
+                  placeholder="Informe o assunto da mensagem" disabled={bloqueado} />
               </div>
 
-              {contas.length > 0 && <section aria-label="Dados bancários" style={{ border: "1px solid #09141f", borderRadius: 6, backgroundColor: "#010a11", overflow: "hidden" }}>
-                <button type="button" disabled={bloqueado} aria-expanded={bancosAbertos} aria-controls={`${id}-bancos`} onClick={() => setBancosAbertos((atual) => !atual)}
-                  style={{ ...botao, width: "100%", justifyContent: "space-between", padding: "14px 16px", border: "1px solid #16263a", borderRadius: 4, overflow: "hidden", color: "#d8dee6", backgroundColor: "#010a11", textAlign: "left" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 10 }}><Building2 size={17} aria-hidden="true" /> Inserir dados bancários</span><ChevronDown size={16} aria-hidden="true" style={{ transform: bancosAbertos ? "rotate(180deg)" : undefined, flexShrink: 0 }} />
+              <div>
+                <label htmlFor={`${id}-mensagem`} className="ec-label">Mensagem</label>
+                <textarea id={`${id}-mensagem`} name="mensagem" className="ec-input" rows={8} value={mensagem}
+                  onChange={(evento) => { setMensagem(evento.target.value); setErro(""); }}
+                  placeholder="Escreva sua mensagem…" disabled={bloqueado} />
+              </div>
+
+              {contas.length > 0 && <section className="ec-bank" aria-label="Dados bancários">
+                <button type="button" className="ec-bank-toggle" disabled={bloqueado} aria-expanded={bancosAbertos}
+                  aria-controls={`${id}-bancos`} onClick={() => setBancosAbertos((atual) => !atual)}>
+                  <span><Building2 size={17} aria-hidden="true" /> Inserir dados bancários</span>
+                  <ChevronDown size={16} aria-hidden="true" style={{ transform: bancosAbertos ? "rotate(180deg)" : undefined, flexShrink: 0, transition: "transform .15s" }} />
                 </button>
-                {bancosAbertos && <div id={`${id}-bancos`} style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "0 16px 16px", backgroundColor: "rgba(1, 10, 17, 0.92)" }}>
-                  {contas.map((conta) => <button key={conta.id} type="button" disabled={bloqueado}
-                    onClick={() => setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto)}
-                    style={{ ...botao, fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%", backgroundColor: "rgba(1, 10, 17, 0.92)", borderColor: "rgba(5, 14, 25, 0.16)" }}><Building2 size={15} aria-hidden="true" style={{ flexShrink: 0 }} />{conta.banco}</button>)}
+                {bancosAbertos && <div id={`${id}-bancos`} className="ec-bank-items">
+                  {contas.map((conta) => <button key={conta.id} type="button" className="ec-btn" disabled={bloqueado}
+                    onClick={() => setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto)}>
+                    <Building2 size={15} aria-hidden="true" style={{ flexShrink: 0 }} />{conta.banco}
+                  </button>)}
                 </div>}
               </section>}
-              {avisoCarga && <div role="status" style={aviso}><AlertCircle size={17} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{avisoCarga}</span></div>}
+
+              {avisoCarga && <div role="status" className="ec-notice"><AlertCircle size={17} aria-hidden="true" /><span>{avisoCarga}</span></div>}
             </div> : <section aria-label="Prévia do corpo do e-mail">
-              <p style={{ ...ajuda, margin: "0 0 14px" }}>Prévia de formatação do conteúdo. A apresentação final depende do modelo configurado no sistema. Assinatura e documentos são adicionados no envio.</p>
-              <iframe title="Prévia do conteúdo do e-mail" srcDoc={htmlPrevia} sandbox="" tabIndex={-1}
-                style={{ boxSizing: "border-box", display: "block", width: "100%", height: 420, border: `1px solid ${COR.borda}`, borderRadius: 6, backgroundColor: COR.fundo }} />
+              <p className="ec-help" style={{ margin: "0 0 14px" }}>
+                Prévia de formatação do conteúdo. A apresentação final depende do modelo configurado no sistema. Assinatura e documentos são adicionados no envio.
+              </p>
+              <iframe className="ec-preview-frame" title="Prévia do conteúdo do e-mail" srcDoc={htmlPrevia} sandbox="" tabIndex={-1} />
             </section>}
 
-            {anexos.length > 0 && <section aria-labelledby={`${id}-anexos`} style={{ marginTop: 28, paddingTop: 24, borderTop: `1px solid ${COR.borda}` }}>
-              <h3 id={`${id}-anexos`} style={{ ...rotulo, display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px", color: "#cad5e2" }}>Documentos anexados ({anexos.length})</h3>
-              <div style={{ display: "grid", gap: 8 }}>
-                {anexos.map((anexo, indice) => <div key={`${anexo.id || anexo.url || "anexo"}-${indice}`}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 14px", backgroundColor: "#010a11", border: "1px solid #0a1622", borderRadius: 6 }}>
-                  <Paperclip size={17} aria-hidden="true" style={{ flexShrink: 0, color: COR.secundario, marginTop: 2 }} />
-                  <div style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}><p style={{ margin: 0, fontSize: 13, lineHeight: "21px", fontWeight: 700 }}>{anexo.label || anexo.filename || `Documento ${indice + 1}`}</p>
-                    <p style={{ ...ajuda, marginTop: 3, color: anexo.id?.trim() ? COR.secundario : "#765622" }}>{anexo.id?.trim() ? "Incluído automaticamente no envio" : "Documento indisponível para envio"}</p></div>
-                </div>)}
+            {anexos.length > 0 && <section className="ec-attach" aria-labelledby={`${id}-anexos`}>
+              <h3 id={`${id}-anexos`}>Documentos anexados ({anexos.length})</h3>
+              <div className="ec-attach-list">
+                {anexos.map((anexo, indice) => {
+                  const ok = Boolean(anexo.id?.trim());
+                  return <div key={`${anexo.id || anexo.url || "anexo"}-${indice}`} className="ec-attach-item" data-ok={ok}>
+                    <Paperclip size={17} aria-hidden="true" />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p className="ec-attach-nome">{anexo.label || anexo.filename || `Documento ${indice + 1}`}</p>
+                      <p className="ec-help">{ok ? "Incluído automaticamente no envio" : "Documento indisponível para envio"}</p>
+                    </div>
+                  </div>;
+                })}
               </div>
-              {anexosSemId.length > 0 && <p style={{ ...ajuda, color: "#765622" }}>Feche esta janela e selecione novamente os documentos indisponíveis para continuar.</p>}
+              {anexosSemId.length > 0 && <p className="ec-help" style={{ color: "var(--ec-warn)" }}>
+                Feche esta janela e selecione novamente os documentos indisponíveis para continuar.
+              </p>}
             </section>}
 
-            {erro && <div role="alert" style={{ ...aviso, marginTop: 24, borderColor: "#edcaca", backgroundColor: "#fff7f7", color: "#9b3030" }}><AlertCircle size={17} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{erro}</span></div>}
+            {erro && <div role="alert" className="ec-notice" data-tipo="erro" style={{ marginTop: 24 }}>
+              <AlertCircle size={17} aria-hidden="true" /><span>{erro}</span>
+            </div>}
           </div>
 
-          <footer style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, padding: `20px ${espacamento}`, borderTop: `1px solid ${COR.borda}`, backgroundColor: "#06101b" }}>
-            <p role="status" aria-live="polite" style={{ margin: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 12, lineHeight: "20px", color: status === "sent" ? "#276045" : COR.secundario }}>
+          <footer className="ec-footer">
+            <p role="status" aria-live="polite" className="ec-status" data-sent={status === "sent"}>
               {status === "sent" && <Check size={16} aria-hidden="true" />}
               {status === "sent" ? "E-mail enviado com sucesso." : status === "sending" ? "Enviando mensagem. Aguarde…" : "Revise os dados antes de enviar."}
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 10, marginLeft: "auto" }}>
-              <button type="button" onClick={fechar} disabled={bloqueado} style={{ ...botao, opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? "default" : "pointer" }}>Cancelar</button>
-              <button type="submit" disabled={!podeEnviar}
-                style={{ ...botao, borderColor: status === "sent" ? "#276045" : COR.azul, backgroundColor: status === "sent" ? "#276045" : COR.azul, color: "#ffffff", opacity: podeEnviar || status === "sent" ? 1 : 0.55, cursor: podeEnviar ? "pointer" : "default" }}>
+            <div className="ec-actions">
+              <button type="button" className="ec-btn" onClick={fechar} disabled={bloqueado}>Cancelar</button>
+              <button type="submit" className="ec-btn ec-btn-primary" data-sent={status === "sent"} disabled={!podeEnviar}
+                style={status === "sent" ? { opacity: 1 } : undefined}>
                 {status === "sent" ? <Check size={16} aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}
                 {status === "sending" ? "Enviando…" : status === "sent" ? "Enviado" : "Enviar e-mail"}
               </button>
@@ -377,6 +633,7 @@ export function EnviarEmailClienteDialog({
           </footer>
         </form>
       </div>
-    </div>, document.body,
+    </div>,
+    document.body,
   );
 }

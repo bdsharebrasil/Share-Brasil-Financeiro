@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Papa from 'papaparse';
+import urlResumoMedias from '../data/resumo-de-medias.csv?url';
 import type { Balanco, LinhaBalanco, LinhaMedia } from '../types/balanco';
 import { acharColuna, celula, ehMes, rotuloMes } from '../utils/csv';
 
-const URL_RESUMO = "/resumo_de_medias.csv";
+const URL_RESUMO = urlResumoMedias;
 
 
 interface Estado {

@@ -100,6 +100,7 @@ import {
   formatarData,
   editarLancamento,
   excluirLancamento,
+  buscarFornecedoresFavoritos,
 } from "@/lib/financeiro-share-api";
 import type {
   OpcoesLancamento,
@@ -111,6 +112,8 @@ import { allocateCentavos } from "@/lib/money";
 import {
   buscarAeronavesShare,
   buscarCotistasAeronave,
+  buscarContatosShare,
+  buscarOpcoesEnvioPagamento,
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
 } from "@/lib/colaborador-api";
@@ -118,6 +121,8 @@ import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
 import { FechamentoBalancoCotista } from "./FechamentoBalancoCotista";
+import { useBalancoCotista } from "@/hooks/useBalancoCotista";
+import type { Balanco } from "@/types/balanco";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -221,13 +226,18 @@ const DESPESAS_ESTILOS = `
 .despesa-control-quiet { border-color:transparent; background:transparent; color:var(--text-muted); }
 .despesa-toolbar-divider { width:1px; height:20px; background:var(--ledger-border); margin:0 3px; }
 .despesa-period { display:flex; align-items:center; flex:0 1 auto; gap:6px; min-width:0; max-width:100%; margin-left:auto; }
-.despesa-period-label { min-width:140px; text-align:center; font-size:12px; font-weight:600; line-height:30px; border-bottom:2px solid var(--ledger-accent); text-transform:capitalize; overflow-wrap:anywhere; }
+.despesa-month-switcher { display:flex; min-width:0; align-items:center; gap:6px; }
+.despesa-current-month { display:flex; min-width:140px; flex-direction:column; align-items:center; justify-content:center; gap:0; }
+.despesa-period-label { min-width:140px; text-align:center; font-size:12px; font-weight:600; line-height:24px; border-bottom:2px solid var(--ledger-accent); text-transform:capitalize; overflow-wrap:anywhere; }
+.despesa-close-month { border-color:#14866d; background:#116f5c; color:#fff; }
+.despesa-close-month:hover:not(:disabled) { border-color:#1b9b7d; background:#14866d; }
 .despesa-filter-count { display:inline-flex; min-width:18px; height:18px; align-items:center; justify-content:center; padding:0 4px; border-radius:3px; background:rgba(31,143,214,.15); color:var(--ledger-accent); font-size:10px; }
-.despesa-filter-panel { display:flex; flex-wrap:wrap; gap:8px; min-width:0; margin-top:8px; padding:8px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); }
-.despesa-filter-panel > * { flex:1 1 160px; min-width:0; }
-.despesa-filter-panel label:not(.sr-only) { display:block; margin-bottom:4px; font-size:11px; color:var(--text-muted); }
+.despesa-filter-panel { display:grid; grid-template-columns:minmax(180px,2fr) minmax(140px,1.2fr) minmax(140px,1.2fr) auto; align-items:end; gap:8px; min-width:0; margin-top:8px; padding:8px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); }
+.despesa-filter-panel > * { min-width:0; }
+.despesa-filter-panel label:not(.sr-only) { display:block; margin-bottom:0; font-size:11px; color:var(--text-muted); }
 .despesa-filter-panel :is(input,[role="combobox"]) { height:32px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-page); color:var(--text); font-size:12px; }
 .despesa-search-field { position:relative; flex-grow:2; }
+.despesa-filter-clear { display:flex; min-height:36px; align-items:center; white-space:nowrap; }
 .despesa-search-field > svg { position:absolute; top:10px; left:10px; pointer-events:none; color:var(--text-muted); }
 .despesa-month-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:8px; }
 .despesa-month-choice { min-width:0; min-height:32px; border:1px solid var(--ledger-border); border-radius:4px; color:var(--text-muted); background:var(--bg-page); font-size:12px; }
@@ -236,8 +246,9 @@ const DESPESAS_ESTILOS = `
 .despesa-selected-months { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
 .despesa-selected-months button { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 8px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); color:var(--text); font-size:11px; text-transform:capitalize; overflow-wrap:anywhere; }
 .despesa-selected-months button:disabled { opacity:.6; cursor:not-allowed; }
-.despesa-columns-menu { max-width:calc(100vw - 24px); width:260px; max-height:min(440px,70dvh); overflow:auto; }
-.despesa-column-option { display:flex; align-items:center; gap:9px; padding:8px; font-size:12px; cursor:pointer; }
+.despesa-columns-menu { width:min(260px,calc(100vw - 24px)); max-width:calc(100vw - 24px); max-height:min(var(--radix-dropdown-menu-content-available-height,calc(100dvh - 24px)),440px); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+.despesa-columns-menu-heading { position:sticky; top:-4px; z-index:1; margin:0; border-bottom:1px solid var(--ledger-border); background:var(--bg-surface); }
+.despesa-column-option { display:flex; min-height:36px; align-items:center; gap:9px; padding:7px 8px; font-size:12px; cursor:pointer; }
 .despesa-column-option input { accent-color:var(--ledger-accent); }
 /* This is the only horizontal scroll viewport. Fixed column widths never size the parent. */
 .despesa-table-scroll { container-type:inline-size; width:100%; min-width:0; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior-x:contain; scrollbar-color:#3a4350 var(--bg-page); scrollbar-width:thin; border:1px solid var(--ledger-border); border-radius:4px; touch-action:pan-x pan-y; cursor:grab; }
@@ -257,7 +268,8 @@ const DESPESAS_ESTILOS = `
 .despesa-table .despesa-row { --row-bg:var(--bg-page); height:var(--row-height); background:var(--row-bg); }
 .despesa-table .despesa-row:hover { --row-bg:var(--bg-hover); }
 .despesa-table .despesa-row[data-expanded="true"],.despesa-table .despesa-row[data-selected="true"] { --row-bg:var(--bg-selected); }
-.despesa-table .despesa-row td { padding:0 14px; background:var(--row-bg); vertical-align:middle; border-bottom:1px solid var(--ledger-border); overflow-wrap:anywhere; }
+.despesa-table .despesa-row td { padding:0 14px; background:var(--row-bg); vertical-align:middle; border-right:1px solid var(--ledger-border); border-bottom:1px solid var(--ledger-border); overflow-wrap:anywhere; }
+.despesa-table .despesa-row td:last-child { border-right:0; }
 .despesa-table .despesa-row td:last-child { padding:0 10px; }
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:0 8px; text-align:center; }
 .despesa-table .despesa-month th { height:32px; padding:0 14px; background:var(--bg-hover); border-bottom:1px solid var(--ledger-border); font-size:12px; font-weight:600; text-align:left; }
@@ -267,7 +279,13 @@ const DESPESAS_ESTILOS = `
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:var(--font-mono); font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .despesa-row .despesa-money { display:block; text-align:right; }
 .despesa-rateio-cell { display:flex; flex-direction:column; align-items:flex-end; gap:2px; white-space:nowrap; font-size:11px; font-variant-numeric:tabular-nums; }
-.despesa-date { margin:0; white-space:nowrap; font-size:13px; font-variant-numeric:tabular-nums; }
+.despesa-date-group { display:grid; gap:5px; font-size:12px; font-variant-numeric:tabular-nums; }
+.despesa-date-group span { display:block; white-space:nowrap; }
+.despesa-date-group small { display:block; margin-bottom:1px; color:var(--text-muted); font-size:9px; line-height:1.2; }
+.despesa-date-mode { display:flex; min-height:18px; align-items:center; justify-content:center; gap:4px; padding:0 5px; border-color:transparent; background:transparent; color:var(--text-muted); font-size:8px; white-space:nowrap; }
+.despesa-date-mode:hover,.despesa-date-mode[aria-expanded="true"] { border-color:var(--ledger-border); background:var(--bg-hover); color:var(--text); }
+.despesa-date-mode-copy { display:block; line-height:1.2; }
+.despesa-date-mode-copy small { color:inherit; font-size:8px; font-weight:700; letter-spacing:.06em; }
 .despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid #3a4350; border-radius:3px; background:var(--bg-page); color:#fff; box-shadow:none; }
 .despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:var(--ledger-accent); border-color:var(--ledger-accent); }
 .despesa-checkbox svg { width:12px; height:12px; }
@@ -292,23 +310,50 @@ const DESPESAS_ESTILOS = `
 .despesa-pagination button:hover { background:var(--bg-hover); }
 .despesa-pagination button:disabled { opacity:.35; cursor:not-allowed; }
 .despesa-expanded-content { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; }
-.despesa-expanded-description { margin:0; padding:12px 16px 0 40px; background:var(--bg-hover); color:var(--text); overflow-wrap:anywhere; white-space:pre-wrap; font-size:12px; line-height:17px; }
+.cotista-expanded { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; padding:0 18px 16px; border-left:3px solid #168fca; border-bottom:1px solid #d9e0e9; background:#f3f5f9; color:#243246; }
+.expanded-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:11px 0 12px; border-bottom:1px solid #d5dde7; }
+.expanded-heading .panel-kicker { display:block; color:#168fca; font-size:9px; font-weight:700; letter-spacing:.08em; }
+.expanded-heading h3 { margin:3px 0 0; color:#263548; font-size:12px; font-weight:600; }
+.expanded-support-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.9fr); gap:0; padding-top:12px; }
+.expanded-support-grid > * { min-width:0; padding:0 15px; }
+.expanded-support-grid > :first-child { padding-left:0; }
+.expanded-support-grid > :last-child { padding-right:0; }
+.expanded-support-grid > * + * { border-left:1px solid #d5dde7; }
+.detail-block-title { display:block; margin-bottom:9px; color:#75849a; font-size:8px; font-weight:700; letter-spacing:.08em; }
+.document-list { display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; }
+.document-list button { display:inline-flex; min-width:0; max-width:100%; min-height:32px; align-items:center; gap:6px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#29384b; font-size:9px; text-align:left; cursor:pointer; transition:border-color .15s,background-color .15s; }
+.document-list button:hover { border-color:#168fca; background:#f5fbff; }
+.document-icon { display:flex; width:15px; height:17px; flex:0 0 15px; align-items:center; justify-content:center; color:#61738a; }
+.document-icon.is-receipt { color:#25856d; }
+.document-copy { display:block; min-width:0; }
+.document-copy b { display:block; overflow:hidden; color:#29384b; font-size:9px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+.document-copy small,.document-open-icon { display:none; }
+.support-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:16px; row-gap:10px; }
+.support-facts .detail-block-title { grid-column:1 / -1; margin-bottom:0; }
+.support-facts p { display:flex; min-width:0; flex-direction:column; gap:3px; margin:0; font-size:10px; }
+.support-facts p b { color:#34445a; font-size:9px; font-weight:600; }
+.support-facts p small { color:#7a8798; font-size:9px; overflow-wrap:anywhere; }
+.support-note { min-height:100%; }
+.support-note p { margin:0; color:#78869a; font-size:9px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.dark .despesas-theme .cotista-expanded { border-bottom-color:var(--ledger-border); background:var(--bg-surface); color:var(--text); }
+.dark .despesas-theme .expanded-heading { border-bottom-color:var(--ledger-border); }
+.dark .despesas-theme .expanded-heading h3 { color:var(--text); }
+.dark .despesas-theme .expanded-support-grid > * + * { border-left-color:var(--ledger-border); }
+.dark .despesas-theme .detail-block-title { color:var(--text-muted); }
+.dark .despesas-theme .document-list button { border-color:var(--ledger-border); background:var(--bg-page); color:var(--text); }
+.dark .despesas-theme .document-list button:hover { border-color:var(--ledger-accent); background:var(--bg-hover); }
+.dark .despesas-theme .document-icon { color:var(--text-muted); }
+.dark .despesas-theme .document-copy b { color:var(--text); }
+.dark .despesas-theme .support-facts p b { color:var(--text); }
+.dark .despesas-theme .support-facts p small,.dark .despesas-theme .support-note p { color:var(--text-muted); }
+.dark .despesas-theme .expanded-support-grid > :nth-child(3) { border-top-color:var(--ledger-border); }
 .despesa-empty { min-width:0; padding:30px 16px; text-align:center; color:var(--text-muted); }
-.despesa-detail { min-width:0; max-width:100%; overflow:hidden; padding:12px 16px 12px 40px; background:var(--bg-hover); border-bottom:1px solid var(--ledger-border); }
-.despesa-detail-title { margin:0 0 8px; font-size:12px; font-weight:600; color:var(--text); }
-.despesa-detail-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 24px; min-width:0; }
-.despesa-detail-grid > .wide { grid-column:span 2; }
-.despesa-detail dt { font-size:11px; color:var(--text-muted); margin-bottom:3px; }
-.despesa-detail dd { overflow-wrap:break-word; font-size:12px; line-height:17px; }
-.despesa-supplier { margin:0; }
-.despesa-supplier dd { margin:0; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.despesa-documents > div { min-width:0; max-width:100%; }
-.despesa-documents { min-width:0; max-width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-.despesa-document { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:0; border:0; background:transparent; color:var(--text); font-size:12px; text-align:left; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.despesa-document:hover { color:var(--ledger-accent); }
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:900px) {
-  .despesa-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .expanded-support-grid { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:14px; }
+  .expanded-support-grid > :nth-child(3) { grid-column:1 / -1; min-height:0; padding:12px 0 0; border-top:1px solid #d5dde7; border-left:0; }
+  .expanded-support-grid > :nth-child(2) { border-left:1px solid #d5dde7; }
+  .despesa-filter-panel { grid-template-columns:minmax(160px,1.5fr) minmax(130px,1fr) minmax(130px,1fr) auto; }
 }
 @media(max-width:760px) {
   .despesa-toolbar { padding:8px; gap:6px; }
@@ -317,13 +362,24 @@ const DESPESAS_ESTILOS = `
 @media(max-width:640px) {
   .despesa-toolbar-actions { flex-basis:100%; gap:6px; }
   .despesa-toolbar-divider { display:none; }
-  .despesa-period { flex:1 1 100%; justify-content:space-between; margin-left:0; }
-  .despesa-period-label { flex:1; min-width:0; }
-  .despesa-period > .despesa-control:first-child { padding:0 8px; }
-  .despesa-filter-panel > * { flex-basis:100%; }
+  .despesa-period { flex:1 1 100%; flex-wrap:wrap; justify-content:space-between; margin-left:0; }
+  .despesa-month-switcher { flex:1 1 auto; justify-content:center; }
+  .despesa-period-label { min-width:0; }
+  .despesa-close-month { margin-left:auto; }
+  .despesa-filter-panel { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .despesa-search-field,.despesa-filter-clear { grid-column:1 / -1; }
+  .cotista-expanded { padding:0 12px 14px; }
+  .expanded-support-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .expanded-support-grid > *,.expanded-support-grid > :first-child,.expanded-support-grid > :last-child { padding:0; border:0; }
+  .expanded-support-grid > * + * { padding-top:11px; border-top:1px solid #d5dde7; }
+  .expanded-support-grid > :nth-child(3) { grid-column:auto; min-height:0; padding-top:11px; border-top:1px solid #d5dde7; }
   .despesa-month-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
   .despesa-table-scroll { max-height:65dvh; }
   .despesa-pagination { font-size:11px; }
+}
+@media(max-width:420px) {
+  .despesa-filter-panel { grid-template-columns:minmax(0,1fr); }
+  .despesa-search-field,.despesa-filter-clear { grid-column:auto; }
 }
 @media(prefers-reduced-motion:reduce) { .despesas-theme * { transition:none!important; } }
 @media print {
@@ -1346,69 +1402,6 @@ function LancamentoExpandido({
       numero: string | null | undefined;
     } => Boolean(item.url),
   );
-  const nomePagador = (valor: string | null | undefined) => {
-    const nome = (valor || "").trim();
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      nome,
-    )
-      ? "Pagador não identificado"
-      : nome;
-  };
-
-  // Uma linha por cotista, preservando os documentos anexados àquela parcela.
-  const partes =
-    lancamento.rateios.length > 0
-      ? lancamento.rateios.map((r, i) => ({
-          chave: r.id || `${r.cotistaId || r.cotista}-${i}`,
-          cota: percentualSociedadeDoCotista(
-            r.cotistaId,
-            r.cotista,
-            cotistasAeronave,
-          ),
-          uso: r.percentual,
-          responsavel: r.cotista,
-          parcela: r.valorCentavos,
-          valorPagoReal: r.valorPagoRealCentavos ?? 0,
-          dataVencimento: r.dataVencimento,
-          dataPagamento: r.dataPagamento,
-          subcategorias: r.subcategorias ?? lancamento.subcategorias ?? [],
-          tipoRateio: r.tipoRateio,
-          periodicidade: r.periodicidade ?? lancamento.periodicidade,
-          pagoPor: r.pagoPor,
-          pagoDiretamente: Boolean(r.pagoDiretamente),
-          documentos: r.documentos ?? [],
-        }))
-      : [
-          {
-            chave: "unico",
-            cota: percentualSociedadeDoCotista(
-              lancamento.participanteId,
-              lancamento.participanteNome,
-              cotistasAeronave,
-            ),
-            uso:
-              lancamento.percentualUso ?? lancamento.percentualSociedade ?? 0,
-            responsavel:
-              lancamento.participanteNome || lancamento.pagoPor || "—",
-            parcela:
-              lancamento.valorRateadoCentavos || lancamento.valorCentavos,
-            valorPagoReal: lancamento.valorPagoRealCentavos ?? 0,
-            dataVencimento: lancamento.prazo,
-            dataPagamento: lancamento.dataPagamento,
-            subcategorias: lancamento.subcategorias ?? [],
-            tipoRateio: lancamento.tipo,
-            periodicidade: lancamento.periodicidade,
-            pagoPor: lancamento.pagoPor,
-            pagoDiretamente: false,
-            documentos: lancamento.documentos ?? [],
-          },
-        ];
-  const percentualSociedadeLancamento =
-    percentualSociedadeDoCotista(
-      lancamento.participanteId,
-      lancamento.participanteNome,
-      cotistasAeronave,
-    ) ?? (partes.length === 1 ? partes[0].cota : null);
   const documentosGerais = [
     ...(lancamento.documentos ?? []),
     ...documentosLegados,
@@ -1416,207 +1409,72 @@ function LancamentoExpandido({
     .filter(
       (doc, index, todos) =>
         todos.findIndex((outro) => outro.url === doc.url) === index,
-    )
-    .filter(
-      (doc) =>
-        !partes.some((parte) =>
-          parte.documentos.some((outro) => outro.url === doc.url),
-        ),
-    );
-
-  const fmtTipoRateio = (value: string | null | undefined) =>
-    value?.replace(/_/g, " ") || "—";
-  const tiposRateio = [
-    ...new Set(
-      partes
-        .map((parte) => parte.tipoRateio)
-        .filter((value): value is string => Boolean(value)),
+      );
+  const documentosExpansao = [
+    ...documentosGerais.map((documento) => ({ ...documento, responsavel: "" })),
+    ...(lancamento.rateios ?? []).flatMap((rateio) =>
+      (rateio.documentos ?? []).map((documento) => ({
+        ...documento,
+        responsavel: rateio.cotista || "Cotista",
+      })),
     ),
+  ].filter(
+    (documento, index, todos) =>
+      Boolean(documento.url) &&
+      todos.findIndex((outro) => outro.url === documento.url) === index,
+  );
+  const dadosComplementares = [
+    ["Número do voo", lancamento.numeroVoo || "Não vinculado"],
+    ["Periodicidade", lancamento.periodicidade || "Único"],
+    ["Subcategoria", lancamento.subcategorias?.join(" · ") || "Não informada"],
   ];
-  const fmtPct = (v: number | null | undefined) =>
-    v == null
-      ? "—"
-      : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
 
   return (
-    <div className="despesa-detail">
-      <section className="mb-5 min-w-0">
-        <h3 className="despesa-detail-title">Rateio e pagamento</h3>
-        <p className="mb-3 break-words text-xs text-muted-foreground">
-          Documento: {documentoDoLancamento(lancamento) || "Não informado"}
-        </p>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-4">
-          <div>
-            <dt className="text-muted-foreground">Data de emissão</dt>
-            <dd className="mt-1 font-semibold">
-              {formatarData(lancamento.dataEmissao || lancamento.data)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Data Vencimento</dt>
-            <dd className="mt-1 font-semibold">
-              {formatarData(lancamento.prazo)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Número voo</dt>
-            <dd className="mt-1 font-semibold">
-              {lancamento.numeroVoo || "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Periodicidade</dt>
-            <dd className="mt-1 font-semibold">
-              {lancamento.periodicidade || "Não informada"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Valor Total</dt>
-            <dd className="mt-1 font-mono font-semibold tabular-nums">
-              {formatarCentavos(lancamento.valorCentavos)}
-            </dd>
-          </div>
-          {lancamento.subcategorias?.length ? (
-            <div>
-              <dt className="text-muted-foreground">Subcategoria</dt>
-              <dd className="mt-1 break-words font-semibold">
-                {lancamento.subcategorias.join(" · ")}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      </section>
-      <section className="mb-5 min-w-0">
-        <h3 className="despesa-detail-title">Cotistas</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead>
-              <tr className="border-b border-border text-[10px] uppercase tracking-[.12em] text-muted-foreground">
-                <th className="py-2 pr-3 font-bold">Cotista</th>
-                <th className="px-3 py-2 font-bold">Tipo de Rateio</th>
-                <th className="px-3 py-2 text-right font-bold">
-                  Percentual Sociedade
-                </th>
-                <th className="px-3 py-2 text-right font-bold">
-                  Percentual Uso
-                </th>
-                <th className="px-3 py-2 text-right font-bold">
-                  Valor Rateado
-                </th>
-                <th className="px-3 py-2 text-right font-bold">Valor pago</th>
-                <th className="py-2 pl-3 font-bold">Pago por</th>
-              </tr>
-            </thead>
-            <tbody>
-              {partes.map((p) => (
-                <tr key={p.chave} className="border-b border-border/60">
-                  <td className="py-2.5 pr-3 font-semibold text-foreground">
-                    {p.responsavel || "Não informado"}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {fmtTipoRateio(p.tipoRateio || lancamento.tipoRateio)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {fmtPct(p.cota)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {fmtPct(p.uso)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {formatarCentavos(p.parcela)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {formatarCentavos(p.valorPagoReal)}
-                  </td>
-                  <td className="py-2.5 pl-3 break-words">
-                    {nomePagador(p.pagoPor) ||
-                      (p.pagoDiretamente
-                        ? nomePagador(p.responsavel)
-                        : "Não informado")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="cotista-expanded">
+      <div className="expanded-heading">
+        <div>
+          <span className="panel-kicker">INFORMAÇÕES COMPLEMENTARES</span>
+          <h3>Documentos e contexto financeiro</h3>
         </div>
-      </section>
-      <div className="despesa-detail-grid">
-        <section className="wide min-w-0">
-          <dl className="despesa-supplier">
-            <dt className="despesa-detail-title">Fornecedor</dt>
-            <dd>{lancamento.fornecedor || "Não informado"}</dd>
-          </dl>
-        </section>
-        <section className="min-w-0">
-          <h3 className="despesa-detail-title">Documentos vinculados</h3>
-          {partes.some((parte) => parte.documentos.length) ||
-          documentosGerais.length ? (
-            <div className="despesa-documents">
-              {partes.map((parte) =>
-                parte.documentos.length ? (
-                  <div key={`docs-${parte.chave}`} className="space-y-2">
-                    <p className="text-xs font-semibold text-foreground">
-                      {parte.responsavel}
-                    </p>
-                    <div className="flex flex-col items-start gap-2">
-                      {parte.documentos.map((documento) => (
-                        <button
-                          key={`${parte.chave}-${documento.id ?? documento.url}`}
-                          type="button"
-                          onClick={() =>
-                            aoAbrirDocumento(
-                              `${parte.responsavel} · ${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`,
-                              documento.url,
-                            )
-                          }
-                          className="despesa-document"
-                        >
-                          <FileText
-                            size={12}
-                            className={
-                              /nota|fiscal|\bnf\b/i.test(
-                                tituloDocumento(documento),
-                              )
-                                ? "shrink-0 text-red-500"
-                                : "shrink-0"
-                            }
-                          />
-                          <span className="break-words [overflow-wrap:anywhere]">
-                            {tituloDocumento(documento)}
-                            {documento.numero ? ` · ${documento.numero}` : ""}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null,
-              )}
-              {documentosGerais.map((documento) => (
-                <button
-                  key={`${tituloDocumento(documento)}-${documento.url}`}
-                  type="button"
-                  onClick={() =>
-                    aoAbrirDocumento(
-                      `${tituloDocumento(documento)}${documento.numero ? ` · ${documento.numero}` : ""}`,
-                      documento.url,
-                    )
-                  }
-                  className="despesa-document"
-                >
-                  <FileText
-                    size={12}
-                    className={
-                      /nota|fiscal|\bnf\b/i.test(tituloDocumento(documento))
-                        ? "shrink-0 text-red-500"
-                        : "shrink-0"
+      </div>
+      <div className="expanded-support-grid">
+        <section>
+          <span className="detail-block-title">DOCUMENTOS VINCULADOS</span>
+          {documentosExpansao.length ? (
+            <div className="document-list">
+              {documentosExpansao.map((documento) => {
+                const titulo = tituloDocumento(documento);
+                const comprovante = /comprovante/i.test(titulo);
+                return (
+                  <button
+                    key={`${documento.responsavel}-${documento.url}`}
+                    type="button"
+                    title={`${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`}
+                    onClick={() =>
+                      aoAbrirDocumento(
+                        `${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`,
+                        documento.url,
+                      )
                     }
-                  />
-                  <span className="break-words [overflow-wrap:anywhere]">
-                    {tituloDocumento(documento)}
-                    {documento.numero ? ` · ${documento.numero}` : ""}
-                  </span>
-                </button>
-              ))}
+                  >
+                    <span
+                      className={`document-icon ${comprovante ? "is-receipt" : ""}`}
+                    >
+                      {comprovante ? (
+                        <Check size={14} aria-hidden="true" />
+                      ) : (
+                        <FileText size={14} aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="document-copy">
+                      <b>
+                        {titulo}
+                        {documento.numero ? ` ${documento.numero}` : ""}
+                      </b>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -1624,17 +1482,38 @@ function LancamentoExpandido({
             </p>
           )}
         </section>
+        <section className="support-facts">
+          <span className="detail-block-title">DADOS COMPLEMENTARES</span>
+          {dadosComplementares.map(([rotulo, valor]) => (
+            <p key={rotulo}>
+              <b>{rotulo}</b>
+              <small>{valor}</small>
+            </p>
+          ))}
+        </section>
+        <section className="support-note">
+          <span className="detail-block-title">OBSERVAÇÕES</span>
+          <p>{lancamento.observacoes || "Nenhuma observação registrada."}</p>
+        </section>
       </div>
-
-      {lancamento.observacoes && (
-        <p className="mt-3 whitespace-pre-wrap break-words border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-          <strong className="text-foreground">Observações:</strong>{" "}
-          {lancamento.observacoes}
-        </p>
-      )}
     </div>
   );
 }
+type CampoDocumentoLancamento =
+  | "documento_numero"
+  | "numero_doc"
+  | "numero_nf"
+  | "numero_recibo"
+  | "numero_demonstrativo"
+  | "documento";
+type OpcaoEdicao = { id: string; label: string };
+const TIPOS_RATEIO_EDICAO: OpcaoEdicao[] = [
+  { id: "FIXO", label: "FIXO" },
+  { id: "VARIAVEL POR VOO", label: "VARIAVEL POR VOO" },
+  { id: "VARIAVEL POR HORA", label: "VARIAVEL POR HORA" },
+  { id: "EXTRA", label: "EXTRA" },
+];
+
 type AcaoDespesa = {
   tipo: "editar" | "excluir";
   item: LancamentoEconomico;
@@ -1761,6 +1640,10 @@ function LancamentosDespesa({
   mesesSelecionados,
   aoSelecionarMes,
   aoAlterarMeses,
+  aoFecharMes,
+  gerandoFechamento,
+  fornecedoresEdicao,
+  categoriasClienteEdicao,
   carregando = false,
 }: {
   lancamentos: LancamentoEconomico[];
@@ -1770,6 +1653,10 @@ function LancamentosDespesa({
   mesesSelecionados: string[];
   aoSelecionarMes: (mes: string) => void;
   aoAlterarMeses: (meses: string[]) => void;
+  aoFecharMes: (meses: string[]) => void;
+  gerandoFechamento: boolean;
+  fornecedoresEdicao: OpcaoEdicao[];
+  categoriasClienteEdicao: OpcaoEdicao[];
   carregando?: boolean;
 }) {
   const [baixaSelecionada, setBaixaSelecionada] =
@@ -1785,6 +1672,7 @@ function LancamentosDespesa({
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+  const [modoData, setModoData] = useState<"emissao" | "vencimento" | "ambas">("emissao");
   const [ordenacao, setOrdenacao] = useState<{
     coluna: string;
     direcao: "asc" | "desc";
@@ -1804,7 +1692,7 @@ function LancamentosDespesa({
     setPagina(1);
     setExpandidos(new Set());
     setSelecionados(new Set());
-  }, [busca, filtroStatus, filtroCategoria, ordenacao, lancamentos, porPagina]);
+  }, [busca, filtroStatus, filtroCategoria, modoData, ordenacao, lancamentos, porPagina]);
 
   const iniciarRedimensionamento = (
     colunaId: string,
@@ -1903,7 +1791,29 @@ function LancamentosDespesa({
     window.addEventListener("blur", soltar);
   };
   const [acao, setAcao] = useState<AcaoDespesa | null>(null);
-  const [descricaoEdicao, setDescricaoEdicao] = useState("");
+  type EdicaoLancamento = {
+    dataEmissao: string;
+    dataVencimento: string;
+    campoDocumento: CampoDocumentoLancamento;
+    documentoNumero: string;
+    descricao: string;
+    fornecedor: string;
+    fornecedorId: string;
+    categoria: string;
+    categoriaId: string;
+    status: string;
+    tipoRateio: string;
+    valorTotal: string;
+    valorPago: string;
+    pagoPor: string;
+    observacoes: string;
+    rateios: Record<
+      string,
+      { percentual: string; valor: string; pagoPor: string }
+    >;
+  };
+  const [edicaoLancamento, setEdicaoLancamento] =
+    useState<EdicaoLancamento | null>(null);
   const [processando, setProcessando] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const processandoRef = useRef(false);
@@ -1942,6 +1852,8 @@ function LancamentosDespesa({
             item.numeroRecibo,
             item.numeroDemonstrativo,
             item.documento,
+            item.pagoPor,
+            ...item.rateios.map((rateio) => rateio.pagoPor),
             item.observacoes,
             item.status,
             statusLancamento(item.status).label,
@@ -1973,7 +1885,98 @@ function LancamentosDespesa({
       {valor || "—"}
     </span>
   );
+  const resolverNomePagador = (valor: string | null | undefined) => {
+    const id = (valor || "").trim();
+    if (!id) return "";
+    const cotista = cotistasAeronave.find((item) =>
+      [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])].includes(id),
+    );
+    if (cotista) return cotista.nome;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+      ? "Cotista não identificado"
+      : id;
+  };
+  const nomePagadoresDoLancamento = (item: LancamentoEconomico) => {
+    const pagadores = (item.rateios ?? [])
+      .map((rateio) => rateio.pagoPor?.trim())
+      .filter((pagador): pagador is string => Boolean(pagador));
+    if (!pagadores.length && item.pagoPor?.trim()) {
+      pagadores.push(item.pagoPor.trim());
+    }
+    return [...new Set(pagadores.map(resolverNomePagador).filter(Boolean))].join(", ") || "—";
+  };
+  const ordenarDataPor = modoData === "vencimento" ? "vencimento" : "emissao";
+  const alterarModoData = (modo: typeof modoData) => {
+    setModoData(modo);
+    setOrdenacao((atual) => ({
+      coluna: "data",
+      direcao: atual.coluna === "data" ? atual.direcao : "asc",
+    }));
+  };
+  const dataParaOrdenacao = (item: LancamentoEconomico) =>
+    ordenarDataPor === "emissao" ? item.dataEmissao || item.data : item.prazo;
+  const formatarDataSemAno = (valor: string | null | undefined) =>
+    formatarData(valor).replace(/\/\d{4}$/, "");
   const colunas: ColunaDespesa[] = [
+    {
+      id: "acoes",
+      titulo: "Ações",
+      largura: 90,
+      minimo: 90,
+      render: (item) => (
+        <div className="flex items-center justify-end gap-1">
+          {acoesDaLinha(item)}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-sm text-primary"
+            onClick={() =>
+              setExpandidos((atual) => {
+                const proximo = new Set(atual);
+                if (proximo.has(item.id)) proximo.delete(item.id);
+                else proximo.add(item.id);
+                return proximo;
+              })
+            }
+            aria-expanded={expandidos.has(item.id)}
+            aria-controls={`despesa-desktop-${item.id}`}
+            aria-label={`${expandidos.has(item.id) ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
+          >
+            {expandidos.has(item.id) ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
+          </Button>
+        </div>
+      ),
+    },
+    {
+      id: "data",
+      titulo: "Data",
+      largura: 150,
+      minimo: 130,
+      valor: dataParaOrdenacao,
+      render: (item) => (
+        <div className="despesa-date-group">
+          {modoData !== "vencimento" && (
+            <span>
+              <small>Emissão</small>
+              {formatarDataSemAno(item.dataEmissao || item.data)}
+            </span>
+          )}
+          {modoData !== "emissao" && (
+            <span>
+              <small>Vencimento</small>
+              {formatarDataSemAno(item.prazo)}
+            </span>
+          )}
+        </div>
+      ),
+    },
     {
       id: "documento",
       titulo: "Doc",
@@ -2009,7 +2012,7 @@ function LancamentosDespesa({
     },
     {
       id: "status",
-      titulo: "Situação",
+      titulo: "Status",
       largura: 180,
       minimo: 150,
       valor: (item) => statusLancamento(item.status).label,
@@ -2029,18 +2032,6 @@ function LancamentosDespesa({
         ),
     },
     {
-      id: "data",
-      titulo: "Data",
-      largura: 130,
-      minimo: 110,
-      valor: (item) => item.dataEmissao || item.data,
-      render: (item) => (
-        <p className="despesa-date">
-          {formatarData(item.dataEmissao || item.data)}
-        </p>
-      ),
-    },
-    {
       id: "pago",
       titulo: "Valor pago",
       largura: 160,
@@ -2052,6 +2043,14 @@ function LancamentosDespesa({
           {formatarCentavos(valorPagoLancamento(item))}
         </span>
       ),
+    },
+    {
+      id: "pago-por",
+      titulo: "PAGO POR",
+      largura: 170,
+      minimo: 150,
+      valor: nomePagadoresDoLancamento,
+      render: (item) => texto(nomePagadoresDoLancamento(item)),
     },
     ...cotistasAeronave.map((cotista): ColunaDespesa => ({
       id: `cotista-${cotista.id}`,
@@ -2081,42 +2080,11 @@ function LancamentosDespesa({
         );
       },
     })),
-    {
-      id: "acoes",
-      titulo: "Ações",
-      largura: 90,
-      minimo: 90,
-      render: (item) => (
-        <div className="flex items-center justify-end gap-1">
-          {acoesDaLinha(item)}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 rounded-sm text-primary"
-            onClick={() =>
-              setExpandidos((atual) => {
-                const proximo = new Set(atual);
-                if (proximo.has(item.id)) proximo.delete(item.id);
-                else proximo.add(item.id);
-                return proximo;
-              })
-            }
-            aria-expanded={expandidos.has(item.id)}
-            aria-controls={`despesa-desktop-${item.id}`}
-            aria-label={`${expandidos.has(item.id) ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
-          >
-            {expandidos.has(item.id) ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
-          </Button>
-        </div>
-      ),
-    },
   ];
   const colunasVisiveis = colunas.filter((coluna) => !ocultas.has(coluna.id));
+  const colunaAcoesVisivel = colunasVisiveis.find(
+    (coluna) => coluna.id === "acoes",
+  );
   const larguraTabela =
     44 +
     colunasVisiveis.reduce(
@@ -2130,8 +2098,7 @@ function LancamentosDespesa({
       direcao:
         atual.coluna === coluna && atual.direcao === "asc" ? "desc" : "asc",
     }));
-  // Preserve the monthly grouping. Each data column sorts within its month;
-  // dates also control the direction of the month groups. Missing values stay last.
+  // Keep monthly grouping aligned with the selected date field; missing dates stay last.
   const comparador = new Intl.Collator("pt-BR", {
     numeric: true,
     sensitivity: "base",
@@ -2139,15 +2106,27 @@ function LancamentosDespesa({
   const colunaOrdenada = colunas.find(
     (coluna) => coluna.id === ordenacao.coluna,
   );
-  const gruposPorMes = agruparPorMes(filtradas)
-    .sort((a, b) =>
-      ordenacao.coluna === "data" && ordenacao.direcao === "asc"
-        ? a.mes.localeCompare(b.mes)
-        : b.mes.localeCompare(a.mes),
-    )
-    .map((grupo) => ({
-      ...grupo,
-      itens: [...grupo.itens].sort((a, b) => {
+  const itensPorMes = new Map<string, LancamentoEconomico[]>();
+  for (const item of filtradas) {
+    const data = String(dataParaOrdenacao(item) ?? "").slice(0, 10);
+    const mes = /^\d{4}-\d{2}-\d{2}$/.test(data)
+      ? data.slice(0, 7)
+      : "Sem data";
+    const itens = itensPorMes.get(mes) ?? [];
+    itens.push(item);
+    itensPorMes.set(mes, itens);
+  }
+  const gruposPorMes = [...itensPorMes.entries()]
+    .sort(([mesA], [mesB]) => {
+      if (mesA === "Sem data") return mesB === "Sem data" ? 0 : 1;
+      if (mesB === "Sem data") return -1;
+      return ordenacao.coluna === "data" && ordenacao.direcao === "asc"
+        ? mesA.localeCompare(mesB)
+        : mesB.localeCompare(mesA);
+    })
+    .map(([mes, itens]) => ({
+      mes,
+      itens: [...itens].sort((a, b) => {
         const primeiro = colunaOrdenada?.valor?.(a);
         const segundo = colunaOrdenada?.valor?.(b);
         if (primeiro == null || primeiro === "")
@@ -2231,36 +2210,250 @@ function LancamentosDespesa({
     setFiltroStatus("todos");
     setFiltroCategoria("todas");
   };
+  const atualizarEdicao = (
+    campo: keyof Omit<EdicaoLancamento, "rateios">,
+    valor: string,
+  ) =>
+    setEdicaoLancamento((atual) =>
+      atual ? { ...atual, [campo]: valor } : atual,
+    );
+  const atualizarRateioEdicao = (
+    cotistaId: string,
+    campo: keyof EdicaoLancamento["rateios"][string],
+    valor: string,
+  ) =>
+    setEdicaoLancamento((atual) =>
+      atual
+        ? {
+            ...atual,
+            rateios: {
+              ...atual.rateios,
+              [cotistaId]: {
+                ...atual.rateios[cotistaId],
+                [campo]: valor,
+              },
+            },
+          }
+        : atual,
+    );
   const abrirAcao = (tipo: AcaoDespesa["tipo"], item: LancamentoEconomico) => {
-    setDescricaoEdicao(item.descricao);
+    const dinheiroInput = (centavos: number | null | undefined) =>
+      (Number(centavos || 0) / 100).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    const idDoPagador = (pagador: string | null | undefined) => {
+      const cotista = cotistasAeronave.find((participante) =>
+        [
+          participante.id,
+          participante.cliente_id,
+          participante.socio_id,
+          ...(participante.cotista_ids ?? []),
+        ].includes(pagador || ""),
+      );
+      return cotista?.id || pagador || "";
+    };
+    const camposDocumento: Array<[CampoDocumentoLancamento, string | null | undefined]> = [
+      ["documento_numero", item.documentoNumero],
+      ["numero_nf", item.numeroNf],
+      ["numero_recibo", item.numeroRecibo],
+      ["numero_demonstrativo", item.numeroDemonstrativo],
+      ["numero_doc", item.numeroDoc],
+      ["documento", item.documento],
+    ];
+    const campoDocumento =
+      camposDocumento.find(([, valor]) => Boolean(valor))?.[0] ??
+      "documento_numero";
+    const itemComIds = item as LancamentoEconomico & {
+      fornecedorId?: string | null;
+      fornecedor_id?: string | null;
+      categoriaId?: string | null;
+      categoria_id?: string | null;
+    };
+    const tipoOriginal = normalizarBusca(
+      String(item.tipoRateio || item.tipo || "").replace(/[_/]+/g, " "),
+    );
+    const tipoRateio = tipoOriginal.includes("fixo")
+      ? "FIXO"
+      : tipoOriginal.includes("extra")
+        ? "EXTRA"
+        : tipoOriginal.includes("hora")
+          ? "VARIAVEL POR HORA"
+          : tipoOriginal.includes("voo")
+            ? "VARIAVEL POR VOO"
+            : "";
+    setEdicaoLancamento(
+      tipo === "editar"
+        ? {
+            dataEmissao: (item.dataEmissao || item.data || "").slice(0, 10),
+            dataVencimento: (item.prazo || "").slice(0, 10),
+            campoDocumento,
+            documentoNumero: documentoDoLancamento(item) || "",
+            descricao: item.descricao || "",
+            fornecedor: item.fornecedor || "",
+            fornecedorId:
+              itemComIds.fornecedorId ||
+              itemComIds.fornecedor_id ||
+              fornecedoresEdicao.find(
+                (fornecedor) =>
+                  normalizarBusca(fornecedor.label) ===
+                  normalizarBusca(item.fornecedor || ""),
+              )?.id ||
+              "",
+            categoria: item.categoria || "",
+            categoriaId:
+              itemComIds.categoriaId ||
+              itemComIds.categoria_id ||
+              categoriasClienteEdicao.find(
+                (categoria) =>
+                  normalizarBusca(categoria.label) ===
+                  normalizarBusca(item.categoria || ""),
+              )?.id ||
+              "",
+            status: item.status || "EM_ABERTO",
+            tipoRateio,
+            valorTotal: dinheiroInput(item.valorCentavos),
+            valorPago: dinheiroInput(valorPagoLancamento(item)),
+            pagoPor: idDoPagador(item.pagoPor),
+            observacoes: item.observacoes || "",
+            rateios: Object.fromEntries(
+              cotistasAeronave.map((cotista) => {
+                const rateio = rateioDoCotista(
+                  item,
+                  cotista,
+                  cotistasAeronave,
+                ) as (typeof item.rateios)[number] | null;
+                return [
+                  cotista.id,
+                  {
+                    percentual:
+                      rateio?.percentual == null
+                        ? ""
+                        : String(rateio.percentual),
+                    valor:
+                      rateio?.valorCentavos == null
+                        ? ""
+                        : dinheiroInput(rateio.valorCentavos),
+                    pagoPor: idDoPagador(rateio?.pagoPor),
+                  },
+                ];
+              }),
+            ),
+          }
+        : null,
+    );
     setErroAcao(null);
     setAcao({ tipo, item });
   };
   const confirmarAcao = async () => {
     if (!acao || processandoRef.current) return;
-    if (acao.tipo === "editar" && !descricaoEdicao.trim()) {
-      setErroAcao("Informe a descrição da despesa.");
-      return;
+    if (acao.tipo === "editar") {
+      if (!edicaoLancamento?.descricao.trim()) {
+        setErroAcao("Informe a descrição do lançamento.");
+        return;
+      }
+      if (!edicaoLancamento.valorTotal.trim()) {
+        setErroAcao("Informe o valor total do lançamento.");
+        return;
+      }
     }
     processandoRef.current = true;
     setProcessando(true);
     setErroAcao(null);
     try {
       if (acao.tipo === "editar") {
+        const edicao = edicaoLancamento;
+        if (!edicao) throw new Error("Não foi possível carregar os dados para edição.");
+        const rateiosEditados = cotistasAeronave.flatMap((cotista) => {
+          const valores = edicao.rateios[cotista.id];
+          if (!valores) return [];
+          const original = rateioDoCotista(
+            acao.item,
+            cotista,
+            cotistasAeronave,
+          ) as (typeof acao.item.rateios)[number] | null;
+          if (
+            !original &&
+            !valores.percentual.trim() &&
+            !valores.valor.trim() &&
+            !valores.pagoPor.trim()
+          )
+            return [];
+          const percentualTexto = valores.percentual.trim().replace(",", ".");
+          const percentual = percentualTexto
+            ? Number(percentualTexto)
+            : 0;
+          if (!Number.isFinite(percentual) || percentual < 0 || percentual > 100)
+            throw new Error(`Percentual inválido para ${cotista.nome}.`);
+          const valorCentavos = valores.valor.trim()
+            ? parseValorReais(valores.valor)
+            : 0;
+          return [
+            {
+              ...(original || {}),
+              cotista_id: cotista.id,
+              socio_id: cotista.socio_id || undefined,
+              percentual,
+              valor_centavos: valorCentavos,
+              pago_por: valores.pagoPor || null,
+            },
+          ];
+        });
+        const rateiosSemCotistaCorrespondente = acao.item.rateios
+          .filter(
+            (rateio) =>
+              !cotistasAeronave.some(
+                (cotista) =>
+                  rateioDoCotista(acao.item, cotista, cotistasAeronave) ===
+                  rateio,
+              ),
+          )
+          .map((rateio) => ({
+            ...rateio,
+            cotista_id: rateio.cotistaId || rateio.cotista,
+            valor_centavos: rateio.valorCentavos,
+            pago_por: rateio.pagoPor || null,
+          }));
+        const camposDocumento: Record<CampoDocumentoLancamento, string | null> = {
+          documento_numero: null,
+          numero_doc: null,
+          numero_nf: null,
+          numero_recibo: null,
+          numero_demonstrativo: null,
+          documento: null,
+        };
+        camposDocumento[edicao.campoDocumento] =
+          edicao.documentoNumero.trim() || null;
         await editarLancamento(acao.item.id, {
-          descricao: descricaoEdicao.trim(),
+          data: edicao.dataEmissao || null,
+          data_emissao: edicao.dataEmissao || null,
+          data_vencimento: edicao.dataVencimento || null,
+          ...camposDocumento,
+          descricao: edicao.descricao.trim(),
+          fornecedor: edicao.fornecedor || null,
+          fornecedor_id: edicao.fornecedorId || null,
+          categoria: edicao.categoria || null,
+          categoria_id: edicao.categoriaId || null,
+          status: edicao.status,
+          tipo_rateio: edicao.tipoRateio || null,
+          valor_centavos: parseValorReais(edicao.valorTotal),
+          valor_pago_centavos: parseValorReais(edicao.valorPago),
+          pago_por: edicao.pagoPor || null,
+          observacoes: edicao.observacoes || null,
+          rateios: [...rateiosEditados, ...rateiosSemCotistaCorrespondente],
         });
         avisarAtualizacaoFinanceiro();
       }
       if (acao.tipo === "excluir") await excluirLancamento(acao.item.id);
       toast.success(
         acao.tipo === "editar"
-          ? "Descrição atualizada."
+          ? "Lançamento atualizado."
           : acao.tipo === "excluir"
             ? "Despesa excluída."
             : "Pagamento registrado.",
       );
       setAcao(null);
+      setEdicaoLancamento(null);
       await aoAtualizar();
     } catch (error) {
       const mensagem =
@@ -2365,8 +2558,7 @@ function LancamentosDespesa({
   const filtrosAtivos =
     Number(Boolean(busca.trim())) +
     Number(filtroStatus !== "todos") +
-    Number(filtroCategoria !== "todas") +
-    Number(mesesSelecionados.length > 1 || mesReferencia !== mesAtualLocal());
+    Number(filtroCategoria !== "todas");
 
   return (
     <div className="despesas-theme despesas-shell">
@@ -2430,8 +2622,8 @@ function LancamentosDespesa({
                     <Columns3 size={15} /> Colunas
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="despesas-theme despesa-dialog despesa-columns-menu">
-                  <p className="px-2 py-2 text-xs font-semibold">Exibir colunas</p>
+                <DropdownMenuContent align="start" collisionPadding={8} className="despesas-theme despesa-dialog despesa-columns-menu">
+                  <p className="despesa-columns-menu-heading px-2 py-2 text-xs font-semibold">Exibir colunas</p>
                   {colunas.filter((coluna) => coluna.id !== "acoes").map((coluna) => (
                     <label key={coluna.id} className="despesa-column-option">
                       <input type="checkbox" checked={!ocultas.has(coluna.id)} onChange={() => setOcultas((atual) => { const proximo = new Set(atual); if (proximo.has(coluna.id)) proximo.delete(coluna.id); else proximo.add(coluna.id); return proximo; })}/>
@@ -2451,31 +2643,80 @@ function LancamentosDespesa({
                 aoAlternar={alternarMes}
                 aoSelecionarMesAtual={() => selecionarMes(mesAtualLocal())}
               />
-              <button
+              <div className="despesa-month-switcher">
+                <button
+                  type="button"
+                  className="despesa-control despesa-control-icon"
+                  aria-label="Selecionar mês anterior"
+                  onClick={() =>
+                    selecionarMesUnico(deslocarMes(mesReferencia, -1))
+                  }
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="despesa-current-month">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="despesa-date-mode"
+                        aria-label={`Filtro de data: ${modoData === "emissao" ? "emissão" : modoData === "vencimento" ? "vencimento" : "emissão e vencimento"}`}
+                        title="Escolher datas exibidas"
+                      >
+                        <span className="despesa-date-mode-copy">
+                          <small>DATA: {modoData === "emissao" ? "EMISSÃO" : modoData === "vencimento" ? "VENCIMENTO" : "AMBAS"}</small>
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="despesas-theme despesa-dialog min-w-[190px]"
+                    >
+                      <DropdownMenuItem onSelect={() => alterarModoData("emissao")} className="gap-2">
+                        <Check size={14} className={modoData === "emissao" ? "opacity-100" : "opacity-0"} />
+                        Somente emissão
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => alterarModoData("vencimento")} className="gap-2">
+                        <Check size={14} className={modoData === "vencimento" ? "opacity-100" : "opacity-0"} />
+                        Somente vencimento
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => alterarModoData("ambas")} className="gap-2">
+                        <Check size={14} className={modoData === "ambas" ? "opacity-100" : "opacity-0"} />
+                        Emissão e vencimento
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <span className="despesa-period-label" aria-live="polite">
+                    {mesesSelecionados.length === 1
+                      ? rotuloMesCotista(mesReferencia)
+                      : `${mesesSelecionados.length} meses selecionados`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="despesa-control despesa-control-icon"
+                  aria-label="Selecionar próximo mês"
+                  onClick={() =>
+                    selecionarMesUnico(deslocarMes(mesReferencia, 1))
+                  }
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <Button
                 type="button"
-                className="despesa-control despesa-control-icon"
-                aria-label="Selecionar mês anterior"
-                onClick={() =>
-                  selecionarMesUnico(deslocarMes(mesReferencia, -1))
-                }
+                className="despesa-control despesa-close-month"
+                disabled={carregando || gerandoFechamento || !mesesSelecionados.length}
+                onClick={() => aoFecharMes(mesesSelecionados)}
               >
-                <ChevronLeft size={16} />
-              </button>
-              <span className="despesa-period-label" aria-live="polite">
-                {mesesSelecionados.length === 1
-                  ? rotuloMesCotista(mesReferencia)
-                  : `${mesesSelecionados.length} meses selecionados`}
-              </span>
-              <button
-                type="button"
-                className="despesa-control despesa-control-icon"
-                aria-label="Selecionar próximo mês"
-                onClick={() =>
-                  selecionarMesUnico(deslocarMes(mesReferencia, 1))
-                }
-              >
-                <ChevronRight size={16} />
-              </button>
+                {gerandoFechamento ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+                {gerandoFechamento ? "Gerando PDF…" : "Fechar mês"}
+              </Button>
             </div>
           </div>
           {filtrosAbertos && (
@@ -2499,7 +2740,7 @@ function LancamentosDespesa({
                   htmlFor="despesa-status"
                   className="text-xs text-muted-foreground"
                 >
-                  Situação
+                  STATUS
                 </Label>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                   <SelectTrigger id="despesa-status" className="h-9">
@@ -2539,7 +2780,7 @@ function LancamentosDespesa({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs sm:col-span-2">
+              <div className="despesa-filter-clear text-xs">
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 text-primary"
@@ -2614,16 +2855,82 @@ function LancamentosDespesa({
               redimensioná-la ou use as setas quando a borda estiver focada.
             </caption>
             <colgroup>
+              {colunasVisiveis
+                .filter((coluna) => coluna.id === "acoes")
+                .map((coluna) => (
+                  <col
+                    key={coluna.id}
+                    style={{ width: larguras[coluna.id] ?? coluna.largura }}
+                  />
+                ))}
               <col style={{ width: 44 }} />
-              {colunasVisiveis.map((coluna) => (
+              {colunasVisiveis
+                .filter((coluna) => coluna.id !== "acoes")
+                .map((coluna) => (
                 <col
                   key={coluna.id}
                   style={{ width: larguras[coluna.id] ?? coluna.largura }}
                 />
-              ))}
+                ))}
             </colgroup>
             <thead>
               <tr>
+                {colunasVisiveis
+                  .filter((coluna) => coluna.id === "acoes")
+                  .map((coluna) => (
+                    <th
+                      key={coluna.id}
+                      scope="col"
+                      aria-label="Ações do lançamento"
+                    >
+                      {coluna.titulo}
+                      <span
+                        role="separator"
+                        tabIndex={0}
+                        aria-orientation="vertical"
+                        aria-label={`Redimensionar coluna ${coluna.titulo}`}
+                        aria-valuemin={coluna.minimo}
+                        aria-valuemax={800}
+                        aria-valuenow={Math.round(
+                          larguras[coluna.id] ?? coluna.largura,
+                        )}
+                        className="despesa-col-resizer"
+                        onPointerDown={(evento) =>
+                          iniciarRedimensionamento(
+                            coluna.id,
+                            coluna.minimo,
+                            evento,
+                          )
+                        }
+                        onDoubleClick={() =>
+                          setLarguras((atual) => ({
+                            ...atual,
+                            [coluna.id]: coluna.largura,
+                          }))
+                        }
+                        onKeyDown={(evento) => {
+                          if (
+                            evento.key === "ArrowLeft" ||
+                            evento.key === "ArrowRight"
+                          ) {
+                            evento.preventDefault();
+                            evento.stopPropagation();
+                            setLarguras((atual) => ({
+                              ...atual,
+                              [coluna.id]: Math.min(
+                                800,
+                                Math.max(
+                                  coluna.minimo,
+                                  (atual[coluna.id] ?? coluna.largura) +
+                                    (evento.key === "ArrowRight" ? 16 : -16),
+                                ),
+                              ),
+                            }));
+                          }
+                        }}
+                      />
+                    </th>
+                  ))}
                 <th scope="col">
                   <Checkbox
                     className="despesa-checkbox"
@@ -2641,7 +2948,9 @@ function LancamentosDespesa({
                     onCheckedChange={alternarSelecaoDaPagina}
                   />
                 </th>
-                {colunasVisiveis.map((coluna) => (
+                {colunasVisiveis
+                  .filter((coluna) => coluna.id !== "acoes")
+                  .map((coluna) => (
                   <th
                     key={coluna.id}
                     scope="col"
@@ -2745,7 +3054,8 @@ function LancamentosDespesa({
             ) : gruposDaPagina.length ? (
               gruposDaPagina.map(({ mes, itens }) => (
                 <tbody key={mes}>
-                  {mesesSelecionados.length > 1 && (
+                  {(mesesSelecionados.length > 1 ||
+                    ordenarDataPor === "vencimento") && (
                     <tr className="despesa-month">
                       <th scope="rowgroup" colSpan={quantidadeColunas}>
                         {resumoMes(mes, itens)}
@@ -2759,6 +3069,9 @@ function LancamentosDespesa({
                         data-expanded={expandidos.has(item.id)}
                         data-selected={selecionados.has(item.id)}
                       >
+                        {colunaAcoesVisivel && (
+                          <td>{colunaAcoesVisivel.render(item)}</td>
+                        )}
                         <td>
                           <Checkbox
                             className="despesa-checkbox"
@@ -2767,7 +3080,9 @@ function LancamentosDespesa({
                             onCheckedChange={() => alternarSelecao(item.id)}
                           />
                         </td>
-                        {colunasVisiveis.map((coluna) => (
+                        {colunasVisiveis
+                          .filter((coluna) => coluna.id !== "acoes")
+                          .map((coluna) => (
                           <td
                             key={coluna.id}
                             className={coluna.numerica ? "text-right" : ""}
@@ -2780,9 +3095,6 @@ function LancamentosDespesa({
                         <tr id={`despesa-desktop-${item.id}`}>
                           <td colSpan={quantidadeColunas} className="p-0">
                             <div className="despesa-expanded-content">
-                              <p className="despesa-expanded-description">
-                                {item.descricao}
-                              </p>
                               <LancamentoExpandido
                                 lancamento={item}
                                 cotistasAeronave={cotistasAeronave}
@@ -2892,21 +3204,24 @@ function LancamentosDespesa({
       <Dialog
         open={Boolean(acao)}
         onOpenChange={(open) => {
-          if (!open && !processandoRef.current) setAcao(null);
+          if (!open && !processandoRef.current) {
+            setAcao(null);
+            setEdicaoLancamento(null);
+          }
         }}
       >
-        <DialogContent className="despesas-theme despesa-dialog max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl p-5 sm:p-6">
+        <DialogContent className="despesas-theme despesa-dialog max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {acao?.tipo === "editar"
-                ? "Editar descrição"
+                ? "Editar lançamento"
                 : acao?.tipo === "excluir"
                   ? "Excluir despesa?"
                   : "Confirmar pagamento"}
             </DialogTitle>
             <DialogDescription>
               {acao?.tipo === "editar"
-                ? "Atualize o texto completo do lançamento."
+                ? "Atualize os dados do lançamento e os valores rateados por cotista."
                 : acao?.tipo === "excluir"
                   ? "A despesa será removida do fluxo financeiro. Confirme para continuar."
                   : "A baixa registrará o valor integral como pago na data de hoje."}
@@ -2915,17 +3230,158 @@ function LancamentosDespesa({
           {acao && (
             <div className="min-w-0 space-y-4">
               {acao.tipo === "editar" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="descricao-edicao">Descrição</Label>
-                  <Textarea
-                    id="descricao-edicao"
-                    rows={6}
-                    value={descricaoEdicao}
-                    onChange={(e) => setDescricaoEdicao(e.target.value)}
-                    disabled={processando}
-                    className="resize-y rounded-xl text-base leading-relaxed sm:text-sm"
-                  />
-                </div>
+                edicaoLancamento && (
+                  <div className="space-y-5">
+                    <section className="space-y-3">
+                      <h3 className="border-b border-border pb-2 text-sm font-semibold">Dados do lançamento</h3>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-data-emissao">Data de emissão</Label>
+                          <Input id="edicao-data-emissao" type="date" value={edicaoLancamento.dataEmissao} onChange={(evento) => atualizarEdicao("dataEmissao", evento.target.value)} disabled={processando} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-data-vencimento">Data de vencimento</Label>
+                          <Input id="edicao-data-vencimento" type="date" value={edicaoLancamento.dataVencimento} onChange={(evento) => atualizarEdicao("dataVencimento", evento.target.value)} disabled={processando} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-documento-numero">Número do documento</Label>
+                          <Input id="edicao-documento-numero" value={edicaoLancamento.documentoNumero} onChange={(evento) => atualizarEdicao("documentoNumero", evento.target.value)} disabled={processando} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-fornecedor">Favorecido</Label>
+                          <SearchableCombobox
+                            items={fornecedoresEdicao}
+                            value={fornecedoresEdicao.some((fornecedor) => fornecedor.id === edicaoLancamento.fornecedorId) ? edicaoLancamento.fornecedorId : edicaoLancamento.fornecedor}
+                            onChange={(id, label) => {
+                              const cadastrado = fornecedoresEdicao.some((fornecedor) => fornecedor.id === id);
+                              atualizarEdicao("fornecedorId", cadastrado ? id : "");
+                              atualizarEdicao("fornecedor", label);
+                            }}
+                            placeholder="Selecione ou digite o favorecido"
+                            searchPlaceholder="Buscar fornecedor, contato ou combustível"
+                            emptyMessage="Nenhum fornecedor encontrado."
+                            allowFreeText
+                            disabled={processando}
+                            className="h-10 w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
+                            popoverClassName="despesas-theme despesa-dialog"
+                          />
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                          <Label htmlFor="edicao-descricao">Descrição</Label>
+                          <Textarea id="edicao-descricao" rows={3} value={edicaoLancamento.descricao} onChange={(evento) => atualizarEdicao("descricao", evento.target.value)} disabled={processando} className="resize-y" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-categoria">Categoria</Label>
+                          <SearchableCombobox
+                            items={categoriasClienteEdicao}
+                            value={categoriasClienteEdicao.some((categoria) => categoria.id === edicaoLancamento.categoriaId) ? edicaoLancamento.categoriaId : edicaoLancamento.categoria}
+                            onChange={(id, label) => {
+                              const cadastrada = categoriasClienteEdicao.some((categoria) => categoria.id === id);
+                              atualizarEdicao("categoriaId", cadastrada ? id : "");
+                              atualizarEdicao("categoria", label);
+                            }}
+                            placeholder="Selecione uma categoria"
+                            searchPlaceholder="Buscar categoria"
+                            emptyMessage="Nenhuma categoria de cliente encontrada."
+                            disabled={processando}
+                            className="h-10 w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
+                            popoverClassName="despesas-theme despesa-dialog"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-status">Situação</Label>
+                          <Select value={edicaoLancamento.status} onValueChange={(valor) => atualizarEdicao("status", valor)} disabled={processando}>
+                            <SelectTrigger id="edicao-status"><SelectValue /></SelectTrigger>
+                            <SelectContent className="despesas-theme despesa-dialog">
+                              {STATUS_LANCAMENTO.map((status) => <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-tipo-rateio">Tipo de rateio</Label>
+                          <SearchableCombobox
+                            items={TIPOS_RATEIO_EDICAO}
+                            value={edicaoLancamento.tipoRateio}
+                            onChange={(valor) => atualizarEdicao("tipoRateio", valor)}
+                            placeholder="Selecione o tipo de rateio"
+                            searchPlaceholder="Buscar tipo"
+                            emptyMessage="Nenhum tipo encontrado."
+                            disabled={processando}
+                            className="h-10 w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
+                            popoverClassName="despesas-theme despesa-dialog"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="space-y-3">
+                      <h3 className="border-b border-border pb-2 text-sm font-semibold">Valores e pagador</h3>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-valor-total">Valor total (R$)</Label>
+                          <Input id="edicao-valor-total" inputMode="decimal" value={edicaoLancamento.valorTotal} onChange={(evento) => atualizarEdicao("valorTotal", evento.target.value)} disabled={processando} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-valor-pago">Valor pago (R$)</Label>
+                          <Input id="edicao-valor-pago" inputMode="decimal" value={edicaoLancamento.valorPago} onChange={(evento) => atualizarEdicao("valorPago", evento.target.value)} disabled={processando} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="edicao-pago-por">Pago por</Label>
+                          <Select value={edicaoLancamento.pagoPor || "__nenhum__"} onValueChange={(valor) => atualizarEdicao("pagoPor", valor === "__nenhum__" ? "" : valor)} disabled={processando}>
+                            <SelectTrigger id="edicao-pago-por"><SelectValue placeholder="Selecione o pagador" /></SelectTrigger>
+                            <SelectContent className="despesas-theme despesa-dialog">
+                              <SelectItem value="__nenhum__">Não informado</SelectItem>
+                              {edicaoLancamento.pagoPor && !cotistasAeronave.some((cotista) => cotista.id === edicaoLancamento.pagoPor) && <SelectItem value={edicaoLancamento.pagoPor}>Pagador atual sem cadastro correspondente</SelectItem>}
+                              {cotistasAeronave.map((cotista) => <SelectItem key={cotista.id} value={cotista.id}>{cotista.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="space-y-3">
+                      <div>
+                        <h3 className="border-b border-border pb-2 text-sm font-semibold">Rateio por cotista</h3>
+                        <p className="mt-2 text-xs text-muted-foreground">Os valores e percentuais abaixo correspondem às colunas de cada cotista na tabela.</p>
+                      </div>
+                      <div className="space-y-3">
+                        {cotistasAeronave.map((cotista) => {
+                          const rateio = edicaoLancamento.rateios[cotista.id] || { percentual: "", valor: "", pagoPor: "" };
+                          const possuiRateio = Boolean(rateio.percentual || rateio.valor || rateio.pagoPor);
+                          return (
+                            <fieldset key={cotista.id} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2 lg:grid-cols-4" disabled={processando}>
+                              <legend className="px-1 text-xs font-semibold">{cotista.nome}</legend>
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`edicao-rateio-percentual-${cotista.id}`}>Percentual (%)</Label>
+                                <Input id={`edicao-rateio-percentual-${cotista.id}`} inputMode="decimal" value={rateio.percentual} onChange={(evento) => atualizarRateioEdicao(cotista.id, "percentual", evento.target.value)} placeholder={possuiRateio ? "0" : "Sem rateio"} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`edicao-rateio-valor-${cotista.id}`}>Valor rateado (R$)</Label>
+                                <Input id={`edicao-rateio-valor-${cotista.id}`} inputMode="decimal" value={rateio.valor} onChange={(evento) => atualizarRateioEdicao(cotista.id, "valor", evento.target.value)} placeholder={possuiRateio ? "0,00" : "Sem rateio"} />
+                              </div>
+                              <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+                                <Label htmlFor={`edicao-rateio-pagador-${cotista.id}`}>Pago por</Label>
+                                <Select value={rateio.pagoPor || "__nenhum__"} onValueChange={(valor) => atualizarRateioEdicao(cotista.id, "pagoPor", valor === "__nenhum__" ? "" : valor)}>
+                                  <SelectTrigger id={`edicao-rateio-pagador-${cotista.id}`}><SelectValue placeholder="Não informado" /></SelectTrigger>
+                                  <SelectContent className="despesas-theme despesa-dialog">
+                                    <SelectItem value="__nenhum__">Não informado</SelectItem>
+                                    {cotistasAeronave.map((pagador) => <SelectItem key={pagador.id} value={pagador.id}>{pagador.nome}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </fieldset>
+                          );
+                        })}
+                        {!cotistasAeronave.length && <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">Nenhum cotista disponível para editar o rateio.</p>}
+                      </div>
+                    </section>
+
+                    <section className="space-y-1.5">
+                      <Label htmlFor="edicao-observacoes">Observações</Label>
+                      <Textarea id="edicao-observacoes" rows={3} value={edicaoLancamento.observacoes} onChange={(evento) => atualizarEdicao("observacoes", evento.target.value)} disabled={processando} />
+                    </section>
+                  </div>
+                )
               ) : (
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className={`text-sm leading-relaxed ${TEXTO_COMPLETO}`}>
@@ -2947,7 +3403,10 @@ function LancamentosDespesa({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setAcao(null)}
+              onClick={() => {
+                setAcao(null);
+                setEdicaoLancamento(null);
+              }}
               disabled={processando}
               className="h-11 rounded-xl"
             >
@@ -2959,13 +3418,15 @@ function LancamentosDespesa({
               onClick={() => void confirmarAcao()}
               disabled={
                 processando ||
-                (acao?.tipo === "editar" && !descricaoEdicao.trim())
+                (acao?.tipo === "editar" &&
+                  (!edicaoLancamento?.descricao.trim() ||
+                    !edicaoLancamento.valorTotal.trim()))
               }
               className="h-11 gap-2 rounded-xl"
             >
               {processando && <Loader2 size={16} className="animate-spin" />}
               {acao?.tipo === "editar"
-                ? "Salvar descrição"
+                ? "Salvar alterações"
                 : acao?.tipo === "excluir"
                   ? "Excluir despesa"
                   : "Confirmar baixa"}
@@ -3028,7 +3489,15 @@ function LancamentosDespesa({
 
 export default function FinanceiroCotista() {
   const [aberto, setAberto] = useState(false);
+  const [gerandoFechamento, setGerandoFechamento] = useState(false);
+  const {
+    balanco: balancoFonte,
+    carregando: carregandoBalanco,
+    erro: erroBalanco,
+  } = useBalancoCotista();
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
+  const [fornecedoresEdicao, setFornecedoresEdicao] = useState<OpcaoEdicao[]>([]);
+  const [categoriasClienteEdicao, setCategoriasClienteEdicao] = useState<OpcaoEdicao[]>([]);
   const [dashboard, setDashboard] = useState<DashboardCotista | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erroDashboard, setErroDashboard] = useState<string | null>(null);
@@ -3188,6 +3657,67 @@ export default function FinanceiroCotista() {
   }, [carregarAeronaves]);
 
   useEffect(() => {
+    let ativo = true;
+    void Promise.all([
+      buscarOpcoesEnvioPagamento().catch(() => null),
+      buscarContatosShare().catch(() => []),
+      buscarFornecedoresFavoritos().catch(() => []),
+    ]).then(([opcoesEnvio, contatos, favoritos]) => {
+      if (!ativo) return;
+      const fornecedores = new Map<string, OpcaoEdicao>();
+      const nomesFornecedores = new Set<string>();
+      const adicionarFornecedor = (idValor: unknown, nomeValor: unknown) => {
+        const id = String(idValor ?? "").trim();
+        const label = String(nomeValor ?? "").trim();
+        const nomeNormalizado = normalizarBusca(label);
+        if (!id || !label || fornecedores.has(id) || nomesFornecedores.has(nomeNormalizado)) return;
+        fornecedores.set(id, { id, label });
+        nomesFornecedores.add(nomeNormalizado);
+      };
+      for (const fornecedor of opcoesEnvio?.fornecedores ?? []) {
+        adicionarFornecedor(fornecedor.id, fornecedor.label);
+      }
+      for (const fornecedor of opcoesEnvio?.fornecedores_combustivel ?? []) {
+        const registro = fornecedor as Record<string, unknown>;
+        adicionarFornecedor(
+          registro.id,
+          [registro.nome_fornecedor, registro.nome_cidade]
+            .filter(Boolean)
+            .join(" · "),
+        );
+      }
+      for (const contato of contatos) {
+        const classificacao = normalizarBusca(
+          [contato.categoria_tipo, contato.categoria, contato.categoria_personalizada]
+            .filter(Boolean)
+            .join(" "),
+        );
+        if (!classificacao.includes("fornecedor")) continue;
+        adicionarFornecedor(
+          contato.id,
+          contato.razao_social || contato.empresa || contato.nome,
+        );
+      }
+      for (const fornecedor of favoritos) {
+        adicionarFornecedor(
+          fornecedor.id,
+          fornecedor.apelido || fornecedor.nomeCompleto,
+        );
+      }
+      setFornecedoresEdicao([...fornecedores.values()]);
+      setCategoriasClienteEdicao(
+        (opcoesEnvio?.categorias_cliente ?? []).map((categoria) => ({
+          id: String(categoria.id),
+          label: String(categoria.nome),
+        })),
+      );
+    });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  useEffect(() => {
     carregar();
     carregarCotistas(aeronaveSelecionada);
   }, [aeronaveSelecionada, carregar, carregarCotistas]);
@@ -3300,6 +3830,61 @@ export default function FinanceiroCotista() {
     if (!ordenados.length) return; // Mantém ao menos uma competência válida.
     setMesesAplicados(ordenados);
     setPeriodoAplicado(periodoDosMeses(ordenados));
+  };
+  const gerarPdfFechamento = async (meses: string[]) => {
+    if (carregandoBalanco) {
+      toast.error("O balanço ainda está carregando.");
+      return;
+    }
+    if (!balancoFonte) {
+      toast.error(erroBalanco || "Não foi possível carregar o balanço.");
+      return;
+    }
+    const exercicios = new Set(meses.map((mes) => mes.slice(0, 4)));
+    if (exercicios.size !== 1 || !exercicios.has(balancoFonte.exercicio)) {
+      toast.error(
+        `O PDF disponível contém o exercício ${balancoFonte.exercicio}. Selecione meses desse ano.`,
+      );
+      return;
+    }
+    const nomesMeses = new Set(
+      meses.map((mes) => {
+        const [ano, numeroMes] = mes.split("-").map(Number);
+        return normalizarBusca(
+          new Date(Date.UTC(ano, numeroMes - 1, 15)).toLocaleDateString(
+            "pt-BR",
+            { month: "long" },
+          ),
+        );
+      }),
+    );
+    const balancoSelecionado: Balanco = {
+      ...balancoFonte,
+      geral: balancoFonte.geral.filter((linha) =>
+        nomesMeses.has(normalizarBusca(linha.mes)),
+      ),
+      medias: balancoFonte.medias.filter((linha) =>
+        nomesMeses.has(normalizarBusca(linha.mes)),
+      ),
+    };
+    if (!balancoSelecionado.geral.length) {
+      toast.error("Não há dados de fechamento para os meses selecionados.");
+      return;
+    }
+    setGerandoFechamento(true);
+    try {
+      const { baixarPdfBalanco } = await import("./Balancopdf");
+      await baixarPdfBalanco(balancoSelecionado);
+      toast.success("PDF do fechamento gerado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível gerar o PDF do fechamento.",
+      );
+    } finally {
+      setGerandoFechamento(false);
+    }
   };
   const alternarMesSelecionado = (mes: string) => {
     if (!periodoDoMes(mes)) return;
@@ -3484,7 +4069,7 @@ export default function FinanceiroCotista() {
             type="button"
             variant="outline"
             size="sm"
-            className="h-9 shrink-0 gap-2 self-start sm:self-auto"
+            className="h-9 shrink-0 gap-2 self-start transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary sm:self-auto"
             onClick={() => {
               setAeronaveSelecionada("");
               setPaginaAberta(false);
@@ -3723,13 +4308,7 @@ export default function FinanceiroCotista() {
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
-            <FechamentoBalancoCotista
-              dashboard={dashboard}
-              carregando={carregando}
-              erro={erroDashboard}
-              cotistas={cotistasAeronave}
-              mesesSelecionados={mesesAplicados}
-            />
+            <FechamentoBalancoCotista />
           ) : carregando && abaAtiva !== "lancamentos" ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />
@@ -3819,6 +4398,10 @@ export default function FinanceiroCotista() {
                   mesesSelecionados={mesesAplicados}
                   aoSelecionarMes={selecionarMesUnico}
                   aoAlterarMeses={atualizarMeses}
+                  aoFecharMes={(meses) => void gerarPdfFechamento(meses)}
+                  gerandoFechamento={gerandoFechamento || carregandoBalanco}
+                  fornecedoresEdicao={fornecedoresEdicao}
+                  categoriasClienteEdicao={categoriasClienteEdicao}
                   carregando={carregando}
                 />
               )}

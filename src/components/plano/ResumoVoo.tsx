@@ -25,7 +25,7 @@ export function ResumoVoo({ contexto }: { contexto: ContextoVoo }) {
       <Dado rotulo="Passageiros" valor={contexto.passageiros || "—"} />
       <Dado rotulo="Data" valor={formatarData(solicitacao.data_agendada)} />
       <Dado rotulo="EOBT (UTC)" valor={(solicitacao.horario_previsto_agendamento ?? "—").slice(0, 5)} />
-      <Dado rotulo="Situação" valor={solicitacao.status ?? "—"} />
+      <Dado rotulo="Status" valor={solicitacao.status ?? "—"} />
     </div>
   );
 }

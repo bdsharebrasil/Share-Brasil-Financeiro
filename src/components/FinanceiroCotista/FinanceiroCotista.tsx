@@ -162,8 +162,17 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
 .financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
-.financeiro-profissional .financeiro-tabs button { border-radius:7px; padding:12px; font-size:12px; font-weight:500; box-shadow:none; background:transparent; }
-.financeiro-profissional .financeiro-tabs button[aria-selected="true"] { background:rgba(22,69,90,1); color:#fff; padding-left:10px; padding-right:10px; }
+.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:0; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; transition:background-color .2s ease, color .2s ease, gap .2s ease; }
+.financeiro-tab-label { display:inline-block; max-width:0; opacity:0; overflow:hidden; white-space:nowrap; transition:max-width .2s ease, opacity .2s ease; }
+.financeiro-tab.is-active { gap:8px; background:hsl(var(--card)); color:hsl(var(--primary)); box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.financeiro-tab.is-active .financeiro-tab-label { max-width:160px; opacity:1; }
+@media (hover:hover) {
+  .financeiro-tab:not(.is-active):hover { gap:8px; background:hsl(var(--muted)); color:hsl(var(--foreground)); }
+  .financeiro-tab:not(.is-active):hover .financeiro-tab-label { max-width:160px; opacity:1; }
+}
+.financeiro-tab:not(.is-active):focus-visible { gap:8px; color:hsl(var(--foreground)); outline:2px solid hsl(var(--ring)); outline-offset:2px; }
+.financeiro-tab:not(.is-active):focus-visible .financeiro-tab-label { max-width:160px; opacity:1; }
+@media (prefers-reduced-motion:reduce) { .financeiro-tab, .financeiro-tab-label { transition:none; } }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
@@ -3518,11 +3527,13 @@ export default function FinanceiroCotista() {
                 type="button"
                 role="tab"
                 aria-selected={abaAtiva === id}
+                aria-label={rotulo}
+                title={rotulo}
                 onClick={() => setAbaAtiva(id as typeof abaAtiva)}
-                className={`flex min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-[10px] font-semibold transition-colors sm:min-w-0 sm:text-xs ${abaAtiva === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className={`financeiro-tab group ${abaAtiva === id ? "is-active" : ""}`}
               >
-                <Icon size={14} />
-                {rotulo}
+                <Icon size={15} aria-hidden />
+                <span className="financeiro-tab-label">{rotulo}</span>
               </button>
             ))}
           </div>

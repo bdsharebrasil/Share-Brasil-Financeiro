@@ -23,7 +23,6 @@ import {
   ListOrdered,
   LayoutDashboard,
   PieChart,
-  Fuel,
   Landmark,
   CalendarDays,
   FileText,
@@ -3265,7 +3264,7 @@ export default function FinanceiroCotista() {
     {
       id: "emprestimos",
       rotulo: "Voos empréstimo",
-      Icon: Fuel,
+      Icon: Plane,
       corIcone: "bg-amber-400/10 text-amber-400",
     },
     {
@@ -3517,7 +3516,7 @@ export default function FinanceiroCotista() {
             <ChevronLeft size={15} /> Voltar
           </Button>
           <div
-            className="financeiro-tabs flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1"
+            className="financeiro-tabs flex min-w-0 flex-1 justify-center gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1"
             role="tablist"
             aria-label="Visões do financeiro cotista"
           >

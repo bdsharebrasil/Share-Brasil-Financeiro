@@ -25,6 +25,7 @@ export interface ComboboxItem {
 }
 
 interface SearchableComboboxProps {
+  id?: string;
   items: ComboboxItem[];
   value: string;
   onChange: (value: string, label: string) => void;
@@ -44,6 +45,7 @@ interface SearchableComboboxProps {
 }
 
 export function SearchableCombobox({
+  id,
   items,
   value,
   onChange,
@@ -82,6 +84,7 @@ export function SearchableCombobox({
     }}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}

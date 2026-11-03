@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useFornecedores } from "@/hooks/useFornecedores";
 import {
   Select,
   SelectContent,
@@ -100,7 +101,6 @@ import {
   formatarData,
   editarLancamento,
   excluirLancamento,
-  buscarFornecedoresFavoritos,
 } from "@/lib/financeiro-share-api";
 import type {
   OpcoesLancamento,
@@ -112,7 +112,6 @@ import { allocateCentavos } from "@/lib/money";
 import {
   buscarAeronavesShare,
   buscarCotistasAeronave,
-  buscarContatosShare,
   buscarOpcoesEnvioPagamento,
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
@@ -120,8 +119,6 @@ import {
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
-import { useBalancoCotista } from "@/hooks/useBalancoCotista";
-import type { Balanco } from "@/types/balanco";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -1424,6 +1421,8 @@ function LancamentoExpandido({
   );
   const dadosComplementares = [
     ["Número do voo", lancamento.numeroVoo || "Não vinculado"],
+    ["Número do recibo", lancamento.numeroRecibo || "Não informado"],
+    ["Número da NF", lancamento.numeroNf || "Não informado"],
     ["Periodicidade", lancamento.periodicidade || "Único"],
     ["Subcategoria", lancamento.subcategorias?.join(" · ") || "Não informada"],
   ];
@@ -1527,6 +1526,19 @@ function normalizarBusca(valor: string) {
     .toLocaleLowerCase("pt-BR");
 }
 
+function opcaoFornecedorLancamento(item: LancamentoEconomico, fornecedores: OpcaoEdicao[]) {
+  const registro = item as LancamentoEconomico & {
+    fornecedor_id?: string | null;
+    fornecedores_favoritos_id?: string | null;
+  };
+  const identificador = registro.fornecedorId || registro.fornecedor_id || registro.fornecedores_favoritos_id || item.fornecedor || "";
+  return fornecedores.find((fornecedor) => fornecedor.id === identificador || fornecedor.id.endsWith(`:${identificador}`));
+}
+
+function nomeFornecedorLancamento(item: LancamentoEconomico, fornecedores: OpcaoEdicao[]) {
+  return opcaoFornecedorLancamento(item, fornecedores)?.label || item.fornecedor || "";
+}
+
 function percentualSociedadeDoCotista(
   cotistaId: string | null | undefined,
   cotistaNome: string | null | undefined,
@@ -1557,10 +1569,10 @@ function percentualSociedadeDoCotista(
 
 function documentoDoLancamento(lancamento: LancamentoEconomico) {
   return (
+    lancamento.numeroDemonstrativo ||
     lancamento.documentoNumero ||
     lancamento.numeroNf ||
     lancamento.numeroRecibo ||
-    lancamento.numeroDemonstrativo ||
     lancamento.numeroDoc ||
     lancamento.documento ||
     null
@@ -1636,11 +1648,10 @@ function LancamentosDespesa({
   cotistasAeronave,
   aoNovo,
   aoAtualizar,
+  aoAtualizarFornecedores,
   mesesSelecionados,
   aoSelecionarMes,
   aoAlterarMeses,
-  aoFecharMes,
-  gerandoFechamento,
   fornecedoresEdicao,
   categoriasClienteEdicao,
   carregando = false,
@@ -1649,11 +1660,10 @@ function LancamentosDespesa({
   cotistasAeronave: CotistaAeronave[];
   aoNovo: () => void;
   aoAtualizar: () => Promise<void>;
+  aoAtualizarFornecedores: () => void;
   mesesSelecionados: string[];
   aoSelecionarMes: (mes: string) => void;
   aoAlterarMeses: (meses: string[]) => void;
-  aoFecharMes: (meses: string[]) => void;
-  gerandoFechamento: boolean;
   fornecedoresEdicao: OpcaoEdicao[];
   categoriasClienteEdicao: OpcaoEdicao[];
   carregando?: boolean;
@@ -1835,7 +1845,7 @@ function LancamentosDespesa({
         normalizarBusca(
           [
             item.descricao,
-            item.fornecedor,
+            nomeFornecedorLancamento(item, fornecedoresEdicao),
             item.participanteNome,
             item.participanteId,
             item.categoria,
@@ -1868,7 +1878,7 @@ function LancamentosDespesa({
           (item.categoria || "Sem categoria") === filtroCategoria)
       );
     });
-  }, [despesas, busca, filtroStatus, filtroCategoria]);
+  }, [despesas, busca, filtroStatus, filtroCategoria, fornecedoresEdicao]);
   type ColunaDespesa = {
     id: string;
     titulo: string;
@@ -1997,8 +2007,8 @@ function LancamentosDespesa({
       titulo: "Favorecido",
       largura: 220,
       minimo: 150,
-      valor: (item) => item.fornecedor,
-      render: (item) => texto(item.fornecedor || "Fornecedor não informado"),
+      valor: (item) => nomeFornecedorLancamento(item, fornecedoresEdicao),
+      render: (item) => texto(nomeFornecedorLancamento(item, fornecedoresEdicao) || "Fornecedor não informado"),
     },
     // The supplied model has a category, but no bank-account field. Keep the actual data.
     {
@@ -2289,14 +2299,15 @@ function LancamentosDespesa({
             campoDocumento,
             documentoNumero: documentoDoLancamento(item) || "",
             descricao: item.descricao || "",
-            fornecedor: item.fornecedor || "",
+            fornecedor: nomeFornecedorLancamento(item, fornecedoresEdicao),
             fornecedorId:
               itemComIds.fornecedorId ||
               itemComIds.fornecedor_id ||
+              opcaoFornecedorLancamento(item, fornecedoresEdicao)?.id ||
               fornecedoresEdicao.find(
                 (fornecedor) =>
                   normalizarBusca(fornecedor.label) ===
-                  normalizarBusca(item.fornecedor || ""),
+                  normalizarBusca(nomeFornecedorLancamento(item, fornecedoresEdicao)),
               )?.id ||
               "",
             categoria: item.categoria || "",
@@ -2343,6 +2354,7 @@ function LancamentosDespesa({
     );
     setErroAcao(null);
     setAcao({ tipo, item });
+    if (tipo === "editar") aoAtualizarFornecedores();
   };
   const confirmarAcao = async () => {
     if (!acao || processandoRef.current) return;
@@ -2423,6 +2435,12 @@ function LancamentosDespesa({
         };
         camposDocumento[edicao.campoDocumento] =
           edicao.documentoNumero.trim() || null;
+        const fornecedorSelecionado = fornecedoresEdicao.find(
+          (fornecedor) => fornecedor.id === edicao.fornecedorId || fornecedor.id.endsWith(`:${edicao.fornecedorId}`),
+        );
+        const fornecedorIdPersistido = fornecedorSelecionado
+          ? fornecedorSelecionado.id.slice(fornecedorSelecionado.id.indexOf(":") + 1)
+          : edicao.fornecedorId;
         await editarLancamento(acao.item.id, {
           data: edicao.dataEmissao || null,
           data_emissao: edicao.dataEmissao || null,
@@ -2430,7 +2448,7 @@ function LancamentosDespesa({
           ...camposDocumento,
           descricao: edicao.descricao.trim(),
           fornecedor: edicao.fornecedor || null,
-          fornecedor_id: edicao.fornecedorId || null,
+          fornecedor_id: fornecedorIdPersistido || null,
           categoria: edicao.categoria || null,
           categoria_id: edicao.categoriaId || null,
           status: edicao.status,
@@ -2488,7 +2506,7 @@ function LancamentosDespesa({
           className="gap-2 py-2.5"
         >
           <Pencil size={16} />
-          Editar descrição
+          Editar 
         </DropdownMenuItem>
         {!item.reembolsavel && (
           <DropdownMenuItem
@@ -2703,19 +2721,6 @@ function LancamentosDespesa({
                   <ChevronRight size={16} />
                 </button>
               </div>
-              <Button
-                type="button"
-                className="despesa-control despesa-close-month"
-                disabled={carregando || gerandoFechamento || !mesesSelecionados.length}
-                onClick={() => aoFecharMes(mesesSelecionados)}
-              >
-                {gerandoFechamento ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Check size={14} />
-                )}
-                {gerandoFechamento ? "Gerando PDF…" : "Fechar mês"}
-              </Button>
             </div>
           </div>
           {filtrosAbertos && (
@@ -3246,11 +3251,12 @@ function LancamentosDespesa({
                           <Label htmlFor="edicao-documento-numero">Número do documento</Label>
                           <Input id="edicao-documento-numero" value={edicaoLancamento.documentoNumero} onChange={(evento) => atualizarEdicao("documentoNumero", evento.target.value)} disabled={processando} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
                           <Label htmlFor="edicao-fornecedor">Favorecido</Label>
                           <SearchableCombobox
+                            id="edicao-fornecedor"
                             items={fornecedoresEdicao}
-                            value={fornecedoresEdicao.some((fornecedor) => fornecedor.id === edicaoLancamento.fornecedorId) ? edicaoLancamento.fornecedorId : edicaoLancamento.fornecedor}
+                            value={fornecedoresEdicao.find((fornecedor) => fornecedor.id === edicaoLancamento.fornecedorId || fornecedor.id.endsWith(`:${edicaoLancamento.fornecedorId}`))?.id || edicaoLancamento.fornecedor}
                             onChange={(id, label) => {
                               const cadastrado = fornecedoresEdicao.some((fornecedor) => fornecedor.id === id);
                               atualizarEdicao("fornecedorId", cadastrado ? id : "");
@@ -3260,6 +3266,7 @@ function LancamentosDespesa({
                             searchPlaceholder="Buscar fornecedor, contato ou combustível"
                             emptyMessage="Nenhum fornecedor encontrado."
                             allowFreeText
+                            wrapItemLabels
                             disabled={processando}
                             className="h-10 w-full rounded-md border-border bg-background text-foreground hover:bg-muted"
                             popoverClassName="despesas-theme despesa-dialog"
@@ -3487,15 +3494,13 @@ function LancamentosDespesa({
 }
 
 export default function FinanceiroCotista() {
+  const { data: fontesFornecedores = [], refetch: recarregarFornecedores } = useFornecedores({ includeFavorites: true, includeHotels: true });
+  const fornecedoresEdicao = useMemo(
+    () => fontesFornecedores.map((fornecedor) => ({ id: fornecedor.id, label: fornecedor.nome })),
+    [fontesFornecedores],
+  );
   const [aberto, setAberto] = useState(false);
-  const [gerandoFechamento, setGerandoFechamento] = useState(false);
-  const {
-    balanco: balancoFonte,
-    carregando: carregandoBalanco,
-    erro: erroBalanco,
-  } = useBalancoCotista();
   const [opcoes, setOpcoes] = useState<OpcoesLancamento | null>(null);
-  const [fornecedoresEdicao, setFornecedoresEdicao] = useState<OpcaoEdicao[]>([]);
   const [categoriasClienteEdicao, setCategoriasClienteEdicao] = useState<OpcaoEdicao[]>([]);
   const [dashboard, setDashboard] = useState<DashboardCotista | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -3657,53 +3662,8 @@ export default function FinanceiroCotista() {
 
   useEffect(() => {
     let ativo = true;
-    void Promise.all([
-      buscarOpcoesEnvioPagamento().catch(() => null),
-      buscarContatosShare().catch(() => []),
-      buscarFornecedoresFavoritos().catch(() => []),
-    ]).then(([opcoesEnvio, contatos, favoritos]) => {
+    void buscarOpcoesEnvioPagamento().catch(() => null).then((opcoesEnvio) => {
       if (!ativo) return;
-      const fornecedores = new Map<string, OpcaoEdicao>();
-      const nomesFornecedores = new Set<string>();
-      const adicionarFornecedor = (idValor: unknown, nomeValor: unknown) => {
-        const id = String(idValor ?? "").trim();
-        const label = String(nomeValor ?? "").trim();
-        const nomeNormalizado = normalizarBusca(label);
-        if (!id || !label || fornecedores.has(id) || nomesFornecedores.has(nomeNormalizado)) return;
-        fornecedores.set(id, { id, label });
-        nomesFornecedores.add(nomeNormalizado);
-      };
-      for (const fornecedor of opcoesEnvio?.fornecedores ?? []) {
-        adicionarFornecedor(fornecedor.id, fornecedor.label);
-      }
-      for (const fornecedor of opcoesEnvio?.fornecedores_combustivel ?? []) {
-        const registro = fornecedor as Record<string, unknown>;
-        adicionarFornecedor(
-          registro.id,
-          [registro.nome_fornecedor, registro.nome_cidade]
-            .filter(Boolean)
-            .join(" · "),
-        );
-      }
-      for (const contato of contatos) {
-        const classificacao = normalizarBusca(
-          [contato.categoria_tipo, contato.categoria, contato.categoria_personalizada]
-            .filter(Boolean)
-            .join(" "),
-        );
-        if (!classificacao.includes("fornecedor")) continue;
-        adicionarFornecedor(
-          contato.id,
-          contato.razao_social || contato.empresa || contato.nome,
-        );
-      }
-      for (const fornecedor of favoritos) {
-        adicionarFornecedor(
-          fornecedor.id,
-          fornecedor.apelido || fornecedor.nomeCompleto,
-        );
-      }
-      setFornecedoresEdicao([...fornecedores.values()]);
       setCategoriasClienteEdicao(
         (opcoesEnvio?.categorias_cliente ?? []).map((categoria) => ({
           id: String(categoria.id),
@@ -3829,61 +3789,6 @@ export default function FinanceiroCotista() {
     if (!ordenados.length) return; // Mantém ao menos uma competência válida.
     setMesesAplicados(ordenados);
     setPeriodoAplicado(periodoDosMeses(ordenados));
-  };
-  const gerarPdfFechamento = async (meses: string[]) => {
-    if (carregandoBalanco) {
-      toast.error("O balanço ainda está carregando.");
-      return;
-    }
-    if (!balancoFonte) {
-      toast.error(erroBalanco || "Não foi possível carregar o balanço.");
-      return;
-    }
-    const exercicios = new Set(meses.map((mes) => mes.slice(0, 4)));
-    if (exercicios.size !== 1 || !exercicios.has(balancoFonte.exercicio)) {
-      toast.error(
-        `O PDF disponível contém o exercício ${balancoFonte.exercicio}. Selecione meses desse ano.`,
-      );
-      return;
-    }
-    const nomesMeses = new Set(
-      meses.map((mes) => {
-        const [ano, numeroMes] = mes.split("-").map(Number);
-        return normalizarBusca(
-          new Date(Date.UTC(ano, numeroMes - 1, 15)).toLocaleDateString(
-            "pt-BR",
-            { month: "long" },
-          ),
-        );
-      }),
-    );
-    const balancoSelecionado: Balanco = {
-      ...balancoFonte,
-      geral: balancoFonte.geral.filter((linha) =>
-        nomesMeses.has(normalizarBusca(linha.mes)),
-      ),
-      medias: balancoFonte.medias.filter((linha) =>
-        nomesMeses.has(normalizarBusca(linha.mes)),
-      ),
-    };
-    if (!balancoSelecionado.geral.length) {
-      toast.error("Não há dados de fechamento para os meses selecionados.");
-      return;
-    }
-    setGerandoFechamento(true);
-    try {
-      const { baixarPdfBalanco } = await import("./Balancopdf");
-      await baixarPdfBalanco(balancoSelecionado);
-      toast.success("PDF do fechamento gerado.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível gerar o PDF do fechamento.",
-      );
-    } finally {
-      setGerandoFechamento(false);
-    }
   };
   const alternarMesSelecionado = (mes: string) => {
     if (!periodoDoMes(mes)) return;
@@ -4426,11 +4331,10 @@ export default function FinanceiroCotista() {
                   cotistasAeronave={cotistasAeronave}
                   aoNovo={() => setAberto(true)}
                   aoAtualizar={carregar}
+                  aoAtualizarFornecedores={() => void recarregarFornecedores()}
                   mesesSelecionados={mesesAplicados}
                   aoSelecionarMes={selecionarMesUnico}
                   aoAlterarMeses={atualizarMeses}
-                  aoFecharMes={(meses) => void gerarPdfFechamento(meses)}
-                  gerandoFechamento={gerandoFechamento || carregandoBalanco}
                   fornecedoresEdicao={fornecedoresEdicao}
                   categoriasClienteEdicao={categoriasClienteEdicao}
                   carregando={carregando}

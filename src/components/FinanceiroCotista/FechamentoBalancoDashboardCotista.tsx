@@ -1,11 +1,13 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
+import { pdf } from "@react-pdf/renderer";
 import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane, Download } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
+import { formatarData } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
-import { baixarPdfBalancoCotista } from "./balancoCotistaPdf";
+import { cents, compacto, dividir, fmt, horas, money, montarBalanco, n, obj, pct, somarMedida, type DashboardBalanco } from "@/lib/balanco-cotista";
+import { BalancoClientePdf } from "./BalancoClientePdf";
 
 /**
  * Fechamento mensal / soma dos meses selecionados. Sem filtros de lançamentos.
@@ -17,21 +19,6 @@ import { baixarPdfBalancoCotista } from "./balancoCotistaPdf";
  * fallback escuro/claro por .dark, [data-theme] e preferência do sistema.
  */
 type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: string | null; cotistas: CotistaAeronave[]; mesesSelecionados: string[]; cotistaId?: string };
-type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
-type Voo = { id: string; data: string; numero: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
-type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
-export type BalancoOperacional = {
-  versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;
-  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean };
-  cotistas: CotistaOperacional[]; voos: Voo[];
-  abastecimentos: { id: string; data: string; litros: number | null; clienteId: string | null; socioId: string | null }[];
-  viagens: Viagem[];
-};
-type DashboardBalanco = DashboardCotista & { balanco_operacional?: BalancoOperacional | null; balanco_escopo?: "aeronave" | "cotista" | "geral" };
-type Registro = Record<string, unknown>;
-type Grupo = "fixos" | "variaveis" | "extras" | "naoClassificados";
-type Custo = { total: number; fixos: number; variaveis: number; extras: number; naoClassificados: number };
-type Participante = { id: string; nome: string; quota: number | null; holding: boolean; confirmado: boolean };
 const ABAS = [
   { id: "geral", nome: "Comparativo mensal", Icon: BarChart3 },
   { id: "cotistas", nome: "Evolução por cotista", Icon: Users },
@@ -42,194 +29,6 @@ const ABAS = [
 ] as const;
 type Aba = typeof ABAS[number]["id"];
 const cores = ["#22c8ec", "#a898f3", "#e3b365", "#62c6a3", "#eb8d9c", "#87a8dc", "#b9c480"];
-const obj = (v: unknown): Registro => v && typeof v === "object" ? v as Registro : {};
-const txt = (v: unknown) => String(v ?? "").trim();
-const norm = (v: unknown) => txt(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-const idKey = (v: unknown) => txt(v).toLowerCase();
-const n = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
-const nullable = (v: unknown) => v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
-const cents = (v: unknown) => Math.round(n(v));
-const money = (v: unknown) => v == null ? "—" : formatarCentavos(cents(v));
-const fmt = (v: unknown, dec = 2) => v == null ? "—" : new Intl.NumberFormat("pt-BR", { maximumFractionDigits: dec }).format(n(v));
-const pct = (v: number | null) => v === null ? "—" : `${fmt(v)}%`;
-const mes = (v: unknown) => txt(v).slice(0, 7);
-const validaMes = (v: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
-const horas = (v: number | null) => { if (v === null) return "—"; const m = Math.round(Math.abs(v) * 60); return `${v < 0 ? "−" : ""}${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`; };
-const dividir = (a: number | null, b: number | null) => a === null || b === null || b <= 0 ? null : a / b;
-const compacto = (v: number) => new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(v / 100);
-const custoVazio = (): Custo => ({ total: 0, fixos: 0, variaveis: 0, extras: 0, naoClassificados: 0 });
-const somarCusto = (a: Custo, b: Custo) => { for (const k of Object.keys(a) as (keyof Custo)[]) a[k] += b[k]; return a; };
-function classificar(l: Registro): Grupo {
-  // A natureza do custo vem do cadastro, nunca do pagador ou da identidade do cotista.
-  const tipo = norm(l.tipoRateio || l.tipo_rateio || l.grupoCategoria);
-  if (/EXTRA/.test(tipo)) return "extras";
-  if (/FIX/.test(tipo)) return "fixos";
-  if (/VARIAVEL|HORA|VOO/.test(tipo)) return "variaveis";
-  return "naoClassificados";
-}
-function somarMedida<T>(itens: T[], valor: (t: T) => number | null, disponivel: boolean): number | null {
-  if (!disponivel || itens.some(t => valor(t) === null)) return null;
-  return itens.reduce((s, t) => s + (valor(t) ?? 0), 0);
-}
-function montarCadastro(cotistas: CotistaAeronave[], op?: BalancoOperacional | null) {
-  const participantes = new Map<string, Participante>();
-  const aliases = new Map<string, string | null>();
-  const nomes = new Map<string, string | null>();
-  const clientes = new Map<string, string | null>();
-  const socios = new Map<string, string | null>();
-  function add(map: Map<string, string | null>, key: unknown, id: string) {
-    const k = idKey(key); if (!k) return;
-    map.set(k, !map.has(k) || map.get(k) === id ? id : null);
-  }
-  if (op?.fontes.cotistas) {
-    for (const c of op.cotistas) {
-      participantes.set(c.id, { id: c.id, nome: c.nome, quota: c.percentualSociedade, holding: Boolean(c.socioId || c.holdingId), confirmado: true });
-      add(aliases, c.id, c.id); add(aliases, c.clienteId, c.id); add(aliases, c.socioId, c.id);
-      add(clientes, c.clienteId, c.id); add(clientes, c.id, c.id); add(socios, c.socioId, c.id); add(nomes, c.nome, c.id);
-    }
-  } else {
-    for (const c of cotistas) {
-      const id = txt(c.id); if (!id) continue;
-      const q = nullable(obj(c).percentual_sociedade);
-      participantes.set(id, { id, nome: c.nome || id, quota: q, holding: Boolean(c.eh_holding || c.socio_id), confirmado: true });
-      [id, c.cliente_id, c.socio_id, ...(c.cotista_ids ?? [])].forEach(a => add(aliases, a, id));
-      add(clientes, c.cliente_id, id); add(socios, c.socio_id, id); add(nomes, c.nome, id);
-    }
-  }
-  function desconhecido(key: string, nome: unknown) {
-    if (!participantes.has(key)) participantes.set(key, { id: key, nome: txt(nome) || "Sem cotista vinculado", quota: null, holding: false, confirmado: false });
-    return key;
-  }
-  function resolver(id: unknown, nome?: unknown) {
-    const k = idKey(id);
-    if (k) return aliases.get(k) || desconhecido(`sem-vinculo:${k}`, nome || id);
-    const label = idKey(nome);
-    return (aliases.has(label) ? aliases.get(label) : nomes.get(label)) || desconhecido(`sem-vinculo:nome:${label}`, nome);
-  }
-  function operacional(clienteId: string | null, socioId: string | null) {
-    // Campos tipados separadamente evitam colisões entre cliente.id e hold_socios.id.
-    const c = clienteId ? clientes.get(idKey(clienteId)) : null;
-    const s = socioId ? socios.get(idKey(socioId)) : null;
-    if (clienteId && socioId && c !== s) return desconhecido("operacao:sem-vinculo", "Operação sem cotista vinculado");
-    return s || c || desconhecido("operacao:sem-vinculo", "Operação sem cotista vinculado");
-  }
-  return { participantes, resolver, operacional, nome: (valor: unknown) => {
-    const k = idKey(valor); const id = aliases.get(k) || (!aliases.has(k) ? nomes.get(k) : null);
-    return id ? participantes.get(id)?.nome || txt(valor) : txt(valor) || "Não informado";
-  } };
-}
-
-function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecionados: string[]) {
-  const meses = [...new Set(selecionados.filter(validaMes))].sort();
-  const seleciona = new Set(meses);
-  const op = d.balanco_operacional?.versao === 1 ? d.balanco_operacional : null;
-  const cadastro = montarCadastro(cotistas, op);
-  const porMes = new Map(meses.map(m => [m, custoVazio()]));
-  const custosCotista = new Map<string, Map<string, Custo>>();
-  const categorias = new Map<string, { total: number; cotistas: Map<string, number> }>();
-  const despesas = (d.lancamentos ?? []).filter(l => seleciona.has(mes(l.data)) && norm(l.status) !== "CANCELADO" && norm(l.fluxo) === "SAIDA");
-  function adicionar(valor: number, grupo: Grupo, cotista: string, m: string, categoria: string) {
-    const geral = porMes.get(m)!; geral.total += valor; geral[grupo] += valor;
-    let individual = custosCotista.get(cotista); if (!individual) { individual = new Map(meses.map(mm => [mm, custoVazio()])); custosCotista.set(cotista, individual); }
-    const custo = individual.get(m)!; custo.total += valor; custo[grupo] += valor;
-    const cat = categorias.get(categoria) ?? { total: 0, cotistas: new Map() };
-    cat.total += valor; cat.cotistas.set(cotista, (cat.cotistas.get(cotista) ?? 0) + valor); categorias.set(categoria, cat);
-  }
-  let diferencasRateio = 0;
-  for (const l of despesas) {
-    const raw = obj(l); const m = mes(l.data); const categoria = l.categoria || "Sem categoria";
-    if (l.rateios?.length) {
-      let rateado = 0;
-      for (const r of l.rateios) {
-        const valor = cents(r.valorCentavos); rateado += valor;
-        adicionar(valor, classificar({ ...raw, ...obj(r), tipoRateio: obj(r).tipoRateio || raw.tipoRateio }), cadastro.resolver(r.cotistaId, r.cotista), m, categoria);
-      }
-      const diferenca = cents(l.valorCentavos) - rateado;
-      if (diferenca) { diferencasRateio++; adicionar(diferenca, classificar(raw), cadastro.resolver("diferenca-rateio", "Diferença não atribuída"), m, categoria); }
-    } else {
-      // Rateios de holding vêm como linhas individuais com participanteId no backend.
-      const id = raw.participanteId;
-      adicionar(cents(l.valorCentavos), classificar(raw), cadastro.resolver(id, raw.participanteNome), m, categoria);
-    }
-  }
-  const voos = (op?.voos ?? []).filter(v => seleciona.has(mes(v.data)));
-  const viagens = (op?.viagens ?? []).filter(v => seleciona.has(mes(v.data)));
-  const abastecimentos = (op?.abastecimentos ?? []).filter(a => seleciona.has(mes(a.data)));
-  const donoVoo = (v: Voo) => v.emprestado
-    ? cadastro.operacional(v.clienteTomadorId, v.socioTomadorId)
-    : cadastro.operacional(v.clienteId, v.socioId);
-  // Resolve previamente para que a lista inclua também operações sem vínculo financeiro.
-  const voosPorCotista = new Map<string, Voo[]>();
-  for (const v of voos) { const id = donoVoo(v); const list = voosPorCotista.get(id) ?? []; list.push(v); voosPorCotista.set(id, list); }
-  const viagensPorCotista = new Map<string, Viagem[]>();
-  for (const v of viagens) { const id = cadastro.operacional(v.clienteId, v.socioId); const list = viagensPorCotista.get(id) ?? []; list.push(v); viagensPorCotista.set(id, list); }
-  const fonteVoos = Boolean(op?.fontes.voos);
-  const fonteViagens = Boolean(op?.fontes.viagens);
-  const mediasAntigas = new Map((d.medias_mensais ?? []).map(m => [m.mes, m]));
-  const mensais = meses.map(m => {
-    const lista = voos.filter(v => mes(v.data) === m);
-    const viagensMes = viagens.filter(v => mes(v.data) === m);
-    const ab = abastecimentos.filter(v => mes(v.data) === m);
-    const custo = porMes.get(m)!;
-    const antigo = mediasAntigas.get(m);
-    const h = fonteVoos ? somarMedida(lista, v => v.horas, true) : antigo ? n(antigo.horas_voadas) : null;
-    const consumo = somarMedida(lista, v => v.consumoEstimadoLitros, fonteVoos);
-    const litros = somarMedida(ab, a => a.litros, Boolean(op?.fontes.abastecimentos));
-    return { mes: m, nome: rotuloMesCotista(m), ...custo, horas: h,
-      voos: fonteVoos ? lista.length : antigo ? n(antigo.total_voos) : null,
-      pousos: fonteVoos ? somarMedida(lista, v => v.pousos, true) : antigo ? n(antigo.total_pousos) : null,
-      custoHora: dividir(custo.total, h), consumo, litros,
-      consumoHora: dividir(consumo, h), abastecidoHora: dividir(litros, h),
-      gastoViagens: somarMedida(viagensMes, v => v.valorCentavos, fonteViagens),
-      relatorios: fonteViagens ? viagensMes.length : null,
-    };
-  });
-  const total = mensais.reduce((s, m) => somarCusto(s, m), custoVazio());
-  const totalHoras = somarMedida(mensais, m => m.horas, true);
-  const totalViagens = somarMedida(viagens, v => v.valorCentavos, fonteViagens);
-  const consumo = somarMedida(voos, v => v.consumoEstimadoLitros, fonteVoos);
-  const litros = somarMedida(abastecimentos, a => a.litros, Boolean(op?.fontes.abastecimentos));
-  const participantes = [...cadastro.participantes.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map(p => {
-    const lista = voosPorCotista.get(p.id) ?? [];
-    const relatorios = viagensPorCotista.get(p.id) ?? [];
-    const mensal = meses.map(m => {
-      const vs = lista.filter(v => mes(v.data) === m);
-      const custo = custosCotista.get(p.id)?.get(m) ?? custoVazio();
-      const h = somarMedida(vs, v => v.horas, fonteVoos);
-      return { mes: m, nome: rotuloMesCotista(m), ...custo, horas: h, voos: fonteVoos ? vs.length : null, custoHora: dividir(custo.total, h) };
-    });
-    const custo = mensal.reduce((s, m) => somarCusto(s, m), custoVazio());
-    const h = somarMedida(lista, v => v.horas, fonteVoos);
-    const uso = totalHoras !== null && totalHoras > 0 && h !== null ? h / totalHoras * 100 : null;
-    const quota = p.quota !== null && p.quota >= 0 && p.quota <= 100 ? p.quota : null;
-    const referencia = quota === null || totalHoras === null || !fonteVoos ? null : totalHoras * quota / 100;
-    const destinos = new Map<string, number>(); lista.forEach(v => { const destino = txt(v.destino); if (destino) destinos.set(destino, (destinos.get(destino) ?? 0) + 1); });
-    const gastoViagem = somarMedida(relatorios, v => v.valorCentavos, fonteViagens);
-    return { ...p, quota, mensal, custo, horas: h, uso, referencia,
-      diferenca: uso === null || quota === null ? null : uso - quota,
-      saldoHoras: referencia === null || h === null ? null : referencia - h,
-      voos: lista, destinos: [...destinos].map(([nome, visitas]) => ({ nome, visitas })).sort((a, b) => b.visitas - a.visitas || a.nome.localeCompare(b.nome)),
-      custoHora: dividir(custo.total, h), mediaViagem: dividir(gastoViagem, fonteViagens ? relatorios.length : null),
-      numeroViagens: fonteViagens ? relatorios.length : null,
-      consumoHora: dividir(somarMedida(lista, v => v.consumoEstimadoLitros, fonteVoos), h),
-    };
-  });
-  const custosSemClassificacao = despesas.some(l => l.rateios?.length ? l.rateios.some(r => classificar({ ...obj(l), ...obj(r), tipoRateio: obj(r).tipoRateio || obj(l).tipoRateio }) === "naoClassificados") : classificar(obj(l)) === "naoClassificados");
-  const projecao = !custosSemClassificacao && totalHoras !== null && totalHoras > 0 && meses.length > 0
-    ? [5, 10, 15, 20, 25, 30, 40, 50, 60].map(h => ({ horas: h, fixoHora: total.fixos / meses.length / h,
-      variavelHora: total.variaveis / totalHoras, extraHora: total.extras / totalHoras,
-      custoHora: total.fixos / meses.length / h + (total.variaveis + total.extras) / totalHoras,
-      custoMensal: total.fixos / meses.length + (total.variaveis + total.extras) / totalHoras * h })) : [];
-  const entradasHolding = (d.movimentos_holding ?? []).filter(m => seleciona.has(mes(m.data)) && !m.diretamentePago
-    && ["ENTRADA", "APORTE", "ESTORNO"].includes(norm(m.fluxo))
-    && ["PAGO", "RECEBIDO", "REEMBOLSADO", "ENTRADA", "APORTE_MENSAL", "RENDIMENTO_BANCARIO"].includes(norm(m.status)));
-  return { meses, mensais, total, totalHoras, totalVoos: somarMedida(mensais, m => m.voos, true), totalPousos: somarMedida(mensais, m => m.pousos, true),
-    participantes, categorias: [...categorias].map(([nome, c]) => ({ nome, ...c })).sort((a, b) => b.total - a.total),
-    custoHora: dividir(total.total, totalHoras), mediaViagem: dividir(totalViagens, fonteViagens ? viagens.length : null), totalViagens, viagens: fonteViagens ? viagens.length : null,
-    consumoHora: dividir(consumo, totalHoras), abastecidoHora: dividir(litros, totalHoras), consumo, litros, projecao, entradasHolding,
-    fonteVoos, fonteViagens, op, diferencasRateio, nome: cadastro.nome,
-  };
-}
 
 export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados, cotistaId }: Props) {
   const uid = useId().replace(/:/g, "");
@@ -247,20 +46,35 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const participantesExibidos = cotistaId ? b.participantes.filter(p => p.id === cotistaId) : b.participantes;
   const mensaisExibidos = cotistaSelecionado?.mensal ?? b.mensais;
   const totalExibido = cotistaSelecionado?.custo ?? b.total;
+  const baixarPdf = async (participante: NonNullable<typeof cotistaSelecionado>) => {
+    const blob = await pdf(<BalancoClientePdf b={b} p={participante} aeronave={aeronave} lancamentos={participante.lancamentos} />).toBlob();
+    const slug = `${aeronave}-${participante.nome}-${b.meses.join("_")}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `balanco-${slug}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   const holdings = d.holdings ?? [];
   const temHolding = holdings.length > 0 || b.participantes.some(p => p.holding);
   const atual = aba === "holding" && !temHolding ? "geral" : aba;
   const view = (id: Aba) => `bcp-view ${atual === id ? "bcp-active" : ""}`;
   const tooltip = { background: "var(--bcp-card)", color: "var(--bcp-fg)", border: "1px solid var(--bcp-border)", borderRadius: 8, fontSize: 11 };
   const chartMoney = (v: unknown) => money(v);
-  const saldos = d.saldos ?? [];
-  const compensacoes = Object.entries(d.matrizCompensacao ?? {}).flatMap(([credor, devedores]) => Object.entries(devedores).filter(([, valor]) => n(valor) > 0).map(([devedor, valor]) => ({ credor, devedor, valor })));
-  const totalPago = saldos.reduce((s, r) => s + cents(r.totalPagoCentavos), 0);
-  const totalDevido = saldos.reduce((s, r) => s + cents(r.totalDevidoCentavos), 0);
+  const saldos = b.participantes.flatMap((participante) => participante.acerto ? [{ id: participante.id, nome: participante.nome, ...participante.acerto }] : []);
+  const compensacoes = b.compensacoes;
+  const totalPago = saldos.reduce((s, r) => s + r.pagoCentavos, 0);
+  const totalDevido = saldos.reduce((s, r) => s + r.devidoCentavos, 0);
   return <div className="bcp">{estilos}
-    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => baixarPdfBalancoCotista({ aeronave, cotista: cotistaSelecionado.nome, percentualSociedade: cotistaSelecionado.quota, meses: cotistaSelecionado.mensal, categorias: b.categorias.map(c => ({ nome: c.nome, valor: c.cotistas.get(cotistaSelecionado.id) ?? 0 })).filter(c => c.valor > 0) })}><Download size={14} /> Baixar balanço em PDF</button>}<button type="button" className="bcp-button" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></div></header>
+    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => void baixarPdf(cotistaSelecionado)}><Download size={14} /> Baixar balanço em PDF</button>}<button type="button" className="bcp-button" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></div></header>
     <div className="bcp-kpis"><Kpi titulo={cotistaSelecionado ? "Custo rateado do cotista" : "Custo total da aeronave"} valor={money(totalExibido.total)} detalhe={`${periodo} · despesas do período`} /></div>
-    {!b.op && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
+    {!d.balanco_operacional && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
     {b.diferencasRateio > 0 && <Nota>{b.diferencasRateio} lançamento(s) com diferença entre o total e as parcelas. A diferença aparece separada, sem atribuição automática a um cotista.</Nota>}
     <nav className="bcp-tabs bcp-no-print" aria-label="Seções do balanço">{ABAS.filter(t => t.id !== "holding" || temHolding).map(({ id, nome, Icon }) => <button type="button" key={id} aria-pressed={atual === id} aria-controls={`${uid}-${id}`} onClick={() => setAba(id)} className={atual === id ? "bcp-selected" : ""}><Icon size={15} />{nome}</button>)}</nav>
 
@@ -311,9 +125,9 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
     </section>
 
     <section className={view("acerto")} id={`${uid}-acerto`} aria-label="Acerto de contas">
-      <Painel titulo="Acerto de contas" detalhe="Posição acumulada até a data final da consulta; não se limita aos meses selecionados."><Tabela headers={["Cotista", "Pagamento informado", "Devido acumulado", "Saldo"]} numericas={[1,2,3]}>{saldos.map((s,i)=><tr key={`${s.cotista}:${i}`}><Th>{b.nome(obj(s).cotistaId||s.cotista)}</Th><Td num>{money(s.totalPagoCentavos)}</Td><Td num>{money(s.totalDevidoCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela><p className="bcp-footnote">Positivo = crédito na apuração; negativo = débito. Pagamentos informados não são entradas de caixa do cotista cliente.</p></Painel>
+      <Painel titulo="Acerto de contas" detalhe="Posição acumulada até a data final da consulta; não se limita aos meses selecionados."><Tabela headers={["Cotista", "Pagamento informado", "Devido acumulado", "Saldo"]} numericas={[1,2,3]}>{saldos.map((s)=><tr key={s.id}><Th>{s.nome}</Th><Td num>{money(s.pagoCentavos)}</Td><Td num>{money(s.devidoCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela><p className="bcp-footnote">Positivo = crédito na apuração; negativo = débito. Pagamentos informados não são entradas de caixa do cotista cliente.</p></Painel>
       {totalPago!==totalDevido&&<Nota>Pagamentos e valores devidos apresentam diferença de {money(totalPago-totalDevido)}. Confira as origens antes de executar compensações.</Nota>}
-      <Painel titulo="Compensações sugeridas">{compensacoes.length?<Tabela headers={["Quem paga", "Quem recebe", "Valor"]} numericas={[2]}>{compensacoes.map(t=><tr key={JSON.stringify([t.credor,t.devedor])}><Th>{b.nome(t.devedor)}</Th><Td>{b.nome(t.credor)}</Td><Td num destaque>{money(t.valor)}</Td></tr>)}</Tabela>:<Vazio>Nenhuma compensação sugerida.</Vazio>}</Painel>
+      <Painel titulo="Compensações sugeridas">{compensacoes.length?<Tabela headers={["Quem paga", "Quem recebe", "Valor"]} numericas={[2]}>{compensacoes.map(t=><tr key={JSON.stringify([t.credorId,t.devedorId])}><Th>{t.devedor}</Th><Td>{t.credor}</Td><Td num destaque>{money(t.valorCentavos)}</Td></tr>)}</Tabela>:<Vazio>Nenhuma compensação sugerida.</Vazio>}</Painel>
     </section>
 
     {temHolding&&<section className={view("holding")} id={`${uid}-holding`} aria-label="Conta comum das holdings">

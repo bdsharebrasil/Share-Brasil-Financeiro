@@ -10,11 +10,12 @@ import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { useFornecedores } from "@/hooks/useFornecedores";
 import { HistoricoEnvios } from "@/components/envio-pagamento/historico/HistoricoEnvios";
 import { usePaginaHistorico } from "@/components/envio-pagamento/historico/usePaginaHistorico";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
 import logoShare from "@/assets/share-signature-logo.png";
-import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarFornecedorCombustivel, criarFornecedorFavorito, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
+import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarContatoShare, criarFornecedorCombustivel, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 
 type TipoEnvio = EnvioPagamento["tipo"];
@@ -201,6 +202,7 @@ function rateioProporcional(cotistaIds: string[], cotistas: CotistaAeronave[]) {
 }
 
 export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCaixaShare?: boolean }) {
+  const { data: fornecedores = [], refetch: refetchFornecedores } = useFornecedores({ includeHotels: true });
   const [tipo, setTipo] = useState<TipoEnvio | null>(null);
   const [form, setForm] = useState<Formulario>(inicial);
   const [envios, setEnvios] = useState<EnvioPagamento[]>([]);
@@ -226,6 +228,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [vincularAeronave, setVincularAeronave] = useState<boolean | null>(null);
   const [modoNumeroVooCliente, setModoNumeroVooCliente] = useState<"com_voo" | "sem_voo" | null>(null);
   const opcoesVisiveis = apenasCaixaShare ? opcoes.filter((opcao) => opcao.tipo !== "cliente") : opcoes;
+  const fornecedoresItems = useMemo(() => fornecedores.map((fornecedor) => ({ id: fornecedor.id, label: fornecedor.nome })), [fornecedores]);
+  const fornecedorSelecionadoId = fornecedores.find((fornecedor) => fornecedor.id.endsWith(`:${form.fornecedor_id}`))?.id || form.fornecedor;
   const { historico, abrirHistorico, fecharHistorico } = usePaginaHistorico();
   const [erroHistorico, setErroHistorico] = useState("");
   const [abrindoHistorico, setAbrindoHistorico] = useState(false);
@@ -532,24 +536,20 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     return `Prezado(a),\n\nSegue solicitação de pagamento:\n\n${linhas.join("\n")}\n\nAtenciosamente,\nShare Brasil`;
   };
 
-  const salvarNovoFornecedor = async (tipoFornecedor: "favorito" | "combustivel") => {
+  const salvarNovoFornecedor = async (tipoFornecedor: "agenda" | "combustivel") => {
     const nome = form.fornecedor.trim();
     if (!nome || salvandoFornecedor) return;
     setSalvandoFornecedor(true);
     try {
-      if (tipoFornecedor === "favorito") {
-        const { item } = await criarFornecedorFavorito(nome);
-        const label = String(item?.apelido || item?.nome_completo || nome);
-        setDadosOpcoes((atual) => ({ ...atual, fornecedores: [{ id: String(item?.id), label }, ...atual.fornecedores] }));
-        setForm((atual) => ({ ...atual, fornecedor_id: String(item?.id), fornecedor: label }));
-        notificarEnvioCliente("success", "Fornecedor favorito salvo com sucesso.");
-      } else {
-        const { item } = await criarFornecedorCombustivel(nome);
-        const nomeFornecedor = String(item?.nome_fornecedor || nome);
-        setDadosOpcoes((atual) => ({ ...atual, fornecedores_combustivel: [{ ...(item ?? {}), id: String(item?.id), nome_fornecedor: nomeFornecedor }, ...atual.fornecedores_combustivel] }));
-        setForm((atual) => ({ ...atual, fornecedor_id: String(item?.id), fornecedor: nomeFornecedor }));
-        notificarEnvioCliente("success", "Fornecedor de combustível salvo com sucesso.");
-      }
+      const resposta: Record<string, any> = tipoFornecedor === "agenda"
+        ? await criarContatoShare({ nome, razao_social: nome, categoria_tipo: "FORNECEDOR" })
+        : await criarFornecedorCombustivel(nome);
+      const item = resposta.item || resposta;
+      const id = String(item.id ?? "");
+      const nomeFornecedor = String(item.apelido || item.nome_completo || item.nome_fornecedor || item.nome || nome);
+      setForm((atual) => ({ ...atual, fornecedor_id: id, fornecedor: nomeFornecedor }));
+      void refetchFornecedores();
+      notificarEnvioCliente("success", tipoFornecedor === "agenda" ? "Fornecedor registrado na agenda." : "Fornecedor de combustível salvo com sucesso.");
       setDialogoFornecedor(false);
     } catch (error) {
       notificarEnvioCliente("error", error instanceof Error ? error.message : "Erro ao salvar fornecedor.");
@@ -1304,7 +1304,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   {tipo !== "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                   <Campo label="Vencimento" obrigatorio={tipo === "share"}><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
-                  <Campo label="Fornecedor"><div className="flex items-center gap-2"><SearchableCombobox items={[...dadosOpcoes.fornecedores.map((f) => ({ id: f.id, label: f.label })), ...dadosOpcoes.fornecedores_combustivel.map((f) => { const registro = f as Record<string, unknown>; const id = String(registro.id ?? ""); const label = [String(registro.nome_fornecedor ?? ""), registro.nome_cidade ? String(registro.nome_cidade) : "", "Combustível"].filter(Boolean).join(" · "); return { id, label }; })]} value={form.fornecedor_id || form.fornecedor} onChange={(id, label) => { const cadastrado = dadosOpcoes.fornecedores.some((fornecedor) => fornecedor.id === id) || dadosOpcoes.fornecedores_combustivel.some((fornecedor) => String((fornecedor as Record<string, unknown>).id ?? "") === id); setForm((atual) => ({ ...atual, fornecedor_id: cadastrado ? id : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor favorito encontrado." allowFreeText />{Boolean(form.fornecedor.trim()) && !form.fornecedor_id && <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-sm" onClick={() => setDialogoFornecedor(true)} aria-label="Adicionar fornecedor ao cadastro" title="Adicionar fornecedor ao cadastro">{salvandoFornecedor ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}</Button>}</div></Campo>
+                  <Campo label="Fornecedor"><div className="flex items-center gap-2"><SearchableCombobox items={fornecedoresItems} value={fornecedorSelecionadoId} onChange={(id, label) => { const fornecedor = fornecedores.find((item) => item.id === id); setForm((atual) => ({ ...atual, fornecedor_id: fornecedor ? id.slice(fornecedor.origem.length + 1) : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor correspondente encontrado." allowFreeText />{Boolean(form.fornecedor.trim()) && !form.fornecedor_id && <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-sm" onClick={() => setDialogoFornecedor(true)} aria-label="Adicionar fornecedor ao cadastro" title="Adicionar fornecedor ao cadastro">{salvandoFornecedor ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}</Button>}</div></Campo>
                   {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
@@ -1423,7 +1423,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             <DialogDescription className="text-[11px]">Deseja adicionar "{form.fornecedor.trim()}" — fornecedor favorito ou fornecedor de combustível?</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
-            <Button type="button" variant="outline" disabled={salvandoFornecedor} onClick={() => void salvarNovoFornecedor("favorito")}>Fornecedor favorito</Button>
+            <Button type="button" variant="outline" disabled={salvandoFornecedor} onClick={() => void salvarNovoFornecedor("agenda")}>Fornecedor da agenda</Button>
             <Button type="button" variant="outline" disabled={salvandoFornecedor} onClick={() => void salvarNovoFornecedor("combustivel")}>Fornecedor de combustível</Button>
           </div>
         </DialogContent>

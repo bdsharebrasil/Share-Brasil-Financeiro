@@ -771,6 +771,8 @@ export type LancamentoEconomico = {
 
   fornecedor: string | null;
 
+  fornecedorId?: string | null;
+
   categoria: string;
 
   grupoCategoria: string;

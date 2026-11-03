@@ -20,6 +20,7 @@ import {
 } from "@/lib/reciboPdf";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
+import { useFornecedores } from "@/hooks/useFornecedores";
 import HistoricoRecibos, {
   type FiltrosHistoricoRecibos,
 } from "@/components/financeiro-share/HistoricoRecibos";
@@ -311,6 +312,7 @@ async function gerarPdfRecibo(
 }
 
 export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
+  const { data: fornecedores = [], refetch: refetchFornecedores } = useFornecedores({ includeHotels: true });
   const [form, setForm] = useState<Formulario>(inicial);
   const [opcoes, setOpcoes] = useState<OpcoesRecibos>({
     clientes: [],
@@ -506,19 +508,24 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     valor: Formulario[K],
   ) => setForm((atual) => ({ ...atual, [campo]: valor }));
   const fornecedoresCombobox = useMemo(
-    () => opcoes.fornecedores.map((item) => ({
-      id: item.id,
-      label: [item.nome, item.documento || item.cnpj ? `Documento: ${item.documento || item.cnpj}` : ""].filter(Boolean).join(" · "),
-    })),
-    [opcoes.fornecedores],
+    () => fornecedores.map((item) => {
+      const idOriginal = item.id.slice(item.origem.length + 1);
+      const registro = opcoes.fornecedores.find((fornecedor) => fornecedor.id === idOriginal);
+      return {
+        id: item.id,
+        label: [item.nome, registro?.documento || registro?.cnpj ? `Documento: ${registro.documento || registro.cnpj}` : ""].filter(Boolean).join(" · "),
+      };
+    }),
+    [fornecedores, opcoes.fornecedores],
   );
   const selecionarFornecedor = (id: string, label: string) => {
-    const fornecedor = opcoes.fornecedores.find((item) => item.id === id);
+    const fornecedor = fornecedores.find((item) => item.id === id);
+    const registro = opcoes.fornecedores.find((item) => item.id === fornecedor?.id.slice(fornecedor.origem.length + 1));
     const nome = fornecedor?.nome || label;
-    alterar("fornecedor_id", fornecedor?.id || "");
+    alterar("fornecedor_id", fornecedor ? fornecedor.id.slice(fornecedor.origem.length + 1) : "");
     alterar("fornecedor_nome", nome);
     alterar("recebedor_nome", nome);
-    alterar("recebedor_cpf_ui", fornecedor?.documento || fornecedor?.cnpj || "");
+    alterar("recebedor_cpf_ui", registro?.documento || registro?.cnpj || "");
   };
   const cadastrarFornecedor = async () => {
     const nome = form.fornecedor_nome.trim() || form.recebedor_nome.trim();
@@ -529,9 +536,13 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         ? await criarFornecedorCombustivel(nome)
         : await criarContatoShare({ nome, razao_social: nome, cnpj: novoFornecedorDocumento.trim() || null, categoria_tipo: "FORNECEDOR" });
       const id = String((resposta as { item?: { id?: string }; id?: string }).item?.id || (resposta as { id?: string }).id || "");
-      const fornecedor = { id, nome, documento: novoFornecedorDocumento.trim() || null, origem: tipoNovoFornecedor === "combustivel" ? "combustivel" : "agenda" } as typeof opcoes.fornecedores[number];
-      setOpcoes((atual) => ({ ...atual, fornecedores: [fornecedor, ...atual.fornecedores] }));
-      selecionarFornecedor(id, nome);
+      const origem = tipoNovoFornecedor === "combustivel" ? "combustivel" : "agenda";
+      const fornecedoresAtualizados = await refetchFornecedores();
+      const fornecedor = fornecedoresAtualizados.data?.find((item) => item.id === `${origem}:${id}`);
+      alterar("fornecedor_id", fornecedor ? fornecedor.id.slice(fornecedor.origem.length + 1) : id);
+      alterar("fornecedor_nome", nome);
+      alterar("recebedor_nome", nome);
+      alterar("recebedor_cpf_ui", novoFornecedorDocumento.trim());
       setCadastroFornecedorAberto(false);
       setNovoFornecedorDocumento("");
     } catch (cause) {
@@ -1161,7 +1172,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         open={Boolean(reciboProgramacao)}
         recibo={reciboProgramacao}
         aeronaves={opcoes.aeronaves}
-        fornecedores={opcoes.fornecedores}
         categorias={opcoes.categorias_cliente}
         onRequestEmail={(recibo, payload) => {
           setRateioAposEmail({ recibo, payload });

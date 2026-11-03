@@ -3546,10 +3546,6 @@ export default function FinanceiroCotista() {
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Selecione uma aeronave
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Selecione uma aeronave para consultar os dados financeiros e os
-              lançamentos dos cotistas.
-            </p>
           </header>
           <div className="relative w-full max-w-md">
             <Search

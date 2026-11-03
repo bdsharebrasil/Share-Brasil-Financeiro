@@ -3238,42 +3238,49 @@ export default function FinanceiroCotista() {
   const abasCotista: Array<{
     id: string;
     rotulo: string;
+    descricao: string;
     Icon: typeof ReceiptText;
     corIcone: string;
   }> = [
     {
       id: "lancamentos",
       rotulo: "Lançamentos mensais",
+      descricao: "Lançamentos financeiros do mês de referência",
       Icon: ReceiptText,
       corIcone: "bg-sky-400/10 text-sky-400",
     },
     {
       id: "resumo",
       rotulo: "Visão por cotista",
+      descricao: "Resumo financeiro individual por cotista",
       Icon: LayoutDashboard,
       corIcone: "bg-violet-400/10 text-violet-400",
     },
     {
       id: "emprestimos",
       rotulo: "Voos empréstimo",
+      descricao: "Voos registrados em empréstimo da aeronave",
       Icon: Fuel,
       corIcone: "bg-amber-400/10 text-amber-400",
     },
     {
       id: "medias",
       rotulo: "Médias",
+      descricao: "Médias de custos fixos e variáveis",
       Icon: Gauge,
       corIcone: "bg-emerald-400/10 text-emerald-400",
     },
     {
       id: "graficos",
       rotulo: "Gráficos",
+      descricao: "Visualização gráfica dos indicadores financeiros",
       Icon: BarChart3,
       corIcone: "bg-rose-400/10 text-rose-400",
     },
     {
       id: "portal-cliente",
       rotulo: "Portal Cliente",
+      descricao: "Acesso ao portal do cliente da aeronave",
       Icon: KeyRound,
       corIcone: "bg-teal-400/10 text-teal-400",
     },
@@ -3282,6 +3289,7 @@ export default function FinanceiroCotista() {
           {
             id: "extrato",
             rotulo: "Extrato Holding",
+            descricao: "Extrato financeiro da holding",
             Icon: Landmark,
             corIcone: "bg-orange-400/10 text-orange-400",
           },
@@ -3460,22 +3468,39 @@ export default function FinanceiroCotista() {
     "#94a3b8",
   ];
 
+  const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
+
   return (
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="mt-[2px] flex items-center gap-2 py-[3px]">
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Financeiro Cotista
+            </p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 className="font-mono text-lg font-semibold tracking-wide text-foreground">
+                {aeronaveAtual?.matricula_registro || "Aeronave selecionada"}
+              </h2>
+              {aeronaveAtual?.modelo && (
+                <span className="text-sm text-muted-foreground">
+                  {aeronaveAtual.modelo}
+                </span>
+              )}
+            </div>
+          </div>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="mx-[4px] my-[-8px] min-h-[20px] h-9 gap-[10px] overflow-hidden rounded-[15px] border-[rgb(64,114,131)] px-[8px] py-[1px] text-[14px] font-normal leading-[21.5px]"
+            className="h-9 shrink-0 gap-2 self-start sm:self-auto"
             onClick={() => {
               setAeronaveSelecionada("");
               setPaginaAberta(false);
             }}
           >
-            <Plane size={14} /> Trocar aeronave
+            <Plane size={14} aria-hidden /> Trocar aeronave
           </Button>
         </div>
       )}
@@ -3679,23 +3704,36 @@ export default function FinanceiroCotista() {
             )}
 
           {!paginaAberta ? (
-            <div className="!mt-[14px] grid gap-[29px] overflow-hidden rounded-[7px] px-[22px] py-[32px] sm:grid-cols-2 xl:grid-cols-3">
-              {abasCotista.map(({ id, rotulo, Icon, corIcone }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setAbaAtiva(id as typeof abaAtiva);
-                    setPaginaAberta(true);
-                  }}
-                  className="financeiro-panel flex items-center gap-3 !rounded-[10px] !border-[rgb(64,114,131)] !bg-[rgba(29,32,32,1)] p-4 text-left transition hover:!bg-card"
-                >
-                  <span className={`rounded-lg p-2.5 ${corIcone}`}>
-                    <Icon size={17} />
-                  </span>
-                  <span className="text-sm font-semibold">{rotulo}</span>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Módulos
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {abasCotista.map(({ id, rotulo, descricao, Icon, corIcone }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setAbaAtiva(id as typeof abaAtiva);
+                      setPaginaAberta(true);
+                    }}
+                    className="group flex min-h-[64px] w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:border-muted-foreground/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded ${corIcone}`}>
+                      <Icon size={17} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{rotulo}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{descricao}</span>
+                    </span>
+                    <ChevronRight
+                      size={16}
+                      className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+                      aria-hidden
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />

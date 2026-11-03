@@ -5,7 +5,7 @@ import {
   ATALHOS_POR_ABA,
   type AbaDashboard,
   type AtalhoDashboard,
-} from "./atalhos";
+} from "@/components/share-brasil/atalhos";
 
 interface DashboardShareBrasilProps {
   aoNavegar: (menu: string) => void;
@@ -34,9 +34,6 @@ function CardAtalho({
       <span className="min-w-0 w-full space-y-1 [overflow-wrap:anywhere]">
         <span className="block text-sm font-bold leading-snug text-foreground">
           {item.label}
-        </span>
-        <span className="block text-xs leading-relaxed text-muted-foreground">
-          {item.detail}
         </span>
       </span>
     </button>

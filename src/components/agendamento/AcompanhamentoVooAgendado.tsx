@@ -58,6 +58,8 @@ export default function AcompanhamentoVooAgendado({ item, voosEmOperacao }: { it
     rastreio: vooAoVivo?.rastreio || null,
     rastreio_status: vooAoVivo?.rastreio_status || "indisponivel",
     trilha: vooAoVivo?.trilha || [],
+    perna_atual: vooAoVivo?.perna_atual || null,
+    pernas: vooAoVivo?.pernas || [],
   }), [destinoCoord, item, origemCoord, vooAoVivo]);
 
   const sinalAoVivo = vooAoVivo?.rastreio_status === "ao_vivo" && Boolean(vooAoVivo.rastreio);

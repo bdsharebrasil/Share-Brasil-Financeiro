@@ -3537,7 +3537,7 @@ export default function FinanceiroCotista() {
               onChange={(e) => setBuscaMatricula(e.target.value)}
               placeholder="Digite a matrícula (ex.: PR-GJM)"
               aria-label="Filtrar aeronaves pela matrícula"
-              className="h-10 pl-9"
+              className="h-10 pl-9 !rounded-[10px]"
             />
           </div>
           {aeronaves.length === 0 ? (

@@ -141,6 +141,9 @@ const DESPESAS_ESTILOS = `
   --ring: 200 80% 62%; --destructive: 0 75% 70%;
   color: hsl(var(--foreground)); color-scheme: dark;
   font-family: inherit; font-size: 13px; line-height: 1.5;
+  --tab-abrir-duracao: 320ms; --tab-fechar-duracao: 380ms;
+  --tab-abrir-atraso: 140ms; --tab-fechar-atraso: 220ms;
+  --tab-easing: cubic-bezier(.4,0,.2,1);
 }
 .financeiro-profissional.financeiro-shell {
   width:100%; min-width:0; max-width:100%; padding:0;
@@ -161,8 +164,8 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
 .financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
-.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:0; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; transition:background-color .2s ease, color .2s ease, gap .2s ease; }
-.financeiro-tab-label { display:inline-block; max-width:0; opacity:0; overflow:hidden; white-space:nowrap; transition:max-width .2s ease, opacity .2s ease; }
+.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:0; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; }
+.financeiro-tab-label { display:inline-block; max-width:0; opacity:0; overflow:hidden; white-space:nowrap; }
 .financeiro-tab.is-active { gap:8px; background:hsl(var(--card)); color:hsl(var(--primary)); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .financeiro-tab.is-active .financeiro-tab-label { max-width:160px; opacity:1; }
 @media (hover:hover) {
@@ -171,7 +174,18 @@ const DESPESAS_ESTILOS = `
 }
 .financeiro-tab:not(.is-active):focus-visible { gap:8px; color:hsl(var(--foreground)); outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .financeiro-tab:not(.is-active):focus-visible .financeiro-tab-label { max-width:160px; opacity:1; }
-@media (prefers-reduced-motion:reduce) { .financeiro-tab, .financeiro-tab-label { transition:none; } }
+.financeiro-profissional .financeiro-tab { transition:background-color var(--tab-fechar-duracao) var(--tab-easing) var(--tab-fechar-atraso), color var(--tab-fechar-duracao) var(--tab-easing) var(--tab-fechar-atraso), gap var(--tab-fechar-duracao) var(--tab-easing) var(--tab-fechar-atraso); }
+.financeiro-profissional .financeiro-tab-label { transition:max-width var(--tab-fechar-duracao) var(--tab-easing) var(--tab-fechar-atraso), opacity var(--tab-fechar-duracao) var(--tab-easing) var(--tab-fechar-atraso); }
+.financeiro-profissional .financeiro-tab:is(:hover,:focus-visible,.is-active),
+.financeiro-profissional .financeiro-tab:is(:hover,:focus-visible,.is-active) .financeiro-tab-label { transition-duration:var(--tab-abrir-duracao); transition-delay:var(--tab-abrir-atraso); }
+.financeiro-profissional .financeiro-tab.is-active,
+.financeiro-profissional .financeiro-tab.is-active .financeiro-tab-label { transition-delay:0s; }
+@media (prefers-reduced-motion:reduce) {
+  .financeiro-profissional .financeiro-tab,
+  .financeiro-profissional .financeiro-tab:is(:hover,:focus-visible,.is-active),
+  .financeiro-profissional .financeiro-tab-label,
+  .financeiro-profissional .financeiro-tab:is(:hover,:focus-visible,.is-active) .financeiro-tab-label { transition:none; }
+}
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }

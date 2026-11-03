@@ -3238,49 +3238,42 @@ export default function FinanceiroCotista() {
   const abasCotista: Array<{
     id: string;
     rotulo: string;
-    descricao: string;
     Icon: typeof ReceiptText;
     corIcone: string;
   }> = [
     {
       id: "lancamentos",
       rotulo: "Lançamentos mensais",
-      descricao: "Lançamentos financeiros do mês de referência",
       Icon: ReceiptText,
       corIcone: "bg-sky-400/10 text-sky-400",
     },
     {
       id: "resumo",
       rotulo: "Visão por cotista",
-      descricao: "Resumo financeiro individual por cotista",
       Icon: LayoutDashboard,
       corIcone: "bg-violet-400/10 text-violet-400",
     },
     {
       id: "emprestimos",
       rotulo: "Voos empréstimo",
-      descricao: "Voos registrados em empréstimo da aeronave",
       Icon: Fuel,
       corIcone: "bg-amber-400/10 text-amber-400",
     },
     {
       id: "medias",
       rotulo: "Médias",
-      descricao: "Médias de custos fixos e variáveis",
       Icon: Gauge,
       corIcone: "bg-emerald-400/10 text-emerald-400",
     },
     {
       id: "graficos",
       rotulo: "Gráficos",
-      descricao: "Visualização gráfica dos indicadores financeiros",
       Icon: BarChart3,
       corIcone: "bg-rose-400/10 text-rose-400",
     },
     {
       id: "portal-cliente",
       rotulo: "Portal Cliente",
-      descricao: "Acesso ao portal do cliente da aeronave",
       Icon: KeyRound,
       corIcone: "bg-teal-400/10 text-teal-400",
     },
@@ -3289,7 +3282,6 @@ export default function FinanceiroCotista() {
           {
             id: "extrato",
             rotulo: "Extrato Holding",
-            descricao: "Extrato financeiro da holding",
             Icon: Landmark,
             corIcone: "bg-orange-400/10 text-orange-400",
           },
@@ -3705,7 +3697,7 @@ export default function FinanceiroCotista() {
                 Módulos
               </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {abasCotista.map(({ id, rotulo, descricao, Icon, corIcone }) => (
+                {abasCotista.map(({ id, rotulo, Icon, corIcone }) => (
                   <button
                     key={id}
                     type="button"
@@ -3718,10 +3710,7 @@ export default function FinanceiroCotista() {
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded ${corIcone}`}>
                       <Icon size={17} aria-hidden />
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{rotulo}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{descricao}</span>
-                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{rotulo}</span>
                     <ChevronRight
                       size={16}
                       className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary"

@@ -3723,7 +3723,13 @@ export default function FinanceiroCotista() {
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
-            <FechamentoBalancoCotista />
+            <FechamentoBalancoCotista
+              dashboard={dashboard}
+              carregando={carregando}
+              erro={erroDashboard}
+              cotistas={cotistasAeronave}
+              mesesSelecionados={mesesAplicados}
+            />
           ) : carregando && abaAtiva !== "lancamentos" ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />

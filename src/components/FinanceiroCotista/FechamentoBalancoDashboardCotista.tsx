@@ -290,6 +290,17 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
     return <div className="bcp" data-visao={visao}>{estilos}<Vazio>Selecione um cotista para visualizar os dados individuais.</Vazio></div>;
   }
   return <div className="bcp" data-visao={visao}>{estilos}
+    <header className="bcp-header bcp-no-print">
+      <div>
+        <p className="bcp-eyebrow">FECHAMENTO DO BALANÇO</p>
+        <h2>{aeronave}</h2>
+        <p>{periodo}</p>
+      </div>
+      <button type="button" className="bcp-button" onClick={() => window.print()} aria-label="Imprimir ou salvar fechamento em PDF">
+        <Printer size={15} aria-hidden="true" />
+        Gerar PDF
+      </button>
+    </header>
 
     <section className={view("geral")} id={`${uid}-geral`} aria-label="Comparativo mensal">
       <Painel titulo="Comparativo mensal — total da aeronave" detalhe="">

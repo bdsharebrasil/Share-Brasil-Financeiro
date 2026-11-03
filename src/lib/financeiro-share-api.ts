@@ -332,6 +332,8 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
     data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
 
     descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? null, documentoUrl: row.documentoUrl ?? row.url_doc ?? null,
+    url_demonstrativo: row.url_demonstrativo ?? null, url_nf: row.url_nf ?? null, url_recibo: row.url_recibo ?? null,
+    url_boleto: row.url_boleto ?? null, url_doc: row.url_doc ?? null,
 
     fornecedor: row.fornecedor ?? row.fornecedor_nome ?? null, fornecedorId: row.fornecedorId ?? row.fornecedor_id ?? row.fornecedores_favoritos_id ?? null,
 

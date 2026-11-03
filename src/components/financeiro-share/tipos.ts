@@ -18,6 +18,11 @@ export interface Lancamento {
   descricao: string;
   documento: string | null;
   documentoUrl?: string | null;
+  url_demonstrativo?: string | null;
+  url_nf?: string | null;
+  url_recibo?: string | null;
+  url_boleto?: string | null;
+  url_doc?: string | null;
   fornecedor: string | null; // texto livre, usado quando fornecedorId é nulo
   fornecedorId: string | null; // FK -> fornecedores_favoritos
   categoria: string; // texto livre, usado quando categoriaId é nulo

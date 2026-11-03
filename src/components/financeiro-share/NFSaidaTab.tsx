@@ -1,4 +1,4 @@
-import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -14,21 +14,14 @@ import {
   Search,
   Mail,
   ArrowLeft,
-  ArrowUpRight,
-  ChevronRight,
-  ChevronLeft,
-  ChevronDown,
-  ChevronUp,
-  ChevronsUpDown,
-  TriangleAlert,
-  Filter,
-  Columns3,
-  ListOrdered,
-  RotateCcw,
-  CalendarDays,
+  ArrowUpRight, LayoutList, LayoutGrid, ChevronRight,
+  Wallet, CircleDollarSign, TriangleAlert, Plane, CalendarDays,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
-import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import FolderCard from "@/components/ui/folder-card";
+import {
+  EnviarEmailClienteDialog,
+} from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
 import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
 import { gerarReciboPdf } from "@/lib/reciboPdf";
@@ -52,6 +45,7 @@ type NFSaida = DocumentoSaida;
 interface FormState {
   numero: string;
   cotista_aeronave_id: string;
+  // preenchidos automaticamente ao selecionar o cotista (uso: exibição e PDF do recibo)
   cliente_nome: string;
   cliente_cnpj: string;
   cliente_endereco: string;
@@ -71,10 +65,7 @@ interface FormState {
   arquivo_pdf_url: string;
 }
 
-const todayLocal = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const emptyForm: FormState = {
   numero: "", cotista_aeronave_id: "", cliente_nome: "", cliente_cnpj: "", cliente_endereco: "", cliente_cidade: "", cliente_uf: "",
   aircraft_id: "", aeronave: "", categoria_receita_id: "", categoria: "",
@@ -105,7 +96,7 @@ const STATUS_OPCOES = [
   { value: "PAGO", label: "Pago" },
 ];
 
-/* ─────────────── categorias de despesa do cliente ─────────────── */
+/* ─────────────── categorias de despesa do cliente (categoria_movimentacao_cliente) ─────────────── */
 
 interface DespesaOption {
   optionId: string;
@@ -123,7 +114,13 @@ function buildDespesaOptions(rows: CategoriaDespesaOpcao[]): DespesaOption[] {
       .filter((s): s is string => !!s);
 
     if (subcategorias.length === 0) {
-      options.push({ optionId: `${row.id}::0`, categoriaId: row.id, nome: row.nome, subcategoria: null, label: row.nome });
+      options.push({
+        optionId: `${row.id}::0`,
+        categoriaId: row.id,
+        nome: row.nome,
+        subcategoria: null,
+        label: row.nome,
+      });
     } else {
       subcategorias.forEach((sub, index) => {
         options.push({
@@ -148,22 +145,13 @@ const getMonthKey = (date: string | null | undefined) => {
 };
 const getMonthName = (yearMonth: string) => {
   const [year, month] = yearMonth.split("-");
-  const name = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date(Number(year), Number(month) - 1, 1));
+  const name = new Intl.DateTimeFormat("pt-BR", { month: "long" })
+    .format(new Date(Number(year), Number(month) - 1, 1));
   return `${name.charAt(0).toLocaleUpperCase("pt-BR")}${name.slice(1)}`;
 };
-const monthLabel = (key: string) => (key === "sem-data" ? "Data não informada" : `${getMonthName(key)} de ${key.slice(0, 4)}`);
-const shiftMonth = (month: string, delta: number) => {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 1 + delta, 1, 12);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
-const MESES_CURTOS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"] as const;
 
 const paid = (status: string | null) => ["pago", "recebido"].includes((status || "").toLowerCase());
-const pending = (status: string | null) =>
-  ["em_aberto", "aberto", "pendente", "atrasado", "em_atraso"].includes((status || "").toLowerCase());
-const isLate = (n: NFSaida) => pending(n.status) && !!n.data_vencimento && n.data_vencimento.slice(0, 10) < todayLocal();
-const statusLabel = (n: NFSaida) => (paid(n.status) ? "Pago" : isLate(n) ? "Em atraso" : pending(n.status) ? "Em aberto" : n.status || "Não informado");
+const pending = (status: string | null) => ["em_aberto", "aberto", "pendente", "atrasado", "em_atraso"].includes((status || "").toLowerCase());
 const isImageUrl = (url: string) => /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
 
 const getFileNameFromUrl = (url: string) => {
@@ -180,95 +168,31 @@ const resolveArquivoUrl = (url: string) => {
   return ["http:", "https:"].includes(resolved.protocol) ? resolved.href : "about:blank";
 };
 
-function StatusBadge({ nota }: { nota: NFSaida }) {
-  const state = paid(nota.status) ? "paid" : isLate(nota) ? "overdue" : pending(nota.status) ? "pending" : "neutral";
-  return (
-    <span className={`nf-badge ${state}`}>
-      {state === "paid" ? <CheckCircle2 /> : state === "overdue" ? <TriangleAlert /> : <Clock />}
-      {statusLabel(nota)}
-    </span>
-  );
+type SortBy = "data" | "nome";
+type SortDir = "asc" | "desc";
+
+function StatusBadge({ status }: { status: string | null }) {
+  const state = paid(status) ? "paid" : pending(status) ? "pending" : "neutral";
+  return <span className={`nf-badge ${state}`}>{state === "paid" ? <CheckCircle2 /> : <Clock />}{state === "paid" ? "Pago" : state === "pending" ? "Em aberto" : status || "Não informado"}</span>;
 }
 
-/** Seletor inline (sem portal) para funcionar dentro do modal nativo. */
-function SearchableCombobox({ items, value, onChange, placeholder, searchPlaceholder, emptyMessage }: {
-  items: { id: string; label: string }[]; value: string; onChange: (id: string, label: string) => void;
-  placeholder: string; searchPlaceholder: string; emptyMessage: string;
+/** Inline picker: no portal, so it remains usable inside the native modal. */
+function SearchableCombobox({items, value, onChange, placeholder, searchPlaceholder, emptyMessage}: {
+  items: {id:string; label:string}[]; value:string; onChange:(id:string,label:string)=>void; placeholder:string; searchPlaceholder:string; emptyMessage:string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query,setQuery] = useState("");
   const ref = useRef<HTMLDetailsElement>(null);
-  const selected = items.find((item) => item.id === value);
-  const matches = items.filter((item) => item.label.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")));
-  return (
-    <details
-      className="nf-picker"
-      ref={ref}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && ref.current?.open) {
-          e.preventDefault(); e.stopPropagation();
-          ref.current.open = false;
-          ref.current.querySelector("summary")?.focus();
-        }
-      }}
-    >
-      <summary aria-label={placeholder}>{selected?.label || placeholder}<ChevronRight /></summary>
-      <div className="nf-picker-panel">
-        <input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
-        <div className="nf-picker-options">
-          {matches.map((item) => (
-            <button
-              type="button" key={item.id} aria-pressed={item.id === value}
-              onClick={() => {
-                onChange(item.id, item.label); setQuery("");
-                if (ref.current) { ref.current.open = false; ref.current.querySelector("summary")?.focus(); }
-              }}
-            >
-              {item.label}{item.id === value && <CheckCircle2 />}
-            </button>
-          ))}
-          {!matches.length && <p>{emptyMessage}</p>}
-        </div>
-      </div>
-    </details>
-  );
+  const selected = items.find(item => item.id === value);
+  const matches = items.filter(item => item.label.toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
+  return <details className="nf-picker" ref={ref} onKeyDown={e => {if(e.key === 'Escape' && ref.current?.open){e.preventDefault(); e.stopPropagation(); ref.current.open=false; ref.current.querySelector('summary')?.focus();}}}>
+    <summary aria-label={placeholder}>{selected?.label || placeholder}<ChevronRight /></summary>
+    <div className="nf-picker-panel"><input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {if(e.key === 'Enter') e.preventDefault();}} />
+      <div className="nf-picker-options">{matches.map(item => <button type="button" key={item.id} aria-pressed={item.id === value} onClick={() => {onChange(item.id,item.label); setQuery(''); if(ref.current){ref.current.open=false; ref.current.querySelector('summary')?.focus();}}}>{item.label}{item.id === value && <CheckCircle2 />}</button>)}{!matches.length && <p>{emptyMessage}</p>}</div>
+    </div>
+  </details>;
 }
 
-/** Seletor de meses (multi-seleção), inline. */
-function MonthPicker({ selected, onToggle, onCurrent, onAll }: {
-  selected: string[]; onToggle: (m: string) => void; onCurrent: () => void; onAll: () => void;
-}) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const reference = selected[selected.length - 1] || todayLocal().slice(0, 7);
-  const [year, setYear] = useState(Number(reference.slice(0, 4)));
-  useEffect(() => { setYear(Number(reference.slice(0, 4))); }, [reference]);
-  const close = () => { if (ref.current) ref.current.open = false; };
-  return (
-    <details className="nf-menu" ref={ref} onKeyDown={(e) => { if (e.key === "Escape") close(); }}>
-      <summary className="nf-btn"><CalendarDays /> Meses <ChevronDown /></summary>
-      <div className="nf-menu-panel nf-month-panel">
-        <div className="nf-year">
-          <button type="button" className="nf-btn nf-btn-icon" aria-label="Ano anterior" onClick={() => setYear((y) => y - 1)}><ChevronLeft /></button>
-          <strong>{year}</strong>
-          <button type="button" className="nf-btn nf-btn-icon" aria-label="Próximo ano" onClick={() => setYear((y) => y + 1)}><ChevronRight /></button>
-        </div>
-        <div className="nf-month-grid" role="group" aria-label={`Meses de ${year}`}>
-          {MESES_CURTOS.map((nome, i) => {
-            const key = `${year}-${String(i + 1).padStart(2, "0")}`;
-            return (
-              <button type="button" key={key} aria-pressed={selected.includes(key)} onClick={() => onToggle(key)}>{nome}</button>
-            );
-          })}
-        </div>
-        <div className="nf-menu-foot">
-          <button type="button" className="nf-btn nf-btn-quiet" onClick={() => { onAll(); close(); }}>Todos</button>
-          <button type="button" className="nf-btn" onClick={() => { onCurrent(); close(); }}>Mês atual</button>
-        </div>
-      </div>
-    </details>
-  );
-}
-
-export function Modal({ title, children, onClose, busy = false, wide = false }: { title: string; children: React.ReactNode; onClose: () => void; busy?: boolean; wide?: boolean }) {
+export function Modal({ title, children, onClose, busy = false, wide = false }: {title: string; children: React.ReactNode; onClose: () => void; busy?: boolean; wide?: boolean}) {
   const ref = useRef<HTMLDialogElement>(null);
   const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
@@ -277,39 +201,18 @@ export function Modal({ title, children, onClose, busy = false, wide = false }: 
     const overflow = document.body.style.overflow; document.body.style.overflow = "hidden";
     return () => { dialog?.close(); document.body.style.overflow = overflow; previous?.focus(); };
   }, []);
-  return (
-    <dialog ref={ref} className={`nf-modal ${wide ? "wide" : ""}`} aria-label={title} aria-busy={busy} onCancel={(e) => { e.preventDefault(); if (!busy) closeRef.current(); }}>
-      <header className="nf-modal-head">
-        <div><span className="nf-eyebrow">SHARE • FINANCEIRO</span><h2>{title}</h2></div>
-        <button className="nf-icon" aria-label="Fechar" disabled={busy} onClick={onClose}><X /></button>
-      </header>
-      <div className="nf-modal-body">{children}</div>
-    </dialog>
-  );
+  return <dialog ref={ref} className={`nf-modal ${wide ? "wide" : ""}`} aria-label={title} aria-busy={busy} onCancel={e => {e.preventDefault(); if (!busy) closeRef.current();}}>
+    <header className="nf-modal-head"><div><span className="nf-eyebrow">SHARE • FINANCEIRO</span><h2>{title}</h2></div><button className="nf-icon" aria-label="Fechar" disabled={busy} onClick={onClose}><X /></button></header>
+    <div className="nf-modal-body">{children}</div>
+  </dialog>;
 }
-
-/* ─────────────────────────── colunas ─────────────────────────── */
-
-type ColId = "data" | "numero" | "cotista" | "aeronave" | "vencimento" | "categoria" | "valor" | "status";
-type SortState = { col: ColId; dir: "asc" | "desc" };
-
-const COLUMNS: { id: ColId; title: string; width: number; numeric?: boolean; sort: (n: NFSaida) => string | number }[] = [
-  { id: "data", title: "Emissão", width: 120, sort: (n) => n.data_criacao ?? "" },
-  { id: "numero", title: "Número", width: 130, sort: (n) => n.numero ?? "" },
-  { id: "cotista", title: "Cotista", width: 260, sort: (n) => n.cliente_nome ?? "" },
-  { id: "aeronave", title: "Aeronave", width: 120, sort: (n) => n.aeronave ?? "" },
-  { id: "vencimento", title: "Vencimento", width: 130, sort: (n) => n.data_vencimento ?? "" },
-  { id: "categoria", title: "Categoria", width: 190, sort: (n) => n.categoria ?? "" },
-  { id: "valor", title: "Valor", width: 140, numeric: true, sort: (n) => num(n.valor) },
-  { id: "status", title: "Situação", width: 140, sort: (n) => statusLabel(n) },
-];
-const dateCell = (v: string | null | undefined) => (v ? formatDate(v.slice(0, 10)) : "—");
-const collator = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
 
 /* ─────────────────────────── main ─────────────────────────── */
 
 export default function NFSaidaTab() {
   const [notas, setNotas] = useState<NFSaida[]>([]);
+  const [view, setView] = useState<"list" | "folders">("folders");
+  const [page, setPage] = useState(1);
   const [loadError, setLoadError] = useState<string | null>(null);
   const receiptCreated = useRef<NotaOuReciboSaidaRow | null>(null);
   const mutationLock = useRef(false);
@@ -330,23 +233,16 @@ export default function NFSaidaTab() {
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [documentTab, setDocumentTab] = useState<"nota" | "recibo">("recibo");
   const [uploading, setUploading] = useState(false);
+  const [mesSelecionado, setMesSelecionado] = useState<string | null>(null);
 
-  // período: lista vazia = todos os meses
-  const [meses, setMeses] = useState<string[]>([todayLocal().slice(0, 7)]);
-
-  // filtros, ordenação, tabela
+  // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "EM_ABERTO" | "PAGO">("");
-  const [categoriaFilter, setCategoriaFilter] = useState("");
-  const [sort, setSort] = useState<SortState>({ col: "data", dir: "desc" });
-  const [ocultas, setOcultas] = useState<Set<ColId>>(() => new Set());
-  const [expandidos, setExpandidos] = useState<Set<string>>(() => new Set());
-  const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
-  const [page, setPage] = useState(1);
-  const [porPagina, setPorPagina] = useState(25);
+  const [sortBy, setSortBy] = useState<SortBy>("data");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // dar baixa
   const [baixaTarget, setBaixaTarget] = useState<NFSaida | null>(null);
@@ -356,6 +252,7 @@ export default function NFSaidaTab() {
   const [emailTarget, setEmailTarget] = useState<NFSaida | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailsEnviados, setEmailsEnviados] = useState<Set<string>>(new Set());
+  // prévia do recibo de saída (gerar PDF → salvar → enviar por e-mail)
   const [reciboPreview, setReciboPreview] = useState<{ pdfData: any; payload: any } | null>(null);
   const [reciboSavedUrl, setReciboSavedUrl] = useState<string | null>(null);
   const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
@@ -447,7 +344,7 @@ export default function NFSaidaTab() {
     try {
       const { notas: nfData, recibos: recData } = await nfSaidaApi.buscarNotasSaida();
       const merged = [...(nfData ?? []).map(mapNota), ...(recData ?? []).map(mapRecibo)].sort((a, b) =>
-        (b.data_criacao ?? "").localeCompare(a.data_criacao ?? ""),
+        (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "")
       );
       setNotas(merged);
       setEmailsEnviados((current) => new Set([
@@ -480,112 +377,45 @@ export default function NFSaidaTab() {
     loadFormData();
   }, []);
 
-  const matriculaPorAeronave = useMemo(() => new Map(aeronaves.map((a) => [a.id, a.matricula_registro])), [aeronaves]);
+  // mapa aeronave_id → matrícula, para exibir junto ao nome do cotista no combobox
+  const matriculaPorAeronave = useMemo(
+    () => new Map(aeronaves.map((a) => [a.id, a.matricula_registro])),
+    [aeronaves],
+  );
 
-  const totalRecibos = useMemo(() => notas.filter((d) => d.origem === "recibo_saida").length, [notas]);
+  const totalRecibos = useMemo(() => notas.filter((documento) => documento.origem === "recibo_saida").length, [notas]);
   const totalNotas = notas.length - totalRecibos;
-  const hasActiveFilters = !!searchTerm.trim() || !!dateFrom || !!dateTo || !!statusFilter || !!categoriaFilter;
+  const hasActiveFilters = !!searchTerm.trim() || !!dateFrom || !!dateTo || !!statusFilter;
 
-  const abaNotas = useMemo(
-    () => notas.filter((d) => (documentTab === "recibo" ? d.origem === "recibo_saida" : d.origem !== "recibo_saida")),
-    [notas, documentTab],
-  );
-  const categorias = useMemo(
-    () => [...new Set(abaNotas.map((n) => n.categoria || "Sem categoria"))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [abaNotas],
-  );
-
-  const scopedRows = useMemo(() => {
-    let result = abaNotas;
+  const filteredNotas = useMemo(() => {
+    let result = notas.filter((documento) => documentTab === "recibo" ? documento.origem === "recibo_saida" : documento.origem !== "recibo_saida");
     const termo = searchTerm.trim().toLowerCase();
-    if (termo) result = result.filter((d) => [d.numero, d.cliente_nome, d.aeronave, d.descricao, d.categoria].some((v) => v?.toLowerCase().includes(termo)));
+    if (termo) result = result.filter((documento) => [documento.numero, documento.cliente_nome, documento.aeronave, documento.descricao, documento.categoria].some((value) => value?.toLowerCase().includes(termo)));
     if (dateFrom) result = result.filter((n) => (n.data_criacao ?? "").slice(0, 10) >= dateFrom);
     if (dateTo) result = result.filter((n) => (n.data_criacao ?? "").slice(0, 10) <= dateTo);
-    if (statusFilter) result = result.filter((n) => (statusFilter === "PAGO" ? paid(n.status) : pending(n.status)));
-    if (categoriaFilter) result = result.filter((n) => (n.categoria || "Sem categoria") === categoriaFilter);
-    if (meses.length) result = result.filter((n) => meses.includes(getMonthKey(n.data_criacao)));
-    return result;
-  }, [abaNotas, searchTerm, dateFrom, dateTo, statusFilter, categoriaFilter, meses]);
+    if (statusFilter) result = result.filter((n) => statusFilter === "PAGO" ? ["pago", "recebido"].includes((n.status ?? "").toLowerCase()) : pending(n.status));
 
-  const clearFilters = () => { setSearchTerm(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); setCategoriaFilter(""); };
-
-  // ordenação preservando o agrupamento mensal
-  const colunaOrdenada = COLUMNS.find((c) => c.id === sort.col);
-  const ordered = useMemo(() => {
-    const map = new Map<string, NFSaida[]>();
-    scopedRows.forEach((n) => {
-      const key = getMonthKey(n.data_criacao);
-      map.set(key, [...(map.get(key) ?? []), n]);
+    return result.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "data") {
+        cmp = (a.data_criacao ?? "").localeCompare(b.data_criacao ?? "");
+      } else {
+        cmp = (a.cliente_nome ?? "").localeCompare(b.cliente_nome ?? "", "pt-BR");
+      }
+      return sortDir === "asc" ? cmp : -cmp;
     });
-    const keys = [...map.keys()].sort((a, b) => {
-      if (a === "sem-data") return 1;
-      if (b === "sem-data") return -1;
-      return sort.col === "data" && sort.dir === "asc" ? a.localeCompare(b) : b.localeCompare(a);
-    });
-    return keys.flatMap((key) =>
-      [...map.get(key)!].sort((a, b) => {
-        const x = colunaOrdenada?.sort(a);
-        const y = colunaOrdenada?.sort(b);
-        if (x == null || x === "") return y == null || y === "" ? 0 : 1;
-        if (y == null || y === "") return -1;
-        const r = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
-        return (sort.dir === "asc" ? r : -r) || collator.compare(a.id, b.id);
-      }),
-    );
-  }, [scopedRows, sort, colunaOrdenada]);
+  }, [notas, documentTab, searchTerm, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
 
-  useEffect(() => {
-    setPage(1); setExpandidos(new Set()); setSelecionados(new Set());
-  }, [searchTerm, dateFrom, dateTo, statusFilter, categoriaFilter, sort, documentTab, meses, porPagina]);
-
-  const pageCount = Math.max(1, Math.ceil(ordered.length / porPagina));
-  const currentPage = Math.min(page, pageCount);
-  const startIndex = (currentPage - 1) * porPagina;
-  const pageRows = ordered.slice(startIndex, startIndex + porPagina);
-  const pageGroups = useMemo(() => {
-    const map = new Map<string, NFSaida[]>();
-    pageRows.forEach((n) => {
-      const key = getMonthKey(n.data_criacao);
-      map.set(key, [...(map.get(key) ?? []), n]);
-    });
-    return [...map.entries()].map(([key, rows]) => ({ key, rows }));
-  }, [pageRows]);
-
-  const colunasVisiveis = COLUMNS.filter((c) => !ocultas.has(c.id));
-  const colSpan = colunasVisiveis.length + 2;
-  const larguraTabela = 44 + colunasVisiveis.reduce((t, c) => t + c.width, 0) + 210;
-
-  const totals = useMemo(() => scopedRows.reduce((acc, n) => {
-    const value = num(n.valor); acc.total += value;
-    if (paid(n.status)) acc.paid += value;
-    if (pending(n.status)) { acc.open += value; if (isLate(n)) { acc.overdue += value; acc.lateCount++; } }
-    return acc;
-  }, { total: 0, paid: 0, open: 0, overdue: 0, lateCount: 0 }), [scopedRows]);
-
-  const selectedRows = useMemo(() => scopedRows.filter((n) => selecionados.has(`${n.origem}:${n.id}`)), [scopedRows, selecionados]);
-  const selectedTotal = selectedRows.reduce((t, n) => t + num(n.valor), 0);
-  const rowKey = (n: NFSaida) => `${n.origem}:${n.id}`;
-  const allPageSelected = pageRows.length > 0 && pageRows.every((n) => selecionados.has(rowKey(n)));
-  const allExpanded = pageRows.length > 0 && pageRows.every((n) => expandidos.has(rowKey(n)));
-  const toggleSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) =>
-    setter((cur) => { const next = new Set(cur); if (next.has(key)) next.delete(key); else next.add(key); return next; });
-
-  const toggleSort = (col: ColId) =>
-    setSort((cur) => ({ col, dir: cur.col === col && cur.dir === "asc" ? "desc" : "asc" }));
-
-  const toggleMes = (m: string) =>
-    setMeses((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m].sort()));
-  const mesReferencia = meses[meses.length - 1] || todayLocal().slice(0, 7);
-  const periodLabel = meses.length === 0 ? "Todos os períodos" : meses.length === 1 ? monthLabel(meses[0]) : `${meses.length} meses selecionados`;
+  const clearFilters = () => { setSearchTerm(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); };
 
   const selectedDespesaOptionId = useMemo(() => {
     if (!form.categoria_despesa_id && !editingId) return "";
     const match = despesaOptions.find((option) =>
       option.categoriaId === form.categoria_despesa_id &&
-      (option.subcategoria ?? "") === (form.categoria_despesa_subcategoria ?? ""),
+      (option.subcategoria ?? "") === (form.categoria_despesa_subcategoria ?? "")
     );
     return match?.optionId ?? "";
-  }, [despesaOptions, form.categoria_despesa_id, form.categoria_despesa_subcategoria, editingId]);
+  }, [despesaOptions, form.categoria_despesa_id, form.categoria_despesa_subcategoria]);
 
   const openNew = () => { notaIdempotencyKey.current = null; receiptCreated.current = null; setForm({ ...emptyForm, data_criacao: todayLocal() }); setEditingId(null); setDocumentType("nota"); setShowForm(true); };
   const openNewReceipt = () => { notaIdempotencyKey.current = null; receiptCreated.current = null; setForm({ ...emptyForm, data_criacao: todayLocal() }); setEditingId(null); setDocumentType("recibo"); setShowForm(true); };
@@ -599,10 +429,9 @@ export default function NFSaidaTab() {
       cliente_nome: n.cliente_nome ?? "", cliente_cnpj: n.cliente_cnpj ?? "",
       cliente_endereco: n.cliente_endereco ?? "", cliente_cidade: n.cliente_cidade ?? "", cliente_uf: n.cliente_uf ?? "",
       aircraft_id: n.aircraft_id ?? "", aeronave: n.aeronave ?? "",
-      data_criacao: n.data_criacao?.slice(0, 10) || todayLocal(),
-      data_vencimento: n.data_vencimento?.slice(0, 10) || "", valor: n.valor != null ? String(n.valor) : "",
-      categoria_receita_id: "", categoria: n.categoria ?? "", descricao: n.descricao ?? "",
-      status: paid(n.status) ? "PAGO" : "EM_ABERTO",
+      data_criacao: n.data_criacao?.slice(0,10) || todayLocal(),
+      data_vencimento: n.data_vencimento?.slice(0,10) || "", valor: n.valor != null ? String(n.valor) : "",
+      categoria_receita_id: "", categoria: n.categoria ?? "", descricao: n.descricao ?? "", status: ["pago", "recebido"].includes((n.status ?? "").toLowerCase()) ? "PAGO" : "EM_ABERTO",
       categoria_despesa_id: "", categoria_despesa_subcategoria: "",
       arquivo_pdf_url: n.arquivo_pdf_url ?? "",
     });
@@ -611,9 +440,14 @@ export default function NFSaidaTab() {
   };
   const closeForm = () => { notaIdempotencyKey.current = null; setShowForm(false); setEditingId(null); setDocumentType("nota"); setForm({ ...emptyForm, data_criacao: todayLocal() }); };
 
+  // Ao escolher o cotista, deriva automaticamente aeronave/cliente_nome/cliente_cnpj —
+  // no D1 cada linha de cotista_aeronave já é o par (cliente ou sócio, aeronave).
   const selecionarCotista = (cotistaAeronaveId: string) => {
     const cotista = cotistas.find((c) => c.cotista_aeronave_id === cotistaAeronaveId);
-    if (!cotista) { setForm((current) => ({ ...current, cotista_aeronave_id: "" })); return; }
+    if (!cotista) {
+      setForm((current) => ({ ...current, cotista_aeronave_id: "" }));
+      return;
+    }
     setForm((current) => ({
       ...current,
       cotista_aeronave_id: cotista.cotista_aeronave_id,
@@ -653,6 +487,7 @@ export default function NFSaidaTab() {
 
       if (documentType === "recibo") {
         const descricaoServico = form.descricao.trim() || "Serviços aeronáuticos";
+
         const pdfData = await normalizeReceiptForPdf({
           receipt_number: "Será gerado ao finalizar",
           payer_name: form.cliente_nome.trim(),
@@ -667,6 +502,7 @@ export default function NFSaidaTab() {
           nome_categoria: form.categoria,
           valor: Number(form.valor) || 0,
         });
+
         setReciboPreview({
           pdfData,
           payload: {
@@ -723,7 +559,7 @@ export default function NFSaidaTab() {
     } finally { mutationLock.current = false; setSaving(false); }
   };
 
-  /** Cria o recibo primeiro para o Worker atribuir a sequência oficial; só depois gera e salva o PDF. */
+  /** Cria o recibo primeiro para que o Worker atribua a sequência oficial; só depois gera e salva o PDF. */
   const confirmReciboSave = async (previewBlob: Blob) => {
     if (!reciboPreview || reciboSavedUrl) return;
     const { descricaoServico, dataVencimentoFinal, categoriaDespesaId, categoriaDespesaSubcategoria } = reciboPreview.payload;
@@ -731,21 +567,17 @@ export default function NFSaidaTab() {
     mutationLock.current = true;
     setSaving(true); setToast(null);
     try {
-      if (!(previewBlob instanceof Blob)) throw new Error("Não foi possível obter o PDF do recibo para salvar.");
+      if (!(previewBlob instanceof Blob)) {
+        throw new Error("Não foi possível obter o PDF do recibo para salvar.");
+      }
 
-      const { recibo } = receiptCreated.current
-        ? { recibo: receiptCreated.current }
-        : await nfSaidaApi.criarReciboSaida({
-            cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id,
-            categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria,
-            categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria,
-            data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal,
-            valor_total: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status,
-          });
+      const { recibo } = receiptCreated.current ? { recibo: receiptCreated.current } : await nfSaidaApi.criarReciboSaida({ cotista_aeronave_id: form.cotista_aeronave_id, aeronave_id: form.aircraft_id, categoria_receita_id: form.categoria_receita_id, categoria_receita_nome: form.categoria, categoria_despesa_id: categoriaDespesaId, categoria_despesa_subcategoria: categoriaDespesaSubcategoria, data_emissao: form.data_criacao, data_vencimento: dataVencimentoFinal, valor_total: Number(form.valor) || 0, descricao_servico: descricaoServico, status: form.status });
       if (!recibo?.id) throw new Error("O servidor não confirmou a criação do recibo de saída.");
       receiptCreated.current = recibo;
       const numeroRecibo = String(recibo.numero_recibo || "");
       if (!numeroRecibo) throw new Error("O servidor não retornou o número oficial do recibo de saída.");
+      // O número só é atribuído pelo Worker após a criação. Regerar aqui
+      // evita salvar um PDF com o placeholder "Será gerado ao finalizar".
       const pdfOficial = await gerarReciboPdf({
         numero: numeroRecibo,
         valor: Number(form.valor) || 0,
@@ -769,7 +601,7 @@ export default function NFSaidaTab() {
   };
   const closeReciboPreview = () => {
     if (saving) return;
-    if (receiptCreated.current && !reciboSavedUrl) { setToast({ type: "err", text: "O recibo já foi criado. Tente salvar o PDF novamente antes de fechar." }); return; }
+    if (receiptCreated.current && !reciboSavedUrl) { setToast({type: "err", text: "O recibo já foi criado. Tente salvar o PDF novamente antes de fechar."}); return; }
     receiptCreated.current = null;
     setReciboPreview(null);
     if (reciboSavedUrl) { setReciboSavedUrl(null); closeForm(); }
@@ -783,14 +615,15 @@ export default function NFSaidaTab() {
     try {
       const target = notas.find((n) => n.id === deleteId && (documentTab === "recibo" ? n.origem === "recibo_saida" : n.origem === "nf_saida"));
       if (!target) throw new Error("Documento não encontrado. Atualize a lista e tente novamente.");
-      await nfSaidaApi.excluirNotaOuReciboSaida(deleteId, target.origem === "recibo_saida" ? "recibo_saida" : "nf_saida");
-      setToast({ type: "ok", text: target.origem === "recibo_saida" ? "Recibo de saída excluído." : "Nota fiscal excluída." });
+      await nfSaidaApi.excluirNotaOuReciboSaida(deleteId, target?.origem === "recibo_saida" ? "recibo_saida" : "nf_saida");
+      setToast({ type: "ok", text: target?.origem === "recibo_saida" ? "Recibo de saída excluído." : "Nota fiscal excluída." });
       setDeleteId(null); fetchNotas();
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao excluir." });
     } finally { mutationLock.current = false; setDeleting(false); }
   };
 
-  /* ─────────────── dar baixa ─────────────── */
+  /* ─────────────── dar baixa (registrar recebimento) ─────────────── */
+
 
   const openBaixa = (n: NFSaida) => { setBaixaTarget(n); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
   const closeBaixa = () => { setBaixaTarget(null); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
@@ -815,7 +648,7 @@ export default function NFSaidaTab() {
       await nfSaidaApi.darBaixaNotaOuReciboSaida(baixaTarget.id, {
         origem: baixaTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida",
         data_pagamento: baixaForm.data_pagamento,
-        conta_bancaria: contasBancarias.find((c) => c.id === baixaForm.conta_bancaria)?.banco || null,
+        conta_bancaria: contasBancarias.find(c => c.id === baixaForm.conta_bancaria)?.banco || null,
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
         pagamentos: [{
@@ -829,6 +662,7 @@ export default function NFSaidaTab() {
           comprovante_url: baixaForm.comprovante_url || null,
         }],
       });
+
       setToast({ type: "ok", text: "Baixa registrada: receita da Share recebida e espelho financeiro atualizado." });
       closeBaixa();
       fetchNotas();
@@ -836,638 +670,150 @@ export default function NFSaidaTab() {
     } finally { mutationLock.current = false; setBaixaSaving(false); }
   };
 
+  useEffect(() => { setPage(1); }, [searchTerm, dateFrom, dateTo, statusFilter, sortBy, sortDir, documentTab, mesSelecionado, view]);
+  const scopedRows = useMemo(() => {
+    return mesSelecionado ? filteredNotas.filter(n => getMonthKey(n.data_criacao) === mesSelecionado) : filteredNotas;
+  }, [filteredNotas, mesSelecionado]);
+  const totals = useMemo(() => scopedRows.reduce((acc, n) => {
+    const value = num(n.valor); acc.total += value;
+    if (paid(n.status)) acc.paid += value;
+    if (pending(n.status)) { acc.open += value; if (n.data_vencimento && n.data_vencimento.slice(0,10) < todayLocal()) { acc.overdue += value; acc.lateCount++; } }
+    return acc;
+  }, {total: 0, paid: 0, open: 0, overdue: 0, lateCount: 0}), [scopedRows]);
+  const groups = useMemo(() => {
+    const map = new Map<string, NFSaida[]>();
+    filteredNotas.forEach((nota) => {
+      const key = getMonthKey(nota.data_criacao);
+      map.set(key, [...(map.get(key) ?? []), nota]);
+    });
+    return [...map.entries()]
+      .sort(([a], [b]) => a === "sem-data" ? 1 : b === "sem-data" ? -1 : b.localeCompare(a))
+      .map(([key, rows]) => {
+        if (key === "sem-data") {
+          return { key, ano: "Data não informada", mes: "Data não informada", rows };
+        }
+        const [ano, mes] = key.split("-");
+        return {
+          key,
+          ano,
+          mes: getMonthName(key),
+          rows,
+        };
+      });
+  }, [filteredNotas]);
+  const heading = mesSelecionado
+    ? mesSelecionado === "sem-data" ? "Data não informada" : `${getMonthName(mesSelecionado)} de ${mesSelecionado.slice(0, 4)}`
+    : view === "folders" ? "Documentos por mês" : "Todos os documentos";
+  const pageCount = Math.max(1, Math.ceil(scopedRows.length / 12));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = scopedRows.slice((currentPage - 1) * 12, currentPage * 12);
   const invalidPeriod = Boolean(dateFrom && dateTo && dateFrom > dateTo);
   const formBusy = saving || uploading;
-  const formField = <K extends keyof FormState,>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
-  const filtrosAtivos = [searchTerm.trim(), dateFrom || dateTo, statusFilter, categoriaFilter].filter(Boolean).length;
-
+  const formField = <K extends keyof FormState,>(key: K, value: FormState[K]) => setForm(current => ({...current, [key]: value}));
   const exportCsv = () => {
     const cell = (v: unknown) => { let value = String(v ?? ""); if (/^[=+@\-\t\r]/.test(value)) value = "'" + value; return `"${value.replace(/"/g, '""')}"`; };
-    const rows = [
-      ["Número", "Cotista", "Aeronave", "Emissão", "Vencimento", "Valor (BRL)", "Categoria", "Descrição", "Status"],
-      ...scopedRows.map((n) => [n.numero, n.cliente_nome, n.aeronave, n.data_criacao?.slice(0, 10), n.data_vencimento?.slice(0, 10), num(n.valor).toFixed(2).replace(".", ","), n.categoria, n.descricao, n.status]),
-    ];
-    const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map((row) => row.map(cell).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8;" }));
+    const rows = [["Número", "Cotista", "Aeronave", "Emissão", "Vencimento", "Valor (BRL)", "Categoria", "Descrição", "Status"], ...scopedRows.map(n => [n.numero, n.cliente_nome, n.aeronave, n.data_criacao?.slice(0,10), n.data_vencimento?.slice(0,10), num(n.valor).toFixed(2).replace('.', ','), n.categoria, n.descricao, n.status])];
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(row => row.map(cell).join(';')).join('\r\n')], {type: "text/csv;charset=utf-8;"}));
     const a = document.createElement("a"); a.href = url; a.download = `share-${documentTab}-${todayLocal()}.csv`; document.body.appendChild(a); a.click(); a.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+  const actions = (n: NFSaida) => <div className="nf-row-actions">
+    <button className="nf-icon" title="Visualizar documento" aria-label={`Visualizar documento ${n.numero || ""}`} disabled={!n.arquivo_pdf_url} onClick={() => setPdfViewer({url: n.arquivo_pdf_url!, title: n.numero || "Documento"})}><FileText /></button>
+    <button className={`nf-icon ${emailsEnviados.has(`${n.origem}:${n.id}`) ? "success" : ""}`} title={emailsEnviados.has(`${n.origem}:${n.id}`) ? "E-mail enviado — enviar novamente" : "Enviar por e-mail"} aria-label={`Enviar ${n.numero || "documento"} por e-mail`} onClick={() => {setEmailTarget(n); setEmailOpen(true);}}><Mail /></button>
+    {pending(n.status) && n.contas_areceber_id && <button className="nf-icon success" title="Registrar recebimento" aria-label={`Registrar recebimento de ${n.numero || "documento"}`} onClick={() => openBaixa(n)}><Banknote /></button>}
+    {n.origem === "nf_saida" && <button className="nf-icon" title="Editar nota" aria-label={`Editar nota ${n.numero || ""}`} onClick={() => openEdit(n)}><Pencil /></button>}
+    <button className="nf-icon danger" title="Excluir documento" aria-label={`Excluir documento ${n.numero || ""}`} onClick={() => setDeleteId(n.id)}><Trash2 /></button>
+  </div>;
+  const feedback = toast && <div role={toast.type === "err" ? "alert" : "status"} className={`nf-notice ${toast.type === "err" ? "error" : "success"}`}><span>{toast.text}</span><button type="button" className="nf-icon" aria-label="Dispensar mensagem" onClick={() => setToast(null)}><X /></button></div>;
 
-  const actions = (n: NFSaida) => (
-    <div className="nf-row-actions">
-      <button className="nf-icon" title="Visualizar documento" aria-label={`Visualizar documento ${n.numero || ""}`} disabled={!n.arquivo_pdf_url} onClick={() => setPdfViewer({ url: n.arquivo_pdf_url!, title: n.numero || "Documento" })}><FileText /></button>
-      <button className={`nf-icon ${emailsEnviados.has(rowKey(n)) ? "success" : ""}`} title={emailsEnviados.has(rowKey(n)) ? "E-mail enviado — enviar novamente" : "Enviar por e-mail"} aria-label={`Enviar ${n.numero || "documento"} por e-mail`} onClick={() => { setEmailTarget(n); setEmailOpen(true); }}><Mail /></button>
-      {pending(n.status) && n.contas_areceber_id && <button className="nf-icon success" title="Registrar recebimento" aria-label={`Registrar recebimento de ${n.numero || "documento"}`} onClick={() => openBaixa(n)}><Banknote /></button>}
-      {n.origem === "nf_saida" && <button className="nf-icon" title="Editar nota" aria-label={`Editar nota ${n.numero || ""}`} onClick={() => openEdit(n)}><Pencil /></button>}
-      <button className="nf-icon danger" title="Excluir documento" aria-label={`Excluir documento ${n.numero || ""}`} onClick={() => setDeleteId(n.id)}><Trash2 /></button>
-      <button className="nf-icon" aria-expanded={expandidos.has(rowKey(n))} aria-label={`${expandidos.has(rowKey(n)) ? "Ocultar" : "Ver"} detalhes: ${n.numero || "documento"}`} onClick={() => toggleSet(setExpandidos, rowKey(n))}>
-        {expandidos.has(rowKey(n)) ? <ChevronUp /> : <ChevronDown />}
-      </button>
-    </div>
-  );
+  return <div className="nf-workspace">
+    <style>{STYLES}</style>
+    <style>{`.nf-workspace{background:#080d17}.nf-workspace .nf-stats{gap:12px;margin:4px 0 12px;padding:0 12px}.nf-workspace .nf-stat{padding:12px 14px;border-radius:10px;background:#111b2b;box-shadow:none}.nf-workspace .nf-stat:before{top:12px;bottom:12px}.nf-workspace .nf-stat-top{margin-bottom:8px}.nf-workspace .nf-stat-top span{font-size:10px}.nf-workspace .nf-stat-top svg{width:16px;height:16px}.nf-workspace .nf-stat strong{font-size:clamp(17px,1.5vw,21px);font-weight:600}.nf-workspace .nf-stat small{margin-top:4px;font-size:9px}.nf-workspace .nf-month-year>h3{margin:0 22px}@container(max-width:490px){.nf-workspace .nf-month-year>h3{margin-inline:14px}}`}</style>
+    <header className="nf-header">
+      <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div></div>
+      <div className="nf-header-actions"><button className="nf-btn" disabled={loading} onClick={() => void fetchNotas()}><RefreshCw className={loading ? "nf-spin" : ""} /> Atualizar</button><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
+    </header>
+    {!showForm && !baixaTarget && !deleteId && feedback}
+    <section className="nf-stats" aria-label="Resumo dos documentos filtrados" aria-busy={loading}>
+      {[
+        {label: "Total emitido", value: totals.total, note: `${scopedRows.length} documentos no filtro`, icon: FileText, color: "blue"},
+        {label: "Recebido", value: totals.paid, note: "Documentos pagos", icon: CircleDollarSign, color: "green"},
+        {label: "Em aberto", value: totals.open, note: "Inclui valores vencidos", icon: Wallet, color: "cyan"},
+        {label: "Vencido", value: totals.overdue, note: `${totals.lateCount} documentos aguardando baixa`, icon: TriangleAlert, color: "amber"},
+      ].map(({label, value, note, icon: Icon, color}) => <article className={`nf-stat ${color}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{loading || loadError ? "—" : formatBRL(value)}</strong><small>{loading ? "Atualizando documentos…" : loadError ? "Dados indisponíveis" : note}</small></article>)}
+    </section>
+    <section className="nf-panel" aria-label="Documentos">
+      <div className="nf-panel-top"><div className="nf-segment" aria-label="Tipo de documento">{([['recibo', 'Recibos', totalRecibos], ['nota', 'Notas fiscais', totalNotas]] as const).map(([value, label, count]) => <button key={value} aria-pressed={documentTab === value} className={documentTab === value ? "active" : ""} onClick={() => {setDocumentTab(value); setMesSelecionado(null);}}>{label}<span>{count}</span></button>)}</div><button className="nf-btn subtle" disabled={!scopedRows.length || loading || !!loadError} onClick={exportCsv}><Download /> Exportar CSV</button></div>
+      <div className="nf-toolbar"><label className="nf-search"><Search /><span className="nf-sr">Buscar documentos</span><input type="search" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar cotista, número, aeronave…" /></label><select aria-label="Filtrar por status" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}><option value="">Todos os status</option>{STATUS_OPCOES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select><select aria-label="Ordenar documentos" value={`${sortBy}:${sortDir}`} onChange={e => {const [by, dir] = e.target.value.split(':') as [SortBy, SortDir]; setSortBy(by); setSortDir(dir);}}><option value="data:desc">Mais recentes</option><option value="data:asc">Mais antigos</option><option value="nome:asc">Cotista: A–Z</option><option value="nome:desc">Cotista: Z–A</option></select><button className={`nf-btn ${showFilterPanel ? "selected" : ""}`} aria-expanded={showFilterPanel} aria-controls="nf-period" onClick={() => setShowFilterPanel(!showFilterPanel)}><CalendarDays /> Período{(dateFrom || dateTo) && <span className="nf-dot" />}</button></div>
+      {showFilterPanel && <div id="nf-period" className="nf-period"><label>Emissão a partir de<input type="date" value={dateFrom} max={dateTo || undefined} onChange={e => setDateFrom(e.target.value)} /></label><label>Emissão até<input type="date" value={dateTo} min={dateFrom || undefined} onChange={e => setDateTo(e.target.value)} /></label><button className="nf-btn subtle" onClick={() => {setDateFrom(''); setDateTo('');}}>Limpar período</button>{invalidPeriod && <p className="nf-error-text" role="alert">A data final deve ser igual ou posterior à inicial.</p>}</div>}
+      <div className="nf-list-heading"><div><h2>{heading}</h2><p>{loading ? "Carregando…" : `${scopedRows.length} documentos encontrados`}{hasActiveFilters && <button className="nf-text-btn" onClick={clearFilters}>Limpar filtros</button>}</p></div><div className="nf-view-toggle"><button className={view === "list" ? "active" : ""} aria-label="Visualização em lista" aria-pressed={view === "list"} onClick={() => {setView('list'); setMesSelecionado(null);}}><LayoutList /></button><button className={view === "folders" ? "active" : ""} aria-label="Visualização por mês e ano" aria-pressed={view === "folders"} onClick={() => {setView('folders'); setMesSelecionado(null);}}><LayoutGrid /></button></div></div>
+      {mesSelecionado && <div className="nf-back"><button className="nf-text-btn" onClick={() => setMesSelecionado(null)}><ArrowLeft /> Todos os meses</button></div>}
+      {loading ? <div className="nf-empty" role="status"><RefreshCw className="nf-spin" /><h3>Carregando documentos</h3><p>Organizando suas informações financeiras.</p></div> : loadError ? <div className="nf-empty" role="alert"><TriangleAlert /><h3>Não foi possível carregar</h3><p>{loadError}</p><button className="nf-btn" onClick={() => void fetchNotas()}>Tentar novamente</button></div> : !scopedRows.length ? <div className="nf-empty"><Search /><h3>{hasActiveFilters ? "Nenhum resultado encontrado" : "Seu arquivo começa aqui"}</h3><p>{hasActiveFilters ? "Ajuste a busca ou o período para encontrar seus documentos." : "Emita o primeiro documento para acompanhar os recebimentos."}</p><button className="nf-btn" onClick={hasActiveFilters ? clearFilters : documentTab === 'recibo' ? openNewReceipt : openNew}>{hasActiveFilters ? "Limpar filtros" : "Criar documento"}</button></div> : view === "folders" && !mesSelecionado ? <div className="nf-month-groups space-y-6">{[...new Set(groups.map(group => group.ano))].map(ano => <section className="nf-month-year space-y-3" key={ano}><h3 className="text-xs font-semibold uppercase tracking-[.1em] text-muted-foreground">{ano}</h3><div className="nf-folders">{groups.filter(group => group.ano === ano).map(group => <FolderCard key={group.key} name={group.mes} description={group.ano === "Data não informada" ? "Emissão desconhecida" : group.ano} count={group.rows.length} onClick={() => setMesSelecionado(group.key)} />)}</div></section>)}</div> : <>
+        <div className="nf-table-wrap"><table className="nf-table"><caption className="nf-sr">Documentos financeiros de saída</caption><thead><tr><th scope="col">Documento / cotista</th><th scope="col">Aeronave</th><th scope="col">Emissão / vencimento</th><th scope="col">Categoria</th><th scope="col" className="right">Valor</th><th scope="col">Status</th><th scope="col" className="right">Ações</th></tr></thead><tbody>{visibleRows.map(n => <tr key={`${n.origem}:${n.id}`}><td><div className="nf-doc-cell"><span className="nf-doc-icon"><FileText /></span><div><strong>{n.numero || 'Sem número'}</strong><span title={n.cliente_nome || ''}>{n.cliente_nome || 'Cotista não informado'}</span>{n.descricao && <small title={n.descricao}>{n.descricao}</small>}</div></div></td><td><span className="nf-aircraft"><Plane />{n.aeronave || '—'}</span></td><td><div className="nf-dates"><span>{n.data_criacao ? formatDate(n.data_criacao.slice(0,10)) : '—'}</span><small className={pending(n.status) && n.data_vencimento && n.data_vencimento.slice(0,10) < todayLocal() ? 'nf-late' : ''}>Venc. {n.data_vencimento ? formatDate(n.data_vencimento.slice(0,10)) : '—'}</small></div></td><td><span className="nf-category" title={n.categoria || ''}>{n.categoria || 'Sem categoria'}</span></td><td className="right nf-amount">{formatBRL(num(n.valor))}</td><td><StatusBadge status={n.status} /></td><td>{actions(n)}</td></tr>)}</tbody></table></div>
+        <div className="nf-mobile-docs">{visibleRows.map(n => <article className="nf-mobile-doc" key={`${n.origem}:${n.id}`}><header><span className="nf-doc-icon"><FileText /></span><div><strong>{n.numero || 'Sem número'}</strong><small>{n.aeronave || 'Sem aeronave'}</small></div><StatusBadge status={n.status} /></header><h3>{n.cliente_nome || 'Cotista não informado'}</h3><p>{n.descricao || n.categoria || 'Sem descrição'}</p><dl><div><dt>Valor</dt><dd className="nf-amount">{formatBRL(num(n.valor))}</dd></div><div><dt>Emissão</dt><dd>{n.data_criacao ? formatDate(n.data_criacao.slice(0,10)) : '—'}</dd></div><div><dt>Vencimento</dt><dd>{n.data_vencimento ? formatDate(n.data_vencimento.slice(0,10)) : '—'}</dd></div></dl><footer><span className="nf-category">{n.categoria || 'Sem categoria'}</span>{actions(n)}</footer></article>)}</div>
+        <footer className="nf-pagination"><span>Exibindo {(currentPage - 1) * 12 + 1}–{Math.min(currentPage * 12, scopedRows.length)} de {scopedRows.length}</span><div><button className="nf-icon" aria-label="Página anterior" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ArrowLeft /></button><span>{currentPage} / {pageCount}</span><button className="nf-icon" aria-label="Próxima página" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}><ChevronRight /></button></div></footer>
+      </>}
+    </section>
 
-  const renderCell = (col: ColId, n: NFSaida) => {
-    switch (col) {
-      case "data": return <span className="nf-date">{dateCell(n.data_criacao)}</span>;
-      case "numero": return <span className="nf-cell-text nf-strong" title={n.numero || ""}>{n.numero || "Sem número"}</span>;
-      case "cotista": return <span className="nf-cell-text" title={n.cliente_nome || ""}>{n.cliente_nome || "Cotista não informado"}</span>;
-      case "aeronave": return <span className="nf-cell-text nf-mono">{n.aeronave || "—"}</span>;
-      case "vencimento": return <span className={`nf-date ${isLate(n) ? "nf-late" : ""}`}>{dateCell(n.data_vencimento)}</span>;
-      case "categoria": return <span className="nf-cell-text" title={n.categoria || ""}>{n.categoria || "Sem categoria"}</span>;
-      case "valor": return <span className="nf-money">{formatBRL(num(n.valor))}</span>;
-      case "status": return <StatusBadge nota={n} />;
-    }
-  };
+    {showForm && !reciboPreview && <Modal title={editingId ? 'Editar nota fiscal' : documentType === 'recibo' ? 'Emitir recibo de saída' : 'Nova nota fiscal'} onClose={closeForm} busy={formBusy} wide>
+      <form onSubmit={e => {e.preventDefault(); void save();}}>
+        {feedback}
+        {editingId && <p className="nf-info">Esta edição altera o documento. Os lançamentos financeiros já vinculados não são recalculados.</p>}
+        <fieldset disabled={formBusy} className="nf-fieldset"><legend><span>01</span> Documento e cotista</legend><div className="nf-form-grid">
+          <label>Número {documentType === 'nota' && '*'}<input required={documentType === 'nota'} readOnly={documentType === 'recibo'} value={documentType === 'recibo' ? 'Gerado ao finalizar' : form.numero} onChange={e => formField('numero', e.target.value)} /></label>
+          <div className="nf-field span-2"><span>Cotista / aeronave *</span><SearchableCombobox items={cotistas.map(c => ({id: c.cotista_aeronave_id, label: `${c.nome} · ${matriculaPorAeronave.get(c.aeronave_id) || 'Sem matrícula'}`}))} value={form.cotista_aeronave_id} onChange={selecionarCotista} placeholder="Selecione o cotista" searchPlaceholder="Buscar cotista..." emptyMessage="Nenhum cotista encontrado." /></div>
+          <label>Aeronave<input readOnly value={form.aeronave} placeholder="Vinculada ao cotista" /></label><label>Emissão *<input required type="date" value={form.data_criacao} onChange={e => formField('data_criacao', e.target.value)} /></label><label>Vencimento<input type="date" value={form.data_vencimento} onChange={e => formField('data_vencimento', e.target.value)} /><small>Se vazio, utiliza a data de emissão.</small></label>
+        </div></fieldset>
+        <fieldset disabled={formBusy} className="nf-fieldset"><legend><span>02</span> Valores e classificação</legend><div className="nf-form-grid">
+          <label>Valor (R$) *<input required type="number" inputMode="decimal" min="0.01" step="0.01" value={form.valor} onChange={e => formField('valor', e.target.value)} placeholder="0,00" /></label>
+          <div className="nf-field span-2"><span>Categoria de receita {editingId ? '' : '*'}</span><SearchableCombobox items={categoriasReceita.map(c => ({id:c.id, label:c.nome}))} value={form.categoria_receita_id || form.categoria} onChange={(id, label) => setForm(current => ({...current, categoria_receita_id:id, categoria:label}))} placeholder={form.categoria || "Selecione a categoria"} searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria encontrada." /></div>
+          {!editingId && <div className="nf-field span-2"><span>Categoria de despesa do cliente *</span><SearchableCombobox items={despesaOptions.map(o => ({id:o.optionId, label:o.label}))} value={selectedDespesaOptionId} onChange={id => {const option = despesaOptions.find(o => o.optionId === id); setForm(current => ({...current, categoria_despesa_id:option?.categoriaId || '', categoria_despesa_subcategoria:option?.subcategoria || ''}));}} placeholder="Selecione a classificação" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria encontrada." /></div>}
+          <label>Status<select value={form.status} onChange={e => formField('status',e.target.value as StatusDocumentoSaida)}>{STATUS_OPCOES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+          <label className="span-3">Descrição<textarea rows={3} value={form.descricao} onChange={e => formField('descricao', e.target.value)} placeholder="Descreva o serviço ou a cobrança…" /></label>
+        </div></fieldset>
+        {documentType === 'nota' && <fieldset disabled={formBusy} className="nf-fieldset"><legend><span>03</span> Documento anexo</legend><label className="nf-upload"><Upload /><span><strong>{uploading ? 'Enviando arquivo…' : form.arquivo_pdf_url ? getFileNameFromUrl(form.arquivo_pdf_url) : 'Selecione o PDF ou imagem da nota'}</strong><small>PDF, PNG, JPG ou WebP • até 20 MB</small></span><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={e => {const file = e.target.files?.[0]; if (file) {if (file.size > 20 * 1024 * 1024) setToast({type:'err',text:'O arquivo deve ter até 20 MB.'}); else void uploadDocument(file);} e.target.value='';}} /></label>{form.arquivo_pdf_url && <button type="button" className="nf-text-btn" onClick={() => formField('arquivo_pdf_url','')}>Remover vínculo do anexo</button>}</fieldset>}
+        <footer className="nf-modal-footer"><button type="button" className="nf-btn" disabled={formBusy} onClick={closeForm}>Cancelar</button><button className="nf-btn primary" disabled={formBusy} type="submit">{saving ? 'Salvando…' : uploading ? 'Enviando anexo…' : editingId ? 'Salvar alterações' : documentType === 'recibo' ? 'Revisar recibo' : 'Criar nota fiscal'}<ArrowUpRight /></button></footer>
+      </form>
+    </Modal>}
 
-  const feedback = toast && (
-    <div role={toast.type === "err" ? "alert" : "status"} className={`nf-notice ${toast.type === "err" ? "error" : "success"}`}>
-      <span>{toast.text}</span>
-      <button type="button" className="nf-icon" aria-label="Dispensar mensagem" onClick={() => setToast(null)}><X /></button>
-    </div>
-  );
-
-  const tituloPagina = documentTab === "recibo" ? "Recibos de saída" : "Notas fiscais de saída";
-
-  return (
-    <div className="nf-workspace">
-      <style>{STYLES}</style>
-
-      <div className="nf-breadcrumb"><span>Financeiro</span><ChevronRight /><span>Documentos de saída</span></div>
-
-      <div className="nf-heading">
-        <div>
-          <p className="nf-eyebrow">FINANCEIRO / DOCUMENTOS DE SAÍDA</p>
-          <h1>{tituloPagina}</h1>
-        </div>
-        <div className="nf-heading-total">
-          <p className="nf-eyebrow">TOTAL NO FILTRO</p>
-          <strong>{loading || loadError ? "—" : formatBRL(totals.total)}</strong>
-        </div>
-      </div>
-
-      <div className="nf-segment" role="group" aria-label="Tipo de documento">
-        {([["recibo", "Recibos", totalRecibos], ["nota", "Notas fiscais", totalNotas]] as const).map(([value, label, count]) => (
-          <button key={value} aria-pressed={documentTab === value} className={documentTab === value ? "active" : ""} onClick={() => setDocumentTab(value)}>
-            {label}<span>{count}</span>
-          </button>
-        ))}
-      </div>
-
-      {!showForm && !baixaTarget && !deleteId && feedback}
-
-      <section className="nf-ledger" aria-label="Documentos">
-        <div className="nf-toolbar">
-          <div className="nf-toolbar-main">
-            <div className="nf-toolbar-actions">
-              <button type="button" className="nf-btn nf-btn-primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}>
-                <Plus /> {documentTab === "recibo" ? "Emitir recibo" : "Nova nota"}
-              </button>
-              <button type="button" className="nf-btn" aria-expanded={showFilterPanel} aria-controls="nf-filtros" onClick={() => setShowFilterPanel((v) => !v)}>
-                <Filter /> Filtrar{filtrosAtivos > 0 && <span className="nf-filter-count">{filtrosAtivos}</span>}
-              </button>
-              <span className="nf-separator" aria-hidden="true" />
-              <button type="button" className="nf-btn nf-btn-quiet" disabled={loading || !pageRows.length} onClick={() => setExpandidos(allExpanded ? new Set() : new Set(pageRows.map(rowKey)))}>
-                <ListOrdered /> {allExpanded ? "Recolher todas" : "Expandir todas"}
-              </button>
-              <details className="nf-menu">
-                <summary className="nf-btn nf-btn-quiet"><Columns3 /> Colunas</summary>
-                <div className="nf-menu-panel nf-columns-panel">
-                  <p>Exibir colunas</p>
-                  {COLUMNS.map((c) => (
-                    <label key={c.id} className="nf-column-option">
-                      <input type="checkbox" checked={!ocultas.has(c.id)} onChange={() => setOcultas((cur) => { const next = new Set(cur); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next; })} />
-                      <span>{c.title}</span>
-                    </label>
-                  ))}
-                  <button type="button" className="nf-btn nf-btn-quiet" onClick={() => setOcultas(new Set())}><RotateCcw /> Restaurar colunas</button>
-                </div>
-              </details>
-              <button type="button" className="nf-btn nf-btn-quiet" disabled={loading} onClick={() => void fetchNotas()}><RefreshCw className={loading ? "nf-spin" : ""} /> Atualizar</button>
-              <button type="button" className="nf-btn nf-btn-quiet" disabled={!scopedRows.length || loading || !!loadError} onClick={exportCsv}><Download /> CSV</button>
-            </div>
-
-            <div className="nf-period" role="group" aria-label="Navegar pelas competências">
-              <MonthPicker selected={meses} onToggle={toggleMes} onCurrent={() => setMeses([todayLocal().slice(0, 7)])} onAll={() => setMeses([])} />
-              <button type="button" className="nf-btn nf-btn-icon" aria-label="Mês anterior" onClick={() => setMeses([shiftMonth(mesReferencia, -1)])}><ChevronLeft /></button>
-              <span className="nf-month" aria-live="polite">{periodLabel}</span>
-              <button type="button" className="nf-btn nf-btn-icon" aria-label="Próximo mês" onClick={() => setMeses([shiftMonth(mesReferencia, 1)])}><ChevronRight /></button>
-            </div>
-          </div>
-
-          {showFilterPanel && (
-            <div id="nf-filtros" className="nf-filters">
-              <label className="nf-search-field">
-                <span className="nf-sr">Buscar documentos</span>
-                <Search />
-                <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar cotista, número, aeronave, descrição…" />
-              </label>
-              <label>Situação
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
-                  <option value="">Todas as situações</option>
-                  {STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </label>
-              <label>Categoria
-                <select value={categoriaFilter} onChange={(e) => setCategoriaFilter(e.target.value)}>
-                  <option value="">Todas as categorias</option>
-                  {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
-              <label>Emissão a partir de<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} /></label>
-              <label>Emissão até<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} /></label>
-              <div className="nf-filters-foot">
-                <button type="button" className="nf-text-btn" onClick={clearFilters}><X /> Limpar busca e filtros</button>
-                {invalidPeriod && <p className="nf-error-text" role="alert">A data final deve ser igual ou posterior à inicial.</p>}
-              </div>
-            </div>
-          )}
-
-          {hasActiveFilters && (
-            <div className="nf-filter-status">
-              <span role="status">{scopedRows.length} de {abaNotas.length} documentos · {formatBRL(totals.total)}</span>
-              <button type="button" className="nf-text-btn" onClick={clearFilters}>Limpar filtros</button>
-            </div>
-          )}
-        </div>
-
-        {selectedRows.length > 0 && (
-          <div className="nf-selection">
-            <span role="status">
-              {selectedRows.length} {selectedRows.length === 1 ? "documento selecionado" : "documentos selecionados"} · Soma: <strong>{formatBRL(selectedTotal)}</strong>
-            </span>
-            <button type="button" className="nf-text-btn" onClick={() => setSelecionados(new Set())}><X /> Limpar seleção</button>
-          </div>
-        )}
-
-        <div className="nf-scroll" role="region" aria-label="Tabela de documentos de saída. Role horizontalmente ou use as setas do teclado." tabIndex={0} aria-busy={loading}>
-          <table className="nf-table" style={{ width: larguraTabela }}>
-            <caption className="nf-sr">Documentos financeiros de saída agrupados por mês. Clique nos cabeçalhos para ordenar.</caption>
-            <colgroup>
-              <col style={{ width: 44 }} />
-              {colunasVisiveis.map((c) => <col key={c.id} style={{ width: c.width }} />)}
-              <col style={{ width: 210 }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th scope="col">
-                  <input
-                    type="checkbox" className="nf-checkbox"
-                    aria-label="Selecionar todos os documentos desta página"
-                    disabled={loading || !pageRows.length}
-                    checked={allPageSelected}
-                    ref={(el) => { if (el) el.indeterminate = !allPageSelected && pageRows.some((n) => selecionados.has(rowKey(n))); }}
-                    onChange={() => setSelecionados((cur) => { const next = new Set(cur); pageRows.forEach((n) => (allPageSelected ? next.delete(rowKey(n)) : next.add(rowKey(n)))); return next; })}
-                  />
-                </th>
-                {colunasVisiveis.map((c) => (
-                  <th key={c.id} scope="col" className={c.numeric ? "right" : ""} aria-sort={sort.col === c.id ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-                    <button type="button" className="nf-sort" data-active={sort.col === c.id} onClick={() => toggleSort(c.id)} title={`${c.title}: ordenar ${sort.col === c.id && sort.dir === "asc" ? "decrescente" : "crescente"}`}>
-                      <span>{c.title}</span>
-                      {sort.col !== c.id ? <ChevronsUpDown /> : sort.dir === "asc" ? <ChevronUp /> : <ChevronDown />}
-                    </button>
-                  </th>
-                ))}
-                <th scope="col" className="right"><span className="nf-th-plain">Ações</span></th>
-              </tr>
-            </thead>
-
-            {loading ? (
-              <tbody><tr><td colSpan={colSpan} className="nf-empty"><div role="status" className="nf-empty-row"><RefreshCw className="nf-spin" /> Carregando documentos…</div></td></tr></tbody>
-            ) : loadError ? (
-              <tbody><tr><td colSpan={colSpan} className="nf-empty"><div role="alert" className="nf-empty-col"><p><TriangleAlert /> {loadError}</p><button className="nf-btn" onClick={() => void fetchNotas()}>Tentar novamente</button></div></td></tr></tbody>
-            ) : pageGroups.length ? (
-              pageGroups.map(({ key, rows }) => (
-                <tbody key={key}>
-                  {meses.length !== 1 && (
-                    <tr className="nf-month-row">
-                      <th scope="rowgroup" colSpan={colSpan}>
-                        <div className="nf-month-head">
-                          <span><CalendarDays /> {monthLabel(key)} <em>{rows.length}</em></span>
-                          <span>Subtotal <strong className="nf-mono">{formatBRL(rows.reduce((t, n) => t + num(n.valor), 0))}</strong></span>
-                        </div>
-                      </th>
-                    </tr>
-                  )}
-                  {rows.map((n) => (
-                    <Fragment key={rowKey(n)}>
-                      <tr className="nf-row" data-selected={selecionados.has(rowKey(n))} data-expanded={expandidos.has(rowKey(n))}>
-                        <td>
-                          <input type="checkbox" className="nf-checkbox" aria-label={`Selecionar documento ${n.numero || ""}`} checked={selecionados.has(rowKey(n))} onChange={() => toggleSet(setSelecionados, rowKey(n))} />
-                        </td>
-                        {colunasVisiveis.map((c) => <td key={c.id} className={c.numeric ? "right" : ""}>{renderCell(c.id, n)}</td>)}
-                        <td>{actions(n)}</td>
-                      </tr>
-                      {expandidos.has(rowKey(n)) && (
-                        <tr>
-                          <td colSpan={colSpan} className="nf-detail-cell">
-                            <dl className="nf-detail">
-                              <div><dt>Cotista</dt><dd>{n.cliente_nome || "Não informado"}</dd></div>
-                              <div><dt>Documento do cotista</dt><dd>{n.cliente_cnpj || "—"}</dd></div>
-                              <div><dt>Aeronave</dt><dd>{n.aeronave || "—"}</dd></div>
-                              <div><dt>Categoria</dt><dd>{n.categoria || "Sem categoria"}</dd></div>
-                              <div><dt>Emissão</dt><dd>{dateCell(n.data_criacao)}</dd></div>
-                              <div><dt>Vencimento</dt><dd>{dateCell(n.data_vencimento)}</dd></div>
-                              <div><dt>Valor</dt><dd className="nf-mono">{formatBRL(num(n.valor))}</dd></div>
-                              <div><dt>E-mail</dt><dd>{emailsEnviados.has(rowKey(n)) ? "Enviado" : "Não enviado"}</dd></div>
-                              <div className="wide"><dt>Descrição</dt><dd className="nf-wrap">{n.descricao || "Sem descrição"}</dd></div>
-                              <div className="wide">
-                                <dt>Documento</dt>
-                                <dd>
-                                  {n.arquivo_pdf_url
-                                    ? <a href={resolveArquivoUrl(n.arquivo_pdf_url)} onClick={(e) => { e.preventDefault(); setPdfViewer({ url: n.arquivo_pdf_url!, title: n.numero || "Documento" }); }}>Visualizar {getFileNameFromUrl(n.arquivo_pdf_url)}</a>
-                                    : "Nenhum arquivo vinculado"}
-                                </dd>
-                              </div>
-                            </dl>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              ))
-            ) : (
-              <tbody>
-                <tr><td colSpan={colSpan} className="nf-empty">
-                  <div className="nf-empty-col">
-                    <p>{hasActiveFilters ? "Nenhum documento corresponde aos filtros." : meses.length ? "Nenhum documento neste período." : "Nenhum documento emitido ainda."}</p>
-                    <button className="nf-btn" onClick={hasActiveFilters ? clearFilters : documentTab === "recibo" ? openNewReceipt : openNew}>
-                      {hasActiveFilters ? "Limpar filtros" : documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}
-                    </button>
-                  </div>
-                </td></tr>
-              </tbody>
-            )}
-          </table>
-        </div>
-
-        <div className="nf-summary">
-          <strong>TOTAL LISTADO ({loading ? 0 : scopedRows.length} itens){!loading && !loadError && ` · ${formatBRL(totals.total)}`}</strong>
-          <div className="nf-summary-values" style={loading || loadError ? { visibility: "hidden" } : undefined} aria-hidden={loading || !!loadError}>
-            <span>Recebido: <b className="positive">{formatBRL(totals.paid)}</b></span>
-            <span>Em aberto: <b>{formatBRL(totals.open)}</b></span>
-            <span>Vencido: <b className="negative">{formatBRL(totals.overdue)}</b> ({totals.lateCount})</span>
-          </div>
-        </div>
-
-        <footer className="nf-pagination">
-          <div className="nf-pagination-info">
-            <span>{selectedRows.length} selecionados</span>
-            <span>{loading ? 0 : scopedRows.length} registros</span>
-            <label>
-              <span className="nf-sr">Linhas por página</span>
-              <select value={porPagina} onChange={(e) => setPorPagina(Number(e.target.value))}>
-                {[10, 25, 50, 100].map((q) => <option key={q} value={q}>{q} linhas por página</option>)}
-              </select>
-            </label>
-          </div>
-          <nav aria-label="Paginação dos documentos" className="nf-pages">
-            <span role="status" aria-live="polite">{loading ? "Carregando…" : `${ordered.length ? startIndex + 1 : 0}–${Math.min(startIndex + porPagina, ordered.length)} de ${ordered.length}`}</span>
-            <button type="button" className="nf-btn nf-btn-icon" aria-label="Página anterior" disabled={loading || currentPage === 1} onClick={() => { setPage(currentPage - 1); setExpandidos(new Set()); }}><ChevronLeft /></button>
-            <span>{currentPage} / {pageCount}</span>
-            <button type="button" className="nf-btn nf-btn-icon" aria-label="Próxima página" disabled={loading || currentPage === pageCount} onClick={() => { setPage(currentPage + 1); setExpandidos(new Set()); }}><ChevronRight /></button>
-          </nav>
-        </footer>
-      </section>
-
-      {/* ───────────── modais ───────────── */}
-
-      {showForm && !reciboPreview && (
-        <Modal title={editingId ? "Editar nota fiscal" : documentType === "recibo" ? "Emitir recibo de saída" : "Nova nota fiscal"} onClose={closeForm} busy={formBusy} wide>
-          <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
-            {feedback}
-            {editingId && <p className="nf-info">Esta edição altera o documento. Os lançamentos financeiros já vinculados não são recalculados.</p>}
-            <fieldset disabled={formBusy} className="nf-fieldset">
-              <legend><span>01</span> Documento e cotista</legend>
-              <div className="nf-form-grid">
-                <label>Número {documentType === "nota" && "*"}<input required={documentType === "nota"} readOnly={documentType === "recibo"} value={documentType === "recibo" ? "Gerado ao finalizar" : form.numero} onChange={(e) => formField("numero", e.target.value)} /></label>
-                <div className="nf-field span-2"><span>Cotista / aeronave *</span>
-                  <SearchableCombobox items={cotistas.map((c) => ({ id: c.cotista_aeronave_id, label: `${c.nome} · ${matriculaPorAeronave.get(c.aeronave_id) || "Sem matrícula"}` }))} value={form.cotista_aeronave_id} onChange={selecionarCotista} placeholder="Selecione o cotista" searchPlaceholder="Buscar cotista..." emptyMessage="Nenhum cotista encontrado." />
-                </div>
-                <label>Aeronave<input readOnly value={form.aeronave} placeholder="Vinculada ao cotista" /></label>
-                <label>Emissão *<input required type="date" value={form.data_criacao} onChange={(e) => formField("data_criacao", e.target.value)} /></label>
-                <label>Vencimento<input type="date" value={form.data_vencimento} onChange={(e) => formField("data_vencimento", e.target.value)} /><small>Se vazio, utiliza a data de emissão.</small></label>
-              </div>
-            </fieldset>
-            <fieldset disabled={formBusy} className="nf-fieldset">
-              <legend><span>02</span> Valores e classificação</legend>
-              <div className="nf-form-grid">
-                <label>Valor (R$) *<input required type="number" inputMode="decimal" min="0.01" step="0.01" value={form.valor} onChange={(e) => formField("valor", e.target.value)} placeholder="0,00" /></label>
-                <div className="nf-field span-2"><span>Categoria de receita {editingId ? "" : "*"}</span>
-                  <SearchableCombobox items={categoriasReceita.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_receita_id || form.categoria} onChange={(id, label) => setForm((current) => ({ ...current, categoria_receita_id: id, categoria: label }))} placeholder={form.categoria || "Selecione a categoria"} searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria encontrada." />
-                </div>
-                {!editingId && (
-                  <div className="nf-field span-2"><span>Categoria de despesa do cliente *</span>
-                    <SearchableCombobox items={despesaOptions.map((o) => ({ id: o.optionId, label: o.label }))} value={selectedDespesaOptionId} onChange={(id) => { const option = despesaOptions.find((o) => o.optionId === id); setForm((current) => ({ ...current, categoria_despesa_id: option?.categoriaId || "", categoria_despesa_subcategoria: option?.subcategoria || "" })); }} placeholder="Selecione a classificação" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria encontrada." />
-                  </div>
-                )}
-                <label>Status<select value={form.status} onChange={(e) => formField("status", e.target.value as StatusDocumentoSaida)}>{STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
-                <label className="span-3">Descrição<textarea rows={3} value={form.descricao} onChange={(e) => formField("descricao", e.target.value)} placeholder="Descreva o serviço ou a cobrança…" /></label>
-              </div>
-            </fieldset>
-            {documentType === "nota" && (
-              <fieldset disabled={formBusy} className="nf-fieldset">
-                <legend><span>03</span> Documento anexo</legend>
-                <label className="nf-upload"><Upload />
-                  <span><strong>{uploading ? "Enviando arquivo…" : form.arquivo_pdf_url ? getFileNameFromUrl(form.arquivo_pdf_url) : "Selecione o PDF ou imagem da nota"}</strong><small>PDF, PNG, JPG ou WebP • até 20 MB</small></span>
-                  <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 20 * 1024 * 1024) setToast({ type: "err", text: "O arquivo deve ter até 20 MB." }); else void uploadDocument(file); } e.target.value = ""; }} />
-                </label>
-                {form.arquivo_pdf_url && <button type="button" className="nf-text-btn" onClick={() => formField("arquivo_pdf_url", "")}>Remover vínculo do anexo</button>}
-              </fieldset>
-            )}
-            <footer className="nf-modal-footer">
-              <button type="button" className="nf-btn" disabled={formBusy} onClick={closeForm}>Cancelar</button>
-              <button className="nf-btn nf-btn-primary" disabled={formBusy} type="submit">
-                {saving ? "Salvando…" : uploading ? "Enviando anexo…" : editingId ? "Salvar alterações" : documentType === "recibo" ? "Revisar recibo" : "Criar nota fiscal"}<ArrowUpRight />
-              </button>
-            </footer>
-          </form>
-        </Modal>
-      )}
-
-      <ReciboSaidaPreviewModal
-        open={!!reciboPreview} data={reciboPreview?.pdfData ?? null} saving={saving} savedUrl={reciboSavedUrl}
-        onClose={closeReciboPreview} onConfirm={confirmReciboSave}
-        onError={(error) => setToast({ type: "err", text: error instanceof Error ? error.message : "Não foi possível gerar o PDF." })}
-        onSendEmail={() => { if (emailTarget) setEmailOpen(true); }}
-      />
-
-      {pdfViewer && (
-        <Modal title={pdfViewer.title} onClose={() => setPdfViewer(null)} wide>
-          {isImageUrl(pdfViewer.url)
-            ? <img className="nf-preview-image" src={resolveArquivoUrl(pdfViewer.url)} alt={pdfViewer.title} />
-            : <iframe className="nf-pdf-frame" src={resolveArquivoUrl(pdfViewer.url)} title={pdfViewer.title} />}
-          <footer className="nf-modal-footer">
-            <button className="nf-btn" onClick={() => setPdfViewer(null)}>Fechar</button>
-            <button className="nf-btn nf-btn-primary" disabled={pdfDownloading} onClick={() => void downloadPdf(pdfViewer.url, pdfViewer.title)}><Download />{pdfDownloading ? "Baixando…" : "Baixar arquivo"}</button>
-          </footer>
-        </Modal>
-      )}
-
-      {emailTarget && (
-        <EnviarEmailClienteDialog
-          open={emailOpen} onOpenChange={setEmailOpen}
-          onSent={() => setEmailsEnviados((current) => new Set(current).add(`${emailTarget.origem}:${emailTarget.id}`))}
-          assuntoSugerido={`${emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota fiscal"} de saída ${emailTarget.numero || "sem número"} — ${emailTarget.cliente_nome || ""}`}
-          mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ""},\n\nSegue a documentação de saída emitida pela Share.\n\nNúmero: ${emailTarget.numero || "—"}\nValor: ${formatBRL(num(emailTarget.valor))}\n\nAtenciosamente,\nEquipe Share Brasil`}
-          destinatarioInicial={emailTarget.cliente_email || ""}
-          anexos={emailTarget.arquivo_pdf_url ? [{ id: `${emailTarget.origem}:${emailTarget.id}`, url: emailTarget.arquivo_pdf_url, label: emailTarget.origem === "recibo_saida" ? "Recibo de saída" : "Nota fiscal de saída", filename: getFileNameFromUrl(emailTarget.arquivo_pdf_url) }] : []}
-        />
-      )}
-
-      {deleteId && (
-        <Modal title="Excluir documento" onClose={() => setDeleteId(null)} busy={deleting}>
-          {feedback}
-          <div className="nf-confirm-icon"><Trash2 /></div>
-          <p className="nf-dialog-copy">O documento, o PDF e os lançamentos financeiros vinculados serão removidos. Esta ação não pode ser desfeita.</p>
-          <footer className="nf-modal-footer">
-            <button className="nf-btn" disabled={deleting} onClick={() => setDeleteId(null)}>Manter documento</button>
-            <button className="nf-btn destructive" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? "Excluindo…" : "Excluir documento"}</button>
-          </footer>
-        </Modal>
-      )}
-
-      {baixaTarget && (
-        <Modal title="Registrar recebimento" onClose={closeBaixa} busy={baixaSaving || baixaUploading}>
-          <form onSubmit={(e) => { e.preventDefault(); void confirmBaixa(); }}>
-            {feedback}
-            <div className="nf-payment-summary">
-              <span>{baixaTarget.cliente_nome}<small>Documento {baixaTarget.numero || "sem número"}</small></span>
-              <strong>{formatBRL(num(baixaTarget.valor))}</strong>
-            </div>
-            <p className="nf-info">Confirma o recebimento da Share e atualiza a despesa correspondente do cliente.</p>
-            <fieldset className="nf-fieldset" disabled={baixaSaving || baixaUploading}>
-              <div className="nf-form-grid two">
-                <label>Data do pagamento *<input required type="date" value={baixaForm.data_pagamento} onChange={(e) => setBaixaForm({ ...baixaForm, data_pagamento: e.target.value })} /></label>
-                <label>Forma de pagamento<select value={baixaForm.forma_pagamento} onChange={(e) => setBaixaForm({ ...baixaForm, forma_pagamento: e.target.value })}>{FORMAS_PAGAMENTO.map((v) => <option key={v}>{v}</option>)}</select></label>
-                <label className="span-2">Conta bancária<select value={baixaForm.conta_bancaria} onChange={(e) => setBaixaForm({ ...baixaForm, conta_bancaria: e.target.value })}><option value="">Selecione a conta</option>{contasBancarias.map((c) => <option key={c.id} value={c.id}>{c.banco}{c.numero_conta ? ` • ${c.numero_conta}` : ""}</option>)}</select></label>
-                <label className="span-2">URL do comprovante<input value={baixaForm.comprovante_url} onChange={(e) => setBaixaForm({ ...baixaForm, comprovante_url: e.target.value })} placeholder="https://…" /></label>
-                <label className="nf-upload span-2"><Upload />
-                  <span><strong>{baixaUploading ? "Enviando…" : "Anexar comprovante"}</strong><small>PDF ou imagem • até 20 MB</small></span>
-                  <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 20 * 1024 * 1024) setToast({ type: "err", text: "O comprovante deve ter até 20 MB." }); else void uploadComprovante(file); } e.target.value = ""; }} />
-                </label>
-              </div>
-            </fieldset>
-            <footer className="nf-modal-footer">
-              <button type="button" className="nf-btn" disabled={baixaSaving || baixaUploading} onClick={closeBaixa}>Cancelar</button>
-              <button type="submit" className="nf-btn nf-btn-primary" disabled={baixaSaving || baixaUploading}><CheckCircle2 />{baixaSaving ? "Registrando…" : "Confirmar recebimento"}</button>
-            </footer>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
+    <ReciboSaidaPreviewModal open={!!reciboPreview} data={reciboPreview?.pdfData ?? null} saving={saving} savedUrl={reciboSavedUrl} onClose={closeReciboPreview} onConfirm={confirmReciboSave} onError={error => setToast({type:'err',text:error instanceof Error ? error.message : 'Não foi possível gerar o PDF.'})} onSendEmail={() => {if (emailTarget) setEmailOpen(true);}} />
+    {pdfViewer && <Modal title={pdfViewer.title} onClose={() => setPdfViewer(null)} wide>
+      {isImageUrl(pdfViewer.url) ? <img className="nf-preview-image" src={resolveArquivoUrl(pdfViewer.url)} alt={pdfViewer.title} /> : <iframe className="nf-pdf-frame" src={resolveArquivoUrl(pdfViewer.url)} title={pdfViewer.title} />}
+      <footer className="nf-modal-footer"><button className="nf-btn" onClick={() => setPdfViewer(null)}>Fechar</button><button className="nf-btn primary" disabled={pdfDownloading} onClick={() => void downloadPdf(pdfViewer.url,pdfViewer.title)}><Download />{pdfDownloading ? 'Baixando…' : 'Baixar arquivo'}</button></footer>
+    </Modal>}
+    {emailTarget && <EnviarEmailClienteDialog open={emailOpen} onOpenChange={setEmailOpen} onSent={() => setEmailsEnviados(current => new Set(current).add(`${emailTarget.origem}:${emailTarget.id}`))} assuntoSugerido={`${emailTarget.origem === 'recibo_saida' ? 'Recibo' : 'Nota fiscal'} de saída ${emailTarget.numero || 'sem número'} — ${emailTarget.cliente_nome || ''}`} mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ''},\n\nSegue a documentação de saída emitida pela Share.\n\nNúmero: ${emailTarget.numero || '—'}\nValor: ${formatBRL(num(emailTarget.valor))}\n\nAtenciosamente,\nEquipe Share Brasil`} destinatarioInicial={emailTarget.cliente_email || ''} anexos={emailTarget.arquivo_pdf_url ? [{id:`${emailTarget.origem}:${emailTarget.id}`,url:emailTarget.arquivo_pdf_url,label:emailTarget.origem === 'recibo_saida' ? 'Recibo de saída' : 'Nota fiscal de saída',filename:getFileNameFromUrl(emailTarget.arquivo_pdf_url)}] : []} />}
+    {deleteId && <Modal title="Excluir documento" onClose={() => setDeleteId(null)} busy={deleting}>{feedback}<div className="nf-confirm-icon"><Trash2 /></div><p className="nf-dialog-copy">O documento, o PDF e os lançamentos financeiros vinculados serão removidos. Esta ação não pode ser desfeita.</p><footer className="nf-modal-footer"><button className="nf-btn" disabled={deleting} onClick={() => setDeleteId(null)}>Manter documento</button><button className="nf-btn destructive" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? 'Excluindo…' : 'Excluir documento'}</button></footer></Modal>}
+    {baixaTarget && <Modal title="Registrar recebimento" onClose={closeBaixa} busy={baixaSaving || baixaUploading}>
+      <form onSubmit={e => {e.preventDefault(); void confirmBaixa();}}>{feedback}<div className="nf-payment-summary"><span>{baixaTarget.cliente_nome}<small>Documento {baixaTarget.numero || 'sem número'}</small></span><strong>{formatBRL(num(baixaTarget.valor))}</strong></div><p className="nf-info">Confirma o recebimento da Share e atualiza a despesa correspondente do cliente.</p><fieldset className="nf-fieldset" disabled={baixaSaving || baixaUploading}><div className="nf-form-grid two"><label>Data do pagamento *<input required type="date" value={baixaForm.data_pagamento} onChange={e => setBaixaForm({...baixaForm,data_pagamento:e.target.value})} /></label><label>Forma de pagamento<select value={baixaForm.forma_pagamento} onChange={e => setBaixaForm({...baixaForm,forma_pagamento:e.target.value})}>{FORMAS_PAGAMENTO.map(v => <option key={v}>{v}</option>)}</select></label><label className="span-2">Conta bancária<select value={baixaForm.conta_bancaria} onChange={e => setBaixaForm({...baixaForm,conta_bancaria:e.target.value})}><option value="">Selecione a conta</option>{contasBancarias.map(c => <option key={c.id} value={c.id}>{c.banco}{c.numero_conta ? ` • ${c.numero_conta}` : ''}</option>)}</select></label><label className="span-2">URL do comprovante<input value={baixaForm.comprovante_url} onChange={e => setBaixaForm({...baixaForm,comprovante_url:e.target.value})} placeholder="https://…" /></label><label className="nf-upload span-2"><Upload /><span><strong>{baixaUploading ? 'Enviando…' : 'Anexar comprovante'}</strong><small>PDF ou imagem • até 20 MB</small></span><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={e => {const file=e.target.files?.[0]; if(file) {if(file.size > 20 * 1024 * 1024) setToast({type:'err',text:'O comprovante deve ter até 20 MB.'}); else void uploadComprovante(file);} e.target.value='';}} /></label></div></fieldset><footer className="nf-modal-footer"><button type="button" className="nf-btn" disabled={baixaSaving || baixaUploading} onClick={closeBaixa}>Cancelar</button><button type="submit" className="nf-btn primary" disabled={baixaSaving || baixaUploading}><CheckCircle2 />{baixaSaving ? 'Registrando…' : 'Confirmar recebimento'}</button></footer></form>
+    </Modal>}
+  </div>;
 }
-
-/* ─────────────────────────── estilos ─────────────────────────── */
 
 export const STYLES = `
-.nf-workspace,.nf-modal{
-  --bg-page:#0f1115;--bg-surface:#14171c;--bg-hover:#181c22;--bg-selected:#202630;
-  --border:#232832;--text:#e6e8eb;--text-muted:#8b93a0;--accent:#1f8fd6;
-  --success:#3fb27f;--danger:#f53228e0;--warning:#f3e141d3;
-  --row-height:40px;--header-height:32px;--toolbar-height:36px;
-  --font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
-  color-scheme:dark;color:var(--text);font:13px/1.4 Inter,system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;
-}
-.nf-workspace *,.nf-workspace *::before,.nf-workspace *::after,.nf-modal *,.nf-modal *::before,.nf-modal *::after{box-sizing:border-box}
-.nf-workspace{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px 16px;background:var(--bg-page);border:1px solid var(--border);border-radius:4px}
-.nf-workspace h1,.nf-workspace h2,.nf-workspace h3,.nf-workspace p,.nf-modal h2,.nf-modal p{margin:0}
-.nf-workspace button,.nf-modal button{font:inherit;cursor:pointer}
-.nf-workspace button:disabled,.nf-modal button:disabled{opacity:.4;cursor:not-allowed}
-.nf-workspace svg,.nf-modal svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.nf-workspace :focus-visible,.nf-modal :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.nf-workspace input,.nf-workspace select,.nf-modal input,.nf-modal select,.nf-modal textarea{font:inherit;min-width:0;width:100%;height:32px;border:1px solid var(--border);border-radius:4px;background:var(--bg-page);color:var(--text);padding:0 8px}
-.nf-workspace input::placeholder,.nf-modal input::placeholder,.nf-modal textarea::placeholder{color:var(--text-muted)}
-.nf-modal textarea{height:auto;min-height:84px;padding:8px;resize:vertical}
-.nf-modal input[readonly]{background:var(--bg-hover);color:var(--text-muted)}
-.nf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
-.nf-spin{animation:nf-rotate 1s linear infinite}@keyframes nf-rotate{to{transform:rotate(360deg)}}
-.nf-mono{font-family:var(--font-mono)}.positive{color:var(--success)}.negative{color:var(--danger)}
+.nf-picker{position:relative;min-width:0;font-weight:400}.nf-picker summary{display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none;padding:11px 12px;border:1px solid #25334a;background:#0c1525;border-radius:9px;min-height:44px;color:#e0ebf9;cursor:pointer;font-size:12px;overflow-wrap:anywhere}.nf-picker summary::-webkit-details-marker{display:none}.nf-picker[open]>summary{border-color:#699edc}.nf-picker-panel{padding:10px;background:#17253b;border:1px solid #3e5979;border-radius:9px;margin-top:7px}.nf-picker-options{max-height:180px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:3px}.nf-picker-options button{display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;background:transparent;color:#cddcf0;border-radius:5px;padding:10px;text-align:left;font-size:12px!important;min-height:40px}.nf-picker-options button:hover,.nf-picker-options button[aria-pressed=true]{background:#28456b;color:white}.nf-picker-options p{padding:8px;color:#afc0d6;font-size:12px}
 
-/* cabeçalho */
-.nf-breadcrumb{display:flex;align-items:center;gap:8px;min-height:24px;color:var(--text-muted);font-size:12px}
-.nf-eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 3px;color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase}
-.nf-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px}
-.nf-heading h1{font-size:18px;font-weight:600;line-height:24px}
-.nf-heading-total{text-align:right;white-space:nowrap}.nf-heading-total strong{font:600 17px var(--font-mono)}
-.nf-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent)}
-
-.nf-segment{display:inline-flex;align-self:flex-start;gap:2px;padding:2px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface)}
-.nf-segment button{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border:0;border-radius:3px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600}
-.nf-segment button.active{background:var(--bg-selected);color:var(--text)}
-.nf-segment button span{padding:0 5px;border-radius:3px;background:rgba(255,255,255,.06);font-size:10px}
-
-/* botões */
-.nf-btn,.nf-modal .nf-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface);color:var(--text);font-size:12px;font-weight:500;white-space:nowrap;list-style:none}
-.nf-btn::-webkit-details-marker,summary::-webkit-details-marker{display:none}
-.nf-btn:hover:not(:disabled){background:var(--bg-hover)}
-.nf-btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.nf-btn-primary:hover:not(:disabled){background:var(--accent);filter:brightness(.92)}
-.nf-btn-quiet{background:transparent;border-color:transparent;color:var(--text-muted)}
-.nf-btn-icon{width:32px;padding:0}
-.nf-btn.destructive{background:var(--danger);border-color:var(--danger);color:#fff}
-.nf-separator{width:1px;height:20px;margin:0 2px;background:var(--border)}
-.nf-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text-muted);padding:0}
-.nf-icon:hover:not(:disabled){background:var(--bg-hover);color:var(--text)}
-.nf-icon.success{color:var(--success)}.nf-icon.danger{color:var(--danger)}
-.nf-text-btn{display:inline-flex;align-items:center;gap:6px;padding:4px 0;border:0;background:none;color:var(--accent);font-size:12px}
-
-/* ledger / toolbar */
-.nf-ledger{display:flex;flex-direction:column;min-width:0}
-.nf-toolbar{display:flex;flex-direction:column;gap:0;min-width:0}
-.nf-toolbar-main{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;min-height:var(--toolbar-height);padding-bottom:8px}
-.nf-toolbar-actions{display:flex;flex:1 1 450px;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
-.nf-filter-count{display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;padding:0 4px;border-radius:3px;background:rgba(31,143,214,.2);color:#78d0ff;font-size:10px}
-.nf-period{display:flex;align-items:center;gap:4px;margin-left:auto}
-.nf-month{min-width:140px;padding:0 8px;text-align:center;font-weight:600;line-height:30px;border-bottom:2px solid var(--accent);text-transform:capitalize}
-
-/* menus inline */
-.nf-menu{position:relative}
-.nf-menu>summary{cursor:pointer}
-.nf-menu-panel{position:absolute;z-index:20;top:calc(100% + 4px);left:0;min-width:240px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface);box-shadow:0 8px 24px #0009}
-.nf-period .nf-menu-panel{left:auto;right:0}
-.nf-columns-panel{display:flex;flex-direction:column;gap:2px;max-height:min(420px,70dvh);overflow:auto}
-.nf-columns-panel>p{padding:4px 6px;font-size:12px;font-weight:600}
-.nf-column-option{display:flex;align-items:center;gap:8px;padding:6px;font-size:12px;cursor:pointer;border-radius:3px}
-.nf-column-option:hover{background:var(--bg-hover)}
-.nf-column-option input{width:auto;height:auto;accent-color:var(--accent)}
-.nf-month-panel{width:260px}
-.nf-year{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px}
-.nf-year strong{min-width:44px;text-align:center}
-.nf-month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.nf-month-grid button{height:30px;border:1px solid var(--border);border-radius:4px;background:var(--bg-page);color:var(--text-muted);font-size:12px}
-.nf-month-grid button:hover{background:var(--bg-hover)}
-.nf-month-grid button[aria-pressed=true]{background:rgba(31,143,214,.2);border-color:var(--accent);color:#91dcff}
-.nf-menu-foot{display:flex;justify-content:space-between;gap:8px;margin-top:10px}
-
-/* filtros */
-.nf-filters{display:flex;flex-wrap:wrap;gap:8px;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface)}
-.nf-filters label{display:grid;flex:1 1 160px;gap:4px;color:var(--text-muted);font-size:11px}
-.nf-search-field{position:relative;flex:2 1 320px!important}
-.nf-search-field svg{position:absolute;left:10px;bottom:9px;color:var(--text-muted);pointer-events:none}
-.nf-search-field input{padding-left:32px}
-.nf-filters-foot{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
-.nf-error-text{color:var(--danger);font-size:12px}
-.nf-filter-status{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;color:var(--text-muted);font-size:12px}
-.nf-selection{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:4px;background:rgba(31,143,214,.1);font-size:12px}
-
-/* tabela */
-.nf-scroll{width:100%;min-width:0;max-height:68dvh;overflow:auto;border:1px solid var(--border);border-radius:4px;scrollbar-color:#637484 var(--bg-surface)}
-.nf-scroll::-webkit-scrollbar{width:10px;height:10px}
-.nf-scroll::-webkit-scrollbar-track{background:var(--bg-surface)}
-.nf-scroll::-webkit-scrollbar-thumb{background:#637484;border:2px solid var(--bg-surface);border-radius:6px}
-.nf-table{min-width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:12px;text-align:left}
-.nf-table>thead>tr>th{position:sticky;top:0;z-index:3;height:var(--header-height);padding:0 14px;background:var(--bg-surface);border-bottom:1px solid var(--border);color:var(--text-muted);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;vertical-align:middle}
-.nf-table th.right,.nf-table td.right{text-align:right}
-.nf-th-plain{display:block;padding:0}
-.nf-sort{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;min-height:var(--header-height);padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;text-align:left}
-.nf-table th.right .nf-sort{flex-direction:row-reverse}
-.nf-sort[data-active=true]{color:#70cfff}
-.nf-sort svg{width:11px;height:11px;color:var(--text-muted)}
-.nf-row{height:var(--row-height);background:var(--bg-page)}
-.nf-row td{padding:0 14px;height:var(--row-height);border-bottom:1px solid var(--border);vertical-align:middle;background:inherit}
-.nf-row:hover{background:var(--bg-hover)}
-.nf-row[data-selected=true],.nf-row[data-expanded=true]{background:var(--bg-selected)}
-.nf-table>thead>tr>th:first-child,.nf-row td:first-child{padding:0 8px;text-align:center}
-.nf-checkbox{width:16px!important;height:16px!important;min-height:0!important;padding:0!important;accent-color:var(--accent);cursor:pointer}
-.nf-cell-text{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nf-strong{font-weight:600}
-.nf-date{white-space:nowrap}.nf-late{color:var(--warning)}
-.nf-money{font:600 12px var(--font-mono);white-space:nowrap}
-.nf-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:2px}
-.nf-month-row th{padding:0 14px;height:30px;background:var(--bg-hover);border-bottom:1px solid var(--border);text-align:left}
-.nf-month-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:600}
-.nf-month-head>span{display:inline-flex;align-items:center;gap:8px}
-.nf-month-head em{font-style:normal;font-weight:400;padding:0 6px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--text-muted);font-size:11px}
-.nf-month-head strong{font-weight:600}
-.nf-empty{padding:40px 16px;text-align:center;color:var(--text-muted)}
-.nf-empty-row{display:flex;align-items:center;gap:8px}
-.nf-empty-col{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
-.nf-empty-col p{display:flex;align-items:center;gap:8px}
-
-/* badges */
-.nf-badge{display:inline-flex;align-items:center;gap:5px;max-width:100%;height:20px;padding:0 6px;border-radius:3px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-muted);background:rgba(255,255,255,.06)}
-.nf-badge svg{width:11px;height:11px}
-.nf-badge.pending{color:var(--warning);background:rgba(212,167,44,.12)}
-.nf-badge.overdue{color:var(--danger);background:rgba(229,83,75,.12)}
-.nf-badge.paid{color:var(--success);background:rgba(63,178,127,.12)}
-
-/* detalhe expandido */
-.nf-detail-cell{padding:0!important;border-bottom:1px solid var(--border)}
-.nf-detail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 24px;margin:0;padding:12px 16px 12px 40px;background:var(--bg-hover)}
-.nf-detail>div{min-width:0}
-.nf-detail dt{margin-bottom:3px;color:var(--text-muted);font-size:11px}
-.nf-detail dd{margin:0;font-size:12px;line-height:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nf-detail dd.nf-wrap{white-space:pre-wrap;overflow-wrap:anywhere}
-.nf-detail .wide{grid-column:span 2}
-.nf-detail a{color:var(--text);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-
-/* rodapé */
-.nf-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;min-height:36px;padding:0 12px;border:1px solid var(--border);border-top:0;background:var(--bg-hover);font-size:11px;font-weight:600}
-.nf-summary strong{font-family:var(--font-mono);font-size:12px}
-.nf-summary-values{display:flex;flex-wrap:wrap;gap:4px 16px;font-weight:400}
-.nf-summary-values b{font:600 12px var(--font-mono)}
-.nf-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;min-height:32px;padding:7px 0 0;color:var(--text-muted);font-size:12px}
-.nf-pagination-info{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-.nf-pagination select{width:auto;height:28px;padding:0 6px}
-.nf-pages{display:flex;align-items:center;gap:6px;margin-left:auto}
-.nf-pagination .nf-btn{height:28px;min-width:28px;padding:0 7px}
-
-/* avisos */
-.nf-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;margin-bottom:8px;border:1px solid rgba(63,178,127,.35);border-radius:4px;background:rgba(63,178,127,.1);color:#9be6c6;font-size:12px}
-.nf-notice.error{border-color:rgba(245,50,40,.4);background:rgba(245,50,40,.1);color:#ffb3ae}
-.nf-notice span{overflow-wrap:anywhere}
-
-/* seletor inline */
-.nf-picker{position:relative;min-width:0;font-weight:400}
-.nf-picker summary{display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none;min-height:32px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-page);color:var(--text);cursor:pointer;font-size:12px;overflow-wrap:anywhere}
-.nf-picker summary::-webkit-details-marker{display:none}
-.nf-picker[open]>summary{border-color:var(--accent)}
-.nf-picker-panel{margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-surface)}
-.nf-picker-options{display:flex;flex-direction:column;gap:2px;max-height:180px;margin-top:8px;overflow:auto}
-.nf-picker-options button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:6px 8px;border:0;border-radius:3px;background:transparent;color:var(--text);text-align:left;font-size:12px}
-.nf-picker-options button:hover,.nf-picker-options button[aria-pressed=true]{background:var(--bg-selected)}
-.nf-picker-options p{padding:8px;color:var(--text-muted);font-size:12px}
-
-/* modal */
-.nf-modal{padding:0;position:fixed;margin:auto;width:calc(100% - 32px);max-width:550px;max-height:calc(100dvh - 32px);background:var(--bg-surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 30px 100px #000a;overflow:auto}
-.nf-modal.wide{max-width:850px}
-.nf-modal::backdrop{background:#03060ccc}
-.nf-modal-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-surface)}
-.nf-modal-head h2{margin-top:3px;font-size:18px;font-weight:600}
-.nf-modal-body{padding:18px 20px}
-.nf-fieldset{min-width:0;margin:0 0 20px;padding:0;border:0}
-.nf-fieldset legend{margin-bottom:12px;padding:0;font-size:13px;font-weight:600}
-.nf-fieldset legend>span{margin-right:8px;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-hover);color:#8dbff9;font-size:10px}
-.nf-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.nf-form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
-.nf-form-grid label,.nf-field{display:flex;flex-direction:column;gap:4px;min-width:0;color:var(--text-muted);font-size:11px}
-.nf-form-grid small{color:var(--text-muted);font-size:10px}
-.nf-form-grid .span-2{grid-column:span 2}.nf-form-grid .span-3{grid-column:span 3}
-.nf-modal-footer{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
-.nf-upload{display:flex!important;flex-direction:row!important;align-items:center;gap:12px;position:relative;overflow:hidden;padding:12px;border:1px dashed var(--border);border-radius:4px;background:var(--bg-page);cursor:pointer}
-.nf-upload:hover{border-color:var(--accent);background:var(--bg-hover)}
-.nf-upload>svg{width:22px;height:22px;color:var(--accent)}
-.nf-upload>span{display:grid;gap:3px;min-width:0}
-.nf-upload strong{font-size:12px;font-weight:500;color:var(--text);overflow-wrap:anywhere}
-.nf-upload small{font-size:10px;color:var(--text-muted)}
-.nf-upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-.nf-info{margin-bottom:16px!important;padding:8px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-hover);color:var(--text-muted);font-size:12px}
-.nf-dialog-copy{color:var(--text-muted);font-size:13px}
-.nf-confirm-icon{display:grid;place-items:center;width:40px;height:40px;margin-bottom:12px;border-radius:4px;background:rgba(245,50,40,.12);color:var(--danger)}
-.nf-payment-summary{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:14px}
-.nf-payment-summary span{font-weight:600;font-size:13px}
-.nf-payment-summary small{display:block;margin-top:3px;font-weight:400;font-size:11px;color:var(--text-muted)}
-.nf-payment-summary strong{font:600 20px var(--font-mono);color:var(--success)}
-.nf-pdf-frame{display:block;width:100%;height:60dvh;min-height:260px;border:0;border-radius:4px;background:#fff}
-.nf-preview-image{display:block;max-width:100%;max-height:65dvh;margin:auto;object-fit:contain}
-
-@media(max-width:900px){.nf-detail{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:760px){.nf-workspace{padding:8px;gap:6px}.nf-period{margin-left:0;width:100%;justify-content:space-between}.nf-month{flex:1;min-width:0}.nf-toolbar-actions{flex-basis:100%}.nf-separator{display:none}.nf-scroll{max-height:65dvh}}
-@media(max-width:640px){.nf-modal{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}.nf-modal-head{padding:12px 14px}.nf-modal-body{padding:14px}.nf-form-grid,.nf-form-grid.two{grid-template-columns:1fr}.nf-form-grid .span-2,.nf-form-grid .span-3{grid-column:auto}.nf-modal-footer{flex-direction:column-reverse;align-items:stretch}.nf-modal input,.nf-modal select,.nf-modal textarea{font-size:16px}.nf-heading{flex-wrap:wrap}}
+.nf-workspace,.nf-modal{--nf-bg:#0b1120;--nf-panel:#111b2d;--nf-line:#25334a;--nf-muted:#9aaec8;--nf-text:#edf4ff;--nf-blue:#3478f6;--nf-cyan:#6cd7ee;color-scheme:dark;color:var(--nf-text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;letter-spacing:-.01em}
+.nf-workspace *,.nf-modal *{box-sizing:border-box}.nf-workspace{container-type:inline-size;min-width:0;background:radial-gradient(ellipse at 5% 0%,#112645 0%,transparent 42%),var(--nf-bg);padding:clamp(16px,3vw,40px);border:1px solid #1b2c44;border-radius:22px}
+.nf-workspace h1,.nf-workspace h2,.nf-workspace h3,.nf-workspace p,.nf-modal h2,.nf-modal p{margin:0}.nf-workspace button,.nf-modal button{font:inherit;cursor:pointer}.nf-workspace button:disabled,.nf-modal button:disabled{opacity:.42;cursor:not-allowed}.nf-workspace svg,.nf-modal svg{width:17px;height:17px;flex-shrink:0;stroke-width:1.7}.nf-workspace button,.nf-modal button{transition:background .18s,border-color .18s,transform .18s}.nf-workspace :focus-visible,.nf-modal :focus-visible{outline:2px solid #79dcf2;outline-offset:3px}.nf-workspace input,.nf-workspace select,.nf-modal input,.nf-modal select,.nf-modal textarea{font:inherit;min-width:0;width:100%;min-height:44px;border:1px solid var(--nf-line);border-radius:9px;background:#0c1525;color:var(--nf-text);padding:10px 12px}.nf-workspace input::placeholder,.nf-modal input::placeholder,.nf-modal textarea::placeholder{color:#8196b2}.nf-modal input[readonly]{background:#172135;color:#a6b8d1}.nf-modal textarea{resize:vertical;min-height:90px}
+.nf-header{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:28px}.nf-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.13em;font-weight:700;color:#93b7e6}.nf-dot{display:inline-block;background:#62cce4;width:6px;height:6px;border-radius:50%;flex-shrink:0}nf-header-actions{display:flex;gap:10px;flex-shrink:0}.nf-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border:1px solid var(--nf-line);border-radius:9px;color:#dbe8fa;background:#172238;font-size:12px!important;font-weight:600!important;white-space:nowrap}.nf-btn:hover{background:#21314c;border-color:#3b526f}.nf-btn.primary{background:#09317a;color:#fff;border-color:#020f27;box-shadow:0 4px 16px #1265ed20}.nf-btn.primary:hover{background:#4289ff}.nf-btn.subtle{background:transparent}.nf-btn.selected{border-color:#4774ad;color:#89caff;background:#162d4a}.nf-btn.destructive{background:#bc3545;border-color:#d34b5b;color:white}.nf-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;height:36px;width:36px;border:1px solid transparent;border-radius:8px;background:transparent;color:#a4b7d1;padding:0}.nf-icon:hover{background:#23334c;color:white;border-color:#354b6c}.nf-icon.success{color:#52dbad}.nf-icon.danger{color:#ed8b98}.nf-icon.danger:hover{background:#462233}.nf-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin:8px 0 16px;padding:0 19px;font-weight:300;font-size:12px;line-height:16px}.nf-stat{background:linear-gradient(135deg,#152139,#101a2b);border:1px solid var(--nf-line);border-radius:13px;padding:19px;position:relative;overflow:hidden}.nf-stat:before{content:'';position:absolute;left:0;top:20px;bottom:20px;width:2px;background:var(--accent)}.nf-stat.blue{--accent:#659cff}.nf-stat.green{--accent:#51d8ac}.nf-stat.cyan{--accent:#6cd7ee}.nf-stat.amber{--accent:#ecc06a}.nf-stat-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}.nf-stat-top span{color:#b0c1d8;font-size:11px;font-weight:550}.nf-stat-top svg{color:var(--accent);width:19px;height:19px}.nf-stat strong{display:block;font-size:clamp(18px,1.8vw,27px);font-weight:650;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.nf-stat small{display:block;margin-top:7px;color:#91a6c2;font-size:10px}.nf-panel{background:#10192a;border:1px solid var(--nf-line);border-radius:15px;overflow:hidden;box-shadow:0 12px 40px #00000015}.nf-panel-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:19px 22px;border-bottom:1px solid var(--nf-line)}.nf-segment{display:flex;gap:4px;padding:4px;border-radius:10px;background:#0b1322;border:1px solid #253249}.nf-segment button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:36px;border:0;border-radius:7px;background:transparent;color:#a4b6cd;padding:7px 14px;font-size:12px;font-weight:600}.nf-segment button.active{color:white;background:#2869e4;box-shadow:0 3px 8px #0002}.nf-segment button span{font-size:10px;padding:1px 6px;border-radius:4px;background:#ffffff10}.nf-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) 160px 155px auto;gap:10px;padding:20px 22px 10px}.nf-toolbar select{font-size:12px}.nf-search{position:relative;display:flex;align-items:center;min-width:0}.nf-search svg{position:absolute;left:13px;color:#8ea7c5}.nf-search input{padding-left:39px;font-size:12px}.nf-period{display:flex;align-items:end;flex-wrap:wrap;gap:12px;padding:14px 22px;margin:0 22px;background:#142037;border:1px solid #2a3f5f;border-radius:10px}.nf-period label{flex:1;min-width:130px;color:#b6c7de;font-size:11px}.nf-period input{margin-top:6px}.nf-error-text{color:#ffb3bd;font-size:12px;flex-basis:100%}.nf-list-heading{display:flex;justify-content:space-between;align-items:center;padding:19px 22px;gap:12px}.nf-list-heading h2{font-size:16px;font-weight:600;overflow-wrap:anywhere}.nf-list-heading p{color:var(--nf-muted);font-size:11px;margin-top:3px}.nf-text-btn{display:inline-flex;align-items:center;gap:6px;color:#8fc7ff;background:none;border:0;padding:4px 0;font-size:12px!important}.nf-list-heading .nf-text-btn{margin-left:12px;font-size:11px!important}.nf-view-toggle{display:flex;padding:3px;gap:3px;border:1px solid var(--nf-line);border-radius:8px;background:#0c1525;flex-shrink:0}.nf-view-toggle button{width:34px;height:32px;display:grid;place-items:center;color:#8fa6c3;background:none;border:0;border-radius:5px}.nf-view-toggle button.active{background:#243755;color:#98cbff}.nf-back{padding:0 22px 12px}.nf-table-wrap{overflow-x:auto}.nf-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;white-space:nowrap}.nf-table thead{background:#0d1728;color:#8fa8ca;font-size:9px;letter-spacing:.075em;text-transform:uppercase}.nf-table th{font-weight:600;padding:13px 16px;border-block:1px solid #24344c}.nf-table td{padding:17px 16px;border-bottom:1px solid #223047;vertical-align:middle}.nf-table tbody tr:nth-child(even){background:#14203466}.nf-table tbody tr:hover{background:#1a2b45}.nf-table tbody tr:last-child td{border-bottom:0}.nf-table .right{text-align:right}.nf-doc-cell{display:flex;gap:12px;align-items:center}.nf-doc-icon{display:grid;place-items:center;width:35px;height:40px;background:#20355780;border:1px solid #304a6d80;color:#78afff;border-radius:8px;flex-shrink:0}.nf-doc-cell strong{display:block;font-size:12px;font-weight:650;color:#e0ecff}.nf-doc-cell span:not(.nf-doc-icon){display:block;font-size:11px;color:#a9bdd7;max-width:210px;overflow:hidden;text-overflow:ellipsis}.nf-doc-cell small{display:block;font-size:10px;color:#90a5c0;max-width:210px;overflow:hidden;text-overflow:ellipsis;margin-top:3px}.nf-aircraft{display:inline-flex;align-items:center;gap:6px;color:#9ec6f1;font-size:10px}.nf-aircraft svg{width:13px;height:13px}.nf-dates{display:grid;gap:4px;font-size:11px;color:#c7d7ee}.nf-dates small{font-size:10px;color:#8da4c2}.nf-dates .nf-late{color:#edbd6e}.nf-category{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;padding:4px 8px;border:1px solid #284158;background:#132d3d;color:#7ed0e5;font-size:9px;border-radius:10px}.nf-amount{color:#ecf5ff;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.nf-badge{display:inline-flex;align-items:center;gap:5px;border:1px solid #3e4e64;border-radius:12px;overflow:hidden;padding:4px 7px;font-size:10px;white-space:nowrap;color:#bbc9dc;background:#223047}.nf-badge svg{width:12px;height:12px}.nf-badge.paid{color:#5fe1b5;background:#10352e;border-color:#215145}.nf-badge.pending{color:#f3cb79;background:#372e1f;border-color:#55432a}.nf-row-actions{display:flex;justify-content:flex-end;gap:2px}.nf-row-actions .nf-icon{width:30px;height:34px}.nf-row-actions svg{width:14px;height:14px}.nf-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 22px;background:#0d1728;border-top:1px solid var(--nf-line);font-size:10px;color:#9cb0cb}.nf-pagination>div{display:flex;align-items:center;gap:12px}.nf-pagination .nf-icon{border:1px solid var(--nf-line);width:30px;height:30px}.nf-empty{padding:60px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;color:#a3b8d3}.nf-empty>svg{width:34px;height:34px;color:#629ce3}.nf-empty h3{color:#e5effc;font-size:17px}.nf-empty p{max-width:420px;font-size:13px}.nf-folders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0 22px 24px}.nf-folder{text-align:left;border:1px solid #2c405c;background:linear-gradient(140deg,#172942,#111d30);border-radius:12px;padding:19px;color:var(--nf-text);min-width:0}.nf-folder:hover{background:#1b304d;border-color:#5884b9;transform:translateY(-2px)}.nf-folder-top{display:flex;align-items:center;justify-content:space-between;color:#7399c8;margin-bottom:19px}.nf-folder-icon{padding:10px;background:#26466c55;border-radius:9px;display:grid;place-items:center;color:#8bc7ff}.nf-folder-icon svg{width:24px;height:24px}.nf-folder h3{font-size:14px;overflow-wrap:anywhere}.nf-folder p{font-size:11px;color:#93aac8;margin-top:5px}.nf-folder-bottom{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid #2a3b53;margin-top:19px;padding-top:13px;flex-wrap:wrap}.nf-folder-bottom strong{font-size:16px;font-weight:600}.nf-folder-bottom>span{font-size:10px;color:#e3c58b}nf-mobile-docs{display:none}.nf-notice{border:1px solid #285547;background:#15342b;color:#a2edcf;border-radius:10px;padding:10px 14px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px}.nf-notice.error{border-color:#6b3544;background:#3a202d;color:#ffc0c9}.nf-notice span{overflow-wrap:anywhere}.nf-spin{animation:nf-rotate 1s linear infinite}@keyframes nf-rotate{to{transform:rotate(360deg)}}.nf-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.nf-modal{padding:0;position:fixed;margin:auto;width:calc(100% - 32px);max-width:550px;max-height:calc(100dvh - 32px);background:#111c2e;border:1px solid #3a506f;border-radius:16px;box-shadow:0 30px 100px #0008;overflow:auto}.nf-modal.wide{max-width:850px}.nf-modal::backdrop{background:#030a16c9;backdrop-filter:blur(7px)}.nf-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 24px;border-bottom:1px solid var(--nf-line);position:sticky;top:0;background:#111c2e;z-index:1}.nf-modal-head h2{font-size:21px;font-weight:650;margin-top:5px;letter-spacing:-.025em}.nf-modal-head .nf-eyebrow{font-size:9px}.nf-modal-body{padding:22px 24px}.nf-fieldset{border:0;padding:0;margin:0 0 24px;min-width:0}.nf-fieldset legend{padding:0;margin-bottom:16px;font-size:13px;font-weight:600}.nf-fieldset legend>span{font-size:10px;color:#8dbff9;margin-right:9px;border:1px solid #345277;background:#1b3450;border-radius:5px;padding:3px 6px}.nf-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.nf-form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.nf-form-grid label,.nf-field{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:11px;font-weight:550;color:#bacce3}.nf-form-grid small{font-size:10px;font-weight:400;color:#8fa7c5}.nf-form-grid .span-2{grid-column:span 2}.nf-form-grid .span-3{grid-column:span 3}.nf-field>button{min-height:44px;width:100%}.nf-modal-footer{display:flex;justify-content:flex-end;align-items:center;gap:10px;border-top:1px solid var(--nf-line);padding-top:19px;margin-top:22px}.nf-upload{display:flex!important;flex-direction:row!important;align-items:center;gap:14px;border:1px dashed #456181;border-radius:10px;background:#0e192a;padding:16px;position:relative;cursor:pointer;overflow:hidden}.nf-upload:hover{border-color:#7cafe6;background:#162842}.nf-upload:focus-within{outline:2px solid #79dcf2;outline-offset:3px}.nf-upload>svg{width:24px;height:24px;color:#82b9ee}.nf-upload>span{display:grid;gap:4px;min-width:0}.nf-upload strong{font-size:12px;overflow-wrap:anywhere;color:#d8e7fa;font-weight:500}.nf-upload small{font-size:10px;color:#91a9c7}.nf-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.nf-info{padding:12px 14px;background:#172e46;border:1px solid #2d4b69;border-radius:8px;font-size:12px;color:#bad2ee;margin-bottom:22px!important}.nf-dialog-copy{font-size:14px;color:#c2d0e3}.nf-confirm-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;color:#ff91a1;background:#472438;margin-bottom:16px}.nf-confirm-icon svg{width:24px;height:24px}.nf-payment-summary{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}.nf-payment-summary span{font-weight:600;font-size:14px}.nf-payment-summary small{display:block;font-weight:400;font-size:11px;color:#94aac5;margin-top:4px}.nf-payment-summary strong{font-size:24px;color:#75e2c4;font-weight:600}.nf-pdf-frame{width:100%;height:60dvh;min-height:260px;border:0;border-radius:8px;background:white}.nf-preview-image{display:block;max-width:100%;max-height:65dvh;object-fit:contain;margin:auto}
+@container(max-width:1050px){.nf-header{align-items:flex-start;flex-direction:column;gap:18px}.nf-toolbar{grid-template-columns:minmax(180px,1fr) 145px 140px}.nf-toolbar>.nf-btn{grid-column:1/-1;justify-self:start}.nf-stats{gap:10px}.nf-stat{padding:16px}.nf-folders{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(max-width:760px){.nf-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.nf-table-wrap{display:none}.nf-mobile-docs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 18px 18px}.nf-mobile-doc{background:#142136;border:1px solid #2b3f5b;border-radius:11px;padding:15px;min-width:0}.nf-mobile-doc header{display:flex;align-items:center;gap:9px;margin-bottom:16px}.nf-mobile-doc header>div{flex:1;min-width:0}.nf-mobile-doc header strong{display:block;font-size:12px;overflow-wrap:anywhere}.nf-mobile-doc header small{display:block;color:#8faacc;font-size:10px}.nf-mobile-doc h3{font-size:13px;overflow-wrap:anywhere}.nf-mobile-doc p{font-size:11px;color:#9bb2cf;margin-top:5px;overflow-wrap:anywhere}.nf-mobile-doc dl{display:flex;flex-wrap:wrap;gap:15px;margin:18px 0}.nf-mobile-doc dl>div:first-child{flex-basis:100%}.nf-mobile-doc dt{font-size:10px;color:#9bb0cc}.nf-mobile-doc dd{margin:4px 0 0;font-size:12px}.nf-mobile-doc dd.nf-amount{font-size:21px}.nf-mobile-doc footer{border-top:1px solid #2a3c55;padding-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}.nf-mobile-doc .nf-row-actions{margin-left:auto}.nf-row-actions .nf-icon{width:36px;height:40px}.nf-toolbar{grid-template-columns:1fr 1fr}.nf-search{grid-column:1/-1}.nf-toolbar>.nf-btn{grid-column:auto;justify-self:stretch}.nf-toolbar>select:nth-of-type(2){grid-column:1}.nf-panel-top{padding:16px;flex-wrap:wrap}.nf-list-heading{padding:18px}.nf-stat strong{font-size:22px}}
+@container(max-width:490px){.nf-header-actions{width:100%;display:grid;grid-template-columns:auto 1fr}nf-stats{gap:9px;margin-bottom:18px}.nf-stat{padding:14px 12px}.nf-stat-top{margin-bottom:10px}.nf-stat strong{font-size:19px}.nf-stat small{font-size:9px}.nf-stat-top span{font-size:10px}.nf-panel-top{gap:10px}.nf-segment{width:100%}.nf-segment button{flex:1;padding-inline:8px}.nf-panel-top>.nf-btn{margin-left:auto;min-height:36px;padding-block:6px}.nf-toolbar{padding:8px 14px}.nf-mobile-docs{grid-template-columns:1fr;padding:0 14px 16px}.nf-folders{grid-template-columns:1fr;padding:0 14px 16px}.nf-period{margin:8px 14px;padding:12px}.nf-pagination{padding:14px;flex-wrap:wrap}nf-list-heading .nf-text-btn{display:flex;margin:4px 0 0}}
+@media(max-width:640px){.nf-workspace{border-radius:14px;padding:14px}.nf-modal{width:calc(100% - 16px);max-height:calc(100dvh - 16px);border-radius:13px}.nf-modal-head{padding:16px}.nf-modal-head h2{font-size:18px}.nf-modal-body{padding:16px}.nf-form-grid,.nf-form-grid.two{grid-template-columns:1fr}.nf-form-grid .span-2,.nf-form-grid .span-3{grid-column:auto}.nf-modal-footer{flex-direction:column-reverse;align-items:stretch}.nf-modal input,.nf-modal select,.nf-modal textarea,.nf-workspace input,.nf-workspace select{font-size:16px}.nf-modal .nf-btn{min-height:46px}.nf-modal .nf-icon{width:44px;height:44px}}
 @media(prefers-reduced-motion:reduce){.nf-workspace *,.nf-modal *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-@media print{
-  .nf-workspace,.nf-modal{--bg-page:#fff;--bg-surface:#fff;--bg-hover:#f2f2f2;--bg-selected:#f2f2f2;--border:#ccc;--text:#000;--text-muted:#444}
-  .nf-toolbar,.nf-pagination,.nf-breadcrumb,.nf-segment,.nf-row-actions{display:none}
-  .nf-scroll{max-height:none;overflow:visible}
-}
+.nf-detail-row td{padding:0 16px 18px;white-space:normal;background:#0d1728}
+.nf-detail-row:hover{background:#0d1728}
+.nf-detail{display:grid;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;border:1px solid #223047;border-radius:11px;background:#111c2e;font-size:12px}
+.nf-detail h3,.nf-mobile-doc .nf-detail h3{margin-bottom:10px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#93b7e6}
+.nf-detail p{display:flex;align-items:center;gap:8px;color:#c7d7ee;font-size:11px}
+.nf-detail a{display:inline-flex;align-items:center;gap:8px;color:#9ec6f1;font-size:11px}
+.nf-detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}
+.nf-detail dt{font-size:10px;color:#90a5c0}
+.nf-detail dd{margin:3px 0 0;font-weight:600;color:#e0ecff;overflow-wrap:anywhere}
+.nf-detail-actions{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:12px;border-top:1px solid #223047}
+.nf-mobile-doc.expanded{grid-column:1/-1}
+.nf-mobile-doc .nf-detail{grid-template-columns:1fr;padding:12px}
+.nf-mobile-doc .nf-detail dl{grid-template-columns:1fr}
+.nf-mobile-docs{display:none}
+@container(max-width:760px){.nf-mobile-docs{display:grid}}
 `;

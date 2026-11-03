@@ -117,6 +117,7 @@ import {
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
+import { FechamentoBalancoCotista } from "./FechamentoBalancoCotista";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -3216,6 +3217,7 @@ export default function FinanceiroCotista() {
   }, [aeronaveSelecionada, cotistasAeronave]);
   const [abaAtiva, setAbaAtiva] = useState<
     | "resumo"
+    | "fechamento-balanco"
     | "medias"
     | "lancamentos"
     | "graficos"
@@ -3242,6 +3244,12 @@ export default function FinanceiroCotista() {
       rotulo: "Visão por cotista",
       Icon: LayoutDashboard,
       corIcone: "bg-violet-400/10 text-violet-400",
+    },
+    {
+      id: "fechamento-balanco",
+      rotulo: "Fechamento Balanço",
+      Icon: PieChart,
+      corIcone: "bg-cyan-400/10 text-cyan-400",
     },
     {
       id: "emprestimos",
@@ -3540,7 +3548,7 @@ export default function FinanceiroCotista() {
               type="search"
               value={buscaMatricula}
               onChange={(e) => setBuscaMatricula(e.target.value)}
-              placeholder="Digite a matrícula (ex.: PR-GJM)"
+              placeholder="Digite a matrícula"
               aria-label="Filtrar aeronaves pela matrícula"
               className="h-10 pl-9 !rounded-[10px]"
             />
@@ -3714,6 +3722,8 @@ export default function FinanceiroCotista() {
             </div>
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
+          ) : abaAtiva === "fechamento-balanco" ? (
+            <FechamentoBalancoCotista />
           ) : carregando && abaAtiva !== "lancamentos" ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />

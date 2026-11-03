@@ -5,6 +5,8 @@ import { KpiCard } from './KpiCard';
 import { useBalancoCotista } from '../../hooks/useBalancoCotista';
 import type { LinhaBalanco, LinhaMedia } from '../../types/balanco';
 import { formatBRL, formatNumero } from '../../utils/format';
+import { montarResumo } from './BalancoResumo';
+import { BalancoVisaoCliente } from './Balancovisaocliente';
 
 const fixos = (l: LinhaBalanco) => l.admTrip + l.hangaragem + l.manutencaoFixa;
 const variaveis = (l: LinhaBalanco) =>
@@ -125,6 +127,7 @@ export function FechamentoBalancoCotista() {
   const custoDia = totais.diasVoo > 0 ? totalGeral / totais.diasVoo : 0;
 
   const mediaMes = totalGeral / Math.max(1, balanco.geral.length);
+  const resumo = montarResumo(balanco);
 
   return (
     <div className="space-y-4">
@@ -182,6 +185,14 @@ export function FechamentoBalancoCotista() {
           Icon={Plane} />
         
       </div>
+
+      <BalancoVisaoCliente
+        resumo={resumo}
+        onBaixarPdf={async () => {
+          const { baixarPdfBalanco } = await import('./Balancopdf');
+          await baixarPdfBalanco(balanco);
+        }}
+      />
 
       <SectionCard
         titulo={`Resumo Geral — ${balanco.exercicio}`}

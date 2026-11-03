@@ -14,7 +14,7 @@ function mockVoo(tick: number): VooEmOperacao {
   const lat = origem.lat + (destino.lat - origem.lat) * progresso;
   const lon = origem.lon + (destino.lon - origem.lon) * progresso;
   const rastreio: RastreioAeronave = { hex: "A1B2C3", matricula: "PT-MOCK", callsign: "SBR001", lat, lon, alt_ft: 6500, no_solo: false, gs_kt: 120, rumo_graus: 45, vs_fpm: 250, visto_ha_s: tick % 3 === 0 ? 45 : 4, squawk: "1200", fonte: "mock" };
-  return { id: "mock-voo", numero_voo: "SBR-MOCK", status: "em_voo", aeronave_id: "mock-aeronave", matricula_registro: "PT-MOCK", modelo: "Cessna 172", icao_hex: "A1B2C3", origem: "SBGR", destino: "SBGL", origem_coord: origem, destino_coord: destino, horario_previsto_agendamento: new Date().toISOString(), cotista_nome: "Simulação", piloto_nome: "Piloto de teste", copiloto_nome: null, rastreio, rastreio_status: rastreio.visto_ha_s <= 30 ? "ao_vivo" : "atrasado" };
+  return { id: "mock-voo", numero_voo: "SBR-MOCK", status: "em_voo", aeronave_id: "mock-aeronave", matricula_registro: "PT-MOCK", modelo: "Cessna 172", icao_hex: "A1B2C3", origem: "SBGR", destino: "SBGL", origem_coord: origem, destino_coord: destino, horario_previsto_agendamento: new Date().toISOString(), cotista_nome: "Simulação", piloto_nome: "Piloto de teste", copiloto_nome: null, rastreio, rastreio_status: rastreio.visto_ha_s <= 30 ? "ao_vivo" : "atrasado", perna_atual: null, pernas: [] };
 }
 
 function deduplicarVoos(voos: VooEmOperacao[]): VooEmOperacao[] {

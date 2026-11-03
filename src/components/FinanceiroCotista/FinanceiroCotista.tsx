@@ -3497,9 +3497,18 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="relative mt-[13px] flex items-center justify-center border-0 border-transparent py-[5px]">
+        <div className="mt-[13px] flex items-center gap-2 py-[5px]">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1 border-0 px-3 sm:px-5"
+            onClick={() => setPaginaAberta(false)}
+          >
+            <ChevronLeft size={15} /> Voltar
+          </Button>
           <div
-            className="financeiro-tabs flex min-w-0 max-w-[calc(100%_-_14rem)] gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1 sm:max-w-[calc(100%_-_8rem)] lg:max-w-full"
+            className="financeiro-tabs flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-none border-0 border-transparent bg-transparent py-1 px-1"
             role="tablist"
             aria-label="Visões do financeiro cotista"
           >
@@ -3517,15 +3526,6 @@ export default function FinanceiroCotista() {
               </button>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="absolute right-0 my-0 h-9 shrink-0 gap-1 border-0 px-3 sm:px-5"
-            onClick={() => setPaginaAberta(false)}
-          >
-            <ChevronLeft size={15} /> Voltar
-          </Button>
         </div>
       )}
 

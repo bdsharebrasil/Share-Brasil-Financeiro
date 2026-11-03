@@ -120,7 +120,6 @@ import {
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
-import { FechamentoBalancoCotista } from "./FechamentoBalancoCotista";
 import { useBalancoCotista } from "@/hooks/useBalancoCotista";
 import type { Balanco } from "@/types/balanco";
 import {
@@ -4308,7 +4307,40 @@ export default function FinanceiroCotista() {
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
-            <FechamentoBalancoCotista />
+            <div className="space-y-4">
+              <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold">Fechamento por cotista</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Balanço calculado pelos lançamentos da aeronave, meses e cotista selecionados.
+                  </p>
+                </div>
+                <SearchableCombobox
+                  items={cotistasAeronave.map((cotista) => ({
+                    id: cotista.id,
+                    label: cotista.nome,
+                    descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
+                  }))}
+                  value={cotistaVisaoId}
+                  onChange={setCotistaVisaoId}
+                  placeholder="Selecione um cotista"
+                  searchPlaceholder="Buscar cotista..."
+                  emptyMessage="Nenhum cotista encontrado."
+                  icon={<User size={15} />}
+                  disabled={!cotistasAeronave.length}
+                  className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
+                  popoverClassName="border-border bg-popover text-popover-foreground"
+                />
+              </div>
+              <FechamentoBalancoDashboardCotista
+                dashboard={dashboard}
+                carregando={carregando}
+                erro={erroDashboard}
+                cotistas={cotistasAeronave}
+                mesesSelecionados={mesesAplicados}
+                cotistaId={cotistaVisaoId}
+              />
+            </div>
           ) : carregando && abaAtiva !== "lancamentos" ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />
@@ -4374,7 +4406,6 @@ export default function FinanceiroCotista() {
                   erro={erroDashboard}
                   cotistas={cotistasAeronave}
                   mesesSelecionados={mesesAplicados}
-                  visao="cotista"
                   cotistaId={cotistaVisaoId}
                 />
               )}
@@ -4765,7 +4796,6 @@ export default function FinanceiroCotista() {
                   erro={erroDashboard}
                   cotistas={cotistasAeronave}
                   mesesSelecionados={mesesAplicados}
-                  visao="graficos"
                 />
               )}
 

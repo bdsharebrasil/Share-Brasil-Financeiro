@@ -1,10 +1,11 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
-import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane } from "lucide-react";
+import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane, Download } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { baixarPdfBalancoCotista } from "./balancoCotistaPdf";
 
 /**
  * Fechamento mensal / soma dos meses selecionados. Sem filtros de lançamentos.
@@ -15,7 +16,7 @@ import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
  * Tema: herda os tokens HSL --card/--foreground/--border usados no código original;
  * fallback escuro/claro por .dark, [data-theme] e preferência do sistema.
  */
-type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: string | null; cotistas: CotistaAeronave[]; mesesSelecionados: string[] };
+type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: string | null; cotistas: CotistaAeronave[]; mesesSelecionados: string[]; cotistaId?: string };
 type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
 type Voo = { id: string; data: string; numero: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
 type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
@@ -230,7 +231,7 @@ function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], selecio
   };
 }
 
-export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados }: Props) {
+export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados, cotistaId }: Props) {
   const uid = useId().replace(/:/g, "");
   const [aba, setAba] = useState<Aba>("geral");
   const d = dashboard as DashboardBalanco | null;
@@ -242,6 +243,10 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   if (d.balanco_escopo && d.balanco_escopo !== "aeronave") return <div className="bcp">{estilos}<Vazio>O balanço consolidado precisa da consulta completa da aeronave. Envie aeronave_id, início e fim, sem cotista_id.</Vazio></div>;
   const periodo = b.meses.map(rotuloMesCotista).join(" · ");
   const aeronave = [...new Set((d.lancamentos ?? []).map(l => l.aeronaveNome).filter(Boolean))].join(" / ") || "Aeronave selecionada";
+  const cotistaSelecionado = b.participantes.find(p => p.id === cotistaId);
+  const participantesExibidos = cotistaId ? b.participantes.filter(p => p.id === cotistaId) : b.participantes;
+  const mensaisExibidos = cotistaSelecionado?.mensal ?? b.mensais;
+  const totalExibido = cotistaSelecionado?.custo ?? b.total;
   const holdings = d.holdings ?? [];
   const temHolding = holdings.length > 0 || b.participantes.some(p => p.holding);
   const atual = aba === "holding" && !temHolding ? "geral" : aba;
@@ -253,28 +258,28 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const totalPago = saldos.reduce((s, r) => s + cents(r.totalPagoCentavos), 0);
   const totalDevido = saldos.reduce((s, r) => s + cents(r.totalDevidoCentavos), 0);
   return <div className="bcp">{estilos}
-    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>Balanço da aeronave</h2><p>{periodo}</p></div><button type="button" className="bcp-button bcp-no-print" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></header>
-    <div className="bcp-kpis"><Kpi titulo="Custo total" valor={money(b.total.total)} detalhe="Despesas do período" /></div>
+    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => baixarPdfBalancoCotista({ aeronave, cotista: cotistaSelecionado.nome, percentualSociedade: cotistaSelecionado.quota, meses: cotistaSelecionado.mensal, categorias: b.categorias.map(c => ({ nome: c.nome, valor: c.cotistas.get(cotistaSelecionado.id) ?? 0 })).filter(c => c.valor > 0) })}><Download size={14} /> Baixar balanço em PDF</button>}<button type="button" className="bcp-button" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></div></header>
+    <div className="bcp-kpis"><Kpi titulo={cotistaSelecionado ? "Custo rateado do cotista" : "Custo total da aeronave"} valor={money(totalExibido.total)} detalhe={`${periodo} · despesas do período`} /></div>
     {!b.op && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
     {b.diferencasRateio > 0 && <Nota>{b.diferencasRateio} lançamento(s) com diferença entre o total e as parcelas. A diferença aparece separada, sem atribuição automática a um cotista.</Nota>}
     <nav className="bcp-tabs bcp-no-print" aria-label="Seções do balanço">{ABAS.filter(t => t.id !== "holding" || temHolding).map(({ id, nome, Icon }) => <button type="button" key={id} aria-pressed={atual === id} aria-controls={`${uid}-${id}`} onClick={() => setAba(id)} className={atual === id ? "bcp-selected" : ""}><Icon size={15} />{nome}</button>)}</nav>
 
     <section className={view("geral")} id={`${uid}-geral`} aria-label="Comparativo mensal">
-      <Painel titulo="Comparativo mensal — total da aeronave" detalhe="Meses selecionados em ordem cronológica. Etapas correspondem aos registros do diário.">
+      <Painel titulo={`Comparativo mensal — ${cotistaSelecionado ? cotistaSelecionado.nome : "total da aeronave"}`} detalhe="Meses selecionados em ordem cronológica. Etapas correspondem aos registros do diário.">
         <Tabela headers={["Mês", "Custo total", "Fixos", "Variáveis", "Extras", "Não classificados", "Horas", "Pousos", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8,9]}>
-          {b.mensais.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.naoClassificados)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.pousos,0)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}
-          <tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{money(b.total.total)}</Td><Td num>{money(b.total.fixos)}</Td><Td num>{money(b.total.variaveis)}</Td><Td num>{money(b.total.extras)}</Td><Td num>{money(b.total.naoClassificados)}</Td><Td num>{horas(b.totalHoras)}</Td><Td num>{fmt(b.totalPousos,0)}</Td><Td num>{fmt(b.totalVoos,0)}</Td><Td num destaque>{money(b.custoHora)}</Td></tr>
+          {mensaisExibidos.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.naoClassificados)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt("pousos" in m ? m.pousos : null,0)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}
+          <tr className="bcp-total"><Th>Total / média ponderada</Th><Td num>{money(totalExibido.total)}</Td><Td num>{money(totalExibido.fixos)}</Td><Td num>{money(totalExibido.variaveis)}</Td><Td num>{money(totalExibido.extras)}</Td><Td num>{money(totalExibido.naoClassificados)}</Td><Td num>{horas(cotistaSelecionado?.horas ?? b.totalHoras)}</Td><Td num>{fmt(cotistaSelecionado ? somarMedida(cotistaSelecionado.voos, v => v.pousos, b.fonteVoos) : b.totalPousos,0)}</Td><Td num>{fmt(cotistaSelecionado ? cotistaSelecionado.voos.length : b.totalVoos,0)}</Td><Td num destaque>{money(cotistaSelecionado?.custoHora ?? b.custoHora)}</Td></tr>
         </Tabela>
       </Painel>
-      {atual === "geral" && <div className="bcp-grid-two bcp-no-print"><Painel titulo="Média de custo/hora por mês" detalhe="Cada ponto = custo do mês ÷ horas do mesmo mês."><Grafico><ResponsiveContainer width="100%" height="100%"><AreaChart data={b.mensais} margin={{left:0,right:15,top:12,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} tickLine={false} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Area dataKey="custoHora" name="Custo/h" stroke="var(--bcp-accent)" fill="var(--bcp-accent)" fillOpacity={.1} strokeWidth={2} connectNulls={false} isAnimationActive={false} /></AreaChart></ResponsiveContainer></Grafico></Painel>
-      <Painel titulo="Fixos × variáveis" detalhe="Extras e valores sem classificação permanecem separados."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={b.mensais} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/><Bar dataKey="naoClassificados" name="Não classificados" stackId="custo" fill="#8291a4" isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
+      {atual === "geral" && <div className="bcp-grid-two bcp-no-print"><Painel titulo="Média de custo/hora por mês" detalhe="Cada ponto = custo do mês ÷ horas do mesmo mês."><Grafico><ResponsiveContainer width="100%" height="100%"><AreaChart data={mensaisExibidos} margin={{left:0,right:15,top:12,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} tickLine={false} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Area dataKey="custoHora" name="Custo/h" stroke="var(--bcp-accent)" fill="var(--bcp-accent)" fillOpacity={.1} strokeWidth={2} connectNulls={false} isAnimationActive={false} /></AreaChart></ResponsiveContainer></Grafico></Painel>
+      <Painel titulo="Fixos × variáveis" detalhe="Extras e valores sem classificação permanecem separados."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={mensaisExibidos} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/><Bar dataKey="naoClassificados" name="Não classificados" stackId="custo" fill="#8291a4" isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
       <Nota>O custo/hora consolidado é ponderado pelas horas: soma dos custos ÷ soma das horas. Meses sem voo exibem “—”. Os totais financeiros seguem a emissão e as horas seguem a data do diário.</Nota>
     </section>
 
     <section className={view("cotistas")} id={`${uid}-cotistas`} aria-label="Evolução individual por cotista">
       <div className="bcp-section-title"><h3>Evolução individual por cotista</h3><p>Custo rateado, utilização e destinos no período selecionado.</p></div>
       {!b.fonteVoos && <Nota>O diário individual não está disponível nesta resposta. Horas, destinos e balanço da cota não são estimados a partir do custo.</Nota>}
-      {b.participantes.map((p, i) => <article className="bcp-owner" key={p.id}>
+      {participantesExibidos.map((p, i) => <article className="bcp-owner" key={p.id}>
         <header className="bcp-owner-header"><div className="bcp-avatar" style={{color:cores[i%cores.length]}}>{p.nome.slice(0,2).toUpperCase()}</div><div><h3>{p.nome}</h3><p>{p.confirmado ? p.holding ? "Sócio de holding" : "Cotista cliente" : "Vínculo a conferir"} · Cota atual: {pct(p.quota)}</p></div><div className="bcp-owner-cost"><small>Custo rateado</small><strong>{money(p.custo.total)}</strong></div></header>
         <div className="bcp-owner-body"><div className="bcp-mini-kpis"><Kpi titulo="Horas voadas" valor={horas(p.horas)} /><Kpi titulo="Utilização da aeronave" valor={pct(p.uso)} /><Kpi titulo="Custo / hora total" valor={money(p.custoHora)} /><Kpi titulo="Média por relatório de viagem" valor={money(p.mediaViagem)} detalhe={`${fmt(p.numeroViagens,0)} relatórios`} /><Kpi titulo="Consumo estimado L/h" valor={fmt(p.consumoHora)} /></div>
           <div className="bcp-grid-two"><div className="bcp-quota"><h4>Balanço da cota</h4><Barra label="Participação na aeronave" valor={p.quota} /><Barra label="Participação nas horas utilizadas" valor={p.uso} destaque />

@@ -1356,7 +1356,7 @@ export type AeronaveRecibo = { id: string; matricula_registro: string; fabricant
 export type CotistaRecibo = { id: string; aeronave_id: string; cliente_id: string | null; socio_id: string | null; codigo_cliente?: string | null; cnpj?: string | null; cpf?: string | null; endereco?: string | null; cidade?: string | null; uf?: string | null; cotista_ids?: string[]; fornecedor_id?: string | null; categoria_id?: string | null; categoria_nome?: string | null; email_solicitado?: boolean; email_enviado?: boolean; percentual_sociedade: number; nome: string };
 export type AbastecimentoRecibo = { id: string; aeronave_id: string; data: string; tipo_combustivel: string | null; trecho: string | null; local: string | null; numero_comanda: string | null; numero_nf: string | null; litros: number | null; valor_total: number; matricula_registro: string | null; cotista_nome: string };
 export type CategoriaRecibo = { id: string; nome: string; grupo_categoria: string; tipo_despesa?: "fixo" | "variável" | null };
-export type FornecedorRecibo = { id: string; nome: string; nome_completo?: string | null; origem: "favorito" | "combustivel" | string };
+export type FornecedorRecibo = { id: string; nome: string; nome_completo?: string | null; documento?: string | null; cnpj?: string | null; origem: "favorito" | "combustivel" | "agenda" | string };
 export type CategoriaClienteRecibo = { id: string; nome: string; subcategoria_1: string | null; subcategoria_2: string | null; subcategoria_3: string | null; subcategoria_4: string | null };
 export type OpcoesRecibos = { clientes: ClienteRecibo[]; colaboradores: ColaboradorRecibo[]; aeronaves: AeronaveRecibo[]; cotistas: CotistaRecibo[]; categorias: CategoriaRecibo[]; categorias_cliente: CategoriaClienteRecibo[]; abastecimentos: AbastecimentoRecibo[]; fornecedores: FornecedorRecibo[]; recebedores: RecebedorRecibo[] };
 
@@ -1379,6 +1379,8 @@ export type Recibo = {
   recebedor_cidade?: string | null;
   recebedor_uf?: string | null;
   aeronave_id: string | null;
+  fornecedor_id?: string | null;
+  fornecedor_nome?: string | null;
   categoria_movimentacao_id?: string | null;
   numero_voo?: string | null;
   rateado: number;
@@ -1398,6 +1400,10 @@ export type Recibo = {
   observacoes: string | null;
   grupo_categoria: string;
   categoria_id?: string | null;
+  subcategoria_1?: string | null;
+  subcategoria_2?: string | null;
+  subcategoria_3?: string | null;
+  subcategoria_4?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
   tipo_caixa: "SHARE" | "CLIENTE" | "HOLDING";
   status: StatusRecibo;
@@ -1432,6 +1438,8 @@ export type CriarReciboPayload = {
   recebedor_endereco?: string | null;
   recebedor_cidade?: string | null;
   recebedor_uf?: string | null;
+  fornecedor_id?: string | null;
+  fornecedor_nome?: string | null;
   /** O backend usa a Share Brasil como pagadora fixa; campos antigos permanecem opcionais para compatibilidade. */
   nome_pagador?: string;
   documento_pagador?: string | null;
@@ -1446,6 +1454,10 @@ export type CriarReciboPayload = {
   forma_pagamento?: string | null;
   categoria_movimentacao_id: string;
   categoria_despesa_subcategoria?: string | null;
+  subcategoria_1?: string | null;
+  subcategoria_2?: string | null;
+  subcategoria_3?: string | null;
+  subcategoria_4?: string | null;
   numero_voo?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;

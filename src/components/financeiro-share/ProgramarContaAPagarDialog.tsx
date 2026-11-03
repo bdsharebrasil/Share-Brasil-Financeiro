@@ -26,7 +26,7 @@ const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL"
 const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; fornecedor_nome?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
+export type RateioDiretoPayload = { aeronave_id: string; fornecedor_id?: string | null; fornecedor_nome?: string | null; categoria_id?: string | null; categoria_nome?: string | null; periodicidade?: string | null; data_vencimento: string; numero_voo?: string | null; observacoes?: string | null; subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null; rateio_linhas: Array<{ cotista_id?: string; socio_id?: string | null; percentual: number; percentual_sociedade: number; valor_centavos: number }> };
  type Props = {
   open: boolean;
   recibo: Recibo | null;
@@ -78,9 +78,9 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setDataVencimento(recibo.data_vencimento || hoje());
     const categoriaInicial = recibo.categoria_id || recibo.categoria_movimentacao_id || "";
     setCategoriaId(categorias.some((categoria) => categoria.id === categoriaInicial) ? categoriaInicial : "");
-    setFornecedorId("");
-    setFornecedorNome("");
-    setSubcategoria("");
+    setFornecedorId(recibo.fornecedor_id || "");
+    setFornecedorNome(recibo.fornecedor_nome || "");
+    setSubcategoria(recibo.subcategoria_1 || recibo.subcategoria_2 || recibo.subcategoria_3 || recibo.subcategoria_4 || "");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
     setObservacoes("");
@@ -158,6 +158,8 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
         const payload: RateioDiretoPayload = {
           aeronave_id: aeronaveId,
           data_vencimento: dataVencimento,
+          categoria_id: categoriaId || recibo.categoria_id || recibo.categoria_movimentacao_id || null,
+          categoria_nome: categoriaSelecionada?.nome || null,
           fornecedor_id: fornecedorId || null,
           fornecedor_nome: fornecedorNome || null,
           periodicidade,

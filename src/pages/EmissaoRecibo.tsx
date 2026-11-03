@@ -42,6 +42,8 @@ import {
   enviarPdfRecibo,
   enviarDespesaRateioRecibo,
   atualizarStatusRecibo,
+  criarFornecedorCombustivel,
+  criarContatoShare,
   type OpcoesRecibos,
   type NumeroVooOpcao,
   type Recibo as ReciboFinanceiro,
@@ -84,11 +86,12 @@ type Formulario = {
   pagador_tipo: "empresa" | "cotista_aeronave" | "cliente";
   pagador_id: string;
 
-  // recebedor (única coluna real é recebedor_nome)
+  // recebedor e fornecedor selecionado
   recebedor_nome: string;
+  fornecedor_id: string;
+  fornecedor_nome: string;
 
-  // --- Campos AUXILIARES DE UI, só para montar o PDF impresso.
-  // Não existem na tabela `recibos` e NÃO são enviados no payload.
+  // Campos de UI usados no PDF e enviados ao backend para persistência.
   recebedor_cpf_ui: string;
   recebedor_endereco_ui: string;
   recebedor_cidade_ui: string;
@@ -121,6 +124,8 @@ const inicial = (): Formulario => ({
   pagador_tipo: "empresa",
   pagador_id: "",
   recebedor_nome: "",
+  fornecedor_id: "",
+  fornecedor_nome: "",
   recebedor_cpf_ui: "",
   recebedor_endereco_ui: "",
   recebedor_cidade_ui: "",
@@ -348,6 +353,10 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
   const [reciboProgramacao, setReciboProgramacao] = useState<ReciboFinanceiro | null>(null);
   const [rateioAposEmail, setRateioAposEmail] = useState<{ recibo: ReciboFinanceiro; payload: RateioDiretoPayload } | null>(null);
   const [modalEmail, setModalEmail] = useState(false);
+  const [cadastroFornecedorAberto, setCadastroFornecedorAberto] = useState(false);
+  const [tipoNovoFornecedor, setTipoNovoFornecedor] = useState<"share" | "combustivel">("share");
+  const [novoFornecedorDocumento, setNovoFornecedorDocumento] = useState("");
+  const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
   const mostrarFeedback = (tipo: "sucesso" | "erro", texto: string) => {
     setFeedback({ tipo, texto });
@@ -496,6 +505,41 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
     campo: K,
     valor: Formulario[K],
   ) => setForm((atual) => ({ ...atual, [campo]: valor }));
+  const fornecedoresCombobox = useMemo(
+    () => opcoes.fornecedores.map((item) => ({
+      id: item.id,
+      label: [item.nome, item.documento || item.cnpj ? `Documento: ${item.documento || item.cnpj}` : ""].filter(Boolean).join(" · "),
+    })),
+    [opcoes.fornecedores],
+  );
+  const selecionarFornecedor = (id: string, label: string) => {
+    const fornecedor = opcoes.fornecedores.find((item) => item.id === id);
+    const nome = fornecedor?.nome || label;
+    alterar("fornecedor_id", fornecedor?.id || "");
+    alterar("fornecedor_nome", nome);
+    alterar("recebedor_nome", nome);
+    alterar("recebedor_cpf_ui", fornecedor?.documento || fornecedor?.cnpj || "");
+  };
+  const cadastrarFornecedor = async () => {
+    const nome = form.fornecedor_nome.trim() || form.recebedor_nome.trim();
+    if (!nome) return;
+    setSalvandoFornecedor(true);
+    try {
+      const resposta = tipoNovoFornecedor === "combustivel"
+        ? await criarFornecedorCombustivel(nome)
+        : await criarContatoShare({ nome, razao_social: nome, cnpj: novoFornecedorDocumento.trim() || null, categoria_tipo: "FORNECEDOR" });
+      const id = String((resposta as { item?: { id?: string }; id?: string }).item?.id || (resposta as { id?: string }).id || "");
+      const fornecedor = { id, nome, documento: novoFornecedorDocumento.trim() || null, origem: tipoNovoFornecedor === "combustivel" ? "combustivel" : "agenda" } as typeof opcoes.fornecedores[number];
+      setOpcoes((atual) => ({ ...atual, fornecedores: [fornecedor, ...atual.fornecedores] }));
+      selecionarFornecedor(id, nome);
+      setCadastroFornecedorAberto(false);
+      setNovoFornecedorDocumento("");
+    } catch (cause) {
+      setErro(cause instanceof Error ? cause.message : "Não foi possível cadastrar o fornecedor.");
+    } finally {
+      setSalvandoFornecedor(false);
+    }
+  };
 
   const selecionarTipo = (tipo: TipoEmissao) => {
     setErro("");
@@ -787,6 +831,9 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso"
             ? form.categoria_despesa_subcategoria || null
             : null,
+        subcategoria_1: form.categoria_despesa_subcategoria || null,
+        fornecedor_id: form.fornecedor_id || null,
+        fornecedor_nome: form.fornecedor_nome || form.recebedor_nome.trim() || null,
         grupo_categoria:
           form.tipo === "recibo_colaborador"
             ? form.natureza_despesa === "aeronave"
@@ -1254,18 +1301,21 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
                       {erroVoos && <p className="mt-1 text-xs text-destructive">{erroVoos}</p>}
                     </Campo>
                     <Campo label="RECEBEDOR (nome)" obrigatorio>
-                      <input
-                        value={form.recebedor_nome}
-                        onChange={(e) =>
-                          alterar("recebedor_nome", e.target.value)
-                        }
-                        placeholder="Nome de quem vai receber"
-                        className="campo"
-                      />
+                      <div className="flex gap-2">
+                        <SearchableCombobox
+                          items={fornecedoresCombobox}
+                          value={form.fornecedor_id || form.fornecedor_nome || form.recebedor_nome}
+                          selectedLabel={form.fornecedor_nome || form.recebedor_nome}
+                          onChange={selecionarFornecedor}
+                          placeholder="Buscar fornecedor por nome ou documento"
+                          searchPlaceholder="Nome, CNPJ ou documento..."
+                          emptyMessage="Nenhum fornecedor encontrado. Digite para usar somente neste recibo."
+                          allowFreeText
+                        />
+                        <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => { setTipoNovoFornecedor("share"); setCadastroFornecedorAberto(true); }} disabled={!form.recebedor_nome.trim() && !form.fornecedor_nome.trim()} title="Registrar novo fornecedor">Registrar</Button>
+                      </div>
                     </Campo>
-                    {/* CPF/endereço do recebedor: só usados para o PDF
-                        impresso, não existem como coluna em `recibos` e por
-                        isso não entram no payload de criação. */}
+                    {/* Documento usado no PDF e persistido para regeneração. */}
                     <Campo label="CPF do recebedor (só para o PDF)">
                       <input
                         value={form.recebedor_cpf_ui}
@@ -1830,6 +1880,25 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
         />
       )}
 
+      {cadastroFornecedorAberto && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl">
+            <h2 className="text-base font-bold">Registrar fornecedor</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Escolha onde salvar ou use apenas neste recibo fechando esta janela.</p>
+            <div className="mt-4 space-y-3">
+              <label className="block text-xs font-semibold">Tipo de fornecedor
+                <select value={tipoNovoFornecedor} onChange={(event) => setTipoNovoFornecedor(event.target.value as "share" | "combustivel")} className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-xs">
+                  <option value="share">Fornecedor Share (agenda_contatos_fornecedores)</option>
+                  <option value="combustivel">Fornecedor de combustível</option>
+                </select>
+              </label>
+              <label className="block text-xs font-semibold">Nome<input value={form.fornecedor_nome || form.recebedor_nome} onChange={(event) => { alterar("fornecedor_nome", event.target.value); alterar("recebedor_nome", event.target.value); }} className="campo mt-1" /></label>
+              <label className="block text-xs font-semibold">CNPJ ou documento (opcional)<input value={novoFornecedorDocumento} onChange={(event) => { setNovoFornecedorDocumento(event.target.value); alterar("recebedor_cpf_ui", event.target.value); }} className="campo mt-1" /></label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setCadastroFornecedorAberto(false)} disabled={salvandoFornecedor}>Somente neste recibo</Button><Button type="button" onClick={() => void cadastrarFornecedor()} disabled={salvandoFornecedor || !(form.fornecedor_nome || form.recebedor_nome).trim()}>{salvandoFornecedor ? "Salvando..." : "Salvar fornecedor"}</Button></div>
+          </div>
+        </div>
+      )}
       {abaAtiva === "emissao" && previewAberta && form.tipo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-sm bg-white p-6 text-slate-800 shadow-2xl">

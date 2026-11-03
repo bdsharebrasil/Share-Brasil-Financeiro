@@ -206,10 +206,10 @@ const DESPESAS_ESTILOS = `
 }
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-ledger :focus-visible { outline:2px solid var(--ledger-accent); outline-offset:2px; }
-.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:var(--ledger-accent); border:1px solid var(--ledger-accent); border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
-.despesas-theme .despesa-toolbar .despesa-primary:hover { background:var(--ledger-accent); filter:brightness(.92); }
+.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:rgba(8,74,116,1); border:1px solid rgba(8,74,116,1); border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
+.despesas-theme .despesa-toolbar .despesa-primary:hover { background:rgba(8,74,116,1); filter:brightness(.92); }
 .despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:0; border-radius:4px; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; }
-.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:8px 10px; border:0; border-bottom:1px solid var(--ledger-border); background:var(--bg-surface); overflow:visible; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:8px 10px; border:0; border-bottom:1px solid var(--ledger-border); border-radius:5px; background:rgba(6,8,15,.56); overflow:hidden; }
 .despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 16px; min-width:0; }
 .despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
 .despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); color:var(--text); font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
@@ -3505,7 +3505,7 @@ export default function FinanceiroCotista() {
     <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="-mt-3.5 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Financeiro Cotista
@@ -3536,7 +3536,7 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="mt-[13px] flex items-center gap-2 py-[5px]">
+        <div className="mt-0.5 flex items-center gap-2 py-[5px]">
           <Button
             type="button"
             variant="outline"

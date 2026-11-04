@@ -436,13 +436,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
       {modulo ? (
         /* ------------------------------ Módulo aberto ------------------------------ */
         <section className="min-w-0 space-y-2" aria-label={moduloAtual?.rotulo}>
-          <div className="flex justify-start">
+          <div className="flex justify-start -my-[9px] py-0 text-[11px] leading-[11px] font-light">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={voltar}
-              className="mx-1 my-px size-8 min-h-0 px-0 py-px leading-4 border-[rgba(70,133,139,0.93)] text-muted-foreground hover:text-foreground"
+              className="mx-1 my-[4px] size-8 min-h-0 px-0 py-0 text-[10px] leading-[5px] font-light overflow-hidden rounded-[4px] [border-style:outset] border-[rgba(70,133,139,0.93)] text-muted-foreground hover:text-foreground"
               aria-label="Voltar ao dashboard"
               title="Voltar ao dashboard"
             >

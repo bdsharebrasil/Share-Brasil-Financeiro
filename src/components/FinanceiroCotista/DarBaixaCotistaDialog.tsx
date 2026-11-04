@@ -32,6 +32,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const [obs,setObs] = useState('');
   const [comprovante,setComprovante] = useState('');
   const [arquivo,setArquivo] = useState<File|null>(null);
+  const [rateioSelecionado,setRateioSelecionado] = useState('');
   const [erro,setErro] = useState('');
   const [loading,setLoading] = useState(false);
   const [enviando,setEnviando] = useState(false);
@@ -45,11 +46,14 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
     const lancamentoId = lancamento?.id;
     if (!lancamentoId) return;
     let ativo = true;
-    setLoading(true);setErro('');setContexto(null);setSalvo(false);setBanco('');setForma('PIX');setTipo('COTISTA');setObs('');setComprovante('');setArquivo(null);setData(hoje());
+    setLoading(true);setErro('');setContexto(null);setSalvo(false);setBanco('');setForma('PIX');setTipo('COTISTA');setObs('');setComprovante('');setArquivo(null);setRateioSelecionado('');setData(hoje());
     chave.current = crypto.randomUUID();payloadEnviado.current = null;
     Promise.all([buscarContextoBaixa(lancamentoId),buscarOpcoesLancamento()]).then(([ctx,opts]) => {
       if (!ativo) return;
-      setContexto(ctx);setOpcoes(opts);setPagador(ctx.cotista_id || '');
+      setContexto(ctx);setOpcoes(opts);
+      const pendente = ctx.rateios.find(r => Number(r.valor_rateado_centavos) > Number(r.valor_pago_real_centavos || 0));
+      setRateioSelecionado(pendente?.id || ctx.rateios[0]?.id || '');
+      setPagador(pendente?.cotista_id || pendente?.socio_id || ctx.cotista_id || '');
       setValores(Object.fromEntries(ctx.rateios.map(r => [r.id,money(Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0)))])));
     }).catch(e => { if (ativo) setErro(e instanceof Error ? e.message : 'Falha ao carregar a obrigação.'); }).finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
@@ -58,7 +62,10 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const [valores,setValores] = useState<Record<string,string>>({});
   const direto = contexto?.natureza === 'PAGAMENTO_DIRETO';
   const rateios = contexto?.rateios || [];
-  const total = rateios.reduce((s,r) => s+cents(valores[r.id] || '0'),0);
+  const rateioAtual = rateios.find(r => r.id === rateioSelecionado);
+  const total = rateioAtual ? cents(valores[rateioAtual.id] || '0') : 0;
+  const cotistaAtual = rateioAtual ? opcoes?.cotistas.find(c => c.id === (rateioAtual.cotista_id || rateioAtual.socio_id)) : undefined;
+  const documento = lancamento?.documentoNumero || lancamento?.documento || lancamento?.numeroDoc || lancamento?.numeroNf || lancamento?.numeroRecibo || 'Sem número de documento';
   const pessoas = tipo === 'HOLDING' ? opcoes?.holdings || [] : (opcoes?.cotistas || []).filter(c => !direto || c.aeronave_id === contexto?.lancamento.aeronave_id);
   const vencimento = rateios.map(r => r.data_vencimento).find(Boolean) || lancamento?.prazo || null;
 
@@ -69,7 +76,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
     if (!lancamento) return;
     setErro('');setArquivo(file);setComprovante('');setUploading(true);
     try {
-      const { url } = await enviarAnexoEnvioPagamento(file, `baixa-${lancamento.id}`);
+      const { url } = await enviarAnexoEnvioPagamento(file, `baixa-${lancamento.id}-${rateioSelecionado || 'cotista'}`);
       setComprovante(url);
     } catch (e) {
       setArquivo(null);
@@ -80,18 +87,19 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   async function confirmar() {
     if (!lancamento || !contexto || trava.current) return;
     if (!salvo) {
-      if (!pagador || !pessoas.some(p => p.id === pagador)) {setErro('Selecione o pagador real.');return;}
+      if (!rateioAtual) {setErro('Selecione o cotista/rateio que está sendo pago.');return;}
+      if (!pagador || !pessoas.some(p => p.id === pagador)) {setErro('Selecione o pagador real desta parcela.');return;}
       if (!direto && !(opcoes?.contas_bancarias || []).some(c => c.id === banco)) {setErro('Selecione a conta que recebeu o dinheiro.');return;}
       const date = new Date(`${data}T12:00:00Z`);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==data) {setErro('Informe uma data válida.');return;}
-      if (!Number.isSafeInteger(total) || total<=0 || rateios.some(r => !Number.isSafeInteger(cents(valores[r.id]||'0')) || cents(valores[r.id]||'0')<0 || cents(valores[r.id]||'0')>Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0))) {setErro('Informe valores válidos dentro do saldo de cada rateio. Use vírgula para os centavos, sem separador de milhar.');return;}
+      if (!Number.isSafeInteger(total) || total<=0 || total>Number(rateioAtual.valor_rateado_centavos)-Number(rateioAtual.valor_pago_real_centavos||0)) {setErro('Informe valores válidos dentro do saldo de cada rateio. Use vírgula para os centavos, sem separador de milhar.');return;}
       if (arquivo && !comprovante) {setErro('Aguarde o envio do comprovante antes de confirmar.');return;}
     }
     trava.current=true;setEnviando(true);setErro('');
     let confirmado=salvo;
     try {
       if (!confirmado) {
-        const pagamento = {idempotency_key:chave.current,tipo_pagador:tipo,...(tipo==='COTISTA'?{pagador_cotista_id:pagador}:{pagador_holding_id:pagador}),valor_centavos:total,data_pagamento:data,conta_bancaria_id:direto?null:banco,forma_pagamento:forma,observacoes:obs,comprovante_url:comprovante||null,rateios:rateios.map(r=>({rateio_id:r.id,valor_centavos:cents(valores[r.id]||'0')})).filter(r=>r.valor_centavos>0)};
+        const pagamento = {idempotency_key:chave.current,tipo_pagador:tipo,...(tipo==='COTISTA'?{pagador_cotista_id:pagador}:{pagador_holding_id:pagador}),valor_centavos:total,data_pagamento:data,conta_bancaria_id:direto?null:banco,forma_pagamento:forma,observacoes:obs,comprovante_url:comprovante||null,rateios:[{rateio_id:rateioAtual.id,valor_centavos:total}]};
         const snapshot=JSON.stringify(pagamento);
         if(payloadEnviado.current && payloadEnviado.current!==snapshot) throw new Error('Os dados foram alterados após uma tentativa. Feche e reabra para conferir o saldo antes de registrar outro pagamento.');
         payloadEnviado.current=snapshot;
@@ -115,7 +123,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
       {loading?<div className="flex items-center gap-2 py-10 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin"/>Carregando obrigação…</div>:contexto&&<div className="space-y-5 pt-1">
         <section className="rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800/90 to-slate-900/70 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0"><p className="break-words text-base font-semibold text-white">{lancamento?.descricao||contexto.lancamento.descricao||'Despesa do cotista'}</p><p className="mt-1 text-sm text-slate-400">{lancamento?.fornecedor||'Pagamento vinculado ao rateio da despesa'}</p></div>
+            <div className="min-w-0"><p className="break-words text-base font-semibold text-white">{lancamento?.descricao||contexto.lancamento.descricao||'Despesa do cotista'}</p><p className="mt-1 text-sm text-slate-400">{lancamento?.fornecedor||'Pagamento vinculado ao rateio da despesa'} · Documento: {documento}</p></div>
             <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-right"><span className="block text-[9px] font-semibold uppercase tracking-wider text-emerald-200">Total desta baixa</span><strong className="text-xl tabular-nums text-emerald-300">{Number.isFinite(total)?formatarCentavos(total):'Confira os valores'}</strong></div>
           </div>
           <div className="mt-4 grid gap-3 border-t border-slate-700 pt-4 sm:grid-cols-3">
@@ -130,7 +138,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
           {!direto&&<div className="space-y-1.5"><Label htmlFor="baixa-tipo" className="text-slate-200">Tipo de pagador</Label><select id="baixa-tipo" className={selectClass} value={tipo} onChange={e=>{setTipo(e.target.value as 'COTISTA'|'HOLDING');setPagador('');}}><option value="COTISTA">Cotista</option><option value="HOLDING">Holding</option></select></div>}
           <div className="space-y-1.5"><Label htmlFor="baixa-pagador" className="text-slate-200">Pagador real</Label><select id="baixa-pagador" className={selectClass} value={pagador} onChange={e=>setPagador(e.target.value)}><option value="">Selecione…</option>{pessoas.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
           {!direto&&<div className="space-y-1.5 sm:col-span-2"><Label htmlFor="baixa-banco" className="text-slate-200">Conta bancária que recebeu o dinheiro</Label><select id="baixa-banco" className={selectClass} value={banco} onChange={e=>setBanco(e.target.value)}><option value="">Selecione…</option>{(opcoes?.contas_bancarias||[]).filter(c=>c.ativo!==false&&c.ativo!==0).map(c=><option key={c.id} value={c.id}>{c.banco} · {c.numero_conta}</option>)}</select></div>}
-          <div className="space-y-2 sm:col-span-2"><div><p className="text-sm font-semibold text-slate-100">Distribuição do pagamento</p><p className="mt-1 text-xs text-slate-400">Informe o valor pago para cada cotista participante.</p></div>{rateios.map(r=><div key={r.id} className="grid gap-3 rounded-xl border border-slate-700 bg-slate-900/45 p-3 sm:grid-cols-[1fr_auto] sm:items-center"><div><Label htmlFor={`rateio-${r.id}`} className="text-xs font-semibold text-slate-200">{opcoes?.cotistas.find(c=>c.id===r.cotista_id)?.nome||'Rateio da obrigação'}</Label><p className="mt-1 text-[11px] text-slate-400">Saldo: {formatarCentavos(Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0)))}{r.data_vencimento?` · Vencimento ${dataLegivel(r.data_vencimento)}`:''}</p></div><Input id={`rateio-${r.id}`} className="w-full border-slate-700 bg-slate-950/70 text-right tabular-nums sm:w-36" inputMode="decimal" value={valores[r.id]||''} onChange={e=>setValores(v=>({...v,[r.id]:e.target.value}))}/></div>)}<p className="text-xs text-slate-400">Pagamentos menores mantêm o saldo em aberto; não são tratados como desconto.</p></div>
+          <div className="space-y-2 sm:col-span-2"><div><p className="text-sm font-semibold text-slate-100">Distribuição do pagamento</p><p className="mt-1 text-xs text-slate-400">Selecione uma parcela para registrar uma baixa individual com pagador e comprovante próprios.</p></div>{rateios.map(r=>{const nome=opcoes?.cotistas.find(c=>c.id===(r.cotista_id||r.socio_id))?.nome||'Cotista não identificado';const saldo=Math.max(0,Number(r.valor_rateado_centavos)-Number(r.valor_pago_real_centavos||0));return <button type="button" key={r.id} onClick={()=>{setRateioSelecionado(r.id);setPagador(r.cotista_id||r.socio_id||'');setComprovante('');setArquivo(null);setErro('');}} className={`grid w-full gap-3 rounded-xl border p-3 text-left sm:grid-cols-[1fr_auto] sm:items-center ${rateioSelecionado===r.id?'border-sky-400 bg-sky-950/40':'border-slate-700 bg-slate-900/45'} ${saldo===0?'opacity-60':''}`}><div><span className="text-xs font-semibold text-slate-200">{nome}</span><p className="mt-1 text-[11px] text-slate-400">Documento: {documento} · Saldo individual: {formatarCentavos(saldo)}{r.data_vencimento?` · Vencimento ${dataLegivel(r.data_vencimento)}`:''}{saldo===0?' · Quitado':''}</p></div><span className="text-xs font-semibold text-sky-300">{rateioSelecionado===r.id?'Selecionado':'Selecionar'}</span></button>})}{rateioAtual&&<div className="grid gap-3 rounded-xl border border-slate-700 bg-slate-900/45 p-3 sm:grid-cols-[1fr_auto] sm:items-center"><div><Label htmlFor={`rateio-${rateioAtual.id}`} className="text-xs font-semibold text-slate-200">Valor desta baixa · {cotistaAtual?.nome||'cotista selecionado'}</Label><p className="mt-1 text-[11px] text-slate-400">Saldo máximo: {formatarCentavos(Math.max(0,Number(rateioAtual.valor_rateado_centavos)-Number(rateioAtual.valor_pago_real_centavos||0)))}</p></div><Input id={`rateio-${rateioAtual.id}`} className="w-full border-slate-700 bg-slate-950/70 text-right tabular-nums sm:w-36" inputMode="decimal" value={valores[rateioAtual.id]||''} onChange={e=>setValores(v=>({...v,[rateioAtual.id]:e.target.value}))}/></div>}<p className="text-xs text-slate-400">Cada confirmação baixa somente o cotista selecionado; pagamentos menores mantêm saldo em aberto.</p></div>
           <div className="space-y-2 sm:col-span-2"><Label className="text-slate-200">Comprovante do pagamento</Label><label className="group relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-xl border border-dashed border-slate-600 bg-slate-950/40 p-4 transition hover:border-sky-400/70 hover:bg-sky-950/20"><UploadCloud className="h-6 w-6 shrink-0 text-sky-300"/><span className="min-w-0 flex-1"><strong className="block break-all text-sm font-medium text-slate-100">{uploading?'Enviando arquivo…':arquivo?.name||'Anexar imagem ou PDF do comprovante'}</strong><small className="mt-1 block text-xs text-slate-400">PDF, JPG, PNG ou WebP · até 20 MB</small></span>{uploading?<Loader2 className="h-4 w-4 animate-spin text-sky-300"/>:comprovante?<FileCheck2 className="h-5 w-5 text-emerald-400"/>:null}<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" className="absolute inset-0 cursor-pointer opacity-0" onChange={e=>{void selecionarArquivo(e.target.files?.[0]);e.currentTarget.value='';}}/></label>{arquivo&&<div className="flex items-center justify-between gap-2 text-xs text-slate-400"><span className="truncate">{comprovante?'Comprovante anexado': 'Aguardando upload'}{comprovante?' · pronto para salvar':''}</span><button type="button" disabled={formBusy||salvo} onClick={()=>{setArquivo(null);setComprovante('');}} className="inline-flex items-center gap-1 text-slate-300 hover:text-white"><X className="h-3.5 w-3.5"/>Remover</button></div>}</div>
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="baixa-obs" className="text-slate-200">Observações do pagamento</Label><Textarea id="baixa-obs" value={obs} onChange={e=>setObs(e.target.value)} rows={2} className="border-slate-700 bg-slate-950/60" placeholder="Detalhes adicionais para conferência"/></div>
         </fieldset>

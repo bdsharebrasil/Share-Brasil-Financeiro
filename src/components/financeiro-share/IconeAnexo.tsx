@@ -9,7 +9,7 @@ const CAMINHOS: Record<TipoIconeAnexo, string> = {
 
 function tipoIconeAnexo(nome: string): TipoIconeAnexo {
   const texto = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (texto.includes("comprovante") && texto.includes("pagamento")) return "comprovante";
+  if (texto.includes("comprovante")) return "comprovante";
   if (texto.includes("recibo")) return "recibo";
   if (texto.includes("relatorio de viagem")) return "relatorio";
   return "documento";

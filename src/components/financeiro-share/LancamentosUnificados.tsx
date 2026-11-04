@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -28,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { API_BASE } from "@/lib/api";
 import { IconeAnexo } from "./IconeAnexo";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   buscarOpcoesFinanceiroShare,
   carregarDocumentoFinanceiro,
@@ -214,12 +216,36 @@ function Checkbox({
   );
 }
 
+function VisualizadorAnexo({ titulo, href, mime, aoFechar }: { titulo: string; href: string; mime: string; aoFechar: () => void }) {
+  return (
+    <Dialog open onOpenChange={(aberto) => { if (!aberto) aoFechar(); }}>
+      <DialogContent
+        className="flex h-[88vh] max-w-5xl flex-col gap-3 p-4"
+        onPointerDown={(evento) => evento.stopPropagation()}
+        onClick={(evento) => evento.stopPropagation()}
+      >
+        <DialogTitle className="truncate text-base">{titulo}</DialogTitle>
+        <DialogDescription className="sr-only">Visualização do anexo do lançamento</DialogDescription>
+        <div className="min-h-0 flex-1 overflow-hidden rounded-md bg-muted">
+          {mime.startsWith("image/") ? <img src={href} alt={titulo} className="mx-auto h-full object-contain" />
+            : mime === "application/pdf" ? <iframe src={href} title={titulo} className="h-full w-full border-0" />
+            : <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+              Este arquivo não pode ser exibido aqui.
+              <a href={href} target="_blank" rel="noopener noreferrer" className="underline">Abrir em nova aba</a>
+            </div>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
   const privado = urlDeApiPrivada(anexo.href);
   const [recurso, setRecurso] = useState<{ url: string; mime: string } | null>(null);
   const [carregando, setCarregando] = useState(privado);
   const [falha, setFalha] = useState(false);
   const [tentativa, setTentativa] = useState(0);
+  const [visualizando, setVisualizando] = useState(false);
 
   useEffect(() => {
     if (!privado) return;
@@ -248,15 +274,21 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
   const href = privado ? recurso?.url : anexo.href;
   const titulo = anexo.nome || "Anexo";
 
+  const mime = privado ? (recurso?.mime ?? "") : mimePelaUrl(anexo.href);
+
   return (
     <article className="erp-anexo-card">
-      {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="erp-anexo-link" aria-label={`Abrir ${titulo}`} title={titulo}>
+      {href ? <button type="button" className="erp-anexo-link" aria-label={`Abrir ${titulo}`} title={titulo} onClick={() => setVisualizando(true)}>
         <IconeAnexo nome={titulo} />
-      </a> : <div className="erp-anexo-indisponivel" aria-live="polite" title={titulo}>
+        <span className="erp-anexo-nome">{titulo}</span>
+      </button> : <div className="erp-anexo-indisponivel" aria-live="polite" title={titulo}>
+        <IconeAnexo nome={titulo} />
+        <span className="erp-anexo-nome">{titulo}</span>
         {falha
           ? <button type="button" className="erp-anexo-tentar" aria-label={`Tentar novamente: ${titulo}`} title="Tentar novamente" onClick={() => setTentativa((valor) => valor + 1)}><RotateCw size={18} aria-hidden="true" /></button>
           : <Loader2 size={18} className="animate-spin" aria-label={carregando ? "Carregando anexo" : "Preparando anexo"} />}
       </div>}
+      {visualizando && href && <VisualizadorAnexo titulo={titulo} href={href} mime={mime} aoFechar={() => setVisualizando(false)} />}
     </article>
   );
 }
@@ -278,6 +310,29 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
       </section>
     </div>
   );
+}
+
+function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
+  switch (chave) {
+    case "data":
+      return <td key={chave}><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>;
+    case "documento":
+      return <td key={chave} className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>;
+    case "descricao":
+      return <td key={chave}><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>;
+    case "favorecido":
+      return <td key={chave} title={linha.favorecido}>{linha.favorecido || "—"}</td>;
+    case "favorecidoPessoa":
+      return <td key={chave} title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>;
+    case "fornecedor":
+      return <td key={chave} title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>;
+    case "contaBancaria":
+      return <td key={chave} title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>;
+    case "situacao":
+      return <td key={chave}><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>;
+    case "valor":
+      return <td key={chave} className="erp-valor">{formatarMoeda(linha.valor)}</td>;
+  }
 }
 
 export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: Props) {
@@ -316,6 +371,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [porPagina, setPorPagina] = useState(25);
   const [ordenacao, setOrdenacao] = useState<{ chave: ChaveColuna; crescente: boolean }>({ chave: "data", crescente: false });
   const [larguras, setLarguras] = useState<Partial<Record<ChaveColuna, number>>>({});
+  const [ordemColunas, setOrdemColunas] = useState<ChaveColuna[]>([]);
+  const [colunaArrastada, setColunaArrastada] = useState<ChaveColuna | null>(null);
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -351,6 +408,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     setContaBaixa(null);
     setNovo(false);
     setLarguras({});
+    setOrdemColunas([]);
   }, [fluxo]);
 
   useEffect(() => { setSituacaoFiltro(situacaoFiltroInicial(filtroInicial?.situacao)); }, [filtroInicial?.situacao]);
@@ -407,6 +465,48 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     { chave: "situacao", rotulo: "Status", largura: 190 },
     { chave: "valor", rotulo: "Valor", largura: 180 },
   ], [ehEntrada]);
+
+  const colunasExibidas = useMemo<Coluna[]>(() => {
+    const porChave = new Map<ChaveColuna, Coluna>(colunas.map((coluna) => [coluna.chave, coluna]));
+    const ordenadas = ordemColunas.flatMap((chave) => porChave.get(chave) ?? []);
+    return [...ordenadas, ...colunas.filter((coluna) => !ordemColunas.includes(coluna.chave))];
+  }, [colunas, ordemColunas]);
+
+  function moverColuna(origem: ChaveColuna, destino: ChaveColuna) {
+    if (origem === destino) return;
+    const chaves = colunasExibidas.map((coluna) => coluna.chave);
+    const restantes = chaves.filter((chave) => chave !== origem);
+    const indiceDestino = restantes.indexOf(destino);
+    const inserirDepois = chaves.indexOf(origem) < chaves.indexOf(destino);
+    restantes.splice(inserirDepois ? indiceDestino + 1 : indiceDestino, 0, origem);
+    setOrdemColunas(restantes);
+  }
+
+  function arrastoColuna(chave: ChaveColuna) {
+    return {
+      draggable: true,
+      title: "Arraste para reordenar",
+      onDragStart: (evento: ReactDragEvent<HTMLButtonElement>) => {
+        evento.dataTransfer.effectAllowed = "move";
+        evento.dataTransfer.setData("text/plain", chave);
+        setColunaArrastada(chave);
+      },
+      onDragEnd: () => setColunaArrastada(null),
+    };
+  }
+
+  function destinoColuna(chave: ChaveColuna) {
+    return {
+      onDragOver: (evento: ReactDragEvent<HTMLTableCellElement>) => {
+        if (colunaArrastada) evento.preventDefault();
+      },
+      onDrop: (evento: ReactDragEvent<HTMLTableCellElement>) => {
+        evento.preventDefault();
+        if (colunaArrastada) moverColuna(colunaArrastada, chave);
+        setColunaArrastada(null);
+      },
+    };
+  }
 
   const temPeriodoInicial = Boolean(filtroInicial?.inicio || filtroInicial?.fim);
   const filtrados = useMemo(() => {
@@ -593,7 +693,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
               <List size={18} aria-hidden="true" />{todasExpandidas ? "Recolher todas" : "Expandir todas"}
             </button>
             <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" onClick={() => setLarguras({})}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
+            <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
           </div>
 
           <div className="erp-periodo" ref={periodoRef}>
@@ -654,7 +754,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         >
           <table className={`erp-tabela ${!ehEntrada ? "erp-tabela-saidas" : ""}`}>
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
-            <colgroup><col style={{ width: 120 }} />{colunas.map((coluna) => (
+            <colgroup><col style={{ width: 120 }} />{colunasExibidas.map((coluna) => (
               <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
             ))}</colgroup>
             <thead><tr>
@@ -662,8 +762,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                 <Checkbox marcado={todasSelecionadas} parcial={algumasSelecionadas && !todasSelecionadas}
                   desabilitado={carregando || !linhas.length} rotulo="Selecionar todos desta página" aoMudar={alternarPagina} />
               </div></th>
-              {colunas.map((coluna) => <th scope="col" key={coluna.chave}
-                className={coluna.chave === "situacao" ? "erp-th-status" : undefined}
+              {colunasExibidas.map((coluna) => <th scope="col" key={coluna.chave} {...destinoColuna(coluna.chave)}
+                className={[coluna.chave === "situacao" ? "erp-th-status" : "", colunaArrastada === coluna.chave ? "erp-th-arrastada" : ""].filter(Boolean).join(" ") || undefined}
                 aria-sort={ordenacao.chave === coluna.chave ? ordenacao.crescente ? "ascending" : "descending" : "none"}>
                 {coluna.chave === "situacao" ? (
                   <div className="erp-status-th-conteudo">
@@ -690,12 +790,12 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                         </div>
                       )}
                     </div>
-                    <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                    <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
                       {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
                     </button>
                   </div>
                 ) : (
-                  <button type="button" className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                  <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
                     {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
                   </button>
                 )}
@@ -729,16 +829,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                           </div>}
                         </div>
                       </div></td>
-                      <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
-                      <td className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>
-                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
-                      {ehEntrada ? <td title={linha.favorecido}>{linha.favorecido || "—"}</td> : <>
-                        <td title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>
-                        <td title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>
-                      </>}
-                      <td title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>
-                      <td><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>
-                      <td className="erp-valor">{formatarMoeda(linha.valor)}</td>
+                      {colunasExibidas.map((coluna) => celulaLancamento(coluna.chave, linha))}
                     </tr>
                     {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunas.length + 1}>
                       <div id={detalheId}><Detalhes linha={linha} dados={dadosDetalhe} /></div>
@@ -925,11 +1016,15 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-anexos { min-width: 0; padding: 13px; border: 1px solid #273744; border-radius: 10px; background: #121b24; }
 .erp-financeiro .erp-anexos-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: #e7edf6; font-size: 12px; }
 .erp-financeiro .erp-anexos-cabecalho span { color: var(--erp-muted); font-size: 10px; }
-.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, 56px); gap: 9px; }
+.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 9px; }
 .erp-financeiro .erp-anexo-card { min-width: 0; overflow: hidden; border: 1px solid #2a3946; border-radius: 9px; background: #0d151d; transition: border-color .15s, transform .15s; }
 .erp-financeiro .erp-anexo-card:hover { border-color: #2787bc; transform: translateY(-1px); }
-.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: flex; align-items: center; justify-content: center; height: 54px; color: #7acaff; text-decoration: none; }
-.erp-financeiro .erp-anexo-indisponivel { color: #91a4b8; }
+.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 54px; padding: 0 12px; border: 0; background: transparent; color: #7acaff; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.erp-financeiro .erp-anexo-link svg, .erp-financeiro .erp-anexo-indisponivel svg { flex: 0 0 auto; }
+.erp-financeiro .erp-anexo-indisponivel { color: #91a4b8; cursor: default; }
+.erp-financeiro .erp-anexo-nome { min-width: 0; overflow: hidden; color: #e7edf6; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.erp-financeiro .erp-th-arrastada { opacity: .45; }
+.erp-financeiro .erp-ordenar[draggable="true"] { cursor: grab; }
 .erp-financeiro .erp-anexo-tentar { display: inline-flex; padding: 0; border: 0; color: #80cfff; background: transparent; }
 .erp-financeiro .erp-anexos-vazio { margin: 0; padding: 10px 2px 2px; color: var(--erp-muted); font-size: 11px; }
 .erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }

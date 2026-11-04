@@ -26,6 +26,7 @@ import {
   Filter,
   List,
   Loader2,
+  MoreVertical,
   Paperclip,
   Plus,
   Printer,
@@ -39,6 +40,7 @@ import {
   darBaixaContaAPagar,
   darBaixaContaAReceber,
   darBaixaLancamento,
+  excluirLancamento,
   formatarData,
   formatarMoeda,
   type CategoriaCaixaShare,
@@ -60,16 +62,18 @@ import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
-  centroCusto?: string;
   formaPagamento?: string;
-  competencia?: string;
-  emissao?: string;
   observacoes?: string;
   anexos?: Array<{ nome: string; url: string }>;
-  criadoPor?: string;
-  criadoEm?: string;
-  ultimaAlteracao?: string;
 };
+
+const CAMPOS_ANEXO: Array<{ campo: "url_recibo" | "url_demonstrativo" | "url_nf" | "url_boleto" | "url_doc"; rotulo: string }> = [
+  { campo: "url_recibo", rotulo: "Recibo" },
+  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
+  { campo: "url_nf", rotulo: "Nota fiscal" },
+  { campo: "url_boleto", rotulo: "Boleto" },
+  { campo: "url_doc", rotulo: "Documento" },
+];
 
 type Props = {
   fluxo: FluxoLinha;
@@ -177,7 +181,11 @@ function Checkbox({
 }
 
 function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamento }) {
-  const anexos = (dados.anexos ?? []).flatMap((anexo) => {
+  const anexosDaLinha = CAMPOS_ANEXO.flatMap(({ campo, rotulo }) => {
+    const url = linha.raw[campo];
+    return url ? [{ nome: rotulo, url }] : [];
+  });
+  const anexos = [...anexosDaLinha, ...(dados.anexos ?? [])].flatMap((anexo) => {
     const href = urlSegura(anexo.url);
     return href ? [{ ...anexo, href }] : [];
   });
@@ -185,12 +193,7 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
     <div className="erp-detalhes">
       <dl>
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
-        <div><dt>Centro de custo</dt><dd>{dados.centroCusto || "—"}</dd></div>
         <div><dt>Forma de pagamento</dt><dd>{dados.formaPagamento || "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Competência</dt><dd>{dataOuTraco(dados.competencia)}</dd></div>
-        <div><dt>Emissão</dt><dd>{dataOuTraco(dados.emissao)}</dd></div>
         <div><dt>Nº do documento</dt><dd>{linha.documento || "—"}</dd></div>
       </dl>
       <dl>
@@ -200,12 +203,6 @@ function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamen
             <Paperclip size={15} aria-hidden="true" />{anexo.nome}
           </a>
         )) : "—"}</dd></div>
-      </dl>
-      <dl>
-        <div><dt>Criado por/em</dt><dd>
-          {[dados.criadoPor, dados.criadoEm ? dataOuTraco(dados.criadoEm) : undefined].filter(Boolean).join(" • ") || "—"}
-        </dd></div>
-        <div><dt>Última alteração</dt><dd>{dataOuTraco(dados.ultimaAlteracao)}</dd></div>
       </dl>
     </div>
   );
@@ -254,6 +251,17 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
   const [arrastando, setArrastando] = useState(false);
+  const [menuLinhaId, setMenuLinhaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuLinhaId) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".erp-menu-linha")) return;
+      setMenuLinhaId(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    return () => document.removeEventListener("pointerdown", fecharFora);
+  }, [menuLinhaId]);
 
   useEffect(() => {
     let ativo = true;
@@ -316,6 +324,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   }, [statusFiltroAberto]);
 
   const colunas = useMemo<Coluna[]>(() => [
+    { chave: "data", rotulo: "Data", largura: 172 },
     { chave: "documento", rotulo: "DOC", largura: 162 },
     { chave: "descricao", rotulo: "Descrição" },
     ...(ehEntrada
@@ -323,7 +332,6 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       : [{ chave: "favorecidoPessoa" as const, rotulo: "Favorecido", largura: 200 },
         { chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
     { chave: "contaBancaria", rotulo: "Conta", largura: 153 },
-    { chave: "data", rotulo: "Data", largura: 172 },
     { chave: "situacao", rotulo: "Status", largura: 190 },
     { chave: "valor", rotulo: "Valor", largura: 180 },
   ], [ehEntrada]);
@@ -411,6 +419,21 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   function limparFiltros() {
     setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setFluxoFiltro("TODOS");
   }
+  async function excluirLinha(linha: LinhaConta) {
+    const lancamentoId = linha.raw.lancamentoId;
+    if (!lancamentoId) return;
+    setMenuLinhaId(null);
+    if (!window.confirm(`Excluir o lançamento "${linha.descricao}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await excluirLancamento(lancamentoId);
+      setSelecionados((atuais) => atuais.filter((item) => item !== linha.id));
+      await recarregar();
+      toast.success("Lançamento excluído.");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível excluir o lançamento.");
+    }
+  }
+
   function iniciarResize(evento: ReactPointerEvent<HTMLSpanElement>, chave: ChaveColuna) {
     evento.preventDefault(); evento.stopPropagation();
     const cabecalho = evento.currentTarget.closest("th");
@@ -559,7 +582,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         >
           <table className={`erp-tabela ${!ehEntrada ? "erp-tabela-saidas" : ""}`}>
             <caption className="erp-sr-only">{titulo} — {periodo}</caption>
-            <colgroup><col style={{ width: 80 }} />{colunas.map((coluna) => (
+            <colgroup><col style={{ width: 120 }} />{colunas.map((coluna) => (
               <col key={coluna.chave} style={{ width: larguras[coluna.chave] ?? coluna.largura }} />
             ))}</colgroup>
             <thead><tr>
@@ -616,13 +639,24 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                   return <Fragment key={linha.id}>
                     <tr className={`erp-linha ${selecao.has(linha.id) ? "erp-linha-selecionada" : ""} ${aberta ? "erp-linha-aberta" : ""}`}
                       onClick={() => alternarExpansao(linha.id)}>
-                      <td onClick={(e) => e.stopPropagation()}><div className="erp-celula-selecao">
+                      <td className="erp-td-acoes" onClick={(e) => e.stopPropagation()}><div className="erp-celula-selecao">
                         <button type="button" className="erp-expandir" aria-label={`${aberta ? "Recolher" : "Expandir"} ${linha.descricao}`}
                           aria-expanded={aberta} aria-controls={aberta ? detalheId : undefined} onClick={() => alternarExpansao(linha.id)}>
                           <ChevronRight size={15} aria-hidden="true" />
                         </button>
                         <Checkbox marcado={selecao.has(linha.id)} rotulo={`Selecionar ${linha.descricao}`} aoMudar={() => alternarSelecao(linha.id)} />
+                        <div className="erp-menu-linha">
+                          <button type="button" className="erp-botao-menu" aria-label={`Ações de ${linha.descricao}`} aria-haspopup="menu"
+                            aria-expanded={menuLinhaId === linha.id} onClick={() => setMenuLinhaId((atual) => atual === linha.id ? null : linha.id)}>
+                            <MoreVertical size={16} aria-hidden="true" />
+                          </button>
+                          {menuLinhaId === linha.id && <div className="erp-menu-acoes" role="menu">
+                            <button type="button" role="menuitem" disabled={!podeBaixar(linha)} onClick={() => { setMenuLinhaId(null); setContaBaixa(linha); }}>Baixar</button>
+                            <button type="button" role="menuitem" className="erp-menu-excluir" disabled={!linha.raw.lancamentoId} onClick={() => void excluirLinha(linha)}>Excluir</button>
+                          </div>}
+                        </div>
                       </div></td>
+                      <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
                       <td className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>
                       <td><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
                       {ehEntrada ? <td title={linha.favorecido}>{linha.favorecido || "—"}</td> : <>
@@ -630,7 +664,6 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                         <td title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>
                       </>}
                       <td title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>
-                      <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
                       <td><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>
                       <td className="erp-valor">{formatarMoeda(linha.valor)}</td>
                     </tr>
@@ -664,9 +697,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         <h1>{titulo}</h1><p>Período: {periodoImpressao}</p><p>Emitido em {new Date().toLocaleString("pt-BR")}</p>
         <table><thead><tr>{colunas.map((coluna) => <th key={coluna.chave}>{coluna.rotulo}</th>)}</tr></thead>
           <tbody>{itensRelatorio.map((linha) => <tr key={linha.id}>
-            <td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
+            <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
             {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <><td>{linha.favorecidoPessoa || "—"}</td><td>{linha.fornecedor || "—"}</td></>}
-            <td>{linha.contaBancaria}</td><td>{dataOuTraco(linha.dataLancamento)}</td>
+            <td>{linha.contaBancaria}</td>
             <td>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
           </tr>)}</tbody>
           <tfoot><tr><td colSpan={colunas.length - 1}>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"} ({itensRelatorio.length} {itensRelatorio.length === 1 ? "item" : "itens"})</td><td className="erp-direita">{formatarMoeda(totalRelatorio)}</td></tr></tfoot>
@@ -815,6 +848,14 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-anexo { display: flex; align-items: center; gap: 7px; color: #0b9fff; text-decoration: none; margin-top: 2px; }
 .erp-financeiro .erp-anexo:hover { text-decoration: underline; }
 .erp-financeiro .erp-anexo svg { flex-shrink: 0; color: var(--erp-text); }
+.erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }
+.erp-financeiro .erp-menu-linha { position: relative; display: flex; align-items: center; }
+.erp-financeiro .erp-botao-menu { display: flex; align-items: center; justify-content: center; width: 24px; height: 27px; padding: 0; border: 0; border-radius: 3px; color: #d6e2ee; background: transparent; }
+.erp-financeiro .erp-botao-menu:hover { background: #27313c; }
+.erp-financeiro .erp-menu-acoes { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; min-width: 140px; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
+.erp-financeiro .erp-menu-acoes button { display: block; width: 100%; padding: 6px 10px; border: 0; border-radius: 3px; background: transparent; color: #d6e2ee; font-size: 12px; text-align: left; white-space: nowrap; }
+.erp-financeiro .erp-menu-acoes button:hover:not(:disabled) { background: #159dff22; color: #61bbff; }
+.erp-financeiro .erp-menu-acoes button.erp-menu-excluir:hover:not(:disabled) { background: #ff535922; color: #ff7b84; }
 .erp-financeiro .erp-tabela tfoot { background: #18202988; }
 .erp-financeiro .erp-tabela tfoot td { height: 25px; padding: 3px 10px; border-bottom: 0; border-top: 1px solid var(--erp-border); font-size: 11px; font-weight: 700; letter-spacing: .2px; }
 .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: var(--erp-total); text-align: right; padding-right: 16px; font-size: 14px; font-variant-numeric: tabular-nums; }

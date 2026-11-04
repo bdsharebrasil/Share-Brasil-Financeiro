@@ -18,6 +18,11 @@ export default [
     files: ["**/*.{js,mjs,cjs,jsx}"],
     ...js.configs.recommended,
     languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
       globals: {
         ...globals.browser,
         ...globals.node,

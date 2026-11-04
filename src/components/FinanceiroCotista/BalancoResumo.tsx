@@ -1,10 +1,24 @@
-import type { Balanco, LinhaBalanco } from '../../types/balanco';
-
 export type Grupo = 'fixo' | 'variavel' | 'extra';
 type Chave =
   | 'admTrip' | 'hangaragem' | 'manutencaoFixa'
   | 'combustivel' | 'manutencaoHora' | 'taxasVoo' | 'hoteisAlimentacao'
   | 'custosExtras';
+
+type LinhaBalanco = Record<Chave, number> & {
+  mes: string;
+  horasTotais: number;
+  pousos: number;
+  distancia: number;
+  abastecimentoL: number;
+  diasVoo: number;
+};
+
+type Balanco = {
+  geral: LinhaBalanco[];
+  aeronave: string | null;
+  cotista: string | null;
+  exercicio: string | number | null;
+};
 
 export const CATEGORIAS: { chave: Chave; nome: string; grupo: Grupo }[] = [
   { chave: 'admTrip', nome: 'Tripulação e administração', grupo: 'fixo' },

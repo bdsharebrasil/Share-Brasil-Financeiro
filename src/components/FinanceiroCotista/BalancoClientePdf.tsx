@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, Svg, Rect, StyleSheet } from "@react-pdf/renderer";
+import type { ComponentProps } from "react";
 import { formatarCentavos } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { categoriasDoParticipante, destaques, type Balanco, type LinhaLancamento, type ParticipanteBalanco } from "@/lib/balanco-cotista";
@@ -9,6 +10,7 @@ const C = { ink: "#14202e", mut: "#5d6b7b", line: "#e0e6ed", soft: "#eef3f9", na
 const COR = { fixos: "#2f6db5", variaveis: "#52794a", extras: "#e8b94a", naoClassificados: "#8291a4" } as const;
 const NOME = { fixos: "Fixos", variaveis: "Variáveis", extras: "Extras", naoClassificados: "Não classificados" } as const;
 const GRUPOS = ["fixos", "variaveis", "extras", "naoClassificados"] as const;
+type EstiloPdf = NonNullable<ComponentProps<typeof View>["style"]>;
 
 const s = StyleSheet.create({
   page: { padding: 36, paddingBottom: 54, fontFamily: "Helvetica", fontSize: 10, color: C.ink },
@@ -43,7 +45,7 @@ function Kpi({ l, v }: { l: string; v: string }) {
 }
 
 function Tabela({ cols, rows, total }: { cols: { t: string; f: number; r?: boolean }[]; rows: string[][]; total?: string[] }) {
-  const linha = (cells: string[], estilo: object = {}, key?: number) => (
+  const linha = (cells: string[], estilo: EstiloPdf = {}, key?: number) => (
     <View key={key} style={[s.tr, estilo]} wrap={false}>
       {cells.map((c, i) => (
         <Text key={i} style={{ flex: cols[i].f, textAlign: cols[i].r ? "right" : "left", paddingHorizontal: 4 }}>{c}</Text>
@@ -59,7 +61,7 @@ function Tabela({ cols, rows, total }: { cols: { t: string; f: number; r?: boole
   );
 }
 
-function GraficoMensal({ mensal }: { mensal: Participante["mensal"] }) {
+function GraficoMensal({ mensal }: { mensal: ParticipanteBalanco["mensal"] }) {
   const W = 523, H = 110, n = Math.max(mensal.length, 1), slot = W / n, bw = Math.min(slot * 0.6, 48);
   const max = Math.max(...mensal.map((m) => m.total), 1);
   return (

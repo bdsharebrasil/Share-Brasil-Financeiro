@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+/* eslint-disable-next-line no-unused-vars -- JSX-only component references are not detected by core no-unused-vars. */
 import DataGrid, { CellText } from './DataGrid';
 import styles from './RegistrarEntrada.module.css';
 
@@ -78,6 +79,7 @@ const columns = [
 const getRowId = (r) => r.id;
 
 // ---------- painel de detalhe ----------
+/* eslint-disable-next-line no-unused-vars -- Rendered as a JSX component below. */
 function Detail({ row }) {
   const fields = [
     ['Categoria', row.categoria],
@@ -119,6 +121,7 @@ function Detail({ row }) {
 }
 
 // ---------- ícones (SVG inline, 16px) ----------
+/* eslint-disable-next-line no-unused-vars -- Rendered as a JSX component below. */
 const Icon = ({ d }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" className={styles.icon}>
     <path d={d} />
@@ -134,10 +137,8 @@ const PATHS = {
 };
 
 // ---------- página ----------
-export default function RegistrarEntrada() {
-  // TROQUE AQUI pelo retorno do seu backend (ex.: const { data: rows = [] } = useQuery(...)).
-  // Formato: ver mockData.js (valorCentavos inteiro, datas ISO).
-  const rows = mockRows;
+export default function RegistrarEntrada({ rows = [] } = {}) {
+  // A tela recebe linhas pelo prop `rows`; o dashboard atual usa outro fluxo financeiro.
 
   const gridRef = useRef(null);
   const [month, setMonth] = useState(() => monthKey(new Date()));

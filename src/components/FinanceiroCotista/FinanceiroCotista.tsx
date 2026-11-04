@@ -21,7 +21,6 @@ import {
   BarChart3,
   ReceiptText,
   ListOrdered,
-  LayoutDashboard,
   PieChart,
   Landmark,
   CalendarDays,
@@ -3699,7 +3698,6 @@ export default function FinanceiroCotista() {
     );
   }, [aeronaveSelecionada, cotistasAeronave]);
   const [abaAtiva, setAbaAtiva] = useState<
-    | "resumo"
     | "fechamento-balanco"
     | "lancamentos"
     | "graficos"
@@ -3720,12 +3718,6 @@ export default function FinanceiroCotista() {
       rotulo: "Lançamentos mensais",
       Icon: ReceiptText,
       corIcone: "bg-sky-400/10 text-sky-400",
-    },
-    {
-      id: "resumo",
-      rotulo: "Visão por cotista",
-      Icon: LayoutDashboard,
-      corIcone: "bg-violet-400/10 text-violet-400",
     },
     {
       id: "fechamento-balanco",
@@ -4217,45 +4209,6 @@ export default function FinanceiroCotista() {
             </div>
           ) : (
             <>
-              {abaAtiva === "resumo" && (
-                <div className="space-y-4">
-                  <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-bold">Visão por cotista</p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        Selecione o cotista para consultar seus dados.
-                      </p>
-                    </div>
-                    <SearchableCombobox
-                      items={cotistasAeronave.map((cotista) => ({
-                        id: cotista.id,
-                        label: cotista.nome,
-                        descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
-                      }))}
-                      value={cotistaVisaoId}
-                      onChange={(id) => setCotistaVisaoId(id)}
-                      placeholder="Selecione um cotista"
-                      searchPlaceholder="Buscar cotista..."
-                      emptyMessage="Nenhum cotista encontrado."
-                      icon={<User size={15} />}
-                      disabled={!cotistasAeronave.length}
-                      className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
-                      popoverClassName="border-border bg-popover text-popover-foreground"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {abaAtiva === "resumo" && (
-                <FechamentoBalancoDashboardCotista
-                  dashboard={dashboard}
-                  carregando={carregando}
-                  erro={erroDashboard}
-                  cotistas={cotistasAeronave}
-                  mesesSelecionados={mesesAplicados}
-                  cotistaId={cotistaVisaoId}
-                />
-              )}
               {abaAtiva === "lancamentos" && (
                 <LancamentosDespesa
                   lancamentos={lancamentosFiltrados}

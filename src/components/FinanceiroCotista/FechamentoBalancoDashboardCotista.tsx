@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Plane, Download } from "lucide-react";
+import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Plane, Download, TrendingUp } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -23,7 +23,8 @@ type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: st
 const ABAS = [
   { id: "geral", nome: "Comparativo mensal", Icon: BarChart3 },
   { id: "cotistas", nome: "Evolução por cotista", Icon: Users },
-  { id: "custos", nome: "Custos e projeção", Icon: Gauge },
+  { id: "custos", nome: "Custos do período", Icon: Gauge },
+  { id: "medias", nome: "Médias", Icon: TrendingUp },
   { id: "categorias", nome: "Categorias e cotistas", Icon: Layers3 },
   { id: "acerto", nome: "Acerto de contas", Icon: Scale },
   { id: "holding", nome: "Conta comum", Icon: Wallet },
@@ -104,10 +105,13 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
       <Nota>Os destinos contam chegadas registradas no diário, não multiplicam visitas pelo número de pousos. Traslados, voos de teste e operações sem titular ficam separados. Em voos emprestados, a utilização é atribuída ao tomador identificado. A participação societária é a atual, pois o schema não possui histórico de vigência das cotas.</Nota>
     </section>
 
-    <section className={view("custos")} id={`${uid}-custos`} aria-label="Custos e projeção">
+    <section className={view("custos")} id={`${uid}-custos`} aria-label="Custos do período">
       <div className="bcp-mini-kpis"><Kpi titulo="Fixos no período" valor={money(b.total.fixos)}/><Kpi titulo="Variáveis no período" valor={money(b.total.variaveis)}/><Kpi titulo="Extras" valor={money(b.total.extras)}/><Kpi titulo="Não classificados" valor={money(b.total.naoClassificados)}/></div>
+    </section>
+
+    <section className={view("medias")} id={`${uid}-medias`} aria-label="Médias">
       <Painel titulo="Projeção do custo por hora voada" detalhe="Cenários mensais com base nos meses selecionados.">{b.projecao.length ? <>
-        {atual==="custos" && <div className="bcp-no-print"><Grafico><ResponsiveContainer width="100%" height="100%"><LineChart data={b.projecao} margin={{top:12,right:20,left:0,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="horas" tickFormatter={v=>`${v}h`} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><YAxis width={65} tickFormatter={compacto} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><Tooltip formatter={chartMoney} labelFormatter={v=>`${v} horas/mês`} contentStyle={tooltip}/><Legend wrapperStyle={{fontSize:10}}/><Line dataKey="custoHora" name="Custo/h total" stroke={cores[0]} dot={false} strokeWidth={2} isAnimationActive={false}/><Line dataKey="fixoHora" name="Fixo/h" stroke={cores[1]} dot={false} strokeDasharray="4 4" isAnimationActive={false}/></LineChart></ResponsiveContainer></Grafico></div>}
+        {atual==="medias" && <div className="bcp-no-print"><Grafico><ResponsiveContainer width="100%" height="100%"><LineChart data={b.projecao} margin={{top:12,right:20,left:0,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="horas" tickFormatter={v=>`${v}h`} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><YAxis width={65} tickFormatter={compacto} tick={{fontSize:10,fill:"var(--bcp-muted)"}}/><Tooltip formatter={chartMoney} labelFormatter={v=>`${v} horas/mês`} contentStyle={tooltip}/><Legend wrapperStyle={{fontSize:10}}/><Line dataKey="custoHora" name="Custo/h total" stroke={cores[0]} dot={false} strokeWidth={2} isAnimationActive={false}/><Line dataKey="fixoHora" name="Fixo/h" stroke={cores[1]} dot={false} strokeDasharray="4 4" isAnimationActive={false}/></LineChart></ResponsiveContainer></Grafico></div>}
         <Tabela headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h projetado", "Custo mensal projetado"]} numericas={[0,1,2,3,4,5]}>{b.projecao.map(p=><tr key={p.horas}><Th num>{p.horas}h</Th><Td num>{money(p.fixoHora)}</Td><Td num>{money(p.variavelHora)}</Td><Td num>{money(p.extraHora)}</Td><Td num destaque>{money(p.custoHora)}</Td><Td num>{money(p.custoMensal)}</Td></tr>)}</Tabela></> : <Vazio>A projeção exige horas registradas e todos os custos classificados. Confira os tipos de rateio antes de projetar.</Vazio>}
         <p className="bcp-footnote">Fixo/h = (fixos do período ÷ quantidade de meses selecionados) ÷ horas projetadas. Variável/h e extra/h mantêm a média histórica ponderada. Extras são repetidos nesta hipótese; não é previsão de manutenção nem compromisso de custo.</p>
       </Painel>

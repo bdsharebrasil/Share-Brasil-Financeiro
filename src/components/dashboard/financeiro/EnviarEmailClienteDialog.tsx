@@ -20,6 +20,7 @@ type Props = {
   mensagemSugerida?: string;
   anexos?: AnexoEmail[];
   referencias?: string[];
+  envioExtra?: Partial<Pick<Parameters<typeof enviarEmailCliente>[0], "rascunho_id" | "cotista_id" | "idempotency_key" | "nome_destinatario">>;
   /** Usado apenas na prévia. A identidade do envio é definida pelo backend. */
   nomeEmpresa?: string;
 };
@@ -267,7 +268,7 @@ textarea.ec-input{min-height:220px; padding:14px 16px; line-height:26px; resize:
 
 export function EnviarEmailClienteDialog({
   open, onOpenChange, onSent, destinatarioInicial = "", assuntoSugerido = "",
-  mensagemSugerida = "", anexos = [], referencias = [], nomeEmpresa = "Share Brasil",
+  mensagemSugerida = "", anexos = [], referencias = [], envioExtra = {}, nomeEmpresa = "Share Brasil",
 }: Props) {
   const id = useId();
   const tema = useTema();
@@ -463,6 +464,7 @@ export function EnviarEmailClienteDialog({
         destinatarios, cc: [], assunto: assunto.trim(), mensagem: mensagem.trim(),
         anexos: Array.from(new Set(anexos.flatMap((anexo) => anexo.id ? [anexo.id] : []))),
         referencias,
+        ...envioExtra,
       });
       emailId = enviado.id;
     } catch (causa) {

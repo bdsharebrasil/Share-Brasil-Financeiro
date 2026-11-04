@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
+import { EnviarEmailClienteDialog, type AnexoEmail } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
 import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -271,6 +272,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [rascunhosEmailPorCotista, setRascunhosEmailPorCotista] = useState<Record<string, { assunto: string; mensagem: string }>>({});
   const [emailsEnviados, setEmailsEnviados] = useState<string[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [cotistaEmailAberto, setCotistaEmailAberto] = useState<string | null>(null);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
   const [carregandoEmail, setCarregandoEmail] = useState(false);
@@ -1063,124 +1065,104 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setBuscaAnexo("");
   };
 
-  const dispararEmail = async (cotistaId?: string) => {
-    const envioPorCotista = envioRecemCriado?.tipo === "cliente";
-    const cotistaAlvo = envioPorCotista ? cotistasEmail.find((cotista) => cotista.id === cotistaId) : null;
-    if (envioPorCotista && !cotistaAlvo) {
-      setErroEmail("Selecione o cotista para este envio.");
-      return;
-    }
-    const rascunhoCotista = cotistaAlvo ? rascunhosEmailPorCotista[cotistaAlvo.id] : null;
-    const assuntoEnvio = rascunhoCotista?.assunto ?? assunto;
-    const mensagemEnvio = rascunhoCotista?.mensagem ?? corpoEmail;
-    if ((!envioPorCotista && !destinatario.trim()) || !assuntoEnvio.trim() || !mensagemEnvio.trim()) {
+  const dispararEmail = async () => {
+    if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
       setErroEmail("Informe destinatário, assunto e mensagem.");
       return;
     }
     setEnviandoEmail(true);
     setErroEmail("");
     setSucessoEmail("");
-    const enviadosNestaSessao = new Set([...emailsEnviados, ...Object.entries(statusEmailCotista).filter(([, status]) => status === "ENVIADO").map(([id]) => id)]);
     const idRascunhoAtual = rascunhoId;
     const chaveRascunhoAtual = chaveRascunhoRef.current || chaveRascunho;
-    let emailEnviadoNestaExecucao = false;
     try {
-      const grupos = envioPorCotista
-        ? [{ cotista: cotistaAlvo!, anexos: anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotistaAlvo!.id) && anexosSelecionados.includes(anexo.id)) }]
-        : [{ cotista: null, anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)) }];
-      const gruposComAnexo = grupos.filter((grupo) => !envioPorCotista || grupo.anexos.length > 0);
-      if (!gruposComAnexo.length) throw new Error("Selecione ao menos um documento para enviar a um cotista.");
-      const email = (cotistaAlvo ? emailsPorCotista[cotistaAlvo.id] : destinatario).trim();
-      if (!email) throw new Error(`Informe o e-mail de ${cotistaAlvo?.nome || "destino"}.`);
-      if (envioPorCotista && envioRecemCriado && !envioConvertido) {
-        await converterEnvioPagamento(envioRecemCriado.id);
-        setEnvioConvertido(true);
-        atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
-      }
-      for (const grupo of gruposComAnexo) {
-        const chaveDestinatario = grupo.cotista?.id || "__principal__";
-        if (enviadosNestaSessao.has(chaveDestinatario)) continue;
-        setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "PROCESSANDO" }));
-        await enviarEmailCliente({
-          destinatarios: [email],
-          assunto: assuntoEnvio.trim(),
-          mensagem: mensagemEnvio.trim(),
-          anexos: grupo.anexos.map((anexo) => anexo.id),
-          referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
-          rascunho_id: idRascunhoAtual || undefined,
-          cotista_id: chaveDestinatario,
-          idempotency_key: idRascunhoAtual && chaveRascunhoAtual ? `email:${idRascunhoAtual}:${chaveDestinatario}` : undefined,
-          // No envio direto, os IDs são resolvidos no lançamento salvo. Reenviar
-          // também os File locais ou persistidos anexaria cada documento duas vezes.
-          arquivos: envioPorCotista ? [] : arquivosNovos,
-          arquivos_persistidos: envioPorCotista ? [] : arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
-          nome_destinatario: grupo.cotista?.nome || nomeDestinatario || undefined,
-        });
-        emailEnviadoNestaExecucao = true;
-        enviadosNestaSessao.add(chaveDestinatario);
-        setEmailsEnviados([...enviadosNestaSessao]);
-        setStatusEmailCotista((atual) => ({ ...atual, [chaveDestinatario]: "ENVIADO" }));
-      }
-      const gruposSelecionados = envioPorCotista
-        ? cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id) && anexosSelecionados.includes(anexo.id)))
-        : [];
-      const todosEmailsCotistasEnviados = envioPorCotista && gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
-      if (envioRecemCriado && (!envioPorCotista || todosEmailsCotistasEnviados)) {
+      await enviarEmailCliente({
+        destinatarios: [destinatario.trim()],
+        assunto: assunto.trim(),
+        mensagem: corpoEmail.trim(),
+        anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
+        referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
+        rascunho_id: idRascunhoAtual || undefined,
+        cotista_id: "__principal__",
+        idempotency_key: idRascunhoAtual && chaveRascunhoAtual ? `email:${idRascunhoAtual}:__principal__` : undefined,
+        arquivos: arquivosNovos,
+        arquivos_persistidos: arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
+        nome_destinatario: nomeDestinatario || undefined,
+      });
+      if (envioRecemCriado) {
         await registrarEmailEnvioPagamento(envioRecemCriado.id);
         if (envioRecemCriado.tipo === "reembolso") {
           await converterEnvioPagamento(envioRecemCriado.id);
           atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
         }
       }
-      if (envioPorCotista && cotistaAlvo) {
-        const todosConcluidos = gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviadosNestaSessao.has(cotista.id));
-        if (todosConcluidos) setRascunhoConcluido(true);
-        await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
-        if (todosConcluidos) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-        if (todosConcluidos) {
-          notificarEnvioCliente("success", `E-mail para ${cotistaAlvo.nome} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`);
-          fecharModalEmail();
-        } else {
-          setSucessoEmail(`E-mail para ${cotistaAlvo.nome} enviado. Ainda há destinatários pendentes.`);
-        }
-      } else {
-        if (idRascunhoAtual) {
-          setRascunhoConcluido(true);
-          await persistirRascunho({ status: "CONCLUIDO", envioId: envioRecemCriado?.id });
-          setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-        }
-        setSucessoEmail(envioRecemCriado?.tipo === "reembolso"
-          ? "E-mail enviado. Lançamento e rateio criados."
-          : "E-mail enviado com sucesso.");
-        setMensagem("Lançamento criado e e-mail enviado ao cliente.");
-        setTimeout(() => fecharModalEmail(), 1800);
-      }
-    } catch (cause) {
-      setEmailsEnviados([...enviadosNestaSessao]);
       if (idRascunhoAtual) {
-        try {
-          const recuperado = await buscarRascunhoEnvioPagamento(idRascunhoAtual);
-          setStatusEmailCotista(Object.fromEntries(recuperado.destinatarios.map((item) => [item.cotista_id, item.status])));
-        } catch {
-          setStatusEmailCotista((atual) => ({ ...atual, [cotistaId || "__principal__"]: "FALHOU" }));
-        }
-      } else {
-        setStatusEmailCotista((atual) => ({ ...atual, [cotistaId || "__principal__"]: "FALHOU" }));
+        setRascunhoConcluido(true);
+        await persistirRascunho({ status: "CONCLUIDO", envioId: envioRecemCriado?.id });
+        setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
       }
-      const mensagemErro = cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.";
-      setErroEmail(mensagemErro);
-      if (envioPorCotista) {
-        if (emailEnviadoNestaExecucao) {
-          notificarEnvioCliente("warning", `E-mail enviado para ${cotistaAlvo?.nome || "o cliente"}, mas não foi possível concluir a atualização do registro: ${mensagemErro}`);
-        } else {
-          notificarEnvioCliente("error", `Não foi possível enviar o e-mail${cotistaAlvo ? ` para ${cotistaAlvo.nome}` : ""}: ${mensagemErro}`);
-        }
-        fecharModalEmail();
-      }
+      setSucessoEmail(envioRecemCriado?.tipo === "reembolso"
+        ? "E-mail enviado. Lançamento e rateio criados."
+        : "E-mail enviado com sucesso.");
+      setMensagem("Lançamento criado e e-mail enviado ao cliente.");
+      setTimeout(() => fecharModalEmail(), 1800);
+    } catch (cause) {
+      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
     } finally {
       setEnviandoEmail(false);
     }
   };
+
+  const abrirEnvioCotista = async (cotistaId: string) => {
+    setErroEmail("");
+    setSucessoEmail("");
+    if (envioRecemCriado && !envioConvertido) {
+      try {
+        await converterEnvioPagamento(envioRecemCriado.id);
+        setEnvioConvertido(true);
+        atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
+      } catch (cause) {
+        setErroEmail(cause instanceof Error ? cause.message : "Não foi possível preparar o envio.");
+        return;
+      }
+    }
+    setCotistaEmailAberto(cotistaId);
+  };
+
+  const concluirEnvioCotista = async (cotistaId: string) => {
+    const idRascunhoAtual = rascunhoId;
+    const enviados = new Set([
+      ...emailsEnviados,
+      ...Object.entries(statusEmailCotista).filter(([, status]) => status === "ENVIADO").map(([id]) => id),
+      cotistaId,
+    ]);
+    setEmailsEnviados([...enviados]);
+    setStatusEmailCotista((atual) => ({ ...atual, [cotistaId]: "ENVIADO" }));
+    const nomeCotista = cotistasEmail.find((cotista) => cotista.id === cotistaId)?.nome || "o cliente";
+    const gruposSelecionados = cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id) && anexosSelecionados.includes(anexo.id)));
+    const todosConcluidos = gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviados.has(cotista.id));
+    try {
+      if (envioRecemCriado && todosConcluidos) await registrarEmailEnvioPagamento(envioRecemCriado.id);
+      await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
+      if (todosConcluidos) {
+        setRascunhoConcluido(true);
+        if (idRascunhoAtual) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
+        notificarEnvioCliente("success", `E-mail para ${nomeCotista} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`);
+        fecharModalEmail();
+      } else {
+        setSucessoEmail(`E-mail para ${nomeCotista} enviado. Ainda há destinatários pendentes.`);
+      }
+    } catch (cause) {
+      notificarEnvioCliente("warning", `E-mail enviado para ${nomeCotista}, mas não foi possível concluir a atualização do registro: ${cause instanceof Error ? cause.message : "erro desconhecido"}`);
+    }
+  };
+
+  const cotistaEmailDialogo = cotistasEmail.find((cotista) => cotista.id === cotistaEmailAberto) ?? null;
+  const anexosCotistaEmailDialogo: AnexoEmail[] = cotistaEmailDialogo
+    ? anexosEnvioEmail
+      .filter((anexo) => anexoAplicaAoCotista(anexo, cotistaEmailDialogo.id) && anexosSelecionados.includes(anexo.id))
+      .map((anexo) => ({ id: anexo.id, label: anexo.file?.name || anexo.numero || anexo.tipo }))
+    : [];
 
   return (
     <div className={`route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
@@ -1443,7 +1425,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = false; }}>Cancelar envio</Button><Button type="button" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = true; void enviar(); }}>Concluir envio mesmo assim</Button></div>
         </DialogContent>
       </Dialog>
-      <Dialog open={modalEmail} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
+      <Dialog open={modalEmail && cotistaEmailDialogo === null} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
         <DialogContent
           className="
             flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl
@@ -1479,17 +1461,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id));
                         if (!anexosDoCotista.length) return null;
                         const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
-                        const rascunho = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
                         const statusEmail = statusEmailCotista[cotista.id];
                         const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
-                        const emailProcessando = statusEmail === "PROCESSANDO";
                         return (
                           <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
-                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : statusEmail === "FALHOU" ? "font-semibold text-red-500" : emailProcessando ? "font-semibold text-primary" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : statusEmail === "FALHOU" ? "Falha no envio · pode tentar novamente" : emailProcessando ? "Envio interrompido · retomar" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
                             </div>
-                            <Input type="email" value={emailsPorCotista[cotista.id] || ""} onChange={(event) => setEmailsPorCotista((atual) => ({ ...atual, [cotista.id]: event.target.value }))} placeholder={`E-mail de ${cotista.nome}`} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" aria-label={`E-mail de ${cotista.nome}`} disabled={emailEnviado} />
                             <div className="space-y-2">
                               {anexosDoCotista.map((anexo) => (
                                 <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
@@ -1501,21 +1480,11 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                                 </label>
                               ))}
                             </div>
-                            <div className="space-y-2 border-t border-[#172235] pt-4">
-                              <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-                                Assunto deste e-mail
-                                <Input value={rascunho.assunto} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), assunto: event.target.value } }))} className="campo mt-1 !h-10 !rounded-xl border-white/[.08] bg-[#080e19] normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
-                              </label>
-                              <label className="block space-y-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">
-                                Mensagem para {cotista.nome}
-                                <Textarea value={rascunho.mensagem} onChange={(event) => setRascunhosEmailPorCotista((atual) => ({ ...atual, [cotista.id]: { ...(atual[cotista.id] || rascunho), mensagem: event.target.value } }))} className="campo mt-1 min-h-28 !rounded-xl border-white/[.08] bg-[#080e19] resize-y normal-case tracking-normal shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" disabled={emailEnviado} />
-                              </label>
-                              <div className="flex justify-end">
-                                <Button type="button" onClick={() => dispararEmail(cotista.id)} disabled={enviandoEmail || emailEnviado || !emailsPorCotista[cotista.id]?.trim() || selecionados === 0 || !rascunho.assunto.trim() || !rascunho.mensagem.trim()} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
-                                  {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                                  {emailEnviado ? "E-mail enviado" : emailProcessando ? "Retomar envio" : `Enviar somente para ${cotista.nome}`}
-                                </Button>
-                              </div>
+                            <div className="flex justify-end">
+                              <Button type="button" onClick={() => void abrirEnvioCotista(cotista.id)} disabled={enviandoEmail || emailEnviado || selecionados === 0} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
+                                <Send size={14} />
+                                {emailEnviado ? "E-mail enviado" : `Revisar e enviar para ${cotista.nome}`}
+                              </Button>
                             </div>
                           </div>
                         );
@@ -1574,6 +1543,23 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           )}
         </DialogContent>
       </Dialog>
+
+      <EnviarEmailClienteDialog
+        open={cotistaEmailDialogo !== null}
+        onOpenChange={(aberto) => { if (!aberto) setCotistaEmailAberto(null); }}
+        onSent={() => { if (cotistaEmailDialogo) void concluirEnvioCotista(cotistaEmailDialogo.id); }}
+        destinatarioInicial={cotistaEmailDialogo ? emailsPorCotista[cotistaEmailDialogo.id] || "" : ""}
+        assuntoSugerido={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.assunto || "" : ""}
+        mensagemSugerida={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.mensagem || "" : ""}
+        anexos={anexosCotistaEmailDialogo}
+        referencias={envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : []}
+        envioExtra={cotistaEmailDialogo ? {
+          rascunho_id: rascunhoId || undefined,
+          cotista_id: cotistaEmailDialogo.id,
+          idempotency_key: rascunhoId && (chaveRascunhoRef.current || chaveRascunho) ? `email:${rascunhoId}:${cotistaEmailDialogo.id}` : undefined,
+          nome_destinatario: cotistaEmailDialogo.nome,
+        } : {}}
+      />
     </div>
   );
 }

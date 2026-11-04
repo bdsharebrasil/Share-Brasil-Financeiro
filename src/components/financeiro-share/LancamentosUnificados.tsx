@@ -21,7 +21,6 @@ import {
   List,
   Loader2,
   MoreVertical,
-  Paperclip,
   Plus,
   Printer,
   ScanLine,
@@ -409,7 +408,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "data", rotulo: "Data", largura: 172 },
     { chave: "documento", rotulo: "DOC", largura: 162 },
-    { chave: "descricao", rotulo: "Descrição" },
+    { chave: "descricao", rotulo: "Descrição", largura: 320 },
     ...(ehEntrada
       ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 280 }]
       : [{ chave: "favorecidoPessoa" as const, rotulo: "Favorecido", largura: 200 },
@@ -720,7 +719,6 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                   const indiceLinha = lancamentos.findIndex((item) => item.id === linha.id);
                   const detalheId = `${id}-detalhes-${indiceLinha}`;
                   const dadosDetalhe = aberta ? obterDetalhes?.(linha) ?? {} : {};
-                  const anexos = reunirAnexos(linha, dadosDetalhe);
                   return <Fragment key={linha.id}>
                     <tr className={`erp-linha ${selecao.has(linha.id) ? "erp-linha-selecionada" : ""} ${aberta ? "erp-linha-aberta" : ""}`}
                       onClick={() => alternarExpansao(linha.id)}>
@@ -743,7 +741,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                       </div></td>
                       <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
                       <td className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>
-                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong>{anexos.length > 0 && <span className="erp-anexos-contagem" title={`${anexos.length} ${anexos.length === 1 ? "anexo" : "anexos"}`}><Paperclip size={12} aria-hidden="true" />{anexos.length}</span>}</div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
+                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
                       {ehEntrada ? <td title={linha.favorecido}>{linha.favorecido || "—"}</td> : <>
                         <td title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>
                         <td title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>
@@ -904,7 +902,6 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-linha.erp-linha-selecionada, .erp-financeiro .erp-linha.erp-linha-aberta { background: #27313c88; }
 .erp-financeiro .erp-descricao-cabecalho { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .erp-financeiro .erp-descricao { display: block; min-width: 0; flex: 1; font-size: 13px; line-height: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
-.erp-financeiro .erp-anexos-contagem { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 7px; border: 1px solid #28648a; border-radius: 999px; color: #80cfff; background: #0b6eaa22; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-texto-secundario { display: block; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }
 .erp-financeiro .erp-tabela .erp-documento { color: #b3c2d8; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .erp-financeiro .erp-celula-selecao { display: flex; align-items: center; justify-content: space-between; gap: 13px; }

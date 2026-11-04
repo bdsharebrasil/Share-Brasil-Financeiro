@@ -921,14 +921,14 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-tela { margin: -1px -9px; padding-top: 11px; padding-bottom: 11px; }
 .erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -15px; padding: 1px 8px 4px; margin-bottom: 5px; }
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
-.erp-financeiro .erp-cabecalho h2 { padding: 0; font-size: 21px; font-weight: 500; }
+.erp-financeiro .erp-cabecalho h2 { padding: 0; margin: 0 9px; font-size: 21px; font-weight: 400; line-height: 19.25px; border: 1px hidden rgba(126, 211, 33, 1); }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
 .erp-financeiro .erp-cabecalho-acoes { display: flex; align-items: center; gap: 9px; margin: 2px 0; padding-top: 0; padding-bottom: 0; }
 .erp-financeiro .erp-resumo { min-width: 116px; margin: 3px; padding: 5px 23px; font-size: 11px; line-height: 16.2px; text-align: right; white-space: nowrap; border: 1px solid #263744; border-radius: 10px; background: linear-gradient(135deg, #11202a, #111820); }
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 12px; line-height: 14.2px; font-weight: 300; border: 1px solid var(--erp-border); border-radius: 11px; background: linear-gradient(145deg, #0d141c, #090d14); }
-.erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin: -7px 0; padding: 1px 5px; line-height: 12.2px; }
+.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: hidden; background: linear-gradient(145deg, #0d141c, #090d14); }
+.erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -7px 0; padding: 1px 5px; line-height: 12.2px; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }
@@ -939,7 +939,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
 .erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 10px; margin: 4px 1px; padding: 3px 0; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px 1px; padding: 3px 0; line-height: 11.2px; font-weight: 200; }
 .erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
 .erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
 .erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }

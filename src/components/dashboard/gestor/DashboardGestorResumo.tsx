@@ -399,25 +399,27 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
 
   return (
     <div className="route-enter mx-auto w-full min-w-0 max-w-[1480px] space-y-4 pb-8">
-      <HeroDashboard
-        ambiente="gestor"
-        title={`${saudacaoAtual()}, ${primeiroNome}`}
-        subtitle="Resumo financeiro e visão executiva do que precisa da sua atenção hoje"
-      >
-        <Button
-          type="button"
-          onClick={() => {
-            void carregar(true);
-            void recarregarLancamentos();
-          }}
-          disabled={atualizando}
-          variant="outline"
-          className="h-9 w-full gap-2 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
+      {!modulo && (
+        <HeroDashboard
+          ambiente="gestor"
+          title={`${saudacaoAtual()}, ${primeiroNome}`}
+          subtitle="Resumo financeiro e visão executiva do que precisa da sua atenção hoje"
         >
-          <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} />
-          {atualizando ? "Atualizando…" : "Atualizar"}
-        </Button>
-      </HeroDashboard>
+          <Button
+            type="button"
+            onClick={() => {
+              void carregar(true);
+              void recarregarLancamentos();
+            }}
+            disabled={atualizando}
+            variant="outline"
+            className="h-9 w-full gap-2 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
+          >
+            <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} />
+            {atualizando ? "Atualizando…" : "Atualizar"}
+          </Button>
+        </HeroDashboard>
+      )}
 
       {erro && (
         <div

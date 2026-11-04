@@ -569,13 +569,13 @@ export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<C
 
 }
 
-export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string }): Promise<ContaAPagar> {
+export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: string; bancoPagamento: string; contaBancariaId?: string; comprovantePagamentoUrl?: string; formaPagamento?: string; observacoes?: string }): Promise<ContaAPagar> {
 
   const resposta = await financeiroRequest<Record<string, unknown>>(`/api/financeiro/contas-apagar/${encodeURIComponent(id)}/baixa`, {
 
     method: "POST",
 
-    body: JSON.stringify({ data_pagamento: dados.dataPagamento, banco_pagamento: dados.bancoPagamento, comprovante_pagamento_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
+    body: JSON.stringify({ data_pagamento: dados.dataPagamento, conta_bancaria_id: dados.contaBancariaId || dados.bancoPagamento, banco_pagamento: dados.bancoPagamento, comprovante_pagamento_url: dados.comprovantePagamentoUrl, forma_pagamento: dados.formaPagamento, motivo: dados.observacoes }),
 
   });
 

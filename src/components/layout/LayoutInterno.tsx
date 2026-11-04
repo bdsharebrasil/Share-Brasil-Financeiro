@@ -113,6 +113,7 @@ export default function LayoutInterno() {
     else if (menu === "movimentacoes") { setAmbiente("financeiro"); navegar("/financeiro/movimentacoes"); }
     else if (ambiente === "gestor" && menu === "financeiro-share") { setMenuAtivo("overview"); navegar(`/?modulo=${encodeURIComponent(aba || "entrada")}`); }
     else if (ambiente === "gestor" && menu === "financeiro-cotista") navegar("/gestor/financeiro-cotista");
+    else if (ambiente === "gestor" && menu === "overview" && localizacao.search) navegar("/");
     else if (menu === "recibos") navegar("/financeiro/emissao-recibo");
     else if (rotaRecibo || rotaFinanceiroShare || rotaFinanceiroCotista || rotaEnviarPagamento || rotaMovimentacoes) navegar("/");
   };

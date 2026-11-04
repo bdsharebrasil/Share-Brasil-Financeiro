@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Columns2,
+  EyeOff,
   Filter,
   List,
   Loader2,
@@ -374,6 +375,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [larguras, setLarguras] = useState<Partial<Record<ChaveColuna, number>>>({});
   const [ordemColunas, setOrdemColunas] = useState<ChaveColuna[]>([]);
   const [colunaArrastada, setColunaArrastada] = useState<ChaveColuna | null>(null);
+  const [colunasOcultas, setColunasOcultas] = useState<ChaveColuna[]>([]);
+  const [menuColunasAberto, setMenuColunasAberto] = useState(false);
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -410,6 +413,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     setNovo(false);
     setLarguras({});
     setOrdemColunas([]);
+    setColunasOcultas([]);
   }, [fluxo]);
 
   useEffect(() => { setSituacaoFiltro(situacaoFiltroInicial(filtroInicial?.situacao)); }, [filtroInicial?.situacao]);
@@ -470,8 +474,9 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const colunasExibidas = useMemo<Coluna[]>(() => {
     const porChave = new Map<ChaveColuna, Coluna>(colunas.map((coluna) => [coluna.chave, coluna]));
     const ordenadas = ordemColunas.flatMap((chave) => porChave.get(chave) ?? []);
-    return [...ordenadas, ...colunas.filter((coluna) => !ordemColunas.includes(coluna.chave))];
-  }, [colunas, ordemColunas]);
+    return [...ordenadas, ...colunas.filter((coluna) => !ordemColunas.includes(coluna.chave))]
+      .filter((coluna) => !colunasOcultas.includes(coluna.chave));
+  }, [colunas, ordemColunas, colunasOcultas]);
 
   function moverColuna(origem: ChaveColuna, destino: ChaveColuna) {
     if (origem === destino) return;
@@ -556,6 +561,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 
   // Se uma atualização reduzir o número de páginas, mantém a página válida.
   useEffect(() => { setPagina((atual) => Math.min(atual, paginas)); }, [paginas]);
+
+  function alternarColuna(chave: ChaveColuna) {
+    setColunasOcultas((atuais) => atuais.includes(chave) ? atuais.filter((item) => item !== chave) : [...atuais, chave]);
+  }
 
   function alternarSelecao(idLinha: string) {
     setSelecionados((atuais) => atuais.includes(idLinha) ? atuais.filter((item) => item !== idLinha) : [...atuais, idLinha]);
@@ -690,7 +699,20 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
               <List size={18} aria-hidden="true" />{todasExpandidas ? "Recolher todas" : "Expandir todas"}
             </button>
             <span className="erp-divisor" aria-hidden="true" />
-            <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
+            <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
+            <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
+              onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
+            {menuColunasAberto && (
+              <div className="erp-colunas-lista" id={`${id}-colunas`} role="group" aria-label="Colunas visíveis">
+                {colunas.map((coluna) => {
+                  const visivel = !colunasOcultas.includes(coluna.chave);
+                  return <label key={coluna.chave}>
+                    <input type="checkbox" checked={visivel} disabled={visivel && colunasExibidas.length === 1}
+                      onChange={() => alternarColuna(coluna.chave)} />{coluna.rotulo}
+                  </label>;
+                })}
+              </div>
+            )}
           </div>
 
           <div className="erp-periodo" ref={periodoRef}>
@@ -800,7 +822,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
               </th>)}
             </tr></thead>
             <tbody>
-              {carregando ? <tr><td colSpan={colunas.length + 1} className="erp-estado"><Loader2 size={18} className="erp-girando" aria-hidden="true" />Carregando lançamentos...</td></tr>
+              {carregando ? <tr><td colSpan={colunasExibidas.length + 1} className="erp-estado"><Loader2 size={18} className="erp-girando" aria-hidden="true" />Carregando lançamentos...</td></tr>
                 : linhas.length ? linhas.map((linha) => {
                   const aberta = expansao.has(linha.id);
                   const indiceLinha = lancamentos.findIndex((item) => item.id === linha.id);
@@ -828,13 +850,13 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                       </div></td>
                       {colunasExibidas.map((coluna) => celulaLancamento(coluna.chave, linha))}
                     </tr>
-                    {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunas.length + 1}>
+                    {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunasExibidas.length + 1}>
                       <div id={detalheId}><Detalhes linha={linha} dados={dadosDetalhe} /></div>
                     </td></tr>}
                   </Fragment>;
-                }) : <tr><td colSpan={colunas.length + 1} className="erp-estado">Nenhum lançamento encontrado para os filtros.</td></tr>}
+                }) : <tr><td colSpan={colunasExibidas.length + 1} className="erp-estado">Nenhum lançamento encontrado para os filtros.</td></tr>}
             </tbody>
-            <tfoot><tr><td colSpan={colunas.length}>TOTAL LISTADO ({filtrados.length} {filtrados.length === 1 ? "item" : "itens"})</td>
+            <tfoot><tr><td colSpan={colunasExibidas.length}>TOTAL LISTADO ({filtrados.length} {filtrados.length === 1 ? "item" : "itens"})</td>
               <td className="erp-total-rodape">{carregando ? "—" : formatarMoeda(totalListado)}</td></tr></tfoot>
           </table>
         </div>
@@ -929,6 +951,9 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: hidden; background: linear-gradient(145deg, #0d141c, #090d14); }
 .erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 0; padding: 1px 0; line-height: 12.2px; }
+.erp-financeiro .erp-colunas-lista { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 8px 18px; padding: 8px 12px; border: 1px solid var(--erp-border); border-radius: 8px; background: #0c111a; font-size: 12px; font-weight: 300; }
+.erp-financeiro .erp-colunas-lista label { display: inline-flex; align-items: center; gap: 6px; color: var(--erp-text); cursor: pointer; }
+.erp-financeiro .erp-colunas-lista input { margin: 0; accent-color: #0798ff; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }

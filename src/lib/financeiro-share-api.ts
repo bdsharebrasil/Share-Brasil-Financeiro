@@ -565,7 +565,7 @@ export function emitirReceita(payload: Record<string, unknown>): Promise<Lancame
 
 export function buscarContasAPagar(filtros: FiltrosContasAPagar = {}): Promise<ContaAPagar[]> {
 
-  return financeiroRequest<ContaAPagar[]>(`/api/financeiro/contas-apagar${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, fornecedorId: filtros.fornecedorId })}`);
+  return financeiroRequest<ContaAPagar[]>(`/api/financeiro/contas-apagar${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, fornecedorId: filtros.fornecedorId, incluirReembolsos: filtros.incluirReembolsos ? "true" : undefined })}`);
 
 }
 

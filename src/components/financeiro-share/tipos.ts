@@ -195,6 +195,7 @@ export interface FiltrosContasAPagar {
   vencidasAte?: string; // ISO date
   fornecedorId?: string;
   incluirLancamentos?: boolean;
+  incluirReembolsos?: boolean;
 }
 
 /** Filtros aceitos pela listagem de contas a receber. */

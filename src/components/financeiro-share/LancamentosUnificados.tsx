@@ -384,7 +384,7 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
 }
 
 export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: Props) {
-  const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA" });
+  const pagar = useContasAPagar({ incluirLancamentos: fluxo === "SAIDA", incluirReembolsos: fluxo === "SAIDA" });
   const receber = useContasAReceber();
   const ehEntrada = fluxo === "ENTRADA";
   const titulo = ehEntrada ? "Registrar Entrada" : "Registrar Saída";

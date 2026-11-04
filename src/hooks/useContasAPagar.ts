@@ -116,7 +116,7 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
       setCarregando(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.status, filtros.vencidasAte, filtros.fornecedorId, filtros.incluirLancamentos]);
+  }, [filtros.status, filtros.vencidasAte, filtros.fornecedorId, filtros.incluirLancamentos, filtros.incluirReembolsos]);
 
   useEffect(() => {
     carregar();

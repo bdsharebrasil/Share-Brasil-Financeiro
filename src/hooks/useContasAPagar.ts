@@ -73,16 +73,26 @@ export function useContasAPagar(filtros: FiltrosContasAPagar = {}): RetornoUseCo
         buscarContasAPagar(filtros),
         buscarContasBancariasPorLancamento().catch(() => new Map<string, { id: string; nome: string | null }>()),
         filtros.incluirLancamentos
-          ? buscarLancamentosComContasBancarias().catch(() => [])
-          : Promise.resolve([]),
+          ? buscarLancamentosComContasBancarias().catch((): Lancamento[] => [])
+          : Promise.resolve<Lancamento[]>([]),
       ]);
+      const lancamentosPorId = new Map(lancamentos.map((lancamento) => [lancamento.id, lancamento]));
       const contas = contasLegadas.map((conta) => {
         const contaLancamento = conta.lancamentoId
           ? contasPorLancamento.get(conta.lancamentoId)
           : undefined;
-        return contaLancamento
+        const lancamento = conta.lancamentoId ? lancamentosPorId.get(conta.lancamentoId) : undefined;
+        const contaComBanco = contaLancamento
           ? { ...conta, contaBancariaId: contaLancamento.id, bancoPagamento: contaLancamento.nome ?? conta.bancoPagamento }
           : conta;
+        return {
+          ...contaComBanco,
+          url_demonstrativo: conta.url_demonstrativo ?? lancamento?.url_demonstrativo ?? null,
+          url_nf: conta.url_nf ?? lancamento?.url_nf ?? null,
+          url_recibo: conta.url_recibo ?? lancamento?.url_recibo ?? null,
+          url_boleto: conta.url_boleto ?? lancamento?.url_boleto ?? null,
+          url_doc: conta.url_doc ?? lancamento?.url_doc ?? null,
+        };
       });
       const vinculados = new Set(contas.flatMap((conta) => [conta.id, conta.lancamentoId].filter((id): id is string => Boolean(id))));
       const adicionais = lancamentos

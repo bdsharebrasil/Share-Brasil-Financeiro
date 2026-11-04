@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const base = new URL("../src/components/FinanceiroCotista/", import.meta.url);
-const [financeiro, dashboard, pdf, calculo, referencia] = await Promise.all([
+const [financeiro, dashboard, pdf, calculo, referencia, acertoResumo, acertoHelper] = await Promise.all([
   readFile(new URL("FinanceiroCotista.tsx", base), "utf8"),
   readFile(new URL("FechamentoBalancoDashboardCotista.tsx", base), "utf8"),
   readFile(new URL("BalancoClientePdf.tsx", base), "utf8"),
   readFile(new URL("../../lib/balanco-cotista.ts", base), "utf8"),
   readFile(new URL("FechamentoBalancoReferencia.tsx", base), "utf8"),
+  readFile(new URL("AcertoContasCotistasResumo.tsx", base), "utf8"),
+  readFile(new URL("../../lib/acerto-contas-cotistas.ts", base), "utf8"),
 ]);
 const [lancamentosUi, lancamentosUiSource] = await Promise.all([
   import("../src/lib/financeiro-cotista-lancamentos.ts"),
@@ -34,12 +36,19 @@ test("fechamento segue as quatro seções da referência com valores derivados d
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
-test("Balanço mostra quem deve a quem a partir da matriz de compensação do backend", () => {
-  assert.match(calculo, /Object\.entries\(d\.matrizCompensacao/);
-  assert.match(referencia, /const compensacoes = \(b\?\.compensacoes \?\? \[\]\)/);
-  assert.match(referencia, /<strong>\{item\.devedor\}<\/strong><span>deve a<\/span><strong>\{item\.credor\}<\/strong>/);
-  assert.match(referencia, /acumulada até/);
-  assert.match(referencia, /não confirma a realização de uma transferência/);
+test("Gráficos e Fechamento usam o mesmo resumo de acerto baseado no ledger detalhado", () => {
+  assert.match(dashboard, /<AcertoContasCotistasResumo/);
+  assert.match(referencia, /<AcertoContasCotistasResumo/);
+  assert.match(referencia, /resultado=\{acerto\}/);
+  assert.match(acertoHelper, /calcularBalancoMensal\(/);
+  assert.match(acertoHelper, /fontes\.pagamentos/);
+  assert.match(acertoHelper, /"2000-01-01"/);
+  assert.match(acertoResumo, /compensacao\.deId/);
+  assert.match(acertoResumo, /compensacao\.paraId/);
+  assert.match(acertoResumo, /QUEM PAGA/);
+  assert.match(acertoResumo, /QUEM RECEBE/);
+  assert.match(acertoResumo, /Nenhum pagamento pessoal confirmado/);
+  assert.doesNotMatch(referencia, /const compensacoes = \(b\?\.compensacoes/);
 });
 
 test("Custo por hora mostra valores efetivos da aeronave e do cotista além da projeção", () => {

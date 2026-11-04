@@ -8,6 +8,7 @@ import { formatarData } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { cents, compacto, dividir, fmt, horas, money, montarBalanco, n, obj, pct, somarMedida, type DashboardBalanco } from "@/lib/balanco-cotista";
 import { BalancoClientePdf } from "./BalancoClientePdf";
+import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 
 /**
  * Fechamento mensal / soma dos meses selecionados. Sem filtros de lançamentos.
@@ -67,10 +68,6 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const view = (id: Aba) => `bcp-view ${atual === id ? "bcp-active" : ""}`;
   const tooltip = { background: "var(--bcp-card)", color: "var(--bcp-fg)", border: "1px solid var(--bcp-border)", borderRadius: 8, fontSize: 11 };
   const chartMoney = (v: unknown) => money(v);
-  const saldos = b.participantes.flatMap((participante) => participante.acerto ? [{ id: participante.id, nome: participante.nome, ...participante.acerto }] : []);
-  const compensacoes = b.compensacoes;
-  const totalPago = saldos.reduce((s, r) => s + r.pagoCentavos, 0);
-  const totalDevido = saldos.reduce((s, r) => s + r.devidoCentavos, 0);
   return <div className="bcp">{estilos}
     <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => void baixarPdf(cotistaSelecionado)}><Download size={14} /> Baixar balanço em PDF</button>}</div></header>
     <div className="bcp-kpis"><Kpi titulo={cotistaSelecionado ? "Custo rateado do cotista" : "Custo total da aeronave"} valor={money(totalExibido.total)} detalhe={`${periodo} · despesas do período`} /></div>
@@ -125,14 +122,15 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
     </section>
 
     <section className={view("acerto")} id={`${uid}-acerto`} aria-label="Acerto de contas">
-      <Painel titulo="Acerto de contas" detalhe="Posição acumulada até a data final da consulta; não se limita aos meses selecionados."><Tabela headers={["Cotista", "Pagamento informado", "Devido acumulado", "Saldo"]} numericas={[1,2,3]}>{saldos.map((s)=><tr key={s.id}><Th>{s.nome}</Th><Td num>{money(s.pagoCentavos)}</Td><Td num>{money(s.devidoCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela><p className="bcp-footnote">Positivo = crédito na apuração; negativo = débito. Pagamentos informados não são entradas de caixa do cotista cliente.</p></Painel>
-      {totalPago!==totalDevido&&<Nota>Pagamentos e valores devidos apresentam diferença de {money(totalPago-totalDevido)}. Confira as origens antes de executar compensações.</Nota>}
-      <Painel titulo="Compensações sugeridas">{compensacoes.length?<Tabela headers={["Quem paga", "Quem recebe", "Valor"]} numericas={[2]}>{compensacoes.map(t=><tr key={JSON.stringify([t.credorId,t.devedorId])}><Th>{t.devedor}</Th><Td>{t.credor}</Td><Td num destaque>{money(t.valorCentavos)}</Td></tr>)}</Tabela>:<Vazio>Nenhuma compensação sugerida.</Vazio>}</Painel>
+      <Painel titulo="Acerto de contas" detalhe="Pagamentos pessoais e rateios ajustados; posição acumulada até o fim da consulta.">
+        <AcertoContasCotistasResumo fontes={d.balanco_fontes} erroFonte={d.balanco_detalhado_erro} mesesSelecionados={b.meses} />
+      </Painel>
     </section>
 
     {temHolding&&<section className={view("holding")} id={`${uid}-holding`} aria-label="Conta comum das holdings">
       <Nota>Entradas são exclusivas das contas das holdings. Aportes e estornos efetivados são exibidos aqui; clientes não têm indicador de entrada. Posições dos sócios e saldo da conta são acumulados até o fim da consulta.</Nota>
       {holdings.map(h=><Painel key={h.id} titulo={h.nome} detalhe={h.contaBancaria||"Conta comum"}><div className="bcp-holding-summary"><span>Saldo acumulado da aeronave</span><strong>{money(h.saldoContaCentavos)}</strong></div>
+        <Tabela headers={["Mês", "Entradas efetivadas da holding"]} numericas={[1]}>{b.meses.map(m=><tr key={m}><Th>{rotuloMesCotista(m)}</Th><Td num destaque>{money(b.entradasHolding.filter(e=>obj(e).holdingId===h.id&&String(obj(e).data??"").slice(0,7)===m).reduce((s,e)=>s+cents(e.valorCentavos),0))}</Td></tr>)}</Tabela>
         <Tabela headers={["Mês", "Entradas efetivadas da holding"]} numericas={[1]}>{b.meses.map(m=><tr key={m}><Th>{rotuloMesCotista(m)}</Th><Td num destaque>{money(b.entradasHolding.filter(e=>obj(e).holdingId===h.id&&String(obj(e).data??"").slice(0,7)===m).reduce((s,e)=>s+cents(e.valorCentavos),0))}</Td></tr>)}</Tabela>
         <Tabela headers={["Sócio", "Cota", "Depositado", "Consumido", "Despesas diretas", "Saldo"]} numericas={[1,2,3,4,5]}>{h.socios.map(s=><tr key={s.cotistaId}><Th>{s.nome}</Th><Td num>{pct(n(s.percentual))}</Td><Td num>{money(s.totalDepositadoCentavos)}</Td><Td num>{money(s.totalConsumidoCentavos)}</Td><Td num>{money(s.despesasPagasDiretamenteCentavos)}</Td><Td num destaque>{money(s.saldoCentavos)}</Td></tr>)}</Tabela>
       </Painel>)}{!holdings.length&&<Vazio>Nenhuma conta comum retornada para esta aeronave.</Vazio>}

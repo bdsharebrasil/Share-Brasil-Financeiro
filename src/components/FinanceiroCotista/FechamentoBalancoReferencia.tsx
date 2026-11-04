@@ -40,6 +40,8 @@ import {
 } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { BalancoClientePdf } from "./BalancoClientePdf";
+import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
+import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -82,6 +84,11 @@ export function FechamentoBalancoReferencia({
   const b = useMemo(
     () => (d ? montarBalanco(d, cotistas, mesesSelecionados) : null),
     [d, cotistas, mesesSelecionados],
+  );
+  const mesesAcerto = b?.meses ?? mesesSelecionados;
+  const acerto = useMemo(
+    () => calcularAcertoContasCotistas(d?.balanco_fontes, mesesAcerto),
+    [d?.balanco_fontes, mesesAcerto],
   );
   const participante = b?.participantes.find((item) => item.id === cotistaId);
   const total = participante?.custo ?? b?.total;
@@ -130,7 +137,9 @@ export function FechamentoBalancoReferencia({
     .sort((a, z) => z.valor - a.valor);
   const quota = participante?.quota;
   const proporcaoDoCusto = b.total.total > 0 ? (total.total / b.total.total) * 100 : null;
-  const saldo = participante?.acerto?.saldoCentavos;
+  const saldo = participante && acerto.balanco
+    ? acerto.balanco.saldos.find((item) => item.id === participante.id)?.saldoCentavos ?? null
+    : null;
   const participanteTemVoos = Boolean(voosDoParticipante.length);
   const quantidadeVoos = participanteTemVoos ? voos.length : (b.totalVoos ?? voos.length);
   const pousos = voos.reduce((soma, voo) => soma + (voo.pousos ?? 0), 0);
@@ -140,10 +149,6 @@ export function FechamentoBalancoReferencia({
   const custoExtra = total.extras;
   const custoNaoClassificado = total.naoClassificados;
   const seriesCusto = meses.map((mes) => ({ ...mes, nome: mes.nome }));
-  const compensacoes = (b?.compensacoes ?? [])
-    .filter((item) => item.valorCentavos > 0)
-    .sort((a, z) => z.valorCentavos - a.valorCentavos);
-
   const abrirDialogPdf = () => {
     const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
     setCotistasPdfSelecionados(selecionado);
@@ -215,7 +220,7 @@ export function FechamentoBalancoReferencia({
           <div className="fb-hero-stats">
             <div>Cota contratual<strong>{quota == null ? "—" : fmt(quota, 1) + "%"}</strong></div>
             <div>Participação no custo<strong>{proporcaoDoCusto == null ? "—" : fmt(proporcaoDoCusto, 1) + "%"}</strong></div>
-            <div>Saldo informado<strong>{saldo == null ? "—" : money(saldo)}</strong></div>
+            <div>Saldo líquido acumulado<strong>{saldo == null ? "—" : money(saldo)}</strong></div>
           </div>
         </div>
         <div className="fb-grid fb-g3">
@@ -256,24 +261,19 @@ export function FechamentoBalancoReferencia({
           </section>
         </div>
         <section className="fb-card fb-spaced">
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div><h2>Acerto de contas</h2><p style={{ margin: "-8px 0 0", color: "var(--fb-muted)", fontSize: 11 }}>Quem deve, para quem e quanto.</p></div>
-            <span className="fb-tag">{compensacoes.length} {compensacoes.length === 1 ? "compensação" : "compensações"}</span>
-          </div>
-          {compensacoes.length ? <div style={{ marginTop: 12, borderTop: "1px solid var(--fb-border)" }}>
-            {compensacoes.map((item) => <div key={`${item.credorId ?? item.credor}:${item.devedorId ?? item.devedor}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "10px 0", borderBottom: "1px solid var(--fb-border)" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 5, flexWrap: "wrap", fontSize: 13 }}><strong>{item.devedor}</strong><span>deve a</span><strong>{item.credor}</strong></div>
-              <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{money(item.valorCentavos)}</strong>
-            </div>)}
-          </div> : <Vazio>Não há valores pendentes entre os cotistas para compensar.</Vazio>}
-          <p className="fb-note">Compensação líquida com base nas parcelas devidas e nos pagamentos reais informados, acumulada até {rotuloMesCotista(b.meses[b.meses.length - 1])}. Ela não confirma a realização de uma transferência entre cotistas.</p>
+          <AcertoContasCotistasResumo
+            fontes={d.balanco_fontes}
+            erroFonte={d.balanco_detalhado_erro}
+            mesesSelecionados={b.meses}
+            resultado={acerto}
+          />
         </section>
         <section className="fb-card fb-spaced"><h2>Resumo mês a mês</h2><div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Fixos</th><th className="fb-num">Variáveis</th><th className="fb-num">Extras</th><th className="fb-num">Não classificados</th><th className="fb-num">Total</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{money(mes.fixos)}</td><td className="fb-num">{money(mes.variaveis)}</td><td className="fb-num">{money(mes.extras)}</td><td className="fb-num">{money(mes.naoClassificados)}</td><td className="fb-num"><b>{money(mes.total)}</b></td></tr>)}</tbody>
           <tfoot><tr><td>Total</td><td className="fb-num">{money(total.fixos)}</td><td className="fb-num">{money(total.variaveis)}</td><td className="fb-num">{money(total.extras)}</td><td className="fb-num">{money(total.naoClassificados)}</td><td className="fb-num">{money(total.total)}</td></tr></tfoot>
         </table></div></section>
-        <p className="fb-note">Os valores são calculados com os lançamentos e rateios disponíveis para o período selecionado. “Saldo informado” reflete os dados de acerto retornados pelo sistema; não representa uma nova cobrança.</p>
+        <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
       </section>}
 
       {aba === "lancamentos" && <section id="fb-panel-lancamentos" role="tabpanel" aria-labelledby="fb-tab-lancamentos">

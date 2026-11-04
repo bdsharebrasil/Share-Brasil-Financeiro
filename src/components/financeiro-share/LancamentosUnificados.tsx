@@ -388,7 +388,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [seletorMesAberto, setSeletorMesAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
-  const [ordenacao, setOrdenacao] = useState<{ chave: ChaveColuna; crescente: boolean }>({ chave: "data", crescente: false });
+  const [ordenacao, setOrdenacao] = useState<{ chave: ChaveColuna; crescente: boolean }>({ chave: "data", crescente: true });
   const [larguras, setLarguras] = useState<Partial<Record<ChaveColuna, number>>>({});
   const [ordemColunas, setOrdemColunas] = useState<ChaveColuna[]>([]);
   const [colunaArrastada, setColunaArrastada] = useState<ChaveColuna | null>(null);

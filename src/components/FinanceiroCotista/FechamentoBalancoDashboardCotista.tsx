@@ -1,10 +1,9 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Plane, Download, TrendingUp } from "lucide-react";
+import { BarChart3, Gauge, Layers3, Wallet, Scale, Download, TrendingUp } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import { formatarData } from "@/lib/financeiro-share-api";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { cents, compacto, dividir, fmt, horas, money, montarBalanco, n, obj, pct, somarMedida, type DashboardBalanco } from "@/lib/balanco-cotista";
 import { BalancoClientePdf } from "./BalancoClientePdf";
@@ -20,9 +19,9 @@ import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
  * fallback escuro/claro por .dark, [data-theme] e preferência do sistema.
  */
 type Props = { dashboard: DashboardCotista | null; carregando: boolean; erro: string | null; cotistas: CotistaAeronave[]; mesesSelecionados: string[]; cotistaId?: string };
+const cores = ["#22c8ec", "#a898f3", "#e3b365", "#62c6a3", "#eb8d9c", "#87a8dc", "#b9c480"];
 const ABAS = [
   { id: "geral", nome: "Comparativo mensal", Icon: BarChart3 },
-  { id: "cotistas", nome: "Evolução por cotista", Icon: Users },
   { id: "custos", nome: "Custos do período", Icon: Gauge },
   { id: "medias", nome: "Médias", Icon: TrendingUp },
   { id: "categorias", nome: "Categorias e cotistas", Icon: Layers3 },
@@ -30,7 +29,6 @@ const ABAS = [
   { id: "holding", nome: "Conta comum", Icon: Wallet },
 ] as const;
 type Aba = typeof ABAS[number]["id"];
-const cores = ["#22c8ec", "#a898f3", "#e3b365", "#62c6a3", "#eb8d9c", "#87a8dc", "#b9c480"];
 
 export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro, cotistas, mesesSelecionados, cotistaId }: Props) {
   const uid = useId().replace(/:/g, "");
@@ -45,7 +43,6 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const periodo = b.meses.map(rotuloMesCotista).join(" · ");
   const aeronave = [...new Set((d.lancamentos ?? []).map(l => l.aeronaveNome).filter(Boolean))].join(" / ") || "Aeronave selecionada";
   const cotistaSelecionado = b.participantes.find(p => p.id === cotistaId);
-  const participantesExibidos = cotistaId ? b.participantes.filter(p => p.id === cotistaId) : b.participantes;
   const mensaisExibidos = cotistaSelecionado?.mensal ?? b.mensais;
   const totalExibido = cotistaSelecionado?.custo ?? b.total;
   const baixarPdf = async (participante: NonNullable<typeof cotistaSelecionado>) => {
@@ -86,23 +83,6 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
       {atual === "geral" && <div className="bcp-grid-two bcp-no-print"><Painel titulo="Média de custo/hora por mês" detalhe="Cada ponto = custo do mês ÷ horas do mesmo mês."><Grafico><ResponsiveContainer width="100%" height="100%"><AreaChart data={mensaisExibidos} margin={{left:0,right:15,top:12,bottom:0}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} tickLine={false} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Area dataKey="custoHora" name="Custo/h" stroke="var(--bcp-accent)" fill="var(--bcp-accent)" fillOpacity={.1} strokeWidth={2} connectNulls={false} isAnimationActive={false} /></AreaChart></ResponsiveContainer></Grafico></Painel>
       <Painel titulo="Fixos × variáveis" detalhe="Extras e valores sem classificação permanecem separados."><Grafico><ResponsiveContainer width="100%" height="100%"><BarChart data={mensaisExibidos} margin={{right:15,top:12}}><CartesianGrid stroke="var(--bcp-border)" strokeDasharray="3 5" vertical={false} /><XAxis dataKey="nome" tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><YAxis tickFormatter={compacto} width={65} tick={{fontSize:10,fill:"var(--bcp-muted)"}} /><Tooltip formatter={chartMoney} contentStyle={tooltip} /><Legend wrapperStyle={{fontSize:10}} /><Bar dataKey="fixos" name="Fixos" stackId="custo" fill={cores[1]} isAnimationActive={false}/><Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={cores[0]} isAnimationActive={false}/><Bar dataKey="extras" name="Extras" stackId="custo" fill={cores[2]} isAnimationActive={false}/><Bar dataKey="naoClassificados" name="Não classificados" stackId="custo" fill="#8291a4" isAnimationActive={false}/></BarChart></ResponsiveContainer></Grafico></Painel></div>}
       <Nota>O custo/hora consolidado é ponderado pelas horas: soma dos custos ÷ soma das horas. Meses sem voo exibem “—”. Os totais financeiros seguem a emissão e as horas seguem a data do diário.</Nota>
-    </section>
-
-    <section className={view("cotistas")} id={`${uid}-cotistas`} aria-label="Evolução individual por cotista">
-      <div className="bcp-section-title"><h3>Evolução individual por cotista</h3><p>Custo rateado, utilização e destinos no período selecionado.</p></div>
-      {!b.fonteVoos && <Nota>O diário individual não está disponível nesta resposta. Horas, destinos e balanço da cota não são estimados a partir do custo.</Nota>}
-      {participantesExibidos.map((p, i) => <article className="bcp-owner" key={p.id}>
-        <header className="bcp-owner-header"><div className="bcp-avatar" style={{color:cores[i%cores.length]}}>{p.nome.slice(0,2).toUpperCase()}</div><div><h3>{p.nome}</h3><p>{p.confirmado ? p.holding ? "Sócio de holding" : "Cotista cliente" : "Vínculo a conferir"} · Cota atual: {pct(p.quota)}</p></div><div className="bcp-owner-cost"><small>Custo rateado</small><strong>{money(p.custo.total)}</strong></div></header>
-        <div className="bcp-owner-body"><div className="bcp-mini-kpis"><Kpi titulo="Horas voadas" valor={horas(p.horas)} /><Kpi titulo="Utilização da aeronave" valor={pct(p.uso)} /><Kpi titulo="Custo / hora total" valor={money(p.custoHora)} /><Kpi titulo="Média por relatório de viagem" valor={money(p.mediaViagem)} detalhe={`${fmt(p.numeroViagens,0)} relatórios`} /><Kpi titulo="Consumo estimado L/h" valor={fmt(p.consumoHora)} /></div>
-          <div className="bcp-grid-two"><div className="bcp-quota"><h4>Balanço da cota</h4><Barra label="Participação na aeronave" valor={p.quota} /><Barra label="Participação nas horas utilizadas" valor={p.uso} destaque />
-            <div className="bcp-quota-result"><strong>{p.diferenca === null ? "Sem base de comparação" : Math.abs(p.diferenca)<.005 ? "Utilização proporcional à cota" : `${fmt(Math.abs(p.diferenca))} p.p. ${p.diferenca>0?"acima":"abaixo"} da cota`}</strong><span>Referência proporcional: {horas(p.referencia)} · Diferença de horas: {horas(p.saldoHoras)}</span></div>
-            <small>Cota atual × horas totais do período. A diferença é um comparativo de utilização, não um crédito de horas ou cobrança.</small>
-          </div><div className="bcp-destinos"><h4>Destinos mais visitados</h4>{p.destinos.length ? <ol>{p.destinos.slice(0,5).map((dest, k) => <li key={dest.nome}><span className="bcp-rank">{String(k+1).padStart(2,"0")}</span><strong>{dest.nome}</strong><div className="bcp-destination-bar"><i style={{width:`${dest.visitas/p.destinos[0].visitas*100}%`}} /></div><span>{dest.visitas} {dest.visitas===1?"chegada":"chegadas"}</span></li>)}</ol> : <Vazio>{b.fonteVoos ? "Nenhum destino registrado no período." : "Histórico operacional indisponível."}</Vazio>}</div></div>
-          <h4>Evolução mensal</h4><Tabela headers={["Mês", "Custo rateado", "Fixos", "Variáveis", "Extras", "Não classificados", "Horas", "Voos (etapas)", "Custo/h"]} numericas={[1,2,3,4,5,6,7,8]}>{p.mensal.map(m => <tr key={m.mes}><Th>{m.nome}</Th><Td num>{money(m.total)}</Td><Td num>{money(m.fixos)}</Td><Td num>{money(m.variaveis)}</Td><Td num>{money(m.extras)}</Td><Td num>{money(m.naoClassificados)}</Td><Td num>{horas(m.horas)}</Td><Td num>{fmt(m.voos,0)}</Td><Td num destaque>{money(m.custoHora)}</Td></tr>)}</Tabela>
-          <details className="bcp-history"><summary><Plane size={14} /> Histórico de utilização · {b.fonteVoos ? p.voos.length : "—"} etapas</summary>{p.voos.length ? <Tabela headers={["Data", "Voo", "Origem", "Destino", "Horas", "Pousos", "Natureza"]} numericas={[4,5]}>{p.voos.map(v => <tr key={v.id}><Th>{formatarData(v.data)}</Th><Td>{v.numero||"—"}</Td><Td>{v.origem||"—"}</Td><Td>{v.destino||"—"}</Td><Td num>{horas(v.horas)}</Td><Td num>{fmt(v.pousos,0)}</Td><Td>{v.natureza||"—"}{v.emprestado?" · empréstimo":""}</Td></tr>)}</Tabela> : <Vazio>Nenhuma etapa vinculada.</Vazio>}</details>
-        </div>
-      </article>)}
-      <Nota>Os destinos contam chegadas registradas no diário, não multiplicam visitas pelo número de pousos. Traslados, voos de teste e operações sem titular ficam separados. Em voos emprestados, a utilização é atribuída ao tomador identificado. A participação societária é a atual, pois o schema não possui histórico de vigência das cotas.</Nota>
     </section>
 
     <section className={view("custos")} id={`${uid}-custos`} aria-label="Custos do período">
@@ -150,7 +130,6 @@ function Td({children,num,destaque}:{children:ReactNode;num?:boolean;destaque?:b
 function Vazio({children}:{children:ReactNode}) {return <div className="bcp-empty">{children}</div>;}
 function Nota({children}:{children:ReactNode}) {return <aside className="bcp-note">{children}</aside>;}
 function Grafico({children}:{children:ReactNode}) {return <div className="bcp-chart">{children}</div>;}
-function Barra({label,valor,destaque}:{label:string;valor:number|null;destaque?:boolean}) {return <div className="bcp-quota-line"><div><span>{label}</span><strong>{pct(valor)}</strong></div><div className="bcp-track"><i className={destaque?"bcp-fill-accent":""} style={{width:`${Math.max(0,Math.min(100,valor??0))}%`}} /></div></div>;}
 
 const CSS = `
 .bcp{--bcp-bg:hsl(var(--background,220 27% 8%));--bcp-card:hsl(var(--card,220 27% 8%));--bcp-fg:hsl(var(--foreground,210 35% 93%));--bcp-muted:hsl(var(--muted-foreground,215 22% 65%));--bcp-border:hsl(var(--border,216 24% 19%));--bcp-soft:hsl(var(--muted,216 25% 12%));--bcp-accent:#00d9ff;--bcp-heading:#a2bddc;min-width:0;width:100%;max-width:100%;padding:8px 0;color:var(--bcp-fg);background:transparent;font-family:inherit;font-size:12px;line-height:1.5;container-type:inline-size}

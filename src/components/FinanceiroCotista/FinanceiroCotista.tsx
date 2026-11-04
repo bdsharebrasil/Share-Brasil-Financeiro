@@ -18,7 +18,6 @@ import {
   Building2,
   User,
   Plane,
-  BarChart3,
   ReceiptText,
   ListOrdered,
   PieChart,
@@ -76,19 +75,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart as RechartsPieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import {
   criarLancamentoEconomico,
   parseValorReais,
@@ -1666,13 +1652,13 @@ function LancamentosDespesa({
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
-  const [modoData, setModoData] = useState<"emissao" | "vencimento" | "ambas">("emissao");
+  const [modoData, setModoData] = useState<"emissao" | "vencimento" | "pagamento" | "todos">("emissao");
   const [filtroDoc, setFiltroDoc] = useState("todos");
   const [colunaFiltroAberta, setColunaFiltroAberta] = useState<string | null>(null);
   const [ordenacao, setOrdenacao] = useState<{
     coluna: string;
     direcao: "asc" | "desc";
-  }>({ coluna: "data", direcao: "desc" });
+  }>({ coluna: "data", direcao: "asc" });
   const [larguras, setLarguras] = useState<Record<string, number>>({});
   const [ocultas, setOcultas] = useState<Set<string>>(() => new Set());
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -1899,7 +1885,7 @@ function LancamentosDespesa({
       {valor || "—"}
     </span>
   );
-  const ordenarDataPor = modoData === "vencimento" ? "vencimento" : "emissao";
+  const ordenarDataPor = modoData === "vencimento" ? "vencimento" : modoData === "pagamento" ? "pagamento" : "emissao";
   const alterarModoData = (modo: typeof modoData) => {
     setModoData(modo);
     setOrdenacao((atual) => ({
@@ -1908,7 +1894,7 @@ function LancamentosDespesa({
     }));
   };
   const dataParaOrdenacao = (item: LancamentoEconomico) =>
-    ordenarDataPor === "emissao" ? item.dataEmissao || item.data : item.prazo;
+    ordenarDataPor === "emissao" ? item.dataEmissao || item.data : ordenarDataPor === "vencimento" ? item.prazo : item.dataPagamento;
   const formatarDataSemAno = (valor: string | null | undefined) =>
     formatarData(valor).replace(/\/\d{4}$/, "");
   const colunas: ColunaDespesa[] = [
@@ -1920,14 +1906,17 @@ function LancamentosDespesa({
       valor: dataParaOrdenacao,
       render: (item) => (
         <>
-          {modoData !== "vencimento" && (
+          {(modoData === "emissao" || modoData === "todos") && (
             <span>{formatarDataSemAno(item.dataEmissao || item.data)}</span>
           )}
-          {modoData !== "emissao" && (
-            <span className={modoData === "ambas" ? "erp-texto-secundario" : undefined}>
-              {modoData === "ambas" ? "Venc. " : ""}
+          {(modoData === "vencimento" || modoData === "todos") && (
+            <span className={modoData === "todos" ? "erp-texto-secundario" : undefined}>
+              {modoData === "todos" ? "Venc. " : ""}
               {formatarDataSemAno(item.prazo)}
             </span>
+          )}
+          {modoData === "todos" && item.dataPagamento && (
+            <span className="erp-texto-secundario">Pag. {formatarDataSemAno(item.dataPagamento)}</span>
           )}
         </>
       ),
@@ -2044,7 +2033,8 @@ function LancamentosDespesa({
       return [
         { rotulo: "Emissão", ativo: modoData === "emissao", aplicar: () => alterarModoData("emissao") },
         { rotulo: "Vencimento", ativo: modoData === "vencimento", aplicar: () => alterarModoData("vencimento") },
-        { rotulo: "Emissão e vencimento", ativo: modoData === "ambas", aplicar: () => alterarModoData("ambas") },
+        { rotulo: "Pagamento", ativo: modoData === "pagamento", aplicar: () => alterarModoData("pagamento") },
+        { rotulo: "Todos", ativo: modoData === "todos", aplicar: () => alterarModoData("todos") },
       ];
     if (id === "documento")
       return [
@@ -2741,11 +2731,11 @@ function LancamentosDespesa({
                         type="button"
                         variant="outline"
                         className="despesa-date-mode"
-                        aria-label={`Filtro de data: ${modoData === "emissao" ? "emissão" : modoData === "vencimento" ? "vencimento" : "emissão e vencimento"}`}
+                        aria-label={`Filtro de data: ${modoData === "emissao" ? "emissão" : modoData === "vencimento" ? "vencimento" : modoData === "pagamento" ? "pagamento" : "todos"}`}
                         title="Escolher datas exibidas"
                       >
                         <span className="despesa-date-mode-copy">
-                          <small>DATA: {modoData === "emissao" ? "EMISSÃO" : modoData === "vencimento" ? "VENCIMENTO" : "AMBAS"}</small>
+                          <small>DATA: {modoData === "emissao" ? "EMISSÃO" : modoData === "vencimento" ? "VENCIMENTO" : modoData === "pagamento" ? "PAGAMENTO" : "TODOS"}</small>
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
@@ -2761,9 +2751,13 @@ function LancamentosDespesa({
                         <Check size={14} className={modoData === "vencimento" ? "opacity-100" : "opacity-0"} />
                         Somente vencimento
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => alterarModoData("ambas")} className="gap-2">
-                        <Check size={14} className={modoData === "ambas" ? "opacity-100" : "opacity-0"} />
-                        Emissão e vencimento
+                      <DropdownMenuItem onSelect={() => alterarModoData("pagamento")} className="gap-2">
+                        <Check size={14} className={modoData === "pagamento" ? "opacity-100" : "opacity-0"} />
+                        Somente pagamento
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => alterarModoData("todos")} className="gap-2">
+                        <Check size={14} className={modoData === "todos" ? "opacity-100" : "opacity-0"} />
+                        Todas as datas
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -3701,7 +3695,6 @@ export default function FinanceiroCotista() {
   const [abaAtiva, setAbaAtiva] = useState<
     | "fechamento-balanco"
     | "lancamentos"
-    | "graficos"
     | "ranking"
     | "emprestimos"
     | "extrato"
@@ -3731,12 +3724,6 @@ export default function FinanceiroCotista() {
       rotulo: "Voos empréstimo",
       Icon: Plane,
       corIcone: "bg-amber-400/10 text-amber-400",
-    },
-    {
-      id: "graficos",
-      rotulo: "Gráficos",
-      Icon: BarChart3,
-      corIcone: "bg-rose-400/10 text-rose-400",
     },
     {
       id: "portal-cliente",
@@ -3832,80 +3819,11 @@ export default function FinanceiroCotista() {
     });
     return agruparPorMes(lista);
   }, [dashboard, mesesAplicados, cotistaEmprestimo]);
-  // O dashboard já entrega ranking_gastos e fechamento_mensal em reais; os lançamentos brutos acima continuam em centavos.
-  const dadosCategorias = (dashboard?.ranking_gastos ?? []).map((item) => ({
-    nome: item.categoria,
-    valor: item.valor,
-    quantidade: item.quantidade,
-    grupo: item.grupo,
-  }));
-  const totalCategorias = dadosCategorias.reduce(
-    (total, item) => total + item.valor,
-    0,
-  );
-  const totalCategoriasCompacto = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(totalCategorias);
-  const dadosPagamentosRateio = useMemo(() => {
-    const porMes = new Map<string, { pagamentos: number; rateado: number }>();
-    for (const lancamento of despesas) {
-      const mes = String(lancamento.data ?? "").slice(0, 7);
-      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) continue;
-      const valores = porMes.get(mes) ?? { pagamentos: 0, rateado: 0 };
-      valores.pagamentos += valorPagoLancamento(lancamento) / 100;
-      const rateado =
-        lancamento.rateios.length > 0
-          ? lancamento.rateios.reduce(
-              (total, rateio) => total + rateio.valorCentavos,
-              0,
-            )
-          : lancamento.valorRateadoCentavos || lancamento.valorCentavos;
-      valores.rateado += rateado / 100;
-      porMes.set(mes, valores);
-    }
-    return [...porMes.entries()]
-      .sort(([mesA], [mesB]) => mesA.localeCompare(mesB))
-      .map(([mes, valores]) => ({
-        mes: rotuloMesCotista(mes).split(" ")[0].slice(0, 3),
-        ...valores,
-      }));
-  }, [despesas]);
-  const maiorDiferencaPagamentosRateio = dadosPagamentosRateio.reduce<{
-    mes: string;
-    valor: number;
-  } | null>((maior, atual) => {
-    const valor = Math.abs(atual.pagamentos - atual.rateado);
-    return !maior || valor > maior.valor ? { mes: atual.mes, valor } : maior;
-  }, null);
-
   const cotistasParaDialog: CotistaAeronave[] = useMemo(
     () => (aeronaveSelecionada ? cotistasAeronave : []),
     [aeronaveSelecionada, cotistasAeronave],
   );
 
-  const formatarValorGrafico = (valor: number) =>
-    formatarMoeda(valor).replace(",00", "");
-  const estiloTooltip = {
-    contentStyle: {
-      background: "#0f172a",
-      border: "1px solid #334155",
-      borderRadius: 8,
-      color: "#ffffff",
-    },
-    itemStyle: { color: "#ffffff" },
-    labelStyle: { color: "#ffffff" },
-  };
-  const coresCategorias = [
-    "#22d3ee",
-    "#60a5fa",
-    "#a78bfa",
-    "#fbbf24",
-    "#34d399",
-    "#94a3b8",
-  ];
 
   const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
 
@@ -4397,197 +4315,6 @@ export default function FinanceiroCotista() {
                   )}
                 </div>
               )}
-              {abaAtiva === "graficos" && (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="financeiro-panel overflow-hidden">
-                    <div className="financeiro-panel-header">
-                      <p className="text-sm font-semibold">
-                        Pagamentos × rateio
-                      </p>
-                    </div>
-                    <div className="h-52 p-4 sm:h-64">
-                      {dadosPagamentosRateio.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={dadosPagamentosRateio}
-                            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                          >
-                            <CartesianGrid
-                              stroke="hsl(var(--border))"
-                              strokeDasharray="3 4"
-                              vertical={false}
-                            />
-                            <XAxis
-                              dataKey="mes"
-                              tick={{ fontSize: 10, fill: "#748399" }}
-                              axisLine={false}
-                              tickLine={false}
-                            />
-                            <YAxis
-                              tickFormatter={formatarValorGrafico}
-                              tick={{ fontSize: 10, fill: "#748399" }}
-                              axisLine={false}
-                              tickLine={false}
-                              width={60}
-                            />
-                            <Tooltip
-                              formatter={(valor: number) =>
-                                formatarMoeda(valor)
-                              }
-                              {...estiloTooltip}
-                            />
-                            <Legend
-                              align="right"
-                              verticalAlign="top"
-                              height={28}
-                              iconType="square"
-                              wrapperStyle={{ fontSize: 10 }}
-                            />
-                            <Bar
-                              dataKey="pagamentos"
-                              name="Pago"
-                              fill="#08a4c9"
-                              radius={[2, 2, 0, 0]}
-                            />
-                            <Bar
-                              dataKey="rateado"
-                              name="Rateado"
-                              fill="#319b59"
-                              radius={[2, 2, 0, 0]}
-                            />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          Dados insuficientes para o período.
-                        </div>
-                      )}
-                    </div>
-                    {maiorDiferencaPagamentosRateio && (
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-[10px]">
-                        <span className="text-muted-foreground">
-                          Maior diferença em{" "}
-                          <b className="text-foreground">
-                            {maiorDiferencaPagamentosRateio.mes}:{" "}
-                            {formatarMoeda(
-                              maiorDiferencaPagamentosRateio.valor,
-                            )}
-                          </b>
-                        </span>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 font-semibold text-primary"
-                          onClick={() => setAbaAtiva("lancamentos")}
-                        >
-                          Ver detalhamento <ChevronRight size={13} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="financeiro-panel min-w-0 overflow-hidden">
-                    <div className="financeiro-panel-header">
-                      <div>
-                        <p className="text-sm font-bold">
-                          Custos por categoria
-                        </p>
-                      </div>
-                    </div>
-                    {dadosCategorias.length > 0 ? (
-                      <>
-                        <div className="relative mx-auto h-44 w-full max-w-[220px]">
-                          <div className="absolute inset-0">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsPieChart>
-                                <Pie
-                                  data={dadosCategorias}
-                                  dataKey="valor"
-                                  nameKey="nome"
-                                  innerRadius="62%"
-                                  outerRadius="88%"
-                                  paddingAngle={2}
-                                >
-                                  {dadosCategorias.map((item, i) => (
-                                    <Cell
-                                      key={item.nome}
-                                      fill={
-                                        coresCategorias[
-                                          i % coresCategorias.length
-                                        ]
-                                      }
-                                    />
-                                  ))}
-                                </Pie>
-                                <Tooltip
-                                  formatter={(v: number) => formatarMoeda(v)}
-                                  {...estiloTooltip}
-                                />
-                              </RechartsPieChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                            <strong className="font-mono text-sm font-bold">
-                              {totalCategoriasCompacto}
-                            </strong>
-                            <span className="text-[8px] uppercase tracking-wider text-muted-foreground">
-                              Total
-                            </span>
-                          </div>
-                        </div>
-                        <div className="px-4 pb-3">
-                          {dadosCategorias.map((item, i) => (
-                            <div
-                              key={item.nome}
-                              className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-border/70 py-2 text-[10px]"
-                            >
-                              <span className="flex min-w-0 items-center gap-2">
-                                <i
-                                  className="h-2 w-2 shrink-0 rounded-[2px]"
-                                  style={{
-                                    backgroundColor:
-                                      coresCategorias[
-                                        i % coresCategorias.length
-                                      ],
-                                  }}
-                                />
-                                <span className="truncate">{item.nome}</span>
-                              </span>
-                              <span className="font-mono text-muted-foreground">
-                                {formatarMoeda(item.valor)}
-                              </span>
-                              <strong className="w-12 text-right font-mono">
-                                {totalCategorias > 0
-                                  ? (
-                                      (item.valor / totalCategorias) *
-                                      100
-                                    ).toLocaleString("pt-BR", {
-                                      maximumFractionDigits: 1,
-                                    })
-                                  : "0"}
-                                %
-                              </strong>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex h-44 items-center justify-center px-4 text-center text-xs text-muted-foreground">
-                        Dados insuficientes para o período.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {abaAtiva === "graficos" && (
-                <FechamentoBalancoDashboardCotista
-                  dashboard={dashboard}
-                  carregando={carregando}
-                  erro={erroDashboard}
-                  cotistas={cotistasAeronave}
-                  mesesSelecionados={mesesAplicados}
-                />
-              )}
-
               {abaAtiva === "ranking" && (
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="financeiro-panel overflow-hidden">

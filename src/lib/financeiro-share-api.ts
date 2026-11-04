@@ -786,6 +786,8 @@ export type LancamentoEconomico = {
 
   numeroRecibo?: string | null;
 
+  numeroBoleto?: string | null;
+
   numeroDemonstrativo?: string | null;
 
   numeroDoc?: string | null;

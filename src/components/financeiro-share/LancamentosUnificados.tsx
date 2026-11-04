@@ -703,13 +703,14 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
               onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
             {menuColunasAberto && (
-              <div className="erp-colunas-lista" id={`${id}-colunas`} role="group" aria-label="Colunas visíveis">
+              <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
                 {colunas.map((coluna) => {
                   const visivel = !colunasOcultas.includes(coluna.chave);
-                  return <label key={coluna.chave}>
-                    <input type="checkbox" checked={visivel} disabled={visivel && colunasExibidas.length === 1}
-                      onChange={() => alternarColuna(coluna.chave)} />{coluna.rotulo}
-                  </label>;
+                  return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
+                    disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
+                    <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
+                    {coluna.rotulo}
+                  </button>;
                 })}
               </div>
             )}
@@ -951,9 +952,12 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: hidden; background: linear-gradient(145deg, #0d141c, #090d14); }
 .erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 0; padding: 1px 0; line-height: 12.2px; }
-.erp-financeiro .erp-colunas-lista { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 8px 18px; padding: 8px 12px; border: 1px solid var(--erp-border); border-radius: 8px; background: #0c111a; font-size: 12px; font-weight: 300; }
-.erp-financeiro .erp-colunas-lista label { display: inline-flex; align-items: center; gap: 6px; color: var(--erp-text); cursor: pointer; }
-.erp-financeiro .erp-colunas-lista input { margin: 0; accent-color: #0798ff; }
+.erp-financeiro .erp-colunas-lista { display: flex; flex-direction: column; flex-basis: 100%; width: 100%; max-width: 260px; max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
+.erp-financeiro .erp-colunas-lista button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: #b7c5d5; font-size: 11px; text-align: left; cursor: pointer; }
+.erp-financeiro .erp-colunas-lista button:hover { background: #159dff22; color: #61bbff; }
+.erp-financeiro .erp-colunas-lista button[aria-selected="true"] { color: #61bbff; }
+.erp-financeiro .erp-colunas-lista button:disabled { cursor: not-allowed; opacity: .6; }
+.erp-financeiro .erp-coluna-marca { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex-shrink: 0; border: 1px solid #394856; border-radius: 3px; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }

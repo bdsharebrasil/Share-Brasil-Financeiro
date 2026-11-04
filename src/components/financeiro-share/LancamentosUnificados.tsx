@@ -1118,7 +1118,9 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-linha { height: 48px; cursor: pointer; background: #10171e; transition: background .15s ease; }
 .erp-financeiro .erp-linha:nth-child(even) { background: #131b23; }
 .erp-financeiro .erp-linha:hover { background: #1b2935; }
-.erp-financeiro .erp-linha.erp-linha-selecionada, .erp-financeiro .erp-linha.erp-linha-aberta { background: #27313c88; }
+.erp-financeiro .erp-linha.erp-linha-selecionada { background: #27313c88; }
+.erp-financeiro .erp-linha.erp-linha-aberta { background: #0a1015; }
+.erp-financeiro .erp-linha.erp-linha-aberta > td { background: #0a1015; box-shadow: inset 0 1px 0 #ffffff1a, inset 0 -1px 0 #00000099; }
 .erp-financeiro .erp-descricao-cabecalho { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .erp-financeiro .erp-descricao { display: block; min-width: 0; flex: 1; font-size: 13px; line-height: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
 .erp-financeiro .erp-texto-secundario { display: block; margin-top: 7px; margin-bottom: 7px; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }

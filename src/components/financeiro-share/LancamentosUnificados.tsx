@@ -1052,7 +1052,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: visible; background: linear-gradient(145deg, #0d141c, #090d14); }
-.erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 0; padding: 1px 0; line-height: 12.2px; }
+.erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 78px -6px -127px; padding: 1px 0; line-height: 12.2px; }
 .erp-financeiro .erp-colunas-lista { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: flex; flex-direction: column; width: max-content; max-width: min(260px, 100%); max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
 .erp-financeiro .erp-colunas-lista button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: #b7c5d5; font-size: 11px; text-align: left; cursor: pointer; }
 .erp-financeiro .erp-colunas-lista button:hover { background: #159dff22; color: #61bbff; }
@@ -1069,7 +1069,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
 .erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -120px 4px -53px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -149px 4px 3px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
 .erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
 .erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
 .erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }

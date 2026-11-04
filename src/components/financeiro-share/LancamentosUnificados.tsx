@@ -129,7 +129,9 @@ const ROTULOS: Record<string, string> = {
   CANCELADO: "CANCELADO",
 };
 const TONS: Record<string, string> = {
-  PAGO: "sucesso", PENDENTE: "pendente", ATRASADO: "atrasado", CANCELADO: "cancelado",
+  PAGO: "sucesso", RECEBIDO: "sucesso", REEMBOLSADO: "sucesso",
+  EM_ABERTO: "pendente", EM_ATRASO: "atrasado",
+  AGUARDANDO_REEMBOLSO: "aguardando", CANCELADO: "cancelado",
 };
 
 // Usa o calendário local para não avançar o mês por causa do fuso UTC.
@@ -329,7 +331,7 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
     case "contaBancaria":
       return <td key={chave} title={linha.contaBancaria}>{linha.contaBancaria || "—"}</td>;
     case "situacao":
-      return <td key={chave}><span className={`erp-status erp-status-${TONS[linha.situacao] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>;
+      return <td key={chave}><span className={`erp-status erp-status-${TONS[statusParaFiltro(linha)] ?? "cancelado"}`}>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</span></td>;
     case "valor":
       return <td key={chave} className="erp-valor">{formatarMoeda(linha.valor)}</td>;
   }
@@ -903,6 +905,11 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro {
   --erp-bg: #06080f; --erp-panel: #13191f; --erp-border: #27313b;
   --erp-text: #e7edf6; --erp-muted: #a6b5c9; --erp-blue: #0798ff; --erp-total: #2ed48d;
+  --erp-accent: #1f8fd6; --erp-accent-bg: rgba(31, 143, 214, 0.12); --erp-accent-border: rgba(31, 143, 214, 0.25);
+  --erp-success: #3fb27f; --erp-success-bg: rgba(63, 178, 127, 0.12); --erp-success-border: rgba(63, 178, 127, 0.25);
+  --erp-danger: #f53228e0; --erp-danger-bg: rgba(245, 50, 40, 0.12); --erp-danger-border: rgba(245, 50, 40, 0.25);
+  --erp-warning: #eab54b; --erp-warning-bg: rgba(234, 181, 75, 0.12); --erp-warning-border: rgba(234, 181, 75, 0.25);
+  --erp-neutral: #9aa8b9; --erp-neutral-bg: rgba(101, 115, 134, 0.14); --erp-neutral-border: rgba(101, 115, 134, 0.3);
   width: 100%; min-width: 0; padding: 10px 11px 5px; color: var(--erp-text); color-scheme: dark;
   background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1000,11 +1007,12 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-checkbox input:focus-visible + span { outline: 2px solid #5ebdff; outline-offset: 3px; }
 .erp-financeiro .erp-checkbox input:disabled + span { opacity: .4; }
 .erp-financeiro .erp-checkbox-traco { width: 9px; height: 2px; background: currentColor; }
-.erp-financeiro .erp-status { display: inline-flex; justify-content: center; align-items: center; min-width: 71px; max-width: 100%; min-height: 24px; border: 1px solid #ffffff1a; border-radius: 4px; padding: 2px 9px; font-size: 11px; font-weight: 700; line-height: 16px; color: #07160f; box-shadow: inset 0 1px #ffffff15; }
-.erp-financeiro .erp-status-sucesso { background: linear-gradient(100deg, #22c77e, #33cd8f); }
-.erp-financeiro .erp-status-pendente { background: linear-gradient(100deg, #efba20, #f6c52f); color: #241b02; }
-.erp-financeiro .erp-status-atrasado { background: linear-gradient(100deg, #ff5359, #f64750); color: #290a0c; }
-.erp-financeiro .erp-status-cancelado { background: #657386; color: #fff; }
+.erp-financeiro .erp-status { display: inline-flex; justify-content: center; align-items: center; min-width: 71px; max-width: 100%; min-height: 24px; border: 1px solid transparent; border-radius: 4px; padding: 2px 9px; font-size: 11px; font-weight: 700; line-height: 16px; }
+.erp-financeiro .erp-status-sucesso { color: var(--erp-success); background: var(--erp-success-bg); border-color: var(--erp-success-border); }
+.erp-financeiro .erp-status-pendente { color: var(--erp-warning); background: var(--erp-warning-bg); border-color: var(--erp-warning-border); }
+.erp-financeiro .erp-status-atrasado { color: var(--erp-danger); background: var(--erp-danger-bg); border-color: var(--erp-danger-border); }
+.erp-financeiro .erp-status-aguardando { color: var(--erp-accent); background: var(--erp-accent-bg); border-color: var(--erp-accent-border); }
+.erp-financeiro .erp-status-cancelado { color: var(--erp-neutral); background: var(--erp-neutral-bg); border-color: var(--erp-neutral-border); }
 .erp-financeiro .erp-valor { text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: #0e151c; }
 .erp-financeiro .erp-detalhes { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(360px, 1.6fr); gap: 12px; padding: 16px 18px 18px 50px; border-top: 1px solid #263542; }

@@ -5,11 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbaSolicitacoesCompra } from "./AbaSolicitacoesCompra";
 import { AbaSolicitacoesPagamento } from "./AbaSolicitacoesPagamento";
 import { toast } from "sonner";
-import { useContasAPagar } from "@/hooks/useContasAPagar";
-import { DarBaixaDialog, type DadosBaixaSaida } from "@/components/financeiro-design/DarBaixaDialog";
+import { useContasAPagar, type DadosBaixaAPagar } from "@/hooks/useContasAPagar";
 import { TabelaLancamentos } from "@/components/financeiro-design/TabelaLancamentos";
 import { DetalheContaAPagar } from "./DetalheContaAPagar";
+import { ModalContaAPagar } from "./ModalContaAPagar";
 import { agendarContaAPagar, anexarDocumentoLancamento, duplicarLancamento, editarLancamento, type ContaBancaria } from "@/lib/financeiro-share-api";
+import type { ContaAPagar } from "./tipos";
 import {
   type FiltrosTabela,
   type LancamentoTabela,
@@ -21,7 +22,7 @@ import {
 export function AbaContasAPagar({ onNovaConta, contasBancarias, subAba, onSubAbaChange }: { onNovaConta: () => void; contasBancarias: ContaBancaria[]; subAba: string; onSubAbaChange: (valor: string) => void }) {
   const { contas, carregando, erro, darBaixa, recarregar } = useContasAPagar({});
   const [filtros, setFiltros] = useState<FiltrosTabela>(FILTROS_VAZIOS);
-  const [baixaAlvo, setBaixaAlvo] = useState<LancamentoTabela | null>(null);
+  const [baixaAlvo, setBaixaAlvo] = useState<ContaAPagar | null>(null);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const contaDetalhe = useMemo(() => contas.find((conta) => conta.id === detalheId) || null, [contas, detalheId]);
   const itens = useMemo(() => contas.map(mapearContaAPagar), [contas]);
@@ -89,14 +90,15 @@ export function AbaContasAPagar({ onNovaConta, contasBancarias, subAba, onSubAba
     }
   }
 
-  async function confirmarBaixa(id: string, dados: DadosBaixaSaida) {
+  async function confirmarBaixa(id: string, dados: DadosBaixaAPagar) {
     await darBaixa(id, {
       dataPagamento: dados.dataPagamento,
-      bancoPagamento: dados.contaBancaria,
-      comprovantePagamentoUrl: undefined,
+      bancoPagamento: dados.bancoPagamento,
+      comprovantePagamentoUrl: dados.comprovantePagamentoUrl,
       formaPagamento: dados.formaPagamento,
       observacoes: dados.observacoes,
     });
+    setBaixaAlvo(null);
   }
 
   return (
@@ -117,7 +119,7 @@ export function AbaContasAPagar({ onNovaConta, contasBancarias, subAba, onSubAba
             itensTotais={itens}
             filtros={filtros}
             onFiltrar={setFiltros}
-            onDarBaixa={setBaixaAlvo}
+            onDarBaixa={(lancamento) => setBaixaAlvo(contas.find((conta) => conta.id === lancamento.id) ?? null)}
             onAbrirDetalhe={(lancamento) => setDetalheId(lancamento.id)}
             onEditar={(lancamento) => void editar(lancamento)}
             onDuplicar={(lancamento) => void duplicar(lancamento)}
@@ -127,8 +129,22 @@ export function AbaContasAPagar({ onNovaConta, contasBancarias, subAba, onSubAba
             acoes={<Button type="button" size="sm" className="h-8 gap-2 text-[11px]" onClick={onNovaConta}><Plus size={13} /> Nova conta</Button>}
             resumo={`Em aberto ${formatarBRL(emAberto)} · vencido ${formatarBRL(atrasado)} · pago ${formatarBRL(totalPago)}`}
           />
-          <DarBaixaDialog lancamento={baixaAlvo} onFechar={() => setBaixaAlvo(null)} onConfirmar={confirmarBaixa} />
-          <DetalheContaAPagar conta={contaDetalhe} onFechar={() => setDetalheId(null)} onBaixar={darBaixa} />
+          {baixaAlvo && <ModalContaAPagar
+            key={baixaAlvo.id}
+            conta={baixaAlvo}
+            aberto
+            onFechar={() => setBaixaAlvo(null)}
+            contasBancarias={contasBancarias}
+            onConfirmar={(dados) => confirmarBaixa(baixaAlvo.id, dados)}
+          />}
+          <DetalheContaAPagar
+            conta={contaDetalhe}
+            onFechar={() => setDetalheId(null)}
+            onBaixar={(conta) => {
+              setDetalheId(null);
+              setBaixaAlvo(conta);
+            }}
+          />
         </div>
       </TabsContent>
     </Tabs>

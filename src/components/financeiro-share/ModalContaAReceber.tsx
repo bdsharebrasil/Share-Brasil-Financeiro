@@ -1,30 +1,31 @@
-import { avisarAtualizacaoFinanceiro } from '@/lib/baixa-conciliada-api';
-import { useMemo, useRef, useState } from 'react';
-import { CalendarDays, CheckCircle2, CircleDollarSign, Paperclip, Plane, Plus, Trash2, UserRound } from 'lucide-react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useId, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowDownToLine,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Loader2,
+  Paperclip,
+  Plane,
+  Plus,
+  Trash2,
+  UserRound,
+  X,
+} from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { ContaAReceber } from './tipos';
-import { enviarComprovanteRecebimento, type ContaBancaria } from '../../lib/financeiro-share-api';
 import { SearchableCombobox } from '@/components/ui/searchableCombobox';
+import { avisarAtualizacaoFinanceiro } from '@/lib/baixa-conciliada-api';
+
+import { enviarComprovanteRecebimento, type ContaBancaria } from '../../lib/financeiro-share-api';
+import type { ContaAReceber } from './tipos';
 
 type TipoPagador = 'COTISTA' | 'SHARE' | 'HOLDING';
-const FORMAS_PAGAMENTO = ['PIX', 'Transferência', 'Boleto', 'Dinheiro', 'Cartão'];
 type RateioInput = { rateio_id: string; valor_centavos: number };
-
-type PagamentoForm = {
-  id: string;
-  idempotency_key: string;
-  tipo_pagador: TipoPagador;
-  pagadorId: string;
-  valor: string;
-  data_pagamento: string;
-  conta_bancaria_id: string;
-  forma_pagamento: string;
-  comprovante: File | null;
-  rateios: Record<string, string>;
-};
 
 export type DadosBaixaReceber = {
   dataRecebimento?: string;
@@ -53,139 +54,684 @@ interface ModalContaAReceberProps {
   contasBancarias: ContaBancaria[];
 }
 
-const cents = (value: string) => /^\d+(?:\.\d{3})*(?:,\d{1,2})?$/.test(value.trim()) ? Math.round(Number(value.replace(/\./g, '').replace(',', '.')) * 100) : NaN;
-const money = (value: number) => (value / 100).toFixed(2).replace('.', ',');
-const TIPOS_COMPROVANTE = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-const dataLegivel = (value: string | null | undefined) => {
-  if (!value) return 'Não informada';
-  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('pt-BR').format(date);
+type Opcao = { id: string; label: string };
+type Rateio = { id: string; nome: string; previsto: number; recebido: number };
+type Pagamento = {
+  chave: string;
+  pagador: '' | 'COTISTA' | 'HOLDING';
+  valor: string;
+  data: string;
+  banco: string;
+  forma: string;
+  arquivo: File | null;
+  rateios: Record<string, string>;
 };
 
-export function ModalContaAReceber({ conta, aberto, onFechar, onConfirmar, contasBancarias }: ModalContaAReceberProps) {
-  const local = new Date();
-  const hoje = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
-  const trava = useRef(false);
-  const conciliacaoErro = (conta as ContaAReceber & { conciliacaoErro?: string }).conciliacaoErro;
-  const rateios = useMemo(() => conta.rateios ?? [], [conta.rateios]);
-  const esperado = Math.round(Number(conta.valor || 0) * 100);
-  const recebido = rateios.reduce((sum, rateio) => sum + Number(rateio.valor_pago_real_centavos || 0), 0);
-  const saldo = Math.max(0, esperado - recebido);
-  const novoPagamento = (): PagamentoForm => ({
-    id: crypto.randomUUID(), idempotency_key: `recebimento-${conta.id}-${crypto.randomUUID()}`,
-    tipo_pagador: 'COTISTA', pagadorId: conta.cotistaId ?? '', valor: money(saldo || esperado),
-    data_pagamento: hoje, conta_bancaria_id: '', forma_pagamento: 'PIX', comprovante: null,
-    rateios: Object.fromEntries(rateios.map((rateio) => [rateio.id, money(Math.max(0, Number(rateio.valor_rateado_centavos) - Number(rateio.valor_pago_real_centavos || 0)))])),
-  });
-  const [pagamentos, setPagamentos] = useState<PagamentoForm[]>(() => [novoPagamento()]);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const totalInformado = useMemo(() => pagamentos.reduce((sum, pagamento) => sum + cents(pagamento.valor), 0), [pagamentos]);
-  const quitadoPorRateio = useMemo(() => Object.fromEntries(rateios.map((rateio) => [
-    rateio.id,
-    Number(rateio.valor_pago_real_centavos || 0) + pagamentos.reduce((sum, pagamento) => sum + cents(pagamento.rateios[rateio.id] ?? '0'), 0),
-  ])), [pagamentos, rateios]);
-  const cotistaLabel = conta.cotistaNome || 'Cotista não informado';
-  const aeronaveLabel = conta.aeronaveMatricula || 'Aeronave não informada';
-  const pagadores = [
-    ...(conta.cotistaId ? [{ id: conta.cotistaId, label: `Cotista · ${cotistaLabel}` }] : []),
-    ...(conta.holdingId ? [{ id: conta.holdingId, label: `Holding · ${conta.holdingNome || 'Holding vinculada'}` }] : []),
-  ];
-  const contas = contasBancarias.map((item) => ({ id: item.id, label: [item.banco, item.numero_conta].filter(Boolean).join(' · ') || 'Conta bancária' }));
+type EnvioPagamento = Omit<DadosBaixaReceber['pagamentos'][number], 'comprovante_url'> & {
+  arquivo: File | null;
+};
 
-  function atualizar(id: string, patch: Partial<PagamentoForm>) {
-    setPagamentos((current) => current.map((pagamento) => pagamento.id === id ? { ...pagamento, ...patch } : pagamento));
+const FORMAS_PAGAMENTO = ['PIX', 'Transferência', 'Boleto', 'Dinheiro', 'Cartão'];
+const TIPOS_COMPROVANTE = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const LIMITE_COMPROVANTE = 10 * 1024 * 1024;
+const numeroBR = new Intl.NumberFormat('pt-BR');
+const dataBR = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
+const classeCampo = 'campo min-h-11 min-w-0 max-w-full !text-base md:!text-sm';
+const rotulo = 'mb-1.5 block text-sm font-medium text-foreground';
+
+function lerCentavos(texto: string, vazioComoZero = false): number {
+  const valor = texto.trim();
+  if (!valor && vazioComoZero) return 0;
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?$/.test(valor)) return NaN;
+
+  const [inteiro, decimal = ''] = valor.replace(/\./g, '').split(',');
+  const centavos = Number(inteiro + decimal.padEnd(2, '0'));
+  return Number.isSafeInteger(centavos) ? centavos : NaN;
+}
+
+function exibirValor(centavos: number, moeda = true): string {
+  if (!Number.isSafeInteger(centavos)) return '—';
+
+  const absoluto = Math.abs(centavos);
+  const reais = Math.floor(absoluto / 100);
+  const decimal = String(absoluto % 100).padStart(2, '0');
+  const valor = `${centavos < 0 ? '−' : ''}${numeroBR.format(reais)},${decimal}`;
+  return moeda ? `R$ ${valor}` : valor;
+}
+
+function hojeLocal(): string {
+  const hoje = new Date();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  return `${hoje.getFullYear()}-${mes}-${dia}`;
+}
+
+function lerData(valor: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor) || valor.startsWith('0000')) return null;
+
+  const data = new Date(`${valor}T00:00:00Z`);
+  return Number.isFinite(data.getTime()) && data.toISOString().slice(0, 10) === valor
+    ? data
+    : null;
+}
+
+function distribuir(pagamento: Pagamento, rateios: Rateio[]): RateioInput[] {
+  return rateios.map(({ id }) => ({
+    rateio_id: id,
+    valor_centavos: lerCentavos(pagamento.rateios[id] ?? '', true),
+  }));
+}
+
+function prepararEnvio(
+  pagamentos: Pagamento[],
+  rateios: Rateio[],
+  bancos: Opcao[],
+  conta: ContaAReceber,
+  saldo: number,
+): EnvioPagamento[] {
+  const totalPorRateio = new Map(rateios.map((rateio) => [rateio.id, rateio.recebido]));
+  let total = 0;
+
+  const envio = pagamentos.map((pagamento, index): EnvioPagamento => {
+    const prefixo = `Pagamento ${index + 1}`;
+    const idPagador = pagamento.pagador === 'COTISTA' ? conta.cotistaId : conta.holdingId;
+    const valor = lerCentavos(pagamento.valor);
+    const distribuicao = distribuir(pagamento, rateios);
+
+    if (!pagamento.pagador || !idPagador) throw new Error(`${prefixo} — selecione o pagador.`);
+    if (!lerData(pagamento.data)) throw new Error(`${prefixo} — informe uma data válida.`);
+    if (!bancos.some((banco) => banco.id === pagamento.banco)) {
+      throw new Error(`${prefixo} — selecione uma conta bancária.`);
+    }
+    if (!Number.isSafeInteger(valor) || valor <= 0) {
+      throw new Error(`${prefixo} — informe um valor maior que zero, como 1.250,00.`);
+    }
+    if (distribuicao.some((item) => !Number.isSafeInteger(item.valor_centavos))) {
+      throw new Error(`${prefixo} — corrija os valores dos rateios.`);
+    }
+    if (distribuicao.reduce((soma, item) => soma + item.valor_centavos, 0) !== valor) {
+      throw new Error(`${prefixo} — a soma dos rateios deve ser igual ao valor do pagamento.`);
+    }
+
+    for (const item of distribuicao) {
+      const acumulado = (totalPorRateio.get(item.rateio_id) ?? 0) + item.valor_centavos;
+      totalPorRateio.set(item.rateio_id, acumulado);
+    }
+
+    total += valor;
+    return {
+      idempotency_key: pagamento.chave,
+      data_pagamento: pagamento.data,
+      conta_bancaria_id: pagamento.banco,
+      forma_pagamento: pagamento.forma || null,
+      tipo_pagador: pagamento.pagador,
+      ...(pagamento.pagador === 'COTISTA'
+        ? { pagador_cotista_id: idPagador }
+        : { pagador_holding_id: idPagador }),
+      valor_centavos: valor,
+      rateios: distribuicao.filter((item) => item.valor_centavos > 0),
+      arquivo: pagamento.arquivo,
+    };
+  });
+
+  if (!Number.isSafeInteger(total) || total > saldo) {
+    throw new Error('A soma dos pagamentos excede o saldo em aberto.');
   }
-  function atualizarRateio(id: string, rateioId: string, value: string) {
-    setPagamentos((current) => current.map((pagamento) => pagamento.id === id ? { ...pagamento, rateios: { ...pagamento.rateios, [rateioId]: value } } : pagamento));
+
+  for (const rateio of rateios) {
+    const acumulado = totalPorRateio.get(rateio.id) ?? 0;
+    if (!Number.isSafeInteger(acumulado) || acumulado > rateio.previsto) {
+      throw new Error(`A distribuição excede o saldo do rateio de ${rateio.nome}.`);
+    }
   }
-  function adicionarPagamento() { setPagamentos((current) => [...current, novoPagamento()]); }
-  function selecionarComprovante(id: string, arquivo?: File) {
-    if (!arquivo) return;
-    if (!TIPOS_COMPROVANTE.includes(arquivo.type)) { setErro('O comprovante deve ser PDF, PNG, JPG ou WebP.'); return; }
-    if (arquivo.size > 10 * 1024 * 1024) { setErro('O comprovante deve ter no máximo 10 MB.'); return; }
-    setErro(null);
-    atualizar(id, { comprovante: arquivo });
+
+  return envio;
+}
+
+export function ModalContaAReceber(props: ModalContaAReceberProps) {
+  const envioEmCurso = useRef(false);
+
+  function fechar() {
+    if (!envioEmCurso.current) props.onFechar();
+  }
+
+  return (
+    <Dialog
+      open={props.aberto}
+      onOpenChange={(aberto) => {
+        if (!aberto) fechar();
+      }}
+    >
+      {props.aberto && (
+        <Recebimento key={props.conta.id} {...props} onFechar={fechar} envioEmCurso={envioEmCurso} />
+      )}
+    </Dialog>
+  );
+}
+
+type RecebimentoProps = ModalContaAReceberProps & { envioEmCurso: { current: boolean } };
+
+function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCurso }: RecebimentoProps) {
+  const descricaoId = useId();
+  const comprovantes = useRef(new WeakMap<File, Promise<string>>());
+  const [status, setStatus] = useState<'editando' | 'enviando' | 'concluido'>('editando');
+  const [erro, setErro] = useState('');
+
+  const cotista = conta.cotistaNome || 'Cotista não informado';
+  const aeronave = conta.aeronaveMatricula || 'Aeronave não informada';
+  const vencimento = lerData(conta.dataVencimento?.slice(0, 10) ?? '');
+  const rateios: Rateio[] = (conta.rateios ?? []).map((rateio, index) => ({
+    id: rateio.id,
+    nome: rateio.cotista_nome || (rateio.cotista_id === conta.cotistaId ? cotista : `Rateio ${index + 1}`),
+    previsto: Number(rateio.valor_rateado_centavos),
+    recebido: Number(rateio.valor_pago_real_centavos || 0),
+  }));
+  const totalConta = Math.round(Number(conta.valor || 0) * 100);
+  const totalRecebido = rateios.reduce((total, rateio) => total + rateio.recebido, 0);
+  const saldo = Math.max(0, totalConta - totalRecebido);
+  const conciliacaoErro = (conta as ContaAReceber & { conciliacaoErro?: string }).conciliacaoErro;
+  const valoresValidos = [totalConta, totalRecebido, saldo, ...rateios.flatMap((rateio) => [
+    rateio.previsto,
+    rateio.recebido,
+  ])].every((valor) => Number.isSafeInteger(valor) && valor >= 0);
+  const bloqueio = conciliacaoErro || (!rateios.length
+    ? 'Vincule os rateios à conta antes de registrar o recebimento.'
+    : !valoresValidos
+      ? 'Confira os valores da conta e dos rateios antes de registrar o recebimento.'
+      : saldo === 0
+        ? 'Esta conta está sem saldo em aberto.'
+        : '');
+
+  const bancos = contasBancarias.map((banco) => ({
+    id: banco.id,
+    label: [banco.banco, banco.numero_conta].filter(Boolean).join(' · ') || 'Conta bancária',
+  }));
+
+  function criarPagamento(preencher: boolean): Pagamento {
+    const saldosRateio = rateios.map((rateio) => Math.max(0, rateio.previsto - rateio.recebido));
+    const sugerirRateios = preencher && saldosRateio.reduce((soma, valor) => soma + valor, 0) === saldo;
+    return {
+      chave: `recebimento-${conta.id}-${crypto.randomUUID()}`,
+      pagador: conta.cotistaId ? 'COTISTA' : conta.holdingId ? 'HOLDING' : '',
+      valor: preencher && saldo > 0 && valoresValidos ? exibirValor(saldo, false) : '',
+      data: hojeLocal(),
+      banco: '',
+      forma: 'PIX',
+      arquivo: null,
+      rateios: sugerirRateios
+        ? Object.fromEntries(rateios.map(({ id }, index) => [id, exibirValor(saldosRateio[index], false)]))
+        : {},
+    };
+  }
+
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>(() => [criarPagamento(true)]);
+  const totalInformado = pagamentos.reduce((soma, pagamento) => soma + lerCentavos(pagamento.valor, true), 0);
+  const valoresProjetados = rateios.map((rateio) => ({
+    ...rateio,
+    projetado: pagamentos.reduce(
+      (soma, pagamento) => soma + lerCentavos(pagamento.rateios[rateio.id] ?? '', true),
+      rateio.recebido,
+    ),
+  }));
+  const enviando = status === 'enviando';
+  const concluido = status === 'concluido';
+
+  function atualizar(chave: string, alterar: (pagamento: Pagamento) => Pagamento) {
+    if (envioEmCurso.current || concluido) return;
+    setErro('');
+    setPagamentos((lista) => lista.map((item) => item.chave === chave ? alterar(item) : item));
+  }
+
+  function selecionarArquivo(chave: string, arquivo: File | null) {
+    if (arquivo && (!TIPOS_COMPROVANTE.includes(arquivo.type) || arquivo.size > LIMITE_COMPROVANTE)) {
+      const numero = pagamentos.findIndex((item) => item.chave === chave) + 1;
+      setErro(`Pagamento ${numero} — use um comprovante em PDF, JPG, PNG ou WebP de até 10 MB.`);
+      return;
+    }
+    atualizar(chave, (pagamento) => ({ ...pagamento, arquivo }));
+  }
+
+  function enviarArquivo(arquivo: File): Promise<string> {
+    const existente = comprovantes.current.get(arquivo);
+    if (existente) return existente;
+
+    const envio = enviarComprovanteRecebimento(conta.id, arquivo)
+      .then(({ url }) => url)
+      .catch((falha: unknown) => {
+        comprovantes.current.delete(arquivo);
+        throw falha;
+      });
+    comprovantes.current.set(arquivo, envio);
+    return envio;
   }
 
   async function confirmar() {
-    if (trava.current) return;
-    if (!rateios.length || conciliacaoErro) { setErro(conciliacaoErro || 'Obrigação sem rateio vinculado. Regularize antes de receber.'); return; }
-    if (Object.values(quitadoPorRateio).some((value) => !Number.isSafeInteger(value)) || rateios.some((rateio) => quitadoPorRateio[rateio.id] > Number(rateio.valor_rateado_centavos))) { setErro('A distribuição excede o saldo de um rateio ou contém valor inválido.'); return; }
-    const payload: Array<Omit<DadosBaixaReceber['pagamentos'][number], 'comprovante_url'> & { arquivo: File | null }> = [];
-    for (const pagamento of pagamentos) {
-      const arquivo = pagamento.comprovante;
-      if (pagamento.tipo_pagador === 'SHARE') { setErro('Recebimento da Share exige um pagador externo.'); return; }
-      const date = new Date(`${pagamento.data_pagamento}T12:00:00Z`);
-      if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== pagamento.data_pagamento) { setErro('Data de pagamento inválida.'); return; }
-      const valorCentavos = cents(pagamento.valor);
-      const distribuicao = rateios.map((rateio) => ({ rateio_id: rateio.id, valor_centavos: cents(pagamento.rateios[rateio.id] ?? '0') })).filter((rateio) => rateio.valor_centavos > 0);
-      if (!pagamento.conta_bancaria_id.trim() || !Number.isSafeInteger(valorCentavos) || valorCentavos <= 0 || !pagamento.data_pagamento || !distribuicao.length) {
-        setErro('Cada pagamento precisa de data, conta bancária, valor positivo e ao menos um rateio.'); return;
-      }
-      if ((pagamento.tipo_pagador === 'COTISTA' || pagamento.tipo_pagador === 'HOLDING') && !pagamento.pagadorId.trim()) {
-        setErro('Selecione o pagador real.'); return;
-      }
-      if (distribuicao.reduce((sum, rateio) => sum + rateio.valor_centavos, 0) !== valorCentavos) {
-        setErro('O valor de cada pagamento deve ser exatamente igual à soma dos seus rateios.'); return;
-      }
-      payload.push({ idempotency_key: pagamento.idempotency_key, data_pagamento: pagamento.data_pagamento, conta_bancaria_id: pagamento.conta_bancaria_id, forma_pagamento: pagamento.forma_pagamento || null, tipo_pagador: pagamento.tipo_pagador, ...(pagamento.tipo_pagador === 'COTISTA' ? { pagador_cotista_id: pagamento.pagadorId } : {}), ...(pagamento.tipo_pagador === 'HOLDING' ? { pagador_holding_id: pagamento.pagadorId } : {}), valor_centavos: valorCentavos, rateios: distribuicao, arquivo });
-    }
-    if (totalInformado > saldo) { setErro('A soma dos novos pagamentos não pode exceder o saldo restante da conta.'); return; }
-    trava.current = true; setEnviando(true); setErro(null);
+    if (envioEmCurso.current || bloqueio || concluido) return;
+
+    let envio: EnvioPagamento[];
     try {
-      const pagamentosComComprovante = await Promise.all(payload.map(async ({ arquivo, ...pagamento }) => ({ ...pagamento, comprovante_url: arquivo ? (await enviarComprovanteRecebimento(conta.id, arquivo)).url : undefined })));
-      const primeiro = pagamentosComComprovante[0];
-      await onConfirmar({ dataRecebimento: primeiro?.data_pagamento, bancoRecebimento: primeiro?.conta_bancaria_id, formaPagamento: primeiro?.forma_pagamento ?? undefined, comprovanteRecebimentoUrl: primeiro?.comprovante_url, pagamentos: pagamentosComComprovante });
+      envio = prepararEnvio(pagamentos, rateios, bancos, conta, saldo);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : 'Revise os dados do recebimento.');
+      return;
+    }
+
+    envioEmCurso.current = true;
+    setStatus('enviando');
+    setErro('');
+
+    try {
+      const registrados = await Promise.all(envio.map(async ({ arquivo, ...pagamento }) => ({
+        ...pagamento,
+        comprovante_url: arquivo ? await enviarArquivo(arquivo) : undefined,
+      })));
+      const primeiro = registrados[0];
+
+      await onConfirmar({
+        dataRecebimento: primeiro?.data_pagamento,
+        bancoRecebimento: primeiro?.conta_bancaria_id,
+        formaPagamento: primeiro?.forma_pagamento ?? undefined,
+        comprovanteRecebimentoUrl: primeiro?.comprovante_url,
+        pagamentos: registrados,
+      });
+      setStatus('concluido');
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : 'Não foi possível registrar o recebimento.');
+      setStatus('editando');
+      return;
+    } finally {
+      envioEmCurso.current = false;
+    }
+
+    try {
       avisarAtualizacaoFinanceiro();
-    } catch (error) { setErro(error instanceof Error ? error.message : 'Falha ao dar baixa na conta.'); }
-    finally { trava.current = false; setEnviando(false); }
+    } catch (falha) {
+      console.error('Falha ao avisar sobre a atualização financeira.', falha);
+    }
   }
 
-  return <Dialog open={aberto} onOpenChange={(value) => { if (!value && !trava.current) onFechar(); }}>
-    <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden border-0 bg-[#0a0f17] p-0 text-slate-100 shadow-[0_28px_100px_rgba(0,0,0,.65)] sm:max-w-4xl sm:rounded-2xl">
-      <DialogHeader className="border-b border-white/[.08] px-5 py-5 pr-12 text-left sm:px-7">
-        <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-300">Contas a receber · liquidação</p>
-        <DialogTitle className="mt-1 text-lg font-semibold tracking-tight text-slate-50 sm:text-xl">Receber conta — {conta.descricao || conta.categoriaNome || 'Conta a receber'}</DialogTitle>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-300">
-          <span className="inline-flex items-center gap-2"><UserRound size={14} className="text-cyan-300" />{cotistaLabel}</span>
-          <span className="inline-flex items-center gap-2"><Plane size={14} className="text-cyan-300" />{aeronaveLabel}</span>
-          <span className="inline-flex items-center gap-2"><CalendarDays size={14} className="text-cyan-300" />Vence em {dataLegivel(conta.dataVencimento)}</span>
-        </div>
+  return (
+    <DialogContent
+      aria-describedby={descricaoId}
+      onEscapeKeyDown={(event) => {
+        if (envioEmCurso.current) event.preventDefault();
+      }}
+      onInteractOutside={(event) => event.preventDefault()}
+      className="!flex h-[100dvh] max-h-[100dvh] w-full !max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-card !p-0 text-card-foreground shadow-xl [&>button]:hidden max-sm:!left-0 max-sm:!top-0 max-sm:!pl-[var(--safe-area-left)] max-sm:!pr-[var(--safe-area-right)] max-sm:!translate-x-0 max-sm:!translate-y-0 sm:h-auto sm:max-h-[calc(100dvh_-_2rem)] sm:w-[calc(100%_-_2rem)] sm:!max-w-5xl sm:rounded-xl sm:border sm:border-border"
+    >
+      <DialogHeader className="relative shrink-0 space-y-0 border-b border-border px-4 pb-3 pl-16 pr-16 pt-[calc(0.75rem_+_var(--safe-area-top))] text-left sm:px-6 sm:py-4 sm:pl-[4.75rem] sm:pr-16">
+        <span className="financeiro-title-icon absolute left-4 top-[calc(0.75rem_+_var(--safe-area-top))] sm:left-6 sm:top-4">
+          <ArrowDownToLine size={17} aria-hidden="true" />
+        </span>
+        <p className="financeiro-eyebrow !text-muted-foreground">Financeiro / Contas a receber</p>
+        <DialogTitle className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          Registrar recebimento
+        </DialogTitle>
+        <p id={descricaoId} className="mt-1 line-clamp-2 break-words text-sm text-muted-foreground">
+          {conta.descricao || conta.categoriaNome || 'Conta a receber'}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Fechar"
+          disabled={enviando}
+          onClick={onFechar}
+          className="absolute right-3 top-[calc(0.5rem_+_var(--safe-area-top))] h-11 w-11 text-muted-foreground hover:bg-secondary hover:text-foreground sm:right-4 sm:top-3"
+        >
+          <X size={18} aria-hidden="true" />
+        </Button>
       </DialogHeader>
-      <div className="max-h-[calc(92dvh-170px)] overflow-y-auto px-5 py-5 sm:px-7">
-        <fieldset disabled={enviando} className="space-y-5">
-          <div className="grid gap-2 rounded-xl bg-[#111a27] p-3 sm:grid-cols-3 sm:p-4">
-            <div className="rounded-lg px-2 py-1"><span className="text-xs text-slate-400">Saldo total da conta</span><strong className="mt-1 block text-base font-semibold text-slate-100">R$ {money(esperado)}</strong></div>
-            <div className="rounded-lg px-2 py-1"><span className="text-xs text-slate-400">Saldo já recebido</span><strong className="mt-1 block text-base font-semibold text-slate-100">R$ {money(recebido)}</strong></div>
-            <div className="rounded-lg bg-emerald-400/[.08] px-3 py-2"><span className="text-xs text-emerald-200/75">Saldo restante</span><strong className="mt-1 block text-base font-semibold text-emerald-300">R$ {money(saldo)}</strong></div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-4 py-4 sm:px-6 sm:py-5">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-5">
+          <aside aria-label="Resumo da conta" className="financeiro-panel min-w-0 text-card-foreground">
+            <div className="p-4">
+              <h3 className="text-sm font-semibold text-foreground">Resumo da conta</h3>
+              <dl className="mt-3 grid gap-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                  <dt className="text-sm text-muted-foreground">Valor original</dt>
+                  <dd className="break-words text-sm font-medium tabular-nums">{exibirValor(totalConta)}</dd>
+                </div>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                  <dt className="text-sm text-muted-foreground">Já recebido</dt>
+                  <dd className="break-words text-sm font-medium tabular-nums">{exibirValor(totalRecebido)}</dd>
+                </div>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 border-t border-border pt-3 lg:block">
+                  <dt className="text-sm font-medium text-foreground">Saldo em aberto</dt>
+                  <dd className="break-words font-mono text-xl font-medium tracking-tight text-foreground tabular-nums lg:mt-1">
+                    {exibirValor(saldo)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <dl className="grid gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:grid-cols-3 lg:grid-cols-1">
+              <div className="flex min-w-0 items-start gap-2">
+                <dt><UserRound size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Cotista</span></dt>
+                <dd className="min-w-0 break-words">{cotista}</dd>
+              </div>
+              <div className="flex min-w-0 items-start gap-2">
+                <dt><Plane size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Aeronave</span></dt>
+                <dd className="min-w-0 break-words">{aeronave}</dd>
+              </div>
+              <div className="flex min-w-0 items-start gap-2">
+                <dt><CalendarDays size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Vencimento</span></dt>
+                <dd>{vencimento ? `Vence em ${dataBR.format(vencimento)}` : 'Vencimento não informado'}</dd>
+              </div>
+            </dl>
+            {valoresProjetados.length > 0 && (
+              <details className="group border-t border-border">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-medium text-foreground hover:bg-muted/40 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                  Projeção dos rateios
+                  <ChevronDown size={16} aria-hidden="true" className="shrink-0 group-open:rotate-180" />
+                </summary>
+                <dl className="space-y-2 px-4 pb-3">
+                  {valoresProjetados.map((rateio) => (
+                    <div key={rateio.id}>
+                      <dt className="break-words text-sm font-medium">{rateio.nome}</dt>
+                      <dd className="mt-0.5 break-words text-xs text-muted-foreground tabular-nums">
+                        {exibirValor(rateio.projetado)} de {exibirValor(rateio.previsto)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            )}
+          </aside>
+
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-base font-semibold text-foreground">Pagamentos</h3>
+              <span className="text-xs text-foreground">
+                {pagamentos.length} {pagamentos.length === 1 ? 'pagamento' : 'pagamentos'}
+              </span>
+            </div>
+
+            {bloqueio && (
+              <p role="alert" className="mb-3 flex items-start gap-2 rounded-md border border-[hsl(var(--chart-3)/.55)] bg-[hsl(var(--chart-3)/.12)] p-3 text-sm text-foreground">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 break-words">{bloqueio}</span>
+              </p>
+            )}
+
+            <fieldset disabled={enviando || concluido || Boolean(bloqueio)} className="min-w-0 space-y-3">
+              <legend className="sr-only">Dados dos pagamentos</legend>
+              {pagamentos.map((pagamento, index) => (
+                <EditorPagamento
+                  key={pagamento.chave}
+                  numero={index + 1}
+                  pagamento={pagamento}
+                  rateios={rateios}
+                  bancos={bancos}
+                  cotista={conta.cotistaId ? cotista : undefined}
+                  holding={conta.holdingId ? conta.holdingNome || 'Holding vinculada' : undefined}
+                  onAlterar={(patch) => atualizar(pagamento.chave, (atual) => ({ ...atual, ...patch }))}
+                  onRateio={(id, valor) => atualizar(pagamento.chave, (atual) => ({
+                    ...atual,
+                    rateios: { ...atual.rateios, [id]: valor },
+                  }))}
+                  onArquivo={(arquivo) => selecionarArquivo(pagamento.chave, arquivo)}
+                  onRemover={pagamentos.length > 1 ? () => {
+                    setErro('');
+                    setPagamentos((lista) => lista.filter((item) => item.chave !== pagamento.chave));
+                  } : undefined}
+                />
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 w-full gap-2 border-input bg-card text-foreground hover:bg-secondary sm:w-auto"
+                onClick={() => {
+                  const pagamento = criarPagamento(false);
+                  setErro('');
+                  setPagamentos((lista) => [...lista, pagamento]);
+                }}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Adicionar pagamento
+              </Button>
+            </fieldset>
           </div>
-          {pagamentos.map((pagamento, index) => <section key={pagamento.id} className="space-y-4 rounded-xl bg-[#0e1520] p-4 sm:p-5">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-slate-100">Pagamento {index + 1}</h3>{pagamentos.length > 1 && <Button type="button" variant="ghost" size="sm" onClick={() => setPagamentos((items) => items.filter((item) => item.id !== pagamento.id))} className="gap-1.5 text-slate-400 hover:bg-red-400/10 hover:text-red-300"><Trash2 size={14} />Remover</Button>}</div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label className="text-slate-300">Pagador real</Label><SearchableCombobox items={pagadores} value={pagamento.pagadorId} onChange={(id) => atualizar(pagamento.id, { pagadorId: id, tipo_pagador: id === conta.holdingId && conta.holdingId ? 'HOLDING' : 'COTISTA' })} placeholder="Selecione cotista ou holding" searchPlaceholder="Buscar pelo nome…" emptyMessage="Nenhum pagador identificado nesta conta." wrapSelectedLabel className="border-white/[.08] bg-[#131c29] text-slate-100" /></div>
-              <div className="space-y-1.5"><Label className="text-slate-300">Valor deste pagamento (R$)</Label><div className="relative"><CircleDollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><Input value={pagamento.valor} onChange={(event) => atualizar(pagamento.id, { valor: event.target.value })} inputMode="decimal" aria-label="Valor deste pagamento em reais" className="border-white/[.08] bg-[#131c29] pl-9 text-slate-100" /></div></div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5"><Label className="text-slate-300">Data do pagamento</Label><Input type="date" value={pagamento.data_pagamento} onChange={(event) => atualizar(pagamento.id, { data_pagamento: event.target.value })} className="border-white/[.08] bg-[#131c29] text-slate-100" /></div>
-              <div className="space-y-1.5"><Label className="text-slate-300">Conta bancária</Label><SearchableCombobox items={contas} value={pagamento.conta_bancaria_id} onChange={(id) => atualizar(pagamento.id, { conta_bancaria_id: id })} placeholder="Selecione a conta" searchPlaceholder="Buscar banco ou conta…" emptyMessage="Nenhuma conta encontrada." wrapSelectedLabel className="border-white/[.08] bg-[#131c29] text-slate-100" /></div>
-              <div className="space-y-1.5"><Label className="text-slate-300">Forma de pagamento</Label><SearchableCombobox items={FORMAS_PAGAMENTO.map((forma) => ({ id: forma, label: forma }))} value={pagamento.forma_pagamento} onChange={(forma) => atualizar(pagamento.id, { forma_pagamento: forma })} placeholder="Selecione a forma" searchPlaceholder="Buscar forma…" emptyMessage="Nenhuma forma encontrada." className="border-white/[.08] bg-[#131c29] text-slate-100" /></div>
-            </div>
-            <p className="text-xs text-slate-500">{cotistaLabel} · {aeronaveLabel}</p>
-            <div className="space-y-2"><div><Label className="text-slate-300">Rateios desta conta</Label><p className="mt-1 text-xs text-slate-500">Confira o saldo esperado e distribua o valor recebido.</p></div>{rateios.length ? rateios.map((rateio, rateioIndex) => {
-              const nome = rateio.cotista_nome || (rateio.cotista_id === conta.cotistaId ? cotistaLabel : `Rateio ${rateioIndex + 1}`);
-              const quitado = Number(rateio.valor_pago_real_centavos || 0);
-              const esperadoRateio = Number(rateio.valor_rateado_centavos || 0);
-              return <div key={rateio.id} className="grid gap-3 rounded-lg bg-[#131c29] p-3 sm:grid-cols-[minmax(0,1fr)_auto_140px] sm:items-center"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-100">{nome}</p><p className="mt-1 text-xs text-slate-400">{aeronaveLabel} · Esperado R$ {money(esperadoRateio)} · já recebido R$ {money(quitado)}</p></div><span className="text-xs text-slate-400">Nesta baixa: <strong className="text-slate-200">R$ {money(cents(pagamento.rateios[rateio.id] ?? '0'))}</strong></span><Input value={pagamento.rateios[rateio.id] ?? '0,00'} onChange={(event) => atualizarRateio(pagamento.id, rateio.id, event.target.value)} aria-label={`Valor desta baixa para ${nome}`} inputMode="decimal" className="border-white/[.08] bg-[#0d141e] text-slate-100" /></div>;
-            }) : <p className="rounded-lg bg-amber-400/[.08] p-3 text-sm text-amber-200">Obrigação sem rateio vinculado. Regularize a emissão antes de registrar o recebimento.</p>}</div>
-            <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs text-slate-400">Total deste pagamento: <strong className="text-slate-200">R$ {money(cents(pagamento.valor))}</strong><span>Rateios: <strong className="text-slate-200">R$ {money(rateios.reduce((sum, rateio) => sum + cents(pagamento.rateios[rateio.id] ?? '0'), 0))}</strong></span></div>
-            <div className="space-y-1.5"><Label htmlFor={`comprovante-${pagamento.id}`} className="text-slate-300">Comprovante de recebimento</Label><label htmlFor={`comprovante-${pagamento.id}`} className="flex cursor-pointer items-center gap-3 rounded-lg bg-[#131c29] px-3 py-3 text-sm text-slate-300 transition-colors hover:bg-[#182333]"><Paperclip size={16} className="shrink-0 text-cyan-300" /><span className="min-w-0 truncate">{pagamento.comprovante?.name || 'Anexar PDF ou imagem · até 10 MB'}</span></label><Input id={`comprovante-${pagamento.id}`} type="file" accept={TIPOS_COMPROVANTE.join(',')} onChange={(event) => selecionarComprovante(pagamento.id, event.target.files?.[0])} className="sr-only" /></div>
-          </section>)}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><Button type="button" variant="outline" onClick={adicionarPagamento} className="gap-2 border-white/[.1] bg-transparent text-slate-200 hover:bg-white/[.05]"><Plus size={15} />Adicionar pagamento</Button><div className="text-xs text-slate-400">Quitado após esta baixa: {rateios.map((rateio, index) => <span key={rateio.id} className="ml-2 inline-block">{rateio.cotista_nome || (rateio.cotista_id === conta.cotistaId ? cotistaLabel : `Rateio ${index + 1}`)} <strong className="text-slate-200">R$ {money(quitadoPorRateio[rateio.id] ?? 0)}</strong> / R$ {money(Number(rateio.valor_rateado_centavos))}</span>)}</div></div>
-          {erro && <p role="alert" className="rounded-lg bg-red-400/10 px-3 py-2.5 text-sm text-red-300">{erro}</p>}
-        </fieldset>
+        </div>
       </div>
-      <DialogFooter className="sticky bottom-0 gap-2 border-t border-white/[.08] bg-[#0a0f17] px-5 py-4 sm:px-7"><Button variant="ghost" onClick={onFechar} disabled={enviando} className="text-slate-300 hover:bg-white/[.05]">Cancelar</Button><Button onClick={confirmar} disabled={enviando || !rateios.length || Boolean(conciliacaoErro)} className="gap-2 bg-cyan-400 font-semibold text-slate-950 hover:bg-cyan-300"><CheckCircle2 size={16} />{enviando ? 'Confirmando…' : 'Confirmar recebimento'}</Button></DialogFooter>
+
+      <footer className="shrink-0 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,var(--safe-area-bottom))] sm:px-6 sm:pb-3">
+        {erro && (
+          <p role="alert" className="mb-2 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-sm text-foreground">
+            <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
+            <span className="max-h-[18dvh] min-w-0 overflow-y-auto break-words">{erro}</span>
+          </p>
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 sm:block">
+            <p className="text-sm text-muted-foreground">{concluido ? 'Recebimento registrado' : 'Total informado'}</p>
+            <p className="break-words font-mono text-lg font-medium leading-tight text-foreground tabular-nums">
+              {exibirValor(totalInformado)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 border-input bg-card text-foreground hover:bg-secondary"
+              disabled={enviando}
+              onClick={onFechar}
+            >
+              {concluido ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!concluido && (
+              <Button
+                type="button"
+                className="financeiro-primary-action h-auto !min-h-11 min-w-0 flex-1 gap-2 whitespace-normal bg-[color:color-mix(in_srgb,hsl(var(--primary)),hsl(var(--card))_18%)] px-3 py-2 text-primary-foreground hover:brightness-110 sm:flex-none sm:px-4 [.dark_&]:bg-primary"
+                onClick={confirmar}
+                disabled={enviando || Boolean(bloqueio)}
+              >
+                {enviando
+                  ? <Loader2 size={16} className="shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+                  : <Check size={16} className="shrink-0" aria-hidden="true" />}
+                {enviando ? 'Registrando…' : 'Confirmar recebimento'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </footer>
     </DialogContent>
-  </Dialog>;
+  );
+}
+
+type EditorPagamentoProps = {
+  numero: number;
+  pagamento: Pagamento;
+  rateios: Rateio[];
+  bancos: Opcao[];
+  cotista?: string;
+  holding?: string;
+  onAlterar: (patch: Partial<Pagamento>) => void;
+  onRateio: (id: string, valor: string) => void;
+  onArquivo: (arquivo: File | null) => void;
+  onRemover?: () => void;
+};
+
+function EditorPagamento({
+  numero, pagamento, rateios, bancos, cotista, holding, onAlterar, onRateio, onArquivo, onRemover,
+}: EditorPagamentoProps) {
+  const id = useId();
+  const totalRateios = distribuir(pagamento, rateios).reduce((total, item) => total + item.valor_centavos, 0);
+  const valor = lerCentavos(pagamento.valor);
+  const diferenca = valor - totalRateios;
+
+  return (
+    <section aria-labelledby={`${id}-titulo`} className="financeiro-panel min-w-0 !overflow-visible text-card-foreground">
+      <div className="flex min-h-14 items-center justify-between gap-2 border-b border-border px-3 sm:px-4">
+        <h4 id={`${id}-titulo`} className="text-sm font-semibold text-foreground">Pagamento {numero}</h4>
+        {onRemover && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onRemover}
+            aria-label={`Remover pagamento ${numero}`}
+            className="min-h-11 gap-2 px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 size={15} aria-hidden="true" />
+            Remover
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-4 p-3 sm:p-4">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <div className="min-w-0">
+            <Label htmlFor={`${id}-pagador`} className={rotulo}>Pagador</Label>
+            <select
+              id={`${id}-pagador`}
+              value={pagamento.pagador}
+              onChange={(event) => {
+                const opcao = event.currentTarget.value;
+                onAlterar({ pagador: opcao === 'COTISTA' || opcao === 'HOLDING' ? opcao : '' });
+              }}
+              className={`${classeCampo} truncate`}
+            >
+              <option value="">Selecione o pagador</option>
+              {cotista && <option value="COTISTA">Cotista · {cotista}</option>}
+              {holding && <option value="HOLDING">Holding · {holding}</option>}
+            </select>
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={`${id}-valor`} className={rotulo}>Valor recebido</Label>
+            <div className="relative">
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">R$</span>
+              <Input
+                id={`${id}-valor`}
+                inputMode="decimal"
+                value={pagamento.valor}
+                placeholder="0,00"
+                onChange={(event) => onAlterar({ valor: event.currentTarget.value })}
+                className={`${classeCampo} !pl-10 font-mono tabular-nums`}
+              />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={`${id}-data`} className={rotulo}>Data do pagamento</Label>
+            <Input
+              id={`${id}-data`}
+              type="date"
+              value={pagamento.data}
+              onChange={(event) => onAlterar({ data: event.currentTarget.value })}
+              className={`${classeCampo} [color-scheme:light] [.dark_&]:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:!filter-none`}
+            />
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={`${id}-forma`} className={rotulo}>Forma de pagamento</Label>
+            <select
+              id={`${id}-forma`}
+              value={pagamento.forma}
+              onChange={(event) => onAlterar({ forma: event.currentTarget.value })}
+              className={classeCampo}
+            >
+              <option value="">Selecione a forma</option>
+              {FORMAS_PAGAMENTO.map((forma) => <option key={forma} value={forma}>{forma}</option>)}
+            </select>
+          </div>
+          <div className="min-w-0 sm:col-span-2" role="group" aria-labelledby={`${id}-banco`}>
+            <span id={`${id}-banco`} className={rotulo}>Conta bancária</span>
+            <SearchableCombobox
+              items={bancos}
+              value={pagamento.banco}
+              onChange={(banco) => onAlterar({ banco })}
+              placeholder="Selecione a conta de destino"
+              searchPlaceholder="Buscar banco ou número da conta…"
+              emptyMessage="Nenhuma conta encontrada."
+              wrapSelectedLabel
+              className={`${classeCampo} h-auto !min-h-11 justify-between text-left`}
+            />
+          </div>
+        </div>
+
+        {rateios.length > 0 && (
+          <div aria-labelledby={`${id}-rateios`} role="group">
+            <h5 id={`${id}-rateios`} className="text-sm font-semibold text-foreground">Distribuição por rateio</h5>
+            <p className="mt-1 text-sm text-muted-foreground">Distribua o valor recebido entre os saldos dos rateios.</p>
+            <ul className="mt-2 divide-y divide-border rounded-md border border-border bg-muted/40">
+              {rateios.map((rateio, index) => {
+                const campoId = `${id}-rateio-${index}`;
+                return (
+                  <li key={rateio.id} className="grid min-w-0 gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center">
+                    <div className="min-w-0">
+                      <Label htmlFor={campoId} className="break-words text-sm font-medium text-foreground">
+                        {rateio.nome}<span className="sr-only">, valor destinado ao rateio em reais</span>
+                      </Label>
+                      <p id={`${campoId}-saldo`} className="mt-1 break-words text-xs text-muted-foreground">
+                        Saldo em aberto {exibirValor(Math.max(0, rateio.previsto - rateio.recebido))}
+                      </p>
+                    </div>
+                    <Input
+                      id={campoId}
+                      aria-describedby={`${campoId}-saldo`}
+                      inputMode="decimal"
+                      value={pagamento.rateios[rateio.id] ?? ''}
+                      placeholder="0,00"
+                      onChange={(event) => onRateio(rateio.id, event.currentTarget.value)}
+                      className={`${classeCampo} text-right font-mono tabular-nums`}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <p>Total distribuído <strong className="font-semibold text-foreground tabular-nums">{exibirValor(totalRateios)}</strong></p>
+              {Number.isSafeInteger(diferenca) && diferenca !== 0 && (
+                <p className="rounded-sm bg-[hsl(var(--chart-3)/.12)] px-1.5 font-medium text-foreground">
+                  {diferenca > 0 ? 'A distribuir' : 'Distribuído a mais'} {exibirValor(Math.abs(diferenca))}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-border pt-3">
+          <p className="text-sm font-medium text-foreground">
+            Comprovante <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>
+          </p>
+          {pagamento.arquivo && (
+            <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
+              <p className="min-w-0 break-all text-sm text-foreground">{pagamento.arquivo.name}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remover comprovante do pagamento ${numero}`}
+                className="h-11 w-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => onArquivo(null)}
+              >
+                <X size={16} aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+          <input
+            id={`${id}-arquivo`}
+            type="file"
+            accept={TIPOS_COMPROVANTE.join(',')}
+            aria-describedby={`${id}-arquivo-ajuda`}
+            className="peer sr-only"
+            onChange={(event) => {
+              const arquivo = event.currentTarget.files?.[0];
+              if (arquivo) onArquivo(arquivo);
+              event.currentTarget.value = '';
+            }}
+          />
+          <Label
+            htmlFor={`${id}-arquivo`}
+            className="mt-2 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-input px-3 text-sm text-foreground hover:bg-muted/40 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-card peer-disabled:cursor-default peer-disabled:opacity-60"
+          >
+            <Paperclip size={15} aria-hidden="true" />
+            {pagamento.arquivo ? 'Trocar comprovante' : 'Anexar comprovante'}
+            <span className="sr-only"> do pagamento {numero}</span>
+          </Label>
+          <p id={`${id}-arquivo-ajuda`} className="mt-1 text-xs text-muted-foreground">
+            PDF, JPG, PNG ou WebP · até 10 MB
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 }

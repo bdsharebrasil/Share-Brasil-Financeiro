@@ -48,6 +48,7 @@ import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { ESTILOS_FINANCEIRO } from "@/components/financeiro-share/LancamentosUnificados";
+import { IconeAnexo } from "@/components/financeiro-share/IconeAnexo";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
@@ -110,7 +111,6 @@ import {
   excluirParticipacaoCotista,
 } from "@/lib/colaborador-api";
 import { PortalClienteTab } from "./PortalClienteTab";
-import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
 import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
 import {
   agruparPorMes,
@@ -183,6 +183,11 @@ const DESPESAS_ESTILOS = `
 }
 .financeiro-profissional :is(input,button,[role="combobox"]) { box-shadow:none; }
 .financeiro-profissional :is(input,[role="combobox"]) { border-radius:4px; background:hsl(var(--card)); }
+.erp-financeiro .erp-tabela-saidas .erp-ordenar-cotista { height:auto; min-height:40px; padding:6px 0; }
+.erp-financeiro .erp-tabela-saidas .erp-ordenar-cotista > span { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; line-height:1.2; }
+.erp-financeiro .erp-tabela-saidas .erp-linha { height:auto; }
+.erp-financeiro .erp-tabela-saidas .erp-celula-quebra { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; }
+.erp-financeiro .erp-tabela-saidas .erp-celula-quebra .despesa-cell-text { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; line-height:1.35; }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
 .despesas-theme .text-muted-foreground { color:hsl(var(--muted-foreground)); }
 .despesas-theme .text-foreground { color:hsl(var(--foreground)); }
@@ -1348,10 +1353,12 @@ function tipoDocumentoLancamento(lancamento: LancamentoEconomico) {
 function LancamentoExpandido({
   lancamento,
   cotistasAeronave,
+  fornecedoresEdicao,
   aoAbrirDocumento,
 }: {
   lancamento: LancamentoEconomico;
   cotistasAeronave: CotistaAeronave[];
+  fornecedoresEdicao: OpcaoEdicao[];
   aoAbrirDocumento: (nome: string, url: string) => void;
 }) {
   const tituloDocumento = (documento: {
@@ -1423,81 +1430,44 @@ function LancamentoExpandido({
       Boolean(documento.url) &&
       todos.findIndex((outro) => outro.url === documento.url) === index,
   );
-  const dadosComplementares = [
-    ["Número do voo", lancamento.numeroVoo || "Não vinculado"],
-    ["Número do recibo", lancamento.numeroRecibo || "Não informado"],
-    ["Número da NF", lancamento.numeroNf || "Não informado"],
-    ["Periodicidade", lancamento.periodicidade || "Único"],
-    ["Subcategoria", lancamento.subcategorias?.join(" · ") || "Não informada"],
-  ];
-
   return (
-    <div className="cotista-expanded">
-      <div className="expanded-heading">
-        <div>
-          <span className="panel-kicker">INFORMAÇÕES COMPLEMENTARES</span>
-          <h3>Documentos e contexto financeiro</h3>
-        </div>
-      </div>
-      <div className="expanded-support-grid">
-        <section>
-          <span className="detail-block-title">DOCUMENTOS VINCULADOS</span>
-          {documentosExpansao.length ? (
-            <div className="document-list">
-              {documentosExpansao.map((documento) => {
-                const titulo = tituloDocumento(documento);
-                const comprovante = /comprovante/i.test(titulo);
-                return (
+    <div className="erp-detalhes">
+      <dl className="erp-detalhes-campos">
+        <div><dt>Categoria</dt><dd>{lancamento.categoria || "—"}</dd></div>
+        <div><dt>Favorecido</dt><dd>{nomeFornecedorLancamento(lancamento, fornecedoresEdicao) || "—"}</dd></div>
+        <div><dt>Nº do documento</dt><dd>{documentoDoLancamento(lancamento) || "—"}</dd></div>
+        <div><dt>Observações</dt><dd className="erp-observacoes">{lancamento.observacoes || "—"}</dd></div>
+      </dl>
+      <section className="erp-anexos" aria-label="Anexos do lançamento">
+        <header className="erp-anexos-cabecalho">
+          <strong>Anexos e documentos</strong>
+          <span>{documentosExpansao.length} {documentosExpansao.length === 1 ? "arquivo" : "arquivos"}</span>
+        </header>
+        {documentosExpansao.length ? (
+          <div className="erp-anexos-grade">
+            {documentosExpansao.map((documento) => {
+              const titulo = tituloDocumento(documento);
+              const nome = `${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`;
+              return (
+                <article key={`${documento.responsavel}-${documento.url}`} className="erp-anexo-card">
                   <button
-                    key={`${documento.responsavel}-${documento.url}`}
                     type="button"
-                    title={`${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`}
-                    onClick={() =>
-                      aoAbrirDocumento(
-                        `${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`,
-                        documento.url,
-                      )
-                    }
+                    className="erp-anexo-link"
+                    aria-label={`Abrir ${nome}`}
+                    title={nome}
+                    onClick={() => aoAbrirDocumento(nome, documento.url)}
                   >
-                    <span
-                      className={`document-icon ${comprovante ? "is-receipt" : ""}`}
-                    >
-                      {comprovante ? (
-                        <Check size={14} aria-hidden="true" />
-                      ) : (
-                        <FileText size={14} aria-hidden="true" />
-                      )}
-                    </span>
-                    <span className="document-copy">
-                      <b>
-                        {titulo}
-                        {documento.numero ? ` ${documento.numero}` : ""}
-                      </b>
-                    </span>
+                    <IconeAnexo nome={titulo} />
+                    <span className="erp-anexo-nome">{titulo}{documento.numero ? ` ${documento.numero}` : ""}</span>
                   </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Nenhum documento vinculado.
-            </p>
-          )}
-        </section>
-        <section className="support-facts">
-          <span className="detail-block-title">DADOS COMPLEMENTARES</span>
-          {dadosComplementares.map(([rotulo, valor]) => (
-            <p key={rotulo}>
-              <b>{rotulo}</b>
-              <small>{valor}</small>
-            </p>
-          ))}
-        </section>
-        <section className="support-note">
-          <span className="detail-block-title">OBSERVAÇÕES</span>
-          <p>{lancamento.observacoes || "Nenhuma observação registrada."}</p>
-        </section>
-      </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="erp-anexos-vazio">Nenhum anexo vinculado a este lançamento.</p>
+        )}
+      </section>
     </div>
   );
 }
@@ -1877,6 +1847,7 @@ function LancamentosDespesa({
     minimo: number;
     numerica?: boolean;
     cotista?: boolean;
+    quebrarTexto?: boolean;
     valor?: (item: LancamentoEconomico) => string | number | null | undefined;
     render: (item: LancamentoEconomico) => ReactNode;
   };
@@ -1938,6 +1909,7 @@ function LancamentosDespesa({
       titulo: "Descrição",
       largura: 260,
       minimo: 160,
+      quebrarTexto: true,
       valor: (item) => item.descricao,
       render: (item) => texto(item.descricao),
     },
@@ -1946,6 +1918,7 @@ function LancamentosDespesa({
       titulo: "Favorecido",
       largura: 220,
       minimo: 150,
+      quebrarTexto: true,
       valor: (item) => nomeFornecedorLancamento(item, fornecedoresEdicao),
       render: (item) => texto(nomeFornecedorLancamento(item, fornecedoresEdicao) || "Fornecedor não informado"),
     },
@@ -1955,6 +1928,7 @@ function LancamentosDespesa({
       titulo: "Categoria",
       largura: 160,
       minimo: 112,
+      quebrarTexto: true,
       valor: (item) => item.categoria || "Sem categoria",
       render: (item) => texto(item.categoria || "Sem categoria"),
     },
@@ -1988,6 +1962,7 @@ function LancamentosDespesa({
       titulo: "PAGO POR",
       largura: 170,
       minimo: 150,
+      quebrarTexto: true,
       valor: (item) => nomePagadoresDoLancamento(item, cotistasAeronave),
       render: (item) => texto(nomePagadoresDoLancamento(item, cotistasAeronave)),
     },
@@ -2725,42 +2700,6 @@ function LancamentosDespesa({
                   <ChevronLeft size={16} />
                 </button>
                 <div className="erp-rotulo-periodo">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="despesa-date-mode"
-                        aria-label={`Filtro de data: ${modoData === "emissao" ? "emissão" : modoData === "vencimento" ? "vencimento" : modoData === "pagamento" ? "pagamento" : "todos"}`}
-                        title="Escolher datas exibidas"
-                      >
-                        <span className="despesa-date-mode-copy">
-                          <small>DATA: {modoData === "emissao" ? "EMISSÃO" : modoData === "vencimento" ? "VENCIMENTO" : modoData === "pagamento" ? "PAGAMENTO" : "TODOS"}</small>
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="despesas-theme despesa-dialog min-w-[190px]"
-                    >
-                      <DropdownMenuItem onSelect={() => alterarModoData("emissao")} className="gap-2">
-                        <Check size={14} className={modoData === "emissao" ? "opacity-100" : "opacity-0"} />
-                        Somente emissão
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => alterarModoData("vencimento")} className="gap-2">
-                        <Check size={14} className={modoData === "vencimento" ? "opacity-100" : "opacity-0"} />
-                        Somente vencimento
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => alterarModoData("pagamento")} className="gap-2">
-                        <Check size={14} className={modoData === "pagamento" ? "opacity-100" : "opacity-0"} />
-                        Somente pagamento
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => alterarModoData("todos")} className="gap-2">
-                        <Check size={14} className={modoData === "todos" ? "opacity-100" : "opacity-0"} />
-                        Todas as datas
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                   <span className="despesa-period-label" aria-live="polite">
                     {mesesSelecionados.length === 1
                       ? rotuloMesCotista(mesReferencia)
@@ -2956,7 +2895,7 @@ function LancamentosDespesa({
                     {coluna.valor ? (
                       <button
                         type="button"
-                        className="erp-ordenar"
+                        className={`erp-ordenar ${coluna.cotista ? "erp-ordenar-cotista" : ""}`}
                         data-active={ordenacao.coluna === coluna.id}
                         title={`${coluna.titulo}: ordenar ${ordenacao.coluna === coluna.id && ordenacao.direcao === "asc" ? "decrescente" : "crescente"}${coluna.cotista ? " por valor rateado" : ""}`}
                         onClick={() => ordenarPor(coluna.id)}
@@ -3078,19 +3017,20 @@ function LancamentosDespesa({
                         {colunasVisiveis.map((coluna) => (
                           <td
                             key={coluna.id}
-                            className={coluna.numerica ? "erp-valor" : ""}
+                            className={`${coluna.numerica ? "erp-valor" : ""} ${coluna.quebrarTexto ? "erp-celula-quebra" : ""}`}
                           >
                             {coluna.render(item)}
                           </td>
                         ))}
                       </tr>
                       {expandidos.has(item.id) && (
-                        <tr id={`despesa-desktop-${item.id}`}>
+                        <tr id={`despesa-desktop-${item.id}`} className="erp-linha-detalhes">
                           <td colSpan={quantidadeColunas} className="p-0">
                             <div className="despesa-expanded-content">
                               <LancamentoExpandido
                                 lancamento={item}
                                 cotistasAeronave={cotistasAeronave}
+                                fornecedoresEdicao={fornecedoresEdicao}
                                 aoAbrirDocumento={(nome, url) =>
                                   setDocumentoAberto({ nome, url })
                                 }
@@ -3828,7 +3768,7 @@ export default function FinanceiroCotista() {
   const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
 
   return (
-    <div className="financeiro-shell financeiro-profissional min-w-0 max-w-full space-y-3">
+    <div className="financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
         <div className="-mt-3.5 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3847,18 +3787,20 @@ export default function FinanceiroCotista() {
               )}
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 gap-2 self-start transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary sm:self-auto"
-            onClick={() => {
-              setAeronaveSelecionada("");
-              setPaginaAberta(false);
-            }}
-          >
-            <Plane size={14} aria-hidden /> Trocar aeronave
-          </Button>
+          {!paginaAberta && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 gap-2 self-start sm:self-auto"
+              onClick={() => {
+                setAeronaveSelecionada("");
+                setPaginaAberta(false);
+              }}
+            >
+              <ChevronLeft size={14} aria-hidden /> Todas as aeronaves
+            </Button>
+          )}
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (

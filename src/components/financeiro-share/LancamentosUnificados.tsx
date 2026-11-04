@@ -59,21 +59,21 @@ import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
   observacoes?: string;
-  anexos?: Array<{ nome: string; url: string }>;
+  anexos?: Array<{ nome: string; url: string; numero?: string | null }>;
 };
 
-const CAMPOS_ANEXO: Array<{ campo: string; rotulo: string }> = [
-  { campo: "url_recibo", rotulo: "Recibo" },
-  { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
-  { campo: "url_nf", rotulo: "Nota fiscal" },
-  { campo: "url_boleto", rotulo: "Boleto" },
-  { campo: "url_doc", rotulo: "Documento" },
+const CAMPOS_ANEXO: Array<{ campo: string; rotulo: string; campoNumero?: string }> = [
+  { campo: "url_recibo", rotulo: "Recibo", campoNumero: "numero_recibo" },
+  { campo: "url_demonstrativo", rotulo: "Demonstrativo", campoNumero: "numero_demonstrativo" },
+  { campo: "url_nf", rotulo: "Nota fiscal", campoNumero: "numero_nf" },
+  { campo: "url_boleto", rotulo: "Boleto", campoNumero: "numero_boleto" },
+  { campo: "url_doc", rotulo: "Documento", campoNumero: "numero_doc" },
   { campo: "comprovanteRecebimentoUrl", rotulo: "Comprovante de recebimento" },
   { campo: "comprovantePagamentoUrl", rotulo: "Comprovante de pagamento" },
   { campo: "documentoUrl", rotulo: "Documento principal" },
 ];
 
-type AnexoLancamento = { nome: string; href: string };
+type AnexoLancamento = { nome: string; href: string; numero?: string | null };
 
 type Props = {
   fluxo: FluxoLinha;
@@ -82,7 +82,7 @@ type Props = {
 };
 
 type ChaveColuna =
-  | "documento" | "descricao" | "favorecido" | "favorecidoPessoa"
+  | "documento" | "descricao" | "favorecido"
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
@@ -166,8 +166,28 @@ function rotuloMes(mes: string) {
 function podeBaixar(linha: LinhaConta) {
   return linha.situacao !== "PAGO" && linha.situacao !== "CANCELADO";
 }
+function ehReembolsavelDireto(linha: LinhaConta) {
+  const conta = linha.raw as ContaAPagar;
+  return conta.fonteLancamento === true && conta.reembolsavel === true;
+}
+function ehLancamentoDireto(conta: ContaAPagar) {
+  return conta.fonteLancamento === true && (conta.lancamentoId ?? conta.id) === conta.id;
+}
+function contaAPagarDaLinha(linha: LinhaConta, contas: ContaAPagar[]) {
+  const raw = linha.raw as ContaAPagar;
+  const lancamentoId = raw.lancamentoId || linha.id;
+  const exata = contas.find((conta) => conta.id === linha.id);
+  if (exata && !ehLancamentoDireto(exata)) return exata;
+  return contas.find((conta) => conta.id !== lancamentoId && conta.lancamentoId === lancamentoId)
+    ?? exata
+    ?? raw;
+}
 function dataOuTraco(valor?: string) {
   return valor ? formatarData(valor.slice(0, 10)) : "—";
+}
+function lerTexto(raw: Record<string, unknown>, ...chaves: string[]) {
+  const valor = chaves.map((chave) => raw[chave]).find((item) => item !== undefined && item !== null && item !== "");
+  return typeof valor === "string" || typeof valor === "number" ? String(valor).trim() || null : null;
 }
 function urlSegura(valor: string) {
   // Resolve caminhos internos pela API configurada e bloqueia protocolos executáveis.
@@ -184,16 +204,20 @@ function urlSegura(valor: string) {
 function reunirAnexos(linha: LinhaConta, dados: DetalhesLancamento = {}): AnexoLancamento[] {
   const raw = linha.raw as unknown as Record<string, unknown>;
   const candidatos = [
-    ...CAMPOS_ANEXO.map(({ campo, rotulo }) => ({ nome: rotulo, url: raw[campo] })),
-    ...(dados.anexos ?? []).map((anexo) => ({ nome: anexo.nome, url: anexo.url })),
+    ...CAMPOS_ANEXO.map(({ campo, rotulo, campoNumero }) => ({
+      nome: rotulo,
+      url: raw[campo],
+      numero: campoNumero ? lerTexto(raw, campoNumero, campoNumero.replace(/_([a-z])/g, (_, letra: string) => letra.toUpperCase())) : null,
+    })),
+    ...(dados.anexos ?? []).map((anexo) => ({ nome: anexo.nome, url: anexo.url, numero: anexo.numero })),
   ];
   const urlsVistas = new Set<string>();
-  return candidatos.flatMap(({ nome, url }) => {
+  return candidatos.flatMap(({ nome, url, numero }) => {
     if (typeof url !== "string") return [];
     const href = urlSegura(url);
     if (!href || urlsVistas.has(href)) return [];
     urlsVistas.add(href);
-    return [{ nome: nome || "Anexo", href }];
+    return [{ nome: nome || "Anexo", href, numero }];
   });
 }
 
@@ -292,17 +316,18 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
 
   const href = privado ? recurso?.url : anexo.href;
   const titulo = anexo.nome || "Anexo";
+  const nomeCompleto = `${titulo}${anexo.numero ? ` · ${anexo.numero}` : ""}`;
 
   const mime = privado ? (recurso?.mime ?? "") : mimePelaUrl(anexo.href);
 
   return (
     <article className="erp-anexo-card">
-      {href ? <button type="button" className="erp-anexo-link" aria-label={`Abrir ${titulo}`} title={titulo} onClick={() => setVisualizando(true)}>
+      {href ? <button type="button" className="erp-anexo-link" aria-label={`Abrir ${nomeCompleto}`} title={nomeCompleto} onClick={() => setVisualizando(true)}>
         <IconeAnexo nome={titulo} />
-        <span className="erp-anexo-nome">{titulo}</span>
-      </button> : <div className="erp-anexo-indisponivel" aria-live="polite" title={titulo}>
+        <span className="erp-anexo-nome">{nomeCompleto}</span>
+      </button> : <div className="erp-anexo-indisponivel" aria-live="polite" title={nomeCompleto}>
         <IconeAnexo nome={titulo} />
-        <span className="erp-anexo-nome">{titulo}</span>
+        <span className="erp-anexo-nome">{nomeCompleto}</span>
         {falha
           ? <button type="button" className="erp-anexo-tentar" aria-label={`Tentar novamente: ${titulo}`} title="Tentar novamente" onClick={() => setTentativa((valor) => valor + 1)}><RotateCw size={18} aria-hidden="true" /></button>
           : <Loader2 size={18} className="animate-spin" aria-label={carregando ? "Carregando anexo" : "Preparando anexo"} />}
@@ -314,12 +339,18 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
 
 function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamento }) {
   const anexos = reunirAnexos(linha, dados);
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const numeroRecibo = lerTexto(raw, "numeroRecibo", "numero_recibo") ?? anexos.find((anexo) => anexo.nome === "Recibo")?.numero ?? null;
+  const numeroDemonstrativo = lerTexto(raw, "numeroDemonstrativo", "numero_demonstrativo") ?? anexos.find((anexo) => anexo.nome === "Demonstrativo")?.numero ?? null;
+  const numeroDocumento = lerTexto(raw, "numeroDoc", "numero_doc", "numeroNf", "numero_nf") ?? linha.documento;
   return (
     <div className="erp-detalhes">
       <dl className="erp-detalhes-campos">
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
-        <div><dt>Favorecido</dt><dd>{linha.favorecido || "—"}</dd></div>
-        <div><dt>Nº do documento</dt><dd>{linha.documento || "—"}</dd></div>
+        <div><dt>Favorecido</dt><dd>{linha.favorecidoPessoa || linha.favorecido || "—"}</dd></div>
+        <div><dt>Nº do documento</dt><dd>{numeroDocumento || "—"}</dd></div>
+        <div><dt>Nº do recibo</dt><dd>{numeroRecibo || "—"}</dd></div>
+        <div><dt>Nº do demonstrativo</dt><dd>{numeroDemonstrativo || "—"}</dd></div>
         <div><dt>Observações</dt><dd className="erp-observacoes">{dados.observacoes || "—"}</dd></div>
       </dl>
       <section className="erp-anexos" aria-label="Anexos do lançamento">
@@ -341,8 +372,6 @@ function celulaLancamento(chave: ChaveColuna, linha: LinhaConta) {
       return <td key={chave}><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong></div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>;
     case "favorecido":
       return <td key={chave} title={linha.favorecido}>{linha.favorecido || "—"}</td>;
-    case "favorecidoPessoa":
-      return <td key={chave} title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>;
     case "fornecedor":
       return <td key={chave} title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>;
     case "contaBancaria":
@@ -404,6 +433,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [expandidos, setExpandidos] = useState<string[]>([]);
   const [contaBaixa, setContaBaixa] = useState<LinhaConta | null>(null);
+  const contaBaixaReal = useMemo(
+    () => contaBaixa ? contaAPagarDaLinha(contaBaixa, pagar.contas) : null,
+    [contaBaixa, pagar.contas],
+  );
   const [arrastando, setArrastando] = useState(false);
   const [menuLinhaId, setMenuLinhaId] = useState<string | null>(null);
 
@@ -527,8 +560,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     { chave: "descricao", rotulo: "Descrição", largura: 320 },
     ...(ehEntrada
       ? [{ chave: "favorecido" as const, rotulo: "Favorecido", largura: 280 }]
-      : [{ chave: "favorecidoPessoa" as const, rotulo: "Favorecido", largura: 200 },
-        { chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
+      : [{ chave: "fornecedor" as const, rotulo: "Fornecedor", largura: 200 }]),
     { chave: "contaBancaria", rotulo: "Conta", largura: 153 },
     { chave: "situacao", rotulo: "Status", largura: 190 },
     { chave: "valor", rotulo: "Valor", largura: 180 },
@@ -947,7 +979,16 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                             <MoreVertical size={16} aria-hidden="true" />
                           </button>
                           {menuLinhaId === linha.id && <div className="erp-menu-acoes" role="menu">
-                            <button type="button" role="menuitem" disabled={!podeBaixar(linha)} onClick={() => { setMenuLinhaId(null); setContaBaixa(linha); }}>Baixar</button>
+                            <button type="button" role="menuitem" disabled={!podeBaixar(linha)} onClick={() => {
+                              setMenuLinhaId(null);
+                              const conta = contaAPagarDaLinha(linha, pagar.contas);
+                              if (ehLancamentoDireto(conta) && conta.reembolsavel) {
+                                toast.error("A conta a pagar vinculada a este recibo não foi encontrada. Atualize a lista antes de dar baixa.");
+                                void recarregar();
+                                return;
+                              }
+                              setContaBaixa(linha);
+                            }}>{ehReembolsavelDireto(linha) ? "Dar baixa no pagamento Share" : "Baixar"}</button>
                             <button type="button" role="menuitem" className="erp-menu-excluir" disabled={!linha.raw.lancamentoId} onClick={() => void excluirLinha(linha)}>Excluir</button>
                           </div>}
                         </div>
@@ -985,7 +1026,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         <table><thead><tr>{colunas.map((coluna) => <th key={coluna.chave}>{coluna.rotulo}</th>)}</tr></thead>
           <tbody>{itensRelatorio.map((linha) => <tr key={linha.id}>
             <td>{dataOuTraco(linha.dataLancamento)}</td><td>{linha.documento || "—"}</td><td>{linha.descricao}</td>
-            {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <><td>{linha.favorecidoPessoa || "—"}</td><td>{linha.fornecedor || "—"}</td></>}
+            {ehEntrada ? <td>{linha.favorecido || "—"}</td> : <td>{linha.fornecedor || "—"}</td>}
             <td>{linha.contaBancaria}</td>
             <td>{ROTULOS[statusParaFiltro(linha)] ?? rotuloStatus(statusParaFiltro(linha))}</td><td className="erp-direita">{formatarMoeda(linha.valor)}</td>
           </tr>)}</tbody>
@@ -1001,18 +1042,18 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
           setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
           await recarregar(); toast.success("Baixa registrada.");
         }} />}
-      {contaBaixa && !ehEntrada && <ModalContaAPagar conta={contaBaixa.raw as ContaAPagar} aberto onFechar={() => setContaBaixa(null)}
+      {contaBaixa && contaBaixaReal && !ehEntrada && <ModalContaAPagar key={contaBaixaReal.id} conta={contaBaixaReal} aberto onFechar={() => setContaBaixa(null)} contasBancarias={contasBancarias}
         onConfirmar={async (dados) => {
-          const conta = contaBaixa.raw as ContaAPagar;
-          if (conta.fonteLancamento) {
-            await darBaixaLancamento(contaBaixa.id, {
+          const conta = contaBaixaReal;
+          if (ehLancamentoDireto(conta) && !conta.reembolsavel) {
+            await darBaixaLancamento(conta.lancamentoId || conta.id, {
               dataPagamento: dados.dataPagamento,
               pagoPor: dados.bancoPagamento,
-              contaBancariaId: conta.contaBancariaId,
+              contaBancariaId: dados.contaBancariaId || conta.contaBancariaId,
               comprovanteUrl: dados.comprovantePagamentoUrl,
             });
           } else {
-            await darBaixaContaAPagar(contaBaixa.id, dados);
+            await darBaixaContaAPagar(conta.id, dados);
           }
           setContaBaixa(null); setSelecionados((atuais) => atuais.filter((item) => item !== contaBaixa.id));
           await recarregar(); toast.success("Baixa registrada.");

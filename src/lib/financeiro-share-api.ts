@@ -299,6 +299,10 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null,
 
+    reembolsavel: flagFinanceira(row.reembolsavel),
+
+    reembolsoQuitado: flagFinanceira(row.reembolsoQuitado ?? row.reembolso_quitado),
+
     cotista: row.cotista ?? row.cotistaNome ?? row.cotista_nome ?? (Array.isArray(row.rateios) ? row.rateios.map((rateio: { cotista_nome?: string | null }) => rateio.cotista_nome).filter(Boolean).join(", ") || null : null),
 
     holdingId: row.holdingId ?? row.holding_id ?? null,
@@ -328,6 +332,14 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
 
     documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,
+
+    numeroDoc: row.numeroDoc ?? row.numero_doc ?? null,
+
+    numeroNf: row.numeroNf ?? row.numero_nf ?? null,
+
+    numeroRecibo: row.numeroRecibo ?? row.numero_recibo ?? null,
+
+    numeroDemonstrativo: row.numeroDemonstrativo ?? row.numero_demonstrativo ?? null,
 
     tipoDocumento: tipoDocumentoDaConta(row),
 
@@ -372,10 +384,14 @@ function normalizarLancamentoCaixa(row: any): Lancamento {
   return {
 
     id: String(row.id ?? ""), aeronaveId: row.aeronaveId ?? row.aeronave_id ?? null, cotistaId: row.cotistaId ?? row.cotista_aeronave_id ?? row.cotista_id ?? null,
+    cotistaNome: row.cotistaNome ?? row.cotista_nome ?? null, cotista: row.cotista ?? row.cotista_nome ?? null,
 
     data: String(row.data ?? row.data_emissao ?? row.criado_em ?? "").slice(0, 10),
 
-    descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? null, documentoUrl: row.documentoUrl ?? row.url_doc ?? null,
+    descricao: String(row.descricao ?? ""), documento: row.documento ?? row.numero_doc ?? row.numero_nf ?? row.numero_recibo ?? row.numero_demonstrativo ?? null,
+    numeroDoc: row.numeroDoc ?? row.numero_doc ?? null, numeroNf: row.numeroNf ?? row.numero_nf ?? null,
+    numeroRecibo: row.numeroRecibo ?? row.numero_recibo ?? null, numeroDemonstrativo: row.numeroDemonstrativo ?? row.numero_demonstrativo ?? null,
+    documentoUrl: row.documentoUrl ?? row.url_doc ?? null,
     url_demonstrativo: row.url_demonstrativo ?? null, url_nf: row.url_nf ?? null, url_recibo: row.url_recibo ?? null,
     url_boleto: row.url_boleto ?? null, url_doc: row.url_doc ?? null,
 

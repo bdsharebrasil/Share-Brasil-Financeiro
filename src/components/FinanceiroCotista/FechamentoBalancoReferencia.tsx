@@ -42,6 +42,7 @@ import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
+import { CuriosidadesVooCotista } from "./CuriosidadesVooCotista";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -53,12 +54,13 @@ type Props = {
   cotistaId?: string;
 };
 
-type Aba = "balanco" | "lancamentos" | "custo-hora" | "diario";
+type Aba = "balanco" | "lancamentos" | "custo-hora" | "diario" | "curiosidades";
 const ABAS: { id: Aba; nome: string }[] = [
   { id: "balanco", nome: "Balanço" },
   { id: "lancamentos", nome: "Lançamentos" },
   { id: "custo-hora", nome: "Custo por hora" },
   { id: "diario", nome: "Diário de bordo" },
+  { id: "curiosidades", nome: "Seu período em voo" },
 ];
 const MESES_PROJECAO = [1, 2, 3, 5, 10, 15, 20, 30, 45];
 const CORES = { fixos: "#2f6db5", variaveis: "#52794a", extras: "#e8b94a", naoClassificados: "#8291a4" };
@@ -123,6 +125,7 @@ export function FechamentoBalancoReferencia({
   const voos = voosOperacionais
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
+  const voosParaCuriosidades = participante ? voosDoParticipante : voos;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
@@ -351,6 +354,14 @@ export function FechamentoBalancoReferencia({
         </section>
       </section>}
 
+      {aba === "curiosidades" && <section id="fb-panel-curiosidades" role="tabpanel" aria-labelledby="fb-tab-curiosidades">
+        {voosParaCuriosidades.length || (totalHoras ?? 0) > 0 ? (
+          <div className="bcp">
+            <CuriosidadesVooCotista voos={voosParaCuriosidades} horas={totalHoras} periodo={periodo} />
+          </div>
+        ) : <Vazio>Não há dados de voo detalhados para os meses selecionados.</Vazio>}
+      </section>}
+
       <Dialog open={dialogPdfAberto} onOpenChange={setDialogPdfAberto}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -436,6 +447,7 @@ function destinoVoo(voo: VooBalanco, cotistas: CotistaAeronave[]) {
 
 const CSS = `
 .fb{--fb-bg:#f3f5f8;--fb-card:#fff;--fb-text:#14202e;--fb-muted:#5d6b7b;--fb-border:#e0e6ed;--fb-navy:#0f3d6e;--fb-blue:#2f6db5;--fb-soft:#eef3f9;max-width:1040px;margin:0 auto;padding:20px 0 42px;color:var(--fb-text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color-scheme:light}
+.fb .bcp{--bcp-card:var(--fb-card);--bcp-border:var(--fb-border);--bcp-fg:var(--fb-text);--bcp-muted:var(--fb-muted);--bcp-soft:var(--fb-soft);--bcp-accent:var(--fb-blue);--bcp-heading:var(--fb-blue)}
 .fb *{box-sizing:border-box}.fb button,.fb input,.fb select{font:inherit;color:inherit}.fb button{cursor:pointer}.fb :is(button,input,select):focus-visible{outline:2px solid var(--fb-blue);outline-offset:2px}.fb-page-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--fb-muted);font-size:12px}.fb-button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--fb-border);margin-bottom:18px}.fb-tabs button{flex-shrink:0;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--fb-muted);padding:10px 14px}.fb-tabs button[aria-selected=true]{border-bottom-color:#e8b94a;color:var(--fb-text);font-weight:650}
 .fb-hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;background:var(--fb-navy);color:#fff;border-radius:10px;padding:22px 24px}.fb-hero small{font-size:13px;opacity:.8}.fb-big{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}.fb-hero-stats{display:flex;gap:26px;flex-wrap:wrap}.fb-hero-stats div{font-size:12px;opacity:.95}.fb-hero-stats strong{display:block;font-size:16px}.fb-grid{display:grid;gap:14px;margin-top:14px}.fb-g3{grid-template-columns:repeat(3,minmax(0,1fr))}.fb-g2{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-no-top{margin-top:0}.fb-kpi,.fb-card{background:var(--fb-card);border:1px solid var(--fb-border);border-radius:8px}.fb-kpi{padding:15px 17px;min-width:0}.fb-kpi>span{display:block;color:var(--fb-muted);font-size:12px}.fb-kpi>strong{display:block;margin:6px 0;font-size:21px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.fb-kpi>small{display:block;color:var(--fb-muted);font-size:11px}.fb-card{min-width:0;padding:16px 18px}.fb-card h2{margin:0 0 12px;font-size:15px;font-weight:650}.fb-spaced{margin-top:14px}.fb-scroll{width:100%;overflow-x:auto}.fb table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.fb-flight-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.fb-flight-heading h2{margin:0 0 12px}.fb-flight-table{min-width:720px;table-layout:fixed}.fb-flight-ref{color:var(--fb-blue);font-family:ui-monospace,monospace;font-weight:700;white-space:nowrap}.fb-flight-route{font-family:ui-monospace,monospace;font-weight:700}.fb-flight-accent{color:var(--fb-blue)!important;font-weight:700}.fb th,.fb td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--fb-border);vertical-align:top}.fb th{color:var(--fb-muted);font-size:11px;font-weight:600}.fb .fb-num{text-align:right;white-space:nowrap}.fb tfoot td{font-weight:700;border-bottom:0;background:var(--fb-soft)}.fb .fb-bar{height:8px;min-width:80px;border-radius:4px;background:var(--fb-soft);overflow:hidden}.fb .fb-bar i{display:block;height:100%;border-radius:4px;background:var(--fb-blue)}.fb-chart{height:240px;width:100%;min-width:0}.fb-chart-tall{height:280px}.fb-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;color:var(--fb-muted);font-size:11px}.fb-legend span{white-space:nowrap}.fb-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}.fb-note{margin:16px 0 0;color:var(--fb-muted);font-size:11px;line-height:1.65}.fb-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.fb-tools select,.fb-tools input{min-width:210px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tag{display:inline-block;border-radius:10px;background:var(--fb-soft);padding:1px 8px;font-size:11px}.fb-date-label{display:block;color:var(--fb-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.fb-range-label{display:block;color:var(--fb-muted);font-size:12px}.fb-range{width:100%;accent-color:var(--fb-blue)}.fb-highlight{background:var(--fb-soft)}.fb-empty{padding:24px 12px;text-align:center;color:var(--fb-muted)}
 .fb-share-header{min-width:150px}.fb-share-header strong,.fb-share-header span{display:block}.fb-share-header strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fb-text);font-size:12px;text-transform:uppercase}.fb-share-header span{margin-top:3px;font-weight:400}.fb-share-cell span,.fb-share-cell strong{display:block}.fb-share-cell span{color:var(--fb-muted);font-size:12px}.fb-share-cell strong{margin-top:4px;color:var(--fb-text);font-size:15px;font-weight:700}

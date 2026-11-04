@@ -12,21 +12,16 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/financeiro-design/StatusBadge";
-import { formatarBRL, formatarData, hojeISO } from "@/components/financeiro-design/lancamento-tabela";
+import { formatarBRL, formatarData } from "@/components/financeiro-design/lancamento-tabela";
 import type { ContaAPagar } from "./tipos";
-import type { DadosBaixaAPagar } from "@/hooks/useContasAPagar";
 
-const FORMAS = ["PIX", "TRANSFERENCIA", "BOLETO", "DINHEIRO", "CARTAO"];
 const PENDENTES = ["EM_ABERTO", "PENDENTE", "ATRASADO", "EM_ATRASO"];
 
 interface Props {
   conta: ContaAPagar | null;
   onFechar: () => void;
-  onBaixar: (id: string, dados: DadosBaixaAPagar) => Promise<void>;
+  onBaixar: (conta: ContaAPagar) => void;
 }
 
 function Campo({ rotulo, valor, mono }: { rotulo: string; valor: string; mono?: boolean }) {
@@ -55,42 +50,11 @@ export function DetalheContaAPagar({ conta, onFechar, onBaixar }: Props) {
     [conta],
   );
   const [anexoAtivo, setAnexoAtivo] = useState(0);
-  const [dataPagamento, setDataPagamento] = useState(hojeISO());
-  const [formaPagamento, setFormaPagamento] = useState("PIX");
-  const [banco, setBanco] = useState("");
-  const [comprovanteUrl, setComprovanteUrl] = useState("");
-  const [observacoes, setObservacoes] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
 
   if (!conta) return null;
 
   const pendente = PENDENTES.includes(conta.status);
   const anexo = anexos[Math.min(anexoAtivo, anexos.length - 1)];
-
-  async function confirmar() {
-    if (!conta) return;
-    if (!banco.trim()) {
-      setErro("Informe a conta bancária usada no pagamento.");
-      return;
-    }
-    setEnviando(true);
-    setErro("");
-    try {
-      await onBaixar(conta.id, {
-        dataPagamento,
-        bancoPagamento: banco.trim(),
-        comprovantePagamentoUrl: comprovanteUrl.trim() || undefined,
-        formaPagamento,
-        observacoes: observacoes.trim() || undefined,
-      });
-      onFechar();
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível dar baixa nesta conta.");
-    } finally {
-      setEnviando(false);
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-background/80 p-0 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true">
@@ -196,56 +160,13 @@ export function DetalheContaAPagar({ conta, onFechar, onBaixar }: Props) {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 rounded-2xl border border-border p-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pg-data">Data do pagamento</Label>
-                    <Input id="pg-data" type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pg-valor">Valor a liquidar</Label>
-                    <Input id="pg-valor" value={formatarBRL(conta.valor)} readOnly />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pg-forma">Forma de pagamento</Label>
-                    <select
-                      id="pg-forma"
-                      value={formaPagamento}
-                      onChange={(e) => setFormaPagamento(e.target.value)}
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {FORMAS.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pg-banco">Conta bancária</Label>
-                    <Input id="pg-banco" placeholder="Ex.: DGA - BRADESCO 1868-6" value={banco} onChange={(e) => setBanco(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="pg-comprovante">Comprovante (URL)</Label>
-                    <Input id="pg-comprovante" placeholder="https://…" value={comprovanteUrl} onChange={(e) => setComprovanteUrl(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="pg-obs">Observações</Label>
-                    <Textarea id="pg-obs" rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Número da transação, justificativa da diferença…" />
-                  </div>
-                </div>
-
-                {erro && <p className="text-xs font-semibold text-destructive">{erro}</p>}
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={onFechar} disabled={enviando}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={() => void confirmar()} disabled={enviando} className="gap-2">
-                    {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    {enviando ? "Confirmando…" : "Confirmar pagamento"}
-                  </Button>
-                </div>
+              <div className="space-y-4 rounded-2xl border border-border p-5">
+                <p className="text-xs text-muted-foreground">
+                  O título ainda está em aberto. Registre o pagamento para atualizar a situação e anexar o comprovante.
+                </p>
+                <Button type="button" className="gap-2" onClick={() => onBaixar(conta)}>
+                  <CheckCircle2 className="h-4 w-4" /> Registrar pagamento
+                </Button>
               </div>
             )}
           </section>

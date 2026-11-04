@@ -15,9 +15,15 @@ export interface Lancamento {
   id: string;
   aeronaveId: string | null;
   cotistaId: string | null;
+  cotistaNome?: string | null;
+  cotista?: string | null;
   data: string; // ISO date
   descricao: string;
   documento: string | null;
+  numeroDoc?: string | null;
+  numeroNf?: string | null;
+  numeroRecibo?: string | null;
+  numeroDemonstrativo?: string | null;
   documentoUrl?: string | null;
   url_demonstrativo?: string | null;
   url_nf?: string | null;
@@ -68,6 +74,10 @@ export interface ContaAPagar {
   fornecedor: string | null;
   fornecedorId: string | null;
   cotistaId: string | null;
+  cotistaNome?: string | null;
+  cotista?: string | null;
+  reembolsavel?: boolean;
+  reembolsoQuitado?: boolean;
   boletoUrl: string | null;
   nfUrl: string | null;
   dataPagamento: string | null;
@@ -77,6 +87,10 @@ export interface ContaAPagar {
   fonteLancamento?: boolean;
   comprovantePagamentoUrl: string | null;
   documento: string | null;
+  numeroDoc?: string | null;
+  numeroNf?: string | null;
+  numeroRecibo?: string | null;
+  numeroDemonstrativo?: string | null;
   tipoDocumento?: TipoDocumento | null;
   numerosDocumento?: string[];
   documentoUrl: string | null;

@@ -67,7 +67,7 @@ export function linhasDeContasAPagar(contas: ContaAPagar[]): LinhaConta[] {
     descricao: c.descricao || "—",
     categoria: c.categoriaNome || "—",
     favorecido: c.fornecedor || "—",
-    favorecidoPessoa: null,
+    favorecidoPessoa: c.cotistaNome || c.cotista || null,
     fornecedor: c.fornecedorId ? c.fornecedor : null,
     contaBancaria: c.bancoPagamento || c.contaBancariaId || "—",
     dataLancamento: c.dataEmissao || c.criadoEm || "",

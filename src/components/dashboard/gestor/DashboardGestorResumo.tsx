@@ -442,7 +442,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
               variant="ghost"
               size="icon"
               onClick={voltar}
-              className="size-8 text-muted-foreground hover:text-foreground"
+              className="mx-1 my-px size-8 min-h-0 px-0 py-px leading-4 border-[rgba(70,133,139,0.93)] text-muted-foreground hover:text-foreground"
               aria-label="Voltar ao dashboard"
               title="Voltar ao dashboard"
             >

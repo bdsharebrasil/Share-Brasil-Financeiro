@@ -828,4 +828,9 @@ export const STYLES = `
 .nf-mobile-docs{display:none}
 @container(max-width:760px){.nf-mobile-docs{display:grid}}
 .nf-list-heading,.nf-back,.nf-mobile-docs{background:#070a12}
+.nf-header-actions{display:flex;flex-direction:column;gap:9px}
+.nf-header-actions .nf-btn{margin-left:37px;margin-right:37px;padding-left:16px;padding-right:16px;min-height:20px}
+.nf-header-actions .nf-btn.primary{margin-left:19px;margin-right:19px;background-color:rgba(10,95,221,.87);box-shadow:0 1px 0 0 rgba(18,101,237,.125);font-weight:500;line-height:10px;padding-left:7px;padding-right:7px;gap:4px;min-height:27px}
+.nf-panel-top .nf-segment[aria-label="Tipo de documento"]{gap:27px;margin-left:6px;margin-right:6px;padding-left:21px;padding-right:21px}
+.nf-panel-top .nf-segment button.active{background-color:rgba(10,95,221,1);line-height:17px;font-weight:500;box-shadow:0 3px 0 0 rgba(0,0,0,.133);border:1px solid rgba(6,36,44,1)}
 `;

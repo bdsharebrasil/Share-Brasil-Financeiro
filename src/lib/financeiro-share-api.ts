@@ -301,6 +301,16 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
 
     documentoUrl: resolverUrlDocumento(row.documentoUrl || row.url_doc || row.relatorio_pdf_url || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto),
 
+    url_demonstrativo: resolverUrlDocumento(row.url_demonstrativo || row.urlDemonstrativo),
+
+    url_nf: resolverUrlDocumento(row.url_nf || row.urlNf),
+
+    url_recibo: resolverUrlDocumento(row.url_recibo || row.urlRecibo),
+
+    url_boleto: resolverUrlDocumento(row.url_boleto || row.urlBoleto),
+
+    url_doc: resolverUrlDocumento(row.url_doc || row.urlDoc),
+
     lancamentoId: row.lancamentoId ?? row.lancamento_id ?? row.lancamentos_id ?? null,
 
     status: String(row.status ?? "EM_ABERTO").toUpperCase(),
@@ -523,10 +533,9 @@ export async function darBaixaContaAPagar(id: string, dados: { dataPagamento: st
 
 }
 
-export function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
-
-  return financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
-
+export async function buscarContasAReceber(filtros: FiltrosContasAReceber = {}): Promise<ContaAReceber[]> {
+  const contas = await financeiroRequest<ContaAReceber[]>(`/api/financeiro/contas-areceber${paraQueryString({ status: filtros.status, vencidasAte: filtros.vencidasAte, cotistaId: filtros.cotistaId })}`);
+  return contas.map((conta) => normalizarContaFinanceira<ContaAReceber>(conta));
 }
 
 export async function darBaixaContaAReceber(id: string, dados: { dataRecebimento?: string; bancoRecebimento?: string; formaPagamento?: string; comprovanteRecebimentoUrl?: string; pagamentos: Array<{ idempotency_key?: string; data_pagamento?: string; conta_bancaria_id?: string; comprovante_url?: string | null; forma_pagamento?: string | null; tipo_pagador: "COTISTA" | "SHARE" | "HOLDING"; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; rateios: Array<{ rateio_id: string; valor_centavos: number }> }> }): Promise<ContaAReceber> {

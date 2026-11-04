@@ -1,12 +1,3 @@
-/**
- * Substitua o LancamentosUnificados.tsx atual por este arquivo, na mesma pasta.
- * Mantém os imports dos hooks, APIs e modais enviados no código original.
- * O CSS está embutido no fim do arquivo; não é necessário criar outro CSS.
- * Uso: <LancamentosUnificados fluxo="ENTRADA" />
- * Para preencher os campos adicionais, passe obterDetalhes={(linha) => ({ ... })}.
- * Esses campos são opcionais e aparecem como “—” enquanto não forem mapeados.
- * PAGO continua sendo exibido como Conciliado, conforme seu modelo existente.
- */
 import {
   Fragment,
   useEffect,
@@ -23,7 +14,10 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Columns2,
+  ExternalLink,
   Filter,
+  FileText,
+  Image as ImageIcon,
   List,
   Loader2,
   MoreVertical,
@@ -35,8 +29,10 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE } from "@/lib/api";
 import {
   buscarOpcoesFinanceiroShare,
+  carregarDocumentoFinanceiro,
   darBaixaContaAPagar,
   darBaixaContaAReceber,
   darBaixaLancamento,
@@ -62,18 +58,22 @@ import { NovoLancamentoShareDialog } from "./NovoLancamentoShareDialog";
 
 /** Campos opcionais: conecte aos nomes reais do seu backend via obterDetalhes. */
 export type DetalhesLancamento = {
-  formaPagamento?: string;
   observacoes?: string;
   anexos?: Array<{ nome: string; url: string }>;
 };
 
-const CAMPOS_ANEXO: Array<{ campo: "url_recibo" | "url_demonstrativo" | "url_nf" | "url_boleto" | "url_doc"; rotulo: string }> = [
+const CAMPOS_ANEXO: Array<{ campo: string; rotulo: string }> = [
   { campo: "url_recibo", rotulo: "Recibo" },
   { campo: "url_demonstrativo", rotulo: "Demonstrativo" },
   { campo: "url_nf", rotulo: "Nota fiscal" },
   { campo: "url_boleto", rotulo: "Boleto" },
   { campo: "url_doc", rotulo: "Documento" },
+  { campo: "comprovanteRecebimentoUrl", rotulo: "Comprovante de recebimento" },
+  { campo: "comprovantePagamentoUrl", rotulo: "Comprovante de pagamento" },
+  { campo: "documentoUrl", rotulo: "Documento principal" },
 ];
+
+type AnexoLancamento = { nome: string; href: string };
 
 type Props = {
   fluxo: FluxoLinha;
@@ -151,13 +151,49 @@ function dataOuTraco(valor?: string) {
   return valor ? formatarData(valor.slice(0, 10)) : "—";
 }
 function urlSegura(valor: string) {
-  // Aceita links web e caminhos relativos. Bloqueia javascript:, data: etc.
+  // Resolve caminhos internos pela API configurada e bloqueia protocolos executáveis.
   try {
-    const url = new URL(valor, "https://app.local/");
-    return url.protocol === "https:" || url.protocol === "http:" ? valor : undefined;
+    const valorLimpo = valor.trim();
+    const resolvido = valorLimpo.startsWith("/") ? `${API_BASE}${valorLimpo}` : valorLimpo;
+    const url = new URL(resolvido, window.location.href);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
   } catch {
     return undefined;
   }
+}
+
+function reunirAnexos(linha: LinhaConta, dados: DetalhesLancamento = {}): AnexoLancamento[] {
+  const raw = linha.raw as unknown as Record<string, unknown>;
+  const candidatos = [
+    ...CAMPOS_ANEXO.map(({ campo, rotulo }) => ({ nome: rotulo, url: raw[campo] })),
+    ...(dados.anexos ?? []).map((anexo) => ({ nome: anexo.nome, url: anexo.url })),
+  ];
+  const urlsVistas = new Set<string>();
+  return candidatos.flatMap(({ nome, url }) => {
+    if (typeof url !== "string") return [];
+    const href = urlSegura(url);
+    if (!href || urlsVistas.has(href)) return [];
+    urlsVistas.add(href);
+    return [{ nome: nome || "Anexo", href }];
+  });
+}
+
+function urlDeApiPrivada(href: string) {
+  try {
+    const alvo = new URL(href, window.location.origin);
+    const api = new URL(API_BASE || "/", window.location.origin);
+    return alvo.origin === api.origin && alvo.pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+
+function mimePelaUrl(href: string) {
+  const caminho = new URL(href, window.location.origin).pathname.toLowerCase();
+  if (/\.pdf$/.test(caminho)) return "application/pdf";
+  if (/\.svg$/.test(caminho)) return "image/svg+xml";
+  if (/\.(apng|avif|bmp|gif|jpe?g|png|webp)$/.test(caminho)) return "image/*";
+  return "";
 }
 
 function Checkbox({
@@ -180,30 +216,77 @@ function Checkbox({
   );
 }
 
+function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
+  const privado = urlDeApiPrivada(anexo.href);
+  const [recurso, setRecurso] = useState<{ url: string; mime: string } | null>(null);
+  const [carregando, setCarregando] = useState(privado);
+  const [falha, setFalha] = useState(false);
+  const [imagemQuebrou, setImagemQuebrou] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
+
+  useEffect(() => {
+    if (!privado) return;
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    setCarregando(true);
+    setFalha(false);
+    setRecurso(null);
+    void carregarDocumentoFinanceiro(anexo.href, controller.signal).then((blob) => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(blob);
+      const mimeBlob = blob.type.toLowerCase().split(";")[0];
+      const mime = !mimeBlob || mimeBlob === "application/octet-stream" ? mimePelaUrl(anexo.href) || mimeBlob : mimeBlob;
+      setRecurso({ url: objectUrl, mime });
+    }).catch(() => {
+      if (!controller.signal.aborted) setFalha(true);
+    }).finally(() => {
+      if (!controller.signal.aborted) setCarregando(false);
+    });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [anexo.href, privado, tentativa]);
+
+  const href = privado ? recurso?.url : anexo.href;
+  const mime = recurso?.mime || mimePelaUrl(anexo.href);
+  const imagem = mime.startsWith("image/") || mime === "image/*";
+  const tentarImagem = imagem || (!privado && !mime);
+  const titulo = anexo.nome || "Anexo";
+
+  return (
+    <article className="erp-anexo-card">
+      {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="erp-anexo-link" aria-label={`Abrir ${titulo}`}>
+        <span className="erp-anexo-previa">
+          {tentarImagem && !imagemQuebrou ? <img src={href} alt={`Prévia: ${titulo}`} loading="lazy" onError={() => setImagemQuebrou(true)} />
+            : mime === "application/pdf" ? <FileText size={22} aria-hidden="true" />
+              : <ImageIcon size={22} aria-hidden="true" />}
+        </span>
+        <span className="erp-anexo-meta"><strong title={titulo}>{titulo}</strong><small>{imagem ? "Imagem" : mime === "application/pdf" ? "PDF" : "Arquivo"}</small></span>
+        <ExternalLink size={14} className="erp-anexo-abrir" aria-hidden="true" />
+      </a> : <div className="erp-anexo-indisponivel" aria-live="polite">
+        <span className="erp-anexo-previa"><FileText size={20} aria-hidden="true" /></span>
+        <span className="erp-anexo-meta"><strong>{titulo}</strong><small>{carregando ? "Carregando prévia…" : falha ? "Não foi possível carregar" : "Preparando documento…"}</small>{falha && <button type="button" className="erp-anexo-tentar" onClick={() => setTentativa((valor) => valor + 1)}>Tentar novamente</button>}</span>
+      </div>}
+    </article>
+  );
+}
+
 function Detalhes({ linha, dados }: { linha: LinhaConta; dados: DetalhesLancamento }) {
-  const anexosDaLinha = CAMPOS_ANEXO.flatMap(({ campo, rotulo }) => {
-    const url = linha.raw[campo];
-    return url ? [{ nome: rotulo, url }] : [];
-  });
-  const anexos = [...anexosDaLinha, ...(dados.anexos ?? [])].flatMap((anexo) => {
-    const href = urlSegura(anexo.url);
-    return href ? [{ ...anexo, href }] : [];
-  });
+  const anexos = reunirAnexos(linha, dados);
   return (
     <div className="erp-detalhes">
-      <dl>
+      <dl className="erp-detalhes-campos">
         <div><dt>Categoria</dt><dd>{linha.categoria || "—"}</dd></div>
-        <div><dt>Forma de pagamento</dt><dd>{dados.formaPagamento || "—"}</dd></div>
+        <div><dt>Favorecido</dt><dd>{linha.favorecido || "—"}</dd></div>
         <div><dt>Nº do documento</dt><dd>{linha.documento || "—"}</dd></div>
-      </dl>
-      <dl>
         <div><dt>Observações</dt><dd className="erp-observacoes">{dados.observacoes || "—"}</dd></div>
-        <div><dt>Anexos</dt><dd>{anexos.length ? anexos.map((anexo, i) => (
-          <a key={`${anexo.href}-${i}`} href={anexo.href} target="_blank" rel="noopener noreferrer" className="erp-anexo">
-            <Paperclip size={15} aria-hidden="true" />{anexo.nome}
-          </a>
-        )) : "—"}</dd></div>
       </dl>
+      <section className="erp-anexos" aria-label="Anexos do lançamento">
+        <header className="erp-anexos-cabecalho"><strong>Anexos e documentos</strong><span>{anexos.length} {anexos.length === 1 ? "arquivo" : "arquivos"}</span></header>
+        {anexos.length ? <div className="erp-anexos-grade">{anexos.map((anexo) => <CartaoAnexo key={anexo.href} anexo={anexo} />)}</div>
+          : <p className="erp-anexos-vazio">Nenhum anexo vinculado a este lançamento.</p>}
+      </section>
     </div>
   );
 }
@@ -636,6 +719,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                   const aberta = expansao.has(linha.id);
                   const indiceLinha = lancamentos.findIndex((item) => item.id === linha.id);
                   const detalheId = `${id}-detalhes-${indiceLinha}`;
+                  const dadosDetalhe = aberta ? obterDetalhes?.(linha) ?? {} : {};
+                  const anexos = reunirAnexos(linha, dadosDetalhe);
                   return <Fragment key={linha.id}>
                     <tr className={`erp-linha ${selecao.has(linha.id) ? "erp-linha-selecionada" : ""} ${aberta ? "erp-linha-aberta" : ""}`}
                       onClick={() => alternarExpansao(linha.id)}>
@@ -658,7 +743,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                       </div></td>
                       <td><span>{dataOuTraco(linha.dataLancamento)}</span>{linha.dataVencimento && <span className="erp-texto-secundario">Venc. {dataOuTraco(linha.dataVencimento)}</span>}</td>
                       <td className="erp-documento" title={linha.documento || undefined}>{linha.documento || "—"}</td>
-                      <td><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
+                      <td><div className="erp-descricao-cabecalho"><strong className="erp-descricao" title={linha.descricao}>{linha.descricao}</strong>{anexos.length > 0 && <span className="erp-anexos-contagem" title={`${anexos.length} ${anexos.length === 1 ? "anexo" : "anexos"}`}><Paperclip size={12} aria-hidden="true" />{anexos.length}</span>}</div><span className="erp-texto-secundario" title={linha.categoria}>{linha.categoria || "—"}</span></td>
                       {ehEntrada ? <td title={linha.favorecido}>{linha.favorecido || "—"}</td> : <>
                         <td title={linha.favorecidoPessoa || undefined}>{linha.favorecidoPessoa || "—"}</td>
                         <td title={linha.fornecedor || undefined}>{linha.fornecedor || "—"}</td>
@@ -668,7 +753,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                       <td className="erp-valor">{formatarMoeda(linha.valor)}</td>
                     </tr>
                     {aberta && <tr className="erp-linha-detalhes"><td colSpan={colunas.length + 1}>
-                      <div id={detalheId}><Detalhes linha={linha} dados={obterDetalhes?.(linha) ?? {}} /></div>
+                      <div id={detalheId}><Detalhes linha={linha} dados={dadosDetalhe} /></div>
                     </td></tr>}
                   </Fragment>;
                 }) : <tr><td colSpan={colunas.length + 1} className="erp-estado">Nenhum lançamento encontrado para os filtros.</td></tr>}
@@ -742,7 +827,8 @@ const ESTILOS_FINANCEIRO = `
   width: 100%; min-width: 0; padding: 10px 11px 5px; color: var(--erp-text); color-scheme: dark;
   background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px; line-height: 1.35; border-radius: 5px; -webkit-font-smoothing: antialiased;
+  font-size: 13px; line-height: 1.4; border: 1px solid #202a34; border-radius: 14px; -webkit-font-smoothing: antialiased;
+  box-shadow: 0 16px 44px #0003;
 }
 .erp-financeiro.erp-saida { --erp-total: #fb7185; }
 .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { box-sizing: border-box; }
@@ -751,12 +837,12 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 0 8px; margin-bottom: 9px; }
+.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 5px 8px 10px; margin-bottom: 5px; }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
-.erp-financeiro .erp-resumo { text-align: right; white-space: nowrap; }
+.erp-financeiro .erp-resumo { min-width: 150px; padding: 9px 14px; text-align: right; white-space: nowrap; border: 1px solid #263744; border-radius: 10px; background: linear-gradient(135deg, #11202a, #111820); }
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 9px; border: 1px solid var(--erp-border); border-radius: 5px; margin-bottom: 4px; background: #060a13; }
+.erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid var(--erp-border); border-radius: 11px; margin-bottom: 8px; background: linear-gradient(145deg, #0d141c, #090d14); }
 .erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
@@ -788,15 +874,15 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-busca > svg { position: absolute; top: 10px; left: 11px; color: var(--erp-muted); }
 .erp-financeiro .erp-busca input { padding-left: 35px; }
 .erp-financeiro .erp-erro { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 10px 12px; border: 1px solid #a83b4b; border-radius: 4px; color: #ffb7bf; background: #7b263322; }
-.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid var(--erp-border); border-radius: 5px 5px 3px 3px; scrollbar-color: #3c4b5d #10151a; cursor: grab; }
+.erp-financeiro .erp-tabela-container { overflow-x: auto; border: 1px solid #2b3743; border-radius: 12px; background: #0d131a; box-shadow: 0 8px 24px #0002; scrollbar-color: #3c4b5d #10151a; cursor: grab; }
 .erp-financeiro .erp-tabela-container.erp-arrastando, .erp-financeiro .erp-tabela-container.erp-arrastando * { cursor: grabbing !important; user-select: none; }
-.erp-financeiro .erp-tabela { width: 100%; min-width: 1380px; border-collapse: collapse; table-layout: fixed; text-align: left; color: var(--erp-text); }
+.erp-financeiro .erp-tabela { width: 100%; min-width: 1260px; border-collapse: separate; border-spacing: 0; table-layout: fixed; text-align: left; color: var(--erp-text); }
 .erp-financeiro .erp-tabela-saidas { min-width: 1550px; }
-.erp-financeiro .erp-tabela thead { background: linear-gradient(#19212877, #12181d55); }
-.erp-financeiro .erp-tabela th { position: relative; height: 32px; padding: 0 16px; border-bottom: 1px solid var(--erp-border); border-right: 1px solid #27313b88; font-weight: 600; }
-.erp-financeiro .erp-tabela th.erp-th-status { height: 32px; padding: 0 8px; }
+.erp-financeiro .erp-tabela thead { background: linear-gradient(#1a2732, #131c25); }
+.erp-financeiro .erp-tabela th { position: relative; height: 42px; padding: 0 16px; border-bottom: 1px solid #344352; border-right: 1px solid #27313b66; font-weight: 600; }
+.erp-financeiro .erp-tabela th.erp-th-status { height: 42px; padding: 0 8px; }
 .erp-financeiro .erp-tabela th:first-child { padding: 0; }
-.erp-financeiro .erp-ordenar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; height: 32px; padding: 0; border: 0; background: transparent; color: #c5d5ea; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; text-align: left; }
+.erp-financeiro .erp-ordenar { display: flex; align-items: center; justify-content: space-between; gap: 5px; width: 100%; height: 40px; padding: 0; border: 0; background: transparent; color: #c5d5ea; font-size: 10px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; text-align: left; }
 .erp-financeiro .erp-status-th-conteudo { display: flex; align-items: center; gap: 5px; }
 .erp-financeiro .erp-status-th-conteudo .erp-ordenar { flex: 1; }
 .erp-financeiro .erp-status-filtro-anchor { position: relative; z-index: 20; flex: 0 0 auto; }
@@ -808,13 +894,15 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-ordenar > svg { color: #a6bbd4; }
 .erp-financeiro .erp-redimensionar { position: absolute; right: -3px; top: 0; bottom: 0; z-index: 1; width: 7px; cursor: col-resize; touch-action: none; }
 .erp-financeiro .erp-redimensionar:hover { background: #159cff66; }
-.erp-financeiro .erp-tabela td { padding: 3px 16px; border-bottom: 1px solid #27313b99; border-right: 1px solid #27313b77; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.erp-financeiro .erp-tabela td { padding: 7px 16px; border-bottom: 1px solid #27313b99; border-right: 1px solid #27313b55; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .erp-financeiro .erp-tabela th:last-child, .erp-financeiro .erp-tabela td:last-child { border-right: 0; }
-.erp-financeiro .erp-linha { height: 39px; cursor: pointer; background: #11171c66; }
-.erp-financeiro .erp-linha:nth-child(even) { background: #151c2255; }
-.erp-financeiro .erp-linha:hover { background: #202a3488; }
+.erp-financeiro .erp-linha { height: 48px; cursor: pointer; background: #10171e; transition: background .15s ease; }
+.erp-financeiro .erp-linha:nth-child(even) { background: #131b23; }
+.erp-financeiro .erp-linha:hover { background: #1b2935; }
 .erp-financeiro .erp-linha.erp-linha-selecionada, .erp-financeiro .erp-linha.erp-linha-aberta { background: #27313c88; }
-.erp-financeiro .erp-descricao { display: block; font-size: 13px; line-height: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.erp-financeiro .erp-descricao-cabecalho { display: flex; align-items: center; min-width: 0; gap: 8px; }
+.erp-financeiro .erp-descricao { display: block; min-width: 0; flex: 1; font-size: 13px; line-height: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.erp-financeiro .erp-anexos-contagem { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 7px; border: 1px solid #28648a; border-radius: 999px; color: #80cfff; background: #0b6eaa22; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-texto-secundario { display: block; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }
 .erp-financeiro .erp-tabela .erp-documento { color: #b3c2d8; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .erp-financeiro .erp-celula-selecao { display: flex; align-items: center; justify-content: space-between; gap: 13px; }
@@ -836,18 +924,29 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-status-atrasado { background: linear-gradient(100deg, #ff5359, #f64750); color: #290a0c; }
 .erp-financeiro .erp-status-cancelado { background: #657386; color: #fff; }
 .erp-financeiro .erp-valor { text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: #11171c88; }
-.erp-financeiro .erp-detalhes { display: grid; grid-template-columns: 1fr 1fr 1.1fr .85fr; gap: 0; padding: 14px 16px 14px 49px; }
-.erp-financeiro .erp-detalhes dl { min-width: 0; margin: 0; padding: 0 32px; border-left: 1px solid #27313b88; }
-.erp-financeiro .erp-detalhes dl:first-child { padding-left: 0; border-left: 0; }
-.erp-financeiro .erp-detalhes dl:last-child { padding-right: 0; }
-.erp-financeiro .erp-detalhes dl > div + div { margin-top: 6px; }
-.erp-financeiro .erp-detalhes dt { color: var(--erp-muted); font-size: 12px; line-height: 17px; }
-.erp-financeiro .erp-detalhes dd { margin: 0; color: var(--erp-text); font-size: 13px; line-height: 18px; overflow-wrap: anywhere; }
+.erp-financeiro .erp-linha-detalhes > td { padding: 0 !important; white-space: normal; background: #0e151c; }
+.erp-financeiro .erp-detalhes { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(360px, 1.6fr); gap: 12px; padding: 16px 18px 18px 50px; border-top: 1px solid #263542; }
+.erp-financeiro .erp-detalhes-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; min-width: 0; margin: 0; padding: 14px; border: 1px solid #273744; border-radius: 10px; background: #121b24; }
+.erp-financeiro .erp-detalhes-campos > div { min-width: 0; }
+.erp-financeiro .erp-detalhes dt { margin-bottom: 3px; color: var(--erp-muted); font-size: 11px; line-height: 16px; }
+.erp-financeiro .erp-detalhes dd { margin: 0; color: var(--erp-text); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
 .erp-financeiro .erp-observacoes { white-space: pre-wrap; }
-.erp-financeiro .erp-anexo { display: flex; align-items: center; gap: 7px; color: #0b9fff; text-decoration: none; margin-top: 2px; }
-.erp-financeiro .erp-anexo:hover { text-decoration: underline; }
-.erp-financeiro .erp-anexo svg { flex-shrink: 0; color: var(--erp-text); }
+.erp-financeiro .erp-anexos { min-width: 0; padding: 13px; border: 1px solid #273744; border-radius: 10px; background: #121b24; }
+.erp-financeiro .erp-anexos-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: #e7edf6; font-size: 12px; }
+.erp-financeiro .erp-anexos-cabecalho span { color: var(--erp-muted); font-size: 10px; }
+.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 9px; }
+.erp-financeiro .erp-anexo-card { min-width: 0; overflow: hidden; border: 1px solid #2a3946; border-radius: 9px; background: #0d151d; transition: border-color .15s, transform .15s; }
+.erp-financeiro .erp-anexo-card:hover { border-color: #2787bc; transform: translateY(-1px); }
+.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: grid; grid-template-columns: 62px minmax(0, 1fr) 16px; align-items: center; gap: 9px; min-height: 76px; padding: 7px; color: inherit; text-decoration: none; }
+.erp-financeiro .erp-anexo-indisponivel { grid-template-columns: 62px minmax(0, 1fr); }
+.erp-financeiro .erp-anexo-previa { display: flex; align-items: center; justify-content: center; width: 62px; height: 60px; overflow: hidden; border: 1px solid #293845; border-radius: 6px; color: #7acaff; background: linear-gradient(145deg, #172737, #111820); }
+.erp-financeiro .erp-anexo-previa img { width: 100%; height: 100%; object-fit: cover; }
+.erp-financeiro .erp-anexo-meta { display: grid; min-width: 0; gap: 3px; }
+.erp-financeiro .erp-anexo-meta strong { overflow: hidden; color: #dce8f5; font-size: 11px; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.erp-financeiro .erp-anexo-meta small { color: #91a4b8; font-size: 10px; }
+.erp-financeiro .erp-anexo-tentar { width: fit-content; padding: 0; border: 0; color: #80cfff; background: transparent; font-size: 10px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.erp-financeiro .erp-anexo-abrir { color: #80cfff; }
+.erp-financeiro .erp-anexos-vazio { margin: 0; padding: 10px 2px 2px; color: var(--erp-muted); font-size: 11px; }
 .erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }
 .erp-financeiro .erp-menu-linha { position: relative; display: flex; align-items: center; }
 .erp-financeiro .erp-botao-menu { display: flex; align-items: center; justify-content: center; width: 24px; height: 27px; padding: 0; border: 0; border-radius: 3px; color: #d6e2ee; background: transparent; }
@@ -880,7 +979,7 @@ const ESTILOS_FINANCEIRO = `
   .erp-financeiro .erp-toolbar { gap: 8px; }
   .erp-financeiro .erp-periodo { margin-left: 0; }
   .erp-financeiro .erp-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .erp-financeiro .erp-detalhes dl { padding: 0 22px; }
+  .erp-financeiro .erp-detalhes { grid-template-columns: minmax(180px, .8fr) minmax(0, 1.4fr); padding-left: 18px; }
 }
 @media (max-width: 600px) {
   .erp-financeiro { padding: 10px 8px; }
@@ -895,6 +994,9 @@ const ESTILOS_FINANCEIRO = `
   .erp-financeiro .erp-navegacao-mes { gap: 3px; }
   .erp-financeiro .erp-rotulo-periodo { min-width: 105px; font-size: 12px; }
   .erp-financeiro .erp-filtros { grid-template-columns: minmax(0, 1fr); }
+  .erp-financeiro .erp-detalhes { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .erp-financeiro .erp-detalhes-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp-financeiro .erp-anexos-grade { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
   .erp-financeiro .erp-rodape { font-size: 11px; }
   .erp-financeiro .erp-rodape-info { gap: 7px; flex-wrap: wrap; }
   .erp-financeiro .erp-paginacao { margin-left: auto; }

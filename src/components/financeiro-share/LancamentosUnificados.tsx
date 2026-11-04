@@ -905,7 +905,7 @@ const ESTILOS_FINANCEIRO = `
   --erp-danger: #f53228e0; --erp-danger-bg: rgba(245, 50, 40, 0.12); --erp-danger-border: rgba(245, 50, 40, 0.25);
   --erp-warning: #eab54b; --erp-warning-bg: rgba(234, 181, 75, 0.12); --erp-warning-border: rgba(234, 181, 75, 0.25);
   --erp-neutral: #9aa8b9; --erp-neutral-bg: rgba(101, 115, 134, 0.14); --erp-neutral-border: rgba(101, 115, 134, 0.3);
-  width: 100%; min-width: 0; margin: -10px -11px; padding: 10px 17px 5px 12px; color: var(--erp-text); color-scheme: dark;
+  width: 100%; min-width: 0; margin: 12px -11px; padding: 10px 17px 5px 12px; color: var(--erp-text); color-scheme: dark;
   background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px; line-height: 8.2px; border: 1px solid #202a34; border-radius: 14px; -webkit-font-smoothing: antialiased;
@@ -918,8 +918,8 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-tela { margin: -3px -9px; padding-top: 11px; padding-bottom: 11px; }
-.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -19px; padding: 1px 8px 4px; margin-bottom: 5px; }
+.erp-financeiro .erp-tela { margin: -1px -9px; padding-top: 11px; padding-bottom: 11px; }
+.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -15px; padding: 1px 8px 4px; margin-bottom: 5px; }
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; font-size: 21px; font-weight: 500; }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }

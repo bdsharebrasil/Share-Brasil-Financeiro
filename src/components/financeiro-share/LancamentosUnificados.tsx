@@ -773,20 +773,22 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             </button>
             <span className="erp-divisor" aria-hidden="true" />
             <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
-            <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
-              onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
-            {menuColunasAberto && (
-              <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
-                {colunas.map((coluna) => {
-                  const visivel = !colunasOcultas.includes(coluna.chave);
-                  return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
-                    disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
-                    <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
-                    {coluna.rotulo}
-                  </button>;
-                })}
-              </div>
-            )}
+            <div className="erp-colunas-ancora">
+              <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
+                onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
+              {menuColunasAberto && (
+                <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
+                  {colunas.map((coluna) => {
+                    const visivel = !colunasOcultas.includes(coluna.chave);
+                    return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
+                      disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
+                      <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
+                      {coluna.rotulo}
+                    </button>;
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="erp-periodo" ref={periodoRef}>
@@ -1020,7 +1022,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 }
 
 // CSS isolado por prefixo. O componente não depende das cores do tema Tailwind.
-const ESTILOS_FINANCEIRO = `
+export const ESTILOS_FINANCEIRO = `
 .erp-financeiro {
   --erp-bg: #06080f; --erp-panel: #13191f; --erp-border: #27313b;
   --erp-text: #e7edf6; --erp-muted: #a6b5c9; --erp-blue: #0798ff; --erp-total: #2ed48d;
@@ -1042,7 +1044,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-tela { margin: -1px -9px; padding-top: 11px; padding-bottom: 11px; }
+.erp-financeiro .erp-tela { margin: -1px -5px; padding: 11px 1px; }
 .erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -15px; padding: 1px 8px 4px; margin-bottom: 5px; }
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; margin: 0 9px; font-size: 21px; font-weight: 400; line-height: 19.25px; border: 1px hidden rgba(126, 211, 33, 1); }
@@ -1052,7 +1054,8 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: visible; background: linear-gradient(145deg, #0d141c, #090d14); }
-.erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 0; padding: 1px 0; line-height: 12.2px; }
+.erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 78px -6px -127px; padding: 1px 0; line-height: 12.2px; }
+.erp-financeiro .erp-colunas-ancora { position: relative; display: inline-flex; }
 .erp-financeiro .erp-colunas-lista { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: flex; flex-direction: column; width: max-content; max-width: min(260px, 100%); max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
 .erp-financeiro .erp-colunas-lista button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: #b7c5d5; font-size: 11px; text-align: left; cursor: pointer; }
 .erp-financeiro .erp-colunas-lista button:hover { background: #159dff22; color: #61bbff; }
@@ -1069,7 +1072,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
 .erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -120px 4px -53px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -149px 4px 3px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
 .erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
 .erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
 .erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }
@@ -1115,7 +1118,9 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-linha { height: 48px; cursor: pointer; background: #10171e; transition: background .15s ease; }
 .erp-financeiro .erp-linha:nth-child(even) { background: #131b23; }
 .erp-financeiro .erp-linha:hover { background: #1b2935; }
-.erp-financeiro .erp-linha.erp-linha-selecionada, .erp-financeiro .erp-linha.erp-linha-aberta { background: #27313c88; }
+.erp-financeiro .erp-linha.erp-linha-selecionada { background: #27313c88; }
+.erp-financeiro .erp-linha.erp-linha-aberta { background: #0a1015; }
+.erp-financeiro .erp-linha.erp-linha-aberta > td { background: #0a1015; box-shadow: inset 0 1px 0 #ffffff1a, inset 0 -1px 0 #00000099; }
 .erp-financeiro .erp-descricao-cabecalho { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .erp-financeiro .erp-descricao { display: block; min-width: 0; flex: 1; font-size: 13px; line-height: 17px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
 .erp-financeiro .erp-texto-secundario { display: block; margin-top: 7px; margin-bottom: 7px; color: var(--erp-muted); font-size: 12px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; }

@@ -21,7 +21,6 @@ import {
   BarChart3,
   ReceiptText,
   ListOrdered,
-  LayoutDashboard,
   PieChart,
   Landmark,
   CalendarDays,
@@ -31,7 +30,6 @@ import {
   Pencil,
   Trash2,
   Coins,
-  Gauge,
   MoreHorizontal,
   Search,
   ExternalLink,
@@ -42,7 +40,7 @@ import {
   CircleCheck,
   Clock3,
   Undo2,
-  Columns3,
+  EyeOff,
   RotateCcw,
   ChevronsUpDown,
 } from "lucide-react";
@@ -50,7 +48,7 @@ import { toast } from "sonner";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ESTILOS_FINANCEIRO } from "@/components/financeiro-share/LancamentosUnificados";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
@@ -125,7 +123,6 @@ import {
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
 } from "@/lib/colaborador-api";
-import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
 import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
@@ -176,8 +173,8 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
 .financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
-.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:0; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; }
-.financeiro-tab-label { display:inline-block; max-width:0; opacity:0; overflow:hidden; white-space:nowrap; }
+.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; }
+.financeiro-tab-label { display:inline-block; max-width:160px; opacity:1; overflow:hidden; white-space:nowrap; }
 .financeiro-tab.is-active { gap:8px; background:hsl(var(--card)); color:hsl(var(--primary)); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .financeiro-tab.is-active .financeiro-tab-label { max-width:160px; opacity:1; }
 @media (hover:hover) {
@@ -1337,6 +1334,30 @@ function statusLancamento(status: string | null | undefined) {
   );
 }
 
+const TIPOS_DOCUMENTO_COTISTA = [
+  { valor: "demonstrativo", rotulo: "Demonstrativo" },
+  { valor: "nota", rotulo: "Nota fiscal" },
+  { valor: "recibo", rotulo: "Recibo" },
+  { valor: "boleto", rotulo: "Boleto" },
+  { valor: "documento", rotulo: "Documento" },
+] as const;
+
+const TITULOS_FILTRO_CABECALHO: Record<string, string> = {
+  data: "data",
+  documento: "tipo de documento",
+  categoria: "categoria",
+  status: "status",
+};
+
+function tipoDocumentoLancamento(lancamento: LancamentoEconomico) {
+  if (lancamento.numeroNf) return "nota";
+  if (lancamento.numeroRecibo) return "recibo";
+  if (lancamento.numeroBoleto) return "boleto";
+  if (lancamento.numeroDemonstrativo) return "demonstrativo";
+  if (lancamento.numeroDoc || lancamento.documentoNumero) return "documento";
+  return null;
+}
+
 /* Fornecedor, documentos e rateio alinhados na expansão. */
 function LancamentoExpandido({
   lancamento,
@@ -1551,17 +1572,59 @@ function percentualSociedadeDoCotista(
   return cotista?.percentual_sociedade ?? null;
 }
 
+const TOM_STATUS_LANCAMENTO: Record<string, string> = {
+  PAGO: "sucesso",
+  PAGO_DIRETAMENTE: "sucesso",
+  RECEBIDO: "sucesso",
+  REEMBOLSADO: "sucesso",
+  EM_ABERTO: "pendente",
+  EM_ATRASO: "atrasado",
+  AGUARDANDO_REEMBOLSO: "aguardando",
+};
+
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
-  const Icon = visual.Icon;
   return (
     <span
       data-status={visual.value}
-      className="despesa-status inline-flex items-center gap-1.5 border"
+      className={`erp-status erp-status-${TOM_STATUS_LANCAMENTO[visual.value] ?? "cancelado"}`}
     >
-      <Icon size={11} className="shrink-0" aria-hidden="true" />
       {visual.label}
     </span>
+  );
+}
+
+function CaixaSelecao({
+  marcado,
+  parcial = false,
+  desabilitado = false,
+  rotulo,
+  aoMudar,
+}: {
+  marcado: boolean;
+  parcial?: boolean;
+  desabilitado?: boolean;
+  rotulo: string;
+  aoMudar: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = parcial;
+  }, [parcial]);
+  return (
+    <label className="erp-checkbox">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={marcado}
+        disabled={desabilitado}
+        aria-label={rotulo}
+        onChange={aoMudar}
+      />
+      <span aria-hidden="true">
+        {parcial ? <span className="erp-checkbox-traco" /> : <Check size={12} strokeWidth={3} />}
+      </span>
+    </label>
   );
 }
 
@@ -1604,6 +1667,8 @@ function LancamentosDespesa({
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [modoData, setModoData] = useState<"emissao" | "vencimento" | "ambas">("emissao");
+  const [filtroDoc, setFiltroDoc] = useState("todos");
+  const [colunaFiltroAberta, setColunaFiltroAberta] = useState<string | null>(null);
   const [ordenacao, setOrdenacao] = useState<{
     coluna: string;
     direcao: "asc" | "desc";
@@ -1611,6 +1676,7 @@ function LancamentosDespesa({
   const [larguras, setLarguras] = useState<Record<string, number>>({});
   const [ocultas, setOcultas] = useState<Set<string>>(() => new Set());
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [menuColunasAberto, setMenuColunasAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1623,7 +1689,23 @@ function LancamentosDespesa({
     setPagina(1);
     setExpandidos(new Set());
     setSelecionados(new Set());
-  }, [busca, filtroStatus, filtroCategoria, modoData, ordenacao, lancamentos, porPagina]);
+  }, [busca, filtroStatus, filtroCategoria, filtroDoc, modoData, ordenacao, lancamentos, porPagina]);
+  useEffect(() => {
+    if (!colunaFiltroAberta) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".erp-coluna-filtro-anchor")) return;
+      setColunaFiltroAberta(null);
+    };
+    const fecharEscape = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setColunaFiltroAberta(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    document.addEventListener("keydown", fecharEscape);
+    return () => {
+      document.removeEventListener("pointerdown", fecharFora);
+      document.removeEventListener("keydown", fecharEscape);
+    };
+  }, [colunaFiltroAberta]);
 
   const iniciarRedimensionamento = (
     colunaId: string,
@@ -1797,10 +1879,11 @@ function LancamentosDespesa({
         (filtroStatus === "todos" ||
           normalizarStatus(item.status) === filtroStatus) &&
         (filtroCategoria === "todas" ||
-          (item.categoria || "Sem categoria") === filtroCategoria)
+          (item.categoria || "Sem categoria") === filtroCategoria) &&
+        (filtroDoc === "todos" || tipoDocumentoLancamento(item) === filtroDoc)
       );
     });
-  }, [despesas, busca, filtroStatus, filtroCategoria, fornecedoresEdicao]);
+  }, [despesas, busca, filtroStatus, filtroCategoria, filtroDoc, fornecedoresEdicao]);
   type ColunaDespesa = {
     id: string;
     titulo: string;
@@ -1830,60 +1913,23 @@ function LancamentosDespesa({
     formatarData(valor).replace(/\/\d{4}$/, "");
   const colunas: ColunaDespesa[] = [
     {
-      id: "acoes",
-      titulo: "Ações",
-      largura: 90,
-      minimo: 90,
-      render: (item) => (
-        <div className="flex items-center justify-end gap-1">
-          {acoesDaLinha(item)}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 rounded-sm text-primary"
-            onClick={() =>
-              setExpandidos((atual) => {
-                const proximo = new Set(atual);
-                if (proximo.has(item.id)) proximo.delete(item.id);
-                else proximo.add(item.id);
-                return proximo;
-              })
-            }
-            aria-expanded={expandidos.has(item.id)}
-            aria-controls={`despesa-desktop-${item.id}`}
-            aria-label={`${expandidos.has(item.id) ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
-          >
-            {expandidos.has(item.id) ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
-          </Button>
-        </div>
-      ),
-    },
-    {
       id: "data",
       titulo: "Data",
       largura: 150,
       minimo: 130,
       valor: dataParaOrdenacao,
       render: (item) => (
-        <div className="despesa-date-group">
+        <>
           {modoData !== "vencimento" && (
-            <span>
-              <small>Emissão</small>
-              {formatarDataSemAno(item.dataEmissao || item.data)}
-            </span>
+            <span>{formatarDataSemAno(item.dataEmissao || item.data)}</span>
           )}
           {modoData !== "emissao" && (
-            <span>
-              <small>Vencimento</small>
+            <span className={modoData === "ambas" ? "erp-texto-secundario" : undefined}>
+              {modoData === "ambas" ? "Venc. " : ""}
               {formatarDataSemAno(item.prazo)}
             </span>
           )}
-        </div>
+        </>
       ),
     },
     {
@@ -1892,7 +1938,11 @@ function LancamentosDespesa({
       largura: 130,
       minimo: 96,
       valor: documentoDoLancamento,
-      render: (item) => texto(documentoDoLancamento(item)),
+      render: (item) => (
+        <span className="erp-documento" title={documentoDoLancamento(item) || undefined}>
+          {documentoDoLancamento(item) || "—"}
+        </span>
+      ),
     },
     {
       id: "descricao",
@@ -1942,11 +1992,7 @@ function LancamentosDespesa({
       minimo: 140,
       numerica: true,
       valor: valorPagoLancamento,
-      render: (item) => (
-        <span className="despesa-money">
-          {formatarCentavos(valorPagoLancamento(item))}
-        </span>
-      ),
+      render: (item) => formatarCentavos(valorPagoLancamento(item)),
     },
     {
       id: "pago-por",
@@ -1985,12 +2031,101 @@ function LancamentosDespesa({
       },
     })),
   ];
+  const filtroCabecalhoAtivo = (id: string) =>
+    id === "data"
+      ? modoData !== "emissao"
+      : id === "documento"
+        ? filtroDoc !== "todos"
+        : id === "categoria"
+          ? filtroCategoria !== "todas"
+          : filtroStatus !== "todos";
+  const opcoesFiltroCabecalho = (id: string) => {
+    if (id === "data")
+      return [
+        { rotulo: "Emissão", ativo: modoData === "emissao", aplicar: () => alterarModoData("emissao") },
+        { rotulo: "Vencimento", ativo: modoData === "vencimento", aplicar: () => alterarModoData("vencimento") },
+        { rotulo: "Emissão e vencimento", ativo: modoData === "ambas", aplicar: () => alterarModoData("ambas") },
+      ];
+    if (id === "documento")
+      return [
+        { rotulo: "Todos os documentos", ativo: filtroDoc === "todos", aplicar: () => setFiltroDoc("todos") },
+        ...TIPOS_DOCUMENTO_COTISTA.map(({ valor, rotulo }) => ({
+          rotulo,
+          ativo: filtroDoc === valor,
+          aplicar: () => setFiltroDoc(valor),
+        })),
+      ];
+    if (id === "categoria")
+      return [
+        { rotulo: "Todas as categorias", ativo: filtroCategoria === "todas", aplicar: () => setFiltroCategoria("todas") },
+        ...categorias.map((categoria) => ({
+          rotulo: categoria,
+          ativo: filtroCategoria === categoria,
+          aplicar: () => setFiltroCategoria(categoria),
+        })),
+      ];
+    return [
+      { rotulo: "Todos os status", ativo: filtroStatus === "todos", aplicar: () => setFiltroStatus("todos") },
+      ...STATUS_LANCAMENTO.map(({ value, label }) => ({
+        rotulo: label,
+        ativo: filtroStatus === value,
+        aplicar: () => setFiltroStatus(value),
+      })),
+    ];
+  };
+  const renderizarFiltroCabecalho = (id: string) => {
+    if (!(id in TITULOS_FILTRO_CABECALHO)) return null;
+    const titulo = TITULOS_FILTRO_CABECALHO[id];
+    return (
+      <div className="erp-status-filtro-anchor erp-coluna-filtro-anchor">
+        <button
+          type="button"
+          className={`erp-status-filtro-trigger ${filtroCabecalhoAtivo(id) ? "erp-status-filtro-ativo" : ""}`}
+          aria-label={`Filtrar por ${titulo}`}
+          title={`Filtrar por ${titulo}`}
+          aria-haspopup="dialog"
+          aria-expanded={colunaFiltroAberta === id}
+          onClick={() => setColunaFiltroAberta((atual) => (atual === id ? null : id))}
+        >
+          <Filter size={13} aria-hidden="true" />
+        </button>
+        {colunaFiltroAberta === id && (
+          <div className="erp-status-filtro-menu" role="dialog" aria-label={`Filtrar por ${titulo}`}>
+            {opcoesFiltroCabecalho(id).map((opcao) => (
+              <button
+                key={opcao.rotulo}
+                type="button"
+                aria-pressed={opcao.ativo}
+                onClick={() => {
+                  opcao.aplicar();
+                  setColunaFiltroAberta(null);
+                }}
+              >
+                {opcao.rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   const colunasVisiveis = colunas.filter((coluna) => !ocultas.has(coluna.id));
-  const colunaAcoesVisivel = colunasVisiveis.find(
-    (coluna) => coluna.id === "acoes",
-  );
+  const alternarColunaOculta = (id: string) =>
+    setOcultas((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  const alternarExpandido = (id: string) =>
+    setExpandidos((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
   const larguraTabela =
-    44 +
+    120 +
     colunasVisiveis.reduce(
       (total, coluna) => total + (larguras[coluna.id] ?? coluna.largura),
       0,
@@ -2107,12 +2242,13 @@ function LancamentosDespesa({
       return proximo;
     });
   const temFiltros = Boolean(
-    busca || filtroStatus !== "todos" || filtroCategoria !== "todas",
+    busca || filtroStatus !== "todos" || filtroCategoria !== "todas" || filtroDoc !== "todos",
   );
   const limparFiltros = () => {
     setBusca("");
     setFiltroStatus("todos");
     setFiltroCategoria("todas");
+    setFiltroDoc("todos");
   };
   const atualizarEdicao = (
     campo: keyof Omit<EdicaoLancamento, "rateios">,
@@ -2470,40 +2606,47 @@ function LancamentosDespesa({
   const filtrosAtivos =
     Number(Boolean(busca.trim())) +
     Number(filtroStatus !== "todos") +
-    Number(filtroCategoria !== "todas");
+    Number(filtroCategoria !== "todas") +
+    Number(filtroDoc !== "todos");
 
   return (
     <div className="despesas-theme despesas-shell">
       <style>{DESPESAS_ESTILOS}</style>
-      <section className="despesa-ledger" aria-label="Lançamentos mensais">
-        <div className="despesa-toolbar">
-          <div className="despesa-toolbar-main">
-            <div className="despesa-toolbar-actions">
-              <Button
-                type="button"
-                onClick={aoNovo}
-                className="despesa-primary shrink-0 gap-2"
-              >
-                <Plus size={16} />
+      <style>{ESTILOS_FINANCEIRO}</style>
+      <section className="erp-financeiro erp-saida" aria-label="Lançamentos mensais">
+          <header className="erp-cabecalho">
+            <div className="erp-titulo"><h2>Lançamentos mensais</h2></div>
+            <div className="erp-cabecalho-acoes">
+              <div className="erp-resumo">
+                <span>{temFiltros ? "Total filtrado" : "Total listado"}</span>
+                <strong>{carregando ? "—" : formatarCentavos(totalFiltrado)}</strong>
+              </div>
+            </div>
+          </header>
+        <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
+          <div className="contents">
+            <div className="erp-acoes">
+              <button type="button" className="erp-btn erp-btn-primario" onClick={aoNovo}>
+                <Plus size={17} aria-hidden="true" />
                 Novo
-              </Button>
+              </button>
               <button
                 type="button"
-                className="despesa-control"
+                className="erp-btn erp-btn-texto"
                 aria-expanded={filtrosAbertos}
                 aria-controls="despesa-filtros"
                 onClick={() => setFiltrosAbertos((atual) => !atual)}
               >
-                <Filter size={15} />
+                <Filter size={17} aria-hidden="true" />
                 Filtrar
                 {filtrosAtivos > 0 && (
-                  <span className="despesa-filter-count">{filtrosAtivos}</span>
+                  <span className="erp-contador">{filtrosAtivos}</span>
                 )}
               </button>
-              <span className="despesa-toolbar-divider" aria-hidden="true" />
+              <span className="erp-divisor" aria-hidden="true" />
               <button
                 type="button"
-                className="despesa-control despesa-control-quiet"
+                className="erp-btn erp-btn-texto"
                 disabled={carregando || !itensDaPagina.length}
                 onClick={() =>
                   setExpandidos(
@@ -2513,40 +2656,65 @@ function LancamentosDespesa({
                   )
                 }
               >
-                <ListOrdered size={15} />
+                <ListOrdered size={18} aria-hidden="true" />
                 {todosExpandidos ? "Recolher todas" : "Expandir todas"}
               </button>
+              <span className="erp-divisor" aria-hidden="true" />
               <button
                 type="button"
-                className="despesa-control despesa-control-quiet"
+                className="erp-btn erp-btn-texto"
                 title="Restaurar visibilidade e largura das colunas"
                 onClick={() => {
                   setOcultas(new Set());
                   setLarguras({});
                 }}
               >
-                <RotateCcw size={14} />
-                  Restaurar colunas
+                <RotateCcw size={17} aria-hidden="true" />
+                Restaurar colunas
+              </button>
+              <div className="erp-colunas-ancora">
+                <button
+                  type="button"
+                  className="erp-btn erp-btn-texto"
+                  aria-expanded={menuColunasAberto}
+                  aria-controls="despesa-colunas"
+                  onClick={() => setMenuColunasAberto((atual) => !atual)}
+                >
+                  <EyeOff size={17} aria-hidden="true" />
+                  Ocultar colunas
                 </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="despesa-control despesa-control-quiet" aria-label="Configurar colunas">
-                    <Columns3 size={15} /> Colunas
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" collisionPadding={8} className="despesas-theme despesa-dialog despesa-columns-menu">
-                  <p className="despesa-columns-menu-heading px-2 py-2 text-xs font-semibold">Exibir colunas</p>
-                  {colunas.filter((coluna) => coluna.id !== "acoes").map((coluna) => (
-                    <label key={coluna.id} className="despesa-column-option">
-                      <input type="checkbox" checked={!ocultas.has(coluna.id)} onChange={() => setOcultas((atual) => { const proximo = new Set(atual); if (proximo.has(coluna.id)) proximo.delete(coluna.id); else proximo.add(coluna.id); return proximo; })}/>
-                      <span className="min-w-0 break-words">{coluna.titulo}</span>
-                    </label>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                {menuColunasAberto && (
+                  <div
+                    className="erp-colunas-lista"
+                    id="despesa-colunas"
+                    role="listbox"
+                    aria-multiselectable="true"
+                    aria-label="Colunas visíveis"
+                  >
+                    {colunas.map((coluna) => {
+                      const visivel = !ocultas.has(coluna.id);
+                      return (
+                        <button
+                          key={coluna.id}
+                          type="button"
+                          role="option"
+                          aria-selected={visivel}
+                          disabled={visivel && colunasVisiveis.length === 1}
+                          onClick={() => alternarColunaOculta(coluna.id)}
+                        >
+                          <span className="erp-coluna-marca" aria-hidden="true">
+                            {visivel && <Check size={11} />}
+                          </span>
+                          {coluna.titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
             <div
-              className="despesa-period"
+              className="erp-periodo"
               role="group"
               aria-label="Navegar pelas competências"
             >
@@ -2555,10 +2723,10 @@ function LancamentosDespesa({
                 aoAlternar={alternarMes}
                 aoSelecionarMesAtual={() => selecionarMes(mesAtualLocal())}
               />
-              <div className="despesa-month-switcher">
+              <div className="erp-navegacao-mes">
                 <button
                   type="button"
-                  className="despesa-control despesa-control-icon"
+                  className="erp-btn erp-btn-icone"
                   aria-label="Selecionar mês anterior"
                   onClick={() =>
                     selecionarMesUnico(deslocarMes(mesReferencia, -1))
@@ -2566,7 +2734,7 @@ function LancamentosDespesa({
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <div className="despesa-current-month">
+                <div className="erp-rotulo-periodo">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -2607,7 +2775,7 @@ function LancamentosDespesa({
                 </div>
                 <button
                   type="button"
-                  className="despesa-control despesa-control-icon"
+                  className="erp-btn erp-btn-icone"
                   aria-label="Selecionar próximo mês"
                   onClick={() =>
                     selecionarMesUnico(deslocarMes(mesReferencia, 1))
@@ -2619,8 +2787,8 @@ function LancamentosDespesa({
             </div>
           </div>
           {filtrosAbertos && (
-            <div id="despesa-filtros" className="despesa-filter-panel">
-              <div className="despesa-search-field">
+            <div id="despesa-filtros" className="erp-filtros w-full">
+              <div className="erp-busca">
                 <Label htmlFor="despesa-busca" className="sr-only">
                   Buscar em todos os campos
                 </Label>
@@ -2679,10 +2847,10 @@ function LancamentosDespesa({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="despesa-filter-clear text-xs">
+              <div className="text-xs">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 text-primary"
+                  className="erp-btn erp-btn-texto"
                   onClick={limparFiltros}
                 >
                   <X size={12} />
@@ -2732,11 +2900,10 @@ function LancamentosDespesa({
         )}
         <div
           ref={scrollRef}
-          className="despesa-table-scroll"
+          className={`erp-tabela-container ${arrastando ? "erp-arrastando" : ""}`}
           role="region"
           aria-label="Tabela de despesas. Arraste horizontalmente ou use as setas do teclado."
           tabIndex={0}
-          data-dragging={arrastando}
           aria-busy={carregando}
           onPointerDown={iniciarArraste}
           onClickCapture={(evento) => {
@@ -2747,109 +2914,35 @@ function LancamentosDespesa({
             }
           }}
         >
-          <table className="despesa-table" style={{ width: larguraTabela }}>
+          <table className="erp-tabela erp-tabela-saidas" style={{ width: larguraTabela }}>
             <caption className="sr-only">
               Despesas agrupadas por mês. Clique nos cabeçalhos para ordenar
               dentro de cada mês. Arraste a borda de uma coluna para
               redimensioná-la ou use as setas quando a borda estiver focada.
             </caption>
             <colgroup>
-              {colunasVisiveis
-                .filter((coluna) => coluna.id === "acoes")
-                .map((coluna) => (
-                  <col
-                    key={coluna.id}
-                    style={{ width: larguras[coluna.id] ?? coluna.largura }}
-                  />
-                ))}
-              <col style={{ width: 44 }} />
-              {colunasVisiveis
-                .filter((coluna) => coluna.id !== "acoes")
-                .map((coluna) => (
+              <col style={{ width: 120 }} />
+              {colunasVisiveis.map((coluna) => (
                 <col
                   key={coluna.id}
                   style={{ width: larguras[coluna.id] ?? coluna.largura }}
                 />
-                ))}
+              ))}
             </colgroup>
             <thead>
               <tr>
-                {colunasVisiveis
-                  .filter((coluna) => coluna.id === "acoes")
-                  .map((coluna) => (
-                    <th
-                      key={coluna.id}
-                      scope="col"
-                      aria-label="Ações do lançamento"
-                    >
-                      {coluna.titulo}
-                      <span
-                        role="separator"
-                        tabIndex={0}
-                        aria-orientation="vertical"
-                        aria-label={`Redimensionar coluna ${coluna.titulo}`}
-                        aria-valuemin={coluna.minimo}
-                        aria-valuemax={800}
-                        aria-valuenow={Math.round(
-                          larguras[coluna.id] ?? coluna.largura,
-                        )}
-                        className="despesa-col-resizer"
-                        onPointerDown={(evento) =>
-                          iniciarRedimensionamento(
-                            coluna.id,
-                            coluna.minimo,
-                            evento,
-                          )
-                        }
-                        onDoubleClick={() =>
-                          setLarguras((atual) => ({
-                            ...atual,
-                            [coluna.id]: coluna.largura,
-                          }))
-                        }
-                        onKeyDown={(evento) => {
-                          if (
-                            evento.key === "ArrowLeft" ||
-                            evento.key === "ArrowRight"
-                          ) {
-                            evento.preventDefault();
-                            evento.stopPropagation();
-                            setLarguras((atual) => ({
-                              ...atual,
-                              [coluna.id]: Math.min(
-                                800,
-                                Math.max(
-                                  coluna.minimo,
-                                  (atual[coluna.id] ?? coluna.largura) +
-                                    (evento.key === "ArrowRight" ? 16 : -16),
-                                ),
-                              ),
-                            }));
-                          }
-                        }}
-                      />
-                    </th>
-                  ))}
                 <th scope="col">
-                  <Checkbox
-                    className="despesa-checkbox"
-                    aria-label="Selecionar todos os lançamentos desta página"
-                    disabled={carregando || !itensDaPagina.length}
-                    checked={
-                      todosDaPaginaSelecionados
-                        ? true
-                        : itensDaPagina.some((item) =>
-                              selecionados.has(item.id),
-                            )
-                          ? "indeterminate"
-                          : false
-                    }
-                    onCheckedChange={alternarSelecaoDaPagina}
-                  />
+                  <div className="erp-celula-selecao erp-selecao-cabecalho">
+                    <CaixaSelecao
+                      marcado={todosDaPaginaSelecionados}
+                      parcial={!todosDaPaginaSelecionados && itensDaPagina.some((item) => selecionados.has(item.id))}
+                      desabilitado={carregando || !itensDaPagina.length}
+                      rotulo="Selecionar todos os lançamentos desta página"
+                      aoMudar={alternarSelecaoDaPagina}
+                    />
+                  </div>
                 </th>
-                {colunasVisiveis
-                  .filter((coluna) => coluna.id !== "acoes")
-                  .map((coluna) => (
+                {colunasVisiveis.map((coluna) => (
                   <th
                     key={coluna.id}
                     scope="col"
@@ -2864,10 +2957,12 @@ function LancamentosDespesa({
                         : undefined
                     }
                   >
+                    <div className="erp-status-th-conteudo">
+                    {renderizarFiltroCabecalho(coluna.id)}
                     {coluna.valor ? (
                       <button
                         type="button"
-                        className="despesa-sort"
+                        className="erp-ordenar"
                         data-active={ordenacao.coluna === coluna.id}
                         title={`${coluna.titulo}: ordenar ${ordenacao.coluna === coluna.id && ordenacao.direcao === "asc" ? "decrescente" : "crescente"}${coluna.cotista ? " por valor rateado" : ""}`}
                         onClick={() => ordenarPor(coluna.id)}
@@ -2887,6 +2982,7 @@ function LancamentosDespesa({
                     ) : (
                       coluna.titulo
                     )}
+                    </div>
                     <span
                       role="separator"
                       tabIndex={0}
@@ -2897,7 +2993,7 @@ function LancamentosDespesa({
                       aria-valuenow={Math.round(
                         larguras[coluna.id] ?? coluna.largura,
                       )}
-                      className="despesa-col-resizer"
+                      className="erp-redimensionar"
                       onPointerDown={(evento) =>
                         iniciarRedimensionamento(
                           coluna.id,
@@ -2939,7 +3035,7 @@ function LancamentosDespesa({
             {carregando ? (
               <tbody>
                 <tr>
-                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                  <td colSpan={quantidadeColunas} className="erp-estado">
                     <div
                       className="flex items-center justify-start gap-2"
                       role="status"
@@ -2964,27 +3060,31 @@ function LancamentosDespesa({
                   {itens.map((item) => (
                     <Fragment key={item.id}>
                       <tr
-                        className="despesa-row"
-                        data-expanded={expandidos.has(item.id)}
-                        data-selected={selecionados.has(item.id)}
+                        className={`erp-linha ${expandidos.has(item.id) ? "erp-linha-aberta" : ""} ${selecionados.has(item.id) ? "erp-linha-selecionada" : ""}`}
                       >
-                        {colunaAcoesVisivel && (
-                          <td>{colunaAcoesVisivel.render(item)}</td>
-                        )}
-                        <td>
-                          <Checkbox
-                            className="despesa-checkbox"
-                            aria-label={`Selecionar lançamento: ${item.descricao}`}
-                            checked={selecionados.has(item.id)}
-                            onCheckedChange={() => alternarSelecao(item.id)}
-                          />
+                        <td className="erp-td-acoes">
+                          <div className="erp-celula-selecao">
+                            <button
+                              type="button"
+                              className="erp-expandir"
+                              aria-label={`${expandidos.has(item.id) ? "Recolher" : "Expandir"} ${item.descricao}`}
+                              aria-expanded={expandidos.has(item.id)}
+                              onClick={() => alternarExpandido(item.id)}
+                            >
+                              <ChevronRight size={16} aria-hidden="true" />
+                            </button>
+                            <CaixaSelecao
+                              marcado={selecionados.has(item.id)}
+                              rotulo={`Selecionar lançamento: ${item.descricao}`}
+                              aoMudar={() => alternarSelecao(item.id)}
+                            />
+                            {acoesDaLinha(item)}
+                          </div>
                         </td>
-                        {colunasVisiveis
-                          .filter((coluna) => coluna.id !== "acoes")
-                          .map((coluna) => (
+                        {colunasVisiveis.map((coluna) => (
                           <td
                             key={coluna.id}
-                            className={coluna.numerica ? "text-right" : ""}
+                            className={coluna.numerica ? "erp-valor" : ""}
                           >
                             {coluna.render(item)}
                           </td>
@@ -3012,7 +3112,7 @@ function LancamentosDespesa({
             ) : (
               <tbody>
                 <tr>
-                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                  <td colSpan={quantidadeColunas} className="erp-estado">
                     Nenhum lançamento encontrado para os filtros.
                   </td>
                 </tr>
@@ -3035,8 +3135,8 @@ function LancamentosDespesa({
             <span>Em aberto: {formatarCentavos(totalAberto)}</span>
           </div>
         </div>
-        <footer className="despesa-pagination">
-          <div className="despesa-pagination-info">
+        <footer className="erp-rodape">
+          <div className="erp-rodape-info">
             <span>{itensSelecionados.length} selecionados</span>
             <span>{carregando ? 0 : filtradas.length} registros</span>
             <label className="inline-flex min-w-0 items-center gap-1">
@@ -3053,10 +3153,7 @@ function LancamentosDespesa({
               </select>
             </label>
           </div>
-          <nav
-            aria-label="Paginação das despesas"
-            className="flex items-center gap-1"
-          >
+          <nav aria-label="Paginação das despesas" className="erp-paginacao">
             <span className="mr-2 text-[11px]" role="status" aria-live="polite">
               {carregando
                 ? "Carregando…"
@@ -3064,6 +3161,7 @@ function LancamentosDespesa({
             </span>
             <button
               type="button"
+              className="erp-pagina-btn"
               disabled={carregando || paginaAtual === 1}
               aria-label="Página anterior"
               onClick={() => {
@@ -3078,6 +3176,7 @@ function LancamentosDespesa({
             </span>
             <button
               type="button"
+              className="erp-pagina-btn"
               disabled={carregando || paginaAtual === totalPaginas}
               aria-label="Próxima página"
               onClick={() => {
@@ -3600,9 +3699,7 @@ export default function FinanceiroCotista() {
     );
   }, [aeronaveSelecionada, cotistasAeronave]);
   const [abaAtiva, setAbaAtiva] = useState<
-    | "resumo"
     | "fechamento-balanco"
-    | "medias"
     | "lancamentos"
     | "graficos"
     | "ranking"
@@ -3624,12 +3721,6 @@ export default function FinanceiroCotista() {
       corIcone: "bg-sky-400/10 text-sky-400",
     },
     {
-      id: "resumo",
-      rotulo: "Visão por cotista",
-      Icon: LayoutDashboard,
-      corIcone: "bg-violet-400/10 text-violet-400",
-    },
-    {
       id: "fechamento-balanco",
       rotulo: "Fechamento Balanço",
       Icon: PieChart,
@@ -3640,12 +3731,6 @@ export default function FinanceiroCotista() {
       rotulo: "Voos empréstimo",
       Icon: Plane,
       corIcone: "bg-amber-400/10 text-amber-400",
-    },
-    {
-      id: "medias",
-      rotulo: "Médias",
-      Icon: Gauge,
-      corIcone: "bg-emerald-400/10 text-emerald-400",
     },
     {
       id: "graficos",
@@ -3803,26 +3888,6 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) =>
     formatarMoeda(valor).replace(",00", "");
-  const mediasPorCotista = useMemo(() => {
-    const totais = new Map<string, number>();
-    for (const lancamento of despesas) {
-      for (const rateio of lancamento.rateios ?? []) {
-        const chave = rateio.cotistaId ?? rateio.cotista;
-        if (!chave) continue;
-        totais.set(chave, (totais.get(chave) ?? 0) + rateio.valorCentavos);
-      }
-    }
-    const meses = Math.max(mesesAplicados.length, 1);
-    return cotistasAeronave.map((cotista) => {
-      const total = totais.get(cotista.id) ?? 0;
-      return {
-        id: cotista.id,
-        nome: cotista.nome,
-        total,
-        media: Math.round(total / meses),
-      };
-    });
-  }, [despesas, cotistasAeronave, mesesAplicados]);
   const estiloTooltip = {
     contentStyle: {
       background: "#0f172a",
@@ -3988,45 +4053,6 @@ export default function FinanceiroCotista() {
         </section>
       ) : (
         <>
-          {paginaAberta && abaAtiva !== "lancamentos" && (
-            <section className="financeiro-panel overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <div>
-                  <p className="financeiro-eyebrow">
-                    CENTRO DE CUSTOS DA AERONAVE
-                  </p>
-                  <p className="mt-1 text-base font-semibold">
-                    {aeronaves.find((a) => a.id === aeronaveSelecionada)
-                      ?.matricula_registro || "Aeronave selecionada"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground"></p>
-                </div>
-                <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
-                  {[
-                    ["Lançamentos", String(lancamentosFiltrados.length), ""],
-                    [
-                      "Total do mês",
-                      formatarMoeda(dashboard?.resumo?.saidas ?? 0),
-                      "",
-                    ],
-                  ].map(([label, value, tone]) => (
-                    <div
-                      key={label}
-                      className="min-w-[104px] px-3 py-2.5 first:pl-3"
-                    >
-                      <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                        {label}
-                      </p>
-                      <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
           {paginaAberta &&
             abaAtiva !== "portal-cliente" &&
             abaAtiva !== "lancamentos" && (
@@ -4070,6 +4096,19 @@ export default function FinanceiroCotista() {
                     >
                       ›
                     </Button>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-2">
+                    {[
+                      ["Lançamentos", String(lancamentosFiltrados.length)],
+                      ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="min-w-[104px] px-3 py-2 first:pl-3">
+                        <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="mt-1 font-mono text-xs font-bold">{value}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -4171,56 +4210,6 @@ export default function FinanceiroCotista() {
             </div>
           ) : (
             <>
-              {abaAtiva === "resumo" && (
-                <div className="space-y-4">
-                  <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-bold">Visão por cotista</p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        Selecione o cotista para consultar seus dados.
-                      </p>
-                    </div>
-                    <SearchableCombobox
-                      items={cotistasAeronave.map((cotista) => ({
-                        id: cotista.id,
-                        label: cotista.nome,
-                        descricao: `${cotista.eh_holding ? "Holding" : "Cotista"} · ${cotista.percentual_sociedade}%`,
-                      }))}
-                      value={cotistaVisaoId}
-                      onChange={(id) => setCotistaVisaoId(id)}
-                      placeholder="Selecione um cotista"
-                      searchPlaceholder="Buscar cotista..."
-                      emptyMessage="Nenhum cotista encontrado."
-                      icon={<User size={15} />}
-                      disabled={!cotistasAeronave.length}
-                      className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
-                      popoverClassName="border-border bg-popover text-popover-foreground"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {abaAtiva === "resumo" && (
-                <FechamentoBalancoDashboardCotista
-                  dashboard={dashboard}
-                  carregando={carregando}
-                  erro={erroDashboard}
-                  cotistas={cotistasAeronave}
-                  mesesSelecionados={mesesAplicados}
-                  cotistaId={cotistaVisaoId}
-                />
-              )}
-              {abaAtiva === "medias" && (
-                <MediasCotista
-                  mediasMensais={dashboard?.medias_mensais ?? []}
-                  mediasPorCotista={mediasPorCotista}
-                  totalAeronave={formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
-                  mediaMensal={formatarMoeda(
-                    dashboard?.resumo?.media_mensal ?? 0,
-                  )}
-                  mesesConsiderados={mesesAplicados.length}
-                />
-              )}
               {abaAtiva === "lancamentos" && (
                 <LancamentosDespesa
                   lancamentos={lancamentosFiltrados}

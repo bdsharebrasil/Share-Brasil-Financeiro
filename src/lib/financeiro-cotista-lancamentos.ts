@@ -6,6 +6,39 @@ export type OpcaoFornecedorLancamento = { id: string; label: string };
 const normalizarNome = (valor: string) =>
   valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
 
+export function rateioDoCotista(
+  lancamento: LancamentoEconomico,
+  cotista: CotistaAeronave,
+  cotistas: CotistaAeronave[],
+) {
+  const ids = [cotista.id, cotista.cliente_id, cotista.socio_id, ...(cotista.cotista_ids ?? [])];
+  const rateios = lancamento.rateios ?? [];
+  const porId = rateios.find((rateio) => rateio.cotistaId && ids.includes(rateio.cotistaId));
+  if (porId) return porId;
+
+  const nome = normalizarNome(cotista.nome.trim());
+  const nomesIguais = cotistas.filter((item) => normalizarNome(item.nome.trim()) === nome);
+  if (nomesIguais.length === 1) {
+    const porNome = rateios.find((rateio) => normalizarNome(rateio.cotista.trim()) === nome);
+    if (porNome) return porNome;
+  }
+
+  if (!rateios.length) {
+    const participanteId = lancamento.participanteId;
+    const participanteNome = lancamento.participanteNome;
+    const pertence = Boolean(participanteId && ids.includes(participanteId))
+      || (!participanteId && participanteNome && nomesIguais.length === 1
+        && normalizarNome(participanteNome.trim()) === nome);
+    if (pertence) {
+      return {
+        percentual: lancamento.percentualUso ?? lancamento.percentualSociedade ?? cotista.percentual_sociedade,
+        valorCentavos: lancamento.valorRateadoCentavos || lancamento.valorCentavos,
+      };
+    }
+  }
+  return null;
+}
+
 const ehUuid = (valor: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
 

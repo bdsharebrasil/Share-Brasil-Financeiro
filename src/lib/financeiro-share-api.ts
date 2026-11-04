@@ -958,8 +958,9 @@ type VooOperacionalBalanco = { id: string; data: string; numero: string | null; 
 type ViagemOperacionalBalanco = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
 export type BalancoOperacionalCotista = {
   versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;
-  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean };
+  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean; espelhos?: boolean };
   cotistas: CotistaOperacionalBalanco[]; voos: VooOperacionalBalanco[];
+  espelhos?: { id: string; vooId: string; numeroVoo: string | null; data: string; documento: string | null; descricao: string; categoria: string | null; valorCentavos: number; fluxo: string; status: string; cotistaId: string | null; cotistaNome: string | null }[];
   abastecimentos: { id: string; data: string; litros: number | null; clienteId: string | null; socioId: string | null }[];
   viagens: ViagemOperacionalBalanco[];
 };

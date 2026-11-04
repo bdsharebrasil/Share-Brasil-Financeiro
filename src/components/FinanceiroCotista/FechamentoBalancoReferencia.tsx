@@ -108,6 +108,11 @@ export function FechamentoBalancoReferencia({
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data));
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
+  const espelhos = (d?.balanco_operacional?.espelhos ?? [])
+    .filter((item) => b?.meses.includes(item.data.slice(0, 7)))
+    .slice()
+    .sort((a, z) => a.data.localeCompare(z.data) || a.id.localeCompare(z.id));
+  const espelhosDisponiveis = Boolean(d?.balanco_operacional?.fontes.espelhos);
   const abastecimentos = (d?.balanco_operacional?.abastecimentos ?? [])
     .filter((item) => b?.meses.includes(item.data.slice(0, 7)));
   const litrosAbastecidos = abastecimentos.some((item) => item.litros === null)
@@ -274,6 +279,15 @@ export function FechamentoBalancoReferencia({
           <tfoot><tr><td colSpan={4}>Total · abastecido na aeronave {litrosAbastecidos == null ? "—" : `${fmt(litrosAbastecidos, 1)} L`}</td><td className="fb-num">{horas(horasDiario)}</td><td className="fb-num">{fmt(pousosDiario, 0)}</td><td colSpan={2}>{voos.length} voos</td></tr></tfoot>
           </table></div>{!voos.length && <Vazio>Nenhum voo registrado no período selecionado.</Vazio>}</>
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
+        </section>
+        <section className="fb-card fb-spaced"><h2>Espelho dos lançamentos do diário de bordo</h2>
+          {espelhosDisponiveis ? espelhos.length ? <div className="fb-scroll"><table>
+            <thead><tr><th>Data</th><th>Voo</th><th>Documento</th><th>Descrição</th><th>Categoria</th><th>Cotista</th><th>Fluxo</th><th>Status</th><th className="fb-num">Valor</th></tr></thead>
+            <tbody>{espelhos.map((item) => <tr key={item.id}><td>{formatarData(item.data)}</td><td>{item.numeroVoo || "—"}</td><td>{item.documento || "—"}</td><td>{item.descricao || "—"}</td><td>{item.categoria || "—"}</td><td>{item.cotistaNome || "Aeronave / rateio"}</td><td>{item.fluxo.replace(/_/g, " ").toLocaleUpperCase("pt-BR") || "—"}</td><td>{item.status.replace(/_/g, " ").toLocaleUpperCase("pt-BR") || "—"}</td><td className="fb-num">{formatarCentavos(item.valorCentavos)}</td></tr>)}</tbody>
+            <tfoot><tr><td colSpan={8}>{espelhos.length} lançamentos vinculados ao diário</td><td className="fb-num">{formatarCentavos(espelhos.reduce((soma, item) => soma + item.valorCentavos, 0))}</td></tr></tfoot>
+          </table></div> : <Vazio>Nenhum lançamento financeiro espelho vinculado aos abastecimentos do diário neste período.</Vazio>
+            : <Vazio>O espelho financeiro do diário não está disponível nesta consulta.</Vazio>}
+          <p className="fb-note">São exibidos os lançamentos financeiros vinculados ao abastecimento associado a cada registro do diário. Eles não são somados novamente ao balanço, que já considera os rateios financeiros.</p>
         </section>
       </section>}
     </div>

@@ -673,7 +673,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
         <header className="erp-cabecalho">
           <div className="erp-titulo"><h2 id={`${id}-titulo`}>{titulo}</h2></div>
           <div className="erp-cabecalho-acoes">
-            <div className="erp-resumo"><span>Total listado</span><strong>{carregando ? "—" : formatarMoeda(totalListado)}</strong></div>
+            <div className="erp-resumo"><span>{selecionadosVisiveis.length ? "Total selecionado" : "Total listado"}</span><strong>{carregando ? "—" : formatarMoeda(totalRelatorio)}</strong></div>
             <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}><Printer size={17} aria-hidden="true" />Imprimir</button>
           </div>
         </header>

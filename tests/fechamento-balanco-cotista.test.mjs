@@ -126,6 +126,36 @@ test("PDF deriva custos mensais e categorias do cotista selecionado no dashboard
   assert.match(pdf, /lancamentos\.map/);
 });
 
+test("fechamento gera PDF independente da página com seleção de cotistas e quatro seções", async () => {
+  const [atual, relatorio] = await Promise.all([
+    readFile(new URL("FechamentoBalancoReferencia.tsx", base), "utf8"),
+    readFile(new URL("RelatorioFechamentoPdf.tsx", base), "utf8"),
+  ]);
+  assert.match(atual, /DialogTitle>Gerar relatório do fechamento/);
+  assert.match(atual, /Selecionar todos os cotistas/);
+  assert.match(atual, /Incluir \$\{item\.nome\} no PDF/);
+  assert.match(atual, /pdf\(<RelatorioFechamentoPdf/);
+  assert.doesNotMatch(atual, /window\.print\(\)/);
+  for (const secao of ["01 · Balanço", "02 · Lançamentos", "03 · Custo por hora", "04 · Diário de bordo"]) {
+    assert.ok(relatorio.includes(secao), `seção ausente do PDF: ${secao}`);
+  }
+  assert.match(relatorio, /Balanço financeiro/);
+  assert.match(relatorio, /orientation="landscape"/);
+  assert.match(relatorio, /render=\{\(\{ pageNumber, totalPages \}\)/);
+});
+
+test("aba Holdings mantém a baixa e dispõe de busca, tabela desktop e cartões para mobile", async () => {
+  const holding = await readFile(new URL("../src/components/financeiro-share/AbaMovimentosHolding.tsx", import.meta.url), "utf8");
+  assert.match(holding, /darBaixaMovimentoHolding\(alvo\.id/);
+  assert.match(holding, /type="search"/);
+  assert.match(holding, /hidden overflow-x-auto md:block/);
+  assert.match(holding, /divide-y divide-border md:hidden/);
+  assert.match(holding, /Holding \/ cotista/);
+  assert.match(holding, /Aeronave/);
+  assert.match(holding, /Vencimento/);
+  assert.match(holding, /Valor/);
+});
+
 test("lançamentos prioriza demonstrativo e mostra números de recibo e NF na expansão", () => {
   assert.match(lancamentosUiSource, /lancamento\.numeroDemonstrativo \|\|\s+lancamento\.documentoNumero/);
   assert.match(financeiro, /\["Número do recibo", lancamento\.numeroRecibo \|\|/);

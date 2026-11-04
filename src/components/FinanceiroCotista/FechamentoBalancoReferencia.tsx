@@ -1,5 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Printer } from "lucide-react";
+import { FileDown } from "lucide-react";
+import { pdf } from "@react-pdf/renderer";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Bar,
   BarChart,
@@ -34,6 +39,7 @@ import {
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { RelatorioFechamentoPdf } from "./RelatorioFechamentoPdf";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -68,6 +74,9 @@ export function FechamentoBalancoReferencia({
   const [horasProjetadas, setHorasProjetadas] = useState(10);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
+  const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
+  const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const d = dashboard as DashboardBalanco | null;
   const b = useMemo(
@@ -135,12 +144,58 @@ export function FechamentoBalancoReferencia({
     .filter((item) => item.valorCentavos > 0)
     .sort((a, z) => z.valorCentavos - a.valorCentavos);
 
+  const abrirDialogPdf = () => {
+    const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
+    setCotistasPdfSelecionados(selecionado);
+    setDialogPdfAberto(true);
+  };
+
+  const gerarRelatorioPdf = async () => {
+    const participantesDoRelatorio = b.participantes.filter((item) => cotistasPdfSelecionados.includes(item.id));
+    if (!participantesDoRelatorio.length) {
+      toast.error("Selecione ao menos um cotista para gerar o relatório.");
+      return;
+    }
+    setGerandoPdf(true);
+    try {
+      const arquivo = await pdf(<RelatorioFechamentoPdf
+        balanco={b}
+        dashboard={d}
+        participantes={participantesDoRelatorio}
+        aeronave={aeronave}
+        cotistas={cotistas}
+        fornecedores={fornecedores}
+        horasProjetadas={horasProjetadas}
+      />).toBlob();
+      const slug = `${aeronave}-${b.meses.join("_")}-${participantesDoRelatorio.length === b.participantes.length ? "todos-cotistas" : participantesDoRelatorio.map((item) => item.nome).join("-")}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "")
+        .toLowerCase();
+      const url = URL.createObjectURL(arquivo);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `fechamento-financeiro-${slug}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setDialogPdfAberto(false);
+      toast.success("Relatório completo gerado e baixado.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Não foi possível gerar o relatório PDF.");
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
+
   return (
     <div className="fb">
       <style>{CSS}</style>
       <div className="fb-page-actions">
         <span>{aeronave} · {periodo}</span>
-        <button type="button" className="fb-button" onClick={() => window.print()}><Printer size={15} /> Imprimir</button>
+        <button type="button" className="fb-button" onClick={abrirDialogPdf} disabled={!b.participantes.length}><FileDown size={15} /> Gerar PDF</button>
       </div>
       <nav className="fb-tabs" role="tablist" aria-label="Seções do fechamento">
         {ABAS.map((item) => <button
@@ -295,6 +350,47 @@ export function FechamentoBalancoReferencia({
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
         </section>
       </section>}
+
+      <Dialog open={dialogPdfAberto} onOpenChange={setDialogPdfAberto}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gerar relatório do fechamento</DialogTitle>
+            <DialogDescription>O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+              <Checkbox
+                checked={cotistasPdfSelecionados.length === b.participantes.length && b.participantes.length > 0}
+                onCheckedChange={(checked) => setCotistasPdfSelecionados(checked ? b.participantes.map((item) => item.id) : [])}
+                aria-label="Selecionar todos os cotistas"
+              />
+              <span className="min-w-0"><strong className="block text-sm">Todos os cotistas</strong><span className="text-xs text-muted-foreground">Um capítulo completo para cada participante.</span></span>
+            </label>
+            <div className="max-h-[38dvh] space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+              {b.participantes.map((item) => {
+                const marcado = cotistasPdfSelecionados.includes(item.id);
+                return <label key={item.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 hover:bg-muted/50">
+                  <Checkbox
+                    checked={marcado}
+                    onCheckedChange={(checked) => setCotistasPdfSelecionados((atuais) => checked ? [...new Set([...atuais, item.id])] : atuais.filter((id) => id !== item.id))}
+                    aria-label={`Incluir ${item.nome} no PDF`}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.nome}</span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">{item.holding ? "Holding" : "Cotista"}</span>
+                </label>;
+              })}
+              {!b.participantes.length && <p className="p-4 text-center text-sm text-muted-foreground">Nenhum cotista disponível para este fechamento.</p>}
+            </div>
+            <p className="text-xs text-muted-foreground">O arquivo será gerado como PDF profissional, com capa, título, aeronave, período selecionado e paginação. O download funciona também em dispositivos móveis.</p>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setDialogPdfAberto(false)} disabled={gerandoPdf}>Cancelar</Button>
+            <Button type="button" onClick={() => void gerarRelatorioPdf()} disabled={gerandoPdf || cotistasPdfSelecionados.length === 0}>
+              <FileDown size={15} className="mr-2" />{gerandoPdf ? "Gerando PDF…" : "Gerar PDF completo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

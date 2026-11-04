@@ -19,6 +19,7 @@ import {
   documentoDoLancamento,
   nomeFornecedorLancamento,
   nomePagadoresDoLancamento,
+  rateioDoCotista,
   tipoRateioLancamento,
   valorPagoLancamento,
   type OpcaoFornecedorLancamento,
@@ -79,13 +80,14 @@ export function FechamentoBalancoReferencia({
   const totalHoras = participante?.horas ?? b?.totalHoras ?? null;
   const periodo = b?.meses.map(rotuloMesCotista).join(" · ") ?? "";
   const aeronave = b?.aeronave || "Aeronave selecionada";
-  const lancamentosPorId = new Map((participante?.lancamentos ?? []).map((item) => [item.id, item]));
   const lancamentos = (d?.lancamentos ?? [])
-    .filter((item) => lancamentosPorId.has(item.id) && norm(item.fluxo) === "SAIDA" && !["CANCELADO", "CANCELADA"].includes(norm(item.status)))
-    .map((item) => ({ origem: item, parte: lancamentosPorId.get(item.id)! }))
-    .sort((a, z) => a.parte.data.localeCompare(z.parte.data));
-  const categorias = [...new Set(lancamentos.map(({ origem }) => origem.categoria || "Sem categoria"))].sort((a, z) => a.localeCompare(z, "pt-BR"));
-  const lancamentosFiltrados = lancamentos.filter(({ origem, parte }) =>
+    .filter((item) => b?.meses.includes((item.dataEmissao || item.data).slice(0, 7))
+      && norm(item.fluxo) === "SAIDA"
+      && !["CANCELADO", "CANCELADA"].includes(norm(item.status)))
+    .slice()
+    .sort((a, z) => (a.dataEmissao || a.data).localeCompare(z.dataEmissao || z.data));
+  const categorias = [...new Set(lancamentos.map((item) => item.categoria || "Sem categoria"))].sort((a, z) => a.localeCompare(z, "pt-BR"));
+  const lancamentosFiltrados = lancamentos.filter((origem) =>
     (categoria === "Todas" || (origem.categoria || "Sem categoria") === categoria)
     && `${nomeFornecedorLancamento(origem, fornecedores)} ${origem.descricao}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")),
   );
@@ -99,10 +101,13 @@ export function FechamentoBalancoReferencia({
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item): item is { horas: number; fixoHora: number; variavelHora: number; extraHora: number; custoHora: number; custoMensal: number } => item !== null)
     : [];
-  const voosOperacionais = d?.balanco_operacional?.voos ?? [];
-  const voos = (participante?.voos ?? voosOperacionais.filter((voo) => b?.meses.includes(voo.data.slice(0, 7))))
+  const voosOperacionais = (d?.balanco_operacional?.voos ?? [])
+    .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
+  const voosDoParticipante = participante?.voos ?? [];
+  const voos = (voosDoParticipante.length ? voosDoParticipante : voosOperacionais)
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data));
+  const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
   const abastecimentos = (d?.balanco_operacional?.abastecimentos ?? [])
     .filter((item) => b?.meses.includes(item.data.slice(0, 7)));
   const litrosAbastecidos = abastecimentos.some((item) => item.litros === null)
@@ -122,8 +127,11 @@ export function FechamentoBalancoReferencia({
   const quota = participante?.quota;
   const proporcaoDoCusto = b.total.total > 0 ? (total.total / b.total.total) * 100 : null;
   const saldo = participante?.acerto?.saldoCentavos;
-  const quantidadeVoos = participante ? voos.length : (b.totalVoos ?? voos.length);
+  const participanteTemVoos = Boolean(voosDoParticipante.length);
+  const quantidadeVoos = participanteTemVoos ? voos.length : (b.totalVoos ?? voos.length);
   const pousos = voos.reduce((soma, voo) => soma + (voo.pousos ?? 0), 0);
+  const horasDiario = participanteTemVoos ? totalHoras : b.totalHoras;
+  const pousosDiario = participanteTemVoos ? pousos : (b.totalPousos ?? pousos);
   const custoMensalMedio = b.meses.length ? total.total / b.meses.length : 0;
   const custoFixos = total.fixos;
   const custoVariavel = total.variaveis;
@@ -210,17 +218,21 @@ export function FechamentoBalancoReferencia({
           <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
         </div>
         <section className="fb-card"><div className="fb-scroll"><table>
-          <thead><tr><th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th><th className="fb-num">Valor pago</th><th>PAGO POR</th><th className="fb-num">{participante?.nome || "Valor atribuído"}</th></tr></thead>
-          <tbody>{lancamentosFiltrados.map(({ origem, parte }) => <tr key={origem.id}>
+          <thead><tr><th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th><th className="fb-num">Valor pago</th><th>PAGO POR</th>{cotistas.map((cotista) => <th className="fb-num fb-share-header" key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}</tr></thead>
+          <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
             <td><span className="fb-date-label">Emissão</span>{formatarDataSemAno(origem.dataEmissao || origem.data)}<span className="fb-date-label">Vencimento</span>{formatarDataSemAno(origem.prazo)}</td>
             <td>{documentoDoLancamento(origem) || "—"}</td><td>{origem.descricao || "—"}</td>
             <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td><td>{origem.categoria || "Sem categoria"}</td>
             <td>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</td>
             <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
             <td className="fb-num">{formatarCentavos(valorPagoLancamento(origem))}</td>
-            <td>{nomePagadoresDoLancamento(origem, cotistas)}</td><td className="fb-num">{formatarCentavos(parte.suaParteCentavos)}</td>
+            <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
+            {cotistas.map((cotista) => {
+              const rateio = rateioDoCotista(origem, cotista, cotistas);
+              return <td className="fb-num" key={cotista.id}>{rateio ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div> : <span>—</span>}</td>;
+            })}
           </tr>)}</tbody>
-          <tfoot><tr><td colSpan={9}>{lancamentosFiltrados.length} lançamentos · valor atribuído</td><td className="fb-num">{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + item.parte.suaParteCentavos, 0))}</td></tr></tfoot>
+          <tfoot><tr><td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>{cotistas.map((cotista) => <td className="fb-num" key={cotista.id}>{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0), 0))}</td>)}</tr></tfoot>
         </table></div>
           {!lancamentosFiltrados.length && <Vazio>Nenhum lançamento encontrado com esses filtros.</Vazio>}
         </section>
@@ -256,10 +268,10 @@ export function FechamentoBalancoReferencia({
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
         <section className="fb-card"><h2>Diário de bordo · {aeronave}</h2>
-          {b.fonteVoos ? <><div className="fb-scroll"><table>
+          {diarioDisponivel ? <><div className="fb-scroll"><table>
             <thead><tr><th>Data</th><th>Voo</th><th>De</th><th>Para</th><th className="fb-num">Tempo</th><th className="fb-num">Pousos</th><th>Natureza</th><th>Cotista</th></tr></thead>
-            <tbody>{voos.map((voo) => <tr key={voo.id}><td>{formatarData(voo.data)}</td><td>{voo.numero || "—"}</td><td>{voo.origem || "—"}</td><td>{voo.destino || "—"}</td><td className="fb-num">{horas(voo.horas)}</td><td className="fb-num">{voo.pousos == null ? "—" : fmt(voo.pousos, 0)}</td><td>{voo.natureza || "—"}{voo.emprestado ? " · empréstimo" : ""}</td><td>{participante?.nome || "Aeronave"}</td></tr>)}</tbody>
-          <tfoot><tr><td colSpan={4}>Total · abastecido na aeronave {litrosAbastecidos == null ? "—" : `${fmt(litrosAbastecidos, 1)} L`}</td><td className="fb-num">{horas(totalHoras)}</td><td className="fb-num">{participante ? fmt(pousos, 0) : fmt(b.totalPousos, 0)}</td><td colSpan={2}>{voos.length} voos</td></tr></tfoot>
+            <tbody>{voos.map((voo) => <tr key={voo.id}><td>{formatarData(voo.data)}</td><td>{voo.numero || "—"}</td><td>{voo.origem || "—"}</td><td>{voo.destino || "—"}</td><td className="fb-num">{horas(voo.horas)}</td><td className="fb-num">{voo.pousos == null ? "—" : fmt(voo.pousos, 0)}</td><td>{voo.natureza || "—"}{voo.emprestado ? " · empréstimo" : ""}</td><td>{cotistaDoVoo(voo, cotistas)}</td></tr>)}</tbody>
+          <tfoot><tr><td colSpan={4}>Total · abastecido na aeronave {litrosAbastecidos == null ? "—" : `${fmt(litrosAbastecidos, 1)} L`}</td><td className="fb-num">{horas(horasDiario)}</td><td className="fb-num">{fmt(pousosDiario, 0)}</td><td colSpan={2}>{voos.length} voos</td></tr></tfoot>
           </table></div>{!voos.length && <Vazio>Nenhum voo registrado no período selecionado.</Vazio>}</>
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
         </section>
@@ -280,10 +292,24 @@ function formatarDataSemAno(valor: string | null | undefined) {
   return formatarData(valor).replace(/\/\d{4}$/, "");
 }
 
+type VooBalanco = NonNullable<DashboardBalanco["balanco_operacional"]>["voos"][number];
+
+function cotistaDoVoo(voo: VooBalanco, cotistas: CotistaAeronave[]) {
+  const idsVinculados = voo.emprestado
+    ? [voo.clienteTomadorId, voo.socioTomadorId]
+    : [voo.clienteId, voo.socioId];
+  const cotista = cotistas.find((item) =>
+    [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])]
+      .some((id) => Boolean(id && idsVinculados.includes(id))),
+  );
+  return cotista?.nome || "Aeronave";
+}
+
 const CSS = `
 .fb{--fb-bg:#f3f5f8;--fb-card:#fff;--fb-text:#14202e;--fb-muted:#5d6b7b;--fb-border:#e0e6ed;--fb-navy:#0f3d6e;--fb-blue:#2f6db5;--fb-soft:#eef3f9;max-width:1040px;margin:0 auto;padding:20px 0 42px;color:var(--fb-text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color-scheme:light}
 .fb *{box-sizing:border-box}.fb button,.fb input,.fb select{font:inherit;color:inherit}.fb button{cursor:pointer}.fb :is(button,input,select):focus-visible{outline:2px solid var(--fb-blue);outline-offset:2px}.fb-page-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--fb-muted);font-size:12px}.fb-button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--fb-border);margin-bottom:18px}.fb-tabs button{flex-shrink:0;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--fb-muted);padding:10px 14px}.fb-tabs button[aria-selected=true]{border-bottom-color:#e8b94a;color:var(--fb-text);font-weight:650}
 .fb-hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;background:var(--fb-navy);color:#fff;border-radius:10px;padding:22px 24px}.fb-hero small{font-size:13px;opacity:.8}.fb-big{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}.fb-hero-stats{display:flex;gap:26px;flex-wrap:wrap}.fb-hero-stats div{font-size:12px;opacity:.95}.fb-hero-stats strong{display:block;font-size:16px}.fb-grid{display:grid;gap:14px;margin-top:14px}.fb-g3{grid-template-columns:repeat(3,minmax(0,1fr))}.fb-g2{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-no-top{margin-top:0}.fb-kpi,.fb-card{background:var(--fb-card);border:1px solid var(--fb-border);border-radius:8px}.fb-kpi{padding:15px 17px;min-width:0}.fb-kpi>span{display:block;color:var(--fb-muted);font-size:12px}.fb-kpi>strong{display:block;margin:6px 0;font-size:21px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.fb-kpi>small{display:block;color:var(--fb-muted);font-size:11px}.fb-card{min-width:0;padding:16px 18px}.fb-card h2{margin:0 0 12px;font-size:15px;font-weight:650}.fb-spaced{margin-top:14px}.fb-scroll{width:100%;overflow-x:auto}.fb table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.fb th,.fb td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--fb-border);vertical-align:top}.fb th{color:var(--fb-muted);font-size:11px;font-weight:600}.fb .fb-num{text-align:right;white-space:nowrap}.fb tfoot td{font-weight:700;border-bottom:0;background:var(--fb-soft)}.fb .fb-bar{height:8px;min-width:80px;border-radius:4px;background:var(--fb-soft);overflow:hidden}.fb .fb-bar i{display:block;height:100%;border-radius:4px;background:var(--fb-blue)}.fb-chart{height:240px;width:100%;min-width:0}.fb-chart-tall{height:280px}.fb-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;color:var(--fb-muted);font-size:11px}.fb-legend span{white-space:nowrap}.fb-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}.fb-note{margin:16px 0 0;color:var(--fb-muted);font-size:11px;line-height:1.65}.fb-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.fb-tools select,.fb-tools input{min-width:210px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tag{display:inline-block;border-radius:10px;background:var(--fb-soft);padding:1px 8px;font-size:11px}.fb-date-label{display:block;color:var(--fb-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.fb-range-label{display:block;color:var(--fb-muted);font-size:12px}.fb-range{width:100%;accent-color:var(--fb-blue)}.fb-highlight{background:var(--fb-soft)}.fb-empty{padding:24px 12px;text-align:center;color:var(--fb-muted)}
+.fb-share-header{min-width:150px}.fb-share-header strong,.fb-share-header span{display:block}.fb-share-header strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fb-text);font-size:12px;text-transform:uppercase}.fb-share-header span{margin-top:3px;font-weight:400}.fb-share-cell span,.fb-share-cell strong{display:block}.fb-share-cell span{color:var(--fb-muted);font-size:12px}.fb-share-cell strong{margin-top:4px;color:var(--fb-text);font-size:15px;font-weight:700}
 @media(prefers-color-scheme:dark){.fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}}
 :root[data-theme="dark"] .fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}
 .dark .fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}

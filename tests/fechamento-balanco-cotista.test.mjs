@@ -34,6 +34,22 @@ test("fechamento segue as quatro seções da referência com valores derivados d
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
+test("diário usa os voos da aeronave quando a lista do cotista está vazia ou a flag da fonte falha", () => {
+  assert.match(referencia, /voosDoParticipante\.length \? voosDoParticipante : voosOperacionais/);
+  assert.match(referencia, /b\?\.fonteVoos \|\| voosOperacionais\.length/);
+  assert.match(referencia, /voos\.map\(\(voo\) => <tr/);
+  assert.match(referencia, /cotistaDoVoo\(voo, cotistas\)/);
+});
+
+test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por cotista", () => {
+  assert.match(referencia, /d\?\.lancamentos \?\?/);
+  assert.match(referencia, /cotistas\.map\(\(cotista\) => <th className="fb-num fb-share-header"/);
+  assert.match(referencia, /Rateio · % \/ valor/);
+  assert.match(referencia, /rateioDoCotista\(origem, cotista, cotistas\)/);
+  assert.match(referencia, /formatarCentavos\(rateio\.valorCentavos\)/);
+  assert.match(referencia, /total rateado por cotista/);
+});
+
 test("tabela de lançamentos resolve fornecedor/pagador, normaliza tipo e não tem expansão", () => {
   assert.match(referencia, /<th>TIPO RATEIO<\/th>/);
   assert.match(referencia, /nomeFornecedorLancamento\(origem, fornecedores\)/);
@@ -71,6 +87,15 @@ test("tabela de lançamentos resolve fornecedor/pagador, normaliza tipo e não t
   );
   assert.equal(lancamentosUi.tipoRateioLancamento(lancamento), "VARIAVEL POR HORA");
   assert.equal(lancamentosUi.valorPagoLancamento(lancamento), 10000);
+
+  const cotista = { id: uuidCotista, cliente_id: null, socio_id: null, cotista_ids: [], nome: "Marina Costa", percentual_sociedade: 50 };
+  const lancamentoRateado = {
+    ...lancamento,
+    rateios: [{ cotistaId: uuidCotista, cotista: "Marina Costa", percentual: 50, valorCentavos: 5000 }],
+  };
+  const rateio = lancamentosUi.rateioDoCotista(lancamentoRateado, cotista, [cotista]);
+  assert.equal(rateio?.percentual, 50);
+  assert.equal(rateio?.valorCentavos, 5000);
 });
 
 test("PDF deriva custos mensais e categorias do cotista selecionado no dashboard", () => {

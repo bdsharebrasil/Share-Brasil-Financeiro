@@ -112,6 +112,7 @@ import {
   nomeFornecedorLancamento,
   nomePagadoresDoLancamento,
   opcaoFornecedorLancamento,
+  rateioDoCotista,
   tipoRateioLancamento,
   valorPagoLancamento,
 } from "@/lib/financeiro-cotista-lancamentos";
@@ -1548,56 +1549,6 @@ function percentualSociedadeDoCotista(
   const cotista =
     cotistasComMesmoNome.length === 1 ? cotistasComMesmoNome[0] : null;
   return cotista?.percentual_sociedade ?? null;
-}
-
-function rateioDoCotista(
-  lancamento: LancamentoEconomico,
-  cotista: CotistaAeronave,
-  cotistas: CotistaAeronave[],
-) {
-  const ids = [
-    cotista.id,
-    cotista.cliente_id,
-    cotista.socio_id,
-    ...(cotista.cotista_ids ?? []),
-  ];
-  const porId = lancamento.rateios.find(
-    (rateio) => rateio.cotistaId && ids.includes(rateio.cotistaId),
-  );
-  if (porId) return porId;
-
-  const nome = normalizarBusca(cotista.nome.trim());
-  const nomesIguais = cotistas.filter(
-    (item) => normalizarBusca(item.nome.trim()) === nome,
-  );
-  if (nomesIguais.length === 1) {
-    const porNome = lancamento.rateios.find(
-      (rateio) => normalizarBusca(rateio.cotista.trim()) === nome,
-    );
-    if (porNome) return porNome;
-  }
-
-  if (!lancamento.rateios.length) {
-    const participanteId = lancamento.participanteId;
-    const participanteNome = lancamento.participanteNome;
-    const pertence =
-      Boolean(participanteId && ids.includes(participanteId)) ||
-      (!participanteId &&
-        participanteNome &&
-        nomesIguais.length === 1 &&
-        normalizarBusca(participanteNome.trim()) === nome);
-    if (pertence) {
-      return {
-        percentual:
-          lancamento.percentualUso ??
-          lancamento.percentualSociedade ??
-          cotista.percentual_sociedade,
-        valorCentavos:
-          lancamento.valorRateadoCentavos || lancamento.valorCentavos,
-      };
-    }
-  }
-  return null;
 }
 
 function BadgeStatus({ status }: { status: string }) {

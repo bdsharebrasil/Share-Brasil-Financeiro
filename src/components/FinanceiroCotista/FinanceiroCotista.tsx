@@ -1651,6 +1651,7 @@ function LancamentosDespesa({
   const [larguras, setLarguras] = useState<Record<string, number>>({});
   const [ocultas, setOcultas] = useState<Set<string>>(() => new Set());
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [menuColunasAberto, setMenuColunasAberto] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(25);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2489,35 +2490,41 @@ function LancamentosDespesa({
   return (
     <div className="despesas-theme despesas-shell">
       <style>{DESPESAS_ESTILOS}</style>
-      <section className="despesa-ledger" aria-label="Lançamentos mensais">
-        <div className="despesa-toolbar">
-          <div className="despesa-toolbar-main">
-            <div className="despesa-toolbar-actions">
-              <Button
-                type="button"
-                onClick={aoNovo}
-                className="despesa-primary shrink-0 gap-2"
-              >
-                <Plus size={16} />
+      <style>{ESTILOS_FINANCEIRO}</style>
+      <section className="erp-financeiro erp-saida" aria-label="Lançamentos mensais">
+          <header className="erp-cabecalho">
+            <div className="erp-titulo"><h2>Lançamentos mensais</h2></div>
+            <div className="erp-cabecalho-acoes">
+              <div className="erp-resumo">
+                <span>{temFiltros ? "Total filtrado" : "Total listado"}</span>
+                <strong>{carregando ? "—" : formatarCentavos(totalFiltrado)}</strong>
+              </div>
+            </div>
+          </header>
+        <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
+          <div className="contents">
+            <div className="erp-acoes">
+              <button type="button" className="erp-btn erp-btn-primario" onClick={aoNovo}>
+                <Plus size={17} aria-hidden="true" />
                 Novo
-              </Button>
+              </button>
               <button
                 type="button"
-                className="despesa-control"
+                className="erp-btn erp-btn-texto"
                 aria-expanded={filtrosAbertos}
                 aria-controls="despesa-filtros"
                 onClick={() => setFiltrosAbertos((atual) => !atual)}
               >
-                <Filter size={15} />
+                <Filter size={17} aria-hidden="true" />
                 Filtrar
                 {filtrosAtivos > 0 && (
-                  <span className="despesa-filter-count">{filtrosAtivos}</span>
+                  <span className="erp-contador">{filtrosAtivos}</span>
                 )}
               </button>
-              <span className="despesa-toolbar-divider" aria-hidden="true" />
+              <span className="erp-divisor" aria-hidden="true" />
               <button
                 type="button"
-                className="despesa-control despesa-control-quiet"
+                className="erp-btn erp-btn-texto"
                 disabled={carregando || !itensDaPagina.length}
                 onClick={() =>
                   setExpandidos(
@@ -2527,40 +2534,65 @@ function LancamentosDespesa({
                   )
                 }
               >
-                <ListOrdered size={15} />
+                <ListOrdered size={18} aria-hidden="true" />
                 {todosExpandidos ? "Recolher todas" : "Expandir todas"}
               </button>
+              <span className="erp-divisor" aria-hidden="true" />
               <button
                 type="button"
-                className="despesa-control despesa-control-quiet"
+                className="erp-btn erp-btn-texto"
                 title="Restaurar visibilidade e largura das colunas"
                 onClick={() => {
                   setOcultas(new Set());
                   setLarguras({});
                 }}
               >
-                <RotateCcw size={14} />
-                  Restaurar colunas
+                <RotateCcw size={17} aria-hidden="true" />
+                Restaurar colunas
+              </button>
+              <div className="erp-colunas-ancora">
+                <button
+                  type="button"
+                  className="erp-btn erp-btn-texto"
+                  aria-expanded={menuColunasAberto}
+                  aria-controls="despesa-colunas"
+                  onClick={() => setMenuColunasAberto((atual) => !atual)}
+                >
+                  <EyeOff size={17} aria-hidden="true" />
+                  Ocultar colunas
                 </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="despesa-control despesa-control-quiet" aria-label="Configurar colunas">
-                    <Columns3 size={15} /> Colunas
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" collisionPadding={8} className="despesas-theme despesa-dialog despesa-columns-menu">
-                  <p className="despesa-columns-menu-heading px-2 py-2 text-xs font-semibold">Exibir colunas</p>
-                  {colunas.filter((coluna) => coluna.id !== "acoes").map((coluna) => (
-                    <label key={coluna.id} className="despesa-column-option">
-                      <input type="checkbox" checked={!ocultas.has(coluna.id)} onChange={() => setOcultas((atual) => { const proximo = new Set(atual); if (proximo.has(coluna.id)) proximo.delete(coluna.id); else proximo.add(coluna.id); return proximo; })}/>
-                      <span className="min-w-0 break-words">{coluna.titulo}</span>
-                    </label>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                {menuColunasAberto && (
+                  <div
+                    className="erp-colunas-lista"
+                    id="despesa-colunas"
+                    role="listbox"
+                    aria-multiselectable="true"
+                    aria-label="Colunas visíveis"
+                  >
+                    {colunas.map((coluna) => {
+                      const visivel = !ocultas.has(coluna.id);
+                      return (
+                        <button
+                          key={coluna.id}
+                          type="button"
+                          role="option"
+                          aria-selected={visivel}
+                          disabled={visivel && colunasVisiveis.length === 1}
+                          onClick={() => alternarColunaOculta(coluna.id)}
+                        >
+                          <span className="erp-coluna-marca" aria-hidden="true">
+                            {visivel && <Check size={11} />}
+                          </span>
+                          {coluna.titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
             <div
-              className="despesa-period"
+              className="erp-periodo"
               role="group"
               aria-label="Navegar pelas competências"
             >
@@ -2569,10 +2601,10 @@ function LancamentosDespesa({
                 aoAlternar={alternarMes}
                 aoSelecionarMesAtual={() => selecionarMes(mesAtualLocal())}
               />
-              <div className="despesa-month-switcher">
+              <div className="erp-navegacao-mes">
                 <button
                   type="button"
-                  className="despesa-control despesa-control-icon"
+                  className="erp-btn erp-btn-icone"
                   aria-label="Selecionar mês anterior"
                   onClick={() =>
                     selecionarMesUnico(deslocarMes(mesReferencia, -1))
@@ -2580,7 +2612,7 @@ function LancamentosDespesa({
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <div className="despesa-current-month">
+                <div className="erp-rotulo-periodo">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -2621,7 +2653,7 @@ function LancamentosDespesa({
                 </div>
                 <button
                   type="button"
-                  className="despesa-control despesa-control-icon"
+                  className="erp-btn erp-btn-icone"
                   aria-label="Selecionar próximo mês"
                   onClick={() =>
                     selecionarMesUnico(deslocarMes(mesReferencia, 1))
@@ -2633,8 +2665,8 @@ function LancamentosDespesa({
             </div>
           </div>
           {filtrosAbertos && (
-            <div id="despesa-filtros" className="despesa-filter-panel">
-              <div className="despesa-search-field">
+            <div id="despesa-filtros" className="erp-filtros w-full">
+              <div className="erp-busca">
                 <Label htmlFor="despesa-busca" className="sr-only">
                   Buscar em todos os campos
                 </Label>
@@ -2693,10 +2725,10 @@ function LancamentosDespesa({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="despesa-filter-clear text-xs">
+              <div className="text-xs">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 text-primary"
+                  className="erp-btn erp-btn-texto"
                   onClick={limparFiltros}
                 >
                   <X size={12} />
@@ -2746,11 +2778,10 @@ function LancamentosDespesa({
         )}
         <div
           ref={scrollRef}
-          className="despesa-table-scroll"
+          className={`erp-tabela-container ${arrastando ? "erp-arrastando" : ""}`}
           role="region"
           aria-label="Tabela de despesas. Arraste horizontalmente ou use as setas do teclado."
           tabIndex={0}
-          data-dragging={arrastando}
           aria-busy={carregando}
           onPointerDown={iniciarArraste}
           onClickCapture={(evento) => {
@@ -2761,109 +2792,35 @@ function LancamentosDespesa({
             }
           }}
         >
-          <table className="despesa-table" style={{ width: larguraTabela }}>
+          <table className="erp-tabela erp-tabela-saidas" style={{ width: larguraTabela }}>
             <caption className="sr-only">
               Despesas agrupadas por mês. Clique nos cabeçalhos para ordenar
               dentro de cada mês. Arraste a borda de uma coluna para
               redimensioná-la ou use as setas quando a borda estiver focada.
             </caption>
             <colgroup>
-              {colunasVisiveis
-                .filter((coluna) => coluna.id === "acoes")
-                .map((coluna) => (
-                  <col
-                    key={coluna.id}
-                    style={{ width: larguras[coluna.id] ?? coluna.largura }}
-                  />
-                ))}
-              <col style={{ width: 44 }} />
-              {colunasVisiveis
-                .filter((coluna) => coluna.id !== "acoes")
-                .map((coluna) => (
+              <col style={{ width: 120 }} />
+              {colunasVisiveis.map((coluna) => (
                 <col
                   key={coluna.id}
                   style={{ width: larguras[coluna.id] ?? coluna.largura }}
                 />
-                ))}
+              ))}
             </colgroup>
             <thead>
               <tr>
-                {colunasVisiveis
-                  .filter((coluna) => coluna.id === "acoes")
-                  .map((coluna) => (
-                    <th
-                      key={coluna.id}
-                      scope="col"
-                      aria-label="Ações do lançamento"
-                    >
-                      {coluna.titulo}
-                      <span
-                        role="separator"
-                        tabIndex={0}
-                        aria-orientation="vertical"
-                        aria-label={`Redimensionar coluna ${coluna.titulo}`}
-                        aria-valuemin={coluna.minimo}
-                        aria-valuemax={800}
-                        aria-valuenow={Math.round(
-                          larguras[coluna.id] ?? coluna.largura,
-                        )}
-                        className="despesa-col-resizer"
-                        onPointerDown={(evento) =>
-                          iniciarRedimensionamento(
-                            coluna.id,
-                            coluna.minimo,
-                            evento,
-                          )
-                        }
-                        onDoubleClick={() =>
-                          setLarguras((atual) => ({
-                            ...atual,
-                            [coluna.id]: coluna.largura,
-                          }))
-                        }
-                        onKeyDown={(evento) => {
-                          if (
-                            evento.key === "ArrowLeft" ||
-                            evento.key === "ArrowRight"
-                          ) {
-                            evento.preventDefault();
-                            evento.stopPropagation();
-                            setLarguras((atual) => ({
-                              ...atual,
-                              [coluna.id]: Math.min(
-                                800,
-                                Math.max(
-                                  coluna.minimo,
-                                  (atual[coluna.id] ?? coluna.largura) +
-                                    (evento.key === "ArrowRight" ? 16 : -16),
-                                ),
-                              ),
-                            }));
-                          }
-                        }}
-                      />
-                    </th>
-                  ))}
                 <th scope="col">
-                  <Checkbox
-                    className="despesa-checkbox"
-                    aria-label="Selecionar todos os lançamentos desta página"
-                    disabled={carregando || !itensDaPagina.length}
-                    checked={
-                      todosDaPaginaSelecionados
-                        ? true
-                        : itensDaPagina.some((item) =>
-                              selecionados.has(item.id),
-                            )
-                          ? "indeterminate"
-                          : false
-                    }
-                    onCheckedChange={alternarSelecaoDaPagina}
-                  />
+                  <div className="erp-celula-selecao erp-selecao-cabecalho">
+                    <CaixaSelecao
+                      marcado={todosDaPaginaSelecionados}
+                      parcial={!todosDaPaginaSelecionados && itensDaPagina.some((item) => selecionados.has(item.id))}
+                      desabilitado={carregando || !itensDaPagina.length}
+                      rotulo="Selecionar todos os lançamentos desta página"
+                      aoMudar={alternarSelecaoDaPagina}
+                    />
+                  </div>
                 </th>
-                {colunasVisiveis
-                  .filter((coluna) => coluna.id !== "acoes")
-                  .map((coluna) => (
+                {colunasVisiveis.map((coluna) => (
                   <th
                     key={coluna.id}
                     scope="col"
@@ -2881,7 +2838,7 @@ function LancamentosDespesa({
                     {coluna.valor ? (
                       <button
                         type="button"
-                        className="despesa-sort"
+                        className="erp-ordenar"
                         data-active={ordenacao.coluna === coluna.id}
                         title={`${coluna.titulo}: ordenar ${ordenacao.coluna === coluna.id && ordenacao.direcao === "asc" ? "decrescente" : "crescente"}${coluna.cotista ? " por valor rateado" : ""}`}
                         onClick={() => ordenarPor(coluna.id)}
@@ -2911,7 +2868,7 @@ function LancamentosDespesa({
                       aria-valuenow={Math.round(
                         larguras[coluna.id] ?? coluna.largura,
                       )}
-                      className="despesa-col-resizer"
+                      className="erp-redimensionar"
                       onPointerDown={(evento) =>
                         iniciarRedimensionamento(
                           coluna.id,
@@ -2953,7 +2910,7 @@ function LancamentosDespesa({
             {carregando ? (
               <tbody>
                 <tr>
-                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                  <td colSpan={quantidadeColunas} className="erp-estado">
                     <div
                       className="flex items-center justify-start gap-2"
                       role="status"
@@ -2978,27 +2935,31 @@ function LancamentosDespesa({
                   {itens.map((item) => (
                     <Fragment key={item.id}>
                       <tr
-                        className="despesa-row"
-                        data-expanded={expandidos.has(item.id)}
-                        data-selected={selecionados.has(item.id)}
+                        className={`erp-linha ${expandidos.has(item.id) ? "erp-linha-aberta" : ""} ${selecionados.has(item.id) ? "erp-linha-selecionada" : ""}`}
                       >
-                        {colunaAcoesVisivel && (
-                          <td>{colunaAcoesVisivel.render(item)}</td>
-                        )}
-                        <td>
-                          <Checkbox
-                            className="despesa-checkbox"
-                            aria-label={`Selecionar lançamento: ${item.descricao}`}
-                            checked={selecionados.has(item.id)}
-                            onCheckedChange={() => alternarSelecao(item.id)}
-                          />
+                        <td className="erp-td-acoes">
+                          <div className="erp-celula-selecao">
+                            <button
+                              type="button"
+                              className="erp-expandir"
+                              aria-label={`${expandidos.has(item.id) ? "Recolher" : "Expandir"} ${item.descricao}`}
+                              aria-expanded={expandidos.has(item.id)}
+                              onClick={() => alternarExpandido(item.id)}
+                            >
+                              <ChevronRight size={16} aria-hidden="true" />
+                            </button>
+                            <CaixaSelecao
+                              marcado={selecionados.has(item.id)}
+                              rotulo={`Selecionar lançamento: ${item.descricao}`}
+                              aoMudar={() => alternarSelecao(item.id)}
+                            />
+                            {acoesDaLinha(item)}
+                          </div>
                         </td>
-                        {colunasVisiveis
-                          .filter((coluna) => coluna.id !== "acoes")
-                          .map((coluna) => (
+                        {colunasVisiveis.map((coluna) => (
                           <td
                             key={coluna.id}
-                            className={coluna.numerica ? "text-right" : ""}
+                            className={coluna.numerica ? "erp-valor" : ""}
                           >
                             {coluna.render(item)}
                           </td>
@@ -3026,7 +2987,7 @@ function LancamentosDespesa({
             ) : (
               <tbody>
                 <tr>
-                  <td colSpan={quantidadeColunas} className="despesa-empty">
+                  <td colSpan={quantidadeColunas} className="erp-estado">
                     Nenhum lançamento encontrado para os filtros.
                   </td>
                 </tr>
@@ -3049,8 +3010,8 @@ function LancamentosDespesa({
             <span>Em aberto: {formatarCentavos(totalAberto)}</span>
           </div>
         </div>
-        <footer className="despesa-pagination">
-          <div className="despesa-pagination-info">
+        <footer className="erp-rodape">
+          <div className="erp-rodape-info">
             <span>{itensSelecionados.length} selecionados</span>
             <span>{carregando ? 0 : filtradas.length} registros</span>
             <label className="inline-flex min-w-0 items-center gap-1">
@@ -3067,10 +3028,7 @@ function LancamentosDespesa({
               </select>
             </label>
           </div>
-          <nav
-            aria-label="Paginação das despesas"
-            className="flex items-center gap-1"
-          >
+          <nav aria-label="Paginação das despesas" className="erp-paginacao">
             <span className="mr-2 text-[11px]" role="status" aria-live="polite">
               {carregando
                 ? "Carregando…"
@@ -3078,6 +3036,7 @@ function LancamentosDespesa({
             </span>
             <button
               type="button"
+              className="erp-pagina-btn"
               disabled={carregando || paginaAtual === 1}
               aria-label="Página anterior"
               onClick={() => {
@@ -3092,6 +3051,7 @@ function LancamentosDespesa({
             </span>
             <button
               type="button"
+              className="erp-pagina-btn"
               disabled={carregando || paginaAtual === totalPaginas}
               aria-label="Próxima página"
               onClick={() => {

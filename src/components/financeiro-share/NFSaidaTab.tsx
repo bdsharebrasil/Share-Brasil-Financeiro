@@ -827,4 +827,5 @@ export const STYLES = `
 .nf-mobile-doc .nf-detail dl{grid-template-columns:1fr}
 .nf-mobile-docs{display:none}
 @container(max-width:760px){.nf-mobile-docs{display:grid}}
+.nf-list-heading,.nf-back,.nf-mobile-docs{background:#070a12}
 `;

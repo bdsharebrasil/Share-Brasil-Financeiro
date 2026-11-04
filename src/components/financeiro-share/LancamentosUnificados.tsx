@@ -847,7 +847,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }
-.erp-financeiro .erp-btn-primario { background: black; border-color: #159bfa; box-shadow: inset 0 1px #ffffff22, 0 0 8px #0798ff15; color: #fff; }
+.erp-financeiro .erp-btn-primario { background: rgba(7, 36, 73, 1); border-color: rgba(13, 42, 61, 1); border-width: 0; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
 .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: #4dbaff; }
 .erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
 .erp-financeiro .erp-btn-ativo { border-color: #078fe6; background: #078fe61a; }
@@ -906,7 +906,9 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-tabela .erp-documento { color: #b3c2d8; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .erp-financeiro .erp-celula-selecao { display: flex; align-items: center; justify-content: space-between; gap: 13px; }
 .erp-financeiro .erp-tabela td:first-child { padding-left: 8px; padding-right: 16px; }
-.erp-financeiro .erp-selecao-cabecalho { justify-content: flex-end; padding-right: 16px; }
+.erp-financeiro .erp-selecao-cabecalho { justify-content: flex-end; padding-right: 16px; margin-left: 40px; margin-right: 40px; }
+.erp-financeiro .erp-tabela thead th { margin-left: 0; margin-right: 0; }
+.erp-financeiro .erp-tabela col:first-child { margin-left: -5px; margin-right: -5px; padding-left: 0; padding-right: 0; min-height: 0; font-size: 11px; line-height: 8.2px; font-weight: 300; }
 .erp-financeiro .erp-expandir { display: flex; align-items: center; justify-content: center; width: 20px; height: 27px; flex-shrink: 0; padding: 0; border: 0; color: #d6e2ee; background: transparent; }
 .erp-financeiro .erp-expandir svg { transition: transform .15s; }
 .erp-financeiro .erp-expandir[aria-expanded="true"] svg { transform: rotate(90deg); }

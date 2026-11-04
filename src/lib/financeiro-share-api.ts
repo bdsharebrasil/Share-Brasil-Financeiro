@@ -27,6 +27,8 @@ import type {
 
   Lancamento,
 
+  TipoDocumento,
+
 } from "@/components/financeiro-share/tipos";
 
 import { formatCentavos, formatReais, parseReaisToCentavos } from "@/lib/money";
@@ -235,6 +237,34 @@ export function enviarComprovanteRecebimento(id: string, arquivo: File): Promise
 
 }
 
+const PREFIXOS_TIPO_DOCUMENTO: Array<[string, TipoDocumento]> = [
+  ["REC", "RECIBO"], ["REL", "RELATORIO VIAGEM"], ["DEM", "DEMONSTRATIVO"], ["NF", "NOTA FISCAL"], ["COM", "COMANDA"], ["BOL", "BOLETO"],
+];
+
+function textoPreenchido(valor: unknown): string | null {
+  const texto = typeof valor === "string" ? valor.trim() : "";
+  return texto || null;
+}
+
+function tipoDocumentoDaConta(row: any): TipoDocumento | null {
+  if (textoPreenchido(row.numero_nf ?? row.numeroNf)) return "NOTA FISCAL";
+  if (textoPreenchido(row.numero_recibo ?? row.numeroRecibo)) return "RECIBO";
+  if (textoPreenchido(row.numero_boleto ?? row.numeroBoleto)) return "BOLETO";
+  if (textoPreenchido(row.numero_demonstrativo ?? row.numeroDemonstrativo)) return "DEMONSTRATIVO";
+  const numeroDoc = (textoPreenchido(row.numero_doc ?? row.numeroDoc) ?? "").toUpperCase();
+  return PREFIXOS_TIPO_DOCUMENTO.find(([prefixo]) => numeroDoc.startsWith(prefixo))?.[1] ?? null;
+}
+
+function numerosDocumentoDaConta(row: any): string[] {
+  return [
+    row.numero_nf ?? row.numeroNf,
+    row.numero_recibo ?? row.numeroRecibo,
+    row.numero_boleto ?? row.numeroBoleto,
+    row.numero_demonstrativo ?? row.numeroDemonstrativo,
+    row.numero_doc ?? row.numeroDoc,
+  ].map(textoPreenchido).filter((numero): numero is string => numero !== null);
+}
+
 function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: any): T {
 
   return {
@@ -298,6 +328,10 @@ function normalizarContaFinanceira<T extends ContaAPagar | ContaAReceber>(row: a
     comprovanteRecebimentoUrl: row.comprovanteRecebimentoUrl ?? row.comprovante_recebimento_url ?? null,
 
     documento: row.documento ?? row.numero_nf ?? row.numero_recibo ?? row.numero_doc ?? row.numero_demonstrativo ?? null,
+
+    tipoDocumento: tipoDocumentoDaConta(row),
+
+    numerosDocumento: numerosDocumentoDaConta(row),
 
     documentoUrl: resolverUrlDocumento(row.documentoUrl || row.url_doc || row.relatorio_pdf_url || row.url_demonstrativo || row.url_nf || row.url_recibo || row.url_boleto),
 

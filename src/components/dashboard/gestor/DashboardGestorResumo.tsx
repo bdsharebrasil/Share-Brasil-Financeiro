@@ -399,25 +399,27 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
 
   return (
     <div className="route-enter mx-auto w-full min-w-0 max-w-[1480px] space-y-4 pb-8">
-      <HeroDashboard
-        ambiente="gestor"
-        title={`${saudacaoAtual()}, ${primeiroNome}`}
-        subtitle="Resumo financeiro e visão executiva do que precisa da sua atenção hoje"
-      >
-        <Button
-          type="button"
-          onClick={() => {
-            void carregar(true);
-            void recarregarLancamentos();
-          }}
-          disabled={atualizando}
-          variant="outline"
-          className="h-9 w-full gap-2 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
+      {!modulo && (
+        <HeroDashboard
+          ambiente="gestor"
+          title={`${saudacaoAtual()}, ${primeiroNome}`}
+          subtitle="Resumo financeiro e visão executiva do que precisa da sua atenção hoje"
         >
-          <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} />
-          {atualizando ? "Atualizando…" : "Atualizar"}
-        </Button>
-      </HeroDashboard>
+          <Button
+            type="button"
+            onClick={() => {
+              void carregar(true);
+              void recarregarLancamentos();
+            }}
+            disabled={atualizando}
+            variant="outline"
+            className="h-9 w-full gap-2 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
+          >
+            <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} />
+            {atualizando ? "Atualizando…" : "Atualizar"}
+          </Button>
+        </HeroDashboard>
+      )}
 
       {erro && (
         <div
@@ -434,13 +436,13 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
       {modulo ? (
         /* ------------------------------ Módulo aberto ------------------------------ */
         <section className="min-w-0 space-y-2" aria-label={moduloAtual?.rotulo}>
-          <div className="flex justify-start">
+          <div className="flex justify-start -my-[9px] py-0 text-[11px] leading-[11px] font-light">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={voltar}
-              className="size-8 text-muted-foreground hover:text-foreground"
+              className="mx-1 my-[4px] size-8 min-h-0 px-0 py-0 text-[10px] leading-[5px] font-light overflow-hidden rounded-[4px] [border-style:outset] border-[rgba(70,133,139,0.93)] text-muted-foreground hover:text-foreground"
               aria-label="Voltar ao dashboard"
               title="Voltar ao dashboard"
             >
@@ -448,7 +450,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
             </Button>
           </div>
 
-          <div className="min-w-0">
+          <div className="-ml-[11px] -mr-[44px] min-w-0 pl-0 pr-0">
             {modulo === "entrada" && <LancamentosUnificados key={location.search} fluxo="ENTRADA" filtroInicial={filtroInicial} />}
             {modulo === "saida" && <LancamentosUnificados key={location.search} fluxo="SAIDA" filtroInicial={filtroInicial} />}
             {modulo === "baixas" && (

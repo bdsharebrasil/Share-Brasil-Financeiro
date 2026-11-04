@@ -8,9 +8,13 @@
   --text: #e6e8eb;
   --text-muted: #8b93a0;
   --accent: #1f8fd6;
-  --success: #3fb27f;
+--success: #3fb27f;
+--success-bg: rgba(63, 178, 127, 0.12);
+--success-border: rgba(63, 178, 127, 0.25);
   --danger: #f53228e0;
-  --warning: #f3e141d3;
+  --warning: #eab54b;
+  --warning-bg: rgba(234, 181, 75, 0.12);
+  --warning-border: rgba(234, 181, 75, 0.25);
   --row-height: 40px;
   --header-height: 32px;
   --toolbar-height: 36px;

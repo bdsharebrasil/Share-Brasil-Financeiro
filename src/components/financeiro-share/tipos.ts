@@ -9,6 +9,7 @@ export type StatusLancamento = 'EM_ABERTO' | 'PENDENTE' | 'PAGO' | 'RECEBIDO' | 
 export type StatusContaFinanceira = 'EM_ABERTO' | 'PENDENTE' | 'RECEBIDO' | 'PAGO' | 'CANCELADO' | 'ATRASADO' | 'EM_ATRASO' | 'AGUARDANDO_REEMBOLSO' | 'REEMBOLSADO';
 /** @deprecated use StatusContaFinanceira — mantido para não quebrar imports existentes */
 export type StatusContaAPagar = StatusContaFinanceira;
+export type TipoDocumento = 'RECIBO' | 'RELATORIO VIAGEM' | 'DEMONSTRATIVO' | 'NOTA FISCAL' | 'COMANDA' | 'BOLETO';
 
 export interface Lancamento {
   id: string;
@@ -76,6 +77,8 @@ export interface ContaAPagar {
   fonteLancamento?: boolean;
   comprovantePagamentoUrl: string | null;
   documento: string | null;
+  tipoDocumento?: TipoDocumento | null;
+  numerosDocumento?: string[];
   documentoUrl: string | null;
   url_demonstrativo?: string | null;
   url_nf?: string | null;
@@ -115,6 +118,8 @@ export interface ContaAReceber {
   contaBancariaId?: string | null;
   comprovanteRecebimentoUrl: string | null;
   documento: string | null;
+  tipoDocumento?: TipoDocumento | null;
+  numerosDocumento?: string[];
   documentoUrl: string | null;
   url_demonstrativo?: string | null;
   url_nf?: string | null;

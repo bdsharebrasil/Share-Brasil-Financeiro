@@ -31,7 +31,6 @@ import {
   Pencil,
   Trash2,
   Coins,
-  Gauge,
   MoreHorizontal,
   Search,
   ExternalLink,
@@ -125,7 +124,6 @@ import {
   atualizarParticipacaoCotista,
   excluirParticipacaoCotista,
 } from "@/lib/colaborador-api";
-import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
 import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
@@ -176,8 +174,8 @@ const DESPESAS_ESTILOS = `
 .financeiro-profissional .financeiro-panel-header { display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:16px; border-bottom:1px solid hsl(var(--border)); text-align:left; }
 .financeiro-profissional .financeiro-panel-header > div { min-width:0; }
 .financeiro-profissional .financeiro-tabs { padding:4px 8px; gap:4px; border-width:0; border-radius:0; background-color:transparent; }
-.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:0; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; }
-.financeiro-tab-label { display:inline-block; max-width:0; opacity:0; overflow:hidden; white-space:nowrap; }
+.financeiro-tab { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:40px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:600; white-space:nowrap; flex-shrink:0; cursor:pointer; box-shadow:none; }
+.financeiro-tab-label { display:inline-block; max-width:160px; opacity:1; overflow:hidden; white-space:nowrap; }
 .financeiro-tab.is-active { gap:8px; background:hsl(var(--card)); color:hsl(var(--primary)); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .financeiro-tab.is-active .financeiro-tab-label { max-width:160px; opacity:1; }
 @media (hover:hover) {
@@ -3618,7 +3616,6 @@ export default function FinanceiroCotista() {
   const [abaAtiva, setAbaAtiva] = useState<
     | "resumo"
     | "fechamento-balanco"
-    | "medias"
     | "lancamentos"
     | "graficos"
     | "ranking"
@@ -3656,12 +3653,6 @@ export default function FinanceiroCotista() {
       rotulo: "Voos empréstimo",
       Icon: Plane,
       corIcone: "bg-amber-400/10 text-amber-400",
-    },
-    {
-      id: "medias",
-      rotulo: "Médias",
-      Icon: Gauge,
-      corIcone: "bg-emerald-400/10 text-emerald-400",
     },
     {
       id: "graficos",
@@ -3819,26 +3810,6 @@ export default function FinanceiroCotista() {
 
   const formatarValorGrafico = (valor: number) =>
     formatarMoeda(valor).replace(",00", "");
-  const mediasPorCotista = useMemo(() => {
-    const totais = new Map<string, number>();
-    for (const lancamento of despesas) {
-      for (const rateio of lancamento.rateios ?? []) {
-        const chave = rateio.cotistaId ?? rateio.cotista;
-        if (!chave) continue;
-        totais.set(chave, (totais.get(chave) ?? 0) + rateio.valorCentavos);
-      }
-    }
-    const meses = Math.max(mesesAplicados.length, 1);
-    return cotistasAeronave.map((cotista) => {
-      const total = totais.get(cotista.id) ?? 0;
-      return {
-        id: cotista.id,
-        nome: cotista.nome,
-        total,
-        media: Math.round(total / meses),
-      };
-    });
-  }, [despesas, cotistasAeronave, mesesAplicados]);
   const estiloTooltip = {
     contentStyle: {
       background: "#0f172a",
@@ -4198,17 +4169,6 @@ export default function FinanceiroCotista() {
                   cotistas={cotistasAeronave}
                   mesesSelecionados={mesesAplicados}
                   cotistaId={cotistaVisaoId}
-                />
-              )}
-              {abaAtiva === "medias" && (
-                <MediasCotista
-                  mediasMensais={dashboard?.medias_mensais ?? []}
-                  mediasPorCotista={mediasPorCotista}
-                  totalAeronave={formatarMoeda(dashboard?.resumo?.saidas ?? 0)}
-                  mediaMensal={formatarMoeda(
-                    dashboard?.resumo?.media_mensal ?? 0,
-                  )}
-                  mesesConsiderados={mesesAplicados.length}
                 />
               )}
               {abaAtiva === "lancamentos" && (

@@ -44,7 +44,7 @@ import {
 } from "@/lib/financeiro-share-api";
 import { useContasAPagar } from "@/hooks/useContasAPagar";
 import { useContasAReceber } from "@/hooks/useContasAReceber";
-import type { ContaAPagar, ContaAReceber } from "./tipos";
+import type { ContaAPagar, ContaAReceber, TipoDocumento } from "./tipos";
 import {
   linhasDeContasAPagar,
   linhasDeContasAReceber,
@@ -87,18 +87,13 @@ type ChaveColuna =
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
 type FiltroColuna = "contaBancaria" | "documento" | "data";
-type TipoDocumento = "RECIBO" | "RELATORIO VIAGEM" | "DEMONSTRATIVO" | "NOTA FISCAL" | "COMANDA" | "BOLETO";
 type ModoData = "EMISSAO" | "VENCIMENTO" | "AMBAS";
 
 const TIPOS_DOCUMENTO: TipoDocumento[] = ["RECIBO", "RELATORIO VIAGEM", "DEMONSTRATIVO", "NOTA FISCAL", "COMANDA", "BOLETO"];
-const PREFIXOS_DOCUMENTO: Array<[string, TipoDocumento]> = [
-  ["REC", "RECIBO"], ["REL", "RELATORIO VIAGEM"], ["DEM", "DEMONSTRATIVO"], ["NF", "NOTA FISCAL"], ["COM", "COMANDA"], ["BOL", "BOLETO"],
-];
 const ROTULOS_MODO_DATA: Record<ModoData, string> = { EMISSAO: "DATA EMISSÃO", VENCIMENTO: "VENCIMENTO", AMBAS: "AMBAS" };
 
 function tipoDocumento(linha: LinhaConta): TipoDocumento | null {
-  const numero = (linha.documento ?? "").toUpperCase();
-  return PREFIXOS_DOCUMENTO.find(([prefixo]) => numero.startsWith(prefixo))?.[1] ?? null;
+  return linha.raw.tipoDocumento ?? null;
 }
 
 function ehColunaFiltravel(chave: ChaveColuna): chave is FiltroColuna {
@@ -601,7 +596,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       if (fluxoFiltro !== "TODOS" && linha.fluxo !== fluxoFiltro) return false;
       if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
       if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
-      const texto = [linha.documento, linha.descricao, linha.categoria, linha.favorecido,
+      const texto = [linha.documento, ...(linha.raw.numerosDocumento ?? []), linha.descricao, linha.categoria, linha.favorecido,
         linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
       return texto.includes(textoBusca);
     }).sort((a, b) => {

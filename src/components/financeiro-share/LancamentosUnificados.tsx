@@ -1074,7 +1074,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
 .erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -120px 4px 111px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 36px; margin: 4px -120px 4px -53px; padding: 3px 9px; line-height: 11.2px; font-weight: 200; }
 .erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
 .erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
 .erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }

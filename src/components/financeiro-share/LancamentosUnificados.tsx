@@ -1022,7 +1022,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
 }
 
 // CSS isolado por prefixo. O componente não depende das cores do tema Tailwind.
-const ESTILOS_FINANCEIRO = `
+export const ESTILOS_FINANCEIRO = `
 .erp-financeiro {
   --erp-bg: #06080f; --erp-panel: #13191f; --erp-border: #27313b;
   --erp-text: #e7edf6; --erp-muted: #a6b5c9; --erp-blue: #0798ff; --erp-total: #2ed48d;

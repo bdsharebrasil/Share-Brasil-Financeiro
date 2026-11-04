@@ -42,7 +42,7 @@ import {
   CircleCheck,
   Clock3,
   Undo2,
-  Columns3,
+  EyeOff,
   RotateCcw,
   ChevronsUpDown,
 } from "lucide-react";
@@ -50,7 +50,7 @@ import { toast } from "sonner";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ESTILOS_FINANCEIRO } from "@/components/financeiro-share/LancamentosUnificados";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
@@ -1551,17 +1551,59 @@ function percentualSociedadeDoCotista(
   return cotista?.percentual_sociedade ?? null;
 }
 
+const TOM_STATUS_LANCAMENTO: Record<string, string> = {
+  PAGO: "sucesso",
+  PAGO_DIRETAMENTE: "sucesso",
+  RECEBIDO: "sucesso",
+  REEMBOLSADO: "sucesso",
+  EM_ABERTO: "pendente",
+  EM_ATRASO: "atrasado",
+  AGUARDANDO_REEMBOLSO: "aguardando",
+};
+
 function BadgeStatus({ status }: { status: string }) {
   const visual = statusLancamento(status);
-  const Icon = visual.Icon;
   return (
     <span
       data-status={visual.value}
-      className="despesa-status inline-flex items-center gap-1.5 border"
+      className={`erp-status erp-status-${TOM_STATUS_LANCAMENTO[visual.value] ?? "cancelado"}`}
     >
-      <Icon size={11} className="shrink-0" aria-hidden="true" />
       {visual.label}
     </span>
+  );
+}
+
+function CaixaSelecao({
+  marcado,
+  parcial = false,
+  desabilitado = false,
+  rotulo,
+  aoMudar,
+}: {
+  marcado: boolean;
+  parcial?: boolean;
+  desabilitado?: boolean;
+  rotulo: string;
+  aoMudar: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = parcial;
+  }, [parcial]);
+  return (
+    <label className="erp-checkbox">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={marcado}
+        disabled={desabilitado}
+        aria-label={rotulo}
+        onChange={aoMudar}
+      />
+      <span aria-hidden="true">
+        {parcial ? <span className="erp-checkbox-traco" /> : <Check size={12} strokeWidth={3} />}
+      </span>
+    </label>
   );
 }
 
@@ -1830,60 +1872,23 @@ function LancamentosDespesa({
     formatarData(valor).replace(/\/\d{4}$/, "");
   const colunas: ColunaDespesa[] = [
     {
-      id: "acoes",
-      titulo: "Ações",
-      largura: 90,
-      minimo: 90,
-      render: (item) => (
-        <div className="flex items-center justify-end gap-1">
-          {acoesDaLinha(item)}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 rounded-sm text-primary"
-            onClick={() =>
-              setExpandidos((atual) => {
-                const proximo = new Set(atual);
-                if (proximo.has(item.id)) proximo.delete(item.id);
-                else proximo.add(item.id);
-                return proximo;
-              })
-            }
-            aria-expanded={expandidos.has(item.id)}
-            aria-controls={`despesa-desktop-${item.id}`}
-            aria-label={`${expandidos.has(item.id) ? "Ocultar" : "Ver"} documentos e rateio: ${item.descricao}`}
-          >
-            {expandidos.has(item.id) ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
-          </Button>
-        </div>
-      ),
-    },
-    {
       id: "data",
       titulo: "Data",
       largura: 150,
       minimo: 130,
       valor: dataParaOrdenacao,
       render: (item) => (
-        <div className="despesa-date-group">
+        <>
           {modoData !== "vencimento" && (
-            <span>
-              <small>Emissão</small>
-              {formatarDataSemAno(item.dataEmissao || item.data)}
-            </span>
+            <span>{formatarDataSemAno(item.dataEmissao || item.data)}</span>
           )}
           {modoData !== "emissao" && (
-            <span>
-              <small>Vencimento</small>
+            <span className={modoData === "ambas" ? "erp-texto-secundario" : undefined}>
+              {modoData === "ambas" ? "Venc. " : ""}
               {formatarDataSemAno(item.prazo)}
             </span>
           )}
-        </div>
+        </>
       ),
     },
     {
@@ -1892,7 +1897,11 @@ function LancamentosDespesa({
       largura: 130,
       minimo: 96,
       valor: documentoDoLancamento,
-      render: (item) => texto(documentoDoLancamento(item)),
+      render: (item) => (
+        <span className="erp-documento" title={documentoDoLancamento(item) || undefined}>
+          {documentoDoLancamento(item) || "—"}
+        </span>
+      ),
     },
     {
       id: "descricao",
@@ -1942,11 +1951,7 @@ function LancamentosDespesa({
       minimo: 140,
       numerica: true,
       valor: valorPagoLancamento,
-      render: (item) => (
-        <span className="despesa-money">
-          {formatarCentavos(valorPagoLancamento(item))}
-        </span>
-      ),
+      render: (item) => formatarCentavos(valorPagoLancamento(item)),
     },
     {
       id: "pago-por",
@@ -1986,11 +1991,22 @@ function LancamentosDespesa({
     })),
   ];
   const colunasVisiveis = colunas.filter((coluna) => !ocultas.has(coluna.id));
-  const colunaAcoesVisivel = colunasVisiveis.find(
-    (coluna) => coluna.id === "acoes",
-  );
+  const alternarColunaOculta = (id: string) =>
+    setOcultas((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  const alternarExpandido = (id: string) =>
+    setExpandidos((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
   const larguraTabela =
-    44 +
+    120 +
     colunasVisiveis.reduce(
       (total, coluna) => total + (larguras[coluna.id] ?? coluna.largura),
       0,

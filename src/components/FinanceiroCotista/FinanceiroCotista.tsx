@@ -1338,6 +1338,7 @@ const TIPOS_DOCUMENTO_COTISTA = [
   { valor: "demonstrativo", rotulo: "Demonstrativo" },
   { valor: "nota", rotulo: "Nota fiscal" },
   { valor: "recibo", rotulo: "Recibo" },
+  { valor: "boleto", rotulo: "Boleto" },
   { valor: "documento", rotulo: "Documento" },
 ] as const;
 
@@ -1349,11 +1350,11 @@ const TITULOS_FILTRO_CABECALHO: Record<string, string> = {
 };
 
 function tipoDocumentoLancamento(lancamento: LancamentoEconomico) {
-  if (lancamento.numeroDemonstrativo) return "demonstrativo";
-  if (lancamento.documentoNumero) return "documento";
   if (lancamento.numeroNf) return "nota";
   if (lancamento.numeroRecibo) return "recibo";
-  if (lancamento.numeroDoc || lancamento.documento) return "documento";
+  if (lancamento.numeroBoleto) return "boleto";
+  if (lancamento.numeroDemonstrativo) return "demonstrativo";
+  if (lancamento.numeroDoc || lancamento.documentoNumero) return "documento";
   return null;
 }
 

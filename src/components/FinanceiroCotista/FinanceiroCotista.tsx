@@ -1335,6 +1335,29 @@ function statusLancamento(status: string | null | undefined) {
   );
 }
 
+const TIPOS_DOCUMENTO_COTISTA = [
+  { valor: "demonstrativo", rotulo: "Demonstrativo" },
+  { valor: "nota", rotulo: "Nota fiscal" },
+  { valor: "recibo", rotulo: "Recibo" },
+  { valor: "documento", rotulo: "Documento" },
+] as const;
+
+const TITULOS_FILTRO_CABECALHO: Record<string, string> = {
+  data: "data",
+  documento: "tipo de documento",
+  categoria: "categoria",
+  status: "status",
+};
+
+function tipoDocumentoLancamento(lancamento: LancamentoEconomico) {
+  if (lancamento.numeroDemonstrativo) return "demonstrativo";
+  if (lancamento.documentoNumero) return "documento";
+  if (lancamento.numeroNf) return "nota";
+  if (lancamento.numeroRecibo) return "recibo";
+  if (lancamento.numeroDoc || lancamento.documento) return "documento";
+  return null;
+}
+
 /* Fornecedor, documentos e rateio alinhados na expansão. */
 function LancamentoExpandido({
   lancamento,
@@ -1644,6 +1667,8 @@ function LancamentosDespesa({
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [modoData, setModoData] = useState<"emissao" | "vencimento" | "ambas">("emissao");
+  const [filtroDoc, setFiltroDoc] = useState("todos");
+  const [colunaFiltroAberta, setColunaFiltroAberta] = useState<string | null>(null);
   const [ordenacao, setOrdenacao] = useState<{
     coluna: string;
     direcao: "asc" | "desc";
@@ -1664,7 +1689,23 @@ function LancamentosDespesa({
     setPagina(1);
     setExpandidos(new Set());
     setSelecionados(new Set());
-  }, [busca, filtroStatus, filtroCategoria, modoData, ordenacao, lancamentos, porPagina]);
+  }, [busca, filtroStatus, filtroCategoria, filtroDoc, modoData, ordenacao, lancamentos, porPagina]);
+  useEffect(() => {
+    if (!colunaFiltroAberta) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".erp-coluna-filtro-anchor")) return;
+      setColunaFiltroAberta(null);
+    };
+    const fecharEscape = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setColunaFiltroAberta(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    document.addEventListener("keydown", fecharEscape);
+    return () => {
+      document.removeEventListener("pointerdown", fecharFora);
+      document.removeEventListener("keydown", fecharEscape);
+    };
+  }, [colunaFiltroAberta]);
 
   const iniciarRedimensionamento = (
     colunaId: string,
@@ -1838,10 +1879,11 @@ function LancamentosDespesa({
         (filtroStatus === "todos" ||
           normalizarStatus(item.status) === filtroStatus) &&
         (filtroCategoria === "todas" ||
-          (item.categoria || "Sem categoria") === filtroCategoria)
+          (item.categoria || "Sem categoria") === filtroCategoria) &&
+        (filtroDoc === "todos" || tipoDocumentoLancamento(item) === filtroDoc)
       );
     });
-  }, [despesas, busca, filtroStatus, filtroCategoria, fornecedoresEdicao]);
+  }, [despesas, busca, filtroStatus, filtroCategoria, filtroDoc, fornecedoresEdicao]);
   type ColunaDespesa = {
     id: string;
     titulo: string;
@@ -1989,6 +2031,84 @@ function LancamentosDespesa({
       },
     })),
   ];
+  const filtroCabecalhoAtivo = (id: string) =>
+    id === "data"
+      ? modoData !== "emissao"
+      : id === "documento"
+        ? filtroDoc !== "todos"
+        : id === "categoria"
+          ? filtroCategoria !== "todas"
+          : filtroStatus !== "todos";
+  const opcoesFiltroCabecalho = (id: string) => {
+    if (id === "data")
+      return [
+        { rotulo: "Emissão", ativo: modoData === "emissao", aplicar: () => alterarModoData("emissao") },
+        { rotulo: "Vencimento", ativo: modoData === "vencimento", aplicar: () => alterarModoData("vencimento") },
+        { rotulo: "Emissão e vencimento", ativo: modoData === "ambas", aplicar: () => alterarModoData("ambas") },
+      ];
+    if (id === "documento")
+      return [
+        { rotulo: "Todos os documentos", ativo: filtroDoc === "todos", aplicar: () => setFiltroDoc("todos") },
+        ...TIPOS_DOCUMENTO_COTISTA.map(({ valor, rotulo }) => ({
+          rotulo,
+          ativo: filtroDoc === valor,
+          aplicar: () => setFiltroDoc(valor),
+        })),
+      ];
+    if (id === "categoria")
+      return [
+        { rotulo: "Todas as categorias", ativo: filtroCategoria === "todas", aplicar: () => setFiltroCategoria("todas") },
+        ...categorias.map((categoria) => ({
+          rotulo: categoria,
+          ativo: filtroCategoria === categoria,
+          aplicar: () => setFiltroCategoria(categoria),
+        })),
+      ];
+    return [
+      { rotulo: "Todos os status", ativo: filtroStatus === "todos", aplicar: () => setFiltroStatus("todos") },
+      ...STATUS_LANCAMENTO.map(({ value, label }) => ({
+        rotulo: label,
+        ativo: filtroStatus === value,
+        aplicar: () => setFiltroStatus(value),
+      })),
+    ];
+  };
+  const renderizarFiltroCabecalho = (id: string) => {
+    if (!(id in TITULOS_FILTRO_CABECALHO)) return null;
+    const titulo = TITULOS_FILTRO_CABECALHO[id];
+    return (
+      <div className="erp-status-filtro-anchor erp-coluna-filtro-anchor">
+        <button
+          type="button"
+          className={`erp-status-filtro-trigger ${filtroCabecalhoAtivo(id) ? "erp-status-filtro-ativo" : ""}`}
+          aria-label={`Filtrar por ${titulo}`}
+          title={`Filtrar por ${titulo}`}
+          aria-haspopup="dialog"
+          aria-expanded={colunaFiltroAberta === id}
+          onClick={() => setColunaFiltroAberta((atual) => (atual === id ? null : id))}
+        >
+          <Filter size={13} aria-hidden="true" />
+        </button>
+        {colunaFiltroAberta === id && (
+          <div className="erp-status-filtro-menu" role="dialog" aria-label={`Filtrar por ${titulo}`}>
+            {opcoesFiltroCabecalho(id).map((opcao) => (
+              <button
+                key={opcao.rotulo}
+                type="button"
+                aria-pressed={opcao.ativo}
+                onClick={() => {
+                  opcao.aplicar();
+                  setColunaFiltroAberta(null);
+                }}
+              >
+                {opcao.rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   const colunasVisiveis = colunas.filter((coluna) => !ocultas.has(coluna.id));
   const alternarColunaOculta = (id: string) =>
     setOcultas((atual) => {
@@ -2122,12 +2242,13 @@ function LancamentosDespesa({
       return proximo;
     });
   const temFiltros = Boolean(
-    busca || filtroStatus !== "todos" || filtroCategoria !== "todas",
+    busca || filtroStatus !== "todos" || filtroCategoria !== "todas" || filtroDoc !== "todos",
   );
   const limparFiltros = () => {
     setBusca("");
     setFiltroStatus("todos");
     setFiltroCategoria("todas");
+    setFiltroDoc("todos");
   };
   const atualizarEdicao = (
     campo: keyof Omit<EdicaoLancamento, "rateios">,
@@ -2485,7 +2606,8 @@ function LancamentosDespesa({
   const filtrosAtivos =
     Number(Boolean(busca.trim())) +
     Number(filtroStatus !== "todos") +
-    Number(filtroCategoria !== "todas");
+    Number(filtroCategoria !== "todas") +
+    Number(filtroDoc !== "todos");
 
   return (
     <div className="despesas-theme despesas-shell">
@@ -2835,6 +2957,8 @@ function LancamentosDespesa({
                         : undefined
                     }
                   >
+                    <div className="erp-status-th-conteudo">
+                    {renderizarFiltroCabecalho(coluna.id)}
                     {coluna.valor ? (
                       <button
                         type="button"
@@ -2858,6 +2982,7 @@ function LancamentosDespesa({
                     ) : (
                       coluna.titulo
                     )}
+                    </div>
                     <span
                       role="separator"
                       tabIndex={0}

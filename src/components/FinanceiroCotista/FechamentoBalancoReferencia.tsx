@@ -104,20 +104,10 @@ export function FechamentoBalancoReferencia({
   const voosOperacionais = (d?.balanco_operacional?.voos ?? [])
     .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
   const voosDoParticipante = participante?.voos ?? [];
-  const voos = (voosDoParticipante.length ? voosDoParticipante : voosOperacionais)
+  const voos = voosOperacionais
     .slice()
-    .sort((a, z) => a.data.localeCompare(z.data));
+    .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
-  const espelhos = (d?.balanco_operacional?.espelhos ?? [])
-    .filter((item) => b?.meses.includes(item.data.slice(0, 7)))
-    .slice()
-    .sort((a, z) => a.data.localeCompare(z.data) || a.id.localeCompare(z.id));
-  const espelhosDisponiveis = Boolean(d?.balanco_operacional?.fontes.espelhos);
-  const abastecimentos = (d?.balanco_operacional?.abastecimentos ?? [])
-    .filter((item) => b?.meses.includes(item.data.slice(0, 7)));
-  const litrosAbastecidos = abastecimentos.some((item) => item.litros === null)
-    ? null
-    : abastecimentos.reduce((soma, item) => soma + (item.litros ?? 0), 0);
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
   if (carregando) return <div className="fb" role="status"><style>{CSS}</style><div className="fb-empty">Carregando fechamento…</div></div>;
@@ -135,8 +125,6 @@ export function FechamentoBalancoReferencia({
   const participanteTemVoos = Boolean(voosDoParticipante.length);
   const quantidadeVoos = participanteTemVoos ? voos.length : (b.totalVoos ?? voos.length);
   const pousos = voos.reduce((soma, voo) => soma + (voo.pousos ?? 0), 0);
-  const horasDiario = participanteTemVoos ? totalHoras : b.totalHoras;
-  const pousosDiario = participanteTemVoos ? pousos : (b.totalPousos ?? pousos);
   const custoMensalMedio = b.meses.length ? total.total / b.meses.length : 0;
   const custoFixos = total.fixos;
   const custoVariavel = total.variaveis;
@@ -272,22 +260,19 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
-        <section className="fb-card"><h2>Diário de bordo · {aeronave}</h2>
-          {diarioDisponivel ? <><div className="fb-scroll"><table>
-            <thead><tr><th>Data</th><th>Voo</th><th>De</th><th>Para</th><th className="fb-num">Tempo</th><th className="fb-num">Pousos</th><th>Natureza</th><th>Cotista</th></tr></thead>
-            <tbody>{voos.map((voo) => <tr key={voo.id}><td>{formatarData(voo.data)}</td><td>{voo.numero || "—"}</td><td>{voo.origem || "—"}</td><td>{voo.destino || "—"}</td><td className="fb-num">{horas(voo.horas)}</td><td className="fb-num">{voo.pousos == null ? "—" : fmt(voo.pousos, 0)}</td><td>{voo.natureza || "—"}{voo.emprestado ? " · empréstimo" : ""}</td><td>{cotistaDoVoo(voo, cotistas)}</td></tr>)}</tbody>
-          <tfoot><tr><td colSpan={4}>Total · abastecido na aeronave {litrosAbastecidos == null ? "—" : `${fmt(litrosAbastecidos, 1)} L`}</td><td className="fb-num">{horas(horasDiario)}</td><td className="fb-num">{fmt(pousosDiario, 0)}</td><td colSpan={2}>{voos.length} voos</td></tr></tfoot>
-          </table></div>{!voos.length && <Vazio>Nenhum voo registrado no período selecionado.</Vazio>}</>
+        <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
+          {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
+            <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>VOO PARA</th></tr></thead>
+            <tbody>{voos.map((voo, index) => <tr key={voo.id}>
+              <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
+              <td>{formatarData(voo.data)}</td>
+              <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
+              <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
+              <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
+              <td>{destinoVoo(voo, cotistas)}</td>
+            </tr>)}</tbody>
+          </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
-        </section>
-        <section className="fb-card fb-spaced"><h2>Espelho dos lançamentos do diário de bordo</h2>
-          {espelhosDisponiveis ? espelhos.length ? <div className="fb-scroll"><table>
-            <thead><tr><th>Data</th><th>Voo</th><th>Documento</th><th>Descrição</th><th>Categoria</th><th>Cotista</th><th>Fluxo</th><th>Status</th><th className="fb-num">Valor</th></tr></thead>
-            <tbody>{espelhos.map((item) => <tr key={item.id}><td>{formatarData(item.data)}</td><td>{item.numeroVoo || "—"}</td><td>{item.documento || "—"}</td><td>{item.descricao || "—"}</td><td>{item.categoria || "—"}</td><td>{item.cotistaNome || "Aeronave / rateio"}</td><td>{item.fluxo.replace(/_/g, " ").toLocaleUpperCase("pt-BR") || "—"}</td><td>{item.status.replace(/_/g, " ").toLocaleUpperCase("pt-BR") || "—"}</td><td className="fb-num">{formatarCentavos(item.valorCentavos)}</td></tr>)}</tbody>
-            <tfoot><tr><td colSpan={8}>{espelhos.length} lançamentos vinculados ao diário</td><td className="fb-num">{formatarCentavos(espelhos.reduce((soma, item) => soma + item.valorCentavos, 0))}</td></tr></tfoot>
-          </table></div> : <Vazio>Nenhum lançamento financeiro espelho vinculado aos abastecimentos do diário neste período.</Vazio>
-            : <Vazio>O espelho financeiro do diário não está disponível nesta consulta.</Vazio>}
-          <p className="fb-note">São exibidos os lançamentos financeiros vinculados ao abastecimento associado a cada registro do diário. Eles não são somados novamente ao balanço, que já considera os rateios financeiros.</p>
         </section>
       </section>}
     </div>
@@ -308,6 +293,15 @@ function formatarDataSemAno(valor: string | null | undefined) {
 
 type VooBalanco = NonNullable<DashboardBalanco["balanco_operacional"]>["voos"][number];
 
+function formatarHorarioDiario(valor: string | null) {
+  return valor ? valor.slice(0, 5) : "—";
+}
+
+function formatarDuracaoDiario(valor: number | null) {
+  const minutos = Math.max(0, Math.round(Number(valor || 0) * 60));
+  return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
+}
+
 function cotistaDoVoo(voo: VooBalanco, cotistas: CotistaAeronave[]) {
   const idsVinculados = voo.emprestado
     ? [voo.clienteTomadorId, voo.socioTomadorId]
@@ -319,10 +313,15 @@ function cotistaDoVoo(voo: VooBalanco, cotistas: CotistaAeronave[]) {
   return cotista?.nome || "Aeronave";
 }
 
+function destinoVoo(voo: VooBalanco, cotistas: CotistaAeronave[]) {
+  if (voo.natureza === "TR - Traslado" || voo.natureza === "VT - Voo Teste") return voo.natureza;
+  return cotistaDoVoo(voo, cotistas);
+}
+
 const CSS = `
 .fb{--fb-bg:#f3f5f8;--fb-card:#fff;--fb-text:#14202e;--fb-muted:#5d6b7b;--fb-border:#e0e6ed;--fb-navy:#0f3d6e;--fb-blue:#2f6db5;--fb-soft:#eef3f9;max-width:1040px;margin:0 auto;padding:20px 0 42px;color:var(--fb-text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color-scheme:light}
 .fb *{box-sizing:border-box}.fb button,.fb input,.fb select{font:inherit;color:inherit}.fb button{cursor:pointer}.fb :is(button,input,select):focus-visible{outline:2px solid var(--fb-blue);outline-offset:2px}.fb-page-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--fb-muted);font-size:12px}.fb-button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--fb-border);margin-bottom:18px}.fb-tabs button{flex-shrink:0;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--fb-muted);padding:10px 14px}.fb-tabs button[aria-selected=true]{border-bottom-color:#e8b94a;color:var(--fb-text);font-weight:650}
-.fb-hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;background:var(--fb-navy);color:#fff;border-radius:10px;padding:22px 24px}.fb-hero small{font-size:13px;opacity:.8}.fb-big{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}.fb-hero-stats{display:flex;gap:26px;flex-wrap:wrap}.fb-hero-stats div{font-size:12px;opacity:.95}.fb-hero-stats strong{display:block;font-size:16px}.fb-grid{display:grid;gap:14px;margin-top:14px}.fb-g3{grid-template-columns:repeat(3,minmax(0,1fr))}.fb-g2{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-no-top{margin-top:0}.fb-kpi,.fb-card{background:var(--fb-card);border:1px solid var(--fb-border);border-radius:8px}.fb-kpi{padding:15px 17px;min-width:0}.fb-kpi>span{display:block;color:var(--fb-muted);font-size:12px}.fb-kpi>strong{display:block;margin:6px 0;font-size:21px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.fb-kpi>small{display:block;color:var(--fb-muted);font-size:11px}.fb-card{min-width:0;padding:16px 18px}.fb-card h2{margin:0 0 12px;font-size:15px;font-weight:650}.fb-spaced{margin-top:14px}.fb-scroll{width:100%;overflow-x:auto}.fb table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.fb th,.fb td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--fb-border);vertical-align:top}.fb th{color:var(--fb-muted);font-size:11px;font-weight:600}.fb .fb-num{text-align:right;white-space:nowrap}.fb tfoot td{font-weight:700;border-bottom:0;background:var(--fb-soft)}.fb .fb-bar{height:8px;min-width:80px;border-radius:4px;background:var(--fb-soft);overflow:hidden}.fb .fb-bar i{display:block;height:100%;border-radius:4px;background:var(--fb-blue)}.fb-chart{height:240px;width:100%;min-width:0}.fb-chart-tall{height:280px}.fb-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;color:var(--fb-muted);font-size:11px}.fb-legend span{white-space:nowrap}.fb-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}.fb-note{margin:16px 0 0;color:var(--fb-muted);font-size:11px;line-height:1.65}.fb-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.fb-tools select,.fb-tools input{min-width:210px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tag{display:inline-block;border-radius:10px;background:var(--fb-soft);padding:1px 8px;font-size:11px}.fb-date-label{display:block;color:var(--fb-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.fb-range-label{display:block;color:var(--fb-muted);font-size:12px}.fb-range{width:100%;accent-color:var(--fb-blue)}.fb-highlight{background:var(--fb-soft)}.fb-empty{padding:24px 12px;text-align:center;color:var(--fb-muted)}
+.fb-hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;background:var(--fb-navy);color:#fff;border-radius:10px;padding:22px 24px}.fb-hero small{font-size:13px;opacity:.8}.fb-big{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}.fb-hero-stats{display:flex;gap:26px;flex-wrap:wrap}.fb-hero-stats div{font-size:12px;opacity:.95}.fb-hero-stats strong{display:block;font-size:16px}.fb-grid{display:grid;gap:14px;margin-top:14px}.fb-g3{grid-template-columns:repeat(3,minmax(0,1fr))}.fb-g2{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-no-top{margin-top:0}.fb-kpi,.fb-card{background:var(--fb-card);border:1px solid var(--fb-border);border-radius:8px}.fb-kpi{padding:15px 17px;min-width:0}.fb-kpi>span{display:block;color:var(--fb-muted);font-size:12px}.fb-kpi>strong{display:block;margin:6px 0;font-size:21px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.fb-kpi>small{display:block;color:var(--fb-muted);font-size:11px}.fb-card{min-width:0;padding:16px 18px}.fb-card h2{margin:0 0 12px;font-size:15px;font-weight:650}.fb-spaced{margin-top:14px}.fb-scroll{width:100%;overflow-x:auto}.fb table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.fb-flight-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.fb-flight-heading h2{margin:0 0 12px}.fb-flight-table{min-width:720px;table-layout:fixed}.fb-flight-ref{color:var(--fb-blue);font-family:ui-monospace,monospace;font-weight:700;white-space:nowrap}.fb-flight-route{font-family:ui-monospace,monospace;font-weight:700}.fb-flight-accent{color:var(--fb-blue)!important;font-weight:700}.fb th,.fb td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--fb-border);vertical-align:top}.fb th{color:var(--fb-muted);font-size:11px;font-weight:600}.fb .fb-num{text-align:right;white-space:nowrap}.fb tfoot td{font-weight:700;border-bottom:0;background:var(--fb-soft)}.fb .fb-bar{height:8px;min-width:80px;border-radius:4px;background:var(--fb-soft);overflow:hidden}.fb .fb-bar i{display:block;height:100%;border-radius:4px;background:var(--fb-blue)}.fb-chart{height:240px;width:100%;min-width:0}.fb-chart-tall{height:280px}.fb-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;color:var(--fb-muted);font-size:11px}.fb-legend span{white-space:nowrap}.fb-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}.fb-note{margin:16px 0 0;color:var(--fb-muted);font-size:11px;line-height:1.65}.fb-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.fb-tools select,.fb-tools input{min-width:210px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tag{display:inline-block;border-radius:10px;background:var(--fb-soft);padding:1px 8px;font-size:11px}.fb-date-label{display:block;color:var(--fb-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.fb-range-label{display:block;color:var(--fb-muted);font-size:12px}.fb-range{width:100%;accent-color:var(--fb-blue)}.fb-highlight{background:var(--fb-soft)}.fb-empty{padding:24px 12px;text-align:center;color:var(--fb-muted)}
 .fb-share-header{min-width:150px}.fb-share-header strong,.fb-share-header span{display:block}.fb-share-header strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fb-text);font-size:12px;text-transform:uppercase}.fb-share-header span{margin-top:3px;font-weight:400}.fb-share-cell span,.fb-share-cell strong{display:block}.fb-share-cell span{color:var(--fb-muted);font-size:12px}.fb-share-cell strong{margin-top:4px;color:var(--fb-text);font-size:15px;font-weight:700}
 @media(prefers-color-scheme:dark){.fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}}
 :root[data-theme="dark"] .fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}

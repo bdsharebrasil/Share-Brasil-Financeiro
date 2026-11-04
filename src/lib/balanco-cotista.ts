@@ -5,14 +5,12 @@ import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 /** Valores em centavos. Fonte única de cálculo da tela e do PDF do fechamento. */
 type Lancamento = NonNullable<DashboardCotista["lancamentos"]>[number];
 type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
-type Voo = { id: string; data: string; numero: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
+type Voo = { id: string; data: string; numero: string | null; numeroSequencial: number | null; trecho: string | null; tempoDep: string | null; tempoPou: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
 type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
-type LancamentoEspelho = { id: string; vooId: string; numeroVoo: string | null; data: string; documento: string | null; descricao: string; categoria: string | null; valorCentavos: number; fluxo: string; status: string; cotistaId: string | null; cotistaNome: string | null };
 export type BalancoOperacional = {
   versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;
-  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean; espelhos?: boolean };
+  fontes: { voos: boolean; abastecimentos: boolean; viagens: boolean; cotistas: boolean };
   cotistas: CotistaOperacional[]; voos: Voo[];
-  espelhos?: LancamentoEspelho[];
   abastecimentos: { id: string; data: string; litros: number | null; clienteId: string | null; socioId: string | null }[];
   viagens: Viagem[];
 };

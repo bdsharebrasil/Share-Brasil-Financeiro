@@ -10,10 +10,15 @@ const [financeiro, dashboard, pdf, calculo, referencia] = await Promise.all([
   readFile(new URL("../../lib/balanco-cotista.ts", base), "utf8"),
   readFile(new URL("FechamentoBalancoReferencia.tsx", base), "utf8"),
 ]);
+const [lancamentosUi, lancamentosUiSource] = await Promise.all([
+  import("../src/lib/financeiro-cotista-lancamentos.ts"),
+  readFile(new URL("../src/lib/financeiro-cotista-lancamentos.ts", import.meta.url), "utf8"),
+]);
 
 test("aba Fechamento Balanço usa dados do dashboard e transmite cotista e competências selecionados", () => {
   assert.match(financeiro, /abaAtiva === "fechamento-balanco"[\s\S]*?<FechamentoBalancoReferencia/);
   assert.match(financeiro, /cotistaId=\{cotistaVisaoId\}/);
+  assert.match(financeiro, /fornecedores=\{fornecedoresEdicao\}/);
   assert.match(financeiro, /mesesSelecionados=\{mesesAplicados\}/);
   assert.doesNotMatch(financeiro, /<FechamentoBalancoCotista\s*\/>/);
 });
@@ -29,6 +34,45 @@ test("fechamento segue as quatro seções da referência com valores derivados d
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
+test("tabela de lançamentos resolve fornecedor/pagador, normaliza tipo e não tem expansão", () => {
+  assert.match(referencia, /<th>TIPO RATEIO<\/th>/);
+  assert.match(referencia, /nomeFornecedorLancamento\(origem, fornecedores\)/);
+  assert.match(referencia, /nomePagadoresDoLancamento\(origem, cotistas\)/);
+  assert.match(referencia, /valorPagoLancamento\(origem\)/);
+  assert.doesNotMatch(referencia, /aria-expanded|expandidos|LancamentoExpandido/);
+
+  const uuidFornecedor = "71dc1815-86bd-48a7-82aa-b59e7aa7c341";
+  const uuidCotista = "9bac2d07-e847-4f74-8c64-7c654de5d58c";
+  const lancamento = {
+    id: "lancamento-1",
+    fornecedor: uuidFornecedor,
+    fornecedorId: `agenda:${uuidFornecedor}`,
+    pagoPor: uuidCotista,
+    rateios: [{ pagoPor: uuidCotista }],
+    tipoRateio: "VARIAVEL_POR_HORA",
+    tipo: null,
+    status: "PAGO",
+    valorCentavos: 10000,
+    valorPagoCentavos: 0,
+  };
+  assert.equal(
+    lancamentosUi.nomeFornecedorLancamento(lancamento, [{ id: `agenda:${uuidFornecedor}`, label: "Oficina Central" }]),
+    "Oficina Central",
+  );
+  assert.equal(
+    lancamentosUi.nomePagadoresDoLancamento(lancamento, [{
+      id: uuidCotista,
+      cliente_id: null,
+      socio_id: null,
+      cotista_ids: [],
+      nome: "Marina Costa",
+    }]),
+    "Marina Costa",
+  );
+  assert.equal(lancamentosUi.tipoRateioLancamento(lancamento), "VARIAVEL POR HORA");
+  assert.equal(lancamentosUi.valorPagoLancamento(lancamento), 10000);
+});
+
 test("PDF deriva custos mensais e categorias do cotista selecionado no dashboard", () => {
   assert.match(dashboard, /montarBalanco\(d, cotistas, mesesSelecionados\)/);
   assert.match(dashboard, /lancamentos=\{participante\.lancamentos\}/);
@@ -42,7 +86,7 @@ test("PDF deriva custos mensais e categorias do cotista selecionado no dashboard
 });
 
 test("lançamentos prioriza demonstrativo e mostra números de recibo e NF na expansão", () => {
-  assert.match(financeiro, /lancamento\.numeroDemonstrativo \|\|\s+lancamento\.documentoNumero/);
+  assert.match(lancamentosUiSource, /lancamento\.numeroDemonstrativo \|\|\s+lancamento\.documentoNumero/);
   assert.match(financeiro, /\["Número do recibo", lancamento\.numeroRecibo \|\|/);
   assert.match(financeiro, /\["Número da NF", lancamento\.numeroNf \|\|/);
 });

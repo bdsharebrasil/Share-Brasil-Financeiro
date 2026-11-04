@@ -905,11 +905,11 @@ const ESTILOS_FINANCEIRO = `
   --erp-danger: #f53228e0; --erp-danger-bg: rgba(245, 50, 40, 0.12); --erp-danger-border: rgba(245, 50, 40, 0.25);
   --erp-warning: #eab54b; --erp-warning-bg: rgba(234, 181, 75, 0.12); --erp-warning-border: rgba(234, 181, 75, 0.25);
   --erp-neutral: #9aa8b9; --erp-neutral-bg: rgba(101, 115, 134, 0.14); --erp-neutral-border: rgba(101, 115, 134, 0.3);
-  width: 100%; min-width: 0; padding: 10px 11px 5px; color: var(--erp-text); color-scheme: dark;
+  width: 100%; min-width: 0; margin: 0 -11px; padding: 10px 17px 5px 12px; color: var(--erp-text); color-scheme: dark;
   background: radial-gradient(ellipse at 38% 20%, #17202955, transparent 70%), var(--erp-bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px; line-height: 1.4; border: 1px solid #202a34; border-radius: 14px; -webkit-font-smoothing: antialiased;
-  box-shadow: 0 16px 44px #0003;
+  font-size: 13px; line-height: 8.2px; border: 1px solid #202a34; border-radius: 14px; -webkit-font-smoothing: antialiased;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
 }
 .erp-financeiro.erp-saida { --erp-total: #fb7185; }
 .erp-financeiro *, .erp-financeiro *::before, .erp-financeiro *::after { box-sizing: border-box; }
@@ -918,27 +918,29 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -10px; padding: 5px 8px 10px; margin-bottom: 5px; }
+.erp-financeiro .erp-tela { margin-left: -9px; margin-right: -9px; }
+.erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -10px; padding: 1px 8px 4px; margin-bottom: 5px; }
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; font-size: 21px; font-weight: 500; }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
-.erp-financeiro .erp-cabecalho-acoes { display: flex; align-items: center; gap: 9px; }
-.erp-financeiro .erp-resumo { min-width: 150px; margin: 3px 9px; padding: 5px 26px; font-size: 11px; line-height: 16.2px; text-align: right; white-space: nowrap; border: 1px solid #263744; border-radius: 10px; background: linear-gradient(135deg, #11202a, #111820); }
+.erp-financeiro .erp-cabecalho-acoes { display: flex; align-items: center; gap: 9px; margin: 2px 0; padding-top: 0; padding-bottom: 0; }
+.erp-financeiro .erp-resumo { min-width: 116px; margin: 3px; padding: 5px 23px; font-size: 11px; line-height: 16.2px; text-align: right; white-space: nowrap; border: 1px solid #263744; border-radius: 10px; background: linear-gradient(135deg, #11202a, #111820); }
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -10px auto 9px; padding: 10px 7px; font-size: 12px; line-height: 14.2px; font-weight: 300; border: 1px solid var(--erp-border); border-radius: 11px; background: linear-gradient(145deg, #0d141c, #090d14); }
-.erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: -9px 0; padding: 1px 5px; line-height: 12.2px; }
+.erp-financeiro .erp-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin: -7px 0; padding: 1px 5px; line-height: 12.2px; }
 .erp-financeiro .erp-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 9px; height: 35px; padding: 0 13px; color: var(--erp-text); background: linear-gradient(#17202844, #0c111655); border: 1px solid #34414e; border-radius: 4px; white-space: nowrap; box-shadow: inset 0 1px #ffffff03; transition: background .15s, border-color .15s; }
 .erp-financeiro .erp-btn:hover:not(:disabled) { background: #202c37; border-color: #53667a; }
 .erp-financeiro .erp-btn > svg { flex-shrink: 0; }
-.erp-financeiro .erp-btn-primario { background: rgba(7, 36, 73, 1); border-color: rgba(13, 42, 61, 1); border-width: 0; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
+.erp-financeiro .erp-btn-primario { margin: 0 2px; padding: 0 17px; background: rgba(7, 46, 97, 1); border-color: rgba(3, 85, 139, 1); border-width: 1px; box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.133); color: #fff; }
 .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: #1aa8ff; border-color: #4dbaff; }
 .erp-financeiro .erp-btn-texto { border-color: transparent; background: transparent; box-shadow: none; padding: 0 10px; }
 .erp-financeiro .erp-btn-ativo { border-color: #078fe6; background: #078fe61a; }
 .erp-financeiro .erp-btn-icone { width: 38px; padding: 0; }
 .erp-financeiro .erp-divisor { width: 1px; height: 34px; background: var(--erp-border); margin: 0 2px; }
 .erp-financeiro .erp-contador { background: #078fe6; border-radius: 9px; padding: 0 5px; color: white; font-size: 10px; }
-.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 17px; margin: -6px 1px; padding: 3px 0; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo { position: relative; display: flex; align-items: center; gap: 10px; margin: 4px 1px; padding: 3px 0; line-height: 11.2px; font-weight: 200; }
+.erp-financeiro .erp-periodo > .erp-btn { border-radius: 12px; overflow: hidden; }
 .erp-financeiro .erp-navegacao-mes { display: flex; align-items: center; gap: 7px; }
 .erp-financeiro .erp-rotulo-periodo { display: block; min-width: 108px; text-align: center; white-space: nowrap; padding: 0 4px; }
 .erp-financeiro .erp-seletor-mes { position: absolute; z-index: 30; top: calc(100% + 10px); right: 0; width: 290px; padding: 12px; border: 1px solid #394856; border-radius: 7px; background: #171f28; box-shadow: 0 16px 40px #0008; }

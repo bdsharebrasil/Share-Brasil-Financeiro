@@ -14,21 +14,20 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Columns2,
-  ExternalLink,
   Filter,
-  FileText,
-  Image as ImageIcon,
   List,
   Loader2,
   MoreVertical,
   Plus,
   Printer,
+  RotateCw,
   ScanLine,
   Search,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE } from "@/lib/api";
+import { IconeAnexo } from "./IconeAnexo";
 import {
   buscarOpcoesFinanceiroShare,
   carregarDocumentoFinanceiro,
@@ -220,7 +219,6 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
   const [recurso, setRecurso] = useState<{ url: string; mime: string } | null>(null);
   const [carregando, setCarregando] = useState(privado);
   const [falha, setFalha] = useState(false);
-  const [imagemQuebrou, setImagemQuebrou] = useState(false);
   const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
@@ -248,24 +246,16 @@ function CartaoAnexo({ anexo }: { anexo: AnexoLancamento }) {
   }, [anexo.href, privado, tentativa]);
 
   const href = privado ? recurso?.url : anexo.href;
-  const mime = recurso?.mime || mimePelaUrl(anexo.href);
-  const imagem = mime.startsWith("image/") || mime === "image/*";
-  const tentarImagem = imagem || (!privado && !mime);
   const titulo = anexo.nome || "Anexo";
 
   return (
     <article className="erp-anexo-card">
-      {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="erp-anexo-link" aria-label={`Abrir ${titulo}`}>
-        <span className="erp-anexo-previa">
-          {tentarImagem && !imagemQuebrou ? <img src={href} alt={`Prévia: ${titulo}`} loading="lazy" onError={() => setImagemQuebrou(true)} />
-            : mime === "application/pdf" ? <FileText size={22} aria-hidden="true" />
-              : <ImageIcon size={22} aria-hidden="true" />}
-        </span>
-        <span className="erp-anexo-meta"><strong title={titulo}>{titulo}</strong><small>{imagem ? "Imagem" : mime === "application/pdf" ? "PDF" : "Arquivo"}</small></span>
-        <ExternalLink size={14} className="erp-anexo-abrir" aria-hidden="true" />
-      </a> : <div className="erp-anexo-indisponivel" aria-live="polite">
-        <span className="erp-anexo-previa"><FileText size={20} aria-hidden="true" /></span>
-        <span className="erp-anexo-meta"><strong>{titulo}</strong><small>{carregando ? "Carregando prévia…" : falha ? "Não foi possível carregar" : "Preparando documento…"}</small>{falha && <button type="button" className="erp-anexo-tentar" onClick={() => setTentativa((valor) => valor + 1)}>Tentar novamente</button>}</span>
+      {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="erp-anexo-link" aria-label={`Abrir ${titulo}`} title={titulo}>
+        <IconeAnexo nome={titulo} />
+      </a> : <div className="erp-anexo-indisponivel" aria-live="polite" title={titulo}>
+        {falha
+          ? <button type="button" className="erp-anexo-tentar" aria-label={`Tentar novamente: ${titulo}`} title="Tentar novamente" onClick={() => setTentativa((valor) => valor + 1)}><RotateCw size={18} aria-hidden="true" /></button>
+          : <Loader2 size={18} className="animate-spin" aria-label={carregando ? "Carregando anexo" : "Preparando anexo"} />}
       </div>}
     </article>
   );
@@ -935,18 +925,12 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-anexos { min-width: 0; padding: 13px; border: 1px solid #273744; border-radius: 10px; background: #121b24; }
 .erp-financeiro .erp-anexos-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: #e7edf6; font-size: 12px; }
 .erp-financeiro .erp-anexos-cabecalho span { color: var(--erp-muted); font-size: 10px; }
-.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 9px; }
+.erp-financeiro .erp-anexos-grade { display: grid; grid-template-columns: repeat(auto-fill, 56px); gap: 9px; }
 .erp-financeiro .erp-anexo-card { min-width: 0; overflow: hidden; border: 1px solid #2a3946; border-radius: 9px; background: #0d151d; transition: border-color .15s, transform .15s; }
 .erp-financeiro .erp-anexo-card:hover { border-color: #2787bc; transform: translateY(-1px); }
-.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: grid; grid-template-columns: 62px minmax(0, 1fr) 16px; align-items: center; gap: 9px; min-height: 76px; padding: 7px; color: inherit; text-decoration: none; }
-.erp-financeiro .erp-anexo-indisponivel { grid-template-columns: 62px minmax(0, 1fr); }
-.erp-financeiro .erp-anexo-previa { display: flex; align-items: center; justify-content: center; width: 62px; height: 60px; overflow: hidden; border: 1px solid #293845; border-radius: 6px; color: #7acaff; background: linear-gradient(145deg, #172737, #111820); }
-.erp-financeiro .erp-anexo-previa img { width: 100%; height: 100%; object-fit: cover; }
-.erp-financeiro .erp-anexo-meta { display: grid; min-width: 0; gap: 3px; }
-.erp-financeiro .erp-anexo-meta strong { overflow: hidden; color: #dce8f5; font-size: 11px; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.erp-financeiro .erp-anexo-meta small { color: #91a4b8; font-size: 10px; }
-.erp-financeiro .erp-anexo-tentar { width: fit-content; padding: 0; border: 0; color: #80cfff; background: transparent; font-size: 10px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
-.erp-financeiro .erp-anexo-abrir { color: #80cfff; }
+.erp-financeiro .erp-anexo-link, .erp-financeiro .erp-anexo-indisponivel { display: flex; align-items: center; justify-content: center; height: 54px; color: #7acaff; text-decoration: none; }
+.erp-financeiro .erp-anexo-indisponivel { color: #91a4b8; }
+.erp-financeiro .erp-anexo-tentar { display: inline-flex; padding: 0; border: 0; color: #80cfff; background: transparent; }
 .erp-financeiro .erp-anexos-vazio { margin: 0; padding: 10px 2px 2px; color: var(--erp-muted); font-size: 11px; }
 .erp-financeiro .erp-tabela td.erp-td-acoes { overflow: visible; }
 .erp-financeiro .erp-menu-linha { position: relative; display: flex; align-items: center; }
@@ -997,7 +981,6 @@ const ESTILOS_FINANCEIRO = `
   .erp-financeiro .erp-filtros { grid-template-columns: minmax(0, 1fr); }
   .erp-financeiro .erp-detalhes { grid-template-columns: minmax(0, 1fr); padding: 12px; }
   .erp-financeiro .erp-detalhes-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .erp-financeiro .erp-anexos-grade { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
   .erp-financeiro .erp-rodape { font-size: 11px; }
   .erp-financeiro .erp-rodape-info { gap: 7px; flex-wrap: wrap; }
   .erp-financeiro .erp-paginacao { margin-left: auto; }

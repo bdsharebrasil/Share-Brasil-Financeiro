@@ -1,0 +1,89 @@
+import type { CotistaAeronave } from "@/lib/colaborador-api";
+import type { LancamentoEconomico } from "@/lib/financeiro-share-api";
+
+export type OpcaoFornecedorLancamento = { id: string; label: string };
+
+const normalizarNome = (valor: string) =>
+  valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+
+const ehUuid = (valor: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
+
+export function nomeFornecedorLancamento(
+  item: LancamentoEconomico,
+  fornecedores: OpcaoFornecedorLancamento[],
+) {
+  const fornecedor = opcaoFornecedorLancamento(item, fornecedores);
+  if (fornecedor) return fornecedor.label;
+  const nome = item.fornecedor?.trim() ?? "";
+  if (nome && !ehUuid(nome)) return nome;
+  return nome ? "Fornecedor não identificado" : "";
+}
+
+export function opcaoFornecedorLancamento(
+  item: LancamentoEconomico,
+  fornecedores: OpcaoFornecedorLancamento[],
+) {
+  const registro = item as LancamentoEconomico & {
+    fornecedor_id?: string | null;
+    fornecedores_favoritos_id?: string | null;
+  };
+  const nomeOuId = item.fornecedor?.trim() ?? "";
+  const identificador = (registro.fornecedorId || registro.fornecedor_id || registro.fornecedores_favoritos_id || nomeOuId).trim();
+  const fornecedorPorId = fornecedores.find((fornecedor) =>
+    fornecedor.id === identificador || fornecedor.id.endsWith(`:${identificador}`),
+  );
+  if (fornecedorPorId) return fornecedorPorId;
+
+  const nomeNormalizado = normalizarNome(nomeOuId);
+  return fornecedores.find((fornecedor) =>
+    normalizarNome(fornecedor.label) === nomeNormalizado,
+  );
+}
+
+export function nomePagadoresDoLancamento(
+  item: LancamentoEconomico,
+  cotistas: CotistaAeronave[],
+) {
+  const resolveNome = (valor: string) => {
+    const id = valor.trim();
+    if (!id) return "";
+    const cotista = cotistas.find((candidato) =>
+      [candidato.id, candidato.cliente_id, candidato.socio_id, ...(candidato.cotista_ids ?? [])].includes(id),
+    );
+    if (cotista) return cotista.nome;
+    return ehUuid(id) ? "Cotista não identificado" : id;
+  };
+  const pagadores = (item.rateios ?? [])
+    .map((rateio) => rateio.pagoPor?.trim())
+    .filter((pagador): pagador is string => Boolean(pagador));
+  if (!pagadores.length && item.pagoPor?.trim()) pagadores.push(item.pagoPor.trim());
+  return [...new Set(pagadores.map(resolveNome).filter(Boolean))].join(", ") || "—";
+}
+
+export function documentoDoLancamento(lancamento: LancamentoEconomico) {
+  return (
+    lancamento.numeroDemonstrativo ||
+    lancamento.documentoNumero ||
+    lancamento.numeroNf ||
+    lancamento.numeroRecibo ||
+    lancamento.numeroDoc ||
+    lancamento.documento ||
+    null
+  );
+}
+
+export function tipoRateioLancamento(lancamento: LancamentoEconomico) {
+  return String(lancamento.tipoRateio || lancamento.tipo || "—")
+    .replace(/_/g, " ")
+    .toLocaleUpperCase("pt-BR");
+}
+
+export function valorPagoLancamento(lancamento: LancamentoEconomico) {
+  const pagoInformado = Math.max(0, Number(lancamento.valorPagoCentavos || 0));
+  const status = (lancamento.status ?? "").trim().toUpperCase();
+  if (["PAGO", "PAGO_DIRETAMENTE"].includes(status)) {
+    return Math.min(lancamento.valorCentavos, pagoInformado || lancamento.valorCentavos);
+  }
+  return Math.min(lancamento.valorCentavos, pagoInformado);
+}

@@ -107,6 +107,14 @@ import type {
   DashboardCotista,
   LancamentoEconomico,
 } from "@/lib/financeiro-share-api";
+import {
+  documentoDoLancamento,
+  nomeFornecedorLancamento,
+  nomePagadoresDoLancamento,
+  opcaoFornecedorLancamento,
+  tipoRateioLancamento,
+  valorPagoLancamento,
+} from "@/lib/financeiro-cotista-lancamentos";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import { allocateCentavos } from "@/lib/money";
 import {
@@ -1328,19 +1336,6 @@ function statusLancamento(status: string | null | undefined) {
   );
 }
 
-function valorPagoLancamento(lancamento: LancamentoEconomico) {
-  const pagoInformado = Math.max(0, Number(lancamento.valorPagoCentavos || 0));
-  if (
-    ["PAGO", "PAGO_DIRETAMENTE"].includes(normalizarStatus(lancamento.status))
-  ) {
-    return Math.min(
-      lancamento.valorCentavos,
-      pagoInformado || lancamento.valorCentavos,
-    );
-  }
-  return Math.min(lancamento.valorCentavos, pagoInformado);
-}
-
 /* Fornecedor, documentos e rateio alinhados na expansão. */
 function LancamentoExpandido({
   lancamento,
@@ -1527,19 +1522,6 @@ function normalizarBusca(valor: string) {
     .toLocaleLowerCase("pt-BR");
 }
 
-function opcaoFornecedorLancamento(item: LancamentoEconomico, fornecedores: OpcaoEdicao[]) {
-  const registro = item as LancamentoEconomico & {
-    fornecedor_id?: string | null;
-    fornecedores_favoritos_id?: string | null;
-  };
-  const identificador = registro.fornecedorId || registro.fornecedor_id || registro.fornecedores_favoritos_id || item.fornecedor || "";
-  return fornecedores.find((fornecedor) => fornecedor.id === identificador || fornecedor.id.endsWith(`:${identificador}`));
-}
-
-function nomeFornecedorLancamento(item: LancamentoEconomico, fornecedores: OpcaoEdicao[]) {
-  return opcaoFornecedorLancamento(item, fornecedores)?.label || item.fornecedor || "";
-}
-
 function percentualSociedadeDoCotista(
   cotistaId: string | null | undefined,
   cotistaNome: string | null | undefined,
@@ -1566,18 +1548,6 @@ function percentualSociedadeDoCotista(
   const cotista =
     cotistasComMesmoNome.length === 1 ? cotistasComMesmoNome[0] : null;
   return cotista?.percentual_sociedade ?? null;
-}
-
-function documentoDoLancamento(lancamento: LancamentoEconomico) {
-  return (
-    lancamento.numeroDemonstrativo ||
-    lancamento.documentoNumero ||
-    lancamento.numeroNf ||
-    lancamento.numeroRecibo ||
-    lancamento.numeroDoc ||
-    lancamento.documento ||
-    null
-  );
 }
 
 function rateioDoCotista(
@@ -1895,28 +1865,6 @@ function LancamentosDespesa({
       {valor || "—"}
     </span>
   );
-  const resolverNomePagador = (valor: string | null | undefined) => {
-    const id = (valor || "").trim();
-    if (!id) return "";
-    const cotista = cotistasAeronave.find((item) =>
-      [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])].includes(id),
-    );
-    if (cotista) return cotista.nome;
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      id,
-    )
-      ? "Cotista não identificado"
-      : id;
-  };
-  const nomePagadoresDoLancamento = (item: LancamentoEconomico) => {
-    const pagadores = (item.rateios ?? [])
-      .map((rateio) => rateio.pagoPor?.trim())
-      .filter((pagador): pagador is string => Boolean(pagador));
-    if (!pagadores.length && item.pagoPor?.trim()) {
-      pagadores.push(item.pagoPor.trim());
-    }
-    return [...new Set(pagadores.map(resolverNomePagador).filter(Boolean))].join(", ") || "—";
-  };
   const ordenarDataPor = modoData === "vencimento" ? "vencimento" : "emissao";
   const alterarModoData = (modo: typeof modoData) => {
     setModoData(modo);
@@ -2030,16 +1978,11 @@ function LancamentosDespesa({
     },
     {
       id: "tipo",
-      titulo: "Tipo de rateio",
+      titulo: "TIPO RATEIO",
       largura: 160,
       minimo: 125,
       valor: (item) => item.tipoRateio || item.tipo,
-      render: (item) =>
-        texto(
-          String(item.tipoRateio || item.tipo || "—")
-            .replace(/_/g, " ")
-            .toLocaleUpperCase("pt-BR"),
-        ),
+      render: (item) => texto(tipoRateioLancamento(item)),
     },
     {
       id: "pago",
@@ -2059,8 +2002,8 @@ function LancamentosDespesa({
       titulo: "PAGO POR",
       largura: 170,
       minimo: 150,
-      valor: nomePagadoresDoLancamento,
-      render: (item) => texto(nomePagadoresDoLancamento(item)),
+      valor: (item) => nomePagadoresDoLancamento(item, cotistasAeronave),
+      render: (item) => texto(nomePagadoresDoLancamento(item, cotistasAeronave)),
     },
     ...cotistasAeronave.map((cotista): ColunaDespesa => ({
       id: `cotista-${cotista.id}`,
@@ -4243,6 +4186,7 @@ export default function FinanceiroCotista() {
                 carregando={carregando}
                 erro={erroDashboard}
                 cotistas={cotistasAeronave}
+                fornecedores={fornecedoresEdicao}
                 mesesSelecionados={mesesAplicados}
                 cotistaId={cotistaVisaoId}
               />

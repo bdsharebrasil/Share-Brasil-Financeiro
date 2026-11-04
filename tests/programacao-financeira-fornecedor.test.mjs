@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../src/components/financeiro-share/ProgramarContaAPagarDialog.tsx", import.meta.url), "utf8");
 const hook = await readFile(new URL("../src/hooks/useFornecedores.ts", import.meta.url), "utf8");
 const financeiroCotista = await readFile(new URL("../src/components/FinanceiroCotista/FinanceiroCotista.tsx", import.meta.url), "utf8");
+const resolversLancamento = await readFile(new URL("../src/lib/financeiro-cotista-lancamentos.ts", import.meta.url), "utf8");
 
 test("fornecedor permite uso manual no recibo ou cadastro permanente", () => {
   assert.match(source, /fornecedoresDisponiveis\.map\(\(item\) => \(\{ id: item\.id, label: item\.nome \}\)\)/);
@@ -43,8 +44,8 @@ test("fornecedores favoritos priorizam apelido no campo pesquisável", () => {
 });
 
 test("tabela e edição resolvem o nome do favorecido pelo ID cadastrado", () => {
-  assert.match(financeiroCotista, /function nomeFornecedorLancamento/);
-  assert.match(financeiroCotista, /fornecedor\.id\.endsWith\(`:\$\{identificador\}`\)/);
+  assert.match(resolversLancamento, /function nomeFornecedorLancamento/);
+  assert.match(resolversLancamento, /fornecedor\.id\.endsWith\(`:\$\{identificador\}`\)/);
   assert.match(financeiroCotista, /valor: \(item\) => nomeFornecedorLancamento\(item, fornecedoresEdicao\)/);
   assert.match(financeiroCotista, /fornecedor: nomeFornecedorLancamento\(item, fornecedoresEdicao\)/);
 });

@@ -35,6 +35,7 @@ import { formatDate } from "@/lib/receiptUtils";
 import { API_ORIGIN, getAuthToken } from "@/lib/api";
 import { avisarAtualizacaoFinanceiro } from "@/lib/baixa-conciliada-api";
 import * as nfSaidaApi from "@/lib/nfSaidaApi";
+import { buscarContasAReceber } from "@/lib/financeiro-share-api";
 import type {
   CategoriaDespesaOpcao,
   CategoriaOpcao,
@@ -348,14 +349,22 @@ export default function NFSaidaTab() {
   const fetchNotas = useCallback(async () => {
     setLoading(true); setLoadError(null);
     try {
-      const { notas: nfData, recibos: recData } = await nfSaidaApi.buscarNotasSaida();
+      const [{ notas: nfData, recibos: recData }, contasResult] = await Promise.all([
+        nfSaidaApi.buscarNotasSaida(),
+        buscarContasAReceber().then((contas) => ({ contas }), () => ({ contas: [] })),
+      ]);
       const merged = [...(nfData ?? []).map(mapNota), ...(recData ?? []).map(mapRecibo)].sort((a, b) =>
         (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "")
       );
       setNotas(merged);
+      const contasComEmail = contasResult.contas.filter((conta) => Boolean(conta.email_enviado_em));
+      const contasPorId = new Set(contasComEmail.map((conta) => conta.id));
+      const nfsComEmailNoLancamento = new Set(contasComEmail.map((conta) => conta.nfSaidaId).filter(Boolean));
       setEmailsEnviados((current) => new Set([
         ...current,
-        ...merged.filter((nota) => Boolean(nota.email_enviado_em)).map((nota) => `${nota.origem}:${nota.id}`),
+        ...merged
+          .filter((nota) => Boolean(nota.email_enviado_em) || nfsComEmailNoLancamento.has(nota.id) || (nota.contas_areceber_id && contasPorId.has(nota.contas_areceber_id)))
+          .map((nota) => `${nota.origem}:${nota.id}`),
       ]));
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao carregar notas." });

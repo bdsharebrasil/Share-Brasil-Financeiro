@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Printer, Plane, Download } from "lucide-react";
+import { BarChart3, Users, Gauge, Layers3, Wallet, Scale, Plane, Download } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -47,7 +47,7 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const mensaisExibidos = cotistaSelecionado?.mensal ?? b.mensais;
   const totalExibido = cotistaSelecionado?.custo ?? b.total;
   const baixarPdf = async (participante: NonNullable<typeof cotistaSelecionado>) => {
-    const blob = await pdf(<BalancoClientePdf b={b} p={participante} aeronave={aeronave} lancamentos={participante.lancamentos} />).toBlob();
+    const blob = await pdf(<BalancoClientePdf balanco={b} p={participante} dashboard={d} aeronave={aeronave} cotistas={cotistas} lancamentos={participante.lancamentos} />).toBlob();
     const slug = `${aeronave}-${participante.nome}-${b.meses.join("_")}`
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -72,7 +72,7 @@ export function FechamentoBalancoDashboardCotista({ dashboard, carregando, erro,
   const totalPago = saldos.reduce((s, r) => s + r.pagoCentavos, 0);
   const totalDevido = saldos.reduce((s, r) => s + r.devidoCentavos, 0);
   return <div className="bcp">{estilos}
-    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => void baixarPdf(cotistaSelecionado)}><Download size={14} /> Baixar balanço em PDF</button>}<button type="button" className="bcp-button" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></div></header>
+    <header className="bcp-header"><div><div className="bcp-eyebrow">FECHAMENTO FINANCEIRO · {aeronave}</div><h2>{cotistaSelecionado ? `Balanço · ${cotistaSelecionado.nome}` : "Balanço da aeronave"}</h2><p>{periodo}</p></div><div className="bcp-no-print" style={{display:"flex",gap:8,flexWrap:"wrap"}}>{cotistaSelecionado && <button type="button" className="bcp-button" onClick={() => void baixarPdf(cotistaSelecionado)}><Download size={14} /> Baixar balanço em PDF</button>}</div></header>
     <div className="bcp-kpis"><Kpi titulo={cotistaSelecionado ? "Custo rateado do cotista" : "Custo total da aeronave"} valor={money(totalExibido.total)} detalhe={`${periodo} · despesas do período`} /></div>
     {!d.balanco_operacional && <Nota>Para exibir destinos, utilização individual e combustível, instale a extensão do backend incluída no pacote e preserve o campo balanco_operacional na resposta do cliente HTTP.</Nota>}
     {b.diferencasRateio > 0 && <Nota>{b.diferencasRateio} lançamento(s) com diferença entre o total e as parcelas. A diferença aparece separada, sem atribuição automática a um cotista.</Nota>}

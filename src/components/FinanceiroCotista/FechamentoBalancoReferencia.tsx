@@ -39,7 +39,7 @@ import {
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
-import { RelatorioFechamentoPdf } from "./RelatorioFechamentoPdf";
+import { BalancoClientePdf } from "./BalancoClientePdf";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -158,7 +158,7 @@ export function FechamentoBalancoReferencia({
     }
     setGerandoPdf(true);
     try {
-      const arquivo = await pdf(<RelatorioFechamentoPdf
+      const arquivo = await pdf(<BalancoClientePdf
         balanco={b}
         dashboard={d}
         participantes={participantesDoRelatorio}

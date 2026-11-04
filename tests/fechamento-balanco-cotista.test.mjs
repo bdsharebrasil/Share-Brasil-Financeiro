@@ -121,27 +121,32 @@ test("PDF deriva custos mensais e categorias do cotista selecionado no dashboard
   assert.match(calculo, /export function montarBalanco/);
   assert.match(calculo, /const acertos = new Map/);
   assert.match(calculo, /export function destaques/);
-  assert.match(pdf, /categoriasDoParticipante\(b, p\)/);
-  assert.match(pdf, /destaques\(b, p\)/);
-  assert.match(pdf, /lancamentos\.map/);
+  assert.match(pdf, /export function BalancoClientePdf/);
+  assert.match(pdf, /participantLaunchRows\(participante, balanco, dashboard, cotistas, fornecedores, lancamentos\)/);
+  assert.match(pdf, /participante\.custo\.total/);
+  assert.match(pdf, /rows: linhas\.map/);
 });
 
-test("fechamento gera PDF independente da página com seleção de cotistas e quatro seções", async () => {
-  const [atual, relatorio] = await Promise.all([
+test("fechamento usa um único PDF consolidado, com seleção de cotistas e quatro seções", async () => {
+  const [atual, legado, gerador] = await Promise.all([
     readFile(new URL("FechamentoBalancoReferencia.tsx", base), "utf8"),
-    readFile(new URL("RelatorioFechamentoPdf.tsx", base), "utf8"),
+    readFile(new URL("FechamentoBalancoDashboardCotista.tsx", base), "utf8"),
+    readFile(new URL("BalancoClientePdf.tsx", base), "utf8"),
   ]);
   assert.match(atual, /DialogTitle>Gerar relatório do fechamento/);
   assert.match(atual, /Selecionar todos os cotistas/);
   assert.match(atual, /Incluir \$\{item\.nome\} no PDF/);
-  assert.match(atual, /pdf\(<RelatorioFechamentoPdf/);
+  assert.match(atual, /pdf\(<BalancoClientePdf/);
+  assert.match(legado, /pdf\(<BalancoClientePdf/);
   assert.doesNotMatch(atual, /window\.print\(\)/);
+  assert.doesNotMatch(legado, /window\.print\(\)/);
+  assert.doesNotMatch(atual, /RelatorioFechamentoPdf/);
   for (const secao of ["01 · Balanço", "02 · Lançamentos", "03 · Custo por hora", "04 · Diário de bordo"]) {
-    assert.ok(relatorio.includes(secao), `seção ausente do PDF: ${secao}`);
+    assert.ok(gerador.includes(secao), `seção ausente do PDF: ${secao}`);
   }
-  assert.match(relatorio, /Balanço financeiro/);
-  assert.match(relatorio, /orientation="landscape"/);
-  assert.match(relatorio, /render=\{\(\{ pageNumber, totalPages \}\)/);
+  assert.match(gerador, /Balanço financeiro/);
+  assert.match(gerador, /orientation="landscape"/);
+  assert.match(gerador, /render=\{\(\{ pageNumber, totalPages \}\)/);
 });
 
 test("aba Holdings mantém a baixa e dispõe de busca, tabela desktop e cartões para mobile", async () => {

@@ -34,11 +34,27 @@ test("fechamento segue as quatro seções da referência com valores derivados d
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
-test("diário usa os voos da aeronave quando a lista do cotista está vazia ou a flag da fonte falha", () => {
-  assert.match(referencia, /voosDoParticipante\.length \? voosDoParticipante : voosOperacionais/);
+test("Balanço mostra quem deve a quem a partir da matriz de compensação do backend", () => {
+  assert.match(calculo, /Object\.entries\(d\.matrizCompensacao/);
+  assert.match(referencia, /const compensacoes = \(b\?\.compensacoes \?\? \[\]\)/);
+  assert.match(referencia, /<strong>\{item\.devedor\}<\/strong><span>deve a<\/span><strong>\{item\.credor\}<\/strong>/);
+  assert.match(referencia, /acumulada até/);
+  assert.match(referencia, /não confirma a realização de uma transferência/);
+});
+
+test("Custo por hora mostra valores efetivos da aeronave e do cotista além da projeção", () => {
+  assert.match(referencia, /Custo\/hora da aeronave no período/);
+  assert.match(referencia, /money\(b\.custoHora\)/);
+  assert.match(referencia, /Custo\/hora do cotista selecionado/);
+  assert.match(referencia, /money\(participante\?\.custoHora \?\? null\)/);
+  assert.match(referencia, /Projeção por hora/);
+});
+
+test("diário lista voos operacionais da aeronave e identifica para quem foram", () => {
+  assert.match(referencia, /const voos = voosOperacionais\s*\.slice\(\)/);
   assert.match(referencia, /b\?\.fonteVoos \|\| voosOperacionais\.length/);
-  assert.match(referencia, /voos\.map\(\(voo\) => <tr/);
-  assert.match(referencia, /cotistaDoVoo\(voo, cotistas\)/);
+  assert.match(referencia, /voos\.map\(\(voo, index\) => <tr/);
+  assert.match(referencia, /destinoVoo\(voo, cotistas\)/);
 });
 
 test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por cotista", () => {

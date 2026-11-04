@@ -131,6 +131,9 @@ export function FechamentoBalancoReferencia({
   const custoExtra = total.extras;
   const custoNaoClassificado = total.naoClassificados;
   const seriesCusto = meses.map((mes) => ({ ...mes, nome: mes.nome }));
+  const compensacoes = (b?.compensacoes ?? [])
+    .filter((item) => item.valorCentavos > 0)
+    .sort((a, z) => z.valorCentavos - a.valorCentavos);
 
   return (
     <div className="fb">
@@ -197,6 +200,19 @@ export function FechamentoBalancoReferencia({
             </div>
           </section>
         </div>
+        <section className="fb-card fb-spaced">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div><h2>Acerto de contas</h2><p style={{ margin: "-8px 0 0", color: "var(--fb-muted)", fontSize: 11 }}>Quem deve, para quem e quanto.</p></div>
+            <span className="fb-tag">{compensacoes.length} {compensacoes.length === 1 ? "compensação" : "compensações"}</span>
+          </div>
+          {compensacoes.length ? <div style={{ marginTop: 12, borderTop: "1px solid var(--fb-border)" }}>
+            {compensacoes.map((item) => <div key={`${item.credorId ?? item.credor}:${item.devedorId ?? item.devedor}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "10px 0", borderBottom: "1px solid var(--fb-border)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 5, flexWrap: "wrap", fontSize: 13 }}><strong>{item.devedor}</strong><span>deve a</span><strong>{item.credor}</strong></div>
+              <strong style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{money(item.valorCentavos)}</strong>
+            </div>)}
+          </div> : <Vazio>Não há valores pendentes entre os cotistas para compensar.</Vazio>}
+          <p className="fb-note">Compensação líquida com base nas parcelas devidas e nos pagamentos reais informados, acumulada até {rotuloMesCotista(b.meses[b.meses.length - 1])}. Ela não confirma a realização de uma transferência entre cotistas.</p>
+        </section>
         <section className="fb-card fb-spaced"><h2>Resumo mês a mês</h2><div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Fixos</th><th className="fb-num">Variáveis</th><th className="fb-num">Extras</th><th className="fb-num">Não classificados</th><th className="fb-num">Total</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{money(mes.fixos)}</td><td className="fb-num">{money(mes.variaveis)}</td><td className="fb-num">{money(mes.extras)}</td><td className="fb-num">{money(mes.naoClassificados)}</td><td className="fb-num"><b>{money(mes.total)}</b></td></tr>)}</tbody>
@@ -232,12 +248,16 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "custo-hora" && <section id="fb-panel-custo-hora" role="tabpanel" aria-labelledby="fb-tab-custo-hora">
-        <div className="fb-grid fb-g3 fb-no-top">
-          <Kpi titulo={`Custo por hora com ${horasProjetadas} h/mês`} valor={projecao ? money(projecao.custoHora) : "—"} detalhe="Cenário calculado a partir do histórico selecionado" />
-          <Kpi titulo="Parte fixa por hora" valor={projecao ? money(projecao.fixoHora) : "—"} />
-          <Kpi titulo="Variável + extras por hora" valor={projecao ? money(projecao.variavelHora + projecao.extraHora) : "—"} />
+        <div className="fb-grid fb-g2 fb-no-top">
+          <Kpi titulo="Custo/hora da aeronave no período" valor={money(b.custoHora)} detalhe={`${horas(b.totalHoras)} totais · custo total da aeronave ÷ horas`} />
+          <Kpi titulo="Custo/hora do cotista selecionado" valor={money(participante?.custoHora ?? null)} detalhe={participante ? `${participante.nome} · ${horas(participante.horas)} de voo` : "Selecione um cotista para ver o valor individual"} />
         </div>
-        <section className="fb-card fb-spaced"><h2>Quanto mais voa, menor o custo da hora</h2>
+        <div className="fb-grid fb-g3">
+          <Kpi titulo={`Projeção por hora · ${horasProjetadas} h/mês`} valor={projecao ? money(projecao.custoHora) : "—"} detalhe={participante ? `Cotista: ${participante.nome}` : "Aeronave completa"} />
+          <Kpi titulo="Parte fixa por hora" valor={projecao ? money(projecao.fixoHora) : "—"} detalhe="Da seleção usada na projeção" />
+          <Kpi titulo="Variável + extras por hora" valor={projecao ? money(projecao.variavelHora + projecao.extraHora) : "—"} detalhe="Da seleção usada na projeção" />
+        </div>
+        <section className="fb-card fb-spaced"><h2>Projeção de custo por hora — {participante?.nome ?? "aeronave"}</h2>
           <label className="fb-range-label" htmlFor="fb-horas">Horas voadas no mês: <b>{horasProjetadas}</b></label>
           <input className="fb-range" id="fb-horas" type="range" min="1" max="45" value={horasProjetadas} onChange={(event) => setHorasProjetadas(Number(event.target.value))} disabled={!projecao} />
           {projecao ? <div className="fb-chart fb-chart-tall"><ResponsiveContainer width="100%" height="100%"><LineChart data={serieProjecao} margin={{ top: 14, right: 16, left: 0, bottom: 8 }}>

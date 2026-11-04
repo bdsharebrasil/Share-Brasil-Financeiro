@@ -119,6 +119,7 @@ import {
 import { MediasCotista } from "./MediasCotista";
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoDashboardCotista } from "./FechamentoBalancoDashboardCotista";
+import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
 import {
   agruparPorMes,
   mesAtualLocal,
@@ -4237,7 +4238,7 @@ export default function FinanceiroCotista() {
                   popoverClassName="border-border bg-popover text-popover-foreground"
                 />
               </div>
-              <FechamentoBalancoDashboardCotista
+              <FechamentoBalancoReferencia
                 dashboard={dashboard}
                 carregando={carregando}
                 erro={erroDashboard}

@@ -15,12 +15,26 @@ export type BalancoOperacional = {
   viagens: Viagem[];
 };
 export type DashboardBalanco = DashboardCotista & { balanco_operacional?: BalancoOperacional | null; balanco_escopo?: "aeronave" | "cotista" | "geral" };
-export type LinhaLancamento = { data: string; fornecedor: string; descricao: string; categoria: string; totalCentavos: number; suaParteCentavos: number };
+export type LinhaLancamento = { id: string; data: string; fornecedor: string; descricao: string; categoria: string; totalCentavos: number; suaParteCentavos: number };
 
 type Registro = Record<string, unknown>;
 type Grupo = "fixos" | "variaveis" | "extras" | "naoClassificados";
 export type Custo = { total: number; fixos: number; variaveis: number; extras: number; naoClassificados: number };
 type Participante = { id: string; nome: string; quota: number | null; holding: boolean; confirmado: boolean };
+
+export function projetarCustos(total: Custo, horasRegistradas: number | null, meses: number, horasProjetadas: number) {
+  if (horasRegistradas === null || horasRegistradas <= 0 || meses <= 0 || horasProjetadas <= 0) return null;
+  const fixoHora = total.fixos / meses / horasProjetadas;
+  const variavelHora = total.variaveis / horasRegistradas;
+  const extraHora = total.extras / horasRegistradas;
+  return {
+    fixoHora,
+    variavelHora,
+    extraHora,
+    custoHora: fixoHora + variavelHora + extraHora,
+    custoMensal: total.fixos / meses + (total.variaveis + total.extras) / horasRegistradas * horasProjetadas,
+  };
+}
 
 export const GRUPOS = ["fixos", "variaveis", "extras", "naoClassificados"] as const;
 export const NOME_GRUPO: Record<Grupo, string> = { fixos: "Fixos", variaveis: "Variáveis", extras: "Extras", naoClassificados: "Não classificados" };
@@ -145,7 +159,7 @@ export function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], 
     const linhas = linhasCotista.get(cotista) ?? new Map<string, LinhaLancamento>();
     const atual = linhas.get(String(l.id));
     if (atual) atual.suaParteCentavos += valor;
-    else linhas.set(String(l.id), { data: txt(l.dataEmissao || l.data).slice(0, 10), fornecedor: l.fornecedor || "—", descricao: l.descricao, categoria, totalCentavos: cents(l.valorCentavos), suaParteCentavos: valor });
+    else linhas.set(String(l.id), { id: String(l.id), data: txt(l.dataEmissao || l.data).slice(0, 10), fornecedor: l.fornecedor || "—", descricao: l.descricao, categoria, totalCentavos: cents(l.valorCentavos), suaParteCentavos: valor });
     linhasCotista.set(cotista, linhas);
   }
 
@@ -257,10 +271,8 @@ export function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], 
   );
   const projecao = !custosSemClassificacao && totalHoras !== null && totalHoras > 0 && meses.length > 0
     ? [5, 10, 15, 20, 25, 30, 40, 50, 60].map((h) => ({
-        horas: h, fixoHora: total.fixos / meses.length / h,
-        variavelHora: total.variaveis / totalHoras, extraHora: total.extras / totalHoras,
-        custoHora: total.fixos / meses.length / h + (total.variaveis + total.extras) / totalHoras,
-        custoMensal: total.fixos / meses.length + ((total.variaveis + total.extras) / totalHoras) * h,
+        horas: h,
+        ...projetarCustos(total, totalHoras, meses.length, h)!,
       }))
     : [];
   const entradasHolding = (d.movimentos_holding ?? []).filter((m) => seleciona.has(mes(m.data)) && !m.diretamentePago

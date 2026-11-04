@@ -22,7 +22,6 @@ import {
   Plus,
   Printer,
   RotateCw,
-  ScanLine,
   Search,
   X,
 } from "lucide-react";
@@ -537,7 +536,6 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const selecao = useMemo(() => new Set(selecionados), [selecionados]);
   const expansao = useMemo(() => new Set(expandidos), [expandidos]);
   const selecionadosVisiveis = filtrados.filter((linha) => selecao.has(linha.id));
-  const unicoSelecionado = selecionadosVisiveis.length === 1 ? selecionadosVisiveis[0] : null;
   const totalListado = filtrados.reduce((soma, linha) => soma + linha.valor, 0);
   const paginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const paginaAtual = Math.max(1, Math.min(pagina, paginas));
@@ -674,18 +672,15 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       <div className="erp-tela">
         <header className="erp-cabecalho">
           <div className="erp-titulo"><h2 id={`${id}-titulo`}>{titulo}</h2></div>
-          <div className="erp-resumo"><span>Total listado</span><strong>{carregando ? "—" : formatarMoeda(totalListado)}</strong></div>
+          <div className="erp-cabecalho-acoes">
+            <div className="erp-resumo"><span>Total listado</span><strong>{carregando ? "—" : formatarMoeda(totalListado)}</strong></div>
+            <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}><Printer size={17} aria-hidden="true" />Imprimir</button>
+          </div>
         </header>
 
         <div className="erp-toolbar" role="group" aria-label="Ações dos lançamentos">
           <div className="erp-acoes">
             <button type="button" className="erp-btn erp-btn-primario" onClick={() => setNovo(true)}><Plus size={17} aria-hidden="true" />Novo</button>
-            <button type="button" className="erp-btn" disabled={carregando || !unicoSelecionado || !podeBaixar(unicoSelecionado)}
-              title="Selecione um lançamento pendente ou atrasado para conciliar"
-              onClick={() => { if (unicoSelecionado && podeBaixar(unicoSelecionado)) setContaBaixa(unicoSelecionado); }}>
-              <ScanLine size={16} aria-hidden="true" />Conciliar
-            </button>
-            <button type="button" className="erp-btn" disabled={carregando || !filtrados.length} onClick={() => window.print()}><Printer size={17} aria-hidden="true" />Imprimir</button>
             <button type="button" className={`erp-btn ${mostrarFiltros ? "erp-btn-ativo" : ""}`} aria-expanded={mostrarFiltros}
               aria-controls={`${id}-filtros`} onClick={() => setMostrarFiltros((atual) => !atual)}>
               <Filter size={17} aria-hidden="true" />Filtrar{filtrosAtivos > 0 && <span className="erp-contador">{filtrosAtivos}</span>}
@@ -927,6 +922,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; font-size: 21px; font-weight: 500; }
 .erp-financeiro h2 { color: #f5f7fc; margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -.25px; }
+.erp-financeiro .erp-cabecalho-acoes { display: flex; align-items: center; gap: 9px; }
 .erp-financeiro .erp-resumo { min-width: 150px; margin: 3px 9px; padding: 5px 26px; font-size: 11px; line-height: 16.2px; text-align: right; white-space: nowrap; border: 1px solid #263744; border-radius: 10px; background: linear-gradient(135deg, #11202a, #111820); }
 .erp-financeiro .erp-resumo > span { display: block; color: var(--erp-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .55px; margin-bottom: 2px; }
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }

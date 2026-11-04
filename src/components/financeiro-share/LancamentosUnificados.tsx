@@ -86,6 +86,28 @@ type ChaveColuna =
   | "fornecedor" | "contaBancaria" | "data" | "situacao" | "valor";
 type Coluna = { chave: ChaveColuna; rotulo: string; largura?: number };
 type FiltroSituacao = "TODAS" | "EM_ABERTO" | "PAGO" | "EM_ATRASO" | "RECEBIDO" | "AGUARDANDO_REEMBOLSO" | "REEMBOLSADO" | "CANCELADO";
+type FiltroColuna = "contaBancaria" | "documento" | "data";
+type TipoDocumento = "RECIBO" | "RELATORIO VIAGEM" | "DEMONSTRATIVO" | "NOTA FISCAL" | "COMANDA" | "BOLETO";
+type ModoData = "EMISSAO" | "VENCIMENTO" | "AMBAS";
+
+const TIPOS_DOCUMENTO: TipoDocumento[] = ["RECIBO", "RELATORIO VIAGEM", "DEMONSTRATIVO", "NOTA FISCAL", "COMANDA", "BOLETO"];
+const PREFIXOS_DOCUMENTO: Array<[string, TipoDocumento]> = [
+  ["REC", "RECIBO"], ["REL", "RELATORIO VIAGEM"], ["DEM", "DEMONSTRATIVO"], ["NF", "NOTA FISCAL"], ["COM", "COMANDA"], ["BOL", "BOLETO"],
+];
+const ROTULOS_MODO_DATA: Record<ModoData, string> = { EMISSAO: "DATA EMISSÃO", VENCIMENTO: "VENCIMENTO", AMBAS: "AMBAS" };
+
+function tipoDocumento(linha: LinhaConta): TipoDocumento | null {
+  const numero = (linha.documento ?? "").toUpperCase();
+  return PREFIXOS_DOCUMENTO.find(([prefixo]) => numero.startsWith(prefixo))?.[1] ?? null;
+}
+
+function ehColunaFiltravel(chave: ChaveColuna): chave is FiltroColuna {
+  return chave === "contaBancaria" || chave === "documento" || chave === "data";
+}
+
+const TITULOS_FILTRO_COLUNA: Record<FiltroColuna, string> = {
+  contaBancaria: "conta", documento: "tipo de documento", data: "data",
+};
 
 const STATUS_FILTRO: Array<{ valor: Exclude<FiltroSituacao, "TODAS">; rotulo: string }> = [
   { valor: "EM_ABERTO", rotulo: "EM ABERTO" },
@@ -377,6 +399,10 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   const [colunaArrastada, setColunaArrastada] = useState<ChaveColuna | null>(null);
   const [colunasOcultas, setColunasOcultas] = useState<ChaveColuna[]>([]);
   const [menuColunasAberto, setMenuColunasAberto] = useState(false);
+  const [colunaFiltroAberta, setColunaFiltroAberta] = useState<ChaveColuna | null>(null);
+  const [contaFiltro, setContaFiltro] = useState<string | null>(null);
+  const [docFiltro, setDocFiltro] = useState<TipoDocumento | null>(null);
+  const [modoData, setModoData] = useState<ModoData>("EMISSAO");
   const [novo, setNovo] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaCaixaShare[]>([]);
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
@@ -458,6 +484,48 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     };
   }, [statusFiltroAberto]);
 
+  useEffect(() => {
+    if (!colunaFiltroAberta) return;
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Element && evento.target.closest(".erp-coluna-filtro-anchor")) return;
+      setColunaFiltroAberta(null);
+    };
+    const fecharEscape = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setColunaFiltroAberta(null);
+    };
+    document.addEventListener("pointerdown", fecharFora);
+    document.addEventListener("keydown", fecharEscape);
+    return () => {
+      document.removeEventListener("pointerdown", fecharFora);
+      document.removeEventListener("keydown", fecharEscape);
+    };
+  }, [colunaFiltroAberta]);
+
+  const contasDisponiveis = useMemo(
+    () => [...new Set(lancamentos.map((linha) => linha.contaBancaria).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [lancamentos],
+  );
+
+  function filtroColunaAtivo(chave: FiltroColuna) {
+    if (chave === "contaBancaria") return contaFiltro !== null;
+    if (chave === "documento") return docFiltro !== null;
+    return modoData !== "EMISSAO";
+  }
+
+  function opcoesFiltroColuna(chave: FiltroColuna): Array<{ rotulo: string; ativo: boolean; aplicar: () => void }> {
+    if (chave === "contaBancaria") return [
+      { rotulo: "Todas as contas", ativo: contaFiltro === null, aplicar: () => setContaFiltro(null) },
+      ...contasDisponiveis.map((conta) => ({ rotulo: conta, ativo: contaFiltro === conta, aplicar: () => setContaFiltro(conta) })),
+    ];
+    if (chave === "documento") return [
+      { rotulo: "Todos os tipos", ativo: docFiltro === null, aplicar: () => setDocFiltro(null) },
+      ...TIPOS_DOCUMENTO.map((tipo) => ({ rotulo: tipo, ativo: docFiltro === tipo, aplicar: () => setDocFiltro(tipo) })),
+    ];
+    return (Object.keys(ROTULOS_MODO_DATA) as ModoData[]).map((modo) => ({
+      rotulo: ROTULOS_MODO_DATA[modo], ativo: modoData === modo, aplicar: () => setModoData(modo),
+    }));
+  }
+
   const colunas = useMemo<Coluna[]>(() => [
     { chave: "data", rotulo: "Data", largura: 172 },
     { chave: "documento", rotulo: "DOC", largura: 162 },
@@ -521,10 +589,18 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       const vencimento = (linha.dataVencimento || "").slice(0, 10);
       if (filtroInicial?.inicio && vencimento < filtroInicial.inicio.slice(0, 10)) return false;
       if (filtroInicial?.fim && (!vencimento || vencimento > filtroInicial.fim.slice(0, 10))) return false;
-      if (!temPeriodoInicial && !mesesSelecionados.includes((linha.dataLancamento || "").slice(0, 7))) return false;
+      if (!temPeriodoInicial) {
+        const noPeriodo = (data: string | null) => mesesSelecionados.includes((data || "").slice(0, 7));
+        const dentro = modoData === "EMISSAO" ? noPeriodo(linha.dataLancamento)
+          : modoData === "VENCIMENTO" ? noPeriodo(linha.dataVencimento)
+            : noPeriodo(linha.dataLancamento) || noPeriodo(linha.dataVencimento);
+        if (!dentro) return false;
+      }
       if (situacaoFiltro !== "TODAS" && statusParaFiltro(linha) !== situacaoFiltro) return false;
       if (caixaFiltro !== "TODOS" && linha.caixa !== caixaFiltro) return false;
       if (fluxoFiltro !== "TODOS" && linha.fluxo !== fluxoFiltro) return false;
+      if (contaFiltro !== null && linha.contaBancaria !== contaFiltro) return false;
+      if (docFiltro !== null && tipoDocumento(linha) !== docFiltro) return false;
       const texto = [linha.documento, linha.descricao, linha.categoria, linha.favorecido,
         linha.favorecidoPessoa, linha.fornecedor, linha.contaBancaria, linha.fluxo].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
       return texto.includes(textoBusca);
@@ -536,7 +612,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
       return ordenacao.crescente ? comparacao : -comparacao;
     });
   }, [lancamentos, busca, situacaoFiltro, caixaFiltro, fluxoFiltro, mesesSelecionados,
-    filtroInicial?.inicio, filtroInicial?.fim, temPeriodoInicial, ordenacao]);
+    filtroInicial?.inicio, filtroInicial?.fim, temPeriodoInicial, ordenacao, modoData, contaFiltro, docFiltro]);
 
   const selecao = useMemo(() => new Set(selecionados), [selecionados]);
   const expansao = useMemo(() => new Set(expandidos), [expandidos]);
@@ -557,7 +633,8 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
     : mesesSelecionados.length === 1 ? rotuloMes(mesesSelecionados[0]) : `${mesesSelecionados.length} meses selecionados`;
   const periodoImpressao = temPeriodoInicial ? periodo : [...mesesSelecionados].sort().map(rotuloMes).join(", ");
   const filtrosAtivos = Number(Boolean(busca.trim())) + Number(situacaoFiltro !== "TODAS")
-    + Number(caixaFiltro !== "TODOS") + Number(fluxoFiltro !== "TODOS");
+    + Number(caixaFiltro !== "TODOS") + Number(fluxoFiltro !== "TODOS")
+    + Number(contaFiltro !== null) + Number(docFiltro !== null) + Number(modoData !== "EMISSAO");
 
   // Se uma atualização reduzir o número de páginas, mantém a página válida.
   useEffect(() => { setPagina((atual) => Math.min(atual, paginas)); }, [paginas]);
@@ -599,6 +676,7 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
   }
   function limparFiltros() {
     setBusca(""); setSituacaoFiltro("TODAS"); setCaixaFiltro("TODOS"); setFluxoFiltro("TODOS");
+    setContaFiltro(null); setDocFiltro(null); setModoData("EMISSAO");
   }
   async function excluirLinha(linha: LinhaConta) {
     const lancamentoId = linha.raw.lancamentoId;
@@ -805,6 +883,34 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
                           {STATUS_FILTRO.filter(({ valor }) => !ehEntrada || valor !== "PAGO").map(({ valor, rotulo }) => (
                             <button key={valor} type="button" aria-pressed={situacaoFiltro === valor} onClick={() => { setSituacaoFiltro(valor); setStatusFiltroAberto(false); }}>
                               {rotulo}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" {...arrastoColuna(coluna.chave)} className="erp-ordenar" onClick={() => setOrdenacao((atual) => ({ chave: coluna.chave, crescente: atual.chave === coluna.chave ? !atual.crescente : true }))}>
+                      {coluna.rotulo}<ChevronsUpDown size={12} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : ehColunaFiltravel(coluna.chave) ? (
+                  <div className="erp-status-th-conteudo">
+                    <div className="erp-status-filtro-anchor erp-coluna-filtro-anchor">
+                      <button
+                        type="button"
+                        className={`erp-status-filtro-trigger ${filtroColunaAtivo(coluna.chave) ? "erp-status-filtro-ativo" : ""}`}
+                        aria-label={`Filtrar por ${TITULOS_FILTRO_COLUNA[coluna.chave]}`}
+                        title={`Filtrar por ${TITULOS_FILTRO_COLUNA[coluna.chave]}`}
+                        aria-haspopup="dialog"
+                        aria-expanded={colunaFiltroAberta === coluna.chave}
+                        onClick={() => setColunaFiltroAberta((atual) => (atual === coluna.chave ? null : coluna.chave))}
+                      >
+                        <Filter size={13} aria-hidden="true" />
+                      </button>
+                      {colunaFiltroAberta === coluna.chave && (
+                        <div className="erp-status-filtro-menu" role="dialog" aria-label={`Filtrar por ${TITULOS_FILTRO_COLUNA[coluna.chave]}`}>
+                          {opcoesFiltroColuna(coluna.chave).map((opcao) => (
+                            <button key={opcao.rotulo} type="button" aria-pressed={opcao.ativo} onClick={() => { opcao.aplicar(); setColunaFiltroAberta(null); }}>
+                              {opcao.rotulo}
                             </button>
                           ))}
                         </div>

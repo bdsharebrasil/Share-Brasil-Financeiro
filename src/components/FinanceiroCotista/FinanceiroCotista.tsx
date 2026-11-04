@@ -4004,45 +4004,6 @@ export default function FinanceiroCotista() {
         </section>
       ) : (
         <>
-          {paginaAberta && abaAtiva !== "lancamentos" && (
-            <section className="financeiro-panel overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <div>
-                  <p className="financeiro-eyebrow">
-                    CENTRO DE CUSTOS DA AERONAVE
-                  </p>
-                  <p className="mt-1 text-base font-semibold">
-                    {aeronaves.find((a) => a.id === aeronaveSelecionada)
-                      ?.matricula_registro || "Aeronave selecionada"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground"></p>
-                </div>
-                <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
-                  {[
-                    ["Lançamentos", String(lancamentosFiltrados.length), ""],
-                    [
-                      "Total do mês",
-                      formatarMoeda(dashboard?.resumo?.saidas ?? 0),
-                      "",
-                    ],
-                  ].map(([label, value, tone]) => (
-                    <div
-                      key={label}
-                      className="min-w-[104px] px-3 py-2.5 first:pl-3"
-                    >
-                      <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">
-                        {label}
-                      </p>
-                      <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
           {paginaAberta &&
             abaAtiva !== "portal-cliente" &&
             abaAtiva !== "lancamentos" && (
@@ -4086,6 +4047,19 @@ export default function FinanceiroCotista() {
                     >
                       ›
                     </Button>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-2">
+                    {[
+                      ["Lançamentos", String(lancamentosFiltrados.length)],
+                      ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="min-w-[104px] px-3 py-2 first:pl-3">
+                        <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="mt-1 font-mono text-xs font-bold">{value}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

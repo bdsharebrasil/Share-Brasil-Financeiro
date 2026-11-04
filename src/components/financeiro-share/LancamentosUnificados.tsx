@@ -773,20 +773,22 @@ export function LancamentosUnificados({ fluxo, filtroInicial, obterDetalhes }: P
             </button>
             <span className="erp-divisor" aria-hidden="true" />
             <button type="button" className="erp-btn erp-btn-texto" onClick={() => { setLarguras({}); setOrdemColunas([]); setColunasOcultas([]); }}><Columns2 size={17} aria-hidden="true" />Restaurar colunas</button>
-            <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
-              onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
-            {menuColunasAberto && (
-              <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
-                {colunas.map((coluna) => {
-                  const visivel = !colunasOcultas.includes(coluna.chave);
-                  return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
-                    disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
-                    <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
-                    {coluna.rotulo}
-                  </button>;
-                })}
-              </div>
-            )}
+            <div className="erp-colunas-ancora">
+              <button type="button" className="erp-btn erp-btn-texto" aria-expanded={menuColunasAberto} aria-controls={`${id}-colunas`}
+                onClick={() => setMenuColunasAberto((atual) => !atual)}><EyeOff size={17} aria-hidden="true" />Ocultar colunas</button>
+              {menuColunasAberto && (
+                <div className="erp-colunas-lista" id={`${id}-colunas`} role="listbox" aria-multiselectable="true" aria-label="Colunas visíveis">
+                  {colunas.map((coluna) => {
+                    const visivel = !colunasOcultas.includes(coluna.chave);
+                    return <button type="button" key={coluna.chave} role="option" aria-selected={visivel}
+                      disabled={visivel && colunasExibidas.length === 1} onClick={() => alternarColuna(coluna.chave)}>
+                      <span className="erp-coluna-marca" aria-hidden="true">{visivel && <Check size={11} />}</span>
+                      {coluna.rotulo}
+                    </button>;
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="erp-periodo" ref={periodoRef}>
@@ -1053,6 +1055,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro .erp-resumo strong { color: var(--erp-total); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .erp-financeiro .erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: -5px auto 9px; padding: 10px 7px; font-size: 11px; line-height: 13.2px; font-weight: 200; border: 1px inset rgba(39, 49, 59, 0.31); border-radius: 17px; overflow: visible; background: linear-gradient(145deg, #0d141c, #090d14); }
 .erp-financeiro .erp-acoes { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin: -6px 78px -6px -127px; padding: 1px 0; line-height: 12.2px; }
+.erp-financeiro .erp-colunas-ancora { position: relative; display: inline-flex; }
 .erp-financeiro .erp-colunas-lista { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: flex; flex-direction: column; width: max-content; max-width: min(260px, 100%); max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid #394856; border-radius: 5px; background: #171f28; box-shadow: 0 12px 30px #0009; }
 .erp-financeiro .erp-colunas-lista button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; border-radius: 3px; background: transparent; color: #b7c5d5; font-size: 11px; text-align: left; cursor: pointer; }
 .erp-financeiro .erp-colunas-lista button:hover { background: #159dff22; color: #61bbff; }

@@ -1044,7 +1044,7 @@ const ESTILOS_FINANCEIRO = `
 .erp-financeiro button:disabled { opacity: .42; cursor: not-allowed; }
 .erp-financeiro button:focus-visible, .erp-financeiro a:focus-visible, .erp-financeiro input:focus-visible,
 .erp-financeiro select:focus-visible, .erp-financeiro [tabindex]:focus-visible { outline: 2px solid #39aaff; outline-offset: 3px; }
-.erp-financeiro .erp-tela { margin: -1px -9px; padding-top: 11px; padding-bottom: 11px; }
+.erp-financeiro .erp-tela { margin: -1px -5px; padding: 11px 1px; }
 .erp-financeiro .erp-cabecalho { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; margin-top: -15px; padding: 1px 8px 4px; margin-bottom: 5px; }
 .erp-financeiro .erp-titulo { margin: 18px 0; padding: 0; }
 .erp-financeiro .erp-cabecalho h2 { padding: 0; margin: 0 9px; font-size: 21px; font-weight: 400; line-height: 19.25px; border: 1px hidden rgba(126, 211, 33, 1); }

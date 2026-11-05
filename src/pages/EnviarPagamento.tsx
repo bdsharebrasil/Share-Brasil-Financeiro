@@ -1462,6 +1462,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
                         const statusEmail = statusEmailCotista[cotista.id];
                         const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
+                        const rascunhoEmail = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
                         return (
                           <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1478,6 +1479,28 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                                 placeholder="Digite o e-mail do cotista"
                                 disabled={emailEnviado}
                                 className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label htmlFor={`assunto-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
+                              <Input
+                                id={`assunto-cotista-${cotista.id}`}
+                                value={rascunhoEmail.assunto}
+                                onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, assunto: event.target.value } }))}
+                                placeholder="Assunto do e-mail"
+                                disabled={emailEnviado}
+                                className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label htmlFor={`mensagem-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
+                              <Textarea
+                                id={`mensagem-cotista-${cotista.id}`}
+                                value={rascunhoEmail.mensagem}
+                                onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, mensagem: event.target.value } }))}
+                                placeholder="Escreva o texto do e-mail"
+                                disabled={emailEnviado}
+                                className="campo min-h-28 resize-y !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
                               />
                             </div>
                             <div className="space-y-2">

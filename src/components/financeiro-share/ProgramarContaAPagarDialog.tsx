@@ -440,7 +440,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
       aria-modal={rateioDireto ? undefined : "true"}
       aria-labelledby="titulo-programar-conta"
     >
-      <div className={rateioDireto ? "flex w-full flex-col rounded-xl border border-border bg-background shadow-sm" : "flex h-full w-full max-w-6xl flex-col overflow-hidden border-border bg-background shadow-2xl sm:h-auto sm:max-h-[94dvh] sm:rounded-xl sm:border"}>
+      <div className={rateioDireto ? "flex w-full flex-col rounded-xl border border-border bg-background shadow-sm" : "flex h-full w-full max-w-6xl flex-col overflow-hidden border-[rgba(11,15,20,1)] bg-[#101825] shadow-none sm:h-auto sm:max-h-[94dvh] sm:rounded-xl sm:border"}>
         {/* Cabeçalho */}
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div className="min-w-0">

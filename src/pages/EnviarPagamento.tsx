@@ -1459,7 +1459,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       </div>
                       {cotistasEmail.map((cotista) => {
                         const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id));
-                        if (!anexosDoCotista.length) return null;
                         const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
                         const statusEmail = statusEmailCotista[cotista.id];
                         const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
@@ -1468,6 +1467,18 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
                               <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
+                            </div>
+                            <div className="space-y-2">
+                              <label htmlFor={`email-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">E-mail do destinatário</label>
+                              <Input
+                                id={`email-cotista-${cotista.id}`}
+                                type="email"
+                                value={emailsPorCotista[cotista.id] || ""}
+                                onChange={(event) => setEmailsPorCotista((atuais) => ({ ...atuais, [cotista.id]: event.target.value }))}
+                                placeholder="Digite o e-mail do cotista"
+                                disabled={emailEnviado}
+                                className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                              />
                             </div>
                             <div className="space-y-2">
                               {anexosDoCotista.map((anexo) => (

@@ -1007,6 +1007,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
 
   const voltarAoHistorico = () => {
     setReciboRateio(null);
+    setReciboProgramacao(null);
     setRateioAposEmail(null);
     setAbaAtiva("historico");
   };
@@ -1018,8 +1019,12 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       return;
     }
     setReciboEmail(recibo);
-    if (String(recibo.status).toUpperCase() === "EMAIL_ENVIADO") setReciboProgramacao(recibo);
-    else setModalEmail(true);
+    if (String(recibo.status).toUpperCase() === "EMAIL_ENVIADO") {
+      setReciboProgramacao(recibo);
+      setAbaAtiva("rateio");
+    } else {
+      setModalEmail(true);
+    }
   };
 
   const fecharPdfPreview = () => {
@@ -1072,6 +1077,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
       if (rateioPendente) {
         mostrarFeedback("sucesso", "EMAIL ENVIADO E RATEIO CRIADO COM SUCESSO");
       } else {
+        setAbaAtiva("rateio");
         setReciboProgramacao(atualizado);
         mostrarFeedback("sucesso", "EMAIL ENVIADO COM SUCESSO");
       }
@@ -1193,9 +1199,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           setModalEmail(true);
         }}
         onOpenChange={(aberto) => {
-          if (aberto) return;
-          if (reciboRateio) voltarAoHistorico();
-          else setReciboProgramacao(null);
+          if (!aberto) voltarAoHistorico();
         }}
         onSaved={() => {
           const alvo = reciboRateio ?? reciboProgramacao;

@@ -434,13 +434,8 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
   const textoTotal = totalPercentual > 100.01 ? "text-red-600" : percentualOk ? "text-emerald-600" : "text-amber-600";
 
   return (
-    <div
-      className={rateioDireto ? "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6" : "fixed inset-0 z-50 flex items-stretch justify-center bg-black/70 p-0 sm:items-center sm:p-4 lg:p-6"}
-      role={rateioDireto ? undefined : "dialog"}
-      aria-modal={rateioDireto ? undefined : "true"}
-      aria-labelledby="titulo-programar-conta"
-    >
-      <div className={rateioDireto ? "flex w-full flex-col rounded-xl border border-border bg-background shadow-sm" : "flex h-full w-full max-w-6xl flex-col overflow-hidden border-[rgba(11,15,20,1)] bg-[#101825] shadow-none sm:h-auto sm:max-h-[94dvh] sm:rounded-xl sm:border"}>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <div className="flex w-full flex-col rounded-xl border border-border bg-background shadow-sm">
         {/* Cabeçalho */}
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div className="min-w-0">
@@ -462,7 +457,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
         </div>
 
         {/* Corpo */}
-        <div className={rateioDireto ? "px-4 py-4 sm:px-6 sm:py-5" : "min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"}>
+        <div className="px-4 py-4 sm:px-6 sm:py-5">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
             {/* Resumo (topo no mobile, lateral fixa no desktop) */}
             <aside className="space-y-4 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-0 lg:self-start">

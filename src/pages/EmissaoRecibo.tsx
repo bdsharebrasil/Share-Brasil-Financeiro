@@ -843,7 +843,6 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
           form.tipo === "recibo_pagamento" || form.tipo === "recibo_reembolso"
             ? form.categoria_despesa_subcategoria || null
             : null,
-        subcategoria_1: form.categoria_despesa_subcategoria || null,
         fornecedor_id: form.fornecedor_id || null,
         fornecedor_nome: form.fornecedor_nome || form.recebedor_nome.trim() || null,
         grupo_categoria:

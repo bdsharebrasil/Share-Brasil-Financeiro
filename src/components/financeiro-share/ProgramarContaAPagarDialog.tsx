@@ -129,15 +129,6 @@ function Secao({ titulo, descricao, acao, children }: { titulo: string; descrica
   );
 }
 
-function Linha({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2 text-[13px]">
-      <dt className="shrink-0 text-muted-foreground">{rotulo}</dt>
-      <dd className="min-w-0 break-words text-right font-medium">{valor}</dd>
-    </div>
-  );
-}
-
 export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, categorias, onOpenChange, onSaved, onRequestEmail }: Props) {
   const { data: fornecedores = [], refetch: recarregarFornecedores } = useFornecedores({ includeFavorites: true, includeHotels: true, enabled: open });
   const rateioDireto = recibo?.tipo_recibo === "recibo_pagamento";
@@ -449,7 +440,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
       aria-modal={rateioDireto ? undefined : "true"}
       aria-labelledby="titulo-programar-conta"
     >
-      <div className={rateioDireto ? "flex w-full flex-col rounded-xl border border-border bg-background shadow-sm" : "flex h-full w-full max-w-6xl flex-col overflow-hidden border-border bg-background shadow-2xl sm:h-auto sm:max-h-[94dvh] sm:rounded-xl sm:border"}>
+      <div className={rateioDireto ? "flex w-full flex-col rounded-xl border border-border bg-background shadow-sm" : "flex h-full w-full max-w-6xl flex-col overflow-hidden border-[rgba(11,15,20,1)] bg-[#101825] shadow-none sm:h-auto sm:max-h-[94dvh] sm:rounded-xl sm:border"}>
         {/* Cabeçalho */}
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div className="min-w-0">
@@ -475,16 +466,6 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
             {/* Resumo (topo no mobile, lateral fixa no desktop) */}
             <aside className="space-y-4 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-0 lg:self-start">
-              <section className="rounded-xl border border-border bg-card/40 p-4">
-                <h3 className="text-sm font-semibold">Resumo do recibo</h3>
-                <dl className="mt-2 divide-y divide-border/60">
-                  <Linha rotulo="Número" valor={recibo.numero_recibo} />
-                  {rateioDireto && <Linha rotulo="Pagador" valor={recibo.nome_pagador || "Não identificado"} />}
-                  <Linha rotulo="Descrição" valor={recibo.descricao || recibo.descricao_servico || "—"} />
-                  <Linha rotulo="Valor" valor={<span className="text-base font-semibold">{valor}</span>} />
-                </dl>
-              </section>
-
               <section className="rounded-xl border border-border bg-card/40 p-4">
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-sm font-semibold">Total do rateio</h3>

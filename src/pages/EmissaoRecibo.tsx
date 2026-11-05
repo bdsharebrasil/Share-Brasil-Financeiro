@@ -859,9 +859,7 @@ export default function EmissaoRecibo({ aoVoltar }: { aoVoltar: () => void }) {
             : form.tipo === "recibo_colaborador"
               ? colaboradorSelecionado?.cpf || null
               : SHARE_DOCUMENTO,
-        numero_documento_anexo: arquivo
-          ? form.numero_documento_anexo.trim() || null
-          : null,
+        numero_documento_anexo: form.numero_documento_anexo.trim() || null,
         observacoes: form.observacoes.trim() || null,
       };
 

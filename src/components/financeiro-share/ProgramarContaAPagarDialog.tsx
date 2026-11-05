@@ -196,7 +196,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setCategoriaId(categorias.some((categoria) => categoria.id === categoriaInicial) ? categoriaInicial : "");
     setFornecedorId("");
     setFornecedorNome("");
-    setSubcategoria("");
+    setSubcategoria(recibo.subcategoria_1 || recibo.subcategoria_2 || recibo.subcategoria_3 || recibo.subcategoria_4 || "");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
     setObservacoes("");

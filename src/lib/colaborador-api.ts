@@ -1398,10 +1398,6 @@ export type Recibo = {
   observacoes: string | null;
   grupo_categoria: string;
   categoria_id?: string | null;
-  subcategoria_1?: string | null;
-  subcategoria_2?: string | null;
-  subcategoria_3?: string | null;
-  subcategoria_4?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
   tipo_caixa: "SHARE" | "CLIENTE" | "HOLDING";
   status: StatusRecibo;
@@ -1452,10 +1448,6 @@ export type CriarReciboPayload = {
   forma_pagamento?: string | null;
   categoria_movimentacao_id: string;
   categoria_despesa_subcategoria?: string | null;
-  subcategoria_1?: string | null;
-  subcategoria_2?: string | null;
-  subcategoria_3?: string | null;
-  subcategoria_4?: string | null;
   numero_voo?: string | null;
   categoria_nome?: string | null;
   categoria_lancamento_id?: string | null;

@@ -194,9 +194,9 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
     setDataVencimento(recibo.data_vencimento || hoje());
     const categoriaInicial = recibo.categoria_id || recibo.categoria_movimentacao_id || "";
     setCategoriaId(categorias.some((categoria) => categoria.id === categoriaInicial) ? categoriaInicial : "");
-    setFornecedorId(recibo.fornecedor_id || "");
-    setFornecedorNome(recibo.fornecedor_nome || "");
-    setSubcategoria(recibo.subcategoria_1 || recibo.subcategoria_2 || recibo.subcategoria_3 || recibo.subcategoria_4 || "");
+    setFornecedorId("");
+    setFornecedorNome("");
+    setSubcategoria("");
     setTipoRateio("FIXO");
     setPeriodicidade("ÚNICO");
     setObservacoes("");

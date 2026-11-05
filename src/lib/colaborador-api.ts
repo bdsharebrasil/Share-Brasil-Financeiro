@@ -1379,8 +1379,6 @@ export type Recibo = {
   recebedor_cidade?: string | null;
   recebedor_uf?: string | null;
   aeronave_id: string | null;
-  fornecedor_id?: string | null;
-  fornecedor_nome?: string | null;
   categoria_movimentacao_id?: string | null;
   numero_voo?: string | null;
   rateado: number;
@@ -1400,10 +1398,6 @@ export type Recibo = {
   observacoes: string | null;
   grupo_categoria: string;
   categoria_id?: string | null;
-  subcategoria_1?: string | null;
-  subcategoria_2?: string | null;
-  subcategoria_3?: string | null;
-  subcategoria_4?: string | null;
   natureza_despesa?: "aeronave" | "empresa" | null;
   tipo_caixa: "SHARE" | "CLIENTE" | "HOLDING";
   status: StatusRecibo;

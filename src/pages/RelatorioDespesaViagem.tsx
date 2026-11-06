@@ -37,6 +37,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import RelatorioFolder from "@/components/relatorio-viagem/RelatorioFolder";
 import { gerarPdfRelatorioViagem } from "@/lib/relatorioViagemPdf";
+import { anexosComDespesa } from "@/lib/relatorio-viagem-anexos";
 import { dataProximaDespesa } from "@/lib/relatorioViagemDatas";
 import { copyText } from "@/lib/utils";
 import {
@@ -679,8 +680,9 @@ export default function RelatorioDespesaViagem({
       observacoes: String(despesa.observacoes || ""),
       pago_por: normalizarPagoPor(despesa.pago_por || despesa.paid_by),
     }));
+    const anexosVinculados = anexosComDespesa(item.anexos || [], despesasDoRelatorio.length);
     const anexos = await Promise.all(
-      (item.anexos || []).map(async (anexo) => ({
+      anexosVinculados.map(async ({ anexo }) => ({
         nome_arquivo: anexo.nome_arquivo,
         tipo_arquivo: anexo.tipo_arquivo,
         indice_despesa: anexo.indice_despesa,
@@ -990,10 +992,8 @@ export default function RelatorioDespesaViagem({
       return null;
     });
   };
-  const anexoDaDespesa = (indice: number) =>
-    [...(relatorio?.anexos || [])]
-      .reverse()
-      .find((anexo) => anexo.indice_despesa === indice);
+  const anexosDaDespesa = (indice: number) =>
+    (relatorio?.anexos || []).filter((anexo) => anexo.indice_despesa === indice);
   const atualizarDespesa = (
     id: string,
     campo: keyof Despesa,
@@ -1377,15 +1377,24 @@ export default function RelatorioDespesaViagem({
                 />
               </Campo>
               <Campo label={index === despesas.length - 1 ? "Comprovante" : undefined}>
-                <AnexosDinamicos
-                  existingName={anexoDaDespesa(index)?.nome_arquivo || null}
-                  onFileChange={(file) => { if (file) void uploadAnexo(file, index); }}
-                  uploading={anexando || carregandoAnexo}
-                  disabled={bloqueado}
-                  label="Comprovante"
-                  description="Imagem ou PDF"
-                  onView={() => { const anexo = anexoDaDespesa(index); if (anexo) void visualizarAnexo(anexo); }}
-                />
+                <div className="space-y-2">
+                  {anexosDaDespesa(index).map((anexo) => (
+                    <div key={anexo.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background/35 px-3 py-2">
+                      <FileText size={15} className="shrink-0 text-primary" />
+                      <span className="min-w-0 flex-1 truncate text-xs" title={anexo.nome_arquivo}>{anexo.nome_arquivo}</span>
+                      <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => void visualizarAnexo(anexo)} disabled={carregandoAnexo}>
+                        {carregandoAnexo ? "Carregando…" : "Visualizar"}
+                      </Button>
+                    </div>
+                  ))}
+                  <AnexosDinamicos
+                    onFileChange={(file) => { if (file) void uploadAnexo(file, index); }}
+                    uploading={anexando}
+                    disabled={bloqueado}
+                    label={anexosDaDespesa(index).length ? "Adicionar outro comprovante" : "Comprovante"}
+                    description="Imagem ou PDF"
+                  />
+                </div>
               </Campo>
               <div className="flex items-end justify-end">
                 <Button

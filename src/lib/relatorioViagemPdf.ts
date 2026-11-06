@@ -1,6 +1,7 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+import { anexosComDespesa } from "@/lib/relatorio-viagem-anexos";
 
 /* ============================================================================
  * TIPOS
@@ -137,27 +138,6 @@ function prepararItens(despesas: DespesaPdf[]): ItemDespesa[] {
     indiceOriginal,
     numero: indiceOriginal + 1,
   }));
-}
-
-/**
- * Converte o `indice_despesa` do anexo em índice válido do array original.
- * Retorna null se estiver ausente ou fora do intervalo.
- */
-function resolverIndiceOriginal(
-  valor: number | string | null | undefined,
-  totalDespesas: number,
-): number | null {
-  if (valor === null || valor === undefined || valor === "") {
-    return null;
-  }
-
-  const indice = Number(valor);
-
-  if (!Number.isInteger(indice) || indice < 0 || indice >= totalDespesas) {
-    return null;
-  }
-
-  return indice;
 }
 
 function calcularDias(inicio?: string | null, fim?: string | null): number {
@@ -814,7 +794,7 @@ function montarHtmlRelatorio(
  * ========================================================================== */
 
 function criarCanvasComprovante(
-  item: ItemDespesa | null,
+  item: ItemDespesa,
   anexo: AnexoPdf,
   paginaAtual?: number,
   totalPaginas?: number,
@@ -842,7 +822,7 @@ function criarCanvasComprovante(
     ALTURA_CANVAS_COMPROVANTE,
   );
 
-  const despesa = item?.despesa;
+  const despesa = item.despesa;
 
   /* --------------------------------------------------------------------------
    * CABEÇALHO
@@ -857,11 +837,7 @@ function criarCanvasComprovante(
   context.fillStyle = "#555555";
   context.font = "12px Arial";
 
-  context.fillText(
-    item ? `Item Nº ${item.numero}` : "Item não identificado",
-    38,
-    69,
-  );
+  context.fillText(`Item Nº ${item.numero}`, 38, 69);
 
   context.fillText(
     truncarTexto(context, `Arquivo: ${anexo.nome_arquivo}`, 718),
@@ -917,7 +893,7 @@ function criarCanvasComprovante(
 
   const linhasDescricao = quebrarTexto(
     context,
-    despesa ? despesa.descricao || "Sem descrição" : "Despesa não identificada",
+    despesa.descricao || "Sem descrição",
     240,
     2,
   );
@@ -927,20 +903,20 @@ function criarCanvasComprovante(
   });
 
   valorTexto(
-    despesa ? despesa.categoria || "Outros" : "—",
+    despesa.categoria || "Outros",
     300,
     inicioY + 20,
     215,
   );
-  valorTexto(despesa ? dataBr(despesa.data) : "—", 530, inicioY + 20, 220);
+  valorTexto(dataBr(despesa.data), 530, inicioY + 20, 220);
 
   // Linha 2: Valor | Pago por
   rotulo("Valor", 38, inicioY + 60);
   rotulo("Pago por", 300, inicioY + 60);
 
-  valorTexto(despesa ? dinheiro(despesa.valor) : "—", 38, inicioY + 80, 240);
+  valorTexto(dinheiro(despesa.valor), 38, inicioY + 80, 240);
   valorTexto(
-    despesa ? normalizarPagador(despesa.pago_por) : "—",
+    normalizarPagador(despesa.pago_por),
     300,
     inicioY + 80,
     215,
@@ -968,7 +944,7 @@ function criarCanvasComprovante(
 
 async function gerarPaginaImagem(
   anexo: AnexoPdf,
-  item: ItemDespesa | null,
+  item: ItemDespesa,
 ): Promise<HTMLCanvasElement> {
   const { canvas, context } = criarCanvasComprovante(item, anexo);
 
@@ -1035,7 +1011,7 @@ async function gerarPaginaImagem(
  */
 async function gerarPaginasPdf(
   anexo: AnexoPdf,
-  item: ItemDespesa | null,
+  item: ItemDespesa,
   aoGerarPagina: (canvas: HTMLCanvasElement) => void,
 ): Promise<void> {
   GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
@@ -1205,23 +1181,13 @@ export async function gerarPdfRelatorioViagem(
     itens.map((item) => [item.indiceOriginal, item]),
   );
 
-  /*
-   * Vincula cada anexo à sua despesa pelo índice ORIGINAL e mantém a ordem
-   * dos comprovantes conforme a ordem das despesas no formulário.
-   */
-  const anexosOrdenados = anexos.map((anexo) => {
-    const indiceOriginal = resolverIndiceOriginal(
-      anexo.indice_despesa,
-      despesas.length,
-    );
-
-    const item =
-      indiceOriginal === null
-        ? null
-        : (itemPorIndiceOriginal.get(indiceOriginal) ?? null);
-
-    return { anexo, item };
-  });
+  // Só inclui comprovantes com índice original válido; anexos legados sem vínculo são descartados.
+  const anexosOrdenados = anexosComDespesa(anexos, despesas.length).map(
+    ({ anexo, indiceOriginal }) => ({
+      anexo,
+      item: itemPorIndiceOriginal.get(indiceOriginal)!,
+    }),
+  );
 
   const node = montarHtmlRelatorio(report, itens);
 

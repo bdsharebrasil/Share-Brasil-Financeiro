@@ -479,6 +479,9 @@ export type EscalaAgendamento = {
   copiloto_id: string | null;
   copiloto_nome: string | null;
   status: string;
+  horario_previsto_agendamento?: string | null;
+  horario_pouso_previsto?: string | null;
+  horario_corte?: string | null;
 };
 
 export type DisponibilidadeTripulacao = {
@@ -489,6 +492,8 @@ export type DisponibilidadeTripulacao = {
   data_fim: string;
   status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel" | string;
   observacoes: string | null;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
 };
 
 export type OpcaoClienteAgendamento = { id: string; nome: string; codigo_cliente: string | null };

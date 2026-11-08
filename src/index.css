@@ -12,6 +12,17 @@
 }
 
 :root {
+  --cerulean-50: 206.4 92.59% 94.71%;
+  --cerulean-100: 206.13 93.94% 87.06%;
+  --cerulean-200: 201.94 94.37% 72.16%;
+  --cerulean-300: 198.03 80.62% 55.49%;
+  --cerulean-400: 197.63 67.8% 46.27%;
+  --cerulean-500: 196.36 88.51% 34.12%;
+  --cerulean-600: 196.94 100% 24.31%;
+  --cerulean-700: 197.87 100% 18.43%;
+  --cerulean-800: 199.38 100% 12.75%;
+  --cerulean-900: 198.95 100% 7.45%;
+  --cerulean-950: 202.86 100% 4.12%;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --app-header-height: calc(68px + var(--safe-area-top));
@@ -26,15 +37,15 @@
   --sidebar: 215 42% 16%;
   --sidebar-foreground: 215 26% 87%;
   --sidebar-border: 214 28% 25%;
-  --sidebar-primary: 196 95% 50%;
+  --sidebar-primary: var(--cerulean-400);
   --sidebar-primary-foreground: 215 42% 13%;
   --sidebar-accent: 215 34% 23%;
   --sidebar-accent-foreground: 215 26% 93%;
-  --sidebar-ring: 196 95% 50%;
+  --sidebar-ring: var(--cerulean-400);
   --popover: 0 0% 100%;
   --popover-foreground: 215 34% 15%;
   --popover-border: 214 24% 86%;
-  --primary: 196 94% 35%;
+  --primary: var(--cerulean-500);
   --primary-foreground: 215 42% 12%;
   --secondary: 214 30% 92%;
   --secondary-foreground: 215 34% 20%;
@@ -45,8 +56,8 @@
   --destructive: 0 70% 48%;
   --destructive-foreground: 0 0% 100%;
   --input: 214 24% 82%;
-  --ring: 196 95% 42%;
-  --chart-1: 196 95% 42%;
+  --ring: var(--cerulean-500);
+  --chart-1: var(--cerulean-500);
   --chart-2: 139 48% 41%;
   --chart-3: 43 89% 57%;
   --chart-4: 271 56% 61%;
@@ -108,6 +119,7 @@
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
 }
+
 
 @layer base {
   * { @apply border-border; scrollbar-width: thin; scrollbar-color: hsl(var(--primary) / .72) hsl(var(--muted) / .55); }
@@ -171,6 +183,18 @@
 .diario-bordo .text-\[11px\] { font-size: 0.875rem; }
 .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
+
+html:not(.dark) [class*="bg-card"]:not(header *) {
+  background-color: rgba(213, 224, 226, 1) !important;
+  border-color: rgba(3, 6, 8, 0.48) !important;
+  color: rgba(17, 20, 25, 1);
+  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.33);
+}
+
+html:not(.dark) .menu-hover-escuro:hover {
+  background-color: rgba(164, 188, 198, 1) !important;
+  color: rgba(3, 6, 8, 1);
+}
 
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }

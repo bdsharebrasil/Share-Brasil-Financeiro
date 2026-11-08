@@ -115,7 +115,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               className={`flex min-h-12 min-w-0 flex-wrap items-center justify-center gap-2 whitespace-normal rounded-lg px-2 py-3 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4 sm:text-sm ${
                 selecionada
                   ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                  : "menu-hover-escuro text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >
               <Icone size={18} className="shrink-0" aria-hidden="true" />

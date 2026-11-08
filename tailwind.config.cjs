@@ -7,6 +7,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        cerulean: {
+          50: hsl("cerulean-50"),
+          100: hsl("cerulean-100"),
+          200: hsl("cerulean-200"),
+          300: hsl("cerulean-300"),
+          400: hsl("cerulean-400"),
+          500: hsl("cerulean-500"),
+          600: hsl("cerulean-600"),
+          700: hsl("cerulean-700"),
+          800: hsl("cerulean-800"),
+          900: hsl("cerulean-900"),
+          950: hsl("cerulean-950"),
+        },
         background: hsl("background"),
         foreground: hsl("foreground"),
         border: hsl("border"),

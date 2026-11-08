@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, Pencil, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
@@ -38,6 +38,8 @@ import {
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
 import JornadaVoo from "@/components/agendamento/JornadaVoo";
+import EscalaCalendario from "@/components/agendamento/EscalaCalendario";
+import { conflitosDoTripulante, DIA, montarBlocos } from "@/lib/escala-tempo";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
 import { calcularProgressoChecklist, correspondeFiltroStatusAgendamento, obterAcoesAgendamento, statusPermiteAbrirJornada, statusPermiteChecklist } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
@@ -123,10 +125,6 @@ function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
       || String(a.numero_voo || "").localeCompare(String(b.numero_voo || ""), "pt-BR", { numeric: true, sensitivity: "base" });
   });
 }
-function avatarTripulante(item: TripulanteAgendamento) {
-  const urlAvatar = item.url_avatar?.trim();
-  return urlAvatar && /^https?:\/\//i.test(urlAvatar) ? urlAvatar : item.foto_url || urlAvatar || "/icon.pilot.png";
-}
 function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
   return [
     ...opcoes.clientes.map((item) => ({ id: `cliente:${item.id}`, label: `${item.nome}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}` })),
@@ -141,8 +139,6 @@ export default function Agendamentos() {
   const [mes, setMes] = useState(() => primeiroDiaMes(new Date()));
   const [semanaCalendario, setSemanaCalendario] = useState(() => inicioSemana(new Date()));
   const [visaoCalendario, setVisaoCalendario] = useState<VisaoEscala>("semanal");
-  const [visaoEscala, setVisaoEscala] = useState<VisaoEscala>("semanal");
-  const [mesEscala, setMesEscala] = useState(() => primeiroDiaMes(new Date()));
   const [painel, setPainel] = useState<PainelAgendamentoResponse | null>(null);
   const [opcoes, setOpcoes] = useState<OpcoesAgendamentoResponse>({ clientes: [], socios: [], aeronaves: [], vinculos: [] });
   const [aerodromos, setAerodromos] = useState<AerodromoOption[]>([]);
@@ -291,8 +287,17 @@ export default function Agendamentos() {
     setMes(primeiroDiaMes(dataVoo));
     setSemanaCalendario(inicioSemana(dataVoo));
   }, []);
+  const avisarConflitoComandante = (pilotoId: string, voo: EscalaAgendamento) => {
+    const existentes = montarBlocos((painel?.escala || []).filter((item) => item.id !== voo.id), [], painel?.tripulacao || []);
+    const [candidato] = montarBlocos([voo], [], []);
+    const conflitos = candidato ? conflitosDoTripulante(existentes, pilotoId, candidato.inicio, candidato.fim) : [];
+    if (!conflitos.length) return;
+    const nome = painel?.tripulacao.find((item) => item.id === pilotoId)?.nome_completo || "O comandante";
+    toast({ title: "Possível conflito de escala", description: `${nome} já tem ${conflitos.length} compromisso(s) sobreposto(s) neste horário.` });
+  };
   const aprovar = async (alteracoes: AlteracoesAgendamentoConfirmacao) => {
     if (!selecionada || !pilotoId) { toast({ title: "Piloto comandante obrigatório", description: "Selecione o comandante para gerar o número do voo.", variant: "destructive" }); return; }
+    avisarConflitoComandante(pilotoId, { id: selecionada.id, data_agendada: selecionada.data_agendada, data_fim: selecionada.data_fim || selecionada.data_agendada, numero_voo: selecionada.numero_voo ?? null, origem: selecionada.origem, destino: selecionada.destino, horario_previsto_agendamento: selecionada.horario_previsto_agendamento, piloto_id: pilotoId, piloto_nome: null, copiloto_id: copilotoId || null, copiloto_nome: null, status: "aprovada" });
     setProcessando(true);
     try {
       const resposta = await aprovarSolicitacaoVoo(selecionada.id, pilotoId, copilotoId || undefined, alteracoes);
@@ -321,9 +326,11 @@ export default function Agendamentos() {
     const aeronaveDoTitular = Boolean(novo.aeronave_id && (novo.cliente_id || novo.socio_id) && opcoes.vinculos.some((vinculo) => vinculo.aeronave_id === novo.aeronave_id && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (novo.socio_id && vinculo.socio_id === novo.socio_id))));
     const temCedente = Boolean(novo.cliente_emprestimo_id || novo.socio_emprestimo_id);
     if (novo.aeronave_id && !aeronaveDoTitular && (!novo.voo_emprestimo_confirmado || !temCedente)) { toast({ title: "Informe o empréstimo da aeronave", description: "Confirme que o voo é emprestado e selecione o cliente ou sócio cedente.", variant: "destructive" }); return; }
+    const horarioPrevisto = horarioUtc(novo.data_agendada, novo.horario_previsto_agendamento);
+    if (novo.piloto_id) avisarConflitoComandante(novo.piloto_id, { id: "novo", data_agendada: novo.data_agendada, data_fim: novo.data_fim, numero_voo: null, origem: novo.origem, destino: novo.destino, horario_previsto_agendamento: horarioPrevisto ?? null, piloto_id: novo.piloto_id, piloto_nome: null, copiloto_id: novo.copiloto_id || null, copiloto_nome: null, status: "aprovada" });
     setProcessando(true);
     try {
-      const resposta = await criarAgendamento({ ...novo, horario_previsto_agendamento: horarioUtc(novo.data_agendada, novo.horario_previsto_agendamento), piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
+      const resposta = await criarAgendamento({ ...novo, horario_previsto_agendamento: horarioPrevisto, piloto_id: novo.piloto_id || undefined, copiloto_id: novo.copiloto_id || undefined });
       toast({ title: "Agendamento criado", description: resposta.numero_voo ? `Número de voo: ${resposta.numero_voo}.` : "A solicitação ficará pendente de confirmação." });
       setMostrarNovo(false);
       setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
@@ -374,11 +381,11 @@ export default function Agendamentos() {
     const tripulante = painel?.tripulacao.find((item) => item.id === novaDisponibilidade.tripulante_id);
     if (!tripulante) { toast({ title: "Tripulante obrigatório", description: "Selecione um tripulante ativo da lista.", variant: "destructive" }); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataInicio) || !/^\d{4}-\d{2}-\d{2}$/.test(dataFim) || dataFim < dataInicio) { toast({ title: "Período inválido", description: "Informe datas válidas e com o fim igual ou posterior ao início.", variant: "destructive" }); return; }
-    const voosNoPeriodo = (painel?.escala || []).filter((item) => {
-      const pertence = item.piloto_id === tripulante.id || item.copiloto_id === tripulante.id;
-      const sobrepoe = dataInicio <= (item.data_fim || item.data_agendada) && dataFim >= item.data_agendada;
-      return pertence && sobrepoe;
-    });
+    const blocosVoo = montarBlocos(painel?.escala || [], [], painel?.tripulacao || []);
+    const voosNoPeriodo = conflitosDoTripulante(
+      blocosVoo, tripulante.id,
+      Date.parse(`${dataInicio}T00:00:00Z`), Date.parse(`${dataFim}T00:00:00Z`) + DIA,
+    );
     if (novaDisponibilidade.status !== "disponivel" && voosNoPeriodo.length) {
       toast({ title: "Conflito com agendamento", description: `${tripulante.nome_completo} já está escalado em ${voosNoPeriodo.length} voo(s) aprovado(s) no período informado.`, variant: "destructive" });
       return;
@@ -393,13 +400,11 @@ export default function Agendamentos() {
     finally { setProcessando(false); }
   };
   const abrirCriacaoEscala = () => {
-    const inicio = visaoEscala === "mensal" ? dataIso(mesEscala) : dataIso(new Date());
-    const fim = visaoEscala === "mensal" ? dataIso(ultimoDiaMes(mesEscala)) : inicio;
-    setNovaDisponibilidade({ tripulante_id: "", data_inicio: inicio, data_fim: fim, status: "aviso", observacoes: "" });
+    const hoje = dataIso(new Date());
+    setNovaDisponibilidade({ tripulante_id: "", data_inicio: hoje, data_fim: hoje, status: "aviso", observacoes: "" });
     setMostrarDisponibilidade(true);
   };
   const mudarMes = (delta: number) => setMes((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
-  const mudarMesEscala = (delta: number) => setMesEscala((atual) => new Date(atual.getFullYear(), atual.getMonth() + delta, 1));
   const mudarSemana = (delta: number) => setSemanaCalendario((atual) => new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + delta * 7));
   const mudarVisaoCalendario = (visao: VisaoEscala) => {
     setVisaoCalendario(visao);
@@ -415,7 +420,13 @@ export default function Agendamentos() {
     <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">{abas.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Icon size={14} />{item.label}</button>; })}</nav>
     {aba === "voos-hoje" && <VoosDeHoje voos={voosDeHoje} vooSelecionado={vooHojeSelecionado} nomesTripulantes={nomesTripulantes} voosEmOperacao={voosAoVivo} carregando={carregando} aoSelecionar={setVooHojeSelecionadoId} aoIniciar={abrirJornada} />}
     {aba === "calendario" && <CalendarioAgendamento mes={mes} semana={semanaCalendario} dias={dias} visao={visaoCalendario} confirmados={[...confirmados, ...encerrados]} pendentes={pendentes} aeronaves={painel?.aeronaves || []} buscaVoo={buscaCalendario} aoMudarBuscaVoo={setBuscaCalendario} aoNavegarParaData={navegarParaDataCalendario} aoMudarMes={mudarMes} aoMudarSemana={mudarSemana} aoMudarVisao={mudarVisaoCalendario} aoAbrir={abrirSolicitacao} />}
-    {aba === "escala" && <Escala tripulacao={painel?.tripulacao || []} escala={painel?.escala || []} disponibilidades={painel?.disponibilidades || []} mes={mesEscala} visao={visaoEscala} aoMudarMes={mudarMesEscala} aoMudarVisao={setVisaoEscala} aoMarcar={abrirCriacaoEscala} />}
+    {aba === "escala" && <Escala
+      tripulacao={painel?.tripulacao || []}
+      escala={painel?.escala || []}
+      disponibilidades={painel?.disponibilidades || []}
+      aoMarcar={abrirCriacaoEscala}
+      aoAbrirVoo={(id) => { const item = agendamentos.find((a) => a.id === id); if (item) abrirSolicitacao(item); }}
+    />}
     {aba === "cronograma" && <Cronograma selecionada={selecionada} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setAba("cronograma"); abrirJornada(item); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
     {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
@@ -600,61 +611,28 @@ function ResumoVooCalendario({ item, aeronave, aoAbrir }: { item: SolicitacaoVoo
 }
 
 
-function Escala({ tripulacao, escala, disponibilidades, mes, visao, aoMudarMes, aoMudarVisao, aoMarcar }: { tripulacao: TripulanteAgendamento[]; escala: EscalaAgendamento[]; disponibilidades: DisponibilidadeTripulacao[]; mes: Date; visao: VisaoEscala; aoMudarMes: (delta: number) => void; aoMudarVisao: (visao: VisaoEscala) => void; aoMarcar: () => void }) {
-  const hoje = new Date();
-  const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
+function Escala({ tripulacao, escala, disponibilidades, aoMarcar, aoAbrirVoo }: { tripulacao: TripulanteAgendamento[]; escala: EscalaAgendamento[]; disponibilidades: DisponibilidadeTripulacao[]; aoMarcar: () => void; aoAbrirVoo: (id: string) => void }) {
   const [extratoTripulante, setExtratoTripulante] = useState<TripulanteAgendamento | null>(null);
+  const [extratoPeriodo, setExtratoPeriodo] = useState("");
   const [extratoJornadas, setExtratoJornadas] = useState<JornadaVooRegistro[]>([]);
   const [carregandoExtrato, setCarregandoExtrato] = useState(false);
   const [erroExtrato, setErroExtrato] = useState("");
-  const diasVisao = visao === "mensal"
-    ? Array.from({ length: ultimoDiaMes(mes).getDate() }, (_, indice) => new Date(mes.getFullYear(), mes.getMonth(), indice + 1))
-    : Array.from({ length: 7 }, (_, indice) => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - ((hoje.getDay() + 6) % 7) + indice));
-  const periodo = visao === "mensal" ? `${nomesMeses[mes.getMonth()]} ${mes.getFullYear()}` : `${diasVisao[0].getDate()} ${nomesMeses[diasVisao[0].getMonth()]} – ${diasVisao[6].getDate()} ${nomesMeses[diasVisao[6].getMonth()]}`;
-  const vooDoDia = (dia: Date, tripulanteId: string) => escala.find((item) => { const chave = dataIso(dia); return chave >= item.data_agendada && chave <= (item.data_fim || item.data_agendada) && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId); });
-  const statusDoDia = (dia: Date, tripulanteId?: string) => {
-    const chave = dataIso(dia);
-    const voo = tripulanteId ? vooDoDia(dia, tripulanteId) : undefined;
-    if (voo) return { id: `voo-${voo.id}`, tripulante_id: tripulanteId, data_inicio: voo.data_agendada, data_fim: voo.data_fim || voo.data_agendada, status: voo.status === "em_voo" ? "em_voo" : "escalado", observacoes: null } as DisponibilidadeTripulacao;
-    return disponibilidades.filter((item) => (!tripulanteId || item.tripulante_id === tripulanteId) && chave >= item.data_inicio && chave <= item.data_fim).at(-1);
-  };
-  const statusLabel = (status?: string) => ({ aviso: "Aviso", ferias: "Férias", folga: "Folga", atestado_medico: "Atestado médico", treinamento: "Treinamento", acompanhando_manutencao: "Acompanhando manutenção", disponivel: "Disponível", escalado: "Escalado", em_voo: "Em voo" } as Record<string, string>)[status || ""] || "Sem status";
-  const inicioPeriodo = dataIso(diasVisao[0]);
-  const fimPeriodo = dataIso(diasVisao[diasVisao.length - 1]);
-  const statusDoPeriodo = (tripulanteId: string) => {
-    const voos = escala.filter((item) => item.data_agendada <= fimPeriodo && (item.data_fim || item.data_agendada) >= inicioPeriodo && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId));
-    if (voos.some((item) => item.status === "em_voo")) return "em_voo";
-    if (voos.length) return "escalado";
-    const registros = disponibilidades.filter((item) => item.tripulante_id === tripulanteId && item.data_inicio <= fimPeriodo && item.data_fim >= inicioPeriodo).sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
-    return registros.at(-1)?.status || "disponivel";
-  };
-  const abrirExtrato = async (item: TripulanteAgendamento) => {
-    setExtratoTripulante(item); setExtratoJornadas([]); setErroExtrato(""); setCarregandoExtrato(true);
+
+  const abrirExtrato = async (item: TripulanteAgendamento, inicio: string, fim: string) => {
+    setExtratoTripulante(item); setExtratoPeriodo(`${formatarData(inicio)} – ${formatarData(fim)}`);
+    setExtratoJornadas([]); setErroExtrato(""); setCarregandoExtrato(true);
     try {
-      const resposta = await buscarExtratoJornadaTripulante(item.id, inicioPeriodo, fimPeriodo);
+      const resposta = await buscarExtratoJornadaTripulante(item.id, inicio, fim);
       setExtratoJornadas(Array.isArray(resposta?.jornadas) ? resposta.jornadas : []);
     } catch (error) { setErroExtrato(error instanceof Error ? error.message : "Não foi possível carregar o extrato de jornada."); }
     finally { setCarregandoExtrato(false); }
   };
-  const statusTone = (status?: string) => status === "atestado_medico" ? "border-red-300/20 bg-red-300/10 text-red-200" : status === "treinamento" ? "border-violet-300/20 bg-violet-300/10 text-violet-200" : status === "acompanhando_manutencao" ? "border-sky-300/20 bg-sky-300/10 text-sky-200" : status === "folga" ? "border-slate-300/20 bg-slate-300/10 text-slate-200" : status === "ferias" ? "border-rose-300/20 bg-rose-300/10 text-rose-200" : status === "aviso" ? "border-amber-300/20 bg-amber-300/10 text-amber-200" : status === "em_voo" ? "border-blue-300/25 bg-blue-300/10 text-blue-200" : status === "escalado" ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-200" : status === "disponivel" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : "border-white/[.08] bg-white/[.04] text-slate-500";
-  const voosDoTripulante = (tripulanteId: string, dia: Date) => escala.filter((item) => { const chave = dataIso(dia); return chave >= item.data_agendada && chave <= (item.data_fim || item.data_agendada) && (item.piloto_id === tripulanteId || item.copiloto_id === tripulanteId); });
-  const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
-  const tripulacaoVisivel = tripulacao.filter((item) => {
-    const textoBusca = [item.nome_completo, item.canac, item.origem === "freelancer" ? "freelancer" : "tripulação"].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
-    const statusNoPeriodo = diasVisao.some((dia) => statusDoDia(dia, item.id)?.status === filtroStatus);
-    return textoBusca.includes(termoBusca) && (filtroStatus === "todos" || statusNoPeriodo);
-  });
-  const gridStyle = { display: "grid", gridTemplateColumns: `minmax(215px, 1.4fr) repeat(${diasVisao.length}, minmax(${visao === "mensal" ? 84 : 112}px, 1fr))` };
-  const nomesDiasCalendario = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  return <><section className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d1521] shadow-[0_20px_60px_rgba(0,0,0,.16)]">
-    <div className="border-b border-white/[.08] bg-[#101a28] p-4 md:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><span className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-2.5 text-cyan-300"><Users size={16} /></span><div><h2 className="text-sm font-extrabold text-white">Escala da Tripulação</h2><p className="mt-1 text-[10px] text-slate-500">{periodo} · planejamento de voos e disponibilidade</p></div></div><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-300/[.06] px-2.5 py-1.5 text-[9px] font-bold text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />{tripulacao.filter((item) => statusDoPeriodo(item.id) === "disponivel").length} Disponíveis · {tripulacao.length} tripulantes</span></div><div className="mt-5 flex flex-wrap items-center gap-2"><div className="flex rounded-lg border border-white/[.1] bg-[#0b121d] p-0.5"><button type="button" onClick={() => aoMudarVisao("semanal")} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${visao === "semanal" ? "bg-white/[.1] text-white" : "text-slate-500 hover:text-slate-200"}`}>Semanal</button><button type="button" onClick={() => aoMudarVisao("mensal")} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${visao === "mensal" ? "bg-white/[.1] text-white" : "text-slate-500 hover:text-slate-200"}`}>Mensal</button></div>{visao === "mensal" && <div className="flex items-center gap-1 rounded-lg border border-white/[.1] bg-[#0b121d] p-0.5"><button type="button" onClick={() => aoMudarMes(-1)} aria-label="Mês anterior" className="rounded-md p-1.5 text-slate-500 hover:bg-white/[.08] hover:text-white"><ChevronLeft size={14} /></button><span className="min-w-[132px] text-center text-[10px] font-bold text-slate-200">{periodo}</span><button type="button" onClick={() => aoMudarMes(1)} aria-label="Próximo mês" className="rounded-md p-1.5 text-slate-500 hover:bg-white/[.08] hover:text-white"><ChevronRight size={14} /></button><button type="button" onClick={() => aoMudarMes(primeiroDiaMes(hoje).getMonth() - mes.getMonth() + 12 * (primeiroDiaMes(hoje).getFullYear() - mes.getFullYear()))} className="rounded-md px-2 py-1.5 text-[9px] font-bold text-cyan-300 hover:bg-white/[.08]">Atual</button></div>}<label className="relative flex h-8 min-w-[180px] flex-1 items-center rounded-lg border border-white/[.1] bg-[#0b121d] px-2.5 sm:max-w-[230px]"><Search size={12} className="mr-2 text-slate-500" /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar piloto..." className="w-full bg-transparent text-[10px] text-white outline-none placeholder:text-slate-600" /></label><select value={filtroStatus} onChange={(event) => setFiltroStatus(event.target.value)} className="h-8 rounded-lg border border-white/[.1] bg-[#0b121d] px-2.5 text-[10px] text-slate-300 outline-none"><option value="todos">Todos status</option><option value="disponivel">Disponível</option><option value="aviso">Sob aviso</option><option value="ferias">Férias</option><option value="folga">Folga</option><option value="atestado_medico">Atestado médico</option><option value="treinamento">Treinamento</option><option value="acompanhando_manutencao">Acompanhando manutenção</option></select><button type="button" onClick={aoMarcar} className="h-8 rounded-lg bg-cyan-400 px-3 text-[10px] font-extrabold text-slate-950 transition-colors hover:bg-cyan-300">+ Criar escala</button></div></div>
-    <div className="overflow-x-auto"><div className="min-w-fit" style={gridStyle}><div className="sticky left-0 z-20 flex min-h-[58px] items-end border-b border-r border-white/[.08] bg-[#101a28] px-4 pb-3 text-[9px] font-bold uppercase tracking-[.14em] text-slate-500">Tripulação</div>{diasVisao.map((dia) => <div key={`header-${dataIso(dia)}`} className={`flex min-h-[58px] flex-col justify-end border-b border-r border-white/[.08] px-2 pb-2 text-center ${dataIso(dia) === dataIso(hoje) ? "bg-cyan-300/[.06]" : "bg-[#101a28]"}`}><span className="text-[8px] font-bold uppercase tracking-[.1em] text-slate-500">{nomesDiasCalendario[dia.getDay()]}</span><strong className={`mt-1 font-mono text-sm ${dataIso(dia) === dataIso(hoje) ? "text-cyan-300" : "text-white"}`}>{String(dia.getDate()).padStart(2, "0")}</strong></div>)}{tripulacaoVisivel.map((item) => <Fragment key={item.id}><div className="sticky left-0 z-10 flex min-h-[86px] items-center gap-2.5 border-b border-r border-white/[.06] bg-[#0f1825] px-3"><button type="button" onClick={() => void abrirExtrato(item)} title={`Abrir extrato de jornada de ${item.nome_completo}`} className="flex min-w-0 flex-1 items-center gap-2.5 text-left"><div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[.1] bg-white/[.06] text-[10px] font-bold text-slate-300"><img src={avatarTripulante(item)} alt={`Avatar de ${item.nome_completo}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} /></div><div className="min-w-0"><p className="truncate text-[10px] font-bold text-slate-100">{item.nome_completo}</p><p className="mt-1 truncate text-[9px] text-slate-500">{item.origem === "freelancer" ? "Freelancer" : "Tripulação"} · {item.canac}</p><span className={`mt-1 inline-flex rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[.06em] ${statusTone(statusDoPeriodo(item.id))}`}>{statusLabel(statusDoPeriodo(item.id))}</span></div></button></div>{diasVisao.map((dia) => { const status = statusDoDia(dia, item.id); const voos = voosDoTripulante(item.id, dia); return <div key={`${item.id}-${dataIso(dia)}`} className={`min-h-[86px] border-b border-r border-white/[.06] p-1.5 ${dataIso(dia) === dataIso(hoje) ? "bg-cyan-300/[.035]" : "bg-[#0b131f]"}`}>{status && <div className={`mb-1 truncate rounded border px-1.5 py-1 text-[8px] font-bold ${statusTone(status.status)}`}>{statusLabel(status.status)}</div>}{voos.slice(0, 2).map((voo) => <div key={voo.id} className={`mb-1 w-full rounded border px-1.5 py-1.5 text-left transition-colors hover:brightness-125 ${voo.piloto_id === item.id ? "border-cyan-300/25 bg-cyan-300/[.08]" : "border-violet-300/25 bg-violet-300/[.08]"}`}><p className={`truncate text-[9px] font-bold ${voo.piloto_id === item.id ? "text-cyan-200" : "text-violet-200"}`}>{voo.numero_voo || "Sem nº"}</p><p className="mt-0.5 truncate text-[8px] text-slate-400">{voo.origem} → {voo.destino}</p><p className="mt-0.5 text-[8px] font-bold text-slate-500">{voo.piloto_id === item.id ? "PIC" : "SIC"}</p></div>)}</div>; })}</Fragment>)}</div></div>
-    {!tripulacaoVisivel.length && <div className="border-t border-white/[.08] px-4 py-12 text-center text-[11px] text-slate-500">Nenhum tripulante corresponde aos filtros selecionados.</div>}
-  </section>
+
+  return <>
+    <EscalaCalendario tripulacao={tripulacao} escala={escala} disponibilidades={disponibilidades} aoCriarEscala={aoMarcar} aoAbrirVoo={aoAbrirVoo} aoAbrirExtrato={abrirExtrato} />
     <Dialog open={Boolean(extratoTripulante)} onOpenChange={(aberto) => { if (!aberto && !carregandoExtrato) setExtratoTripulante(null); }}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl border-cyan-300/20 bg-[#0d1521] sm:max-w-2xl">
-        <DialogHeader><DialogTitle className="text-base text-white">Extrato de jornada</DialogTitle><DialogDescription className="text-xs text-slate-400">{extratoTripulante?.nome_completo} · {extratoTripulante?.canac} · {periodo}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle className="text-base text-white">Extrato de jornada</DialogTitle><DialogDescription className="text-xs text-slate-400">{extratoTripulante?.nome_completo} · {extratoTripulante?.canac} · {extratoPeriodo}</DialogDescription></DialogHeader>
         {carregandoExtrato && <div className="flex items-center gap-2 py-8 text-xs text-slate-400"><RefreshCw size={14} className="animate-spin" /> Carregando jornadas do tripulante...</div>}
         {!carregandoExtrato && erroExtrato && <div className="rounded-lg border border-red-300/20 bg-red-300/10 p-3 text-xs text-red-200">{erroExtrato}</div>}
         {!carregandoExtrato && !erroExtrato && !extratoJornadas.length && <div className="rounded-lg border border-white/[.08] bg-white/[.03] p-6 text-center text-xs text-slate-400">Nenhuma jornada registrada para este tripulante no período selecionado.</div>}
@@ -681,6 +659,7 @@ function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoChecklist, aoJorn
       <button type="button" onClick={() => aoAbrir(item)} className="min-h-9 flex-1 rounded-lg border border-primary/35 bg-primary/5 px-3 py-2 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15">{String(item.status || "").trim().toLowerCase() === "pendente" ? "CONFIRMAR AGENDAMENTO" : "ABRIR"}</button>
       {acoes.mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={`min-h-9 flex-1 rounded-lg border px-3 py-2 text-[10px] font-bold transition-colors ${acoes.corChecklist === "green" ? "border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10" : acoes.corChecklist === "red" ? "border-red-400/35 text-red-300 hover:bg-red-400/10" : "border-yellow-400/35 text-yellow-300 hover:bg-yellow-400/10"}`}>{acoes.checklistLabel}</button>}
       {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className="min-h-9 flex-1 rounded-lg border border-border px-3 py-2 text-[10px] font-bold text-foreground transition-colors hover:bg-secondary">{acoes.jornadaLabel}</button>}
+      {acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} />}
       {acoes.podeFinalizar ? <button type="button" onClick={() => aoFinalizar(item)} className="min-h-9 flex-1 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-[10px] font-bold text-amber-300 transition-colors hover:bg-amber-400/10">Concluir operação</button> : acoes.historico && <span className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-[10px] font-bold text-emerald-300"><Check size={13} /> Operação concluída</span>}
       <button type="button" onClick={() => aoExcluir(item)} aria-label="Excluir agendamento" title="Excluir agendamento" className="min-h-9 rounded-lg border border-red-400/25 bg-red-400/5 px-2.5 text-red-300 transition-colors hover:bg-red-400/15"><Trash2 size={15} /></button>
     </div>

@@ -75,11 +75,11 @@ export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, cl
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border border-border bg-card/80 p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
+    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border-[rgba(3,6,8,0.48)] bg-[rgba(213,224,226,1)] p-3.5 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none text-left transition-all hover:-translate-y-0.5 hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
       {content}
     </button>
   ) : (
-    <div className={cn("group min-w-0 rounded-xl border border-border bg-card/80 p-3.5 transition-all hover:-translate-y-0.5 hover:border-primary/35 sm:p-4", className)}>{content}</div>
+    <div className={cn("group min-w-0 rounded-xl border border-[rgba(3,6,8,0.48)] bg-[rgba(213,224,226,1)] p-3.5 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none transition-all hover:-translate-y-0.5 hover:border-primary/35 sm:p-4", className)}>{content}</div>
   );
 }
 
@@ -89,7 +89,7 @@ export function AcaoRapida({ icon, label, detail, color = "blue", onClick }: { i
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border bg-card/65 p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[.04] sm:min-h-[100px] sm:p-3.5"
+      className="group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-[rgba(3,6,8,0.48)] bg-[rgba(213,224,226,1)] p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg sm:min-h-[100px] sm:p-3.5"
     >
       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color])}>
         <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">{icon}</span>

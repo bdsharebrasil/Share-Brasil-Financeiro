@@ -12,6 +12,17 @@
 }
 
 :root {
+  --cerulean-50: 206.4 92.59% 94.71%;
+  --cerulean-100: 206.13 93.94% 87.06%;
+  --cerulean-200: 201.94 94.37% 72.16%;
+  --cerulean-300: 198.03 80.62% 55.49%;
+  --cerulean-400: 197.63 67.8% 46.27%;
+  --cerulean-500: 196.36 88.51% 34.12%;
+  --cerulean-600: 196.94 100% 24.31%;
+  --cerulean-700: 197.87 100% 18.43%;
+  --cerulean-800: 199.38 100% 12.75%;
+  --cerulean-900: 198.95 100% 7.45%;
+  --cerulean-950: 202.86 100% 4.12%;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --app-header-height: calc(68px + var(--safe-area-top));
@@ -26,15 +37,15 @@
   --sidebar: 215 42% 16%;
   --sidebar-foreground: 215 26% 87%;
   --sidebar-border: 214 28% 25%;
-  --sidebar-primary: 196 95% 50%;
+  --sidebar-primary: var(--cerulean-400);
   --sidebar-primary-foreground: 215 42% 13%;
   --sidebar-accent: 215 34% 23%;
   --sidebar-accent-foreground: 215 26% 93%;
-  --sidebar-ring: 196 95% 50%;
+  --sidebar-ring: var(--cerulean-400);
   --popover: 0 0% 100%;
   --popover-foreground: 215 34% 15%;
   --popover-border: 214 24% 86%;
-  --primary: 196 94% 35%;
+  --primary: var(--cerulean-500);
   --primary-foreground: 215 42% 12%;
   --secondary: 214 30% 92%;
   --secondary-foreground: 215 34% 20%;
@@ -45,8 +56,8 @@
   --destructive: 0 70% 48%;
   --destructive-foreground: 0 0% 100%;
   --input: 214 24% 82%;
-  --ring: 196 95% 42%;
-  --chart-1: 196 95% 42%;
+  --ring: var(--cerulean-500);
+  --chart-1: var(--cerulean-500);
   --chart-2: 139 48% 41%;
   --chart-3: 43 89% 57%;
   --chart-4: 271 56% 61%;
@@ -74,15 +85,15 @@
   --sidebar: 224 50% 5%;
   --sidebar-foreground: 213 24% 82%;
   --sidebar-border: 216 28% 14%;
-  --sidebar-primary: 199 88% 48%;
+  --sidebar-primary: var(--cerulean-400);
   --sidebar-primary-foreground: 220 42% 5%;
   --sidebar-accent: 215 34% 14%;
   --sidebar-accent-foreground: 210 28% 92%;
-  --sidebar-ring: 199 88% 48%;
+  --sidebar-ring: var(--cerulean-400);
   --popover: 222 40% 8%;
   --popover-foreground: 211 30% 91%;
   --popover-border: 216 28% 17%;
-  --primary: 199 88% 45%;
+  --primary: var(--cerulean-400);
   --primary-foreground: 220 42% 5%;
   --secondary: 221 32% 10%;
   --secondary-foreground: 211 30% 87%;
@@ -93,8 +104,8 @@
   --destructive: 0 72% 60%;
   --destructive-foreground: 216 38% 7%;
   --input: 218 28% 17%;
-  --ring: 199 88% 48%;
-  --chart-1: 199 88% 48%;
+  --ring: var(--cerulean-400);
+  --chart-1: var(--cerulean-400);
   --chart-2: 139 49% 51%;
   --chart-3: 43 90% 58%;
   --chart-4: 271 65% 70%;

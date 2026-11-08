@@ -133,7 +133,7 @@ function CelulaFluxo({ rotulo, total, quantidade, carregando, onClick }: CelulaF
       type="button"
       onClick={onClick}
       aria-label={`${rotulo}: ${carregando ? "carregando" : texto}, ${titulos(quantidade)}`}
-      className={`flex min-w-0 flex-col justify-center border-l border-border px-3 py-2 text-left transition-colors hover:bg-muted/50 motion-reduce:transition-none sm:px-4 ${FOCO} focus-visible:ring-inset focus-visible:ring-offset-0`}
+      className={`menu-hover-escuro flex min-w-0 flex-col justify-center border-l border-border px-3 py-2 text-left transition-colors hover:bg-muted/50 motion-reduce:transition-none sm:px-4 ${FOCO} focus-visible:ring-inset focus-visible:ring-offset-0`}
     >
       <Valor carregando={carregando} className="block truncate text-sm font-bold tabular-nums leading-tight text-foreground sm:text-base">
         <span title={texto}>{texto}</span>
@@ -162,7 +162,7 @@ function LinhaPendencia({ rotulo, nota, contagem, tom, Icon, carregando, onClick
       type="button"
       onClick={onClick}
       aria-label={`${rotulo}: ${carregando ? "carregando" : contagem}`}
-      className={`group flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/50 motion-reduce:transition-none sm:px-4 ${FOCO} focus-visible:ring-inset focus-visible:ring-offset-0`}
+      className={`menu-hover-escuro group flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/50 motion-reduce:transition-none sm:px-4 ${FOCO} focus-visible:ring-inset focus-visible:ring-offset-0`}
     >
       <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${TONS[tom]}`}>
         <Icon size={14} />
@@ -185,7 +185,7 @@ function AtalhoModulo({ rotulo, detalhe, Icon, onClick }: { rotulo: string; deta
       type="button"
       onClick={onClick}
       title={detalhe}
-      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg motion-reduce:transition-none ${FOCO}`}
+      className={`menu-hover-escuro group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg motion-reduce:transition-none ${FOCO}`}
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground motion-reduce:transition-none">
         <Icon size={16} />

@@ -74,7 +74,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
             : "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left",
           "text-[11px] font-semibold transition-all",
           selecionado
-            ? "border-sidebar-primary bg-sidebar-primary/15 text-sidebar-primary"
+            ? "border-sidebar-primary bg-[hsl(198,100%,18%)] text-white shadow-md"
             : "border-transparent text-sidebar-foreground/70 hover:-translate-y-0.5 hover:border-sidebar-border hover:bg-[hsl(198,100%,18%)] hover:text-white",
         )}
       >

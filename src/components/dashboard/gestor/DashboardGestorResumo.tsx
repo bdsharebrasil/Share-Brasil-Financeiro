@@ -185,7 +185,7 @@ function AtalhoModulo({ rotulo, detalhe, Icon, onClick }: { rotulo: string; deta
       type="button"
       onClick={onClick}
       title={detalhe}
-      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 motion-reduce:transition-none ${FOCO}`}
+      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg motion-reduce:transition-none ${FOCO}`}
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground motion-reduce:transition-none">
         <Icon size={16} />

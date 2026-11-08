@@ -112,7 +112,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-[rgba(76,87,93,0.87)] bg-sidebar py-4 md:flex">
+      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-[rgba(26,34,34,0.87)] bg-sidebar py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />

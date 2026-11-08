@@ -74,7 +74,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
             : "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left",
           "text-[11px] font-semibold transition-all",
           selecionado
-            ? "border-sidebar-primary bg-[hsl(198,100%,18%)] text-white shadow-md"
+            ? "border-[rgba(21,73,97,1)] bg-[rgba(7,24,54,1)] text-white shadow-md"
             : "border-transparent text-sidebar-foreground/70 hover:-translate-y-0.5 hover:border-sidebar-border hover:bg-[hsl(198,100%,18%)] hover:text-white",
         )}
       >
@@ -112,7 +112,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex">
+      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-[rgba(76,87,93,0.87)] bg-sidebar py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />

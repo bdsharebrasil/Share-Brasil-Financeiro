@@ -306,7 +306,7 @@ export default function Emails() {
   };
 
   return (
-    <div className="route-enter relative mx-auto -m-[22px] flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 overflow-hidden rounded-[9px] border border-[#0e141f] bg-[#060e16] pb-3 text-slate-100">
+    <div className="route-enter relative mx-auto -m-[22px] flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 overflow-hidden rounded-[9px] border border-border dark:border-[#0e141f] bg-card dark:bg-[#060e16] pb-3 text-foreground dark:text-slate-100">
       {toast && <EmailToast toast={toast} onDone={() => setToast(null)} />}
       {anexoVisualizado && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label={`Visualização de ${anexoVisualizado.nome}`}>
         <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
@@ -315,7 +315,7 @@ export default function Emails() {
         </div>
       </div>}
       {/* HEADER DE AÇÕES GLOBAIS */}
-      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-white/[.06] bg-[#080b16] px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080b16] px-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#1e5b94] text-sky-300 shadow-lg shadow-sky-950/30">
             <Mail className="h-4 w-4" />
@@ -329,7 +329,7 @@ export default function Emails() {
             size="sm"
             onClick={() => void carregar()}
             disabled={carregando}
-            className="h-8 gap-2 rounded-md border-white/[.08] bg-[#0d1525] text-[10px] text-slate-300 hover:bg-white/[.06]"
+            className="h-8 gap-2 rounded-md border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] text-[10px] text-muted-foreground dark:text-slate-300 hover:bg-white/[.06]"
           >
             <RefreshCw size={14} className={carregando ? "animate-spin text-primary" : "text-muted-foreground"} />
             Atualizar
@@ -349,7 +349,7 @@ export default function Emails() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12">
 
         {/* COLUNA 1: MENU LATERAL */}
-        <aside className="hidden min-h-0 flex-col gap-6 overflow-y-auto -my-[6px] rounded-[12px] border-r border-white/[.06] bg-[#080b16] px-3 pb-4 lg:col-span-2 lg:flex">
+        <aside className="hidden min-h-0 flex-col gap-6 overflow-y-auto -my-[6px] rounded-[12px] border-r border-border dark:border-white/[.06] bg-card dark:bg-[#080b16] px-3 pb-4 lg:col-span-2 lg:flex">
           <Button
             type="button"
             onClick={() => {
@@ -365,20 +365,20 @@ export default function Emails() {
           </Button>
 
           <nav className="space-y-1 text-[11px] font-medium">
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
               <span className="flex items-center gap-3"><Inbox size={15} /> Caixa de Entrada</span>
               {contagemNaoLidas > 0 && <span className="rounded bg-[#1d639f] px-1.5 py-0.5 text-[9px] font-bold text-white">{contagemNaoLidas}</span>}
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
               <Send size={15} /> Enviados
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
               <Archive size={15} /> Arquivo
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
               <AlertCircle size={15} /> Não lidas
             </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-slate-200"}`}>
+            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
               <Star size={15} /> Favoritas
             </button>
           </nav>
@@ -399,15 +399,15 @@ export default function Emails() {
         </aside>
 
         {/* COLUNA 2: LISTA DE E-MAILS */}
-        {!modoCriacao && <div className="col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#09111f] shadow-sm lg:col-span-4">
-          <div className="border-b border-white/[.06] bg-[#080f1d] p-3">
+        {!modoCriacao && <div className="col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-border dark:border-white/[.06] bg-card dark:bg-[#09111f] shadow-sm lg:col-span-4">
+          <div className="border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080f1d] p-3">
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={buscaGeral}
                 onChange={(e) => setBuscaGeral(e.target.value)}
                 placeholder="Buscar mensagens..."
-                className="h-8 rounded-md border-white/[.06] bg-[#080f1d] pl-9 text-[10px] text-slate-300 shadow-none placeholder:text-slate-600 focus:border-sky-500/40"
+                className="h-8 rounded-md border-border dark:border-white/[.06] bg-card dark:bg-[#080f1d] pl-9 text-[10px] text-muted-foreground dark:text-slate-300 shadow-none placeholder:text-slate-600 focus:border-sky-500/40"
               />
             </div>
           </div>
@@ -415,8 +415,8 @@ export default function Emails() {
           <div className="flex-1 space-y-1 overflow-y-auto p-2">
             {pastaAtiva === "enviadas" ? (historicoEmails.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center text-center text-xs text-muted-foreground"><Send className="mb-2 h-8 w-8 opacity-20" />Nenhum e-mail enviado encontrado.</div>
-            ) : historicoEmails.map((email) => <button type="button" key={email.id} onClick={() => { setEmailEnviadoSelecionado(email); setMensagemInternaSelecionada(null); }} className={`w-full rounded-md border-l-2 p-3 text-left transition-all ${emailEnviadoSelecionado?.id === email.id ? "border-l-sky-400 bg-[#0d1a31]" : "border-l-transparent hover:bg-white/[.025]"}`}>
-              <div className="flex items-center justify-between gap-2"><span className="truncate text-[10px] font-semibold text-slate-200">{email.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[9px] text-slate-600">{horaBr(email.email_enviado_em || email.criado_em)}</span></div>
+            ) : historicoEmails.map((email) => <button type="button" key={email.id} onClick={() => { setEmailEnviadoSelecionado(email); setMensagemInternaSelecionada(null); }} className={`w-full rounded-md border-l-2 p-3 text-left transition-all ${emailEnviadoSelecionado?.id === email.id ? "border-l-sky-400 bg-card dark:bg-[#0d1a31]" : "border-l-transparent hover:bg-white/[.025]"}`}>
+              <div className="flex items-center justify-between gap-2"><span className="truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{email.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[9px] text-slate-600">{horaBr(email.email_enviado_em || email.criado_em)}</span></div>
               <p className="mt-1 truncate text-[9px] text-slate-500">Para: {email.destinatarios.join(", ") || "Destinatário não informado"}</p>
               <p className="mt-1 truncate text-[9px] text-slate-600">{email.mensagem || "Sem texto"}</p>
               <div className="mt-2 flex items-center gap-2 text-[9px] text-slate-600"><span>{dataBr(email.email_enviado_em || email.criado_em)}</span><span>•</span><span>{email.quantidade_anexos || 0} anexo{email.quantidade_anexos === 1 ? "" : "s"}</span><span className={String(email.status).toLowerCase() === "enviado" ? "text-emerald-300" : "text-red-300"}>{rotuloStatusEmail(email.status)}</span></div>
@@ -434,17 +434,17 @@ export default function Emails() {
                   setModoCriacao(false);
                   if (!item.lida && item.papel === "destinatario") void atualizarMensagem(item.id, { lida: 1 }, "");
                 }}
-                className={`flex w-full flex-col gap-1 rounded-md p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-l-2 border-l-sky-400 bg-[#0d1a31]" : "border-l-2 border-l-transparent hover:bg-white/[.025]"}`}
+                className={`flex w-full flex-col gap-1 rounded-md p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-l-2 border-l-sky-400 bg-card dark:bg-[#0d1a31]" : "border-l-2 border-l-transparent hover:bg-white/[.025]"}`}
               >
                 <div className="flex w-full items-center justify-between">
-                  <span className={`truncate text-[10px] ${item.lida ? "font-medium text-slate-300" : "font-bold text-white"}`}>
+                  <span className={`truncate text-[10px] ${item.lida ? "font-medium text-muted-foreground dark:text-slate-300" : "font-bold text-foreground dark:text-white"}`}>
                     {item.papel === "remetente" ? item.destinatario_nome || item.destinatario_id : item.remetente_nome || item.remetente_id}
                   </span>
                   <span className="shrink-0 text-[9px] text-slate-600">
                     {horaBr(item.criado_em)}
                   </span>
                 </div>
-                <span className={`truncate text-[10px] ${item.lida ? "text-slate-400" : "font-semibold text-sky-300"}`}>
+                <span className={`truncate text-[10px] ${item.lida ? "text-muted-foreground dark:text-slate-400" : "font-semibold text-sky-300"}`}>
                   {item.assunto || "(Sem assunto)"}
                 </span>
                 <p className="truncate text-[9px] text-slate-600">
@@ -456,20 +456,20 @@ export default function Emails() {
         </div>}
 
         {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/[.06] bg-[#050b19] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
+        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-border dark:border-white/[.06] bg-card dark:bg-[#050b19] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
           {emailEnviadoSelecionado && pastaAtiva === "enviadas" && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
-              <div className="shrink-0 border-b border-white/[.06] bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-slate-400">Para: <span className="text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)}</p></div>
-              <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="max-w-3xl whitespace-pre-wrap text-sm leading-7 text-slate-300">{emailEnviadoSelecionado.mensagem || "(Este e-mail não possui texto registrado.)"}</div>
-                {!!emailEnviadoSelecionado.anexos_detalhes?.length && <div className="mt-10 border-t border-white/[.08] pt-6"><p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-slate-500">Anexos ({emailEnviadoSelecionado.anexos_detalhes.length})</p><div className="flex flex-wrap gap-3">{emailEnviadoSelecionado.anexos_detalhes.map((anexo, indice) => <button type="button" key={`${anexo.nome_arquivo}-${indice}`} onClick={() => void abrirAnexoEmail(emailEnviadoSelecionado, indice, anexo.nome_arquivo)} className="flex items-center gap-3 rounded-lg border border-white/[.06] bg-[#111b2b] px-4 py-3 text-left hover:border-sky-500/30"><FileText size={20} className="text-sky-400" /><span className="max-w-[230px] truncate text-[10px] font-semibold text-slate-200">{anexo.nome_arquivo}</span><Download size={14} className="text-slate-500" /></button>)}</div></div>}
+              <div className="shrink-0 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-foreground dark:text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-muted-foreground dark:text-slate-400">Para: <span className="text-foreground dark:text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)}</p></div>
+              <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="max-w-3xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground dark:text-slate-300">{emailEnviadoSelecionado.mensagem || "(Este e-mail não possui texto registrado.)"}</div>
+                {!!emailEnviadoSelecionado.anexos_detalhes?.length && <div className="mt-10 border-t border-border dark:border-white/[.08] pt-6"><p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-slate-500">Anexos ({emailEnviadoSelecionado.anexos_detalhes.length})</p><div className="flex flex-wrap gap-3">{emailEnviadoSelecionado.anexos_detalhes.map((anexo, indice) => <button type="button" key={`${anexo.nome_arquivo}-${indice}`} onClick={() => void abrirAnexoEmail(emailEnviadoSelecionado, indice, anexo.nome_arquivo)} className="flex items-center gap-3 rounded-lg border border-border dark:border-white/[.06] bg-card dark:bg-[#111b2b] px-4 py-3 text-left hover:border-sky-500/30"><FileText size={20} className="text-sky-400" /><span className="max-w-[230px] truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{anexo.nome_arquivo}</span><Download size={14} className="text-slate-500" /></button>)}</div></div>}
               </div>
             </div>
           ) : mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
             <div className="flex h-full min-h-0 flex-col">
               {/* Cabeçalho da Mensagem */}
-              <div className="flex shrink-0 flex-col gap-3 border-b border-white/[.06] bg-[#080e1a] p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+              <div className="flex shrink-0 flex-col gap-3 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
                 <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold tracking-tight text-white">
+                  <h2 className="truncate text-sm font-bold tracking-tight text-foreground dark:text-white">
                       {mensagemInternaSelecionada.papel === "remetente" ? mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id : mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}
                     </h2>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-sky-400">
@@ -479,7 +479,7 @@ export default function Emails() {
                 <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end">
                   <div className="flex items-center gap-1">
                     <Button type="button" variant="ghost" size="sm" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para o arquivo.")} className="h-8 gap-1.5 text-[10px] font-semibold text-slate-500 hover:bg-white/[.05] hover:text-red-300"><Trash2 size={14} /> Excluir</Button>
-                    <select value={categoriasMensagem[mensagemInternaSelecionada.id] || ""} onChange={(event) => classificarMensagem(mensagemInternaSelecionada.id, event.target.value)} className="h-8 rounded-md border border-white/[.08] bg-[#0d1525] px-2 text-[10px] font-semibold text-slate-400"><option value="">Categoria</option><option value="Financeiro">Financeiro</option><option value="Operacional">Operacional</option><option value="Urgente">Urgente</option></select>
+                    <select value={categoriasMensagem[mensagemInternaSelecionada.id] || ""} onChange={(event) => classificarMensagem(mensagemInternaSelecionada.id, event.target.value)} className="h-8 rounded-md border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-2 text-[10px] font-semibold text-muted-foreground dark:text-slate-400"><option value="">Categoria</option><option value="Financeiro">Financeiro</option><option value="Operacional">Operacional</option><option value="Urgente">Urgente</option></select>
                   </div>
                   <div className="text-[9px] font-medium text-slate-600">
                     {dataBr(mensagemInternaSelecionada.criado_em)} <span className="mx-1">•</span> {horaBr(mensagemInternaSelecionada.criado_em)}
@@ -489,10 +489,10 @@ export default function Emails() {
 
               {/* Assunto e Corpo */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-                <h1 className="mb-6 text-lg font-bold tracking-tight text-white sm:text-xl">
+                <h1 className="mb-6 text-lg font-bold tracking-tight text-foreground dark:text-white sm:text-xl">
                   {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
                 </h1>
-                <div className="max-w-3xl whitespace-pre-wrap text-xs font-medium leading-6 text-slate-400">
+                <div className="max-w-3xl whitespace-pre-wrap text-xs font-medium leading-6 text-muted-foreground dark:text-slate-400">
                   {mensagemInternaSelecionada.conteudo}
                 </div>
 
@@ -508,13 +508,13 @@ export default function Emails() {
                           type="button"
                           key={anexo.id}
                           onClick={() => void abrirAnexoMensagem(mensagemInternaSelecionada.id, anexo.id, anexo.nome_arquivo)}
-                          className="flex items-center gap-3 rounded-lg border border-white/[.06] bg-[#111b2b] px-4 py-3 text-left transition-colors hover:border-sky-500/30 hover:bg-[#14243a]"
+                          className="flex items-center gap-3 rounded-lg border border-border dark:border-white/[.06] bg-card dark:bg-[#111b2b] px-4 py-3 text-left transition-colors hover:border-sky-500/30 hover:bg-secondary dark:hover:bg-[#14243a]"
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-500/15 text-red-400">
                             <Eye size={20} />
                           </div>
                           <div>
-                            <span className="block max-w-[200px] truncate text-[10px] font-semibold text-slate-200">{anexo.nome_arquivo}</span>
+                            <span className="block max-w-[200px] truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{anexo.nome_arquivo}</span>
                               <span className="mt-0.5 block text-[9px] font-medium uppercase text-slate-600">Abrir na tela</span>
                           </div>
                         </button>
@@ -525,8 +525,8 @@ export default function Emails() {
               </div>
 
               {/* Rodapé interativo simulando clique rápido */}
-              <div className="shrink-0 border-t border-white/[.06] bg-[#080e1a] p-4">
-                <div className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[.1] bg-[#111a29] p-3 text-[10px] text-slate-600 transition-colors hover:border-sky-500/30 hover:text-slate-400">
+              <div className="shrink-0 border-t border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4">
+                <div className="flex cursor-pointer items-center gap-2 rounded-lg border border-border dark:border-white/[.1] bg-card dark:bg-[#111a29] p-3 text-[10px] text-slate-600 transition-colors hover:border-sky-500/30 hover:text-muted-foreground dark:hover:text-slate-400">
                   <Reply size={16} />
                   Clique aqui para <strong>Responder</strong> ou <strong>Encaminhar</strong> esta mensagem.
                 </div>
@@ -539,36 +539,36 @@ export default function Emails() {
           ) : modoCriacao ? (
             /* COMPOSITOR DE NOVA MENSAGEM */
             <div className="flex h-full min-h-0 -mx-px flex-col overflow-hidden rounded-[31px]">
-              <div className="flex shrink-0 items-center justify-between -my-[11px] overflow-hidden rounded-[26px] border-b border-white/[.06] bg-[#080e1a] p-4">
+              <div className="flex shrink-0 items-center justify-between -my-[11px] overflow-hidden rounded-[26px] border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4">
                 <div>
-                  <h2 className="text-sm font-bold text-white">Nova Mensagem</h2>
+                  <h2 className="text-sm font-bold text-foreground dark:text-white">Nova Mensagem</h2>
                   <p className="mt-0.5 text-[9px] font-medium text-slate-600">De: {remetente?.email || "seu e-mail"}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setModoCriacao(false)} className="rounded-xl">Descartar</Button>
               </div>
 
               {/* Campos + corpo da mensagem: rola junto, mas o textarea tem prioridade de espaço */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[17px] bg-[#040a16] p-4 sm:p-6">
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[17px] bg-card dark:bg-[#040a16] p-4 sm:p-6">
                 <div className="shrink-0 space-y-4 py-[10px]">
-                  <div className="flex w-fit -mx-[8px] gap-[15px] rounded-md border border-white/[.08] bg-[#0d1525] px-[13px] py-1">
+                  <div className="flex w-fit -mx-[8px] gap-[15px] rounded-md border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-[13px] py-1">
                     <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "email" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><Mail size={12} className="mr-1.5 inline" /> E-mail externo</button>
                     <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "interno" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><UserRound size={12} className="mr-1.5 inline" /> Interno</button>
                   </div>
 
-                  <div className="border-b border-white/[.06] pb-3">
+                  <div className="border-b border-border dark:border-white/[.06] pb-3">
                     <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Para</label>
                     {tipoEnvio === "interno" ? (
                       <SearchableCombobox items={usuarios.map((usuario) => ({ id: usuario.id, label: `${usuario.nome} · ${usuario.email}`, search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}` }))} value={destinatarioUsuarioId} onChange={(id, label) => { const usuario = usuarios.find((item) => item.id === id); setDestinatarioUsuarioId(id); setDestinatario(usuario?.email || label); }} placeholder="Busque usuário corporativo..." searchPlaceholder="Digite nome..." emptyMessage="Usuário não encontrado." />
                     ) : (
                       <div className="flex flex-col gap-2">
                         <SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} />
-                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 -mx-[3px] rounded-xl border-white/[.08] bg-[#0d1525] px-[22px] py-[2px] text-sm font-medium text-slate-200" />
+                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 -mx-[3px] rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-[22px] py-[2px] text-sm font-medium text-foreground dark:text-slate-200" />
                       </div>
                     )}
                   </div>
 
-                  <div className="border-b border-white/[.06] pb-1">
-                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} placeholder="Assunto" className="h-10 rounded-none border-0 bg-transparent px-0 text-sm font-bold text-white shadow-none placeholder:text-slate-600 focus-visible:ring-0" />
+                  <div className="border-b border-border dark:border-white/[.06] pb-1">
+                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} placeholder="Assunto" className="h-10 rounded-none border-0 bg-transparent px-0 text-sm font-bold text-foreground dark:text-white shadow-none placeholder:text-slate-600 focus-visible:ring-0" />
                   </div>
                 </div>
 
@@ -577,15 +577,15 @@ export default function Emails() {
                     value={mensagem}
                     onChange={(e) => setMensagem(e.target.value)}
                     placeholder="Escreva sua mensagem aqui..."
-                    className="min-h-[220px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 text-sm font-medium leading-relaxed text-slate-200 shadow-none focus-visible:ring-0"
+                    className="min-h-[220px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 text-sm font-medium leading-relaxed text-foreground dark:text-slate-200 shadow-none focus-visible:ring-0"
                   />
 
                   {tipoEnvio === "email" && assinatura && (
-                    <div className="mt-6 shrink-0 border-t border-white/[.06] pt-4">
+                    <div className="mt-6 shrink-0 border-t border-border dark:border-white/[.06] pt-4">
                       <div className="flex items-center gap-4 opacity-80">
                         <img src={assinatura.logo_url || logoShare} alt="Logo" className="h-10 w-auto object-contain grayscale" />
                         <div className="text-[11px] leading-tight text-slate-500">
-                          <strong className="block text-sm text-slate-200">{assinatura.nome || "Nome"}</strong>
+                          <strong className="block text-sm text-foreground dark:text-slate-200">{assinatura.nome || "Nome"}</strong>
                           {assinatura.cargo && <span className="mt-0.5 block">{assinatura.cargo}</span>}
                           {assinatura.telefone && <span className="mt-0.5 block">{assinatura.telefone}</span>}
                         </div>
@@ -597,7 +597,7 @@ export default function Emails() {
                     <div className="mt-3 flex shrink-0 flex-wrap items-center gap-2">
                       <span className="text-[10px] text-slate-500">Inserir banco:</span>
                       {contasBancarias.map((conta) => (
-                        <Button key={conta.id} type="button" variant="outline" size="sm" onClick={() => inserirDadosBancarios(conta)} className="h-7 gap-1 rounded-lg border-white/[.08] bg-[#0d1525] text-[10px] text-slate-300">
+                        <Button key={conta.id} type="button" variant="outline" size="sm" onClick={() => inserirDadosBancarios(conta)} className="h-7 gap-1 rounded-lg border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] text-[10px] text-muted-foreground dark:text-slate-300">
                           <Building2 size={12} /> {conta.banco}
                         </Button>
                       ))}
@@ -607,7 +607,7 @@ export default function Emails() {
               </div>
 
               {/* Rodapé: anexos agora abrem em um Command (⌘K) por cima do conteúdo, não ocupam espaço fixo */}
-              <div className="flex shrink-0 flex-col gap-3 -my-[43px] border-t border-white/[.06] bg-[#080e1a] px-3 py-[39px] sm:px-4 sm:py-[39px]">
+              <div className="flex shrink-0 flex-col gap-3 -my-[43px] border-t border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] px-3 py-[39px] sm:px-4 sm:py-[39px]">
                 <AnexosEmail
                   anexos={anexos}
                   selecionados={selecionados}

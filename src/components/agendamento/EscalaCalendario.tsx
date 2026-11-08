@@ -18,7 +18,7 @@ const COR: Record<string, string> = {
   pic: "border-cyan-300/50 bg-cyan-500/25 text-cyan-50",
   sic: "border-violet-300/50 bg-violet-500/25 text-violet-50",
   ferias: "border-rose-300/40 bg-rose-500/20 text-rose-100",
-  folga: "border-slate-300/40 bg-slate-500/25 text-slate-100",
+  folga: "border-slate-300/40 bg-slate-500/25 text-foreground dark:text-slate-100",
   atestado_medico: "border-red-300/40 bg-red-500/25 text-red-100",
   treinamento: "border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100",
   acompanhando_manutencao: "border-sky-300/40 bg-sky-500/20 text-sky-100",

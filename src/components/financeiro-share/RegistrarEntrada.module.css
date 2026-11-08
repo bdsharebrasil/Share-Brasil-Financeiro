@@ -33,6 +33,13 @@
   font: 13px/1.4 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-variant-numeric: tabular-nums;
 }
+:global(html:not(.dark)) .page {
+  --bg-page: #edf1f6; --bg-surface: #fff; --bg-hover: #e8eef5; --bg-selected: #e4f1f9;
+  --border: #bdc8d6; --text: #1b293b; --text-muted: #526176;
+  --accent: #03658d; --success: #176846; --danger: #b52c32; --warning: #835900;
+  color-scheme: light;
+}
+
 .page *,
 .page *::before,
 .page *::after { box-sizing: border-box; }

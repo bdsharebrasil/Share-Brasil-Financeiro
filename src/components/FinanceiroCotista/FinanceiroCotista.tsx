@@ -134,7 +134,7 @@ const DESPESAS_ESTILOS = `
   --primary: 200 80% 62%; --primary-foreground: 0 0% 100%;
   --accent: 217 35% 15%; --accent-foreground: 214 25% 92%;
   --ring: 200 80% 62%; --destructive: 0 75% 70%;
-  color: hsl(var(--foreground)); color-scheme: dark;
+  color: hsl(var(--foreground)); color-scheme: var(--app-color-scheme, dark);
   font-family: inherit; font-size: 13px; line-height: 1.5;
   --tab-abrir-duracao: 320ms; --tab-fechar-duracao: 380ms;
   --tab-abrir-atraso: 140ms; --tab-fechar-atraso: 220ms;
@@ -198,18 +198,18 @@ const DESPESAS_ESTILOS = `
 .despesas-theme :is(input,textarea,[role="combobox"]) { min-width:0; max-width:100%; border-color:hsl(var(--input)); background:hsl(var(--card)); color:hsl(var(--foreground)); border-radius:4px; box-shadow:none; }
 .despesas-theme :is(input,textarea)::placeholder { color:hsl(var(--muted-foreground)); }
 .despesas-theme {
-  --bg-page:#090d13; --bg-surface:#111820; --bg-hover:#151d27; --bg-selected:#164d6d;
-  --ledger-border:#293542; --text:#e1e7ef; --text-muted:#9ba9ba; --ledger-accent:#1599df;
-  --success:#3fb27f; --danger:#f53228e0; --warning:#f3e141d3;
+  --bg-page:var(--light-surface, #090d13); --bg-surface:var(--light-surface, #111820); --bg-hover:var(--light-surface, #151d27); --bg-selected:var(--light-info-soft, #164d6d);
+  --ledger-border:var(--light-line, #293542); --text:var(--light-text, #e1e7ef); --text-muted:var(--light-muted, #9ba9ba); --ledger-accent:var(--light-info, #1599df);
+  --success:var(--light-success, #3fb27f); --danger:var(--light-danger, #f53228e0); --warning:var(--light-warning, #f3e141d3);
   --row-height:40px; --header-height:32px; --toolbar-height:36px;
   --font-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
 }
 .despesas-theme :focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .despesas-theme .despesa-ledger :focus-visible { outline:2px solid var(--ledger-accent); outline-offset:2px; }
-.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:#167fb5; border:1px solid #167fb5; border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
+.despesas-theme .despesa-toolbar .despesa-primary { height:32px; padding:0 10px; background:#167fb5; border:1px solid var(--light-line, #167fb5); border-radius:4px; color:#fff; font-size:12px; font-weight:600; box-shadow:none; }
 .despesas-theme .despesa-toolbar .despesa-primary:hover { background:#167fb5; filter:brightness(.92); }
 .despesas-theme .despesa-ledger { min-width:0; width:100%; max-width:100%; overflow:clip; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-page); color:var(--text); font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; }
-.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:6px 8px; border:1px solid var(--ledger-border); border-radius:4px; background:#0d131b; overflow:visible; }
+.despesa-toolbar { display:flex; flex-direction:column; gap:6px; min-height:var(--toolbar-height); padding:6px 8px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--light-soft, #0d131b); overflow:visible; }
 .despesa-toolbar-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 16px; min-width:0; }
 .despesa-toolbar-actions { display:flex; flex:1 1 450px; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
 .despesa-control { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); color:var(--text); font-size:12px; font-weight:500; white-space:nowrap; cursor:pointer; }
@@ -223,9 +223,9 @@ const DESPESAS_ESTILOS = `
 .despesa-month-switcher { display:flex; min-width:0; align-items:center; gap:6px; }
 .despesa-current-month { display:flex; min-width:140px; flex-direction:column; align-items:center; justify-content:center; gap:0; }
 .despesa-period-label { min-width:140px; text-align:center; font-size:12px; font-weight:600; line-height:24px; border-bottom:2px solid var(--ledger-accent); text-transform:capitalize; overflow-wrap:anywhere; }
-.despesa-close-month { border-color:#14866d; background:#116f5c; color:#fff; }
-.despesa-close-month:hover:not(:disabled) { border-color:#1b9b7d; background:#14866d; }
-.despesa-filter-count { display:inline-flex; min-width:18px; height:18px; align-items:center; justify-content:center; padding:0 4px; border-radius:3px; background:rgba(31,143,214,.15); color:var(--ledger-accent); font-size:10px; }
+.despesa-close-month { border-color:var(--light-success-line, #14866d); background:var(--light-success-soft, #116f5c); color:var(--light-text, #fff); }
+.despesa-close-month:hover:not(:disabled) { border-color:var(--light-success-line, #1b9b7d); background:var(--light-success-soft, #14866d); }
+.despesa-filter-count { display:inline-flex; min-width:18px; height:18px; align-items:center; justify-content:center; padding:0 4px; border-radius:3px; background:var(--light-info-soft, rgba(31,143,214,.15)); color:var(--ledger-accent); font-size:10px; }
 .despesa-filter-panel { display:grid; grid-template-columns:minmax(180px,2fr) minmax(140px,1.2fr) minmax(140px,1.2fr) auto; align-items:end; gap:8px; min-width:0; margin-top:8px; padding:8px; border:1px solid var(--ledger-border); border-radius:4px; background:var(--bg-surface); }
 .despesa-filter-panel > * { min-width:0; }
 .despesa-filter-panel label:not(.sr-only) { display:block; margin-bottom:0; font-size:11px; color:var(--text-muted); }
@@ -248,7 +248,7 @@ const DESPESAS_ESTILOS = `
 .despesa-table-scroll { container-type:inline-size; width:100%; min-width:0; max-width:100%; overflow:auto; max-height:68vh; max-height:68dvh; overscroll-behavior-x:contain; scrollbar-color:#3a4350 var(--bg-page); scrollbar-width:thin; border:1px solid var(--ledger-border); border-radius:4px; touch-action:pan-x pan-y; cursor:grab; }
 .despesa-table-scroll::-webkit-scrollbar { width:8px; height:8px; }
 .despesa-table-scroll::-webkit-scrollbar-track { background:var(--bg-page); }
-.despesa-table-scroll::-webkit-scrollbar-thumb { background:#3a4350; border:2px solid var(--bg-page); border-radius:6px; }
+.despesa-table-scroll::-webkit-scrollbar-thumb { background:var(--light-surface, #3a4350); border:2px solid var(--bg-page); border-radius:6px; }
 .despesa-table-scroll[data-dragging="true"] { cursor:grabbing; user-select:none; }
 .despesa-table { min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:13px; line-height:1.4; font-variant-numeric:tabular-nums; text-align:left; color:var(--text); }
 .despesa-table th,.despesa-table td { box-sizing:border-box; }
@@ -268,7 +268,7 @@ const DESPESAS_ESTILOS = `
 .despesa-table > thead > tr > th:first-child,.despesa-table .despesa-row td:first-child { padding:0 8px; text-align:center; }
 .despesa-table .despesa-month th { height:32px; padding:0 14px; background:var(--bg-hover); border-bottom:1px solid var(--ledger-border); font-size:12px; font-weight:600; text-align:left; }
 .despesa-col-resizer { position:absolute; top:0; right:0; width:8px; height:100%; cursor:col-resize; touch-action:none; z-index:5; }
-.despesa-col-resizer:hover,.despesa-col-resizer:focus-visible { background:rgba(31,143,214,.4); }
+.despesa-col-resizer:hover,.despesa-col-resizer:focus-visible { background:var(--light-info-soft, rgba(31,143,214,.4)); }
 .despesa-cell-text { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .despesa-row .despesa-money,.despesa-rateio-value { font-family:var(--font-mono); font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .despesa-row .despesa-money { display:block; text-align:right; }
@@ -280,19 +280,19 @@ const DESPESAS_ESTILOS = `
 .despesa-date-mode:hover,.despesa-date-mode[aria-expanded="true"] { border-color:var(--ledger-border); background:var(--bg-hover); color:var(--text); }
 .despesa-date-mode-copy { display:block; line-height:1.2; }
 .despesa-date-mode-copy small { color:inherit; font-size:8px; font-weight:700; letter-spacing:.06em; }
-.despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid #3a4350; border-radius:3px; background:var(--bg-page); color:#fff; box-shadow:none; }
+.despesas-theme .despesa-checkbox { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; padding:0; border:1px solid var(--light-line, #3a4350); border-radius:3px; background:var(--bg-page); color:var(--light-text, #fff); box-shadow:none; }
 .despesas-theme .despesa-checkbox[data-state="checked"],.despesas-theme .despesa-checkbox[data-state="indeterminate"] { background:var(--ledger-accent); border-color:var(--ledger-accent); }
 .despesa-checkbox svg { width:12px; height:12px; }
 .despesa-checkbox[data-state="indeterminate"] svg { display:none; }
 .despesa-checkbox[data-state="indeterminate"]::after { content:""; width:8px; height:2px; background:currentColor; }
 .despesas-theme .despesa-status { display:inline-flex; align-items:center; gap:4px; max-width:100%; height:20px; padding:0 6px; border:0; border-radius:3px; background:transparent; color:var(--text-muted); font-size:11px; font-weight:500; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.despesas-theme .despesa-status[data-status="EM_ABERTO"] { color:var(--warning); background:rgba(212,167,44,.12); }
-.despesas-theme .despesa-status[data-status="EM_ATRASO"] { color:var(--danger); background:rgba(229,83,75,.12); }
-.despesas-theme .despesa-status[data-status="PAGO"],.despesas-theme .despesa-status[data-status="PAGO_DIRETAMENTE"],.despesas-theme .despesa-status[data-status="REEMBOLSADO"] { color:var(--success); background:rgba(63,178,127,.12); }
-.despesas-theme .despesa-status[data-status="ESTORNO"] { color:#fdba74; background:rgba(253,186,116,.12); }
-.despesas-theme .despesa-status[data-status="SAIDA"] { color:#c0cada; background:rgba(192,202,218,.12); }
-.despesas-theme .despesa-status[data-status="AGUARDANDO_REEMBOLSO"] { color:#c4b5fd; background:rgba(196,181,253,.12); }
-.despesas-theme .despesa-status[data-status="CANCELADO"] { color:#b3b3bf; background:rgba(179,179,191,.12); }
+.despesas-theme .despesa-status[data-status="EM_ABERTO"] { color:var(--warning); background:var(--light-warning-soft, rgba(212,167,44,.12)); }
+.despesas-theme .despesa-status[data-status="EM_ATRASO"] { color:var(--danger); background:var(--light-danger-soft, rgba(229,83,75,.12)); }
+.despesas-theme .despesa-status[data-status="PAGO"],.despesas-theme .despesa-status[data-status="PAGO_DIRETAMENTE"],.despesas-theme .despesa-status[data-status="REEMBOLSADO"] { color:var(--success); background:var(--light-success-soft, rgba(63,178,127,.12)); }
+.despesas-theme .despesa-status[data-status="ESTORNO"] { color:var(--light-warning, #fdba74); background:var(--light-warning-soft, rgba(253,186,116,.12)); }
+.despesas-theme .despesa-status[data-status="SAIDA"] { color:var(--light-text, #c0cada); background:var(--light-surface, rgba(192,202,218,.12)); }
+.despesas-theme .despesa-status[data-status="AGUARDANDO_REEMBOLSO"] { color:var(--light-violet, #c4b5fd); background:var(--light-violet-soft, rgba(196,181,253,.12)); }
+.despesas-theme .despesa-status[data-status="CANCELADO"] { color:var(--light-muted, #b3b3bf); background:var(--light-surface, rgba(179,179,191,.12)); }
 .despesa-summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 16px; min-width:0; min-height:36px; padding:0 12px; border:0; border-top:1px solid var(--ledger-border); background:var(--bg-hover); font-size:11px; font-weight:600; color:var(--text-muted); }
 .despesa-summary-values { display:flex; flex-wrap:wrap; gap:4px 16px; min-width:0; overflow-wrap:anywhere; }
 .despesa-summary-values > span { font-family:var(--font-mono); font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; }
@@ -304,31 +304,31 @@ const DESPESAS_ESTILOS = `
 .despesa-pagination button:hover { background:var(--bg-hover); }
 .despesa-pagination button:disabled { opacity:.35; cursor:not-allowed; }
 .despesa-expanded-content { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; }
-.cotista-expanded { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; padding:0 18px 16px; border-left:3px solid #168fca; border-bottom:1px solid #d9e0e9; background:#f3f5f9; color:#243246; }
-.expanded-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:11px 0 12px; border-bottom:1px solid #d5dde7; }
-.expanded-heading .panel-kicker { display:block; color:#168fca; font-size:9px; font-weight:700; letter-spacing:.08em; }
-.expanded-heading h3 { margin:3px 0 0; color:#263548; font-size:12px; font-weight:600; }
+.cotista-expanded { position:sticky; left:0; width:100%; width:calc(100cqi - 2px); max-width:100%; padding:0 18px 16px; border-left:3px solid var(--light-line, #168fca); border-bottom:1px solid var(--light-line, #d9e0e9); background:var(--light-surface, #f3f5f9); color:var(--light-muted, #243246); }
+.expanded-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:11px 0 12px; border-bottom:1px solid var(--light-line, #d5dde7); }
+.expanded-heading .panel-kicker { display:block; color:var(--light-info, #168fca); font-size:9px; font-weight:700; letter-spacing:.08em; }
+.expanded-heading h3 { margin:3px 0 0; color:var(--light-muted, #263548); font-size:12px; font-weight:600; }
 .expanded-support-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.9fr); gap:0; padding-top:12px; }
 .expanded-support-grid > * { min-width:0; padding:0 15px; }
 .expanded-support-grid > :first-child { padding-left:0; }
 .expanded-support-grid > :last-child { padding-right:0; }
-.expanded-support-grid > * + * { border-left:1px solid #d5dde7; }
-.detail-block-title { display:block; margin-bottom:9px; color:#75849a; font-size:8px; font-weight:700; letter-spacing:.08em; }
+.expanded-support-grid > * + * { border-left:1px solid var(--light-line, #d5dde7); }
+.detail-block-title { display:block; margin-bottom:9px; color:var(--light-muted, #75849a); font-size:8px; font-weight:700; letter-spacing:.08em; }
 .document-list { display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; }
-.document-list button { display:inline-flex; min-width:0; max-width:100%; min-height:32px; align-items:center; gap:6px; padding:5px 8px; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#29384b; font-size:9px; text-align:left; cursor:pointer; transition:border-color .15s,background-color .15s; }
-.document-list button:hover { border-color:#168fca; background:#f5fbff; }
-.document-icon { display:flex; width:15px; height:17px; flex:0 0 15px; align-items:center; justify-content:center; color:#61738a; }
-.document-icon.is-receipt { color:#25856d; }
+.document-list button { display:inline-flex; min-width:0; max-width:100%; min-height:32px; align-items:center; gap:6px; padding:5px 8px; border:1px solid var(--light-line, #cbd5e1); border-radius:4px; background:var(--light-surface, #fff); color:var(--light-muted, #29384b); font-size:9px; text-align:left; cursor:pointer; transition:border-color .15s,background-color .15s; }
+.document-list button:hover { border-color:var(--light-line, #168fca); background:var(--light-info-soft, #f5fbff); }
+.document-icon { display:flex; width:15px; height:17px; flex:0 0 15px; align-items:center; justify-content:center; color:var(--light-muted, #61738a); }
+.document-icon.is-receipt { color:var(--light-success, #25856d); }
 .document-copy { display:block; min-width:0; }
-.document-copy b { display:block; overflow:hidden; color:#29384b; font-size:9px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+.document-copy b { display:block; overflow:hidden; color:var(--light-muted, #29384b); font-size:9px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
 .document-copy small,.document-open-icon { display:none; }
 .support-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:16px; row-gap:10px; }
 .support-facts .detail-block-title { grid-column:1 / -1; margin-bottom:0; }
 .support-facts p { display:flex; min-width:0; flex-direction:column; gap:3px; margin:0; font-size:10px; }
-.support-facts p b { color:#34445a; font-size:9px; font-weight:600; }
-.support-facts p small { color:#7a8798; font-size:9px; overflow-wrap:anywhere; }
+.support-facts p b { color:var(--light-muted, #34445a); font-size:9px; font-weight:600; }
+.support-facts p small { color:var(--light-muted, #7a8798); font-size:9px; overflow-wrap:anywhere; }
 .support-note { min-height:100%; }
-.support-note p { margin:0; color:#78869a; font-size:9px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.support-note p { margin:0; color:var(--light-muted, #78869a); font-size:9px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .dark .despesas-theme .cotista-expanded { border-bottom-color:var(--ledger-border); background:var(--bg-surface); color:var(--text); }
 .dark .despesas-theme .expanded-heading { border-bottom-color:var(--ledger-border); }
 .dark .despesas-theme .expanded-heading h3 { color:var(--text); }
@@ -345,8 +345,8 @@ const DESPESAS_ESTILOS = `
 .despesa-dialog { background:hsl(var(--card)); border-color:hsl(var(--border)); }
 @media(max-width:900px) {
   .expanded-support-grid { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:14px; }
-  .expanded-support-grid > :nth-child(3) { grid-column:1 / -1; min-height:0; padding:12px 0 0; border-top:1px solid #d5dde7; border-left:0; }
-  .expanded-support-grid > :nth-child(2) { border-left:1px solid #d5dde7; }
+  .expanded-support-grid > :nth-child(3) { grid-column:1 / -1; min-height:0; padding:12px 0 0; border-top:1px solid var(--light-line, #d5dde7); border-left:0; }
+  .expanded-support-grid > :nth-child(2) { border-left:1px solid var(--light-line, #d5dde7); }
   .despesa-filter-panel { grid-template-columns:minmax(160px,1.5fr) minmax(130px,1fr) minmax(130px,1fr) auto; }
 }
 @media(max-width:760px) {
@@ -365,8 +365,8 @@ const DESPESAS_ESTILOS = `
   .cotista-expanded { padding:0 12px 14px; }
   .expanded-support-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
   .expanded-support-grid > *,.expanded-support-grid > :first-child,.expanded-support-grid > :last-child { padding:0; border:0; }
-  .expanded-support-grid > * + * { padding-top:11px; border-top:1px solid #d5dde7; }
-  .expanded-support-grid > :nth-child(3) { grid-column:auto; min-height:0; padding-top:11px; border-top:1px solid #d5dde7; }
+  .expanded-support-grid > * + * { padding-top:11px; border-top:1px solid var(--light-line, #d5dde7); }
+  .expanded-support-grid > :nth-child(3) { grid-column:auto; min-height:0; padding-top:11px; border-top:1px solid var(--light-line, #d5dde7); }
   .despesa-month-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
   .despesa-table-scroll { max-height:65dvh; }
   .despesa-pagination { font-size:11px; }
@@ -377,7 +377,7 @@ const DESPESAS_ESTILOS = `
 }
 @media(prefers-reduced-motion:reduce) { .despesas-theme * { transition:none!important; } }
 @media print {
-  .despesas-theme { --bg-page:#fff; --bg-surface:#f2f2f2; --bg-hover:#f2f2f2; --bg-selected:#f2f2f2; --ledger-border:#ccc; --text:#000; --text-muted:#444; }
+  .despesas-theme { --bg-page:var(--light-surface, #fff); --bg-surface:var(--light-surface, #f2f2f2); --bg-hover:var(--light-surface, #f2f2f2); --bg-selected:var(--light-surface, #f2f2f2); --ledger-border:var(--light-line, #ccc); --text:var(--light-muted, #000); --text-muted:var(--light-muted, #444); }
   .despesa-toolbar,.despesa-filter-panel,.despesa-pagination { display:none; }
 }
 

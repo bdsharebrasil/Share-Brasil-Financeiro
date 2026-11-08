@@ -160,17 +160,17 @@ export function ModalContaAPagar({
   return (
     <Dialog open={aberto} onOpenChange={(valor) => { if (!valor && !ocupada) onFechar(); }}>
       <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-0 bg-[#0a0f17] p-0 text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,.55)] sm:max-w-2xl sm:rounded-xl"
+        className="flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-0 bg-card dark:bg-[#0a0f17] p-0 text-foreground dark:text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,.55)] sm:max-w-2xl sm:rounded-xl"
         onEscapeKeyDown={(evento) => { if (ocupada) evento.preventDefault(); }}
         onPointerDownOutside={(evento) => { if (ocupada) evento.preventDefault(); }}
       >
-        <DialogHeader className="shrink-0 border-b border-white/[.08] px-4 py-3 pr-12 text-left sm:px-5 sm:py-4">
+        <DialogHeader className="shrink-0 border-b border-border dark:border-white/[.08] px-4 py-3 pr-12 text-left sm:px-5 sm:py-4">
           <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-300">Contas a pagar · liquidação</p>
           <DialogTitle className="mt-1 break-words text-base font-semibold leading-snug text-slate-50 sm:text-lg">
             Dar baixa — {conta.descricao || conta.categoriaNome || "Conta a pagar"}
           </DialogTitle>
           <DialogDescription className="sr-only">Informe os dados do pagamento e anexe o comprovante.</DialogDescription>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-300">
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground dark:text-slate-300">
             <span className="inline-flex min-w-0 items-center gap-1.5"><UserRound size={13} className="shrink-0 text-cyan-300" /><span className="break-words">{conta.fornecedor || "Fornecedor não informado"}</span></span>
             {conta.aeronaveId && <span className="inline-flex items-center gap-1.5"><Plane size={13} className="text-cyan-300" />Despesa de aeronave</span>}
             <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} className="text-cyan-300" />Vence em {dataLegivel(conta.dataVencimento)}</span>
@@ -179,21 +179,21 @@ export function ModalContaAPagar({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-5 sm:py-4">
           <fieldset disabled={ocupada} className="min-w-0 space-y-4">
-            <section className="grid min-w-0 grid-cols-1 gap-2 border-b border-white/[.08] pb-3 sm:grid-cols-3">
-              <div className="min-w-0"><span className="text-[11px] text-slate-400">Valor da saída</span><strong className="mt-0.5 block break-words text-sm font-semibold text-slate-100">{moeda}</strong></div>
-              <div className="min-w-0"><span className="text-[11px] text-slate-400">Categoria</span><strong className="mt-0.5 block break-words text-sm font-semibold text-slate-100">{conta.categoriaNome || "—"}</strong></div>
-              <div className="min-w-0"><span className="text-[11px] text-slate-400">Situação</span><strong className="mt-0.5 block break-words text-sm font-semibold text-emerald-300">{conta.status || "Em aberto"}</strong></div>
+            <section className="grid min-w-0 grid-cols-1 gap-2 border-b border-border dark:border-white/[.08] pb-3 sm:grid-cols-3">
+              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Valor da saída</span><strong className="mt-0.5 block break-words text-sm font-semibold text-foreground dark:text-slate-100">{moeda}</strong></div>
+              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Categoria</span><strong className="mt-0.5 block break-words text-sm font-semibold text-foreground dark:text-slate-100">{conta.categoriaNome || "—"}</strong></div>
+              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Situação</span><strong className="mt-0.5 block break-words text-sm font-semibold text-emerald-300">{conta.status || "Em aberto"}</strong></div>
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold text-slate-100">Dados do pagamento</h3>
+              <h3 className="text-xs font-semibold text-foreground dark:text-slate-100">Dados do pagamento</h3>
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1">
-                  <Label htmlFor="data-pagamento" className="text-xs text-slate-300">Data do pagamento</Label>
-                  <Input id="data-pagamento" type="date" value={dataPagamento} onChange={(evento) => setDataPagamento(evento.target.value)} className="h-9 min-w-0 border-white/[.08] bg-[#131c29] text-slate-100" />
+                  <Label htmlFor="data-pagamento" className="text-xs text-muted-foreground dark:text-slate-300">Data do pagamento</Label>
+                  <Input id="data-pagamento" type="date" value={dataPagamento} onChange={(evento) => setDataPagamento(evento.target.value)} className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100" />
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <Label className="text-xs text-slate-300">Conta bancária</Label>
+                  <Label className="text-xs text-muted-foreground dark:text-slate-300">Conta bancária</Label>
                   <SearchableCombobox
                     items={contas}
                     value={contaBancariaId}
@@ -202,11 +202,11 @@ export function ModalContaAPagar({
                     searchPlaceholder="Buscar banco ou conta…"
                     emptyMessage="Nenhuma conta bancária ativa encontrada."
                     wrapSelectedLabel
-                    className="h-9 min-w-0 border-white/[.08] bg-[#131c29] text-slate-100"
+                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100"
                   />
                 </div>
                 <div className="min-w-0 space-y-1 sm:col-span-2">
-                  <Label htmlFor="forma-pagamento" className="text-xs text-slate-300">Forma de pagamento</Label>
+                  <Label htmlFor="forma-pagamento" className="text-xs text-muted-foreground dark:text-slate-300">Forma de pagamento</Label>
                   <SearchableCombobox
                     items={FORMAS_PAGAMENTO.map((forma) => ({ id: forma, label: forma }))}
                     value={formaPagamento}
@@ -214,17 +214,17 @@ export function ModalContaAPagar({
                     placeholder="Selecione a forma"
                     searchPlaceholder="Buscar forma…"
                     emptyMessage="Nenhuma forma encontrada."
-                    className="h-9 min-w-0 border-white/[.08] bg-[#131c29] text-slate-100"
+                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100"
                   />
                 </div>
               </div>
             </section>
 
             <section className="space-y-1.5">
-              <Label htmlFor={`comprovante-pagamento-${conta.id}`} className="text-xs text-slate-300">Comprovante do pagamento</Label>
-              <label htmlFor={`comprovante-pagamento-${conta.id}`} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-600 px-3 py-2.5 text-xs text-slate-300 transition hover:border-cyan-400/70 hover:bg-cyan-950/20">
+              <Label htmlFor={`comprovante-pagamento-${conta.id}`} className="text-xs text-muted-foreground dark:text-slate-300">Comprovante do pagamento</Label>
+              <label htmlFor={`comprovante-pagamento-${conta.id}`} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-600 px-3 py-2.5 text-xs text-muted-foreground dark:text-slate-300 transition hover:border-cyan-400/70 hover:bg-cyan-950/20">
                 <UploadCloud className="h-4 w-4 shrink-0 text-cyan-300" />
-                <span className="min-w-0 flex-1"><strong className="block break-all font-medium text-slate-100">{enviandoComprovante ? "Enviando arquivo…" : arquivo?.name || "Anexar imagem ou PDF"}</strong><small className="mt-0.5 block text-[11px] text-slate-400">PDF, JPG, PNG ou WebP · até 10 MB</small></span>
+                <span className="min-w-0 flex-1"><strong className="block break-all font-medium text-foreground dark:text-slate-100">{enviandoComprovante ? "Enviando arquivo…" : arquivo?.name || "Anexar imagem ou PDF"}</strong><small className="mt-0.5 block text-[11px] text-muted-foreground dark:text-slate-400">PDF, JPG, PNG ou WebP · até 10 MB</small></span>
                 {enviandoComprovante ? <span className="shrink-0 text-[11px] text-cyan-300">Enviando</span> : comprovanteUrl ? <FileCheck2 className="h-4 w-4 shrink-0 text-emerald-400" /> : <Paperclip className="h-4 w-4 shrink-0 text-slate-500" />}
                 <Input
                   id={`comprovante-pagamento-${conta.id}`}
@@ -234,19 +234,19 @@ export function ModalContaAPagar({
                   onChange={(evento) => { void selecionarComprovante(evento.target.files?.[0]); evento.currentTarget.value = ""; }}
                 />
               </label>
-              {arquivo && <div className="flex items-center justify-between gap-2 text-xs text-slate-400"><span className="truncate">{comprovanteUrl ? "Comprovante anexado · pronto para salvar" : "Aguardando envio"}</span><button type="button" disabled={ocupada} onClick={() => { setArquivo(null); setComprovanteUrl(""); }} className="text-slate-300 hover:text-white">Remover</button></div>}
+              {arquivo && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground dark:text-slate-400"><span className="truncate">{comprovanteUrl ? "Comprovante anexado · pronto para salvar" : "Aguardando envio"}</span><button type="button" disabled={ocupada} onClick={() => { setArquivo(null); setComprovanteUrl(""); }} className="text-muted-foreground dark:text-slate-300 hover:text-white">Remover</button></div>}
             </section>
 
             <section className="space-y-1">
-              <Label htmlFor={`observacoes-pagamento-${conta.id}`} className="text-xs text-slate-300">Observações do pagamento</Label>
+              <Label htmlFor={`observacoes-pagamento-${conta.id}`} className="text-xs text-muted-foreground dark:text-slate-300">Observações do pagamento</Label>
               <Textarea id={`observacoes-pagamento-${conta.id}`} value={observacoes} onChange={(evento) => setObservacoes(evento.target.value)} rows={2} className="min-h-16 border-slate-700 bg-slate-950/60" placeholder="Detalhes adicionais para conferência" />
             </section>
             {erro && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{erro}</p>}
           </fieldset>
         </div>
 
-        <DialogFooter className="shrink-0 gap-2 border-t border-white/[.08] bg-[#0a0f17] px-4 py-3 sm:px-5">
-          <Button variant="ghost" onClick={onFechar} disabled={ocupada} className="text-slate-300 hover:bg-white/[.05]">Cancelar</Button>
+        <DialogFooter className="shrink-0 gap-2 border-t border-border dark:border-white/[.08] bg-card dark:bg-[#0a0f17] px-4 py-3 sm:px-5">
+          <Button variant="ghost" onClick={onFechar} disabled={ocupada} className="text-muted-foreground dark:text-slate-300 hover:bg-white/[.05]">Cancelar</Button>
           <Button onClick={() => void confirmar()} disabled={ocupada || !contaBancariaId} className="gap-2 bg-cyan-400 font-semibold text-slate-950 hover:bg-cyan-300">
             {enviando ? "Confirmando…" : <><CheckCircle2 size={16} />Confirmar pagamento</>}
           </Button>

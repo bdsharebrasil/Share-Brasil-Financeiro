@@ -1167,15 +1167,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   return (
     <div className={`route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
       {!historico && <>
-      <header className="relative overflow-hidden rounded-2xl border border-[#1b2a3f] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "rgb(16, 20, 39)" }}>
+      <header className="relative overflow-hidden rounded-2xl border border-border dark:border-[#1b2a3f] bg-card dark:bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "var(--light-surface, rgb(16, 20, 39))" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-[#1a2638] bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
-        <div className="flex items-center gap-3 border-b border-[#172235] bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
+      <section className="overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
+        <div className="flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
@@ -1189,7 +1189,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             aria-valuemin={0}
             aria-valuemax={100}
           >
-            <span className="block h-[3px] w-full bg-[#0d1727]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
+            <span className="block h-[3px] w-full bg-card dark:bg-[#0d1727]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
           </div>
         </div>
 
@@ -1210,7 +1210,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-[#182336] bg-[#070c15] hover:border-primary/35 hover:bg-[#0b1422]"}`}
+                      className={`relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -1330,7 +1330,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="my-0 flex flex-wrap items-center justify-between gap-2 border-t border-[#172235] bg-[#080e19] px-4 py-2.5 md:px-5">
+        <div className="my-0 flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
@@ -1430,14 +1430,14 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           className="
             flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl
             flex-col gap-0 overflow-hidden rounded-2xl
-            border border-[#1a2638]
-            bg-[#080e19]
+            border border-border dark:border-[#1a2638]
+            bg-card dark:bg-[#080e19]
             p-0
             shadow-[0_24px_70px_rgba(0,0,0,.45)]
             sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]
           "
         >
-          <DialogHeader className="shrink-0 border-b border-[#172235] bg-[linear-gradient(135deg,#0b1422,#080e19)] px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
+          <DialogHeader className="shrink-0 border-b border-border dark:border-[#172235] bg-card dark:bg-[linear-gradient(135deg,#0b1422,#080e19)] px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
             <DialogTitle className="flex items-center gap-2 text-base font-bold tracking-tight"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
             <DialogDescription className="max-w-xl text-[11px] leading-5 text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O rateio da despesa será criado antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
           </DialogHeader>
@@ -1464,7 +1464,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                         const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
                         const rascunhoEmail = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
                         return (
-                          <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-[#1a2638] bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
+                          <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
                               <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
@@ -1478,7 +1478,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                                 onChange={(event) => setEmailsPorCotista((atuais) => ({ ...atuais, [cotista.id]: event.target.value }))}
                                 placeholder="Digite o e-mail do cotista"
                                 disabled={emailEnviado}
-                                className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                                className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1489,7 +1489,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                                 onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, assunto: event.target.value } }))}
                                 placeholder="Assunto do e-mail"
                                 disabled={emailEnviado}
-                                className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                                className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1500,12 +1500,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                                 onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, mensagem: event.target.value } }))}
                                 placeholder="Escreva o texto do e-mail"
                                 disabled={emailEnviado}
-                                className="campo min-h-28 resize-y !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
+                                className="campo min-h-28 resize-y !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
                               />
                             </div>
                             <div className="space-y-2">
                               {anexosDoCotista.map((anexo) => (
-                                <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
+                                <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
                                   <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailEnviado} />
                                   <span className="min-w-0 flex-1">
                                     <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
@@ -1529,21 +1529,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
                       <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setNomeDestinatario(contato.nome); }} />
-                      <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                      <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
                     </div>
                   )}
 
                   {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
-                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo !h-10 !rounded-xl border-white/[.08] bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
                   </div>}
 
                   {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
-                    <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 !rounded-xl border-white/[.08] bg-[#080e19] resize-y shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
+                    <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] resize-y shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
                   </div>}
 
-                  {assinaturaEmail && <div className="rounded-xl border border-white/[.08] bg-white p-4 font-[Arial,sans-serif] text-[#333] shadow-[0_10px_28px_rgba(0,0,0,.18)]">
+                  {assinaturaEmail && <div className="rounded-xl border border-border dark:border-white/[.08] bg-white p-4 font-[Arial,sans-serif] text-[#333] shadow-[0_10px_28px_rgba(0,0,0,.18)]">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
                     <div className="flex items-center gap-3">
                       <img src={assinaturaEmail.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
@@ -1564,12 +1564,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
                   {contasBancarias.length > 0 && <div className="rounded-xl border border-primary/20 bg-primary/[.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
                     <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
-                    <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded-xl border p-3 text-left text-[10px] transition-all ${bancoSelecionado?.id === conta.id ? "border-primary/70 bg-primary/[.10] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-white/[.07] bg-white/[.025] hover:border-primary/45 hover:bg-white/[.04]"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
+                    <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded-xl border p-3 text-left text-[10px] transition-all ${bancoSelecionado?.id === conta.id ? "border-primary/70 bg-primary/[.10] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-white/[.07] bg-white/[.025] hover:border-primary/45 hover:bg-white/[.04]"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
                     {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
                   </div>}
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#172235] bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
                 <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
                 {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
               </div>

@@ -1,11 +1,11 @@
 /* Estilos locais do caixa. Não altera outras telas do financeiro. */
 .company-cash, .cash-dialog, .cash-popover {
-  --cash-bg: #0b1322; --cash-card: #111b2d; --cash-soft: #162237;
-  --cash-fg: #e6edf7; --cash-muted: #8592a9; --cash-border: #203049;
-  --cash-accent: #78c8e3; --cash-accent-soft: #15293a;
-  --cash-income: #34d399; --cash-income-soft: #113028;
-  --cash-expense: #f87171; --cash-expense-soft: #3a2029;
-  --cash-warning: #e7c587; --cash-warning-soft: #352f23;
+  --cash-bg: var(--light-surface, #0b1322); --cash-card: var(--light-surface, #111b2d); --cash-soft: var(--light-surface, #162237);
+  --cash-fg: var(--light-text, #e6edf7); --cash-muted: var(--light-muted, #8592a9); --cash-border: var(--light-line, #203049);
+  --cash-accent: var(--light-info, #78c8e3); --cash-accent-soft: var(--light-surface, #15293a);
+  --cash-income: var(--light-success, #34d399); --cash-income-soft: var(--light-success-soft, #113028);
+  --cash-expense: var(--light-danger, #f87171); --cash-expense-soft: var(--light-surface, #3a2029);
+  --cash-warning: var(--light-warning, #e7c587); --cash-warning-soft: var(--light-surface, #352f23);
   --background: 218 46% 7%; --foreground: 215 44% 92%;
   --card: 218 40% 10%; --card-foreground: 215 44% 92%;
   --popover: 218 40% 12%; --popover-foreground: 215 44% 92%;
@@ -14,10 +14,10 @@
   --primary: 195 66% 68%; --primary-foreground: 218 46% 7%;
   --accent: 201 43% 16%; --accent-foreground: 215 44% 92%;
   --ring: 195 66% 68%; --destructive: 353 73% 78%;
-  color: var(--cash-fg); color-scheme: dark; font-family: inherit;
+  color: var(--cash-fg); color-scheme: var(--app-color-scheme, dark); font-family: inherit;
   font-size: 13px; line-height: 1.5; text-shadow: none;
 }
-.company-cash { width: 100%; max-width: 100%; min-width: 0; margin: -15px -3px; padding: 0 14px; border-radius: 7px; overflow: hidden; display: flex; flex-direction: column; gap: 16px; background: rgba(11, 19, 34, .56); filter: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
+.company-cash { width: 100%; max-width: 100%; min-width: 0; margin: -15px -3px; padding: 0 14px; border-radius: 7px; overflow: hidden; display: flex; flex-direction: column; gap: 16px; background: var(--light-surface, rgba(11, 19, 34, .56)); filter: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
 .company-cash *, .cash-dialog *, .cash-popover * { box-sizing: border-box; }
 .company-cash :is(h2,h3,p,dl,dd), .cash-dialog p { margin: 0; }
 .company-cash svg { flex-shrink: 0; }
@@ -37,7 +37,7 @@
 .company-cash .cash-primary { background: var(--cash-accent); color: hsl(var(--primary-foreground)); border: 1px solid var(--cash-accent); }
 .cash-kicker { display: block; font-size: 10px; font-weight: 600; letter-spacing: .09em; line-height: 1.5; text-transform: uppercase; color: var(--cash-muted); }
 .cash-ledger-panel { min-width: 0; border: 1px solid var(--cash-border); border-radius: 6px; background: var(--cash-card); overflow: hidden; }
-.cash-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: -5px 0; padding: 20px; border-bottom: 1px solid var(--cash-border); background: rgba(9, 14, 29, 1); }
+.cash-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: -5px 0; padding: 20px; border-bottom: 1px solid var(--cash-border); background: var(--light-soft, rgba(9, 14, 29, 1)); }
 .cash-ledger-title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .cash-ledger-title .cash-kicker { color: var(--cash-accent); }
 .cash-ledger-title h3 { margin-top: 4px; font-size: 16px; font-weight: 600; }

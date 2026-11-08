@@ -33,13 +33,13 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-      <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
+      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-amber-300/10 p-2 text-amber-300"><History size={16} /></span>
             <div>
               <h2 className="text-sm font-bold text-white">Banco de horas · voos emprestados</h2>
-              <p className="mt-0.5 text-xs text-slate-400">{horasEmprestadas.quantidade || emprestimos.length} empréstimo(s) · {hm(horasEmprestadas.horas_total || emprestimos.reduce((t, e) => t + Number(e.tempo_voo || 0), 0))} h no mês</p>
+              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">{horasEmprestadas.quantidade || emprestimos.length} empréstimo(s) · {hm(horasEmprestadas.horas_total || emprestimos.reduce((t, e) => t + Number(e.tempo_voo || 0), 0))} h no mês</p>
             </div>
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-white">{saldo.nome}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">Emprestou {hm(saldo.emprestou)} · Tomou {hm(saldo.tomou)}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground dark:text-slate-400">Emprestou {hm(saldo.emprestou)} · Tomou {hm(saldo.tomou)}</p>
                     </div>
                   </div>
                   <span className={`font-mono text-sm font-extrabold ${positivo ? "text-emerald-300" : "text-amber-300"}`}>{hm(balanco)}</span>
@@ -69,13 +69,13 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
         )}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
+      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300"><Users size={16} /></span>
             <div>
               <h2 className="text-sm font-bold text-white">Resumo por cotista</h2>
-              <p className="mt-0.5 text-xs text-slate-400">{horasCotistas.length} cotista(s) · {hm(totalCotistas)} h voadas no mês</p>
+              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">{horasCotistas.length} cotista(s) · {hm(totalCotistas)} h voadas no mês</p>
             </div>
           </div>
           <PieChart size={15} className="text-slate-500" />
@@ -89,7 +89,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
               return (
                 <div key={item.cotista_id || item.cotista_nome}>
                   <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <span className="truncate text-xs font-semibold text-slate-100">{item.cotista_nome}</span>
+                    <span className="truncate text-xs font-semibold text-foreground dark:text-slate-100">{item.cotista_nome}</span>
                     <span className="shrink-0 font-mono text-xs font-bold text-cyan-300">{hm(Number(item.horas_voo || 0))} <span className="text-slate-500">({percentual.toFixed(0)}%)</span></span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/[.06]">

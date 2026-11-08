@@ -176,7 +176,7 @@ function categoriaClasse(categoria: unknown) {
     return "border-sky-400/20 bg-sky-400/10 text-sky-200";
   }
   if (valor.includes("combust")) {
-    return "border-slate-400/20 bg-slate-400/10 text-slate-200";
+    return "border-slate-400/20 bg-slate-400/10 text-foreground dark:text-slate-200";
   }
   return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
 }
@@ -190,7 +190,7 @@ function Cartao({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] ${className}`}
+      className={`overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] ${className}`}
     >
       {children}
     </section>
@@ -207,7 +207,7 @@ function TituloSecao({
   subtitulo?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+    <div className="flex items-start gap-3 border-b border-border dark:border-white/10 px-4 py-4 sm:px-5">
       <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06] text-sky-200">
         {icon}
       </span>
@@ -216,7 +216,7 @@ function TituloSecao({
           {titulo}
         </h2>
         {subtitulo ? (
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground dark:text-slate-400">
             {subtitulo}
           </p>
         ) : null}
@@ -665,7 +665,7 @@ export default function AprovacaoRelatorioViagem() {
     return (
       <div
         key={`${despesa.id || "despesa"}-${indice}`}
-        className="border-b border-white/10 px-4 py-4 last:border-b-0 sm:px-5 sm:py-5"
+        className="border-b border-border dark:border-white/10 px-4 py-4 last:border-b-0 sm:px-5 sm:py-5"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -678,7 +678,7 @@ export default function AprovacaoRelatorioViagem() {
                 {despesa.categoria || "Outros"}
               </span>
 
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-slate-400">
+              <span className="rounded-full border border-border dark:border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-muted-foreground dark:text-slate-400">
                 {dataBr(despesa.data)}
               </span>
             </div>
@@ -687,7 +687,7 @@ export default function AprovacaoRelatorioViagem() {
               {despesa.descricao || "Despesa sem descrição"}
             </p>
 
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-muted-foreground dark:text-slate-400">
               Pago por {nomePagador(despesa.pago_por || despesa.paid_by)}
             </p>
 
@@ -721,7 +721,7 @@ export default function AprovacaoRelatorioViagem() {
                       despesa.descricao || "Despesa",
                     )
                   }
-                  className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-left text-xs font-bold text-slate-200 transition active:scale-[0.99] hover:border-sky-300/30 hover:bg-white/[0.07]"
+                  className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-2xl border border-border dark:border-white/10 bg-white/[0.045] px-3 py-2 text-left text-xs font-bold text-foreground dark:text-slate-200 transition active:scale-[0.99] hover:border-sky-300/30 hover:bg-white/[0.07]"
                 >
                   {isImagem(anexo) ? (
                     <FileImage
@@ -731,7 +731,7 @@ export default function AprovacaoRelatorioViagem() {
                   ) : (
                     <FileText
                       size={15}
-                      className="shrink-0 text-slate-300"
+                      className="shrink-0 text-muted-foreground dark:text-slate-300"
                     />
                   )}
 
@@ -751,9 +751,9 @@ export default function AprovacaoRelatorioViagem() {
 
   if (!data) {
     return (
-      <main className="fixed inset-0 overflow-y-auto bg-[#060b14] text-white">
+      <main className="fixed inset-0 overflow-y-auto bg-card dark:bg-[#060b14] text-white">
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+          <div className="w-full max-w-md rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
               src="/logoshare.branco.png"
               alt="Share Brasil"
@@ -780,7 +780,7 @@ export default function AprovacaoRelatorioViagem() {
                 : "Carregando relatório"}
             </h1>
 
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-400">
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground dark:text-slate-400">
               {mensagem}
             </p>
           </div>
@@ -794,7 +794,7 @@ export default function AprovacaoRelatorioViagem() {
       <main
         ref={scrollRef}
         onScroll={verificarFimScroll}
-        className="fixed inset-0 z-10 overflow-y-auto overscroll-y-contain bg-[#060b14] text-white"
+        className="fixed inset-0 z-10 overflow-y-auto overscroll-y-contain bg-card dark:bg-[#060b14] text-white"
         style={{
           WebkitOverflowScrolling: "touch",
           touchAction: "pan-y",
@@ -802,7 +802,7 @@ export default function AprovacaoRelatorioViagem() {
       >
         <div className="mx-auto w-full max-w-4xl px-3 pb-44 pt-3 sm:px-6 sm:pb-48 sm:pt-6">
           <header className="mb-4 flex items-center gap-3 sm:mb-6">
-            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] sm:size-14">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-border dark:border-white/10 bg-white/[0.04] sm:size-14">
               <img
                 src="/logoshare.branco.png"
                 alt="Share Brasil"
@@ -841,7 +841,7 @@ export default function AprovacaoRelatorioViagem() {
           ) : null}
 
           <Cartao>
-            <div className="border-b border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-5 sm:px-6 sm:py-6">
+            <div className="border-b border-border dark:border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200">
@@ -853,7 +853,7 @@ export default function AprovacaoRelatorioViagem() {
                     Relatório {relatorio?.numero_relatorio || "—"}
                   </h2>
 
-                  <p className="mt-1 text-sm leading-relaxed text-slate-400">
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground dark:text-slate-400">
                     Use os cartões abaixo para revisar suas despesas, as do
                     cliente e as da Share Brasil separadamente. Os comprovantes
                     continuam junto de cada despesa.
@@ -871,7 +871,7 @@ export default function AprovacaoRelatorioViagem() {
               </div>
 
               <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Voo
                   </p>
@@ -881,7 +881,7 @@ export default function AprovacaoRelatorioViagem() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Aeronave
                   </p>
@@ -892,7 +892,7 @@ export default function AprovacaoRelatorioViagem() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Período
                   </p>
@@ -902,7 +902,7 @@ export default function AprovacaoRelatorioViagem() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+                <div className="rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Tripulante
                   </p>
@@ -912,7 +912,7 @@ export default function AprovacaoRelatorioViagem() {
                 </div>
               </div>
 
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+              <div className="mt-3 rounded-2xl border border-border dark:border-white/10 bg-white/[0.035] p-3.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Rota
                 </p>
@@ -940,7 +940,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "total"
                     ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
-                    : "bg-[#0b111c]"
+                    : "bg-card dark:bg-[#0b111c]"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -960,7 +960,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "tripulante"
                     ? "bg-emerald-400/[0.10] ring-1 ring-inset ring-emerald-300/25"
-                    : "bg-[#0b111c]"
+                    : "bg-card dark:bg-[#0b111c]"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -980,7 +980,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "cliente"
                     ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
-                    : "bg-[#0b111c]"
+                    : "bg-card dark:bg-[#0b111c]"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -1000,7 +1000,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "sharebrasil"
                     ? "bg-white/[0.08] ring-1 ring-inset ring-white/15"
-                    : "bg-[#0b111c]"
+                    : "bg-card dark:bg-[#0b111c]"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -1016,14 +1016,14 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             {(despesasOutroTripulante.length || despesasOutros.length) ? (
-              <div className="border-t border-white/10 px-4 py-3 sm:px-5">
+              <div className="border-t border-border dark:border-white/10 px-4 py-3 sm:px-5">
                 <button
                   type="button"
                   onClick={() => selecionarFiltro("outros")}
                   className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${
                     filtroDespesas === "outros"
                       ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
-                      : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                      : "border-border dark:border-white/10 bg-white/[0.03] text-muted-foreground dark:text-slate-300 hover:bg-white/[0.06]"
                   }`}
                 >
                   <Info size={14} />
@@ -1095,7 +1095,7 @@ export default function AprovacaoRelatorioViagem() {
                     ) : null}
 
                     {foiReprovado && motivoRegistrado ? (
-                      <p className="mt-2 break-words rounded-xl border border-white/10 bg-black/10 p-3 text-xs leading-relaxed text-rose-100">
+                      <p className="mt-2 break-words rounded-xl border border-border dark:border-white/10 bg-black/10 p-3 text-xs leading-relaxed text-rose-100">
                         <strong>Motivo:</strong> {motivoRegistrado}
                       </p>
                     ) : null}
@@ -1112,7 +1112,7 @@ export default function AprovacaoRelatorioViagem() {
       </main>
 
       {!decisaoRegistrada || podeReprocessarFinanceiro ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
               <span
@@ -1127,12 +1127,12 @@ export default function AprovacaoRelatorioViagem() {
                     : "A revisão dos grupos é opcional"}
               </span>
 
-              <span className="text-slate-400">{moeda(totalTripulante)}</span>
+              <span className="text-muted-foreground dark:text-slate-400">{moeda(totalTripulante)}</span>
             </div>
 
             {!relatorioRevisado && !podeReprocessarFinanceiro ? (
               <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-[10px]">
-                <span className="font-bold text-slate-400">
+                <span className="font-bold text-muted-foreground dark:text-slate-400">
                   Grupos não revisados (opcional):
                 </span>
                 {filtrosPendentes.map((filtro) =>
@@ -1189,7 +1189,7 @@ export default function AprovacaoRelatorioViagem() {
           </div>
         </div>
       ) : foiAprovado ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <button
               type="button"
@@ -1205,7 +1205,7 @@ export default function AprovacaoRelatorioViagem() {
 
       {acao ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
+          <div className="w-full max-w-lg rounded-t-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
@@ -1223,7 +1223,7 @@ export default function AprovacaoRelatorioViagem() {
               <button
                 type="button"
                 onClick={() => setAcao(null)}
-                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-muted-foreground dark:text-slate-300"
                 aria-label="Fechar"
               >
                 <X size={18} />
@@ -1260,10 +1260,10 @@ export default function AprovacaoRelatorioViagem() {
                   value={motivo}
                   onChange={(event) => setMotivo(event.target.value)}
                   placeholder="Ex.: Almoço de 19/09 informado com valor incorreto."
-                  className="mt-3 min-h-28 resize-y rounded-2xl border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500"
+                  className="mt-3 min-h-28 resize-y rounded-2xl border-border dark:border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-slate-500"
                   autoFocus
                 />
-                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mt-3 rounded-2xl border border-border dark:border-white/10 bg-white/[0.03] p-3">
                   <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-sky-300/30 px-3 py-3 text-xs font-bold text-sky-200 hover:bg-sky-300/[0.06]">
                     <ImagePlus size={16} /> {imagemRejeicao ? "Trocar imagem" : "Anexar imagem para orientar o ajuste (opcional)"}
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => {
@@ -1279,7 +1279,7 @@ export default function AprovacaoRelatorioViagem() {
                       setImagemRejeicaoPreview(URL.createObjectURL(arquivo));
                     }} />
                   </label>
-                  {imagemRejeicao && <div className="mt-3 flex items-start gap-3"><img src={imagemRejeicaoPreview} alt="Prévia do anexo da rejeição" className="h-20 w-24 rounded-lg border border-white/10 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-200">{imagemRejeicao.name}</p><p className="mt-1 text-[10px] text-slate-400">{(imagemRejeicao.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={() => { setImagemRejeicao(null); setImagemRejeicaoPreview(""); }} aria-label="Remover imagem" className="rounded-lg p-2 text-rose-300 hover:bg-rose-300/10"><Trash2 size={15} /></button></div>}
+                  {imagemRejeicao && <div className="mt-3 flex items-start gap-3"><img src={imagemRejeicaoPreview} alt="Prévia do anexo da rejeição" className="h-20 w-24 rounded-lg border border-border dark:border-white/10 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-foreground dark:text-slate-200">{imagemRejeicao.name}</p><p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">{(imagemRejeicao.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={() => { setImagemRejeicao(null); setImagemRejeicaoPreview(""); }} aria-label="Remover imagem" className="rounded-lg p-2 text-rose-300 hover:bg-rose-300/10"><Trash2 size={15} /></button></div>}
                   <p className="mt-2 text-[10px] text-slate-500">JPG, PNG ou WebP · máximo 5 MB. A imagem será anexada à notificação de rejeição.</p>
                 </div>
               </div>
@@ -1290,7 +1290,7 @@ export default function AprovacaoRelatorioViagem() {
                 type="button"
                 disabled={enviando}
                 onClick={() => setAcao(null)}
-                className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-slate-200 disabled:opacity-50"
+                className="min-h-12 rounded-2xl border border-border dark:border-white/10 bg-white/[0.03] px-3 text-sm font-extrabold text-foreground dark:text-slate-200 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -1325,9 +1325,9 @@ export default function AprovacaoRelatorioViagem() {
 
       {comprovanteSelecionado ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-6">
-          <div className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b111c] shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300">
+          <div className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-border dark:border-white/10 px-4 py-3 sm:px-5">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-muted-foreground dark:text-slate-300">
                 {isImagem(comprovanteSelecionado) ? (
                   <FileImage size={17} />
                 ) : (
@@ -1347,7 +1347,7 @@ export default function AprovacaoRelatorioViagem() {
               <button
                 type="button"
                 onClick={() => setComprovanteSelecionado(null)}
-                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-slate-300"
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-muted-foreground dark:text-slate-300"
                 aria-label="Fechar comprovante"
               >
                 <X size={18} />
@@ -1355,7 +1355,7 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             <div
-              className="min-h-0 flex-1 overflow-auto bg-[#050a12] p-2 sm:p-4"
+              className="min-h-0 flex-1 overflow-auto bg-card dark:bg-[#050a12] p-2 sm:p-4"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               {isImagem(comprovanteSelecionado) ? (
@@ -1409,7 +1409,7 @@ export default function AprovacaoRelatorioViagem() {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between gap-3 border-t border-border dark:border-white/10 px-4 py-3 sm:px-5">
               <span className="truncate text-[11px] text-slate-500">
                 Comprovante{" "}
                 {comprovanteSelecionado.indice >= 0
@@ -1421,7 +1421,7 @@ export default function AprovacaoRelatorioViagem() {
                 href={`${API_BASE}${comprovanteSelecionado.url_arquivo}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-bold text-slate-200"
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-border dark:border-white/10 bg-white/[0.04] px-3 text-xs font-bold text-foreground dark:text-slate-200"
               >
                 Abrir em nova guia
                 <ExternalLink size={14} />

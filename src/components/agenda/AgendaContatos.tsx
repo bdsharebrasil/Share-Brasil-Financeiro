@@ -144,7 +144,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
 
   return (
     <form className="ac-dialog-form" onSubmit={(e) => void submit(e)} aria-busy={salvando}>
-      <div className="ac-form-body bg-[#020811]">
+      <div className="ac-form-body bg-card dark:bg-[#020811]">
         <p className="ac-muted">Os campos com * são obrigatórios.</p>
         {mensagem && <div ref={resumoRef} tabIndex={-1} role="alert" className="ac-notice ac-notice--error">{mensagem}</div>}
         <section className="ac-section" aria-labelledby="ac-identificacao">

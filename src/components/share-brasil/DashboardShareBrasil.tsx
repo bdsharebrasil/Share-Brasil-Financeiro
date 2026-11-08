@@ -37,7 +37,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className="group flex h-full min-h-0 w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-[22px] border border-[rgba(41,71,129,1)] dark:border-[rgba(21,61,93,0.682)] bg-card px-2 py-3 text-center shadow-[0_0_2px_0_rgba(62,79,87,0.32)] transition motion-safe:hover:-translate-y-0.5 hover:border-[rgba(26,77,112,0.655)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4"
+      className="group flex h-full min-h-0 w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-[22px] border border-[rgba(41,71,129,1)] dark:border-[rgba(21,61,93,0.682)] bg-card px-2 py-3 text-center shadow-[0_0_2px_0_rgba(62,79,87,0.32)] transition motion-safe:hover:-translate-y-0.5 hover:border-primary/40 dark:hover:border-[rgba(26,77,112,0.655)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4"
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
@@ -90,7 +90,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
   return (
     <div className="route-enter mx-auto box-border w-full min-w-0 max-w-[1600px] space-y-3 px-2 py-2 sm:space-y-4 sm:px-4 lg:px-6">
       <header
-        className="min-w-0 rounded-2xl border border-white/10 bg-cover bg-center p-3 shadow-sm sm:p-5 lg:p-6"
+        className="min-w-0 rounded-2xl border border-border dark:border-white/10 bg-cover bg-center p-3 shadow-sm sm:p-5 lg:p-6"
         style={{
           backgroundImage: `linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)), url(${aviationHero})`,
         }}
@@ -132,7 +132,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               onKeyDown={(event) => navegarAbas(event, indice)}
               className={`flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal rounded-lg px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "border border-[rgba(23,47,77,1)] bg-card text-primary"
+                  ? "border border-border dark:border-[rgba(23,47,77,1)] bg-card text-primary"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >

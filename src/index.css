@@ -195,6 +195,10 @@ html:not(.dark) .menu-hover-escuro:hover {
   color: rgba(3, 6, 8, 1);
 }
 
+html:not(.dark) .conteudo-principal {
+  background-color: rgba(222, 245, 246, 0.87) !important;
+}
+
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse-dot 2.6s ease-in-out infinite; }

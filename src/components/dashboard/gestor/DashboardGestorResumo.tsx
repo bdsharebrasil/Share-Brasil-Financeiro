@@ -413,7 +413,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
             }}
             disabled={atualizando}
             variant="outline"
-            className="h-9 w-full gap-2 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
+            className="h-9 w-full gap-2 border-border dark:border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto"
           >
             <RefreshCw size={14} className={atualizando ? "animate-spin" : ""} />
             {atualizando ? "Atualizando…" : "Atualizar"}

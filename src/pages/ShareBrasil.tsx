@@ -615,12 +615,12 @@ export function DocumentosShareBrasil() {
       {isOverview ? (
         <div className="space-y-5">
           <section
-            className="rounded-2xl border border-white/[.08] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5"
-            style={{ backgroundColor: "rgba(16, 26, 40, 0.54)" }}
+            className="rounded-2xl border border-border dark:border-white/[.08] p-4 shadow-[0_18px_55px_rgba(0,0,0,.14)] md:p-5"
+            style={{ backgroundColor: "var(--light-surface, rgba(16, 26, 40, 0.54))" }}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-bold text-white">Todas as pastas</p>
+                <p className="text-sm font-bold text-foreground dark:text-white">Todas as pastas</p>
                 <p className="mt-1 text-[10px] text-slate-500">
                   Visualização lado a lado · clique em um card para abrir
                 </p>
@@ -659,7 +659,7 @@ export function DocumentosShareBrasil() {
                 ))}
               </div>
             ) : (
-              <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-10">
+              <div className="mt-5 rounded-2xl border border-dashed border-border dark:border-white/10 p-10">
                 <EstadoVazio label="Nenhuma pasta criada" />
               </div>
             )}
@@ -672,7 +672,7 @@ export function DocumentosShareBrasil() {
               type="button"
               variant="ghost"
               onClick={closeFolder}
-              className="h-9 gap-2 px-1 text-xs text-slate-400 hover:text-white"
+              className="h-9 gap-2 px-1 text-xs text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-white"
             >
               <ChevronLeft size={16} /> Voltar para todas as pastas
             </Button>
@@ -681,19 +681,19 @@ export function DocumentosShareBrasil() {
             </span>
           </div>
           <section
-            className="overflow-hidden rounded-2xl border border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]"
-            style={{ backgroundColor: "rgba(16, 26, 40, 0.76)" }}
+            className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] shadow-[0_20px_60px_rgba(0,0,0,.18)]"
+            style={{ backgroundColor: "var(--light-surface, rgba(16, 26, 40, 0.76))" }}
           >
             <div
-              className="relative overflow-hidden border-b border-white/[.08] p-5 md:p-7"
-              style={{ backgroundColor: "rgba(3, 3, 17, 0.87)" }}
+              className="relative overflow-hidden border-b border-border dark:border-white/[.08] p-5 md:p-7"
+              style={{ backgroundColor: "var(--light-surface, rgba(3, 3, 17, 0.87))" }}
             >
               <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] items-end gap-4">
                 <div className="min-w-0 [overflow-wrap:anywhere]">
-                  <h2 className="break-words text-xl font-semibold text-slate-100">
+                  <h2 className="break-words text-xl font-semibold text-foreground dark:text-slate-100">
                     {selectedFolder?.nome || "Pasta"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-muted-foreground dark:text-slate-400">
                     {docs.length} arquivo(s)
                   </p>
                 </div>
@@ -724,7 +724,7 @@ export function DocumentosShareBrasil() {
                         <FilePlus2 size={17} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-sm font-bold text-white [overflow-wrap:anywhere]">
+                        <span className="block text-sm font-bold text-foreground dark:text-white [overflow-wrap:anywhere]">
                           {item.nome}
                         </span>
                         <span className="mt-1 block text-[10px] text-slate-500 [overflow-wrap:anywhere]">
@@ -747,7 +747,7 @@ export function DocumentosShareBrasil() {
               </div>
             )}
           </section>
-          <section className="rounded-2xl border border-white/[.08] bg-[#101a28] p-4 md:p-5">
+          <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] p-4 md:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Input
                 value={folder}
@@ -1355,7 +1355,7 @@ export function ContatosClientesShareBrasil() {
     label: string,
   ) => (
     <div
-      className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[.04] p-1"
+      className="flex items-center gap-1 rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1"
       role="group"
       aria-label={`Visualização ${label}`}
     >
@@ -1378,12 +1378,12 @@ export function ContatosClientesShareBrasil() {
     </div>
   );
   const profileField = (label: string, value?: any, icon?: React.ReactNode) => (
-    <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-4">
+    <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
         {icon}
         {label}
       </div>
-      <p className="mt-2 break-words text-sm font-semibold text-slate-100">
+      <p className="mt-2 break-words text-sm font-semibold text-foreground dark:text-slate-100">
         {value || "Não informado"}
       </p>
     </div>
@@ -1394,14 +1394,14 @@ export function ContatosClientesShareBrasil() {
   ) => {
     const emails = emailsCadastrados(registro);
     return (
-      <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-4 sm:col-span-2">
+      <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4 sm:col-span-2">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
           <Mail
             size={13}
             className={violet ? "text-violet-300" : "text-primary"}
           />
           E-mails cadastrados
-          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-slate-400">
+          <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] text-muted-foreground dark:text-slate-400">
             {emails.length}
           </span>
         </div>
@@ -1411,14 +1411,14 @@ export function ContatosClientesShareBrasil() {
               <a
                 key={email}
                 href={`mailto:${email}`}
-                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/[.08] ${violet ? "border-violet-300/20 bg-violet-300/5 text-violet-100" : "border-primary/20 bg-primary/5 text-slate-100"}`}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/[.08] ${violet ? "border-violet-300/20 bg-violet-300/5 text-violet-100" : "border-primary/20 bg-primary/5 text-foreground dark:text-slate-100"}`}
               >
                 {email}
               </a>
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm font-semibold text-slate-100">
+          <p className="mt-2 text-sm font-semibold text-foreground dark:text-slate-100">
             Não informado
           </p>
         )}
@@ -1459,11 +1459,11 @@ export function ContatosClientesShareBrasil() {
           <div>
             <h2
               id="titulo-agenda-contatos"
-              className="text-lg font-semibold tracking-tight text-white"
+              className="text-lg font-semibold tracking-tight text-foreground dark:text-white"
             >
               Agenda de contatos
             </h2>
-            <p className="mt-0.5 text-sm text-slate-400">
+            <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
               {contacts.length}{" "}
               {contacts.length === 1 ? "contato interno" : "contatos internos"}
             </p>
@@ -1481,7 +1481,7 @@ export function ContatosClientesShareBrasil() {
                 onChange={(event) => setContactSearch(event.target.value)}
                 placeholder="Nome, setor, ramal..."
                 aria-label="Buscar contatos por nome, setor, telefone ou e-mail"
-                className="h-10 rounded-lg border-white/10 bg-[#0b1730] pl-9 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
+                className="h-10 rounded-lg border-border dark:border-white/10 bg-card dark:bg-[#0b1730] pl-9 text-sm text-foreground dark:text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
             <Button
@@ -1501,11 +1501,11 @@ export function ContatosClientesShareBrasil() {
           <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] p-4 text-slate-100 transition-colors hover:border-sky-400/30">
+                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-[#071226] p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
                   <div className="flex min-w-0 items-start gap-3">
                     <span
                       aria-hidden="true"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-sm font-semibold text-sky-200"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-[#102447] text-sm font-semibold text-sky-200"
                     >
                       {item.nome
                         .trim()
@@ -1515,10 +1515,10 @@ export function ContatosClientesShareBrasil() {
                         .join("") || "?"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-white">
+                      <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
                         {item.nome}
                       </h3>
-                      <p className="truncate text-xs text-slate-400">
+                      <p className="truncate text-xs text-muted-foreground dark:text-slate-400">
                         {item.empresa ||
                           item.razao_social ||
                           "Contato profissional"}
@@ -1531,7 +1531,7 @@ export function ContatosClientesShareBrasil() {
                     </div>
                   </div>
 
-                  <dl className="mt-4 flex-1 space-y-2 border-t border-white/5 pt-3 text-xs text-slate-300">
+                  <dl className="mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3 text-xs text-muted-foreground dark:text-slate-300">
                     {item.telefone && (
                       <div className="flex min-w-0 items-center gap-2">
                         <Phone
@@ -1594,7 +1594,7 @@ export function ContatosClientesShareBrasil() {
                       size="icon"
                       onClick={() => editContact(item)}
                       aria-label={`Editar contato ${item.nome}`}
-                      className="h-9 w-9 shrink-0 text-slate-400 hover:text-sky-200"
+                      className="h-9 w-9 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
                     >
                       <Pencil size={14} />
                     </Button>
@@ -1630,10 +1630,10 @@ export function ContatosClientesShareBrasil() {
           if (!open) setSelectedContact(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-white/10 bg-[#071226] text-slate-100 sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-border dark:border-white/10 bg-card dark:bg-[#071226] text-foreground dark:text-slate-100 sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4 pr-6">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#102447] text-lg font-semibold text-sky-200">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-[#102447] text-lg font-semibold text-sky-200">
                 {selectedContact?.nome
                   .trim()
                   .split(/\s+/)
@@ -1642,10 +1642,10 @@ export function ContatosClientesShareBrasil() {
                   .join("")}
               </span>
               <div className="min-w-0 text-left">
-                <DialogTitle className="truncate text-lg text-white">
+                <DialogTitle className="truncate text-lg text-foreground dark:text-white">
                   {selectedContact?.nome}
                 </DialogTitle>
-                <DialogDescription className="truncate text-slate-400">
+                <DialogDescription className="truncate text-muted-foreground dark:text-slate-400">
                   {selectedContact?.empresa ||
                     selectedContact?.razao_social ||
                     "Contato profissional"}
@@ -1660,56 +1660,56 @@ export function ContatosClientesShareBrasil() {
           </DialogHeader>
           <dl className="grid gap-2 sm:grid-cols-2">
             {selectedContact?.telefone && (
-              <div className="rounded-lg border border-white/5 p-3">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="flex items-center gap-2 text-xs text-slate-500">
                   <Phone size={14} />
                   Telefone
                 </dt>
-                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 text-sm font-medium text-foreground dark:text-slate-100">
                   {selectedContact.telefone}
                 </dd>
               </div>
             )}
             {selectedContact?.email && (
-              <div className="min-w-0 rounded-lg border border-white/5 p-3">
+              <div className="min-w-0 rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="flex items-center gap-2 text-xs text-slate-500">
                   <Mail size={14} />
                   E-mail
                 </dt>
-                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 break-words text-sm font-medium text-foreground dark:text-slate-100">
                   {selectedContact.email}
                 </dd>
               </div>
             )}
             {selectedContact?.empresa && (
-              <div className="rounded-lg border border-white/5 p-3">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="flex items-center gap-2 text-xs text-slate-500">
                   <Briefcase size={14} />
                   Empresa
                 </dt>
-                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 text-sm font-medium text-foreground dark:text-slate-100">
                   {selectedContact.empresa}
                 </dd>
               </div>
             )}
             {selectedContact?.razao_social && (
-              <div className="rounded-lg border border-white/5 p-3">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="text-xs text-slate-500">Razão social</dt>
-                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 break-words text-sm font-medium text-foreground dark:text-slate-100">
                   {selectedContact.razao_social}
                 </dd>
               </div>
             )}
             {selectedContact?.cnpj && (
-              <div className="rounded-lg border border-white/5 p-3">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="text-xs text-slate-500">CNPJ</dt>
-                <dd className="mt-1.5 text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 text-sm font-medium text-foreground dark:text-slate-100">
                   {selectedContact.cnpj}
                 </dd>
               </div>
             )}
             {selectedContact?.categoria_tipo === "HANGAR" && (
-              <div className="rounded-lg border border-white/5 p-3 sm:col-span-2">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3 sm:col-span-2">
                 <dt className="text-xs text-slate-500">Serviços do hangar</dt>
                 <dd className="mt-2 grid gap-2 sm:grid-cols-2">
                   <span className="rounded-md bg-white/[.04] p-2 text-sm">
@@ -1734,12 +1734,12 @@ export function ContatosClientesShareBrasil() {
             {(selectedContact?.cidade ||
               selectedContact?.uf ||
               selectedContact?.endereco) && (
-              <div className="rounded-lg border border-white/5 p-3">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3">
                 <dt className="flex items-center gap-2 text-xs text-slate-500">
                   <MapPin size={14} />
                   Localização
                 </dt>
-                <dd className="mt-1.5 break-words text-sm font-medium text-slate-100">
+                <dd className="mt-1.5 break-words text-sm font-medium text-foreground dark:text-slate-100">
                   {[selectedContact.cidade, selectedContact.uf]
                     .filter(Boolean)
                     .join(" / ") || selectedContact.endereco}
@@ -1747,9 +1747,9 @@ export function ContatosClientesShareBrasil() {
               </div>
             )}
             {selectedContact?.observacoes && (
-              <div className="rounded-lg border border-white/5 p-3 sm:col-span-2">
+              <div className="rounded-lg border border-border dark:border-white/5 p-3 sm:col-span-2">
                 <dt className="text-xs text-slate-500">Observações</dt>
-                <dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-slate-100">
+                <dd className="mt-1.5 whitespace-pre-wrap break-words text-sm text-foreground dark:text-slate-100">
                   {selectedContact.observacoes}
                 </dd>
               </div>
@@ -1784,13 +1784,13 @@ export function ContatosClientesShareBrasil() {
 
   const clientListContent = (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-white/[.08] bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
+      <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-[-.04em] text-white">
+            <h2 className="text-2xl font-extrabold tracking-[-.04em] text-foreground dark:text-white">
               COTISTAS
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-muted-foreground dark:text-slate-400">
               Selecione um perfil para abrir todos os dados em uma página
               exclusiva.
             </p>
@@ -1807,11 +1807,11 @@ export function ContatosClientesShareBrasil() {
           </Button>
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-4">
+          <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
             <p className="text-[10px] uppercase tracking-wider text-slate-500">
               Total na carteira
             </p>
-            <p className="mt-1 text-2xl font-extrabold text-white">
+            <p className="mt-1 text-2xl font-extrabold text-foreground dark:text-white">
               {clients.length}
             </p>
           </div>
@@ -1873,10 +1873,10 @@ export function ContatosClientesShareBrasil() {
               <div className="flex items-start gap-2">
                 <Plane size={16} className="mt-0.5 shrink-0 text-cyan-300" />
                 <div>
-                  <p className="text-xs font-bold text-white">
+                  <p className="text-xs font-bold text-foreground dark:text-white">
                     Vincular aeronave
                   </p>
-                  <p className="mt-1 text-[10px] text-slate-400">
+                  <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
                     Opcional. O vínculo será salvo em{" "}
                     <code>cotista_aeronave</code> junto com o percentual.
                   </p>
@@ -2000,9 +2000,9 @@ export function ContatosClientesShareBrasil() {
         </section>
       )}
       <section className={`${card} overflow-hidden`}>
-        <div className="flex flex-col gap-3 border-b border-white/[.07] p-4 md:flex-row md:items-center md:justify-between md:px-5">
+        <div className="flex flex-col gap-3 border-b border-border dark:border-white/[.07] p-4 md:flex-row md:items-center md:justify-between md:px-5">
           <div>
-            <p className="text-xs font-bold text-white">
+            <p className="text-xs font-bold text-foreground dark:text-white">
               {clientStatus === "ativos"
                 ? "Clientes ativos"
                 : "Clientes inativos"}
@@ -2025,7 +2025,7 @@ export function ContatosClientesShareBrasil() {
                 className="h-9 w-full bg-white/[.04] pl-9 text-xs sm:w-[190px]"
               />
             </div>
-            <div className="flex rounded-lg border border-white/10 bg-white/[.03] p-1">
+            <div className="flex rounded-lg border border-border dark:border-white/10 bg-white/[.03] p-1">
               <button
                 type="button"
                 onClick={() => setClientStatus("ativos")}
@@ -2061,7 +2061,7 @@ export function ContatosClientesShareBrasil() {
                   type="button"
                   key={item.id}
                   onClick={() => openClient(item.id)}
-                  className={`group w-full rounded-2xl border border-white/[.08] bg-[#0d1520] text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_14px_35px_rgba(0,0,0,.2)] ${clientView === "lista" ? "flex flex-wrap items-center gap-4 p-4" : "flex min-h-[220px] flex-col justify-between p-4 md:p-5"}`}
+                  className={`group w-full rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1520] text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_14px_35px_rgba(0,0,0,.2)] ${clientView === "lista" ? "flex flex-wrap items-center gap-4 p-4" : "flex min-h-[220px] flex-col justify-between p-4 md:p-5"}`}
                 >
                   <span className="flex min-w-0 items-start gap-3">
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-cyan-400 to-blue-500 text-base font-black text-white shadow-lg shadow-cyan-500/10">
@@ -2075,7 +2075,7 @@ export function ContatosClientesShareBrasil() {
                       />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-extrabold text-white md:text-[15px]">
+                      <span className="block truncate text-sm font-extrabold text-foreground dark:text-white md:text-[15px]">
                         {item.razao_social || "Cliente sem razão social"}
                       </span>
                       <span className="mt-1 block text-[10px] font-mono text-slate-500">
@@ -2090,8 +2090,8 @@ export function ContatosClientesShareBrasil() {
                   <span
                     className={
                       clientView === "lista"
-                        ? "ml-auto flex flex-wrap items-center gap-3 text-[10px] text-slate-400"
-                        : "mt-4 block border-t border-white/[.08] pt-4"
+                        ? "ml-auto flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground dark:text-slate-400"
+                        : "mt-4 block border-t border-border dark:border-white/[.08] pt-4"
                     }
                   >
                     {item.telefone_cliente && (
@@ -2116,7 +2116,7 @@ export function ContatosClientesShareBrasil() {
                           {itemLinks.slice(0, 4).map((link) => (
                             <span
                               key={link.id}
-                              className="rounded-md bg-white/[.06] px-2 py-1 text-[10px] text-slate-300"
+                              className="rounded-md bg-white/[.06] px-2 py-1 text-[10px] text-muted-foreground dark:text-slate-300"
                             >
                               {link.matricula_registro || "Aeronave"}{" "}
                               {link.percentual_sociedade
@@ -2151,20 +2151,20 @@ export function ContatosClientesShareBrasil() {
         type="button"
         variant="ghost"
         onClick={closeClient}
-        className="h-9 gap-2 px-1 text-xs text-slate-400 hover:text-white"
+        className="h-9 gap-2 px-1 text-xs text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-white"
       >
         <ChevronLeft size={16} /> Voltar para clientes
       </Button>
       <section
-        className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]"
+        className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]"
         style={{
-          borderColor: "rgba(255, 255, 255, 0.02)",
-          backgroundColor: "rgba(6, 14, 25, 1)",
+          borderColor: "var(--light-line, rgba(255, 255, 255, 0.02))",
+          backgroundColor: "var(--light-surface, rgba(6, 14, 25, 1))",
         }}
       >
         <div
-          className="relative overflow-hidden bg-gradient-to-br from-[#142437] via-[#101a28] to-[#0d1420] p-5 md:p-8"
-          style={{ backgroundColor: "rgba(1, 5, 17, 1)" }}
+          className="relative overflow-hidden bg-card dark:bg-gradient-to-br dark:from-[#142437] dark:via-[#101a28] dark:to-[#0d1420] p-5 md:p-8"
+          style={{ backgroundColor: "var(--light-surface, rgba(1, 5, 17, 1))" }}
         >
           <div className="absolute -right-16 -top-20 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -2181,7 +2181,7 @@ export function ContatosClientesShareBrasil() {
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-extrabold tracking-[-.04em] text-white md:text-3xl">
+                  <h2 className="text-2xl font-extrabold tracking-[-.04em] text-foreground dark:text-white md:text-3xl">
                     {selected.razao_social}
                   </h2>
                   <span
@@ -2195,7 +2195,7 @@ export function ContatosClientesShareBrasil() {
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-muted-foreground dark:text-slate-400">
                   {selected.cnpj || "CNPJ não informado"}
                   {selected.codigo_cliente
                     ? ` · Código ${selected.codigo_cliente}`
@@ -2234,27 +2234,27 @@ export function ContatosClientesShareBrasil() {
             </div>
           </div>
           <div className="relative mt-7 grid gap-2 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/[.08] bg-black/15 p-3">
+            <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
                 Sócios
               </p>
-              <p className="mt-1 text-lg font-extrabold text-white">
+              <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
                 {selectedClientSocios.length}
               </p>
             </div>
-            <div className="rounded-xl border border-white/[.08] bg-black/15 p-3">
+            <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
                 Aeronaves
               </p>
-              <p className="mt-1 text-lg font-extrabold text-white">
+              <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
                 {links.filter((x) => x.cliente_id === selectedClient).length}
               </p>
             </div>
-            <div className="rounded-xl border border-white/[.08] bg-black/15 p-3">
+            <div className="rounded-xl border border-border dark:border-white/[.08] bg-black/15 p-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
                 Documentos
               </p>
-              <p className="mt-1 text-lg font-extrabold text-white">
+              <p className="mt-1 text-lg font-extrabold text-foreground dark:text-white">
                 {
                   documents.filter((x) => x.cliente_id === selectedClient)
                     .length
@@ -2263,11 +2263,11 @@ export function ContatosClientesShareBrasil() {
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1 border-t border-white/[.08] bg-[#0e1724] px-4 pt-3 md:px-7">
+        <div className="flex flex-wrap gap-1 border-t border-border dark:border-white/[.08] bg-card dark:bg-[#0e1724] px-4 pt-3 md:px-7">
           <button
             type="button"
             onClick={() => setProfileTab("visao-geral")}
-            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "visao-geral" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "visao-geral" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-muted-foreground dark:hover:text-slate-300"}`}
           >
             Visão geral
           </button>
@@ -2277,14 +2277,14 @@ export function ContatosClientesShareBrasil() {
               setProfileTab("dados");
               setEditingClient(false);
             }}
-            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "dados" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "dados" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-muted-foreground dark:hover:text-slate-300"}`}
           >
             Dados cadastrais
           </button>
           <button
             type="button"
             onClick={() => setProfileTab("documentos")}
-            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "documentos" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+            className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "documentos" ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-muted-foreground dark:hover:text-slate-300"}`}
           >
             Documentos
           </button>
@@ -2296,7 +2296,7 @@ export function ContatosClientesShareBrasil() {
                 setSelectedSocio(socio.id);
                 setProfileTab("socio");
               }}
-              className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "socio" && selectedSocio === socio.id ? "border-violet-300 text-violet-300" : "border-transparent text-slate-500 hover:text-slate-300"}`}
+              className={`border-b-2 px-3 pb-3 text-[11px] font-bold ${profileTab === "socio" && selectedSocio === socio.id ? "border-violet-300 text-violet-300" : "border-transparent text-slate-500 hover:text-muted-foreground dark:hover:text-slate-300"}`}
             >
               <UserRound size={12} className="mr-1 inline" />{" "}
               {socio.nome || "Sócio"}
@@ -2522,7 +2522,7 @@ export function ContatosClientesShareBrasil() {
               <div>
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold text-white">
+                    <p className="text-sm font-bold text-foreground dark:text-white">
                       Documentos do cliente
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
@@ -2556,8 +2556,8 @@ export function ContatosClientesShareBrasil() {
                   </p>
                 )}
               </div>
-              <div className="border-t border-white/[.07] pt-6">
-                <p className="text-sm font-bold text-white">
+              <div className="border-t border-border dark:border-white/[.07] pt-6">
+                <p className="text-sm font-bold text-foreground dark:text-white">
                   Aeronaves vinculadas
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -2609,12 +2609,12 @@ export function ContatosClientesShareBrasil() {
           )}
           {profileTab === "socio" && currentSocio && (
             <div className="space-y-5">
-              <div className="flex items-center gap-3 border-b border-white/[.07] pb-4">
+              <div className="flex items-center gap-3 border-b border-border dark:border-white/[.07] pb-4">
                 <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-400/10 text-lg font-bold text-violet-300">
                   {(currentSocio.nome || "?").charAt(0).toUpperCase()}
                 </span>
                 <div>
-                  <p className="text-lg font-extrabold text-white">
+                  <p className="text-lg font-extrabold text-foreground dark:text-white">
                     Perfil de {currentSocio.nome}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -2745,7 +2745,7 @@ export function ContatosClientesShareBrasil() {
               {socioDocuments.filter((doc) => doc.socio_id === currentSocio.id)
                 .length ? (
                 <div>
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold text-foreground dark:text-white">
                     Documentos deste sócio
                   </p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -2769,7 +2769,7 @@ export function ContatosClientesShareBrasil() {
             </div>
           )}
           {profileTab === "socio" && !currentSocio && (
-            <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-xs text-slate-500">
+            <div className="rounded-xl border border-dashed border-border dark:border-white/10 p-8 text-center text-xs text-slate-500">
               Selecione a tab de um sócio para abrir o perfil individual.
             </div>
           )}
@@ -2784,7 +2784,7 @@ export function ContatosClientesShareBrasil() {
       detail="Agenda de contatos, perfis e criação de cotistas."
     >
       <Feedback error={error} ok={ok} />
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[.08] bg-gradient-to-r from-[#101b2a] to-[#0b131f] p-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-[#101b2a] dark:to-[#0b131f] p-2">
         <div className="flex flex-wrap gap-1">
           <Button
             type="button"
@@ -3417,16 +3417,16 @@ function TaskCard({
     task.prioridade === "ALTA"
       ? "bg-rose-400/10 text-rose-300"
       : task.prioridade === "BAIXA"
-        ? "bg-slate-400/10 text-slate-400"
+        ? "bg-slate-400/10 text-muted-foreground dark:text-slate-400"
         : "bg-amber-400/10 text-amber-300";
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full rounded-xl border p-3 text-left transition-all ${selected ? "border-primary/60 bg-primary/[.08] shadow-[0_0_0_1px_rgba(47,185,167,.12)]" : "border-white/[.07] bg-white/[.025] hover:border-white/[.16] hover:bg-white/[.045]"}`}
+      className={`w-full rounded-xl border p-3 text-left transition-all ${selected ? "border-primary/60 bg-primary/[.08] shadow-[0_0_0_1px_rgba(47,185,167,.12)]" : "border-border dark:border-white/[.07] bg-white/[.025] hover:border-border dark:hover:border-white/[.16] hover:bg-white/[.045]"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="line-clamp-2 text-xs font-bold leading-relaxed text-slate-100">
+        <p className="line-clamp-2 text-xs font-bold leading-relaxed text-foreground dark:text-slate-100">
           {task.titulo}
         </p>
         <span
@@ -3440,7 +3440,7 @@ function TaskCard({
           {task.descricao}
         </p>
       )}
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[.06] pt-2.5 text-[9px]">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border dark:border-white/[.06] pt-2.5 text-[9px]">
         <span className="text-slate-500">{task.prazo || "Sem prazo"}</span>
         {task.status !== "CONCLUIDA" ? (
           <span

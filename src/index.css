@@ -28,12 +28,12 @@
   --app-header-height: calc(68px + var(--safe-area-top));
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --background: 214 14% 90%;
+  --background: 214 25% 94%;
   --foreground: 215 34% 15%;
-  --border: 214 24% 86%;
+  --border: 214 20% 78%;
   --card: 0 0% 100%;
   --card-foreground: 215 34% 15%;
-  --card-border: 214 24% 86%;
+  --card-border: 214 20% 78%;
   --sidebar: 215 42% 16%;
   --sidebar-foreground: 215 26% 87%;
   --sidebar-border: 214 28% 25%;
@@ -44,18 +44,18 @@
   --sidebar-ring: var(--cerulean-400);
   --popover: 0 0% 100%;
   --popover-foreground: 215 34% 15%;
-  --popover-border: 214 24% 86%;
+  --popover-border: 214 20% 78%;
   --primary: var(--cerulean-500);
-  --primary-foreground: 215 42% 12%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 214 30% 92%;
   --secondary-foreground: 215 34% 20%;
   --muted: 214 30% 93%;
-  --muted-foreground: 215 18% 47%;
+  --muted-foreground: 215 18% 38%;
   --accent: 151 52% 31%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 70% 48%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 24% 82%;
+  --input: 214 20% 68%;
   --ring: var(--cerulean-500);
   --chart-1: var(--cerulean-500);
   --chart-2: 139 48% 41%;
@@ -181,19 +181,13 @@
 .diario-bordo .text-\[9px\] { font-size: 0.75rem; }
 .diario-bordo .text-\[10px\] { font-size: 0.8125rem; }
 .diario-bordo .text-\[11px\] { font-size: 0.875rem; }
-.diario-bordo .text-slate-500 { color: rgb(148 163 184); }
-.diario-bordo .text-slate-400 { color: rgb(203 213 225); }
+.dark .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
+.dark .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
-html:not(.dark) [class*="bg-card"]:not(header *) {
-  background-color: rgba(213, 224, 226, 1) !important;
-  border-color: rgba(3, 6, 8, 0.48) !important;
-  color: rgba(17, 20, 25, 1);
-  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.33);
-}
 
 html:not(.dark) .menu-hover-escuro:hover {
-  background-color: rgba(164, 188, 198, 1) !important;
-  color: rgba(3, 6, 8, 1);
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground));
 }
 
 .route-enter { animation: route-enter .35s ease-out both; }
@@ -342,3 +336,109 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+
+/* Modo claro: superfícies, leitura e elevação compartilhadas pelos módulos.
+   Os tokens --light-* só existem neste tema; os fallbacks locais preservam o dark. */
+html:not(.dark) {
+  color-scheme: light;
+  --app-color-scheme: light;
+  --light-canvas: #edf1f6;
+  --light-surface: #ffffff;
+  --light-soft: #e8eef5;
+  --light-line: #bdc8d6;
+  --light-text: #1b293b;
+  --light-muted: #526176;
+  --light-info: #03658d;
+  --light-info-soft: #e4f1f9;
+  --light-info-line: #91bcd3;
+  --light-success: #176846;
+  --light-success-soft: #e8f5ee;
+  --light-success-line: #a1cdb5;
+  --light-warning: #835900;
+  --light-warning-soft: #fff5db;
+  --light-warning-line: #dfc785;
+  --light-danger: #b52c32;
+  --light-danger-soft: #fcecee;
+  --light-danger-line: #e1acb2;
+  --light-violet: #6f42aa;
+  --light-violet-soft: #f2ecfa;
+  --light-violet-line: #c5b2df;
+  --light-elevation: 0 1px 2px rgb(27 41 59 / .06), 0 5px 16px rgb(27 41 59 / .05);
+}
+
+/* Módulos que ainda declaram uma paleta HSL própria, inclusive em portais. */
+html:not(.dark) :is(.financeiro-profissional, .despesas-theme, .company-cash, .cash-dialog, .cash-popover) {
+  --background: 214 25% 94%; --foreground: 215 34% 17%;
+  --card: 0 0% 100%; --card-foreground: 215 34% 17%;
+  --popover: 0 0% 100%; --popover-foreground: 215 34% 17%;
+  --muted: 214 30% 92%; --muted-foreground: 215 18% 38%;
+  --border: 214 20% 78%; --input: 214 20% 68%;
+  --primary: 196.36 88.51% 34.12%; --primary-foreground: 0 0% 100%;
+  --accent: 204 55% 92%; --accent-foreground: 204 75% 26%;
+  --ring: 196.36 88.51% 34.12%; --destructive: 0 70% 43%;
+  color-scheme: light;
+}
+
+html:not(.dark) :is(.app-card, .financeiro-panel, .financeiro-kpi, .financeiro-header,
+  .despesa-ledger, .cash-ledger-panel, .ac-card, .sb-panel, .sb-kpi, .fb-card, .fb-kpi) {
+  border-color: hsl(var(--card-border));
+  box-shadow: var(--light-elevation);
+}
+html:not(.dark) :is(.app-table-frame, .erp-tabela-container) {
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: var(--light-elevation);
+}
+/* Includes native tables, retaining sticky positioning and existing row states. */
+html:not(.dark) main :where(table) { background-color: hsl(var(--card)); }
+html:not(.dark) :where(main, [role="dialog"]) :where(thead) {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+html:not(.dark) :where(main, [role="dialog"]) :where(th, td) {
+  border-color: hsl(var(--border));
+}
+html:not(.dark) :where(main, [role="dialog"]) :where(tbody > tr) {
+  border-bottom: 1px solid hsl(var(--border) / .75);
+}
+html:not(.dark) :where(main, [role="dialog"]) :where(tbody > tr:hover) {
+  background-color: hsl(var(--primary) / .045);
+}
+html:not(.dark) .campo { background-color: hsl(var(--card)); border-color: hsl(var(--input)); }
+html:not(.dark) .campo:focus { background-color: hsl(var(--card)); }
+html:not(.dark) .campo::-webkit-calendar-picker-indicator { filter: none; }
+html:not(.dark) .task-compose { background: hsl(var(--card)); border-color: hsl(var(--border)); box-shadow: var(--light-elevation); }
+html:not(.dark) .task-compose .bg-background\/50 { background-color: hsl(var(--muted)); border-color: hsl(var(--input)); }
+html:not(.dark) .task-compose .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+html:not(.dark) .task-compose select { color-scheme: light; }
+html:not(.dark) .bcp { --bcp-accent: #03658d; --bcp-heading: #526176; }
+html:not(.dark) .fb { --fb-border: #bdc8d6; }
+html:not(.dark) .sb { --line: #bdc8d6; }
+
+/* Status discretos, com contraste sobre superfícies claras. */
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-emerald-300, .text-emerald-400, .text-green-400) { color: var(--light-success); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-300, .text-amber-400, .text-yellow-400) { color: var(--light-warning); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
+
+@media print {
+  html:not(.dark) :is(.app-card, .app-table-frame, .financeiro-panel, .financeiro-kpi, .sb-panel, .sb-kpi, .fb-card, .fb-kpi) { box-shadow: none; }
+}
+
+html:not(.dark) :where(section, article, div).border:is(.bg-card, .bg-card\/60, .bg-card\/65, .bg-card\/70, .bg-card\/80) {
+  border-color: hsl(var(--card-border));
+  box-shadow: var(--light-elevation);
+}
+html:not(.dark) .app-tabs-list { border: 1px solid hsl(var(--border)); box-shadow: inset 0 1px 2px rgb(27 41 59 / .04); }
+html:not(.dark) .ac-btn--primary { color: #fff; }
+html:not(.dark) .nf-btn.primary:hover { background: hsl(var(--primary)); color: #fff; }
+html:not(.dark) .nf-btn.destructive { background: hsl(var(--destructive)); color: #fff; }
+html:not(.dark) .nf-icon:hover { color: hsl(var(--foreground)); }
+html:not(.dark) :is(.company-cash, .cash-dialog, .cash-popover) {
+  --cash-soft: #e8eef5; --cash-accent-soft: #e4f1f9;
+  --cash-expense-soft: #fcecee; --cash-warning-soft: #fff5db;
+}
+html:not(.dark) .despesas-theme { --bg-hover: #e8eef5; }

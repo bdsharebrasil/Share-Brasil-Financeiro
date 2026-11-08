@@ -9,7 +9,7 @@ export default function DiarioPainelFlip({ frente, verso, rotuloFrente = "Lança
       <button
         type="button"
         onClick={() => setVirado((atual) => !atual)}
-        className="absolute -top-3 right-4 z-30 flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-[#0f1a27]/90 px-3 py-1.5 text-[10px] font-bold text-cyan-200 shadow-lg backdrop-blur transition-colors hover:border-cyan-300/60 hover:text-cyan-100"
+        className="absolute -top-3 right-4 z-30 flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-card dark:bg-[#0f1a27]/90 px-3 py-1.5 text-[10px] font-bold text-cyan-200 shadow-lg backdrop-blur transition-colors hover:border-cyan-300/60 hover:text-cyan-100"
         title="Girar quadro"
       >
         <RotateCw size={12} className={`transition-transform duration-500 ${virado ? "rotate-180" : ""}`} />

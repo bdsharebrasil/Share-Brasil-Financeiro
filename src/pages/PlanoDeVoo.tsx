@@ -104,14 +104,14 @@ export default function PlanoDeVoo() {
 
   return (
     <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-[10px] border border-white/10 bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px] shadow-[0_18px_55px_rgba(0,0,0,.2)] md:px-8">
+      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px] shadow-[0_18px_55px_rgba(0,0,0,.2)] md:px-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Plano de voo</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground dark:text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
           </div>
-          <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[.06] px-4 text-xs font-bold text-white transition-colors hover:bg-white/[.12]">
+          <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border dark:border-white/15 bg-white/[.06] px-4 text-xs font-bold text-white transition-colors hover:bg-white/[.12]">
             <FilePlus2 size={15} /> Novo plano
           </button>
         </div>

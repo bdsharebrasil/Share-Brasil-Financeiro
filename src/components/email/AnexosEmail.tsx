@@ -279,10 +279,10 @@ export function AnexosEmail({
             className="
               h-8 w-fit gap-2
               rounded-md
-              border-white/[.08]
-              bg-[#0d1525]
+              border-border dark:border-white/[.08]
+              bg-card dark:bg-[#0d1525]
               px-3
-              text-[10px] font-semibold text-slate-300
+              text-[10px] font-semibold text-muted-foreground dark:text-slate-300
               transition-colors
               hover:bg-white/[.06]
               hover:text-white
@@ -320,8 +320,8 @@ export function AnexosEmail({
             w-[min(440px,calc(100vw-2rem))]
             overflow-hidden
             rounded-xl
-            border border-white/[.08]
-            bg-[#0b1220]
+            border border-border dark:border-white/[.08]
+            bg-card dark:bg-[#0b1220]
             p-0
             shadow-2xl
           "
@@ -384,14 +384,14 @@ export function AnexosEmail({
                       items-center justify-center
                       rounded-md
                       bg-white/[.05]
-                      text-slate-300
+                      text-muted-foreground dark:text-slate-300
                     "
                   >
                     <Plus size={14} />
                   </div>
 
                   <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-slate-200">
+                    <span className="font-medium text-foreground dark:text-slate-200">
                       Anexar arquivo do computador
                     </span>
 
@@ -465,7 +465,7 @@ export function AnexosEmail({
                                     ${
                                       marcado
                                         ? "border-sky-500/40 bg-sky-500/15 text-sky-400"
-                                        : "border-white/[.06] bg-white/[.03] text-slate-400"
+                                        : "border-border dark:border-white/[.06] bg-white/[.03] text-muted-foreground dark:text-slate-400"
                                     }
                                   `}
                                 >
@@ -484,7 +484,7 @@ export function AnexosEmail({
                                       ${
                                         marcado
                                           ? "text-sky-300"
-                                          : "text-slate-200"
+                                          : "text-foreground dark:text-slate-200"
                                       }
                                     `}
                                     title={anexo.nome}
@@ -508,7 +508,7 @@ export function AnexosEmail({
                                     ${
                                       marcado
                                         ? "border-sky-500 bg-sky-500 text-white"
-                                        : "border-white/15 bg-transparent"
+                                        : "border-border dark:border-white/15 bg-transparent"
                                     }
                                   `}
                                   aria-hidden="true"
@@ -554,7 +554,7 @@ export function AnexosEmail({
               <div
                 className="
                   flex items-center justify-between
-                  border-t border-white/[.06]
+                  border-t border-border dark:border-white/[.06]
                   bg-white/[.02]
                   px-3 py-2
                 "

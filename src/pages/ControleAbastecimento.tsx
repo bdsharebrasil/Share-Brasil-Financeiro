@@ -463,11 +463,11 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                       >
                         <div className="relative mx-auto h-[92px] w-[124px] max-w-full px-[4px] transition-transform duration-300 group-hover:scale-[1.04]">
                           <span className="absolute left-1.5 top-0 z-0 h-4 w-14 rounded-t-[11px] bg-gradient-to-r from-orange-600 to-amber-500" />
-                          <span className="absolute left-2 top-3 z-10 h-3 w-[108px] rounded-t border border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
+                          <span className="absolute left-2 top-3 z-10 h-3 w-[108px] rounded-t border border-border dark:border-white/30 bg-gradient-to-r from-amber-100 to-white/80 dark:from-white/85 dark:to-slate-200/80" />
                           <span className="absolute inset-x-0 top-3.5 bottom-0 z-20 overflow-hidden rounded-[11px] border border-amber-300/[.88] bg-gradient-to-br from-yellow-400 via-amber-400 to-orange-400">
                             <span className="absolute inset-x-2 top-1.5 h-1 rounded-full bg-white/25" />
                             <span className="absolute inset-x-0 bottom-0 h-9 bg-orange-500/10" />
-                            <span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-white/30 bg-white/25 font-mono text-xs font-black text-amber-950">
+                            <span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-content-center rounded-full border border-border dark:border-white/30 bg-white/25 font-mono text-xs font-black text-amber-950">
                               {registros.length}
                             </span>
                           </span>

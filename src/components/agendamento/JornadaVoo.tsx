@@ -9,7 +9,7 @@ import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api
 import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
 
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:bg-secondary/30 disabled:opacity-50";
-const box = "rounded-2xl border border-[rgba(34,44,57,0.96)] bg-card/80 p-5 shadow-sm";
+const box = "rounded-2xl border border-border dark:border-[rgba(34,44,57,0.96)] bg-card/80 p-5 shadow-sm";
 const hoje = () => new Date().toISOString().slice(0, 10);
 // Horários operacionais são sempre informados e transmitidos em UTC/Zulu.
 const iso = (data: string, hora: string) => `${data}T${hora}:00Z`;

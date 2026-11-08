@@ -184,6 +184,18 @@
 .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
+html:not(.dark) [class*="bg-card"]:not(header *) {
+  background-color: rgba(213, 224, 226, 1) !important;
+  border-color: rgba(3, 6, 8, 0.48) !important;
+  color: rgba(17, 20, 25, 1);
+  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.33);
+}
+
+html:not(.dark) .menu-hover-escuro:hover {
+  background-color: rgba(164, 188, 198, 1) !important;
+  color: rgba(3, 6, 8, 1);
+}
+
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse-dot 2.6s ease-in-out infinite; }

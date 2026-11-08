@@ -183,6 +183,11 @@
 .diario-bordo .text-slate-500 { color: rgb(148 163 184); }
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
+html:not(.dark) [class*="bg-card"]:not(header *) {
+  background-color: hsl(206 93% 95%) !important;
+  border-color: hsl(199 100% 7%) !important;
+}
+
 .route-enter { animation: route-enter .35s ease-out both; }
 @keyframes route-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse-dot 2.6s ease-in-out infinite; }

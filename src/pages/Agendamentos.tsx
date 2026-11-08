@@ -38,6 +38,8 @@ import {
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
 import JornadaVoo from "@/components/agendamento/JornadaVoo";
+import EscalaCalendario from "@/components/agendamento/EscalaCalendario";
+import { conflitosDoTripulante, DIA, montarBlocos } from "@/lib/escala-tempo";
 import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
 import { calcularProgressoChecklist, correspondeFiltroStatusAgendamento, obterAcoesAgendamento, statusPermiteAbrirJornada, statusPermiteChecklist } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";

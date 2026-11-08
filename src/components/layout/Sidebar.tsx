@@ -75,7 +75,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
           "text-[11px] font-semibold transition-all",
           selecionado
             ? "border-sidebar-primary bg-sidebar-primary/15 text-sidebar-primary"
-            : "border-transparent text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            : "border-transparent text-sidebar-foreground/70 hover:-translate-y-0.5 hover:border-sidebar-border hover:bg-[hsl(198,100%,18%)] hover:text-white",
         )}
       >
         <Icon size={item.id === "financeiro-cotista" ? (compacto ? 16 : 14) : (compacto ? 18 : 16)} strokeWidth={selecionado ? 2.3 : 1.8} />

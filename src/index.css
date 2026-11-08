@@ -184,8 +184,10 @@
 .diario-bordo .text-slate-400 { color: rgb(203 213 225); }
 
 html:not(.dark) [class*="bg-card"]:not(header *) {
-  background-color: hsl(206 93% 95%) !important;
-  border-color: hsl(199 100% 7%) !important;
+  background-color: rgba(213, 224, 226, 1) !important;
+  border-color: rgba(3, 6, 8, 0.48) !important;
+  color: rgba(17, 20, 25, 1);
+  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.33);
 }
 
 .route-enter { animation: route-enter .35s ease-out both; }

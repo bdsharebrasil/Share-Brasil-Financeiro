@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import EtapasChecklist from "./EtapasChecklist";
+import ListaChecklistConcluido from "./ListaChecklistConcluido";
 import { Button } from "@/components/ui/button";
 import {
   buscarAbastecimentoOpcoes,
@@ -506,7 +507,16 @@ export default function ChecklistPreVoo({
           <PesoBalanceamentoFicha item={item} />
         </div>
       )}
-      {aberto && (
+      {aberto && checklistConcluido && (
+        <ListaChecklistConcluido
+          respostas={respostas}
+          alertas={alertas}
+          nivelOleo={nivelOleo}
+          observacoes={observacoes}
+          necessitaAbastecer={necessitaAbastecer === "sim"}
+        />
+      )}
+      {aberto && !checklistConcluido && (
         <div className="space-y-4 p-4 sm:p-5">
           <EtapasChecklist
             etapas={etapas}
@@ -538,7 +548,7 @@ export default function ChecklistPreVoo({
                       return (
                         <div
                           key={i.id}
-                          className="flex flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-background/50 p-3.5 shadow-sm sm:flex-row sm:items-center"
+                          className={`flex flex-col justify-between gap-3 rounded-2xl border ${r?.status === "feito" ? "border-emerald-200 dark:border-border/70" : "border-border/70"} bg-background/50 p-3.5 shadow-sm sm:flex-row sm:items-center`}
                         >
                           <div className="min-w-0 flex-1">
                             <span className="flex items-start gap-2 text-[11px]">
@@ -620,19 +630,20 @@ export default function ChecklistPreVoo({
                           pré voo” no financeiro.
                         </p>
                       </div>
-                      <select
-                        value={necessitaAbastecer}
-                        onChange={(e) => {
-                          setNecessitaAbastecer(e.target.value);
-                          if (e.target.value !== "sim")
-                            setTrechoConfirmado(false);
-                        }}
-                        className="h-9 w-full rounded-lg border border-border bg-background px-2 text-xs sm:ml-auto sm:w-auto"
-                      >
-                        <option value="">Selecione</option>
-                        <option value="sim">Sim</option>
-                        <option value="nao">Não</option>
-                      </select>
+                      <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-xs font-semibold sm:ml-auto">
+                        <input
+                          type="checkbox"
+                          checked={necessitaAbastecer === "sim"}
+                          onChange={(e) => {
+                            setNecessitaAbastecer(
+                              e.target.checked ? "sim" : "nao",
+                            );
+                            if (!e.target.checked) setTrechoConfirmado(false);
+                          }}
+                          className="h-4 w-4 accent-primary"
+                        />
+                        Necessita abastecer
+                      </label>
                     </div>
                     {necessitaAbastecer === "sim" && (
                       <div className="space-y-3">

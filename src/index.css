@@ -360,11 +360,11 @@ html:not(.dark) {
   --light-info-line: #91bcd3;
   --light-success: #176846;
   --light-success-soft: #e8f5ee;
-  --light-success-line: #a1cdb5;
-  --light-warning: #835900;
+  --light-success-line: #36cc7a;
+  --light-warning: #f5aa1f;
   --light-warning-soft: #fff5db;
   --light-warning-line: #dfc785;
-  --light-danger: #b52c32;
+  --light-danger: #b40710;
   --light-danger-soft: #fcecee;
   --light-danger-line: #e1acb2;
   --light-violet: #6f42aa;
@@ -479,7 +479,7 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
   --menu-hover-border: #308db8;
 }
 .app-topbar .menu-cabecalho {
-  --menu-hover-bg: #0c4c73;
+  --menu-hover-bg: #094266;
   --menu-hover-fg: #b7c6cfd7;
   --menu-hover-border: #0f78a8dc;
 }

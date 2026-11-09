@@ -301,7 +301,7 @@ export default function DashboardFinanceiro({
           icon={<Mail size={16} className="text-[rgba(213,102,235,1)]" />}
           label="E-mail"
           detail="Caixa de saída"
-          iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)]"
+          iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)] dark:border-[rgba(138,12,165,0.59)] dark:bg-[rgba(55,14,233,0.15)]"
           iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
         />

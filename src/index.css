@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@100;200;300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -63,7 +63,7 @@
   --chart-4: 271 56% 61%;
   --chart-5: 0 70% 53%;
   --app-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --app-font-mono: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --radius: 0.75rem;
   --button-outline: rgba(16, 40, 66, .14);
   --elevate-1: rgba(16, 40, 66, .04);

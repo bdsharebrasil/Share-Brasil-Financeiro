@@ -337,7 +337,6 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">
             <Fuel className="text-primary" size={26} /> Controle de Abastecimento
           </h1>
-          <p className="mt-1.5 text-xs text-muted-foreground">Gestão operacional e financeira dos abastecimentos de combustível.</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {aoVoltar && (
@@ -390,9 +389,9 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
                 ) : cotistasFiltrados.length ? (
                     cotistasFiltrados.map((item) => (
-                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
-                      <h3 className="truncate text-sm font-bold text-foreground">{item.nome}</h3>
-                      <div className="mt-3 flex items-center justify-between gap-1.5 text-[10px] font-semibold text-primary">
+                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative m-[2px_1px] flex flex-col p-[28px_16px] text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                      <h3 className="mx-[-10px] my-[2px] truncate px-0 py-1 text-sm font-bold text-foreground">{item.nome}</h3>
+                      <div className="mt-[15px] mr-[-4px] mb-[-8px] ml-[-7px] flex items-center justify-between gap-1.5 px-0 py-1 text-[10px] font-semibold text-primary">
                         <span className="flex items-center gap-1.5">
                           <span>Ver histórico</span>
                           <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />

@@ -37,7 +37,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className={`menu-dashboard group flex h-full min-h-[92px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border ${item.fundo ?? "bg-[rgba(233,243,243,1)]"} text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
+      className={`menu-dashboard group flex h-full min-h-[92px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border ${item.fundo ?? "bg-[rgba(233,243,243,1)] dark:bg-card/65"} text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
@@ -132,7 +132,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               onKeyDown={(event) => navegarAbas(event, indice)}
               className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal rounded-lg px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "border border-border dark:border-[rgba(23,47,77,1)] bg-[rgba(33,70,112,1)] text-[rgba(237,244,246,1)]"
+                  ? "border border-border bg-[rgba(33,70,112,1)] text-[rgba(237,244,246,1)] dark:bg-card dark:text-primary"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >

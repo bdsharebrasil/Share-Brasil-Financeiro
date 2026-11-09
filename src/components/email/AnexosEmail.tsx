@@ -280,12 +280,12 @@ export function AnexosEmail({
               h-8 w-fit gap-2
               rounded-md
               border-border dark:border-white/[.08]
-              bg-card dark:bg-[#0d1525]
+              bg-card
               px-3
               text-[10px] font-semibold text-muted-foreground dark:text-slate-300
               transition-colors
-              hover:bg-white/[.06]
-              hover:text-white
+              hover:bg-secondary
+              hover:text-foreground
             "
           >
             <Paperclip
@@ -321,7 +321,7 @@ export function AnexosEmail({
             overflow-hidden
             rounded-xl
             border border-border dark:border-white/[.08]
-            bg-card dark:bg-[#0b1220]
+            bg-popover
             p-0
             shadow-2xl
           "
@@ -375,7 +375,7 @@ export function AnexosEmail({
                     gap-2
                     py-2.5
                     text-xs
-                    aria-selected:bg-white/[.06]
+                    aria-selected:bg-secondary
                   "
                 >
                   <div
@@ -383,7 +383,7 @@ export function AnexosEmail({
                       flex size-7 shrink-0
                       items-center justify-center
                       rounded-md
-                      bg-white/[.05]
+                      bg-muted/50
                       text-muted-foreground dark:text-slate-300
                     "
                   >
@@ -451,7 +451,7 @@ export function AnexosEmail({
                                   gap-2
                                   py-2.5
                                   text-xs
-                                  aria-selected:bg-white/[.06]
+                                  aria-selected:bg-secondary
                                 "
                               >
                                 {/* ÍCONE */}
@@ -465,7 +465,7 @@ export function AnexosEmail({
                                     ${
                                       marcado
                                         ? "border-sky-500/40 bg-sky-500/15 text-sky-400"
-                                        : "border-border dark:border-white/[.06] bg-white/[.03] text-muted-foreground dark:text-slate-400"
+                                        : "border-border dark:border-white/[.06] bg-muted/30 text-muted-foreground dark:text-slate-400"
                                     }
                                   `}
                                 >
@@ -555,7 +555,7 @@ export function AnexosEmail({
                 className="
                   flex items-center justify-between
                   border-t border-border dark:border-white/[.06]
-                  bg-white/[.02]
+                  bg-muted/20
                   px-3 py-2
                 "
               >

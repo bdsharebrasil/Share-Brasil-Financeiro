@@ -18,8 +18,8 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
   const mostrarResultados = aberto && busca.trim().length > 0;
 
   return (
-    <div className="my-[5px] space-y-2 rounded-xl border border-border dark:border-white/[.06] bg-card dark:bg-[#0b1220]/45 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]">
-      <div className="flex items-center gap-2 py-[5px]">
+    <div className="space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]">
+      <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -27,11 +27,11 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
             onFocus={() => setAberto(true)}
             onChange={(event) => { onBusca(event.target.value); setAberto(true); }}
             placeholder="Buscar contato por nome ou e-mail"
-            className="h-10 w-full rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] pl-9 pr-3 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,.025)] transition-all focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/10"
+            className="h-10 w-full rounded-xl border-border bg-card pl-9 pr-3 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,.025)] transition-all focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/10"
             aria-label="Buscar destinatário"
           />
         </div>
-        {aberto && <Button type="button" variant="ghost" size="icon" onClick={() => { setAberto(false); onBusca(""); }} className="h-10 w-10 shrink-0 rounded-xl border border-border dark:border-white/[.05] text-muted-foreground hover:bg-white/[.04] hover:text-foreground" aria-label="Fechar busca"><X size={14} /></Button>}
+        {aberto && <Button type="button" variant="ghost" size="icon" onClick={() => { setAberto(false); onBusca(""); }} className="h-10 w-10 shrink-0 rounded-xl border border-border text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Fechar busca"><X size={14} /></Button>}
       </div>
 
       {emailsSelecionados.length > 0 && (
@@ -41,7 +41,7 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
       )}
 
       {mostrarResultados && (
-        <div className="max-h-52 space-y-1.5 overflow-y-auto rounded-xl border border-border dark:border-white/[.07] bg-card dark:bg-[#09111e]/95 p-1.5 shadow-[0_18px_38px_rgba(0,0,0,.24)] backdrop-blur-sm">
+        <div className="max-h-52 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-[0_18px_38px_rgba(0,0,0,.24)] backdrop-blur-sm">
           {contatos.length === 0 ? (
             <p className="rounded-lg p-4 text-center text-[11px] leading-5 text-muted-foreground">Nenhum contato encontrado. Você pode digitar o e-mail manualmente abaixo.</p>
           ) : contatos.slice(0, 12).map((contato) => {
@@ -51,10 +51,10 @@ export function SeletorContatoEmail({ contatos, busca, emailSelecionado, onBusca
                 key={`${contato.tipo}-${contato.id}-${contato.email}`}
                 type="button"
                 onClick={() => onSelecionar(contato)}
-                className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all duration-200 ${ativo ? "border-primary/55 bg-primary/[.09] shadow-[0_0_0_1px_hsl(var(--primary)/.08)]" : "border-border dark:border-white/[.05] bg-white/[.018] hover:border-primary/25 hover:bg-white/[.035]"}`}
+                className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all duration-200 ${ativo ? "border-primary/55 bg-primary/[.09] shadow-[0_0_0_1px_hsl(var(--primary)/.08)]" : "border-border bg-card hover:border-primary/25 hover:bg-secondary"}`}
                 aria-pressed={ativo}
               >
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${ativo ? "border-primary/25 bg-primary/[.10] text-primary" : "border-border dark:border-white/[.06] bg-white/[.025] text-muted-foreground"}`}>
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${ativo ? "border-primary/25 bg-primary/[.10] text-primary" : "border-border bg-muted/50 text-muted-foreground"}`}>
                   {contato.tipo === "cliente" ? <UserRound size={13} /> : <Mail size={13} />}
                 </span>
                 <span className="min-w-0 flex-1">

@@ -1,36 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
+  ArrowLeft,
+  PenLine,
   Check,
   CheckCircle2,
-  ChevronDown,
   FileText,
-  Folder,
   Landmark,
   Loader2,
   Mail,
   Paperclip,
-  Plus,
   RefreshCw,
   Search,
   Send,
   Settings,
-  ShieldCheck,
   Star,
   Trash2,
   UserRound,
-  MapPin,
-  Smartphone,
   XCircle,
   Inbox,
   AlertCircle,
-  FileEdit,
-  Reply,
   Eye,
   X,
   Building2,
-  Download
+  Download,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import "@/components/email/email-layout.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,23 +82,33 @@ const horaBr = (valor: string | null) =>
       })
     : "—";
 
-const rotuloStatusEmail = (status?: string | null) => ({
-  enviado: "Enviado",
-  erro: "Erro",
-  pendente: "Pendente",
-  processando: "Processando",
-  enviado_parcial: "Enviado parcialmente",
-  cancelado: "Cancelado",
-}[String(status || "").toLowerCase()] || status || "Desconhecido");
+const rotuloStatusEmail = (status?: string | null) =>
+  ({
+    enviado: "Enviado",
+    erro: "Erro",
+    pendente: "Pendente",
+    processando: "Processando",
+    enviado_parcial: "Enviado parcialmente",
+    cancelado: "Cancelado",
+  })[String(status || "").toLowerCase()] ||
+  status ||
+  "Desconhecido";
 
 const normalizarEmailEnviado = (item: EmailEnviado): EmailEnviado => ({
   ...item,
   destinatarios: Array.isArray(item.destinatarios)
     ? item.destinatarios
-    : (() => { try { const parsed = JSON.parse(String(item.destinatarios || "[]")); return Array.isArray(parsed) ? parsed.map(String) : []; } catch { return []; } })(),
+    : (() => {
+        try {
+          const parsed = JSON.parse(String(item.destinatarios || "[]"));
+          return Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          return [];
+        }
+      })(),
 });
 
-  type ToastData = { status: "sending" | "sent"; message: string };
+type ToastData = { status: "sending" | "sent"; message: string };
 
 export default function Emails() {
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
@@ -105,7 +117,10 @@ export default function Emails() {
   const [contagemNaoLidas, setContagemNaoLidas] = useState(0);
   const [anexos, setAnexos] = useState<AnexoEmail[]>([]);
   const [historicoEmails, setHistoricoEmails] = useState<EmailEnviado[]>([]);
-  const [remetente, setRemetente] = useState<{ nome: string; email: string } | null>(null);
+  const [remetente, setRemetente] = useState<{
+    nome: string;
+    email: string;
+  } | null>(null);
   const [assinatura, setAssinatura] = useState<AssinaturaEmail | null>(null);
 
   const [busca, setBusca] = useState("");
@@ -126,23 +141,47 @@ export default function Emails() {
   const [toast, setToast] = useState<ToastData | null>(null);
   const [pastaAtiva, setPastaAtiva] = useState<PastaMensagem>("inbox");
   const [modoCriacao, setModoCriacao] = useState(false);
-  const [mensagemInternaSelecionada, setMensagemInternaSelecionada] = useState<MensagemInterna | null>(null);
-  const [emailEnviadoSelecionado, setEmailEnviadoSelecionado] = useState<EmailEnviado | null>(null);
-  const [configAberta, setConfigAberta] = useState<"assinatura" | "bancarios" | null>(null);
-  const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
+  const [mensagemInternaSelecionada, setMensagemInternaSelecionada] =
+    useState<MensagemInterna | null>(null);
+  const [emailEnviadoSelecionado, setEmailEnviadoSelecionado] =
+    useState<EmailEnviado | null>(null);
+  const [configAberta, setConfigAberta] = useState<
+    "assinatura" | "bancarios" | null
+  >(null);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>(
+    [],
+  );
   const [categoriaAtiva, setCategoriaAtiva] = useState<string | null>(null);
-  const [categoriasMensagem, setCategoriasMensagem] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem("share-email-categorias") || "{}"); } catch { return {}; }
+  const [categoriasMensagem, setCategoriasMensagem] = useState<
+    Record<string, string>
+  >(() => {
+    try {
+      return JSON.parse(localStorage.getItem("share-email-categorias") || "{}");
+    } catch {
+      return {};
+    }
   });
-  const [anexoVisualizado, setAnexoVisualizado] = useState<{ nome: string; tipo: string; url: string } | null>(null);
+  const [anexoVisualizado, setAnexoVisualizado] = useState<{
+    nome: string;
+    tipo: string;
+    url: string;
+  } | null>(null);
 
   const carregarPasta = async (pasta: PastaMensagem = pastaAtiva) => {
     try {
       const mensagens = await buscarMensagensPasta(pasta);
       setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
-      if (mensagemInternaSelecionada && !mensagens.some((item) => item.id === mensagemInternaSelecionada.id)) setMensagemInternaSelecionada(null);
+      if (
+        mensagemInternaSelecionada &&
+        !mensagens.some((item) => item.id === mensagemInternaSelecionada.id)
+      )
+        setMensagemInternaSelecionada(null);
     } catch (cause) {
-      setErro(cause instanceof Error ? cause.message : "Não foi possível carregar as mensagens.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível carregar as mensagens.",
+      );
     }
   };
 
@@ -150,17 +189,46 @@ export default function Emails() {
     setCarregando(true);
     setErro("");
     try {
-      const [dados, perfil, assinaturaAtual, mensagens, usuariosResponse, naoLidas] = await Promise.all([buscarCentralEmail(), buscarPerfilColaborador(), buscarMinhaAssinatura(), buscarMensagensPasta(pastaAtiva), buscarUsuariosMensagem(), buscarContagemMensagensNaoLidas()]);
-      setRemetente({ nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo, email: perfil.perfil.email });
+      const [
+        dados,
+        perfil,
+        assinaturaAtual,
+        mensagens,
+        usuariosResponse,
+        naoLidas,
+      ] = await Promise.all([
+        buscarCentralEmail(),
+        buscarPerfilColaborador(),
+        buscarMinhaAssinatura(),
+        buscarMensagensPasta(pastaAtiva),
+        buscarUsuariosMensagem(),
+        buscarContagemMensagensNaoLidas(),
+      ]);
+      setRemetente({
+        nome: perfil.perfil.nome_exibicao || perfil.perfil.nome_completo,
+        email: perfil.perfil.email,
+      });
       setAssinatura(assinaturaAtual);
       setContatos(Array.isArray(dados?.contatos) ? dados.contatos : []);
       setAnexos(Array.isArray(dados?.anexos) ? dados.anexos : []);
-      setHistoricoEmails(Array.isArray(dados?.historico) ? dados.historico.map(normalizarEmailEnviado) : []);
+      setHistoricoEmails(
+        Array.isArray(dados?.historico)
+          ? dados.historico.map(normalizarEmailEnviado)
+          : [],
+      );
       setMensagensPasta(Array.isArray(mensagens) ? mensagens : []);
-      setUsuarios(Array.isArray(usuariosResponse?.usuarios) ? usuariosResponse.usuarios : []);
+      setUsuarios(
+        Array.isArray(usuariosResponse?.usuarios)
+          ? usuariosResponse.usuarios
+          : [],
+      );
       setContagemNaoLidas(Number(naoLidas?.unread || 0));
     } catch (cause) {
-      setErro(cause instanceof Error ? cause.message : "Não foi possível carregar a central de e-mail.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível carregar a central de e-mail.",
+      );
     } finally {
       setCarregando(false);
     }
@@ -172,7 +240,9 @@ export default function Emails() {
 
   useEffect(() => {
     if (configAberta !== "bancarios" && !modoCriacao) return;
-    void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)).catch(() => setErro("Não foi possível carregar as contas bancárias."));
+    void buscarContasBancariasEmail()
+      .then((dados) => setContasBancarias(dados.contas))
+      .catch(() => setErro("Não foi possível carregar as contas bancárias."));
   }, [configAberta, modoCriacao]);
 
   useEffect(() => {
@@ -198,8 +268,15 @@ export default function Emails() {
   );
 
   const selecionarContato = (contato: ContatoEmail) => {
-    const atuais = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
-    if (!atuais.some((email) => email.toLowerCase() === contato.email.toLowerCase())) {
+    const atuais = destinatario
+      .split(";")
+      .map((email) => email.trim())
+      .filter(Boolean);
+    if (
+      !atuais.some(
+        (email) => email.toLowerCase() === contato.email.toLowerCase(),
+      )
+    ) {
       setDestinatario([...atuais, contato.email].join("; "));
     }
     setNomeDestinatario(atuais.length === 0 ? contato.nome : "");
@@ -212,7 +289,9 @@ export default function Emails() {
   };
 
   const inserirDadosBancarios = (conta: ContaBancariaEmail) => {
-    setMensagem((atual) => atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto);
+    setMensagem((atual) =>
+      atual.trim() ? `${atual.trim()}\n\n${conta.texto}` : conta.texto,
+    );
   };
 
   const classificarMensagem = (id: string, categoria: string) => {
@@ -244,24 +323,59 @@ export default function Emails() {
     setEnviando(true);
     setErro("");
     setSucesso("");
-    setToast({ status: "sending", message: tipoEnvio === "email" ? "Enviando e-mail..." : "Enviando mensagem..." });
+    setToast({
+      status: "sending",
+      message:
+        tipoEnvio === "email" ? "Enviando e-mail..." : "Enviando mensagem...",
+    });
 
     try {
-      const destinatarios = destinatario.split(";").map((email) => email.trim()).filter(Boolean);
+      const destinatarios = destinatario
+        .split(";")
+        .map((email) => email.trim())
+        .filter(Boolean);
       if (tipoEnvio === "interno") {
-        if (!destinatarioUsuarioId) { setToast(null); setErro("Selecione um usuário destinatário."); return; }
-        await enviarMensagemInterna({ destinatario_id: destinatarioUsuarioId, assunto: assunto.trim(), conteudo: mensagem.trim(), arquivos: arquivosNovos });
-      } else await enviarEmailCliente({ destinatarios, assunto: assunto.trim(), mensagem: mensagem.trim(), anexos: anexosSelecionados.map(({ id }) => id), arquivos: arquivosNovos, nome_destinatario: nomeDestinatario || undefined });
+        if (!destinatarioUsuarioId) {
+          setToast(null);
+          setErro("Selecione um usuário destinatário.");
+          return;
+        }
+        await enviarMensagemInterna({
+          destinatario_id: destinatarioUsuarioId,
+          assunto: assunto.trim(),
+          conteudo: mensagem.trim(),
+          arquivos: arquivosNovos,
+        });
+      } else
+        await enviarEmailCliente({
+          destinatarios,
+          assunto: assunto.trim(),
+          mensagem: mensagem.trim(),
+          anexos: anexosSelecionados.map(({ id }) => id),
+          arquivos: arquivosNovos,
+          nome_destinatario: nomeDestinatario || undefined,
+        });
 
-      setSucesso(tipoEnvio === "interno" ? "Mensagem interna enviada para o inbox do usuário." : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`);
-      setToast({ status: "sent", message: tipoEnvio === "email" ? "Enviado" : "Mensagem enviada" });
+      setSucesso(
+        tipoEnvio === "interno"
+          ? "Mensagem interna enviada para o inbox do usuário."
+          : `E-mail enviado com sucesso para ${destinatarios.join(", ")}.`,
+      );
+      setToast({
+        status: "sent",
+        message: tipoEnvio === "email" ? "Enviado" : "Mensagem enviada",
+      });
       window.setTimeout(() => setToast(null), 1400);
       limparFormulario();
       setModoCriacao(false);
       await carregar();
     } catch (cause) {
       setToast(null);
-      setErro(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível enviar o e-mail.",
+      );
     } finally {
       setEnviando(false);
     }
@@ -270,389 +384,1055 @@ export default function Emails() {
   const mensagensFiltradas = useMemo(() => {
     const termo = buscaGeral.trim().toLowerCase();
     if (!termo) return mensagensPasta;
-    return mensagensPasta.filter((item) => `${item.assunto || ""} ${item.conteudo} ${item.remetente_nome} ${item.destinatario_nome}`.toLowerCase().includes(termo));
+    return mensagensPasta.filter((item) =>
+      `${item.assunto || ""} ${item.conteudo} ${item.remetente_nome} ${item.destinatario_nome}`
+        .toLowerCase()
+        .includes(termo),
+    );
   }, [mensagensPasta, buscaGeral]);
-  const mensagensVisiveis = useMemo(() => categoriaAtiva ? mensagensFiltradas.filter((item) => categoriasMensagem[item.id] === categoriaAtiva) : mensagensFiltradas, [mensagensFiltradas, categoriaAtiva, categoriasMensagem]);
+  const mensagensVisiveis = useMemo(
+    () =>
+      categoriaAtiva
+        ? mensagensFiltradas.filter(
+            (item) => categoriasMensagem[item.id] === categoriaAtiva,
+          )
+        : mensagensFiltradas,
+    [mensagensFiltradas, categoriaAtiva, categoriasMensagem],
+  );
 
-  const atualizarMensagem = async (id: string, estado: Parameters<typeof alterarEstadoMensagem>[1], mensagemSucesso: string) => {
+  const atualizarMensagem = async (
+    id: string,
+    estado: Parameters<typeof alterarEstadoMensagem>[1],
+    mensagemSucesso: string,
+  ) => {
     try {
       await alterarEstadoMensagem(id, estado);
-      setMensagemInternaSelecionada((atual) => atual?.id === id ? { ...atual, ...estado } : atual);
+      setMensagemInternaSelecionada((atual) =>
+        atual?.id === id ? { ...atual, ...estado } : atual,
+      );
       setSucesso(mensagemSucesso);
-      await Promise.all([carregarPasta(), buscarContagemMensagensNaoLidas().then(({ unread }) => setContagemNaoLidas(unread))]);
+      await Promise.all([
+        carregarPasta(),
+        buscarContagemMensagensNaoLidas().then(({ unread }) =>
+          setContagemNaoLidas(unread),
+        ),
+      ]);
     } catch (cause) {
-      setErro(cause instanceof Error ? cause.message : "Não foi possível atualizar a mensagem.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível atualizar a mensagem.",
+      );
     }
   };
 
-  const abrirAnexoMensagem = async (mensagemId: string, anexoId: string, nomeArquivo: string) => {
+  const abrirAnexoMensagem = async (
+    mensagemId: string,
+    anexoId: string,
+    nomeArquivo: string,
+  ) => {
     try {
       const blob = await baixarAnexoMensagem(mensagemId, anexoId);
       const url = URL.createObjectURL(blob);
-      setAnexoVisualizado({ nome: nomeArquivo, tipo: blob.type || "application/pdf", url });
+      setAnexoVisualizado({
+        nome: nomeArquivo,
+        tipo: blob.type || "application/pdf",
+        url,
+      });
     } catch (cause) {
-      setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o anexo.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível abrir o anexo.",
+      );
     }
   };
 
-  const abrirAnexoEmail = async (email: EmailEnviado, indice: number, nomeArquivo: string) => {
+  const abrirAnexoEmail = async (
+    email: EmailEnviado,
+    indice: number,
+    nomeArquivo: string,
+  ) => {
     try {
       const blob = await baixarAnexoEmailEnviado(email.id, indice);
       const url = URL.createObjectURL(blob);
-      setAnexoVisualizado({ nome: nomeArquivo, tipo: blob.type || "application/octet-stream", url });
+      setAnexoVisualizado({
+        nome: nomeArquivo,
+        tipo: blob.type || "application/octet-stream",
+        url,
+      });
     } catch (cause) {
-      setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o anexo do e-mail.");
+      setErro(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível abrir o anexo do e-mail.",
+      );
     }
   };
 
+  const pastasMenu: Array<{
+    id: PastaMensagem;
+    label: string;
+    icon: typeof Inbox;
+  }> = [
+    { id: "inbox", label: "Caixa de entrada", icon: Inbox },
+    { id: "favoritas", label: "Favoritas", icon: Star },
+    { id: "enviadas", label: "Enviados", icon: Send },
+    { id: "nao-lidas", label: "Não lidas", icon: AlertCircle },
+    { id: "arquivo", label: "Arquivo", icon: Archive },
+  ];
+  const pastaAtual = pastasMenu.find((item) => item.id === pastaAtiva)!;
+  const historicoFiltrado = historicoEmails.filter((email) =>
+    `${email.assunto || ""} ${email.destinatarios.join(" ")} ${email.mensagem || ""}`
+      .toLowerCase()
+      .includes(buscaGeral.trim().toLowerCase()),
+  );
+  const temSelecionada = Boolean(
+    mensagemInternaSelecionada || emailEnviadoSelecionado,
+  );
+  const abrirPasta = (pasta: PastaMensagem) => {
+    setPastaAtiva(pasta);
+    setConfigAberta(null);
+    setMensagemInternaSelecionada(null);
+    setEmailEnviadoSelecionado(null);
+  };
+  const escrever = () => {
+    limparFormulario();
+    setModoCriacao(true);
+    void buscarMinhaAssinatura()
+      .then(setAssinatura)
+      .catch(() => undefined);
+  };
+
   return (
-    <div className="route-enter relative mx-auto -m-[22px] flex h-[calc(100vh-6rem)] max-w-[1500px] flex-col space-y-3 overflow-hidden rounded-[9px] border border-border dark:border-[#0e141f] bg-card dark:bg-[#060e16] pb-3 text-foreground dark:text-slate-100">
+    <div className="email-central">
       {toast && <EmailToast toast={toast} onDone={() => setToast(null)} />}
-      {anexoVisualizado && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label={`Visualização de ${anexoVisualizado.nome}`}>
-        <div className="flex h-[min(90vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
-          <div className="flex items-center justify-between border-b border-border/50 px-4 py-3"><div className="flex min-w-0 items-center gap-2"><Eye size={16} className="text-primary" /><span className="truncate text-sm font-bold">{anexoVisualizado.nome}</span></div><Button type="button" variant="ghost" size="icon" onClick={() => { URL.revokeObjectURL(anexoVisualizado.url); setAnexoVisualizado(null); }}><X size={17} /></Button></div>
-          <div className="min-h-0 flex-1 bg-muted/20 p-3">{anexoVisualizado.tipo.includes("pdf") ? <iframe title={anexoVisualizado.nome} src={anexoVisualizado.url} className="h-full w-full rounded-xl bg-white" /> : anexoVisualizado.tipo.startsWith("image/") ? <img src={anexoVisualizado.url} alt={anexoVisualizado.nome} className="mx-auto h-full max-w-full rounded-xl object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Este tipo de arquivo não possui pré-visualização. Use o download para abrir no aplicativo compatível.</div>}</div>
-        </div>
-      </div>}
-      {/* HEADER DE AÇÕES GLOBAIS */}
-      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080b16] px-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#1e5b94] text-sky-300 shadow-lg shadow-sky-950/30">
-            <Mail className="h-4 w-4" />
+      <header className="email-cabecalho">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="email-icone">
+            <Mail size={20} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold tracking-tight">E-mail</h1>
+            <p className="truncate text-xs text-muted-foreground">
+              {remetente?.email || "Central de comunicação Share Brasil"}
+            </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            onClick={() => void carregar()}
-            disabled={carregando}
-            className="h-8 gap-2 rounded-md border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] text-[10px] text-muted-foreground dark:text-slate-300 hover:bg-white/[.06]"
+            size="icon"
+            onClick={() => setConfigAberta("assinatura")}
+            aria-label="Minha assinatura"
+            title="Minha assinatura"
           >
-            <RefreshCw size={14} className={carregando ? "animate-spin text-primary" : "text-muted-foreground"} />
-            Atualizar
+            <Settings size={16} />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setConfigAberta("bancarios")}
+            aria-label="Contas bancárias"
+            title="Contas bancárias"
+          >
+            <Landmark size={16} />
+          </Button>
+          <Button type="button" onClick={escrever} className="gap-2 md:hidden">
+            <PenLine size={16} />
+            <span className="hidden sm:inline">Escrever</span>
           </Button>
         </div>
       </header>
-
-      {/* STATUS */}
-      {(erro || sucesso) && (
-        <div className={`flex shrink-0 items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium shadow-sm ${erro ? "border-destructive/20 bg-destructive/10 text-destructive" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"}`}>
+      {!modoCriacao && (erro || sucesso) && (
+        <div
+          role={erro ? "alert" : "status"}
+          className={`email-aviso ${erro ? "email-aviso--erro" : "email-aviso--sucesso"}`}
+        >
           {erro ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
           <span>{erro || sucesso}</span>
         </div>
       )}
 
-      {/* LAYOUT PRINCIPAL EM 3 COLUNAS (empilha em telas menores que lg) */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12">
-
-        {/* COLUNA 1: MENU LATERAL */}
-        <aside className="hidden min-h-0 flex-col gap-6 overflow-y-auto -my-[6px] rounded-[12px] border-r border-border dark:border-white/[.06] bg-card dark:bg-[#080b16] px-3 pb-4 lg:col-span-2 lg:flex">
-          <Button
-            type="button"
-            onClick={() => {
-              setModoCriacao(true);
-              setConfigAberta(null);
-              setMensagemInternaSelecionada(null);
-              limparFormulario();
-            }}
-            className="mt-3 h-10 w-full gap-2 overflow-hidden rounded-[31px] border-[#058dcc] bg-[#075461] px-2 text-[12px] font-semibold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]"
-          >
-            <Plus size={18} />
-            Novo Email
+      <div className="email-corpo">
+        <aside
+          className="email-menu"
+          aria-label="Pastas e configurações de e-mail"
+        >
+          <Button type="button" onClick={escrever} className="email-escrever">
+            <PenLine size={17} /> Escrever
           </Button>
-
-          <nav className="space-y-1 text-[11px] font-medium">
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("inbox"); setModoCriacao(false); }} className={`flex w-full items-center justify-between rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "inbox" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
-              <span className="flex items-center gap-3"><Inbox size={15} /> Caixa de Entrada</span>
-              {contagemNaoLidas > 0 && <span className="rounded bg-[#1d639f] px-1.5 py-0.5 text-[9px] font-bold text-white">{contagemNaoLidas}</span>}
-            </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("enviadas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "enviadas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
-              <Send size={15} /> Enviados
-            </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("arquivo"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "arquivo" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
-              <Archive size={15} /> Arquivo
-            </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("nao-lidas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "nao-lidas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
-              <AlertCircle size={15} /> Não lidas
-            </button>
-            <button onClick={() => { setMensagemInternaSelecionada(null); setConfigAberta(null); setPastaAtiva("favoritas"); setModoCriacao(false); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors ${pastaAtiva === "favoritas" && !modoCriacao ? "bg-card dark:bg-[#102b4e] text-sky-300 shadow-[inset_2px_0_0_#34a9ed]" : "text-slate-500 hover:bg-white/[.04] hover:text-foreground dark:hover:text-slate-200"}`}>
-              <Star size={15} /> Favoritas
-            </button>
-          </nav>
-
-          <div className="border-t border-border/50 pt-4">
-            <h3 className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Categorias</h3>
-            <div className="space-y-1">
-              {[['Financeiro', 'bg-emerald-500'], ['Operacional', 'bg-blue-500'], ['Urgente', 'bg-destructive']].map(([categoria, cor]) => <button key={categoria} onClick={() => setCategoriaAtiva(categoriaAtiva === categoria ? null : categoria)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50 ${categoriaAtiva === categoria ? "bg-primary/10 font-bold text-primary" : ""}`}><div className={`h-2 w-2 rounded-full ${cor}`}></div> {categoria}</button>)}
-            </div>
-          </div>
-
-          <div className="space-y-1 border-t border-border/50 pt-4">
-            <h3 className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Configurações rápidas</h3>
-            <button onClick={() => { setConfigAberta("assinatura"); setModoCriacao(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><Settings size={17} /> Assinatura fixa</button>
-            <button onClick={() => { setConfigAberta("bancarios"); setModoCriacao(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 hover:bg-muted/50"><Landmark size={17} /> Contas bancárias</button>
-          </div>
-
-        </aside>
-
-        {/* COLUNA 2: LISTA DE E-MAILS */}
-        {!modoCriacao && <div className="col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-border dark:border-white/[.06] bg-card dark:bg-[#09111f] shadow-sm lg:col-span-4">
-          <div className="border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080f1d] p-3">
-            <div className="relative">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={buscaGeral}
-                onChange={(e) => setBuscaGeral(e.target.value)}
-                placeholder="Buscar mensagens..."
-                className="h-8 rounded-md border-border dark:border-white/[.06] bg-card dark:bg-[#080f1d] pl-9 text-[10px] text-muted-foreground dark:text-slate-300 shadow-none placeholder:text-slate-600 focus:border-sky-500/40"
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {pastaAtiva === "enviadas" ? (historicoEmails.length === 0 ? (
-              <div className="flex h-40 flex-col items-center justify-center text-center text-xs text-muted-foreground"><Send className="mb-2 h-8 w-8 opacity-20" />Nenhum e-mail enviado encontrado.</div>
-            ) : historicoEmails.map((email) => <button type="button" key={email.id} onClick={() => { setEmailEnviadoSelecionado(email); setMensagemInternaSelecionada(null); }} className={`w-full rounded-md border-l-2 p-3 text-left transition-all ${emailEnviadoSelecionado?.id === email.id ? "border-l-sky-400 bg-card dark:bg-[#0d1a31]" : "border-l-transparent hover:bg-white/[.025]"}`}>
-              <div className="flex items-center justify-between gap-2"><span className="truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{email.assunto || "(Sem assunto)"}</span><span className="shrink-0 text-[9px] text-slate-600">{horaBr(email.email_enviado_em || email.criado_em)}</span></div>
-              <p className="mt-1 truncate text-[9px] text-slate-500">Para: {email.destinatarios.join(", ") || "Destinatário não informado"}</p>
-              <p className="mt-1 truncate text-[9px] text-slate-600">{email.mensagem || "Sem texto"}</p>
-              <div className="mt-2 flex items-center gap-2 text-[9px] text-slate-600"><span>{dataBr(email.email_enviado_em || email.criado_em)}</span><span>•</span><span>{email.quantidade_anexos || 0} anexo{email.quantidade_anexos === 1 ? "" : "s"}</span><span className={String(email.status).toLowerCase() === "enviado" ? "text-emerald-300" : "text-red-300"}>{rotuloStatusEmail(email.status)}</span></div>
-            </button>)) : mensagensFiltradas.length === 0 ? (
-              <div className="flex h-40 flex-col items-center justify-center text-center text-xs text-muted-foreground">
-                <Mail className="mb-2 h-8 w-8 opacity-20" />
-                Nenhuma mensagem encontrada.
-              </div>
-            ) : mensagensVisiveis.map((item) => (
+          <nav aria-label="Pastas de mensagens" className="space-y-1">
+            {pastasMenu.map(({ id, label, icon: Icon }) => (
               <button
+                key={id}
                 type="button"
-                key={item.id}
-                onClick={() => {
-                  setMensagemInternaSelecionada(item);
-                  setModoCriacao(false);
-                  if (!item.lida && item.papel === "destinatario") void atualizarMensagem(item.id, { lida: 1 }, "");
-                }}
-                className={`flex w-full flex-col gap-1 rounded-md p-3 text-left transition-all ${mensagemInternaSelecionada?.id === item.id && !modoCriacao ? "border-l-2 border-l-sky-400 bg-card dark:bg-[#0d1a31]" : "border-l-2 border-l-transparent hover:bg-white/[.025]"}`}
+                onClick={() => abrirPasta(id)}
+                aria-current={
+                  !configAberta && pastaAtiva === id ? "page" : undefined
+                }
+                className={`email-item-menu ${!configAberta && pastaAtiva === id ? "is-active" : ""}`}
               >
-                <div className="flex w-full items-center justify-between">
-                  <span className={`truncate text-[10px] ${item.lida ? "font-medium text-muted-foreground dark:text-slate-300" : "font-bold text-foreground dark:text-white"}`}>
-                    {item.papel === "remetente" ? item.destinatario_nome || item.destinatario_id : item.remetente_nome || item.remetente_id}
-                  </span>
-                  <span className="shrink-0 text-[9px] text-slate-600">
-                    {horaBr(item.criado_em)}
-                  </span>
-                </div>
-                <span className={`truncate text-[10px] ${item.lida ? "text-muted-foreground dark:text-slate-400" : "font-semibold text-sky-300"}`}>
-                  {item.assunto || "(Sem assunto)"}
-                </span>
-                <p className="truncate text-[9px] text-slate-600">
-                  {item.conteudo?.substring(0, 50)}...
-                </p>
+                <Icon size={17} />
+                <span className="flex-1 text-left">{label}</span>
+                {id === "inbox" && contagemNaoLidas > 0 && (
+                  <span className="email-contador">{contagemNaoLidas}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+          <div className="email-menu-secao">
+            <p className="email-legenda">Categorias</p>
+            {[
+              ["Financeiro", "bg-emerald-600"],
+              ["Operacional", "bg-blue-600"],
+              ["Urgente", "bg-destructive"],
+            ].map(([categoria, cor]) => (
+              <button
+                key={categoria}
+                type="button"
+                onClick={() =>
+                  setCategoriaAtiva(
+                    categoriaAtiva === categoria ? null : categoria,
+                  )
+                }
+                aria-pressed={categoriaAtiva === categoria}
+                className={`email-item-menu ${categoriaAtiva === categoria ? "is-active" : ""}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${cor}`} />
+                {categoria}
               </button>
             ))}
           </div>
-        </div>}
+          <div className="email-menu-config">
+            <p className="email-legenda">Configurações</p>
+            <button
+              type="button"
+              onClick={() => setConfigAberta("assinatura")}
+              className={`email-item-menu ${configAberta === "assinatura" ? "is-active" : ""}`}
+            >
+              <Settings size={17} /> Minha assinatura
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfigAberta("bancarios")}
+              className={`email-item-menu ${configAberta === "bancarios" ? "is-active" : ""}`}
+            >
+              <Landmark size={17} /> Contas bancárias
+            </button>
+          </div>
+        </aside>
 
-        {/* COLUNA 3: ÁREA DE LEITURA OU NOVA MENSAGEM */}
-        <div className={`col-span-1 flex min-h-0 min-w-0 flex-col overflow-hidden border border-border dark:border-white/[.06] bg-card dark:bg-[#050b19] shadow-sm ${modoCriacao ? "-m-[7px] rounded-[8px] py-[2px] lg:col-span-10" : "lg:col-span-6"}`}>
-          {emailEnviadoSelecionado && pastaAtiva === "enviadas" && !modoCriacao && !configAberta ? (
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="shrink-0 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-5"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-sky-400">E-mail enviado</p><h1 className="mt-2 text-xl font-bold text-foreground dark:text-white">{emailEnviadoSelecionado.assunto || "(Sem assunto)"}</h1><p className="mt-2 text-xs text-muted-foreground dark:text-slate-400">Para: <span className="text-foreground dark:text-slate-200">{emailEnviadoSelecionado.destinatarios.join(", ") || "—"}</span></p><p className="mt-1 text-[10px] text-slate-600">{dataBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)} • {horaBr(emailEnviadoSelecionado.email_enviado_em || emailEnviadoSelecionado.criado_em)}</p></div>
-              <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="max-w-3xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground dark:text-slate-300">{emailEnviadoSelecionado.mensagem || "(Este e-mail não possui texto registrado.)"}</div>
-                {!!emailEnviadoSelecionado.anexos_detalhes?.length && <div className="mt-10 border-t border-border dark:border-white/[.08] pt-6"><p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-slate-500">Anexos ({emailEnviadoSelecionado.anexos_detalhes.length})</p><div className="flex flex-wrap gap-3">{emailEnviadoSelecionado.anexos_detalhes.map((anexo, indice) => <button type="button" key={`${anexo.nome_arquivo}-${indice}`} onClick={() => void abrirAnexoEmail(emailEnviadoSelecionado, indice, anexo.nome_arquivo)} className="flex items-center gap-3 rounded-lg border border-border dark:border-white/[.06] bg-card dark:bg-[#111b2b] px-4 py-3 text-left hover:border-sky-500/30"><FileText size={20} className="text-sky-400" /><span className="max-w-[230px] truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{anexo.nome_arquivo}</span><Download size={14} className="text-slate-500" /></button>)}</div></div>}
+        <section
+          className={`email-painel ${temSelecionada ? "tem-selecao" : ""} ${configAberta ? "tem-configuracao" : ""}`}
+          aria-label="Central de mensagens"
+        >
+          {!configAberta && (
+            <div className="email-lista">
+              <div className="email-lista-toolbar">
+                <label className="relative min-w-0 flex-1">
+                  <span className="sr-only">Pesquisar mensagens</span>
+                  <Search
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    value={buscaGeral}
+                    onChange={(e) => setBuscaGeral(e.target.value)}
+                    placeholder="Pesquisar assunto, destinatário..."
+                    className="h-10 pl-9 text-xs"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void carregar()}
+                  disabled={carregando}
+                  aria-label="Atualizar mensagens"
+                  title="Atualizar mensagens"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={carregando ? "animate-spin" : ""}
+                  />
+                </Button>
               </div>
-            </div>
-          ) : mensagemInternaSelecionada && !modoCriacao && !configAberta ? (
-            <div className="flex h-full min-h-0 flex-col">
-              {/* Cabeçalho da Mensagem */}
-              <div className="flex shrink-0 flex-col gap-3 border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
-                <div className="min-w-0">
-                  <h2 className="truncate text-sm font-bold tracking-tight text-foreground dark:text-white">
-                      {mensagemInternaSelecionada.papel === "remetente" ? mensagemInternaSelecionada.destinatario_nome || mensagemInternaSelecionada.destinatario_id : mensagemInternaSelecionada.remetente_nome || mensagemInternaSelecionada.remetente_id}
-                    </h2>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-sky-400">
-                      Para: <span className="text-sky-500">{mensagemInternaSelecionada.papel === "remetente" ? "Você" : mensagemInternaSelecionada.destinatario_id}</span>
-                    </p>
-                </div>
-                <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end">
-                  <div className="flex items-center gap-1">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => void atualizarMensagem(mensagemInternaSelecionada.id, { excluida: 1 }, "Mensagem movida para o arquivo.")} className="h-8 gap-1.5 text-[10px] font-semibold text-slate-500 hover:bg-white/[.05] hover:text-red-300"><Trash2 size={14} /> Excluir</Button>
-                    <select value={categoriasMensagem[mensagemInternaSelecionada.id] || ""} onChange={(event) => classificarMensagem(mensagemInternaSelecionada.id, event.target.value)} className="h-8 rounded-md border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-2 text-[10px] font-semibold text-muted-foreground dark:text-slate-400"><option value="">Categoria</option><option value="Financeiro">Financeiro</option><option value="Operacional">Operacional</option><option value="Urgente">Urgente</option></select>
-                  </div>
-                  <div className="text-[9px] font-medium text-slate-600">
-                    {dataBr(mensagemInternaSelecionada.criado_em)} <span className="mx-1">•</span> {horaBr(mensagemInternaSelecionada.criado_em)}
-                  </div>
-                </div>
+              <div className="email-lista-contexto">
+                <h2 className="text-sm font-semibold">{pastaAtual.label}</h2>
+                <span className="text-xs text-muted-foreground">
+                  {pastaAtiva === "enviadas"
+                    ? historicoFiltrado.length
+                    : mensagensVisiveis.length}
+                </span>
               </div>
-
-              {/* Assunto e Corpo */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-                <h1 className="mb-6 text-lg font-bold tracking-tight text-foreground dark:text-white sm:text-xl">
-                  {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
-                </h1>
-                <div className="max-w-3xl whitespace-pre-wrap text-xs font-medium leading-6 text-muted-foreground dark:text-slate-400">
-                  {mensagemInternaSelecionada.conteudo}
+              <div className="email-navegacao-mobile">
+                <label className="sr-only" htmlFor="email-pasta-mobile">
+                  Pasta de mensagens
+                </label>
+                <select
+                  id="email-pasta-mobile"
+                  className="campo"
+                  value={pastaAtiva}
+                  onChange={(e) => abrirPasta(e.target.value as PastaMensagem)}
+                >
+                  {pastasMenu.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <label className="sr-only" htmlFor="email-categoria-mobile">
+                  Categoria
+                </label>
+                <select
+                  id="email-categoria-mobile"
+                  className="campo"
+                  value={categoriaAtiva || ""}
+                  onChange={(e) => setCategoriaAtiva(e.target.value || null)}
+                >
+                  <option value="">Todas as categorias</option>
+                  <option>Financeiro</option>
+                  <option>Operacional</option>
+                  <option>Urgente</option>
+                </select>
+              </div>
+              {categoriaAtiva && (
+                <div className="flex items-center justify-between border-b border-border bg-primary/5 px-4 py-2 text-xs text-primary">
+                  <span>{categoriaAtiva}</span>
+                  <button
+                    type="button"
+                    aria-label="Limpar filtro de categoria"
+                    onClick={() => setCategoriaAtiva(null)}
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
-
-                {/* Anexos */}
-                {!!mensagemInternaSelecionada.anexos?.length && (
-                  <div className="mt-10 border-t border-border/40 pt-6">
-                    <p className="mb-4 text-[9px] font-bold uppercase tracking-[.14em] text-slate-600">
-                      Anexos ({mensagemInternaSelecionada.anexos.length} Arquivo{mensagemInternaSelecionada.anexos.length > 1 ? "s" : ""})
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      {mensagemInternaSelecionada.anexos.map((anexo) => (
-                        <button
-                          type="button"
-                          key={anexo.id}
-                          onClick={() => void abrirAnexoMensagem(mensagemInternaSelecionada.id, anexo.id, anexo.nome_arquivo)}
-                          className="flex items-center gap-3 rounded-lg border border-border dark:border-white/[.06] bg-card dark:bg-[#111b2b] px-4 py-3 text-left transition-colors hover:border-sky-500/30 hover:bg-secondary dark:hover:bg-[#14243a]"
-                        >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-500/15 text-red-400">
-                            <Eye size={20} />
-                          </div>
-                          <div>
-                            <span className="block max-w-[200px] truncate text-[10px] font-semibold text-foreground dark:text-slate-200">{anexo.nome_arquivo}</span>
-                              <span className="mt-0.5 block text-[9px] font-medium uppercase text-slate-600">Abrir na tela</span>
-                          </div>
-                        </button>
-                      ))}
+              )}
+              <div className="email-lista-scroll" aria-busy={carregando}>
+                {carregando ? (
+                  <div className="email-vazio" role="status">
+                    <Loader2 size={24} className="animate-spin text-primary" />
+                    <p>Carregando mensagens...</p>
+                  </div>
+                ) : pastaAtiva === "enviadas" ? (
+                  historicoFiltrado.length === 0 ? (
+                    <div className="email-vazio">
+                      <Send size={28} />
+                      <p>Nenhum e-mail enviado encontrado.</p>
                     </div>
+                  ) : (
+                    historicoFiltrado.map((email) => (
+                      <button
+                        type="button"
+                        key={email.id}
+                        onClick={() => {
+                          setEmailEnviadoSelecionado(email);
+                          setMensagemInternaSelecionada(null);
+                        }}
+                        aria-pressed={emailEnviadoSelecionado?.id === email.id}
+                        className={`email-mensagem ${emailEnviadoSelecionado?.id === email.id ? "is-selected" : ""}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <strong className="truncate text-xs">
+                            {email.assunto || "(Sem assunto)"}
+                          </strong>
+                          <time className="shrink-0 text-[11px] text-muted-foreground">
+                            {horaBr(email.email_enviado_em || email.criado_em)}
+                          </time>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          Para:{" "}
+                          {email.destinatarios.join(", ") ||
+                            "Destinatário não informado"}
+                        </p>
+                        <p className="mt-2 truncate text-xs text-muted-foreground">
+                          {email.mensagem || "Sem texto"}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span>
+                            {dataBr(email.email_enviado_em || email.criado_em)}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Paperclip size={11} />
+                            {email.quantidade_anexos || 0}
+                          </span>
+                          <span
+                            className={
+                              String(email.status).toLowerCase() === "enviado"
+                                ? "text-emerald-700 dark:text-emerald-300"
+                                : "text-destructive"
+                            }
+                          >
+                            {rotuloStatusEmail(email.status)}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  )
+                ) : mensagensVisiveis.length === 0 ? (
+                  <div className="email-vazio">
+                    <Inbox size={28} />
+                    <p>Nenhuma mensagem encontrada.</p>
+                    <span className="text-xs">
+                      {buscaGeral || categoriaAtiva
+                        ? "Tente outra busca ou categoria."
+                        : "As mensagens desta pasta aparecerão aqui."}
+                    </span>
                   </div>
+                ) : (
+                  mensagensVisiveis.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => {
+                        setMensagemInternaSelecionada(item);
+                        setEmailEnviadoSelecionado(null);
+                        if (!item.lida && item.papel === "destinatario")
+                          void atualizarMensagem(item.id, { lida: 1 }, "");
+                      }}
+                      aria-pressed={mensagemInternaSelecionada?.id === item.id}
+                      className={`email-mensagem ${mensagemInternaSelecionada?.id === item.id ? "is-selected" : ""} ${!item.lida ? "nao-lida" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-xs font-semibold">
+                          {item.papel === "remetente"
+                            ? item.destinatario_nome || item.destinatario_id
+                            : item.remetente_nome || item.remetente_id}
+                        </span>
+                        <time className="shrink-0 text-[11px] text-muted-foreground">
+                          {horaBr(item.criado_em)}
+                        </time>
+                      </div>
+                      <p className="mt-1 truncate text-sm font-medium">
+                        {item.assunto || "(Sem assunto)"}
+                      </p>
+                      <p className="mt-2 truncate text-xs text-muted-foreground">
+                        {item.conteudo?.substring(0, 100)}
+                      </p>
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span>{dataBr(item.criado_em)}</span>
+                        {Boolean(item.favorita) && (
+                          <Star
+                            size={12}
+                            className="fill-amber-500 text-amber-500"
+                          />
+                        )}
+                        {Boolean(item.anexos?.length) && (
+                          <span className="inline-flex items-center gap-1">
+                            <Paperclip size={11} />
+                            {item.anexos?.length}
+                          </span>
+                        )}
+                        {categoriasMensagem[item.id] && (
+                          <span className="email-etiqueta">
+                            {categoriasMensagem[item.id]}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
                 )}
               </div>
-
-              {/* Rodapé interativo simulando clique rápido */}
-              <div className="shrink-0 border-t border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4">
-                <div className="flex cursor-pointer items-center gap-2 rounded-lg border border-border dark:border-white/[.1] bg-card dark:bg-[#111a29] p-3 text-[10px] text-slate-600 transition-colors hover:border-sky-500/30 hover:text-muted-foreground dark:hover:text-slate-400">
-                  <Reply size={16} />
-                  Clique aqui para <strong>Responder</strong> ou <strong>Encaminhar</strong> esta mensagem.
-                </div>
-              </div>
-            </div>
-          ) : configAberta ? (
-            <div className="h-full space-y-5 overflow-y-auto p-4 sm:p-6">
-              {configAberta === "assinatura" ? <MinhaAssinaturaEmail embedded /> : <ConfiguracaoContasBancarias contas={contasBancarias} onSaved={() => { void buscarContasBancariasEmail().then((dados) => setContasBancarias(dados.contas)); }} />}
-            </div>
-          ) : modoCriacao ? (
-            /* COMPOSITOR DE NOVA MENSAGEM */
-            <div className="flex h-full min-h-0 -mx-px flex-col overflow-hidden rounded-[31px]">
-              <div className="flex shrink-0 items-center justify-between -my-[11px] overflow-hidden rounded-[26px] border-b border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] p-4">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground dark:text-white">Nova Mensagem</h2>
-                  <p className="mt-0.5 text-[9px] font-medium text-slate-600">De: {remetente?.email || "seu e-mail"}</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setModoCriacao(false)} className="rounded-xl">Descartar</Button>
-              </div>
-
-              {/* Campos + corpo da mensagem: rola junto, mas o textarea tem prioridade de espaço */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[17px] bg-card dark:bg-[#040a16] p-4 sm:p-6">
-                <div className="shrink-0 space-y-4 py-[10px]">
-                  <div className="flex w-fit -mx-[8px] gap-[15px] rounded-md border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-[13px] py-1">
-                    <button type="button" onClick={() => { setTipoEnvio("email"); setDestinatarioUsuarioId(""); setDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "email" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><Mail size={12} className="mr-1.5 inline" /> E-mail externo</button>
-                    <button type="button" onClick={() => { setTipoEnvio("interno"); setDestinatario(""); setNomeDestinatario(""); }} className={`rounded-md px-3 py-1.5 text-[10px] font-bold transition-colors ${tipoEnvio === "interno" ? "bg-[#1e5b94] text-white" : "text-slate-500 hover:bg-white/[.05]"}`}><UserRound size={12} className="mr-1.5 inline" /> Interno</button>
-                  </div>
-
-                  <div className="border-b border-border dark:border-white/[.06] pb-3">
-                    <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Para</label>
-                    {tipoEnvio === "interno" ? (
-                      <SearchableCombobox items={usuarios.map((usuario) => ({ id: usuario.id, label: `${usuario.nome} · ${usuario.email}`, search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}` }))} value={destinatarioUsuarioId} onChange={(id, label) => { const usuario = usuarios.find((item) => item.id === id); setDestinatarioUsuarioId(id); setDestinatario(usuario?.email || label); }} placeholder="Busque usuário corporativo..." searchPlaceholder="Digite nome..." emptyMessage="Usuário não encontrado." />
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <SeletorContatoEmail contatos={contatosFiltrados} busca={busca} emailSelecionado={destinatario} onBusca={setBusca} onSelecionar={selecionarContato} />
-                        <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="E-mail do destinatário..." className="h-11 -mx-[3px] rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] px-[22px] py-[2px] text-sm font-medium text-foreground dark:text-slate-200" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-b border-border dark:border-white/[.06] pb-1">
-                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} placeholder="Assunto" className="h-10 rounded-none border-0 bg-transparent px-0 text-sm font-bold text-foreground dark:text-white shadow-none placeholder:text-slate-600 focus-visible:ring-0" />
-                  </div>
-                </div>
-
-                <div className="mt-3 flex min-h-[220px] flex-1 flex-col">
-                  <Textarea
-                    value={mensagem}
-                    onChange={(e) => setMensagem(e.target.value)}
-                    placeholder="Escreva sua mensagem aqui..."
-                    className="min-h-[220px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 text-sm font-medium leading-relaxed text-foreground dark:text-slate-200 shadow-none focus-visible:ring-0"
-                  />
-
-                  {tipoEnvio === "email" && assinatura && (
-                    <div className="mt-6 shrink-0 border-t border-border dark:border-white/[.06] pt-4">
-                      <div className="flex items-center gap-4 opacity-80">
-                        <img src={assinatura.logo_url || logoShare} alt="Logo" className="h-10 w-auto object-contain grayscale" />
-                        <div className="text-[11px] leading-tight text-slate-500">
-                          <strong className="block text-sm text-foreground dark:text-slate-200">{assinatura.nome || "Nome"}</strong>
-                          {assinatura.cargo && <span className="mt-0.5 block">{assinatura.cargo}</span>}
-                          {assinatura.telefone && <span className="mt-0.5 block">{assinatura.telefone}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {tipoEnvio === "email" && contasBancarias.length > 0 && (
-                    <div className="mt-3 flex shrink-0 flex-wrap items-center gap-2">
-                      <span className="text-[10px] text-slate-500">Inserir banco:</span>
-                      {contasBancarias.map((conta) => (
-                        <Button key={conta.id} type="button" variant="outline" size="sm" onClick={() => inserirDadosBancarios(conta)} className="h-7 gap-1 rounded-lg border-border dark:border-white/[.08] bg-card dark:bg-[#0d1525] text-[10px] text-muted-foreground dark:text-slate-300">
-                          <Building2 size={12} /> {conta.banco}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Rodapé: anexos agora abrem em um Command (⌘K) por cima do conteúdo, não ocupam espaço fixo */}
-              <div className="flex shrink-0 flex-col gap-3 -my-[43px] border-t border-border dark:border-white/[.06] bg-card dark:bg-[#080e1a] px-3 py-[39px] sm:px-4 sm:py-[39px]">
-                <AnexosEmail
-                  anexos={anexos}
-                  selecionados={selecionados}
-                  onAlternar={alternarAnexo}
-                  arquivosNovos={arquivosNovos}
-                  onAdicionarArquivos={(novos) => setArquivosNovos((prev) => [...prev, ...novos])}
-                  onRemoverArquivo={(idx) => setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))}
-                />
-                <div className="flex -my-[7px] items-center justify-end py-0">
-                  <Button onClick={() => void enviar()} disabled={enviando} className="m-[32px] h-9 justify-end gap-2 rounded-md bg-[#22629d] px-4 py-0 text-[10px] font-bold text-white shadow-md shadow-sky-950/30 hover:bg-[#2d79bb]">
-                    <Send size={16} />
-                    {enviando ? "Enviando..." : "Enviar"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* TELA VAZIA (NENHUM SELECIONADO) */
-            <div className="flex h-full flex-1 flex-col items-center justify-center bg-card/20 p-8 text-center">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-primary/10 bg-primary/5">
-                <Inbox size={32} className="text-primary/40" />
-              </div>
-              <h3 className="text-lg font-bold text-foreground">Caixa de Mensagens</h3>
-              <p className="mt-2 max-w-[250px] text-sm text-muted-foreground">
-                Selecione um e-mail na lista lateral para visualizar o conteúdo completo.
-              </p>
             </div>
           )}
-        </div>
+
+          <div className="email-leitura">
+            {configAberta ? (
+              <div className="email-configuracao">
+                <header className="email-leitura-cabecalho">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfigAberta(null)}
+                    className="w-fit gap-2"
+                  >
+                    <ArrowLeft size={15} /> Voltar às mensagens
+                  </Button>
+                  <h2 className="mt-3 text-lg font-semibold">
+                    {configAberta === "assinatura"
+                      ? "Minha assinatura"
+                      : "Contas bancárias"}
+                  </h2>
+                </header>
+                <div className="email-leitura-scroll">
+                  {configAberta === "assinatura" ? (
+                    <MinhaAssinaturaEmail embedded />
+                  ) : (
+                    <ConfiguracaoContasBancarias
+                      contas={contasBancarias}
+                      onSaved={() => {
+                        void buscarContasBancariasEmail().then((dados) =>
+                          setContasBancarias(dados.contas),
+                        );
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : emailEnviadoSelecionado && pastaAtiva === "enviadas" ? (
+              <>
+                <header className="email-leitura-cabecalho">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="email-voltar gap-2"
+                    onClick={() => setEmailEnviadoSelecionado(null)}
+                  >
+                    <ArrowLeft size={15} /> Voltar
+                  </Button>
+                  <span className="email-etiqueta">E-mail enviado</span>
+                  <h2 className="mt-4 break-words text-xl font-semibold">
+                    {emailEnviadoSelecionado.assunto || "(Sem assunto)"}
+                  </h2>
+                  <p className="mt-3 break-words text-xs text-muted-foreground">
+                    Para:{" "}
+                    {emailEnviadoSelecionado.destinatarios.join(", ") || "—"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dataBr(
+                      emailEnviadoSelecionado.email_enviado_em ||
+                        emailEnviadoSelecionado.criado_em,
+                    )}{" "}
+                    ·{" "}
+                    {horaBr(
+                      emailEnviadoSelecionado.email_enviado_em ||
+                        emailEnviadoSelecionado.criado_em,
+                    )}
+                  </p>
+                  <span className="mt-3 inline-block text-xs text-muted-foreground">
+                    {rotuloStatusEmail(emailEnviadoSelecionado.status)}
+                  </span>
+                </header>
+                <div className="email-leitura-scroll">
+                  <div className="whitespace-pre-wrap break-words text-sm leading-7">
+                    {emailEnviadoSelecionado.mensagem ||
+                      "(Este e-mail não possui texto registrado.)"}
+                  </div>
+                  {!!emailEnviadoSelecionado.anexos_detalhes?.length && (
+                    <section className="email-anexos-leitura">
+                      <h3 className="email-legenda">
+                        Anexos ({emailEnviadoSelecionado.anexos_detalhes.length}
+                        )
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {emailEnviadoSelecionado.anexos_detalhes.map(
+                          (anexo, indice) => (
+                            <button
+                              key={`${anexo.nome_arquivo}-${indice}`}
+                              type="button"
+                              onClick={() =>
+                                void abrirAnexoEmail(
+                                  emailEnviadoSelecionado,
+                                  indice,
+                                  anexo.nome_arquivo,
+                                )
+                              }
+                              className="email-arquivo"
+                            >
+                              <FileText size={19} />
+                              <span>{anexo.nome_arquivo}</span>
+                              <Download size={14} />
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              </>
+            ) : mensagemInternaSelecionada ? (
+              <>
+                <header className="email-leitura-cabecalho">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="email-voltar gap-2"
+                      onClick={() => setMensagemInternaSelecionada(null)}
+                    >
+                      <ArrowLeft size={15} /> Voltar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        void atualizarMensagem(
+                          mensagemInternaSelecionada.id,
+                          {
+                            favorita: mensagemInternaSelecionada.favorita
+                              ? 0
+                              : 1,
+                          },
+                          "Favorito atualizado.",
+                        )
+                      }
+                      className="gap-2"
+                    >
+                      <Star
+                        size={14}
+                        className={
+                          mensagemInternaSelecionada.favorita
+                            ? "fill-amber-500 text-amber-500"
+                            : ""
+                        }
+                      />{" "}
+                      Favorita
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        void atualizarMensagem(
+                          mensagemInternaSelecionada.id,
+                          {
+                            arquivada: mensagemInternaSelecionada.arquivada
+                              ? 0
+                              : 1,
+                          },
+                          "Arquivo atualizado.",
+                        )
+                      }
+                      className="gap-2"
+                    >
+                      <Archive size={14} />
+                      {mensagemInternaSelecionada.arquivada
+                        ? "Desarquivar"
+                        : "Arquivar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        void atualizarMensagem(
+                          mensagemInternaSelecionada.id,
+                          { lida: mensagemInternaSelecionada.lida ? 0 : 1 },
+                          "Estado de leitura atualizado.",
+                        )
+                      }
+                      className="gap-2"
+                    >
+                      <Eye size={14} />
+                      {mensagemInternaSelecionada.lida
+                        ? "Não lida"
+                        : "Marcar como lida"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        void atualizarMensagem(
+                          mensagemInternaSelecionada.id,
+                          { excluida: 1 },
+                          "Mensagem movida para o arquivo.",
+                        )
+                      }
+                      className="gap-2 text-destructive"
+                    >
+                      <Trash2 size={14} /> Excluir
+                    </Button>
+                  </div>
+                  <h2 className="mt-5 break-words text-xl font-semibold">
+                    {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
+                  </h2>
+                  <p className="mt-3 text-xs font-medium">
+                    {mensagemInternaSelecionada.papel === "remetente"
+                      ? mensagemInternaSelecionada.destinatario_nome ||
+                        mensagemInternaSelecionada.destinatario_id
+                      : mensagemInternaSelecionada.remetente_nome ||
+                        mensagemInternaSelecionada.remetente_id}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Para:{" "}
+                    {mensagemInternaSelecionada.destinatario_nome ||
+                      mensagemInternaSelecionada.destinatario_id}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      {dataBr(mensagemInternaSelecionada.criado_em)} ·{" "}
+                      {horaBr(mensagemInternaSelecionada.criado_em)}
+                    </p>
+                    <select
+                      aria-label="Classificar mensagem"
+                      value={
+                        categoriasMensagem[mensagemInternaSelecionada.id] || ""
+                      }
+                      onChange={(e) =>
+                        classificarMensagem(
+                          mensagemInternaSelecionada.id,
+                          e.target.value,
+                        )
+                      }
+                      className="campo !w-auto"
+                    >
+                      <option value="">Categoria</option>
+                      <option>Financeiro</option>
+                      <option>Operacional</option>
+                      <option>Urgente</option>
+                    </select>
+                  </div>
+                </header>
+                <div className="email-leitura-scroll">
+                  <div className="whitespace-pre-wrap break-words text-sm leading-7">
+                    {mensagemInternaSelecionada.conteudo}
+                  </div>
+                  {!!mensagemInternaSelecionada.anexos?.length && (
+                    <section className="email-anexos-leitura">
+                      <h3 className="email-legenda">
+                        Anexos ({mensagemInternaSelecionada.anexos.length})
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {mensagemInternaSelecionada.anexos.map((anexo) => (
+                          <button
+                            key={anexo.id}
+                            type="button"
+                            onClick={() =>
+                              void abrirAnexoMensagem(
+                                mensagemInternaSelecionada.id,
+                                anexo.id,
+                                anexo.nome_arquivo,
+                              )
+                            }
+                            className="email-arquivo"
+                          >
+                            <FileText size={19} />
+                            <span>{anexo.nome_arquivo}</span>
+                            <Eye size={14} />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="email-vazio email-vazio-leitura">
+                <span className="email-vazio-icone">
+                  <Mail size={32} />
+                </span>
+                <h2 className="text-base font-semibold text-foreground">
+                  Sua comunicação em um só lugar
+                </h2>
+                <p className="max-w-xs text-sm leading-6">
+                  Selecione uma mensagem para ler ou escreva um novo e-mail.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={escrever}
+                  className="mt-2 gap-2"
+                >
+                  <PenLine size={15} /> Escrever mensagem
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
+
+      <Dialog open={modoCriacao} onOpenChange={setModoCriacao}>
+        <DialogContent
+          className="email-compositor !flex !max-w-3xl !flex-col !gap-0 !overflow-hidden !rounded-2xl !p-0"
+          aria-describedby="email-compositor-descricao"
+        >
+          <DialogHeader className="email-compositor-cabecalho !space-y-1 !text-left">
+            <DialogTitle className="text-lg font-semibold">
+              Nova mensagem
+            </DialogTitle>
+            <p
+              id="email-compositor-descricao"
+              className="text-xs text-muted-foreground"
+            >
+              De: {remetente?.email || "seu e-mail"}
+            </p>
+          </DialogHeader>
+          <div className="email-compositor-scroll">
+            {erro && (
+              <div role="alert" className="email-aviso email-aviso--erro mb-4">
+                <XCircle size={16} />
+                <span>{erro}</span>
+              </div>
+            )}
+            <div
+              role="group"
+              aria-label="Tipo de mensagem"
+              className="email-tipo-envio"
+            >
+              <button
+                type="button"
+                aria-pressed={tipoEnvio === "email"}
+                onClick={() => {
+                  setTipoEnvio("email");
+                  setDestinatarioUsuarioId("");
+                  setDestinatario("");
+                }}
+                className={tipoEnvio === "email" ? "is-active" : ""}
+              >
+                <Mail size={14} /> E-mail externo
+              </button>
+              <button
+                type="button"
+                aria-pressed={tipoEnvio === "interno"}
+                onClick={() => {
+                  setTipoEnvio("interno");
+                  setDestinatario("");
+                  setNomeDestinatario("");
+                }}
+                className={tipoEnvio === "interno" ? "is-active" : ""}
+              >
+                <UserRound size={14} /> Mensagem interna
+              </button>
+            </div>
+            <div className="email-campo">
+              <label
+                className="email-rotulo"
+                htmlFor={
+                  tipoEnvio === "email" ? "email-destinatario" : undefined
+                }
+              >
+                Para
+              </label>
+              {tipoEnvio === "interno" ? (
+                <SearchableCombobox
+                  items={usuarios.map((usuario) => ({
+                    id: usuario.id,
+                    label: `${usuario.nome} · ${usuario.email}`,
+                    search: `${usuario.nome} ${usuario.email} ${usuario.departamento || ""}`,
+                  }))}
+                  value={destinatarioUsuarioId}
+                  onChange={(id, label) => {
+                    const usuario = usuarios.find((item) => item.id === id);
+                    setDestinatarioUsuarioId(id);
+                    setDestinatario(usuario?.email || label);
+                  }}
+                  placeholder="Busque usuário corporativo..."
+                  searchPlaceholder="Digite nome..."
+                  emptyMessage="Usuário não encontrado."
+                />
+              ) : (
+                <>
+                  <Input
+                    id="email-destinatario"
+                    value={destinatario}
+                    onChange={(e) => {
+                      setDestinatario(e.target.value);
+                      setNomeDestinatario("");
+                    }}
+                    placeholder="nome@empresa.com; outro@empresa.com"
+                    className="h-11 text-sm"
+                  />
+                  <SeletorContatoEmail
+                    contatos={contatosFiltrados}
+                    busca={busca}
+                    emailSelecionado={destinatario}
+                    onBusca={setBusca}
+                    onSelecionar={selecionarContato}
+                  />
+                </>
+              )}
+            </div>
+            <div className="email-campo">
+              <label className="email-rotulo" htmlFor="email-assunto">
+                Assunto
+              </label>
+              <Input
+                id="email-assunto"
+                value={assunto}
+                onChange={(e) => setAssunto(e.target.value)}
+                placeholder="Assunto da mensagem"
+                className="h-11 text-sm"
+              />
+            </div>
+            <div className="email-campo">
+              <label className="email-rotulo" htmlFor="email-conteudo">
+                Mensagem
+              </label>
+              <Textarea
+                id="email-conteudo"
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                placeholder="Escreva sua mensagem..."
+                rows={8}
+                className="min-h-[200px] resize-y text-sm leading-7"
+              />
+            </div>
+            {tipoEnvio === "email" && contasBancarias.length > 0 && (
+              <section className="email-bancos">
+                <p className="email-rotulo">
+                  <Landmark size={14} /> Inserir dados bancários
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {contasBancarias.map((conta) => (
+                    <Button
+                      key={conta.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => inserirDadosBancarios(conta)}
+                      className="gap-2 text-xs"
+                    >
+                      <Building2 size={13} />
+                      {conta.banco}
+                    </Button>
+                  ))}
+                </div>
+              </section>
+            )}
+            {tipoEnvio === "email" && assinatura && (
+              <section className="email-assinatura">
+                <p className="email-legenda">Assinatura automática</p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <img
+                    src={assinatura.logo_url || logoShare}
+                    alt="Share Brasil"
+                    className="h-auto max-h-14 w-28 object-contain"
+                  />
+                  <div className="min-w-0 text-xs leading-5 text-muted-foreground">
+                    <strong className="block text-sm font-semibold text-foreground">
+                      {assinatura.nome || "Nome"}
+                    </strong>
+                    {assinatura.cargo && <p>{assinatura.cargo}</p>}
+                    {assinatura.telefone && <p>{assinatura.telefone}</p>}
+                    {assinatura.email && <p>{assinatura.email}</p>}
+                    {assinatura.endereco && <p>{assinatura.endereco}</p>}
+                  </div>
+                </div>
+              </section>
+            )}
+          </div>
+          <DialogFooter className="email-compositor-rodape !flex-col !items-stretch !gap-3 !space-x-0">
+            <AnexosEmail
+              anexos={anexos}
+              selecionados={selecionados}
+              onAlternar={alternarAnexo}
+              arquivosNovos={arquivosNovos}
+              onAdicionarArquivos={(novos) =>
+                setArquivosNovos((prev) => [...prev, ...novos])
+              }
+              onRemoverArquivo={(idx) =>
+                setArquivosNovos((prev) => prev.filter((_, i) => i !== idx))
+              }
+            />
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  limparFormulario();
+                  setModoCriacao(false);
+                }}
+                disabled={enviando}
+                className="gap-2 text-muted-foreground"
+              >
+                <Trash2 size={15} /> Descartar
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void enviar()}
+                disabled={enviando}
+                className="min-w-28 gap-2"
+              >
+                {enviando ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+                {enviando ? "Enviando..." : "Enviar"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {anexoVisualizado && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              URL.revokeObjectURL(anexoVisualizado.url);
+              setAnexoVisualizado(null);
+            }
+          }}
+        >
+          <DialogContent
+            className="!flex h-[min(90dvh,900px)] !max-w-5xl !flex-col !gap-0 !overflow-hidden !p-0"
+            aria-describedby={undefined}
+          >
+            <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left">
+              <DialogTitle className="truncate text-sm font-semibold">
+                {anexoVisualizado.nome}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 bg-muted/30 p-3">
+              {anexoVisualizado.tipo.includes("pdf") ? (
+                <iframe
+                  title={anexoVisualizado.nome}
+                  src={anexoVisualizado.url}
+                  className="h-full w-full rounded-lg bg-white"
+                />
+              ) : anexoVisualizado.tipo.startsWith("image/") ? (
+                <img
+                  src={anexoVisualizado.url}
+                  alt={anexoVisualizado.nome}
+                  className="mx-auto h-full max-w-full rounded-lg object-contain"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-5 text-sm text-muted-foreground">
+                  Este tipo de arquivo não possui pré-visualização. Use o
+                  download para abrir no aplicativo compatível.
+                </div>
+              )}
+            </div>
+            <DialogFooter className="border-t border-border p-3">
+              <a
+                href={anexoVisualizado.url}
+                download={anexoVisualizado.nome}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+              >
+                <Download size={14} /> Baixar arquivo
+              </a>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
 
-function EmailToast({ toast, onDone }: { toast: ToastData; onDone: () => void }) {
+function EmailToast({
+  toast,
+  onDone,
+}: {
+  toast: ToastData;
+  onDone: () => void;
+}) {
   const isSent = toast.status === "sent";
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-2xl ${isSent ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300" : "border-sky-400/20 bg-sky-500/15 text-sky-300"}`}
+      className={`fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-semibold shadow-2xl ${isSent ? "border-emerald-600/40 bg-emerald-50 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-950 dark:text-emerald-200" : "border-sky-600/40 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-950 dark:text-sky-200"}`}
       role="status"
       aria-live="polite"
-      onAnimationEnd={() => { if (isSent) onDone(); }}
+      onAnimationEnd={() => {
+        if (isSent) onDone();
+      }}
     >
-      <span className={`flex h-5 w-5 items-center justify-center rounded-full ${isSent ? "bg-emerald-500 text-white" : "bg-sky-500 text-white"}`}>
-        {isSent ? <Check size={12} /> : <Loader2 size={11} className="animate-spin" />}
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-full ${isSent ? "bg-emerald-500 text-white" : "bg-sky-500 text-white"}`}
+      >
+        {isSent ? (
+          <Check size={12} />
+        ) : (
+          <Loader2 size={11} className="animate-spin" />
+        )}
       </span>
       <span>{toast.message}</span>
     </div>

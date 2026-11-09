@@ -1,4 +1,4 @@
-import { ACAO_CONCLUIDA, ACAO_A_REALIZAR, ACAO_HOVER_MOVIMENTO, visualStatusAgendamento } from "@/components/agendamento/agendamentoVisual";
+import { visualStatusAgendamento } from "@/components/agendamento/agendamentoVisual";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type FormEvent } from "react";
 import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, MoreVertical, Pencil, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
@@ -13,7 +13,7 @@ import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
+import { CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import {
   aprovarSolicitacaoVoo,
   atualizarAgendamento,
@@ -62,6 +62,42 @@ type VisaoCronograma = "grid" | "lista";
 
 const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const nomesDias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+/* ==========================================================================
+   ESTILOS ISOLADOS
+   --------------------------------------------------------------------------
+   estiloCartao  -> usado SOMENTE no card do cronograma (AcoesCartao)
+   estiloDetalhe -> usado SOMENTE na página de detalhes (AcoesDetalhe)
+   Nenhuma string de classe é compartilhada entre os dois. Para mudar um,
+   edite só o objeto dele.
+   ========================================================================== */
+const estiloCartao = {
+  base: "inline-flex h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+  // ABRIR: neutro nos dois temas (nunca verde)
+  abrir: "border-slate-300 bg-slate-100 text-slate-900 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-700",
+  // CONFIRMAR AGENDAMENTO: verde nos dois temas
+  confirmar: "border-emerald-600 bg-emerald-300/50 text-emerald-950 hover:bg-emerald-300/70 dark:border-emerald-500 dark:bg-emerald-600/25 dark:text-emerald-100 dark:hover:bg-emerald-600/40",
+  checklistIniciar: "border-sky-600 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-100 dark:hover:bg-sky-900/60",
+  checklistAndamento: "border-emerald-500 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:hover:bg-emerald-900/60",
+  concluido: "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800",
+  jornada: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20",
+  finalizar: "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60",
+  menu: "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card/60 text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+  operacaoConcluida: "inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap text-[11px] font-semibold text-emerald-700 dark:text-[#86c23e]",
+  lixeira: "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:text-red-400",
+} as const;
+
+const estiloDetalhe = {
+  base: "inline-flex h-11 min-w-[180px] flex-1 items-center justify-center whitespace-nowrap rounded-lg border px-4 text-xs font-semibold tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+  checklistIniciar: "border-sky-600 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-100 dark:hover:bg-sky-900/60",
+  checklistAndamento: "border-emerald-500 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:hover:bg-emerald-900/60",
+  concluido: "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800",
+  jornada: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20",
+  finalizar: "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60",
+  verChecklist: "border-primary/40 bg-transparent text-foreground hover:bg-primary/15",
+  operacaoConcluida: "inline-flex h-11 min-w-[180px] flex-1 items-center justify-center gap-2 whitespace-nowrap text-xs font-semibold text-emerald-700 dark:text-[#86c23e]",
+  pesoWrapper: "min-w-[180px] flex-1 [&>button]:h-11 [&>button]:w-full",
+} as const;
 
 function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefined) {
   const porId = new Map<string, SolicitacaoVooInterna>();
@@ -131,7 +167,7 @@ function ordenarPorAeronave(itens: SolicitacaoVooInterna[]) {
 function itensTitulares(opcoes: OpcoesAgendamentoResponse) {
   return [
     ...opcoes.clientes.map((item) => ({ id: `cliente:${item.id}`, label: `${item.nome}${item.codigo_cliente ? ` · ${item.codigo_cliente}` : ""}` })),
-        ...opcoes.socios.map((item) => ({ id: `socio:${item.id}`, label: item.nome })),
+    ...opcoes.socios.map((item) => ({ id: `socio:${item.id}`, label: item.nome })),
   ];
 }
 
@@ -420,8 +456,8 @@ export default function Agendamentos() {
   };
 
   return <div className="route-enter min-w-0 space-y-5">
-    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><IndicadorPagina>{aba === "voos-hoje" ? "Operações / acompanhamento" : "Operações / agendamento de voo"}</IndicadorPagina><h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">{aba === "voos-hoje" ? "Voos de Hoje" : "Agendamento de Voo"}</h1><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">{aba === "voos-hoje" ? "Voos confirmados com checklist pré-voo concluído. Acompanhe a rota e inicie a jornada." : "Organize solicitações, aeronaves, confirmação de voos e escala da tripulação."}</p></div><div className="flex w-full flex-wrap gap-2 pl-[6px] pr-[6px] -ml-[3px] -mr-[3px] md:w-auto">{aba !== "voos-hoje" && <Button type="button" onClick={() => setMostrarNovo((atual) => !atual)} className="flex-1 gap-2 bg-[rgba(13,131,185,1)] text-primary-foreground dark:bg-[#0D83B9] sm:flex-none"><Plus size={14} /> Novo agendamento</Button>}</div></div>
-    {aba !== "voos-hoje" && <div className="mt-3.5 -ml-1.5 grid gap-9 sm:grid-cols-3"><CartaoKpi label="Voos confirmados" value={carregando ? "—" : String(confirmados.length)} detail="Todos os registros carregados" icon={<Plane size={16} />} /><CartaoKpi label="Solicitações pendentes" value={carregando ? "—" : String(pendentes.length)} detail="Aguardando coordenação" tone="amber" icon={<Clock3 size={16} />} /><CartaoKpi label="Aeronaves disponíveis" value={carregando ? "—" : String(painel?.aeronaves?.length ?? 0)} detail="Frota ativa do D1" tone="green" icon={<CalendarDays size={16} />} /></div>}
+    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><IndicadorPagina>{aba === "voos-hoje" ? "Operações / acompanhamento" : "Operações / agendamento de voo"}</IndicadorPagina><h1 className="text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">{aba === "voos-hoje" ? "Voos de Hoje" : "Agendamento de Voo"}</h1><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">{aba === "voos-hoje" ? "Voos confirmados com checklist pré-voo concluído. Acompanhe a rota e inicie a jornada." : "Organize solicitações, aeronaves, confirmação de voos e escala da tripulação."}</p></div><div className="flex w-full flex-wrap gap-2 md:w-auto">{aba !== "voos-hoje" && <Button type="button" onClick={() => setMostrarNovo((atual) => !atual)} className="flex-1 gap-2 bg-primary text-primary-foreground sm:flex-none"><Plus size={14} /> Novo agendamento</Button>}<Button type="button" variant="outline" onClick={() => void carregar(true)} disabled={atualizando} className="flex-1 gap-2 border-border bg-card text-xs sm:flex-none"><RefreshCw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar</Button></div></div>
+    {aba !== "voos-hoje" && <div className="grid gap-4 sm:grid-cols-3"><CartaoKpi label="Voos confirmados" value={carregando ? "—" : String(confirmados.length)} detail="Todos os registros carregados" icon={<Plane size={16} />} /><CartaoKpi label="Solicitações pendentes" value={carregando ? "—" : String(pendentes.length)} detail="Aguardando coordenação" tone="amber" icon={<Clock3 size={16} />} /><CartaoKpi label="Aeronaves disponíveis" value={carregando ? "—" : String(painel?.aeronaves?.length ?? 0)} detail="Frota ativa do D1" tone="green" icon={<CalendarDays size={16} />} /></div>}
     {aba !== "voos-hoje" && mostrarNovo && <FormularioAgendamento novo={novo} opcoes={opcoes} titulares={titulares} aerodromos={aerodromos} aerodromosCarregando={aerodromosCarregando} tripulacao={painel?.tripulacao || []} atualizando={processando} atualizar={atualizarNovo} aoCancelar={() => setMostrarNovo(false)} aoEnviar={criarNovo} />}
     {erro && <div className="rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
     <nav className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/60 p-1">{abas.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setAba(item.id)} className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-[10px] font-bold transition-colors ${aba === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Icon size={14} />{item.label}</button>; })}</nav>
@@ -436,7 +472,7 @@ export default function Agendamentos() {
     />}
     {aba === "cronograma" && !selecionada && <Cronograma selecionada={selecionada} progressoChecklistPorId={progressoChecklistPorId} checklistAberto={checklistAberto} solicitacoes={solicitacoesFiltradas} nomesTripulantes={nomesTripulantes} busca={busca} filtroStatus={filtroStatus} visao={visaoCronograma} aoMudarBusca={setBusca} aoMudarFiltroStatus={setFiltroStatus} aoMudarVisao={setVisaoCronograma} aoAbrir={abrirSolicitacao} aoConfirmar={confirmarSolicitacao} aoVoltar={() => setSelecionada(null)} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={(item) => { setAba("cronograma"); abrirJornada(item); }} aoFinalizar={(item) => void finalizar(item)} aoExcluir={(item) => void excluir(item)} />}
     {aba === "escala" && mostrarDisponibilidade && <FormularioDisponibilidade dados={novaDisponibilidade} tripulacao={painel?.tripulacao || []} atualizando={processando} aoCancelar={() => setMostrarDisponibilidade(false)} aoEnviar={salvarDisponibilidade} aoAlterar={(campo, valor) => setNovaDisponibilidade((atual) => ({ ...atual, [campo]: valor }))} />}
-    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao acoes={<><AcoesCronograma item={selecionada} aoAbrir={abrirSolicitacao} aoConfirmar={confirmarSolicitacao} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} progressoChecklist={progressoChecklistPorId[selecionada.id] ?? calcularProgressoChecklist(selecionada)} checklistAberto={checklistAberto} emVisualizacao /></>} aoExcluir={() => void excluir(selecionada)} selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
+    {selecionada && !checklistAberto && !jornadaAberta && <DetalhesSolicitacao acoes={<AcoesDetalhe item={selecionada} aoChecklist={(item) => { setSelecionada(item); setChecklistAberto(true); setJornadaAberta(false); }} aoJornada={abrirJornada} aoFinalizar={(item) => void finalizar(item)} progressoChecklist={progressoChecklistPorId[selecionada.id] ?? calcularProgressoChecklist(selecionada)} checklistAberto={checklistAberto} />} aoExcluir={() => void excluir(selecionada)} selecionada={selecionada} opcoes={opcoes} tripulacao={painel?.tripulacao || []} pilotoId={pilotoId} copilotoId={copilotoId} motivo={motivo} processando={processando} aoAtualizar={atualizarSelecionada} aoFechar={() => { setSelecionada(null); setChecklistAberto(false); }} aoPiloto={setPilotoId} aoCopiloto={setCopilotoId} aoMotivo={setMotivo} aoAprovar={(alteracoes) => void aprovar(alteracoes)} aoReprovar={() => void reprovar()} />}
     {selecionada && checklistAberto && <Button type="button" variant="outline" onClick={() => setChecklistAberto(false)} className="gap-2"><ChevronLeft size={14} /> Voltar aos detalhes do voo</Button>}
     {selecionada && (statusPermiteChecklist(selecionada.status) || selecionada.checklist_status === "concluido") && checklistAberto && <ChecklistPreVoo key={selecionada.id} item={selecionada} aoConcluir={() => carregar(true)} aoAtualizarProgresso={notificarProgressoChecklist} />}
     {selecionada && statusPermiteAbrirJornada(selecionada.status) && jornadaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"><div className="max-h-[100dvh] w-full max-w-5xl overflow-y-auto rounded-t-3xl rounded-b-none pb-[env(safe-area-inset-bottom)] sm:max-h-[92dvh] sm:rounded-2xl"><JornadaVoo item={selecionada} voosEmOperacao={voosAoVivo} aoAtualizarAgendamento={async (status) => { await carregar(true); if (status) setSelecionada((atual) => atual ? { ...atual, status } : atual); }} aoFechar={() => { setJornadaAberta(false); setSelecionada(null); void carregar(true); }} /></div></div>}
@@ -653,47 +689,121 @@ function Escala({ tripulacao, escala, disponibilidades, aoMarcar, aoAbrirVoo }: 
 
 function Cronograma({ selecionada, progressoChecklistPorId, checklistAberto, solicitacoes, nomesTripulantes, busca, filtroStatus, visao, aoMudarBusca, aoMudarFiltroStatus, aoMudarVisao, aoAbrir, aoConfirmar, aoVoltar, aoChecklist, aoJornada, aoFinalizar, aoExcluir }: { selecionada: SolicitacaoVooInterna | null; progressoChecklistPorId: Record<string, number>; checklistAberto: boolean; solicitacoes: SolicitacaoVooInterna[]; nomesTripulantes: Map<string, string>; busca: string; filtroStatus: FiltroStatusCronograma; visao: VisaoCronograma; aoMudarBusca: (busca: string) => void; aoMudarFiltroStatus: (filtro: FiltroStatusCronograma) => void; aoMudarVisao: (visao: VisaoCronograma) => void; aoAbrir: (item: SolicitacaoVooInterna) => void; aoConfirmar: (item: SolicitacaoVooInterna) => void; aoVoltar: () => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void }) {
   const solicitacoesVisiveis = selecionada ? [selecionada] : solicitacoes;
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail={selecionada ? "Agendamento selecionado" : "Todas as solicitações de voo"} action={selecionada ? <Button type="button" variant="outline" onClick={aoVoltar} className="h-8 gap-1.5 border-border bg-card px-3 text-[10px]"><ChevronLeft size={13} /> Voltar</Button> : <div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Filtrar solicitações por status"><button type="button" onClick={() => aoMudarFiltroStatus("pendente")} aria-pressed={filtroStatus === "pendente"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "pendente" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Pendente</button><button type="button" onClick={() => aoMudarFiltroStatus("aprovada")} aria-pressed={filtroStatus === "aprovada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "aprovada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Aprovada</button><button type="button" onClick={() => aoMudarFiltroStatus("em_voo")} aria-pressed={filtroStatus === "em_voo"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "em_voo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Em Voo / Em Solo</button><button type="button" onClick={() => aoMudarFiltroStatus("encerrada")} aria-pressed={filtroStatus === "encerrada"} className={`rounded px-2 py-1 text-[9px] font-bold ${filtroStatus === "encerrada" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>Encerrado</button><button type="button" onClick={() => aoMudarFiltroStatus("todos")} aria-pressed={filtroStatus === "todos"} className={`px-2 py-1 text-[9px] font-bold ${filtroStatus === "todos" ? "rounded-[16px] overflow-hidden bg-primary text-primary-foreground" : "rounded text-muted-foreground hover:bg-secondary"}`}>Todas</button></div><div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Alternar visualização"><button type="button" onClick={() => aoMudarVisao("grid")} aria-label="Visualizar em grade" aria-pressed={visao === "grid"} className={`rounded p-1.5 ${visao === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="6" ry="6" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></svg></button><button type="button" onClick={() => aoMudarVisao("lista")} aria-label="Visualizar em lista" aria-pressed={visao === "lista"} className={`rounded p-1.5 ${visao === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><List size={14} /></button></div></div>} />{solicitacoesVisiveis.length ? <><div className={visao === "grid" ? "grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3" : "space-y-2 p-3"}>{solicitacoesVisiveis.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} progressoChecklist={progressoChecklistPorId[item.id] ?? calcularProgressoChecklist(item)} checklistAberto={checklistAberto && selecionada?.id === item.id} emVisualizacao={Boolean(selecionada)} aoAbrir={aoAbrir} aoConfirmar={aoConfirmar} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div></> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
+  const classeFiltro = (ativo: boolean) => `rounded px-2 py-1 text-[9px] font-bold ${ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`;
+  return <section className="overflow-hidden rounded-xl border border-border bg-card/75"><CabecalhoSecao icon={<ClipboardList size={15} />} title="Cronograma de Voos" detail={selecionada ? "Agendamento selecionado" : "Todas as solicitações de voo"} action={selecionada ? <Button type="button" variant="outline" onClick={aoVoltar} className="h-8 gap-1.5 border-border bg-card px-3 text-[10px]"><ChevronLeft size={13} /> Voltar</Button> : <div className="flex flex-wrap items-center justify-end gap-2"><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Filtrar solicitações por status"><button type="button" onClick={() => aoMudarFiltroStatus("pendente")} aria-pressed={filtroStatus === "pendente"} className={classeFiltro(filtroStatus === "pendente")}>Pendente</button><button type="button" onClick={() => aoMudarFiltroStatus("aprovada")} aria-pressed={filtroStatus === "aprovada"} className={classeFiltro(filtroStatus === "aprovada")}>Aprovada</button><button type="button" onClick={() => aoMudarFiltroStatus("em_voo")} aria-pressed={filtroStatus === "em_voo"} className={classeFiltro(filtroStatus === "em_voo")}>Em Voo / Em Solo</button><button type="button" onClick={() => aoMudarFiltroStatus("encerrada")} aria-pressed={filtroStatus === "encerrada"} className={classeFiltro(filtroStatus === "encerrada")}>Encerrado</button><button type="button" onClick={() => aoMudarFiltroStatus("todos")} aria-pressed={filtroStatus === "todos"} className={classeFiltro(filtroStatus === "todos")}>Todas</button></div><div className="relative"><Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(event) => aoMudarBusca(event.target.value)} placeholder="Buscar cliente, rota ou voo" className="h-8 w-full pl-8 text-[10px] sm:w-56" /></div><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Alternar visualização"><button type="button" onClick={() => aoMudarVisao("grid")} aria-label="Visualizar em grade" aria-pressed={visao === "grid"} className={`rounded p-1.5 ${visao === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /></svg></button><button type="button" onClick={() => aoMudarVisao("lista")} aria-label="Visualizar em lista" aria-pressed={visao === "lista"} className={`rounded p-1.5 ${visao === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}><List size={14} /></button></div></div>} />{solicitacoesVisiveis.length ? <div className={visao === "grid" ? "grid items-stretch gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3" : "space-y-3 p-4"}>{solicitacoesVisiveis.map((item) => <CartaoCronograma key={item.id} item={item} nomesTripulantes={nomesTripulantes} progressoChecklist={progressoChecklistPorId[item.id] ?? calcularProgressoChecklist(item)} checklistAberto={checklistAberto && selecionada?.id === item.id} aoAbrir={aoAbrir} aoConfirmar={aoConfirmar} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} aoExcluir={aoExcluir} />)}</div> : <EstadoVazio label="Nenhuma solicitação encontrada" />}</section>;
 }
 
-function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFinalizar, aoExcluir, progressoChecklist, checklistAberto, emVisualizacao }: { item: SolicitacaoVooInterna; nomesTripulantes: Map<string, string>; aoAbrir: (item: SolicitacaoVooInterna) => void; aoConfirmar: (item: SolicitacaoVooInterna) => void; aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void; aoFinalizar: (item: SolicitacaoVooInterna) => void; aoExcluir: (item: SolicitacaoVooInterna) => void; progressoChecklist: number; checklistAberto: boolean; emVisualizacao: boolean }) {
+/* ==========================================================================
+   CARD DO CRONOGRAMA (resumo)
+   ========================================================================== */
+type PropsCartao = {
+  item: SolicitacaoVooInterna;
+  nomesTripulantes: Map<string, string>;
+  aoAbrir: (item: SolicitacaoVooInterna) => void;
+  aoConfirmar: (item: SolicitacaoVooInterna) => void;
+  aoChecklist: (item: SolicitacaoVooInterna) => void;
+  aoJornada: (item: SolicitacaoVooInterna) => void;
+  aoFinalizar: (item: SolicitacaoVooInterna) => void;
+  aoExcluir: (item: SolicitacaoVooInterna) => void;
+  progressoChecklist: number;
+  checklistAberto: boolean;
+};
+
+function CaixaInfo({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+  return <div className="flex min-h-[68px] min-w-0 flex-col rounded-xl border border-[rgba(79,84,92,0.5)] bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">{rotulo}</span>{children}</div>;
+}
+
+function CartaoCronograma({ item, nomesTripulantes, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFinalizar, aoExcluir, progressoChecklist, checklistAberto }: PropsCartao) {
   const cliente = item.voo_emprestado !== "nao" && item.socio_emprestimo_nome ? item.socio_emprestimo_nome : item.socio_nome || item.cliente_razao_social || item.codigo_cliente || "Cliente não informado";
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const tripulacao = [item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null), item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null)].filter(Boolean).join(" / ") || "A definir";
   const statusCartao = String(item.status || "").trim().toLowerCase();
   const bordaStatus = statusCartao === "aprovada" ? "border-[rgba(14,153,12,0.89)]" : statusCartao === "encerrada" ? "border-slate-500 dark:border-slate-400" : visualStatusAgendamento(item.status).borda;
-  return <article className={`group flex min-h-full flex-col overflow-hidden rounded-2xl border ${bordaStatus} bg-[rgba(202,235,177,0.21)] dark:bg-none dark:bg-card p-4 transition-all duration-200 hover:-translate-y-0.5`}>
-    <div className="flex items-start justify-between gap-[11px] border-b border-border/60 pb-3"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-muted-foreground">Agendamento de voo</p><p className="mt-1 truncate font-mono text-sm font-bold tracking-tight text-primary">{item.numero_voo || "A gerar na confirmação"}</p><p className="mt-1 truncate text-[11px] font-semibold text-foreground">{cliente}</p></div><div className="flex shrink-0 items-center gap-[-1px]"><EtiquetaStatus tone={tomStatus(item.status)} className="text-[8px]">{acoes.historico ? "Encerrada" : statusLabel(item.status)}</EtiquetaStatus><button type="button" onClick={() => aoExcluir(item)} aria-label="Excluir agendamento" title="Excluir agendamento" className="mx-[1px] my-[-4px] min-h-9 overflow-hidden rounded-[5px] border-0 bg-transparent px-[5px] py-0 text-[10px] font-light leading-[16.5px] text-[#ec0000] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card hover:bg-red-400/15"><Trash2 size={15} /></button></div></div>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="min-w-0 rounded-xl border border-[rgba(79,84,92,0.5)] bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Rota</span><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.origem} <span className="text-primary">→</span> {item.destino}</strong></div><div className="min-w-0 rounded-xl border border-[rgba(79,84,92,0.5)] bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Período</span><strong className="mt-1 block text-xs text-foreground">{formatarData(item.data_agendada)}{item.data_fim && item.data_fim !== item.data_agendada ? ` a ${formatarData(item.data_fim)}` : ""}</strong></div><div className="min-w-0 rounded-xl border border-[rgba(79,84,92,0.5)] bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Aeronave</span><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.matricula_registro || "A definir"}</strong></div><div className="min-w-0 rounded-xl border border-[rgba(79,84,92,0.5)] bg-background/25 p-3"><span className="block text-[9px] font-bold uppercase tracking-[.12em] text-muted-foreground">Tripulação</span><strong className="mt-1 block break-words text-xs text-foreground">{tripulacao}</strong></div></div>
-    <AcoesCronograma item={item} aoAbrir={aoAbrir} aoConfirmar={aoConfirmar} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} progressoChecklist={progressoChecklist} checklistAberto={checklistAberto} emVisualizacao={emVisualizacao} />
+  return <article className={`group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border ${bordaStatus} bg-[rgba(202,235,177,0.21)] p-4 transition-all duration-200 hover:-translate-y-0.5 dark:bg-none dark:bg-card`}>
+    <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-bold uppercase tracking-[.16em] text-muted-foreground">Agendamento de voo</p>
+        <p className="mt-1 truncate font-mono text-sm font-bold tracking-tight text-primary">{item.numero_voo || "A gerar na confirmação"}</p>
+        <p className="mt-1 truncate text-[11px] font-semibold text-foreground">{cliente}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <EtiquetaStatus tone={tomStatus(item.status)} className="text-[8px]">{acoes.historico ? "Encerrada" : statusLabel(item.status)}</EtiquetaStatus>
+        <button type="button" onClick={() => aoExcluir(item)} aria-label="Excluir agendamento" title="Excluir agendamento" className={estiloCartao.lixeira}><Trash2 size={15} /></button>
+      </div>
+    </div>
+    <div className="mt-4 grid grid-cols-2 gap-2.5 max-[379px]:grid-cols-1">
+      <CaixaInfo rotulo="Rota"><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.origem} <span className="text-primary">→</span> {item.destino}</strong></CaixaInfo>
+      <CaixaInfo rotulo="Período"><strong className="mt-1 block text-xs leading-snug text-foreground">{formatarData(item.data_agendada)}{item.data_fim && item.data_fim !== item.data_agendada ? ` a ${formatarData(item.data_fim)}` : ""}</strong></CaixaInfo>
+      <CaixaInfo rotulo="Aeronave"><strong className="mt-1 block truncate font-mono text-xs text-foreground">{item.matricula_registro || "A definir"}</strong></CaixaInfo>
+      <CaixaInfo rotulo="Tripulação"><strong className="mt-1 line-clamp-2 break-words text-xs leading-snug text-foreground">{tripulacao}</strong></CaixaInfo>
+    </div>
+    <AcoesCartao item={item} aoAbrir={aoAbrir} aoConfirmar={aoConfirmar} aoChecklist={aoChecklist} aoJornada={aoJornada} aoFinalizar={aoFinalizar} progressoChecklist={progressoChecklist} checklistAberto={checklistAberto} />
   </article>;
 }
 
-function AcoesCronograma({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFinalizar, progressoChecklist, checklistAberto, emVisualizacao }: {
+function AcoesCartao({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFinalizar, progressoChecklist, checklistAberto }: {
   item: SolicitacaoVooInterna; aoAbrir: (item: SolicitacaoVooInterna) => void; aoConfirmar: (item: SolicitacaoVooInterna) => void;
   aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void;
-  aoFinalizar: (item: SolicitacaoVooInterna) => void; progressoChecklist: number; checklistAberto: boolean; emVisualizacao: boolean;
+  aoFinalizar: (item: SolicitacaoVooInterna) => void; progressoChecklist: number; checklistAberto: boolean;
 }) {
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const [pesoAberto, setPesoAberto] = useState(false);
-  return (<div className="mt-auto flex flex-nowrap items-center gap-2 sm:gap-[42px] mx-0 sm:mx-9 px-3 sm:px-0 sm:pl-[14px] sm:pr-[50px] pt-4">
-      {!emVisualizacao && <button type="button" onClick={() => aoAbrir(item)} className="min-h-[34px] min-w-0 flex-1 overflow-hidden rounded-[9px] border border-[rgba(37,107,62,0.84)] [border-style:solid] dark:border-[rgba(37,107,62,0.84)] dark:[border-style:outset] bg-[rgba(10,48,49,0.184)] dark:bg-[rgba(10,48,49,0.45)] mx-0 px-3 py-2 text-[11px] font-semibold text-[rgba(6,7,5,1)] dark:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card hover:bg-primary/15">ABRIR</button>}{!emVisualizacao && String(item.status || "").trim().toLowerCase() === "pendente" && <button type="button" onClick={() => aoConfirmar(item)} className="min-h-[34px] min-w-0 flex-1 overflow-hidden rounded-[9px] border border-[rgba(6,172,63,0.84)] [border-style:double] dark:border-[rgba(6,172,63,0.84)] dark:[border-style:outset] bg-[rgba(58,209,120,0.36)] dark:bg-[rgba(16,120,60,0.45)] mx-0 px-3 py-2 text-[11px] font-semibold text-[rgba(18,70,4,1)] dark:text-[rgba(220,252,231,1)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card hover:bg-primary/15">CONFIRMAR AGENDAMENTO</button>}
-      {acoes.mostrarChecklist && (!acoes.mostrarJornada || emVisualizacao) && <button type="button" onClick={() => aoChecklist(item)} className={cn("min-h-9 min-w-0 flex-1 overflow-hidden rounded-[8px] border mx-[1px] px-[9px] py-2 text-[9px] font-semibold leading-[15px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card", acoes.checklistConcluido ? ACAO_CONCLUIDA : [ACAO_HOVER_MOVIMENTO, acoes.checklistLabel === "INICIAR CHECKLIST" ? "bg-[rgba(198,233,255,1)] border-[rgba(24,97,131,1)] text-sky-900 hover:bg-sky-200 dark:bg-[rgba(2,42,65,0.57)] dark:border-[rgba(56,159,230,0.37)] dark:text-[rgba(216,246,231,1)] px-[5px] text-[10px] font-semibold [border-style:double]" : "bg-emerald-100 border-emerald-500 text-emerald-900 hover:bg-emerald-200 dark:bg-[rgba(3,36,23,0.94)] dark:border-[rgba(11,128,59,1)] dark:text-[rgba(205,240,224,1)] [border-style:ridge]"])}>{acoes.checklistLabel}</button>}
-      {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn("min-h-[32px] min-w-0 flex-1 overflow-hidden rounded-[8px] border px-[13px] py-2 text-[10px] font-semibold leading-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card", Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0 ? ACAO_CONCLUIDA : ["bg-amber-100 border-amber-500 text-amber-950 hover:bg-amber-200 dark:bg-amber-400/10 dark:border-amber-300/40 dark:text-amber-200", acoes.jornadaLabel === "INICIAR JORNADA" && `${ACAO_HOVER_MOVIMENTO} bg-[rgba(254,241,199,1)] border-[rgba(245,166,35,1)] text-[rgba(146,94,6,1)] hover:bg-amber-200 dark:bg-[rgba(248,231,28,0.25)] dark:border-[rgba(248,231,28,0.86)] dark:text-[rgba(212,246,181,1)] [border-style:solid]`])}>{acoes.jornadaLabel}</button>}
-      {emVisualizacao && acoes.historico && acoes.checklistConcluido && <button type="button" onClick={() => aoChecklist(item)} className="min-h-9 flex-1 rounded-lg border border-primary/35 px-3 py-2 text-[11px] font-bold transition-colors hover:bg-primary/15">Ver checklist</button>}
-      {emVisualizacao && acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} />}
-      {!emVisualizacao && acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} aberto={pesoAberto} aoAlterarAberto={setPesoAberto} />}
-      {!emVisualizacao && (acoes.mostrarChecklist || acoes.checklistConcluido) && <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" aria-label="Mais opções do voo" title="Mais opções" className="min-h-9 rounded-lg border-0 bg-card/60 px-2.5 text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"><MoreVertical size={15} /></button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {acoes.mostrarChecklist && <DropdownMenuItem onSelect={() => aoChecklist(item)}>Ver checklist</DropdownMenuItem>}
-          {acoes.checklistConcluido && <DropdownMenuItem onSelect={() => setPesoAberto(true)}>Gerar peso e balanceamento</DropdownMenuItem>}
-        </DropdownMenuContent>
-      </DropdownMenu>}
-      {acoes.podeFinalizar ? <button type="button" onClick={() => aoFinalizar(item)} className={`min-h-9 flex-1 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card ${ACAO_A_REALIZAR}`}>Concluir operação</button> : acoes.historico && <span className="inline-flex min-h-9 flex-1 items-center justify-center gap-[13px] rounded-lg border-0 border-emerald-700/35 bg-transparent mx-[7px] px-[18px] py-2 text-center text-[9px] leading-[15.5px] font-semibold text-[#86c23e]"><Check size={13} /> Operação concluída</span>}
-    </div>);
+  const pendente = String(item.status || "").trim().toLowerCase() === "pendente";
+  const jornadaConcluida = Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0;
+  const checklistInicial = acoes.checklistLabel === "INICIAR CHECKLIST";
+  const e = estiloCartao;
+
+  return (
+    <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
+      <button type="button" onClick={() => aoAbrir(item)} className={cn(e.base, e.abrir, pendente ? "col-span-1" : "col-span-2")}>ABRIR</button>
+      {pendente && <button type="button" onClick={() => aoConfirmar(item)} className={cn(e.base, e.confirmar, "col-span-1")}>
+        <span className="sm:hidden">CONFIRMAR</span><span className="hidden sm:inline">CONFIRMAR AGENDAMENTO</span>
+      </button>}
+      <div className="col-span-2 flex flex-wrap items-center gap-2 empty:hidden">
+        {acoes.mostrarChecklist && !acoes.mostrarJornada && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, "flex-1", acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
+        {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, "flex-1", jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
+        {acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} aberto={pesoAberto} aoAlterarAberto={setPesoAberto} />}
+        {(acoes.mostrarChecklist || acoes.checklistConcluido) && <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Mais opções do voo" title="Mais opções" className={e.menu}><MoreVertical size={15} /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {acoes.mostrarChecklist && <DropdownMenuItem onSelect={() => aoChecklist(item)}>Ver checklist</DropdownMenuItem>}
+            {acoes.checklistConcluido && <DropdownMenuItem onSelect={() => setPesoAberto(true)}>Gerar peso e balanceamento</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>}
+        {acoes.podeFinalizar
+          ? <button type="button" onClick={() => aoFinalizar(item)} className={cn(e.base, "flex-1", e.finalizar)}>Concluir operação</button>
+          : acoes.historico && <span className={e.operacaoConcluida}><Check size={13} /> Operação concluída</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   AÇÕES DA PÁGINA DE DETALHES (independente do card)
+   ========================================================================== */
+function AcoesDetalhe({ item, aoChecklist, aoJornada, aoFinalizar, progressoChecklist, checklistAberto }: {
+  item: SolicitacaoVooInterna;
+  aoChecklist: (item: SolicitacaoVooInterna) => void; aoJornada: (item: SolicitacaoVooInterna) => void;
+  aoFinalizar: (item: SolicitacaoVooInterna) => void; progressoChecklist: number; checklistAberto: boolean;
+}) {
+  const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
+  const jornadaConcluida = Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0;
+  const checklistInicial = acoes.checklistLabel === "INICIAR CHECKLIST";
+  const e = estiloDetalhe;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-stretch gap-3">
+      {acoes.mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
+      {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
+      {acoes.historico && acoes.checklistConcluido && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, e.verChecklist)}>Ver checklist</button>}
+      {acoes.checklistConcluido && <div className={e.pesoWrapper}><PesoBalanceamentoFicha item={item} /></div>}
+      {acoes.podeFinalizar
+        ? <button type="button" onClick={() => aoFinalizar(item)} className={cn(e.base, e.finalizar)}>Concluir operação</button>
+        : acoes.historico && <span className={e.operacaoConcluida}><Check size={14} /> Operação concluída</span>}
+    </div>
+  );
 }
 
 type EdicaoConfirmacao = {
@@ -763,7 +873,7 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
   const aeronaveDoTitular = Boolean(edicao.aeronave_id && opcoes.vinculos.some((vinculo) =>
     vinculo.aeronave_id === edicao.aeronave_id && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
   ));
-  
+
   const cedentes = (() => {
     const ids = new Set<string>();
     return opcoes.vinculos.filter((vinculo) => vinculo.aeronave_id === edicao.aeronave_id).flatMap((vinculo) => {
@@ -787,29 +897,29 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
       return itens;
     });
   })();
-  
+
   const aeronaves = opcoes.aeronaves.map((aeronave) => ({
     id: aeronave.id,
     label: `${aeronave.matricula_registro} · ${[aeronave.fabricante, aeronave.modelo].filter(Boolean).join(" ")}`,
   }));
-  
+
   const editarAeronave = (aeronaveId: string) => {
     const vinculadaAoTitular = opcoes.vinculos.some((vinculo) =>
       vinculo.aeronave_id === aeronaveId && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (selecionada.socio_id && vinculo.socio_id === selecionada.socio_id))
     );
     setEdicao((atual) => ({ ...atual, aeronave_id: aeronaveId, emprestimo: !vinculadaAoTitular, cliente_emprestimo_id: "", socio_emprestimo_id: "" }));
   };
-  
+
   const editarCedente = (valor: string) => {
     const [tipo, id] = valor.split(":");
     setEdicao((atual) => ({ ...atual, cliente_emprestimo_id: tipo === "cliente" ? id : "", socio_emprestimo_id: tipo === "socio" ? id : "" }));
   };
-  
+
   const cedenteSelecionado = edicao.cliente_emprestimo_id ? `cliente:${edicao.cliente_emprestimo_id}` : edicao.socio_emprestimo_id ? `socio:${edicao.socio_emprestimo_id}` : "";
   const horarioFormatado = formatarHorarioAgendamento(edicao.horario ? horarioUtc(edicao.data_agendada, edicao.horario) || null : null);
   const emprestimoValido = !edicao.emprestimo || Boolean(cedenteSelecionado);
   const formularioValido = Boolean(edicao.aeronave_id && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_agendada) && /^\d{4}-\d{2}-\d{2}$/.test(edicao.data_fim) && edicao.data_fim >= edicao.data_agendada && Number.isInteger(edicao.numero_passageiros) && edicao.numero_passageiros >= 1 && emprestimoValido && (aeronaveDoTitular || edicao.emprestimo));
-  
+
   const confirmar = () => aoAprovar({
     aeronave_id: edicao.aeronave_id,
     data_agendada: edicao.data_agendada,
@@ -819,28 +929,35 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
     cliente_emprestimo_id: edicao.emprestimo ? edicao.cliente_emprestimo_id || null : null,
     socio_emprestimo_id: edicao.emprestimo ? edicao.socio_emprestimo_id || null : null,
   });
-  
+
   const horarioAtual = formatarHorarioAgendamento(selecionada.horario_previsto_agendamento);
   const emprestimoAtual = selecionada.voo_emprestado === "sim" ? `Sim · ${selecionada.cliente_emprestimo_nome || selecionada.socio_emprestimo_nome || "Cedente não informado"}` : "Não";
 
   return (
     <section id="detalhes-solicitacao" className="overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5">
-      <CabecalhoSecao 
-        icon={<ClipboardList size={15} />} 
+      <CabecalhoSecao
+        icon={<ClipboardList size={15} />}
         title={`Voo ${selecionada.numero_voo || "aguardando confirmação"}`}
         tituloClassName="font-normal"
-        detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} 
-        action={<button type="button" onClick={aoFechar} aria-label="Voltar ao cronograma" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs text-[rgba(199,207,221,1)] hover:bg-secondary"><ChevronLeft size={16} /> Voltar ao cronograma</button>}
+        detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`}
+        action={<button type="button" onClick={aoFechar} aria-label="Voltar ao cronograma" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"><ChevronLeft size={16} /> Voltar ao cronograma</button>}
       />
-      <div className="space-y-6 mt-[13px] px-4 py-0 sm:px-6">
-        <div className="flex flex-wrap items-center gap-8 border-b border-border pb-5"><span className="rounded-lg border border-[rgba(0,44,105,1)] bg-[rgba(2,82,121,0.1)] px-3 py-2 font-mono text-lg font-bold text-[rgba(142,188,212,1)]">{selecionada.origem} → {selecionada.destino}</span><EtiquetaStatus tone={tomStatus(selecionada.status)}>{statusLabel(selecionada.status)}</EtiquetaStatus><div className="ml-auto flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={() => setEditandoAgendamento((atual) => !atual)} className="gap-2 py-[6px] text-xs"><Pencil size={13} /> {editandoAgendamento ? "Cancelar edição" : "Editar agendamento"}</Button><button type="button" onClick={aoExcluir} className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-destructive hover:bg-destructive/10"><Trash2 size={14} /> Excluir agendamento</button></div></div>
+      <div className="space-y-6 px-4 py-5 sm:px-6">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border pb-5 sm:gap-4">
+          <span className="rounded-lg border border-[rgba(0,44,105,1)] bg-[rgba(2,82,121,0.1)] px-3 py-2 font-mono text-lg font-bold text-[rgba(142,188,212,1)]">{selecionada.origem} → {selecionada.destino}</span>
+          <EtiquetaStatus tone={tomStatus(selecionada.status)}>{statusLabel(selecionada.status)}</EtiquetaStatus>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+            <Button type="button" variant="outline" onClick={() => setEditandoAgendamento((atual) => !atual)} className="h-10 flex-1 gap-2 text-xs sm:flex-none"><Pencil size={13} /> {editandoAgendamento ? "Cancelar edição" : "Editar agendamento"}</Button>
+            <button type="button" onClick={aoExcluir} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 sm:flex-none"><Trash2 size={14} /> Excluir agendamento</button>
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2"><Detalhe label="Comandante (PIC)" valor={selecionada.piloto_nome || tripulacao.find((t) => t.id === selecionada.piloto_id)?.nome_completo || "A definir"} /><Detalhe label="Segundo em comando (SIC)" valor={selecionada.copiloto_nome || tripulacao.find((t) => t.id === selecionada.copiloto_id)?.nome_completo || "Não escalado"} /></div>
         {selecionada.observacoes && <div className="rounded-xl border border-border bg-muted/20 p-4"><h3 className="text-xs font-semibold">Observações da operação</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">{selecionada.observacoes}</p></div>}
         {selecionada.status === "pendente" ? (
           // === VISÃO UNIFICADA DE CONFIRMAÇÃO ===
           <div className="space-y-6">
             {/* Informações fixas não editáveis nesta etapa */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
               <Detalhe label="Número do voo" valor={selecionada.numero_voo || "Será gerado na confirmação"} />
               <Detalhe label="Status da solicitação" valor={statusLabel(selecionada.status)} />
@@ -848,7 +965,7 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
             </div>
 
             {/* Formulário de edição/confirmação */}
-            <div id="confirmacao-voo" className="rounded-xl border border-border bg-secondary/15 p-5">
+            <div id="confirmacao-voo" className="rounded-xl border border-border bg-secondary/15 p-4 sm:p-5">
               <div className="mb-5">
                 <p className="text-sm font-bold text-foreground">Confirmar dados operacionais</p>
                 <p className="mt-1 text-xs text-muted-foreground">Revise ou altere os dados do voo antes de aprovar. As mudanças serão salvas ao confirmar.</p>
@@ -905,17 +1022,17 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
                     <SearchableCombobox items={tripulacao.filter((item) => item.id !== pilotoId).map((item) => ({ id: item.id, label: `${item.nome_completo} · CANAC ${item.canac} · ${item.origem === "freelancer" ? "Freelancer" : "Tripulação"}` }))} value={copilotoId} onChange={aoCopiloto} placeholder="Sem copiloto" searchPlaceholder="Digite o nome ou CANAC" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} />
                   </div>
                 </div>
-                
+
                 <div className="space-y-1.5 pt-2">
                   <Label htmlFor="motivo-reprovacao" className="text-xs">Motivo (apenas se for reprovar)</Label>
                   <Textarea id="motivo-reprovacao" value={motivo} onChange={(event) => aoMotivo(event.target.value)} placeholder="Justificativa para rejeição..." className="min-h-16 text-xs" />
                 </div>
 
                 <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:justify-end">
-                  <Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="w-full gap-2 border-red-500/40 text-red-500 hover:bg-red-500/10 sm:w-auto">
+                  <Button type="button" onClick={aoReprovar} disabled={processando} variant="outline" className="h-11 w-full gap-2 border-red-500/40 text-red-500 hover:bg-red-500/10 sm:w-auto">
                     <X size={14} /> Reprovar Solicitação
                   </Button>
-                  <Button type="button" onClick={confirmar} disabled={processando || !pilotoId || !formularioValido} className="w-full gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5] sm:w-auto">
+                  <Button type="button" onClick={confirmar} disabled={processando || !pilotoId || !formularioValido} className="h-11 w-full gap-2 bg-[#2bbf8a] text-[#03150e] hover:bg-[#45d5a5] sm:w-auto">
                     <Check size={14} /> {processando ? "Salvando..." : "Salvar e Aprovar Voo"}
                   </Button>
                 </div>
@@ -924,8 +1041,8 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
           </div>
         ) : (
           // === VISÃO DE LEITURA (APROVADO / ENCERRADO) ===
-          <div className="space-y-6 mt-[13px] py-0">
-            <div className="grid grid-cols-2 gap-3 mx-1 px-0 sm:grid-cols-4 lg:grid-cols-4">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
               <Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} />
               <Detalhe label="Horário / UTC" valor={`Brasília ${horarioAtual.brasilia} · UTC ${horarioAtual.utc}`} />
@@ -935,8 +1052,8 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
               <Detalhe label="Status" valor={statusLabel(selecionada.status)} />
               <Detalhe label="Empréstimo" valor={emprestimoAtual} />
             </div>
-            
-            <div className="mt-[13px] rounded-xl border border-border bg-secondary/15 p-5">
+
+            <div className="rounded-xl border border-border bg-secondary/15 p-4 sm:p-5">
               <p className="text-sm font-bold text-foreground">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação processada"}</p>
               {editandoAgendamento && <div className="mt-4 grid gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div><Label className="text-[10px]">Origem</Label><Input value={dadosAgendamento.origem || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, origem: event.target.value.toUpperCase() }))} className="mt-1 h-9 text-xs" /></div>
@@ -949,16 +1066,16 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
                 <div className="lg:col-span-2"><Label className="text-[10px]">PIC</Label><SearchableCombobox items={tripulacao.map((item) => ({ id: item.id, label: `${item.nome_completo} · ${item.canac}` }))} value={dadosAgendamento.piloto_id || ""} onChange={(valor) => setDadosAgendamento((atual) => ({ ...atual, piloto_id: valor }))} placeholder="Selecione o comandante" searchPlaceholder="Buscar tripulante" emptyMessage="Nenhum tripulante encontrado." icon={<Users size={14} />} /></div>
                 <div className="flex gap-2 sm:col-span-2 lg:col-span-4"><Button type="button" onClick={salvarEdicaoAgendamento} disabled={processando} className="gap-2 text-xs"><Check size={13} /> Salvar alterações</Button><Button type="button" variant="outline" onClick={() => setEditandoAgendamento(false)} className="text-xs">Cancelar</Button></div>
               </div>}
-              
+
               {selecionada.status === "aprovada" && (
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-2">
+                  <div className="flex flex-col rounded-lg border border-primary/20 bg-primary/5 p-4">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p>
-                    <textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-3 min-h-24 w-full resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
+                    <textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-3 min-h-24 w-full flex-1 resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
                   </div>
-                  <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
+                  <div className="flex flex-col rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-sky-500">Mensagem para o tripulante</p>
-                    <textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-3 min-h-24 w-full resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
+                    <textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-3 min-h-24 w-full flex-1 resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
                   </div>
                 </div>
               )}
@@ -966,20 +1083,20 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
           </div>
         )}
       </div>
-      <div className="-mt-[11px] -mb-[11px] border-t border-border bg-muted/20 p-4 sm:p-6"><h3 className="text-xs font-semibold">Ações do voo</h3>{acoes}</div>
+      <div className="border-t border-border bg-muted/20 p-4 sm:p-6"><h3 className="text-xs font-semibold">Ações do voo</h3>{acoes}</div>
       {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
     </section>
   );
 }
 
-// O componente Detalhe ajustado para um visual mais limpo dentro do Grid
-function Detalhe({ label, valor }: { label: string; valor: string }) { 
+// Bloco de informação da página de detalhes (altura mínima igual para alinhar o grid)
+function Detalhe({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="flex flex-col justify-center rounded-lg border border-border/70 bg-secondary/25 p-3">
+    <div className="flex min-h-[60px] flex-col justify-center rounded-lg border border-border/70 bg-secondary/25 p-3">
       <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xs font-semibold text-foreground break-words">{valor}</p>
+      <p className="mt-1 break-words text-xs font-semibold text-foreground">{valor}</p>
     </div>
-  ); 
+  );
 }
 
 type DadosDisponibilidade = { tripulante_id: string; data_inicio: string; data_fim: string; status: "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel"; observacoes: string };

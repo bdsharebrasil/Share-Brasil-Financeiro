@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import { DespesaDestinoDialog } from "@/components/dashboard/DespesaDestinoDialog";
 import { TabelaAbastecimentosPendentes } from "@/components/dashboard/financeiro/TabelaAbastecimentosPendentes";
@@ -241,7 +242,7 @@ export default function DashboardFinanceiro({
     ),
   );
   const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
-  const operacoesDoDashboard = operacoesVisiveis.slice(0, 3);
+  const operacoesDoDashboard = operacoesVisiveis.slice(0, 5);
 
   if (abastecimentoEmEdicao) {
     return (
@@ -381,11 +382,11 @@ export default function DashboardFinanceiro({
           </div>
         ) : operacoesVisiveis.length ? (
           <>
-          <div className="space-y-3 p-4">
+          <Accordion type="multiple" className="space-y-3 p-4">
             {operacoesDoDashboard.map((operacao) => (
               <CartaoOperacao key={operacao.chave} op={operacao} onEmailPendente={setDespesaDestino} />
             ))}
-          </div>
+          </Accordion>
           </>
         ) : (
           <div className="py-4">
@@ -442,24 +443,28 @@ function CartaoOperacao({ op, onEmailPendente }: { op: Operacao; onEmailPendente
   };
 
   return (
-    <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-bold text-foreground">{op.titulo}</p>
-        <span className="shrink-0 text-xs text-muted-foreground">{dataBruta(op.data)}</span>
-      </div>
-      <div className="mt-3 space-y-2">
-        {op.pernas.map(({ papel, item }) => (
-          <div key={item.id} className="grid items-center gap-3 rounded-lg border border-border/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{rotulo[papel]}</p>
-              <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || item.fornecedor || "—"}</p>
+    <AccordionItem value={op.chave} className="rounded-xl border border-border bg-card/50 shadow-sm transition-colors hover:border-primary/20">
+      <AccordionTrigger className="px-4 hover:no-underline">
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-3 pr-2">
+          <p className="min-w-0 truncate text-sm font-bold text-foreground">{op.titulo}</p>
+          <span className="shrink-0 text-xs font-normal text-muted-foreground">{dataBruta(op.data)}</span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-4">
+        <div className="space-y-2">
+          {op.pernas.map(({ papel, item }) => (
+            <div key={item.id} className="grid items-center gap-3 rounded-lg border border-border/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{rotulo[papel]}</p>
+                <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || item.fornecedor || "—"}</p>
+              </div>
+              <span className="font-mono text-xs font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</span>
+              <EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus>
+              <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
             </div>
-            <span className="font-mono text-xs font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</span>
-            <EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus>
-            <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
-          </div>
-        ))}
-      </div>
-    </article>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

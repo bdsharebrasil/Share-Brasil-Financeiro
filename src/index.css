@@ -196,6 +196,12 @@ html:not(.dark) .menu-hover-escuro:hover {
 @keyframes pulse-dot { 0%,100% { opacity: .55; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.1); } }
 .skeleton { background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 75%); background-size: 200% 100%; animation: skeleton 1.5s ease-in-out infinite; }
 @keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes accordion-down { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
+@keyframes accordion-up { from { height: var(--radix-accordion-content-height); } to { height: 0; } }
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
 
 .campo { width: 100%; border: 1px solid hsl(var(--border)); border-radius: 9px; background-color: hsl(var(--secondary) / .3); color: hsl(var(--foreground)); padding: .6rem .75rem; font-size: 12px; line-height: 1.2rem; outline: none; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; appearance: none; }
 .campo::placeholder { color: hsl(var(--muted-foreground)); }

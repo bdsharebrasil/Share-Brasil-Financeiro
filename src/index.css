@@ -474,8 +474,8 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
 }
 .app-topbar .menu-cabecalho {
   --menu-hover-bg: #0c4c73;
-  --menu-hover-fg: #f0f9ff;
-  --menu-hover-border: #45b8ed;
+  --menu-hover-fg: #b7c6cfd7;
+  --menu-hover-border: #1299d8dc;
 }
 .menu-dashboard:focus-visible, .menu-cabecalho:focus-visible {
   background-color: var(--menu-hover-bg);

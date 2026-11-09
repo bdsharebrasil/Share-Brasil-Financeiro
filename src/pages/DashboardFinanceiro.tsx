@@ -298,9 +298,11 @@ export default function DashboardFinanceiro({
           onClick={() => aoNavegar("enviar-pagamento")}
         />
         <AcaoRapida
-          icon={<Mail size={16} />}
+          icon={<Mail size={16} className="text-[rgba(213,102,235,1)]" />}
           label="E-mail"
           detail="Caixa de saída"
+          iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)]"
+          iconeInternoClassName="border border-[rgba(148,4,177,1)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
         />
         <AcaoRapida

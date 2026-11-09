@@ -37,7 +37,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className="menu-dashboard group flex h-full min-h-[92px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-[rgba(213,224,226,1)] text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4"
+      className="menu-dashboard group flex h-full min-h-[92px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-[rgba(221,228,228,1)] text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4"
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}

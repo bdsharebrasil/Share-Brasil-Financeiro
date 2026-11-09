@@ -144,7 +144,7 @@
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: var(--app-header-height); padding-top: var(--safe-area-top); }
-  html:not(.dark) .safe-area-header.sticky {
+  html:not(.dark) .app-topbar {
     --background: var(--sidebar);
     --foreground: var(--sidebar-foreground);
     --border: var(--sidebar-border);
@@ -156,10 +156,10 @@
     --popover: var(--sidebar);
     --popover-foreground: var(--sidebar-foreground);
     --input: var(--sidebar-border);
-    background-color: hsl(var(--sidebar) / .98) !important;
+    background-color: hsl(var(--sidebar));
     border-bottom-color: hsl(var(--sidebar-border));
   }
-  html:not(.dark) .safe-area-header.sticky [style*="rgb(255, 255, 255)"] {
+  html:not(.dark) .app-topbar [style*="rgb(255, 255, 255)"] {
     background-color: hsl(var(--sidebar-accent)) !important;
   }
   [aria-label="Notifications (F8)"] { margin-block: -20px; }
@@ -442,3 +442,63 @@ html:not(.dark) :is(.company-cash, .cash-dialog, .cash-popover) {
   --cash-expense-soft: #fcecee; --cash-warning-soft: #fff5db;
 }
 html:not(.dark) .despesas-theme { --bg-hover: #e8eef5; }
+
+
+/* A moldura não participa da rolagem: apenas o viewport de conteúdo se move. */
+body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
+.app-shell { padding-inline: var(--safe-area-left) var(--safe-area-right); }
+.app-main-scroll [data-radix-scroll-area-viewport] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+.app-topbar { --borda-controle-cabecalho: rgb(96 112 121 / .8); }
+.app-topbar .tophead-control { border-color: var(--borda-controle-cabecalho); }
+
+/* Apenas ações de navegação recebem deslocamento; indicadores ficam estáticos. */
+.menu-dashboard, .menu-cabecalho {
+  transition: transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.menu-dashboard {
+  --menu-hover-bg: #d6eaf8;
+  --menu-hover-fg: #123954;
+  --menu-hover-border: #107bb4;
+}
+.dark .menu-dashboard {
+  --menu-hover-bg: #123e5a;
+  --menu-hover-fg: #f0f9ff;
+  --menu-hover-border: #45b8ed;
+}
+.app-topbar .menu-cabecalho {
+  --menu-hover-bg: #0c4c73;
+  --menu-hover-fg: #f0f9ff;
+  --menu-hover-border: #45b8ed;
+}
+.menu-dashboard:focus-visible, .menu-cabecalho:focus-visible {
+  background-color: var(--menu-hover-bg);
+  border-color: var(--menu-hover-border);
+  color: var(--menu-hover-fg);
+  outline: 2px solid var(--menu-hover-border);
+  outline-offset: 2px;
+}
+.aba-dashboard { transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
+.aba-dashboard:focus-visible { background-color: #d6eaf8; color: #123954; }
+.dark .aba-dashboard:focus-visible { background-color: #123e5a; color: #f0f9ff; }
+@media (hover: hover) {
+  .menu-dashboard:hover, .menu-cabecalho:hover {
+    transform: translateY(-3px);
+    background-color: var(--menu-hover-bg);
+    border-color: var(--menu-hover-border);
+    color: var(--menu-hover-fg);
+    box-shadow: 0 6px 16px rgb(16 123 180 / .18);
+  }
+  .aba-dashboard:hover { background-color: #d6eaf8; color: #123954; }
+  .dark .aba-dashboard:hover { background-color: #123e5a; color: #f0f9ff; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-dashboard, .menu-cabecalho, .aba-dashboard { transition: none; }
+  .menu-dashboard:hover, .menu-cabecalho:hover { transform: none; }
+}

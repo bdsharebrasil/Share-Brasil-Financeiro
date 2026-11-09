@@ -465,17 +465,17 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
 .menu-dashboard {
   --menu-hover-bg: rgba(225, 230, 230, 1);
   --menu-hover-fg: #123954;
-  --menu-hover-border: #107bb4;
+  --menu-hover-border: #186b97;
 }
 .dark .menu-dashboard {
   --menu-hover-bg: #123e5a;
   --menu-hover-fg: #f0f9ff;
-  --menu-hover-border: #45b8ed;
+  --menu-hover-border: #308db8;
 }
 .app-topbar .menu-cabecalho {
   --menu-hover-bg: #0c4c73;
   --menu-hover-fg: #b7c6cfd7;
-  --menu-hover-border: #1299d8dc;
+  --menu-hover-border: #0f78a8dc;
 }
 .menu-dashboard:focus-visible, .menu-cabecalho:focus-visible {
   background-color: var(--menu-hover-bg);

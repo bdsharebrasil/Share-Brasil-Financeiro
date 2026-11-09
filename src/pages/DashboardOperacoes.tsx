@@ -99,8 +99,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
 
       <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
         <CartaoKpi label="Voos hoje" value={carregando ? "—" : String(resumo?.voos_hoje ?? 0)} detail="Operações previstas para hoje" icon={<Plane size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
-        <CartaoKpi label="Agendamentos" value={carregando ? "—" : String(resumo?.reservas_abertas ?? 0)} detail="Reservas a partir de hoje" tone="blue" icon={<CalendarDays size={16} />} className="!p-2.5 sm:!p-3" />
-        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="!p-2.5 sm:!p-3" />
+        <CartaoKpi label="Agendamentos" value={carregando ? "—" : String(resumo?.reservas_abertas ?? 0)} detail="Reservas a partir de hoje" tone="blue" icon={<CalendarDays size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
+        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
       </div>
 
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

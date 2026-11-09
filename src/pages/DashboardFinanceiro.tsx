@@ -319,6 +319,7 @@ export default function DashboardFinanceiro({
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
+          className="bg-[rgba(105,168,168,0.2)]"
           detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
@@ -342,7 +343,7 @@ export default function DashboardFinanceiro({
                 type="button"
                 variant="outline"
                 onClick={() => aoNavegar("movimentacoes")}
-                className="menu-dashboard h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
+                className="menu-dashboard h-8 flex-1 gap-1.5 overflow-hidden rounded-[9px] border-[rgba(19,119,226,0.89)] bg-[rgba(204,217,252,1)] px-2.5 text-[10px] sm:flex-none"
               >
                 <FolderOpen size={12} /> Ver todas
               </Button>

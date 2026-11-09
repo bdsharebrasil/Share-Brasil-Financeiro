@@ -912,7 +912,7 @@ export default function Emails({
                   </span>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-texto whitespace-pre-wrap break-words text-sm leading-7">
                     {emailEnviadoSelecionado.mensagem ||
                       "(Este e-mail não possui texto registrado.)"}
                   </div>
@@ -1105,7 +1105,7 @@ export default function Emails({
                   </div>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-texto whitespace-pre-wrap break-words text-sm leading-7">
                     {mensagemInternaSelecionada.conteudo}
                   </div>
                   {!!mensagemInternaSelecionada.anexos?.length && (

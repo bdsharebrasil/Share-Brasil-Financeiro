@@ -1,3 +1,4 @@
+import { ACAO_CONCLUIDA, ACAO_A_REALIZAR } from "./agendamentoVisual";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, PenLine, Plus, Scale, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -155,8 +156,8 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setAberto(true)} className="h-9 gap-2 border-emerald-400/40 text-[10px] text-emerald-300">
-        <Scale size={13} /> Gerar peso e balanceamento
+      <Button type="button" variant="outline" onClick={() => setAberto(true)} className={`h-9 gap-2 text-[11px] font-bold ${somenteLeitura ? ACAO_CONCLUIDA : ACAO_A_REALIZAR}`}>
+        <Scale size={13} /> {somenteLeitura ? "Ver ficha concluída" : "Gerar peso e balanceamento"}
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>

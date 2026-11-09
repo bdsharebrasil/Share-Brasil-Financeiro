@@ -6,6 +6,7 @@ import type { DisponibilidadeTripulacao, EscalaAgendamento, TripulanteAgendament
 import { DIA, HORA, montarBlocos, posicionarColisoes, type BlocoEscala } from "@/lib/escala-tempo";
 
 type Visao = "mes" | "semana" | "dia" | "lista";
+type OrigemTripulacao = "todos" | TripulanteAgendamento["origem"];
 type Fuso = "UTC" | "BRT";
 type Coluna = { chave: string; titulo: string; subtitulo: string; hoje: boolean; inicio: number; blocos: BlocoEscala[] };
 
@@ -15,14 +16,14 @@ const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julh
 const DIAS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const VISOES: Array<[Visao, string]> = [["mes", "Mês"], ["semana", "Semana"], ["dia", "Dia"], ["lista", "Lista"]];
 const COR: Record<string, string> = {
-  pic: "border-cyan-300/50 bg-cyan-500/25 text-cyan-50",
-  sic: "border-violet-300/50 bg-violet-500/25 text-violet-50",
-  ferias: "border-rose-300/40 bg-rose-500/20 text-rose-100",
-  folga: "border-slate-300/40 bg-slate-500/25 text-foreground dark:text-slate-100",
-  atestado_medico: "border-red-300/40 bg-red-500/25 text-red-100",
-  treinamento: "border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100",
-  acompanhando_manutencao: "border-sky-300/40 bg-sky-500/20 text-sky-100",
-  aviso: "border-amber-300/40 bg-amber-500/20 text-amber-100",
+  pic: "border-cyan-600 bg-cyan-100 text-cyan-950 dark:border-cyan-400 dark:bg-cyan-500/25 dark:text-cyan-100",
+  sic: "border-violet-600 bg-violet-100 text-violet-950 dark:border-violet-400 dark:bg-violet-500/25 dark:text-violet-100",
+  ferias: "border-rose-600 bg-rose-100 text-rose-950 dark:border-rose-400 dark:bg-rose-500/25 dark:text-rose-100",
+  folga: "border-slate-600 bg-slate-100 text-slate-900 dark:border-slate-400 dark:bg-slate-500/25 dark:text-slate-100",
+  atestado_medico: "border-red-600 bg-red-100 text-red-950 dark:border-red-400 dark:bg-red-500/25 dark:text-red-100",
+  treinamento: "border-fuchsia-600 bg-fuchsia-100 text-fuchsia-950 dark:border-fuchsia-400 dark:bg-fuchsia-500/25 dark:text-fuchsia-100",
+  acompanhando_manutencao: "border-sky-600 bg-sky-100 text-sky-950 dark:border-sky-400 dark:bg-sky-500/25 dark:text-sky-100",
+  aviso: "border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-400 dark:bg-amber-500/25 dark:text-amber-100",
 };
 const corBloco = (b: BlocoEscala) => COR[b.variante] ?? COR.folga;
 
@@ -51,8 +52,18 @@ type Props = {
 export default function EscalaCalendario({ tripulacao, escala, disponibilidades, aoCriarEscala, aoAbrirVoo, aoAbrirExtrato }: Props) {
   const [visao, setVisao] = useState<Visao>("semana");
   const [fuso, setFuso] = useState<Fuso>("UTC");
+  const [origemTripulacao, setOrigemTripulacao] = useState<OrigemTripulacao>("todos");
   const [tripulanteId, setTripulanteId] = useState("todos");
   const [ref, setRef] = useState(() => inicioDia(Date.now()));
+
+  const tripulacaoFiltrada = useMemo(
+    () => tripulacao.filter((t) => origemTripulacao === "todos" || t.origem === origemTripulacao),
+    [tripulacao, origemTripulacao],
+  );
+  const idsVisiveis = useMemo(() => new Set(tripulacaoFiltrada.map((t) => t.id)), [tripulacaoFiltrada]);
+  useEffect(() => {
+    if (tripulanteId !== "todos" && !idsVisiveis.has(tripulanteId)) setTripulanteId("todos");
+  }, [idsVisiveis, tripulanteId]);
 
   const off = fuso === "BRT" ? -3 * HORA : 0;
   const agora = Date.now() + off;
@@ -62,10 +73,10 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
   // Tudo abaixo trabalha no "fuso de exibição": ms UTC + deslocamento.
   // Bloco de dia inteiro é data pura (folga/férias), então não desloca.
   const blocos = useMemo(
-    () => montarBlocos(escala, disponibilidades, tripulacao)
-      .filter((b) => todos || b.tripulanteId === tripulanteId)
+    () => montarBlocos(escala, disponibilidades.filter((d) => origemTripulacao === "todos" || d.tripulante_origem === origemTripulacao), tripulacao)
+      .filter((b) => (origemTripulacao === "todos" || idsVisiveis.has(b.tripulanteId)) && (todos || b.tripulanteId === tripulanteId))
       .map((b) => (b.diaInteiro ? b : { ...b, inicio: b.inicio + off, fim: b.fim + off })),
-    [escala, disponibilidades, tripulacao, tripulanteId, todos, off],
+    [escala, disponibilidades, tripulacao, tripulanteId, todos, off, origemTripulacao, idsVisiveis],
   );
 
   const inicioPeriodo = visao === "mes" ? inicioSemana(inicioMes(ref)) : visao === "dia" ? ref : inicioSemana(ref);
@@ -75,7 +86,7 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
   const colunas = useMemo<Coluna[]>(() => {
     const noDia = (ini: number) => blocos.filter((b) => b.inicio < ini + DIA && b.fim > ini);
     if (visao === "dia" && todos) {
-      return tripulacao.map((t) => ({
+      return tripulacaoFiltrada.map((t) => ({
         chave: t.id, titulo: primeiroNome(t.nome_completo), subtitulo: t.canac, hoje: ref === hojeMs, inicio: ref,
         blocos: noDia(ref).filter((b) => b.tripulanteId === t.id),
       }));
@@ -85,7 +96,7 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
       const d = new Date(ini);
       return { chave: String(ini), titulo: DIAS[dow(ini)], subtitulo: `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}`, hoje: ini === hojeMs, inicio: ini, blocos: noDia(ini) };
     });
-  }, [blocos, visao, todos, tripulacao, ref, inicioPeriodo, hojeMs]);
+  }, [blocos, visao, todos, tripulacaoFiltrada, ref, inicioPeriodo, hojeMs]);
 
   const dRef = new Date(ref);
   const titulo = visao === "mes" ? `${MESES[dRef.getUTCMonth()]} ${dRef.getUTCFullYear()}`
@@ -96,7 +107,7 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
   const irParaDia = (dia: number) => { setRef(dia); setVisao("dia"); };
   const clicarBloco = (b: BlocoEscala) => { if (b.vooId) aoAbrirVoo?.(b.vooId); };
   const mostrarNome = todos && visao !== "dia";
-  const tripulanteSelecionado = tripulacao.find((t) => t.id === tripulanteId);
+  const tripulanteSelecionado = tripulacaoFiltrada.find((t) => t.id === tripulanteId);
 
   const btnSeg = (ativo: boolean) => `rounded px-2.5 py-1 text-[10px] font-bold ${ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`;
 
@@ -109,9 +120,14 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
         <h2 className="text-xs font-bold">{titulo}</h2>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select value={tripulanteId} onChange={(e) => setTripulanteId(e.target.value)} className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-[10px]">
+        <select aria-label="Origem da tripulação" value={origemTripulacao} onChange={(e) => { setOrigemTripulacao(e.target.value as OrigemTripulacao); setTripulanteId("todos"); }} className="h-8 rounded-md border border-border bg-background px-2 text-[10px]">
+          <option value="todos">Todas as equipes</option>
+          <option value="tripulacao">Tripulação Share Brasil</option>
+          <option value="freelancer">Tripulação externa</option>
+        </select>
+        <select aria-label="Tripulante" value={tripulanteId} onChange={(e) => setTripulanteId(e.target.value)} className="h-8 max-w-[200px] rounded-md border border-border bg-background px-2 text-[10px]">
           <option value="todos">Toda a tripulação</option>
-          {tripulacao.map((t) => <option key={t.id} value={t.id}>{t.nome_completo}</option>)}
+          {tripulacaoFiltrada.map((t) => <option key={t.id} value={t.id}>{t.nome_completo}</option>)}
         </select>
         {tripulanteSelecionado && <Button type="button" variant="outline" onClick={() => aoAbrirExtrato(tripulanteSelecionado, isoData(inicioPeriodo), isoData(fimPeriodo - DIA))} className="h-8 px-3 text-[10px]">Extrato de jornada</Button>}
         <div className="flex rounded-md border border-border p-0.5">{(["UTC", "BRT"] as Fuso[]).map((f) => <button key={f} type="button" onClick={() => setFuso(f)} className={btnSeg(fuso === f)}>{f === "BRT" ? "Brasília" : "UTC"}</button>)}</div>
@@ -120,6 +136,7 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
       </div>
     </div>
 
+    {tripulacaoFiltrada.length === 0 && <p role="status" className="border-b border-border px-3 py-3 text-xs text-muted-foreground">Nenhum tripulante encontrado para esta equipe.</p>}
     {(visao === "semana" || visao === "dia") && <GradeHoraria key={visao} colunas={colunas} agora={agora} fuso={fuso} mostrarNome={mostrarNome} aoClicar={clicarBloco} />}
     {visao === "mes" && <VisaoMes inicio={inicioPeriodo} nDias={nDias} mesRef={dRef.getUTCMonth()} blocos={blocos} hojeMs={hojeMs} mostrarNome={todos} aoAbrirDia={irParaDia} />}
     {visao === "lista" && <VisaoLista inicio={inicioPeriodo} ref={ref} blocos={blocos} mostrarNome={todos} aoMudarData={setRef} aoClicar={clicarBloco} />}

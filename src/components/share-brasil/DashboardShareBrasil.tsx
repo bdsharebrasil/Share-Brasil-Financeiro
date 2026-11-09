@@ -19,9 +19,9 @@ interface DashboardShareBrasilProps {
   aoNavegar: (menu: string) => void;
 }
 
-/* Espaçamento fluido: 8px em telas pequenas, até 48px (gap-12) em telas grandes */
+/* Grade compacta: mantém três colunas com espaçamento de 8 a 16px. */
 const VARIAVEIS_GRID = {
-  "--gap": "clamp(0.5rem, 3vw, 3rem)",
+  "--gap": "clamp(0.5rem, 1.5vw, 1rem)",
 } as CSSProperties;
 
 function CardAtalho({
@@ -37,7 +37,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className={`menu-dashboard group flex h-full min-h-[92px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border ${item.fundo ?? "bg-[rgba(233,243,243,1)] dark:bg-card/65"} text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
+      className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
@@ -159,7 +159,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
             /* Aba 1: sempre 3 colunas (3 em cima, 3 embaixo) */
             <div
               style={VARIAVEIS_GRID}
-              className="mx-[clamp(0px,6vw,96px)] grid min-w-0 grid-cols-3 items-stretch gap-[var(--gap)] px-[7px] py-2"
+              className="mx-auto grid w-full min-w-0 max-w-[600px] grid-cols-3 items-stretch gap-[var(--gap)] px-[7px] py-2"
             >
               {ATALHOS_POR_ABA[item.id].map((atalho) => (
                 <CardAtalho
@@ -173,7 +173,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
             /* Aba 2: cards com o mesmo tamanho da aba 1, centralizados */
             <div
               style={VARIAVEIS_GRID}
-              className="mx-[clamp(0px,6vw,96px)] flex min-w-0 flex-wrap items-stretch justify-center gap-[var(--gap)] px-[7px] py-2"
+              className="mx-auto flex w-full min-w-0 max-w-[600px] flex-wrap items-stretch justify-center gap-[var(--gap)] px-[7px] py-2"
             >
               {ATALHOS_POR_ABA[item.id].map((atalho) => (
                 <div

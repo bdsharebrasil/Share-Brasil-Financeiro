@@ -484,9 +484,11 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
   outline: 2px solid var(--menu-hover-border);
   outline-offset: 2px;
 }
-.aba-dashboard { transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
+.aba-dashboard { transition: transform .18s ease, background-color .18s ease, color .18s ease, border-color .18s ease; }
 .aba-dashboard:focus-visible { background-color: #d6eaf8; color: #123954; }
-.dark .aba-dashboard:focus-visible { background-color: #123e5a; color: #f0f9ff; }
+.dark .aba-dashboard:focus-visible { background-color: #315775; color: #f0f9ff; }
+.aba-dashboard[aria-selected="false"]:focus-visible { background-color: #23496a; color: #f0f9ff; }
+.dark .aba-dashboard[aria-selected="false"]:focus-visible { background-color: #102a40; color: #f0f9ff; }
 @media (hover: hover) {
   .menu-dashboard:hover {
     transform: translateY(-3px);
@@ -501,10 +503,13 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
     border-color: var(--menu-hover-border);
     color: var(--menu-hover-fg);
   }
-  .aba-dashboard:hover { background-color: #d6eaf8; color: #123954; }
-  .dark .aba-dashboard:hover { background-color: #123e5a; color: #f0f9ff; }
+  .aba-dashboard:hover { transform: translateY(-2px); }
+  .aba-dashboard[aria-selected="false"]:hover { background-color: #23496a; color: #f0f9ff; }
+  .aba-dashboard[aria-selected="true"]:hover { background-color: #d6eaf8; color: #123954; }
+  .dark .aba-dashboard[aria-selected="false"]:hover { background-color: #102a40; color: #f0f9ff; }
+  .dark .aba-dashboard[aria-selected="true"]:hover { background-color: #315775; color: #f0f9ff; }
 }
 @media (prefers-reduced-motion: reduce) {
   .menu-dashboard, .menu-cabecalho, .aba-dashboard { transition: none; }
-  .menu-dashboard:hover, .menu-cabecalho:hover { transform: none; }
+  .menu-dashboard:hover, .menu-cabecalho:hover, .aba-dashboard:hover { transform: none; }
 }

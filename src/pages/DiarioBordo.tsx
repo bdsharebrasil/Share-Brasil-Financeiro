@@ -92,7 +92,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 
   useEffect(() => { void loadList(); }, [loadList]);
 
-  const filteredAircraft = useMemo(() => aeronaves.filter((aircraft) => `${aircraft.matricula_registro} ${aircraft.fabricante || ""} ${aircraft.modelo || ""}`.toLowerCase().includes(search.toLowerCase())), [aeronaves, search]);
+  const filteredAircraft = useMemo(() => aeronaves.filter((aircraft) => `${aircraft.matricula_registro} ${aircraft.fabricante || ""} ${aircraft.modelo || ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => compararTempoRestante(a, b)), [aeronaves, search]);
   const selectedMonthOptions = useMemo(() => {
     const values = new Map<string, { ano: number; mes: number }>();
     values.set(`${period.ano}-${period.mes}`, period);
@@ -340,6 +340,19 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 function StatTile({ label, value, accent = "", onClick }: { label: string; value: string; accent?: string; onClick?: () => void }) {
   const content = <><span className="db-stat-label">{label}</span>{onClick && <small>clique para editar</small>}<strong>{value}</strong></>;
   return onClick ? <button type="button" className={`db-stat ${accent}`} onClick={onClick} aria-label={`Editar ${label}: ${value}`}>{content}</button> : <div className={`db-stat ${accent}`}>{content}</div>;
+}
+
+function tempoRestanteAeronave(aeronave: DiarioAeronaveResumo) {
+  const atual = Math.max(Number(aeronave.celula_atual_ttotal || 0), Number(aeronave.horas_ano || 0));
+  const revisao = Number(aeronave.celula_prox_revisao_ttotal || 0);
+  if (revisao <= 0) return Number.POSITIVE_INFINITY;
+  return Number(aeronave.celula_disponivel_ttotal ?? (revisao - atual));
+}
+
+function compararTempoRestante(a: DiarioAeronaveResumo, b: DiarioAeronaveResumo) {
+  const tempoA = tempoRestanteAeronave(a);
+  const tempoB = tempoRestanteAeronave(b);
+  return tempoA === tempoB ? 0 : tempoA < tempoB ? -1 : 1;
 }
 
 function AircraftListContent({ loading, aeronaves, ano, search, onOpen }: { loading: boolean; aeronaves: DiarioAeronaveResumo[]; ano: number; search: string; onOpen: (aeronave: DiarioAeronaveResumo) => void }) {

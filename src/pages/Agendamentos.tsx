@@ -725,13 +725,11 @@ function AcoesCartao({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFin
   const estiloJornada = jornadaConcluida ? estiloCartao.concluido : acoes.jornadaLabel === "INICIAR JORNADA" ? estiloCartao.jornadaInicio : estiloCartao.jornadaAndamento;
   return (
     <div className="mt-auto grid gap-2 pt-4">
-      <div className={cn("grid gap-2", pendente ? "grid-cols-2" : "grid-cols-1")}>
-        <button type="button" onClick={() => aoAbrir(item)} className={cn(estiloCartao.base, estiloCartao.abrir)}>ABRIR</button>
-        {pendente && <button type="button" onClick={() => aoConfirmar(item)} className={cn(estiloCartao.base, estiloCartao.confirmar)}><span className="sm:hidden">CONFIRMAR</span><span className="hidden sm:inline">CONFIRMAR AGENDAMENTO</span></button>}
-      </div>
-      {(mostrarChecklist || acoes.mostrarJornada || mostrarMenu) && <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-        {mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={cn(estiloCartao.base, estiloChecklist)}>{acoes.checklistLabel}</button>}
-        {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(estiloCartao.base, estiloJornada)}>{acoes.jornadaLabel}</button>}
+      <div className="flex items-stretch gap-2">
+        <button type="button" onClick={() => aoAbrir(item)} className={cn(estiloCartao.base, "flex-1", estiloCartao.abrir)}>ABRIR</button>
+        {pendente && <button type="button" onClick={() => aoConfirmar(item)} className={cn(estiloCartao.base, "flex-1", estiloCartao.confirmar)}><span className="sm:hidden">CONFIRMAR</span><span className="hidden sm:inline">CONFIRMAR AGENDAMENTO</span></button>}
+        {mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={cn(estiloCartao.base, "flex-1", estiloChecklist)}>{acoes.checklistLabel}</button>}
+        {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(estiloCartao.base, "flex-1", estiloJornada)}>{acoes.jornadaLabel}</button>}
         {mostrarMenu && <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" aria-label="Mais opções do voo" title="Mais opções" className={cn(estiloCartao.base, estiloCartao.menu)}><MoreVertical size={15} /></button>
@@ -741,7 +739,7 @@ function AcoesCartao({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFin
             {acoes.checklistConcluido && <DropdownMenuItem onSelect={() => setPesoAberto(true)}>Gerar peso e balanceamento</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>}
-      </div>}
+      </div>
       {acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} aberto={pesoAberto} aoAlterarAberto={setPesoAberto} />}
       {acoes.podeFinalizar ? <button type="button" onClick={() => aoFinalizar(item)} className={cn(estiloCartao.base, estiloCartao.finalizar)}>Concluir operação</button> : acoes.historico && <span className="inline-flex h-10 items-center justify-center gap-2 text-[11px] font-semibold text-[#86c23e]"><Check size={13} /> Operação concluída</span>}
     </div>

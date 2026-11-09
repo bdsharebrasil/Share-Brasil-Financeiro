@@ -18,6 +18,7 @@ export interface AtalhoDashboard {
   label: string;
   icon: LucideIcon;
   tone: string;
+  fundo?: string;
 }
 
 export const ABAS_DASHBOARD: ReadonlyArray<{
@@ -65,6 +66,7 @@ export const ATALHOS_POR_ABA: Record<
       label: "Senhas",
       icon: KeyRound,
       tone: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+      fundo: "bg-[rgba(234,240,240,1)]",
     },
     {
       menu: "hoteis",

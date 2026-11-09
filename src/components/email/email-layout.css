@@ -235,20 +235,147 @@
   background: hsl(var(--primary));
 }
 .email-leitura {
-  margin-left: 15px;
-  margin-right: 2px;
+  min-width: 0;
+  margin: 0;
 }
 .email-acoes-leitura {
-  min-height: 11px;
-  margin-top: -24px;
-  margin-left: -6px;
-  margin-right: -24px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid rgba(76, 83, 92, 0.52);
-  border-radius: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding: 6px;
+  border: 1px solid var(--email-line);
+  border-radius: 12px;
+  background: hsl(var(--muted) / 0.35);
+}
+.email-acoes-leitura button {
+  border-radius: 8px;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+.email-acoes-leitura button:hover,
+.email-acoes-leitura button:focus-visible {
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.3);
+}
+.email-acoes-leitura button.text-destructive:hover {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.12);
+  box-shadow: inset 0 0 0 1px hsl(var(--destructive) / 0.3);
+}
+.email-acoes-leitura button[aria-pressed="true"] {
+  background: hsl(var(--primary) / 0.12);
+}
+.email-assunto-linha {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.email-assunto {
+  margin: 16px 0;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  line-height: 1.4;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.email-assunto-linha .email-assunto {
+  margin: 0;
+}
+.email-identidade {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+  min-width: 0;
+}
+.email-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.13);
+  border: 1px solid hsl(var(--primary) / 0.25);
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
+.email-remetente-nome {
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.email-remetente-endereco {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
+}
+a.email-remetente-endereco:hover {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+.email-destinatarios {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.email-destinatarios summary {
+  cursor: pointer;
+}
+.email-destinatarios dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--email-line);
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.3);
+}
+.email-destinatarios dt {
+  font-weight: 600;
+}
+.email-etiqueta-nao-lida {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+}
+.email-categoria {
+  min-height: 36px;
+  font-size: 12px;
+  border-radius: 999px !important;
+}
+.email-categoria[data-categoria="Financeiro"] {
+  border-color: #10b981;
+  background-color: rgb(16 185 129 / 0.12);
+}
+.email-categoria[data-categoria="Operacional"] {
+  border-color: #3b82f6;
+  background-color: rgb(59 130 246 / 0.12);
+}
+.email-categoria[data-categoria="Urgente"] {
+  border-color: #ef4444;
+  background-color: rgb(239 68 68 / 0.12);
+}
+.email-corpo {
+  max-width: 80ch;
+  min-height: 100px;
+  color: hsl(var(--foreground));
+  padding-block: 8px 24px;
+}
+.email-arquivo {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.email-arquivo:hover {
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
 }
 .email-leitura-cabecalho {
   flex-shrink: 0;

@@ -1,0 +1,153 @@
+.checklist-etapas {
+  container-type: inline-size;
+  --etapa-entrada: 240ms;
+  --etapa-saida: 150ms;
+  --etapa-suave: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.checklist-etapas-lista {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+}
+.checklist-etapa {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.checklist-etapa-botao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 4px;
+  border-radius: 8px;
+  text-align: left;
+}
+.checklist-etapa-botao:hover {
+  background: hsl(var(--muted) / 0.6);
+}
+.checklist-etapa-botao:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.checklist-etapa-botao:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.checklist-etapa-numero {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 2px solid hsl(var(--input));
+  border-radius: 50%;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    color var(--etapa-entrada) var(--etapa-suave),
+    background-color var(--etapa-entrada) var(--etapa-suave),
+    border-color var(--etapa-entrada) var(--etapa-suave);
+}
+.checklist-etapa[aria-current="step"] .checklist-etapa-numero {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--foreground));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+}
+.checklist-etapa[data-concluida="true"] .checklist-etapa-numero {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.checklist-etapa-indice,
+.checklist-etapa-check {
+  grid-column: 1;
+  grid-row: 1;
+}
+.checklist-etapa-indice {
+  transition: opacity var(--etapa-saida) ease-in;
+}
+.checklist-etapa[data-concluida="true"] .checklist-etapa-indice {
+  opacity: 0;
+}
+.checklist-etapa-check {
+  width: 16px;
+  height: 16px;
+}
+.checklist-etapa-check path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--etapa-entrada) var(--etapa-suave);
+}
+.checklist-etapa[data-concluida="true"] .checklist-etapa-check path {
+  stroke-dashoffset: 0;
+}
+.checklist-etapa-conector {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  width: 2px;
+  height: 12px;
+  margin-left: 18px;
+  border-radius: 2px;
+  background: hsl(var(--border));
+}
+.checklist-etapa-conector > span {
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--primary));
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--etapa-entrada) var(--etapa-suave);
+}
+.checklist-etapa[data-concluida="true"] .checklist-etapa-conector > span {
+  transform: scaleY(1);
+}
+.checklist-etapas-painel {
+  min-width: 0;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 20px;
+}
+@container (min-width: 50rem) {
+  .checklist-etapas-lista {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+  .checklist-etapa {
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+  }
+  .checklist-etapa-botao {
+    width: auto;
+    gap: 7px;
+  }
+  .checklist-etapa-conector {
+    width: auto;
+    height: 2px;
+    min-width: 12px;
+    flex: 1;
+    margin: 0 4px;
+  }
+  .checklist-etapa-conector > span {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .checklist-etapa[data-concluida="true"] .checklist-etapa-conector > span {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checklist-etapas *,
+  .checklist-etapas *::before,
+  .checklist-etapas *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

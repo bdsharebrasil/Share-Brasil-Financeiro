@@ -53,7 +53,7 @@ export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChe
     historico,
     mostrarChecklist: !historico && operacional,
     checklistConcluido,
-    checklistLabel: checklistConcluido ? "VER CHECKLIST" : checklistIniciado ? "CONCLUIR CHECKLIST" : "INICIAR VOO",
+    checklistLabel: checklistConcluido ? "VER CHECKLIST" : checklistIniciado ? "CONCLUIR CHECKLIST" : "INICIAR CHECKLIST",
     corChecklist,
     mostrarJornada: !historico && operacional && (jornadaExistente || checklistConcluido),
     jornadaLabel: jornadaExistente ? "VER JORNADA" : "INICIAR JORNADA",

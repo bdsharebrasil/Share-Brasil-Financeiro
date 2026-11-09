@@ -498,6 +498,7 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
   .menu-cabecalho:hover {
     transform: translateY(-3px);
     background-color: var(--menu-hover-bg);
+    border-color: var(--menu-hover-border);
     color: var(--menu-hover-fg);
   }
   .aba-dashboard:hover { background-color: #d6eaf8; color: #123954; }

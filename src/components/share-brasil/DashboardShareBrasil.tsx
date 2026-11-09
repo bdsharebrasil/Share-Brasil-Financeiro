@@ -101,16 +101,13 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
         <h1 className="mt-1 text-lg font-extrabold leading-tight tracking-tight text-white [overflow-wrap:anywhere] sm:text-2xl lg:text-3xl">
           {aba.label}
         </h1>
-        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/75 [overflow-wrap:anywhere] sm:text-sm">
-          {aba.detail}
-        </p>
       </header>
 
       <div
         role="tablist"
         aria-label="Áreas do portal"
         aria-orientation="horizontal"
-        className="grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 sm:mx-auto sm:max-w-xl"
+        className="grid w-full min-w-0 grid-cols-2 gap-1 overflow-hidden rounded-[9px] bg-muted/40 p-1 sm:mx-auto sm:max-w-xl"
       >
         {ABAS_DASHBOARD.map((item, indice) => {
           const selecionada = abaAtiva === item.id;
@@ -130,9 +127,9 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal rounded-lg px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
+              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-[9px] px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "border border-primary bg-[rgba(33,70,112,1)] text-[rgba(237,244,246,1)] dark:bg-card dark:text-primary"
+                  ? "border border-[rgba(5,93,151,1)] bg-[rgba(33,70,112,1)] text-[rgba(154,198,231,1)] dark:bg-card dark:text-[rgba(154,198,231,1)]"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >

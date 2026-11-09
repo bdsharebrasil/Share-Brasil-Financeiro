@@ -24,17 +24,14 @@ export interface AtalhoDashboard {
 export const ABAS_DASHBOARD: ReadonlyArray<{
   id: AbaDashboard;
   label: string;
-  detail: string;
 }> = [
   {
     id: "share-brasil",
     label: "Share Brasil",
-    detail: "Informações, documentos e serviços da empresa em um só lugar.",
   },
   {
     id: "minha-central",
     label: "Minha Central de Trabalho",
-    detail: "Acesse suas tarefas, seu ponto e o centro de treinamento.",
   },
 ];
 

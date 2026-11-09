@@ -26,13 +26,17 @@ function TituloEtapa({
 }) {
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (focar) ref.current?.focus({ preventScroll: true });
+    if (focar) {
+      ref.current?.focus({ preventScroll: true });
+      ref.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    }
   }, [id, focar]);
   return (
     <h3
       id={id}
       ref={ref}
       tabIndex={-1}
+      style={{ scrollMarginTop: "calc(var(--app-header-height, 80px) + 16px)" }}
       className="mb-3 rounded text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {titulo}

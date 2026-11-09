@@ -24,7 +24,6 @@ import {
   X,
   Building2,
   Download,
-  MessageSquare,
 } from "lucide-react";
 import {
   Dialog,
@@ -492,6 +491,30 @@ export default function Emails({
       .toLowerCase()
       .includes(buscaGeral.trim().toLowerCase()),
   );
+  const autorSelecionado = mensagemInternaSelecionada
+    ? usuarios.find((u) => u.id === mensagemInternaSelecionada.remetente_id)
+    : undefined;
+  const destinatarioSelecionado = mensagemInternaSelecionada
+    ? usuarios.find((u) => u.id === mensagemInternaSelecionada.destinatario_id)
+    : undefined;
+  const nomeAutor =
+    mensagemInternaSelecionada?.remetente_nome ||
+    autorSelecionado?.nome ||
+    (mensagemInternaSelecionada?.papel === "remetente"
+      ? remetente?.nome
+      : undefined) ||
+    "Remetente não informado";
+  const emailAutor =
+    autorSelecionado?.email ||
+    (mensagemInternaSelecionada?.papel === "remetente"
+      ? remetente?.email
+      : undefined) ||
+    (
+      mensagemInternaSelecionada as
+        | (MensagemInterna & { remetente_email?: string })
+        | null
+    )?.remetente_email;
+
   const temSelecionada = Boolean(
     mensagemInternaSelecionada || emailEnviadoSelecionado,
   );
@@ -599,13 +622,6 @@ export default function Emails({
               <Landmark size={17} /> Contas bancárias
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => aoNavegar("recados")}
-            className="email-item-menu"
-          >
-            <MessageSquare size={17} /> Recados
-          </button>
         </aside>
 
         <section
@@ -869,13 +885,17 @@ export default function Emails({
                     <ArrowLeft size={15} /> Voltar
                   </Button>
                   <span className="email-etiqueta">E-mail enviado</span>
-                  <h2 className="mt-4 break-words text-xl font-semibold">
+                  <h2 className="email-assunto">
                     {emailEnviadoSelecionado.assunto || "(Sem assunto)"}
                   </h2>
-                  <p className="mt-3 break-words text-xs text-muted-foreground">
-                    Para:{" "}
-                    {emailEnviadoSelecionado.destinatarios.join(", ") || "—"}
-                  </p>
+                  <IdentidadeEmail
+                    nome={remetente?.nome || "Você"}
+                    email={remetente?.email}
+                    destinatario={
+                      emailEnviadoSelecionado.destinatarios.join(", ") ||
+                      "Não informado"
+                    }
+                  />
                   <p className="mt-1 text-xs text-muted-foreground">
                     {dataBr(
                       emailEnviadoSelecionado.email_enviado_em ||
@@ -892,7 +912,7 @@ export default function Emails({
                   </span>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
                     {emailEnviadoSelecionado.mensagem ||
                       "(Este e-mail não possui texto registrado.)"}
                   </div>
@@ -956,10 +976,13 @@ export default function Emails({
                           "Favorito atualizado.",
                         )
                       }
+                      aria-pressed={Boolean(
+                        mensagemInternaSelecionada.favorita,
+                      )}
                       className="gap-2"
                     >
                       <Star
-                        size={14}
+                        size={16}
                         className={
                           mensagemInternaSelecionada.favorita
                             ? "fill-amber-500 text-amber-500"
@@ -1024,21 +1047,35 @@ export default function Emails({
                       <Trash2 size={14} /> Excluir
                     </Button>
                   </div>
-                  <h2 className="mt-5 break-words text-xl font-semibold">
-                    {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
-                  </h2>
-                  <p className="mt-3 text-xs font-medium">
-                    {mensagemInternaSelecionada.papel === "remetente"
-                      ? mensagemInternaSelecionada.destinatario_nome ||
-                        mensagemInternaSelecionada.destinatario_id
-                      : mensagemInternaSelecionada.remetente_nome ||
-                        mensagemInternaSelecionada.remetente_id}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Para:{" "}
-                    {mensagemInternaSelecionada.destinatario_nome ||
-                      mensagemInternaSelecionada.destinatario_id}
-                  </p>
+                  <div className="email-assunto-linha">
+                    <h2 className="email-assunto">
+                      {mensagemInternaSelecionada.assunto || "(Sem assunto)"}
+                    </h2>
+                    <span className="email-etiqueta">
+                      {mensagemInternaSelecionada.arquivada
+                        ? "Arquivada"
+                        : mensagemInternaSelecionada.papel === "remetente"
+                          ? "Enviada"
+                          : "Caixa de entrada"}
+                    </span>
+                    {!mensagemInternaSelecionada.lida && (
+                      <span className="email-etiqueta email-etiqueta-nao-lida">
+                        Não lida
+                      </span>
+                    )}
+                  </div>
+                  <IdentidadeEmail
+                    nome={nomeAutor}
+                    email={emailAutor}
+                    destinatario={[
+                      mensagemInternaSelecionada.destinatario_nome ||
+                        destinatarioSelecionado?.nome ||
+                        "Destinatário não informado",
+                      destinatarioSelecionado?.email,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  />
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-muted-foreground">
                       {dataBr(mensagemInternaSelecionada.criado_em)} ·{" "}
@@ -1055,7 +1092,10 @@ export default function Emails({
                           e.target.value,
                         )
                       }
-                      className="campo !w-auto"
+                      className="campo email-categoria !w-auto"
+                      data-categoria={
+                        categoriasMensagem[mensagemInternaSelecionada.id] || ""
+                      }
                     >
                       <option value="">Categoria</option>
                       <option>Financeiro</option>
@@ -1065,7 +1105,7 @@ export default function Emails({
                   </div>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
                     {mensagemInternaSelecionada.conteudo}
                   </div>
                   {!!mensagemInternaSelecionada.anexos?.length && (
@@ -1412,6 +1452,46 @@ function EmailToast({
         )}
       </span>
       <span>{toast.message}</span>
+    </div>
+  );
+}
+
+function IdentidadeEmail({
+  nome,
+  email,
+  destinatario,
+}: {
+  nome: string;
+  email?: string;
+  destinatario: string;
+}) {
+  return (
+    <div className="email-identidade">
+      <span className="email-avatar" aria-hidden="true">
+        {nome.trim().slice(0, 1).toUpperCase() || "?"}
+      </span>
+      <div className="min-w-0">
+        <p className="email-remetente-nome">{nome}</p>
+        {email ? (
+          <a className="email-remetente-endereco" href={`mailto:${email}`}>
+            {email}
+          </a>
+        ) : (
+          <p className="email-remetente-endereco">Endereço não informado</p>
+        )}
+        <details className="email-destinatarios">
+          <summary>Para: {destinatario}</summary>
+          <dl>
+            <dt>De</dt>
+            <dd>
+              {nome}
+              {email ? ` <${email}>` : ""}
+            </dd>
+            <dt>Para</dt>
+            <dd>{destinatario}</dd>
+          </dl>
+        </details>
+      </div>
     </div>
   );
 }

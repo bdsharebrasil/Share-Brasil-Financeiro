@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { RecadosPanel } from "@/components/dashboard/Recados";
 import { Briefcase, Building2 } from "lucide-react";
 import {
   ABAS_DASHBOARD,
@@ -24,7 +25,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className="group flex h-full min-h-40 w-full min-w-0 max-w-full flex-col items-start gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
+      className="group flex h-full min-h-32 w-full min-w-0 max-w-full flex-col items-start gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm transition motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-4"
     >
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${item.tone}`}
@@ -135,10 +136,10 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           aria-labelledby={`${id}-tab-${item.id}`}
           hidden={abaAtiva !== item.id}
           tabIndex={0}
-          className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="min-w-0 max-w-full space-y-5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {/* A largura do pai define as colunas, mesmo com uma sidebar aberta. */}
-          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 sm:gap-4">
+          <div className="grid min-w-0 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
             {ATALHOS_POR_ABA[item.id].map((atalho) => (
               <CardAtalho
                 key={atalho.menu}
@@ -147,6 +148,9 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               />
             ))}
           </div>
+          {abaAtiva === item.id && (
+            <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
+          )}
         </section>
       ))}
     </div>

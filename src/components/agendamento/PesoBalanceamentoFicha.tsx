@@ -1,4 +1,5 @@
 import { ACAO_CONCLUIDA, ACAO_A_REALIZAR } from "./agendamentoVisual";
+import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, PenLine, Plus, Scale, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,8 +52,10 @@ function Limite({ label, valor, unidade = "kg" }: { label: string; valor: number
   );
 }
 
-export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooInterna }) {
-  const [aberto, setAberto] = useState(false);
+export default function PesoBalanceamentoFicha({ item, aberto: abertoControlado, aoAlterarAberto }: { item: SolicitacaoVooInterna; aberto?: boolean; aoAlterarAberto?: (aberto: boolean) => void }) {
+  const [abertoInterno, setAbertoInterno] = useState(false);
+  const aberto = abertoControlado ?? abertoInterno;
+  const setAberto = aoAlterarAberto ?? setAbertoInterno;
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -156,7 +159,7 @@ export default function PesoBalanceamentoFicha({ item }: { item: SolicitacaoVooI
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setAberto(true)} className={`h-9 gap-2 text-[11px] font-bold ${somenteLeitura ? ACAO_CONCLUIDA : ACAO_A_REALIZAR}`}>
+      <Button type="button" variant="outline" onClick={() => setAberto(true)} className={cn("h-9 gap-2 text-[11px] font-bold", abertoControlado !== undefined && "hidden", somenteLeitura ? ACAO_CONCLUIDA : [ACAO_A_REALIZAR, "dark:bg-[rgba(2,7,44,0.16)] dark:text-[rgba(176,235,216,1)] dark:border-[rgba(11,34,151,0.63)]"])}>
         <Scale size={13} /> {somenteLeitura ? "Ver ficha concluída" : "Gerar peso e balanceamento"}
       </Button>
 

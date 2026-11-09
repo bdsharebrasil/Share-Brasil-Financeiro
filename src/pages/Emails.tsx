@@ -24,6 +24,7 @@ import {
   X,
   Building2,
   Download,
+  MessageSquare,
 } from "lucide-react";
 import {
   Dialog,
@@ -110,7 +111,11 @@ const normalizarEmailEnviado = (item: EmailEnviado): EmailEnviado => ({
 
 type ToastData = { status: "sending" | "sent"; message: string };
 
-export default function Emails() {
+export default function Emails({
+  aoNavegar,
+}: {
+  aoNavegar: (menu: string) => void;
+}) {
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioMensagem[]>([]);
   const [mensagensPasta, setMensagensPasta] = useState<MensagemInterna[]>([]);
@@ -514,36 +519,7 @@ export default function Emails() {
           </span>
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight">E-mail</h1>
-            <p className="truncate text-xs text-muted-foreground">
-              {remetente?.email || "Central de comunicação Share Brasil"}
-            </p>
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setConfigAberta("assinatura")}
-            aria-label="Minha assinatura"
-            title="Minha assinatura"
-          >
-            <Settings size={16} />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setConfigAberta("bancarios")}
-            aria-label="Contas bancárias"
-            title="Contas bancárias"
-          >
-            <Landmark size={16} />
-          </Button>
-          <Button type="button" onClick={escrever} className="gap-2 md:hidden">
-            <PenLine size={16} />
-            <span className="hidden sm:inline">Escrever</span>
-          </Button>
         </div>
       </header>
       {!modoCriacao && (erro || sucesso) && (
@@ -623,6 +599,13 @@ export default function Emails() {
               <Landmark size={17} /> Contas bancárias
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => aoNavegar("recados")}
+            className="email-item-menu"
+          >
+            <MessageSquare size={17} /> Recados
+          </button>
         </aside>
 
         <section
@@ -948,7 +931,7 @@ export default function Emails() {
             ) : mensagemInternaSelecionada ? (
               <>
                 <header className="email-leitura-cabecalho">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="email-acoes-leitura flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       variant="ghost"
@@ -1116,12 +1099,6 @@ export default function Emails() {
               </>
             ) : (
               <div className="email-vazio email-vazio-leitura">
-                <span className="email-vazio-icone">
-                  <Mail size={32} />
-                </span>
-                <h2 className="text-base font-semibold text-foreground">
-                  Sua comunicação em um só lugar
-                </h2>
                 <p className="max-w-xs text-sm leading-6">
                   Selecione uma mensagem para ler ou escreva um novo e-mail.
                 </p>

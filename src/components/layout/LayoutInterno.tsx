@@ -138,7 +138,7 @@ export default function LayoutInterno() {
     if (ambiente === "financeiro" && menuAtivo === "movimentacoes") return <MovimentacoesFinanceiras aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "recibos") return <EmissaoRecibo aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "financeiro" && menuAtivo === "despesas") return <RelatorioDespesaViagem aoVoltar={() => setMenuAtivo("overview")} aoResetarRolagem={resetarRolagem} />;
-    if (ambiente === "financeiro" && menuAtivo === "email") return <Emails />;
+    if (ambiente === "financeiro" && menuAtivo === "email") return <Emails aoNavegar={selecionarMenu} />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "configuracoes") return <ConfiguracoesGestor />;
     if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;

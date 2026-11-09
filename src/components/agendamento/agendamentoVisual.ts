@@ -1,5 +1,6 @@
 // Cores compartilhadas pelo cronograma, calendário e ações operacionais.
 export const ACAO_CONCLUIDA = "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 hover:text-white dark:border-emerald-600 dark:bg-emerald-700 dark:text-white dark:hover:bg-emerald-800";
+export const ACAO_HOVER_MOVIMENTO = "transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-md";
 export const ACAO_A_REALIZAR = "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60";
 
 const VERDE = {

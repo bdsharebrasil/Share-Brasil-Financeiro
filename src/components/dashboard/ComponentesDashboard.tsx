@@ -84,12 +84,12 @@ export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, cl
 }
 
 export function AcaoRapida({ icon, label, detail, color = "blue", onClick }: { icon: ReactNode; label: string; detail: string; color?: "blue" | "green" | "amber" | "violet"; onClick: () => void }) {
-  const colors = { blue: "text-primary border-primary/25", green: "text-emerald-600 dark:text-emerald-300 border-emerald-500/30", amber: "text-amber-600 dark:text-amber-300 border-amber-500/30", violet: "text-violet-600 dark:text-violet-300 border-violet-500/30" };
+  const colors = { blue: "text-sky-700 border-sky-600/45 bg-sky-50 dark:text-sky-400 dark:border-sky-400/45 dark:bg-sky-500/15", green: "text-emerald-700 border-emerald-600/45 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-400/45 dark:bg-emerald-500/15", amber: "text-amber-700 border-amber-600/45 bg-amber-50 dark:text-amber-400 dark:border-amber-400/45 dark:bg-amber-500/15", violet: "text-violet-700 border-violet-600/45 bg-violet-50 dark:text-violet-400 dark:border-violet-400/45 dark:bg-violet-500/15" };
   return (
     <button
       type="button"
       onClick={onClick}
-      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-[#E6ECEC] p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none text-left sm:min-h-[100px] sm:p-3.5"
+      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-card/75 p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none text-left sm:min-h-[100px] sm:p-3.5"
     >
       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color])}>
         <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">{icon}</span>

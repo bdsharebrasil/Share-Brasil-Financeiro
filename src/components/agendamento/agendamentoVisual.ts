@@ -3,7 +3,7 @@ export const ACAO_CONCLUIDA = "border-emerald-700 bg-emerald-700 text-white hove
 export const ACAO_A_REALIZAR = "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60";
 
 const VERDE = {
-  borda: "border-emerald-600 dark:border-emerald-400",
+  borda: "border-[#62cc8e] dark:border-[#62cc8e]",
   evento: "border-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60",
   icone: "text-emerald-800 dark:text-emerald-300",
 };

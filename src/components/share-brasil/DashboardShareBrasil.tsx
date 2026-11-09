@@ -19,7 +19,7 @@ interface DashboardShareBrasilProps {
   aoNavegar: (menu: string) => void;
 }
 
-/* Grade compacta: mantém três colunas com espaçamento de 8 a 16px. */
+/* Grade compacta com espaçamento de 8 a 16px. */
 const VARIAVEIS_GRID = {
   "--gap": "clamp(0.5rem, 1.5vw, 1rem)",
 } as CSSProperties;
@@ -156,19 +156,23 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {item.id === "share-brasil" ? (
-            /* Aba 1: sempre 3 colunas (3 em cima, 3 embaixo) */
-            <div
-              style={VARIAVEIS_GRID}
-              className="mx-auto grid w-full min-w-0 max-w-[600px] grid-cols-3 items-stretch gap-[var(--gap)] px-[7px] py-2"
-            >
-              {ATALHOS_POR_ABA[item.id].map((atalho) => (
-                <CardAtalho
-                  key={atalho.menu}
-                  item={atalho}
-                  aoNavegar={aoNavegar}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                style={VARIAVEIS_GRID}
+                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-6 items-stretch gap-[var(--gap)] px-[7px] py-2"
+              >
+                {ATALHOS_POR_ABA[item.id].map((atalho) => (
+                  <CardAtalho
+                    key={atalho.menu}
+                    item={atalho}
+                    aoNavegar={aoNavegar}
+                  />
+                ))}
+              </div>
+              <div className="mx-auto mt-4 w-full max-w-[1200px] sm:mt-6">
+                <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
+              </div>
+            </>
           ) : (
             /* Aba 2: cards com o mesmo tamanho da aba 1, centralizados */
             <div

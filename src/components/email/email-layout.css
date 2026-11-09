@@ -363,7 +363,6 @@ a.email-remetente-endereco:hover {
   background-color: rgb(239 68 68 / 0.12);
 }
 .email-corpo {
-  max-width: 80ch;
   min-height: 100px;
   color: hsl(var(--foreground));
   padding-block: 8px 24px;

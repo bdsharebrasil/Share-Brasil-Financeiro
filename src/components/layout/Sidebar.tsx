@@ -112,7 +112,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="fixed left-[var(--safe-area-left)] top-[calc(68px+var(--safe-area-top))] z-30 hidden h-[calc(100dvh-68px-var(--safe-area-top))] w-[76px] flex-col items-center border-r border-[rgba(26,34,34,0.87)] bg-sidebar py-4 md:flex">
+      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-[rgba(26,34,34,0.87)] bg-sidebar py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />
@@ -133,7 +133,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
             <LogoShare />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>
           </div>
-          <ScrollArea className="h-[calc(100dvh-68px-var(--safe-area-top))]"><div className="p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div></ScrollArea>
+          <ScrollArea className="h-[calc(100dvh-var(--app-header-height))]"><div className="p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div></ScrollArea>
         </SheetContent>
       </Sheet>
       <span className="sr-only"><Mail aria-hidden="true" />Dados do menu carregados do D1</span>

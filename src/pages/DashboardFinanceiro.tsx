@@ -339,7 +339,7 @@ export default function DashboardFinanceiro({
                 type="button"
                 variant="outline"
                 onClick={() => aoNavegar("movimentacoes")}
-                className="h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
+                className="menu-dashboard h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
               >
                 <FolderOpen size={12} /> Ver todas
               </Button>
@@ -369,7 +369,7 @@ export default function DashboardFinanceiro({
         {mostrarPendencias && (
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs">
             <span className="font-semibold text-amber-700 dark:text-amber-300">Exibindo despesas sem e-mail enviado.</span>
-            <button type="button" onClick={() => setMostrarPendencias(false)} className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
+            <button type="button" onClick={() => setMostrarPendencias(false)} className="menu-dashboard rounded-md px-2 py-1 font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300">Ver todas</button>
           </div>
         )}
         

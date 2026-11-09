@@ -73,7 +73,7 @@ export default function AcompanhamentoVooAgendado({ item, voosEmOperacao }: { it
         : "Aguardando decolagem";
   const temRota = Boolean(dadosMapa.origem_coord || dadosMapa.destino_coord);
 
-  return <section className="overflow-hidden rounded-xl border border-sky-400/25 bg-sky-400/[.04]" aria-label="Acompanhamento do voo selecionado">
+  return <section className="overflow-hidden rounded-xl border border-[rgba(6,91,129,.25)] bg-[rgba(10,14,17,.35)]" aria-label="Acompanhamento do voo selecionado">
     <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-4 py-3">
       <div className="flex items-center gap-2"><Plane size={15} className="text-sky-300" /><div><h3 className="text-xs font-bold">Acompanhamento do voo {item.numero_voo || "programado"}</h3><p className="mt-0.5 text-[9px] text-muted-foreground">{operacaoConcluida ? "Operação encerrada" : sinalAoVivo ? "Posição ADS-B ao vivo" : faseVoo === "acionado" ? "Acionamento registrado; aguardando DEP" : faseVoo === "em_solo" ? "Pouso registrado na jornada" : vooRegistradoEmOperacao ? "Decolagem registrada; rastreamento sem sinal recente" : "Prévia da rota prevista"}</p></div></div>
       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold ${sinalAoVivo ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300" : "border-sky-400/25 bg-sky-400/10 text-sky-200"}`}><Radio size={11} />{sinalAoVivo ? "Ao vivo" : textoFase}</span>

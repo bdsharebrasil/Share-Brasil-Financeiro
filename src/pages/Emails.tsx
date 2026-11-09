@@ -931,7 +931,7 @@ export default function Emails({
             ) : mensagemInternaSelecionada ? (
               <>
                 <header className="email-leitura-cabecalho">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="email-acoes-leitura flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       variant="ghost"

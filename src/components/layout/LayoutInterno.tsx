@@ -141,7 +141,7 @@ export default function LayoutInterno() {
     if (ambiente === "financeiro" && menuAtivo === "email") return <Emails aoNavegar={selecionarMenu} />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "gestao-colaborador") return <GestaoColaborador />;
     if (ambiente === "gestor" && podeAcessarGestor && menuAtivo === "configuracoes") return <ConfiguracoesGestor />;
-    if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro"].includes(ambiente)) return <Recados />;
+    if (menuAtivo === "recados" && ["gestor", "operacoes", "financeiro", "share-brasil"].includes(ambiente)) return <Recados />;
     if (ambiente === "share-brasil" && menuAtivo === "aniversarios") return <Aniversarios />;
     if (ambiente === "share-brasil" && menuAtivo === "ponto") return <PontoShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "documentos") return <DocumentosShareBrasil />;

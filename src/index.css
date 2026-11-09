@@ -473,7 +473,7 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
   --menu-hover-border: #054563;
 }
 .app-topbar .menu-cabecalho {
-  --menu-hover-bg: #0c4c73;
+  --menu-hover-bg: #aac8db;
   --menu-hover-fg: #f0f9ff;
   --menu-hover-border: #054563;
 }

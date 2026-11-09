@@ -44,6 +44,9 @@ export default defineConfig(({ mode }) => {
     },
     dedupe: ['react', 'react-dom'],
   },
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
   root: path.resolve(import.meta.dirname),
   envDir: path.resolve(import.meta.dirname),
   publicDir: path.resolve(import.meta.dirname, 'public'),

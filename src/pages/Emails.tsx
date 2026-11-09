@@ -912,7 +912,7 @@ export default function Emails({
                   </span>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-texto whitespace-pre-wrap break-words text-sm leading-7">
                     {emailEnviadoSelecionado.mensagem ||
                       "(Este e-mail não possui texto registrado.)"}
                   </div>
@@ -1076,7 +1076,7 @@ export default function Emails({
                       .filter(Boolean)
                       .join(" · ")}
                   />
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="-mb-[3px] ml-[6px] mt-[3px] flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-muted-foreground">
                       {dataBr(mensagemInternaSelecionada.criado_em)} ·{" "}
                       {horaBr(mensagemInternaSelecionada.criado_em)}
@@ -1105,7 +1105,7 @@ export default function Emails({
                   </div>
                 </header>
                 <div className="email-leitura-scroll">
-                  <div className="email-corpo whitespace-pre-wrap break-words text-sm leading-7">
+                  <div className="email-texto whitespace-pre-wrap break-words text-sm leading-7">
                     {mensagemInternaSelecionada.conteudo}
                   </div>
                   {!!mensagemInternaSelecionada.anexos?.length && (
@@ -1467,9 +1467,6 @@ function IdentidadeEmail({
 }) {
   return (
     <div className="email-identidade">
-      <span className="email-avatar" aria-hidden="true">
-        {nome.trim().slice(0, 1).toUpperCase() || "?"}
-      </span>
       <div className="min-w-0">
         <p className="email-remetente-nome">{nome}</p>
         {email ? (

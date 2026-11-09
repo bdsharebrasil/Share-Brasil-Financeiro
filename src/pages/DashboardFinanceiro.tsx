@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import { DespesaDestinoDialog } from "@/components/dashboard/DespesaDestinoDialog";
 import { TabelaAbastecimentosPendentes } from "@/components/dashboard/financeiro/TabelaAbastecimentosPendentes";
@@ -241,7 +242,7 @@ export default function DashboardFinanceiro({
     ),
   );
   const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
-  const operacoesDoDashboard = operacoesVisiveis.slice(0, 3);
+  const operacoesDoDashboard = operacoesVisiveis.slice(0, 5);
 
   if (abastecimentoEmEdicao) {
     return (
@@ -297,9 +298,11 @@ export default function DashboardFinanceiro({
           onClick={() => aoNavegar("enviar-pagamento")}
         />
         <AcaoRapida
-          icon={<Mail size={16} />}
+          icon={<Mail size={16} className="text-[rgba(213,102,235,1)]" />}
           label="E-mail"
           detail="Caixa de saída"
+          iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)] dark:border-[rgba(138,12,165,0.59)] dark:bg-[rgba(55,14,233,0.15)]"
+          iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
         />
         <AcaoRapida
@@ -316,6 +319,7 @@ export default function DashboardFinanceiro({
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
+          className="bg-[rgba(105,168,168,0.2)]"
           detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
@@ -339,7 +343,7 @@ export default function DashboardFinanceiro({
                 type="button"
                 variant="outline"
                 onClick={() => aoNavegar("movimentacoes")}
-                className="menu-dashboard h-8 flex-1 gap-1.5 border-border bg-card px-2.5 text-[10px] sm:flex-none"
+                className="menu-dashboard h-8 flex-1 gap-1.5 overflow-hidden rounded-[9px] border-[rgba(17,145,212,1)] bg-[rgba(228,248,248,1)] px-2.5 text-[10px] sm:flex-none"
               >
                 <FolderOpen size={12} /> Ver todas
               </Button>
@@ -381,11 +385,11 @@ export default function DashboardFinanceiro({
           </div>
         ) : operacoesVisiveis.length ? (
           <>
-          <div className="space-y-3 p-4">
+          <Accordion type="multiple" className="space-y-3 p-4">
             {operacoesDoDashboard.map((operacao) => (
               <CartaoOperacao key={operacao.chave} op={operacao} onEmailPendente={setDespesaDestino} />
             ))}
-          </div>
+          </Accordion>
           </>
         ) : (
           <div className="py-4">
@@ -442,24 +446,28 @@ function CartaoOperacao({ op, onEmailPendente }: { op: Operacao; onEmailPendente
   };
 
   return (
-    <article className="rounded-xl border border-border bg-card/50 p-4 shadow-sm transition-colors hover:border-primary/20">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-bold text-foreground">{op.titulo}</p>
-        <span className="shrink-0 text-xs text-muted-foreground">{dataBruta(op.data)}</span>
-      </div>
-      <div className="mt-3 space-y-2">
-        {op.pernas.map(({ papel, item }) => (
-          <div key={item.id} className="grid items-center gap-3 rounded-lg border border-border/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{rotulo[papel]}</p>
-              <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || item.fornecedor || "—"}</p>
+    <AccordionItem value={op.chave} className="rounded-xl border border-border bg-card/50 shadow-sm transition-colors hover:border-primary/20">
+      <AccordionTrigger className="px-4 hover:no-underline">
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-3 pr-2">
+          <p className="min-w-0 truncate text-sm font-bold text-foreground">{op.titulo}</p>
+          <span className="shrink-0 text-xs font-normal text-muted-foreground">{dataBruta(op.data)}</span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-4">
+        <div className="space-y-2">
+          {op.pernas.map(({ papel, item }) => (
+            <div key={item.id} className="grid items-center gap-3 rounded-lg border border-border/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{rotulo[papel]}</p>
+                <p className="truncate text-xs font-medium text-foreground">{item.codigo_cliente || item.fornecedor || "—"}</p>
+              </div>
+              <span className="font-mono text-xs font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</span>
+              <EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus>
+              <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
             </div>
-            <span className="font-mono text-xs font-bold">{formatarMoeda(valorMovimentacao(Number(item.valor) || 0))}</span>
-            <EtiquetaStatus tone={tomStatus(item.status)}>{statusLabel(item.status)}</EtiquetaStatus>
-            <StatusEmail item={item} onClick={() => onEmailPendente(item)} />
-          </div>
-        ))}
-      </div>
-    </article>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

@@ -1256,10 +1256,66 @@ export function criarAerodromoCadastro(payload: Omit<AerodromoCadastro, "id">) {
 export function atualizarAerodromoCadastro(id: string, payload: Omit<AerodromoCadastro, "id">) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirAerodromoCadastro(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aerodromos/${id}`, { method: "DELETE" }); }
 
+export type JornadaResumo = {
+  id: string;
+  tripulante_id: string;
+  numero_jornada: number;
+  funcao: string;
+  status: string;
+  apresentacao: string | null;
+  corte: string | null;
+  encerramento: string | null;
+  minutos_pos_corte: number | null;
+  minutos_reais: number | null;
+  minutos_registrados: number | null;
+  quantidade_pernas: number;
+  limite_sistema_minutos: number;
+  diferenca_sistema_minutos: number | null;
+  avisos: string[];
+};
+export type PeriodoResumo = {
+  id: string;
+  tipo: 'semana' | 'mes';
+  inicio: string;
+  fim: string;
+  fuso_apuracao: 'UTC';
+  criterio: string;
+  operacao_minutos: number | null;
+  total_minutos: number;
+  referencia_minutos: number;
+  diferenca_minutos: number | null;
+  registros_incompletos: number;
+  nivel: 'abaixo_referencia' | 'referencia_atingida' | 'acima_referencia' | 'incompleto';
+};
+export type TripulanteResumo = {
+  id: string;
+  nome: string;
+  funcoes: string[];
+  jornadas: JornadaResumo[];
+  minutos_reais_operacao: number | null;
+  minutos_registrados_operacao: number | null;
+  referencia_em: string | null;
+  periodos: PeriodoResumo[];
+};
+export type ResumoJornadaOperacao = {
+  solicitacao_id: string;
+  numero_voo: string | null;
+  gerado_em: string;
+  tripulantes: TripulanteResumo[];
+  validacao_legal_completa: false;
+  fuso_base: null;
+  fora_base: { dias_operacao: null; referencia_dias: 21; local_operacao_referencia_dias: 17; motivo: string };
+  avisos: string[];
+};
+
+export function buscarResumoJornadaOperacao(id: string) {
+  return colaboradorRequest<ResumoJornadaOperacao>(`/api/interno/agendamento/${encodeURIComponent(id)}/resumo-jornada`);
+}
+
 export type NivelAlertaJornada = "normal" | "atencao" | "critico" | "excedido";
 export type FaixaLimiteJornada = { minutos: number; limite: number; restante: number; nivel: NivelAlertaJornada };
-export type LimitesJornada = { jornada_id: string; tripulante_id: string | null; data: string; minutos_jornada: number; limite_jornada_minutos: number; restante_minutos: number; nivel_alerta: NivelAlertaJornada; semana: FaixaLimiteJornada; mes: FaixaLimiteJornada; pernas_abertas: number };
-export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; tripulante_nome?: string | null; numero_voo?: string | null; origem?: string | null; destino?: string | null; matricula_registro?: string | null; modelo?: string | null; funcao_tripulante: "PIC" | "SIC"; jornada_principal_id: string | null; numero_jornada: number; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_pouso: string | null; horario_corte: string | null; minutos_pos_corte: number; minutos_jornada: number | null; nivel_alerta: NivelAlertaJornada; status: string; status_agendamento?: string; observacoes: string | null; pernas: Array<{ id: string; jornada_id?: string; numero: number; origem: string; destino: string; numero_passageiros: number; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id?: string | null }>; tripulantes?: JornadaTripulante[]; historico?: JornadaVoo[] };
+export type LimitesJornada = { jornada_id: string; tripulante_id: string | null; data: string; minutos_jornada: number; limite_jornada_minutos: number; restante_minutos: number; nivel_alerta: NivelAlertaJornada; semana: FaixaLimiteJornada; mes: FaixaLimiteJornada; pernas_abertas: number; referencia_em?: string; criterio_semanal?: string; dados_incompletos?: boolean; validacao_legal_completa?: boolean };
+export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; tripulante_nome?: string | null; numero_voo?: string | null; origem?: string | null; destino?: string | null; matricula_registro?: string | null; modelo?: string | null; funcao_tripulante: "PIC" | "SIC"; jornada_principal_id: string | null; numero_jornada: number; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_pouso: string | null; horario_corte: string | null; horario_encerramento?: string | null; minutos_reais?: number | null; minutos_pos_corte: number; minutos_jornada: number | null; nivel_alerta: NivelAlertaJornada; status: string; status_agendamento?: string; observacoes: string | null; pernas: Array<{ id: string; jornada_id?: string; numero: number; origem: string; destino: string; numero_passageiros: number; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id?: string | null }>; tripulantes?: JornadaTripulante[]; historico?: JornadaVoo[] };
 export type JornadaTripulante = JornadaVoo & { funcao_tripulante: "PIC" | "SIC"; limites: LimitesJornada };
 export function buscarJornadaVoo(id: string) { return colaboradorRequest<JornadaVoo | null>(`/api/interno/agendamento/${id}/jornada`); }
 export function buscarExtratoJornadaTripulante(id: string, inicio?: string, fim?: string) {

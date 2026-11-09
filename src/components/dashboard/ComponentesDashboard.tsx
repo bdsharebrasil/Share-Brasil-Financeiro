@@ -14,13 +14,13 @@ export function IndicadorPagina({ children }: { children: ReactNode }) {
   );
 }
 
-export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode }) {
+export function CabecalhoSecao({ icon, title, detail, action, tituloClassName, className }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode; tituloClassName?: string; className?: string }) {
   return (
-    <div className="flex flex-col items-start justify-between gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:px-4 sm:py-3.5">
+    <div className={cn("flex flex-col items-start justify-between gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:px-4 sm:py-3.5", className)}>
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-primary">{icon}</span>
         <div className="min-w-0">
-          <h2 className="truncate text-xs font-bold">{title}</h2>
+          <h2 className={cn("truncate text-xs font-bold", tituloClassName)}>{title}</h2>
           {detail && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{detail}</p>}
         </div>
       </div>
@@ -32,7 +32,7 @@ export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNod
 export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   const heroImage = ambiente === "operacoes" ? aviationHeroOperacoes : aviationHero;
   return (
-    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-card dark:bg-[#111b29] shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
+    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-[rgba(233,245,242,1)] dark:bg-[#111b29] shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
       <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_45%,rgba(5,12,22,.28)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.45)_0%,transparent_60%)]" />
@@ -83,16 +83,16 @@ export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, cl
   );
 }
 
-export function AcaoRapida({ icon, label, detail, color = "blue", onClick }: { icon: ReactNode; label: string; detail: string; color?: "blue" | "green" | "amber" | "violet"; onClick: () => void }) {
+export function AcaoRapida({ icon, label, detail, color = "blue", onClick, iconeClassName, iconeInternoClassName }: { icon: ReactNode; label: string; detail: string; color?: "blue" | "green" | "amber" | "violet"; onClick: () => void; iconeClassName?: string; iconeInternoClassName?: string }) {
   const colors = { blue: "text-sky-700 border-sky-600/45 bg-sky-50 dark:text-sky-400 dark:border-sky-400/45 dark:bg-sky-500/15", green: "text-emerald-700 border-emerald-600/45 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-400/45 dark:bg-emerald-500/15", amber: "text-amber-700 border-amber-600/45 bg-amber-50 dark:text-amber-400 dark:border-amber-400/45 dark:bg-amber-500/15", violet: "text-violet-700 border-violet-600/45 bg-violet-50 dark:text-violet-400 dark:border-violet-400/45 dark:bg-violet-500/15" };
   return (
     <button
       type="button"
       onClick={onClick}
-      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-card/75 p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none text-left sm:min-h-[100px] sm:p-3.5"
+      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-card/75 p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] text-left sm:min-h-[100px] sm:p-3.5"
     >
-      <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color])}>
-        <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4">{icon}</span>
+      <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color], iconeClassName)}>
+        <span className={cn("[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4", iconeInternoClassName)}>{icon}</span>
       </span>
       <span className="mt-2.5 min-w-0 sm:mt-3">
         <span className="flex min-w-0 items-start justify-between gap-2 text-[10px] font-bold sm:text-[11px]">
@@ -115,7 +115,7 @@ export function BarraProgresso({ value, color = "blue" }: { value: number; color
 }
 
 export function EtiquetaStatus({ children, tone = "neutral", className }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "violet" | "neutral"; className?: string }) {
-  const styles = { green: "text-emerald-500 dark:text-emerald-300", amber: "text-amber-500 dark:text-amber-300", red: "text-red-500 dark:text-red-300", blue: "text-sky-500 dark:text-sky-300", violet: "text-violet-500 dark:text-violet-300", neutral: "text-muted-foreground" };
+  const styles = { green: "text-[rgba(16,185,55,1)] dark:text-emerald-300", amber: "text-amber-500 dark:text-amber-300", red: "text-red-500 dark:text-red-300", blue: "text-sky-500 dark:text-sky-300", violet: "text-violet-500 dark:text-violet-300", neutral: "text-muted-foreground" };
   const rotulo = typeof children === "string" ? children.replace(/_/g, " ") : children;
   return (
     <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone], className)}>

@@ -98,9 +98,9 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
       {erro && <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
 
       <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
-        <CartaoKpi label="Voos hoje" value={carregando ? "—" : String(resumo?.voos_hoje ?? 0)} detail="Operações previstas para hoje" icon={<Plane size={16} />} className="!p-2.5 sm:!p-3" />
-        <CartaoKpi label="Agendamentos" value={carregando ? "—" : String(resumo?.reservas_abertas ?? 0)} detail="Reservas a partir de hoje" tone="blue" icon={<CalendarDays size={16} />} className="!p-2.5 sm:!p-3" />
-        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="!p-2.5 sm:!p-3" />
+        <CartaoKpi label="Voos hoje" value={carregando ? "—" : String(resumo?.voos_hoje ?? 0)} detail="Operações previstas para hoje" icon={<Plane size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
+        <CartaoKpi label="Agendamentos" value={carregando ? "—" : String(resumo?.reservas_abertas ?? 0)} detail="Reservas a partir de hoje" tone="blue" icon={<CalendarDays size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
+        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
       </div>
 
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -109,7 +109,7 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
         <AcaoRapida icon={<NotebookPen size={17} />} label="Diário de Bordo" detail="Abrir módulo" onClick={() => aoNavegar("diario-de-bordo")} color="green" />
         <AcaoRapida icon={<Users size={17} />} label="Tripulação" detail="Escalas do dia" onClick={() => aoNavegar("tripulacao")} color="violet" />
         <AcaoRapida icon={<Fuel size={17} />} label="Abastecimento" detail="Abrir módulo" onClick={() => aoNavegar("abastecimentos")} color="amber" />
-        <AcaoRapida icon={<Wrench size={17} />} label="CTM" detail="Abrir módulo" onClick={() => aoNavegar("ctm")} color="green" />
+        <AcaoRapida icon={<Wrench size={17} />} label="CTM" detail="Abrir módulo" onClick={() => aoNavegar("ctm")} color="green" iconeClassName="dark:border-[rgba(208,2,27,0.63)] dark:bg-[rgba(105,12,20,0.33)] dark:text-[rgba(245,166,35,0.8)]" />
       </section>
 
       <VooEmOperacaoCard aoNavegar={() => aoNavegar("agendamentos")} />

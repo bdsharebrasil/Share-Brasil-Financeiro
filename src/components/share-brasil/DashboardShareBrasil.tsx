@@ -19,7 +19,7 @@ interface DashboardShareBrasilProps {
   aoNavegar: (menu: string) => void;
 }
 
-/* Grade compacta: mantém três colunas com espaçamento de 8 a 16px. */
+/* Grade compacta com espaçamento de 8 a 16px. */
 const VARIAVEIS_GRID = {
   "--gap": "clamp(0.5rem, 1.5vw, 1rem)",
 } as CSSProperties;
@@ -37,7 +37,7 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
+      className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
     >
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
@@ -101,16 +101,13 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
         <h1 className="mt-1 text-lg font-extrabold leading-tight tracking-tight text-white [overflow-wrap:anywhere] sm:text-2xl lg:text-3xl">
           {aba.label}
         </h1>
-        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/75 [overflow-wrap:anywhere] sm:text-sm">
-          {aba.detail}
-        </p>
       </header>
 
       <div
         role="tablist"
         aria-label="Áreas do portal"
         aria-orientation="horizontal"
-        className="grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 sm:mx-auto sm:max-w-xl"
+        className="grid w-full min-w-0 grid-cols-2 gap-1 overflow-hidden rounded-[9px] bg-muted/40 p-1 sm:mx-auto sm:max-w-xl"
       >
         {ABAS_DASHBOARD.map((item, indice) => {
           const selecionada = abaAtiva === item.id;
@@ -130,9 +127,9 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal rounded-lg px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
+              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-[9px] px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
-                  ? "border border-border bg-[rgba(33,70,112,1)] text-[rgba(237,244,246,1)] dark:bg-card dark:text-primary"
+                  ? "border border-[rgba(5,93,151,1)] bg-[rgba(33,70,112,1)] text-[rgba(154,198,231,1)] dark:bg-card dark:text-[rgba(154,198,231,1)]"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >
@@ -156,19 +153,23 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
           className="min-w-0 max-w-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {item.id === "share-brasil" ? (
-            /* Aba 1: sempre 3 colunas (3 em cima, 3 embaixo) */
-            <div
-              style={VARIAVEIS_GRID}
-              className="mx-auto grid w-full min-w-0 max-w-[600px] grid-cols-3 items-stretch gap-[var(--gap)] px-[7px] py-2"
-            >
-              {ATALHOS_POR_ABA[item.id].map((atalho) => (
-                <CardAtalho
-                  key={atalho.menu}
-                  item={atalho}
-                  aoNavegar={aoNavegar}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                style={VARIAVEIS_GRID}
+                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-3 md:grid-cols-6 items-stretch gap-[var(--gap)] px-[7px] py-2"
+              >
+                {ATALHOS_POR_ABA[item.id].map((atalho) => (
+                  <CardAtalho
+                    key={atalho.menu}
+                    item={atalho}
+                    aoNavegar={aoNavegar}
+                  />
+                ))}
+              </div>
+              <div className="mx-auto mt-4 w-full max-w-[1200px] sm:mt-6">
+                <RecadosPanel compact aoAbrir={() => aoNavegar("recados")} />
+              </div>
+            </>
           ) : (
             /* Aba 2: cards com o mesmo tamanho da aba 1, centralizados */
             <div

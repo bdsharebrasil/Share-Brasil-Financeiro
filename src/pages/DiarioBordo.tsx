@@ -92,7 +92,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 
   useEffect(() => { void loadList(); }, [loadList]);
 
-  const filteredAircraft = useMemo(() => aeronaves.filter((aircraft) => `${aircraft.matricula_registro} ${aircraft.fabricante || ""} ${aircraft.modelo || ""}`.toLowerCase().includes(search.toLowerCase())), [aeronaves, search]);
+  const filteredAircraft = useMemo(() => aeronaves.filter((aircraft) => `${aircraft.matricula_registro} ${aircraft.fabricante || ""} ${aircraft.modelo || ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => compararTempoRestante(a, b)), [aeronaves, search]);
   const selectedMonthOptions = useMemo(() => {
     const values = new Map<string, { ano: number; mes: number }>();
     values.set(`${period.ano}-${period.mes}`, period);
@@ -331,7 +331,7 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
         <div className="flex w-full flex-wrap gap-2 px-[49px] sm:w-auto">{aoVoltar && <Button type="button" variant="outline" onClick={aoVoltar} className="h-9 gap-1.5 text-[10px]"><ArrowLeft size={13} /> Voltar</Button>}{aoAbrirAerodromos && <Button type="button" variant="outline" onClick={aoAbrirAerodromos} className="mx-[4px] min-h-[38px] h-9 gap-1.5 px-[40px] text-[10px] [border-color:rgba(5,197,41,0.58)]">Aeródromos</Button>}</div>
       </div>
       {(error || notice) && <div className={`rounded-lg border p-3 text-[11px] ${error ? "border-destructive/40 bg-destructive/10 text-destructive-foreground" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>{error || notice}</div>}
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-2"><label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-[10px] text-muted-foreground sm:flex-none"><Search size={13} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar aeronave..." className="w-full min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/70 sm:w-40" /></label><select value={ano} onChange={(event) => setAno(Number(event.target.value))} className="campo !h-9 !w-auto !py-1 !px-3 text-[10px] font-bold"><option value={ano}>{ano}</option><option value={ano - 1}>{ano - 1}</option><option value={ano + 1}>{ano + 1}</option></select></div><Button type="button" variant="outline" onClick={() => void loadList(true)} disabled={refreshing} className="mx-[64px] h-9 gap-1.5 px-[27px] text-[10px]"><RefreshCw size={12} className={refreshing ? "animate-spin" : ""} /> Atualizar</Button></div>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-2"><label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-[10px] text-muted-foreground sm:flex-none"><Search size={13} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar aeronave..." className="w-full min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground/70 sm:w-40" /></label><select value={ano} onChange={(event) => setAno(Number(event.target.value))} className="campo !h-9 !w-auto !py-1 !px-3 text-[10px] font-bold"><option value={ano}>{ano}</option><option value={ano - 1}>{ano - 1}</option><option value={ano + 1}>{ano + 1}</option></select></div></div>
       <AircraftListContent loading={loading} aeronaves={filteredAircraft} ano={ano} search={search} onOpen={openAircraft} />
     </div>
   );
@@ -340,6 +340,19 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
 function StatTile({ label, value, accent = "", onClick }: { label: string; value: string; accent?: string; onClick?: () => void }) {
   const content = <><span className="db-stat-label">{label}</span>{onClick && <small>clique para editar</small>}<strong>{value}</strong></>;
   return onClick ? <button type="button" className={`db-stat ${accent}`} onClick={onClick} aria-label={`Editar ${label}: ${value}`}>{content}</button> : <div className={`db-stat ${accent}`}>{content}</div>;
+}
+
+function tempoRestanteAeronave(aeronave: DiarioAeronaveResumo) {
+  const atual = Math.max(Number(aeronave.celula_atual_ttotal || 0), Number(aeronave.horas_ano || 0));
+  const revisao = Number(aeronave.celula_prox_revisao_ttotal || 0);
+  if (revisao <= 0) return Number.POSITIVE_INFINITY;
+  return Number(aeronave.celula_disponivel_ttotal ?? (revisao - atual));
+}
+
+function compararTempoRestante(a: DiarioAeronaveResumo, b: DiarioAeronaveResumo) {
+  const tempoA = tempoRestanteAeronave(a);
+  const tempoB = tempoRestanteAeronave(b);
+  return tempoA === tempoB ? 0 : tempoA < tempoB ? -1 : 1;
 }
 
 function AircraftListContent({ loading, aeronaves, ano, search, onOpen }: { loading: boolean; aeronaves: DiarioAeronaveResumo[]; ano: number; search: string; onOpen: (aeronave: DiarioAeronaveResumo) => void }) {

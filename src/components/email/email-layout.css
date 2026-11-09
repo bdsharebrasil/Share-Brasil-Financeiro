@@ -243,7 +243,7 @@
   flex-wrap: wrap;
   gap: 4px;
   margin: 0 0 20px;
-  padding: 6px;
+  padding: 6px 22px;
   border: 1px solid var(--email-line);
   border-radius: 12px;
   background: hsl(var(--muted) / 0.35);
@@ -275,10 +275,11 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
+  font-size: 14px;
 }
 .email-assunto {
   margin: 16px 0;
-  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  font-size: 21px;
   line-height: 1.4;
   font-weight: 650;
   overflow-wrap: anywhere;
@@ -292,18 +293,6 @@
   gap: 12px;
   margin: 20px 0;
   min-width: 0;
-}
-.email-avatar {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: hsl(var(--primary) / 0.13);
-  border: 1px solid hsl(var(--primary) / 0.25);
-  color: hsl(var(--primary));
-  font-weight: 700;
 }
 .email-remetente-nome {
   font-size: 14px;
@@ -362,8 +351,8 @@ a.email-remetente-endereco:hover {
   border-color: #ef4444;
   background-color: rgb(239 68 68 / 0.12);
 }
-.email-corpo {
-  max-width: 80ch;
+.email-corpo,
+.email-texto {
   min-height: 100px;
   color: hsl(var(--foreground));
   padding-block: 8px 24px;
@@ -390,6 +379,7 @@ a.email-remetente-endereco:hover {
   border: 1px solid hsl(var(--primary) / 0.2);
   border-radius: 5px;
   background: hsl(var(--primary) / 0.07);
+  margin: 0 21px;
   padding: 3px 7px;
   color: hsl(var(--foreground));
   font-size: 10px;
@@ -594,9 +584,13 @@ a.email-remetente-endereco:hover {
   .email-voltar {
     display: none;
   }
-  .email-leitura-cabecalho,
+  .email-leitura-cabecalho {
+    margin: 0 10px;
+    padding: 11px 41px;
+  }
   .email-leitura-scroll {
-    padding: 24px;
+    margin: 0 18px;
+    padding: 24px 30px;
   }
 }
 @media (max-width: 480px) {

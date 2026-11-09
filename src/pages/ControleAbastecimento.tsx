@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Trash2, Upload, X, FileText, RefreshCw } from "lucide-react";
+import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Trash2, Upload, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -337,7 +337,6 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-[-.04em] md:text-[30px]">
             <Fuel className="text-primary" size={26} /> Controle de Abastecimento
           </h1>
-          <p className="mt-1.5 text-xs text-muted-foreground">Gestão operacional e financeira dos abastecimentos de combustível.</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {aoVoltar && (
@@ -345,9 +344,6 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
               <ChevronLeft size={13} /> Voltar
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={() => void load()} disabled={loading} className="h-9 gap-1.5 text-[10px]">
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Atualizar
-          </Button>
         </div>
       </div>
 
@@ -359,11 +355,11 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
       )}
 
       {!clienteSelecionado && (
-      <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl">
-        <button type="button" onClick={() => setTab("registros")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tab === "registros" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+      <div className="ml-[-12px] flex flex-wrap gap-[29px] border-b border-border bg-transparent px-3 pt-2 rounded-t-xl">
+        <button type="button" onClick={() => setTab("registros")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "registros" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-[rgba(95,128,160,1)] bg-[rgba(11,15,24,1)] font-normal leading-[21px] text-[rgba(187,227,255,1)]" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
           <Fuel size={13} className="mr-1.5 inline" /> Histórico de abastecimentos
         </button>
-        <button type="button" onClick={() => setTab("fornecedores")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tab === "fornecedores" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+        <button type="button" onClick={() => setTab("fornecedores")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "fornecedores" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-[rgba(95,128,160,1)] bg-[rgba(11,15,24,1)] font-normal leading-[21px] text-[rgba(187,227,255,1)]" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
           <Building2 size={13} className="mr-1.5 inline" /> Fornecedores
         </button>
       </div>
@@ -381,11 +377,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
 
           {!clienteSelecionado ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Cotistas</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Todos os cotistas cadastrados aparecem aqui. A organização mensal fica dentro do perfil.</p>
-                </div>
+              <div className="mx-[6px] flex flex-wrap items-center justify-center gap-2 px-[9px]">
                 <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
                   <Search size={13} className="text-muted-foreground" />
                   <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cotista..." className="w-full bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground sm:w-48" />
@@ -397,20 +389,16 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                   Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-xl" />)
                 ) : cotistasFiltrados.length ? (
                     cotistasFiltrados.map((item) => (
-                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
-                      <div className="mb-4 flex items-start justify-between">
-                        <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                          <Building2 size={16} />
+                    <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative m-[2px_1px] flex flex-col p-[28px_16px] text-left transition-all hover:border-primary/50 hover:bg-card`}>
+                      <h3 className="mx-[-10px] my-[2px] truncate px-0 py-1 text-sm font-bold text-foreground">{item.nome}</h3>
+                      <div className="mt-[15px] mr-[-4px] mb-[-8px] ml-[-7px] flex items-center justify-between gap-1.5 px-0 py-1 text-[10px] font-semibold text-primary">
+                        <span className="flex items-center gap-1.5">
+                          <span>Ver histórico</span>
+                          <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />
                         </span>
-                        <span className="rounded-md border border-border bg-secondary/50 px-2 py-1 font-mono text-[9px] font-bold text-muted-foreground">
+                        <span className="rounded-md border border-border bg-secondary/50 px-2 py-1.5 font-mono text-[9px] font-bold text-muted-foreground">
                           {item.quantidade} registro{item.quantidade === 1 ? "" : "s"}
                         </span>
-                      </div>
-                      <h3 className="truncate text-sm font-bold text-foreground">{item.nome}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.quantidade ? `${item.quantidade} abastecimento${item.quantidade === 1 ? "" : "s"}` : "Nenhum abastecimento ainda"}</p>
-                      <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-primary">
-                        <span>Ver histórico</span>
-                        <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </button>
                   ))

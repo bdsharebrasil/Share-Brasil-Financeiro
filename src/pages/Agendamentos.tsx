@@ -663,7 +663,7 @@ const estiloCartao = {
   checklistInicio: "border-[rgba(24,97,131,1)] bg-[rgba(198,233,255,1)] text-sky-900 hover:bg-sky-200 dark:border-[rgba(56,159,230,0.37)] dark:bg-[rgba(2,42,65,0.57)] dark:text-[rgba(216,246,231,1)]",
   checklistAndamento: "border-emerald-500 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:border-[rgba(11,128,59,1)] dark:bg-[rgba(3,36,23,0.94)] dark:text-[rgba(205,240,224,1)]",
   concluido: "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800",
-  jornadaInicio: "border-[rgba(245,166,35,1)] bg-[rgba(254,241,199,1)] text-[rgba(146,94,6,1)] hover:bg-amber-200 dark:border-[rgba(219,255,55,0.48)] dark:bg-[rgba(39,39,10,0.5)] dark:text-[rgba(212,246,181,1)]",
+  jornadaInicio: "border-[rgba(245,166,35,1)] bg-[rgba(254,241,199,1)] text-[rgba(146,94,6,1)] hover:bg-amber-200 dark:border-[rgba(248,231,28,0.86)] dark:bg-[rgba(248,231,28,0.25)] dark:text-[rgba(212,246,181,1)]",
   jornadaAndamento: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200",
   menu: "w-10 px-0 border-border bg-card/60 text-muted-foreground hover:bg-secondary",
   finalizar: "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60",

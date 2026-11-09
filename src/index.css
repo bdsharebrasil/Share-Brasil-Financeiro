@@ -419,7 +419,7 @@ html:not(.dark) .sb { --line: #bdc8d6; }
 
 /* Status discretos, com contraste sobre superfícies claras. */
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-emerald-300, .text-emerald-400, .text-green-400) { color: var(--light-success); }
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-300, .text-amber-400, .text-yellow-400) { color: var(--light-warning); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400) { color: var(--light-warning); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }

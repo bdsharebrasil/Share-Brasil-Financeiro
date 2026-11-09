@@ -359,8 +359,8 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
       )}
 
       {!clienteSelecionado && (
-      <div className="flex flex-wrap gap-1 border-b border-border bg-muted/20 px-3 pt-2 rounded-t-xl">
-        <button type="button" onClick={() => setTab("registros")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tab === "registros" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+      <div className="ml-[-12px] flex flex-wrap gap-[29px] border-b border-border bg-transparent px-3 pt-2 rounded-t-xl">
+        <button type="button" onClick={() => setTab("registros")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "registros" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-[rgba(95,128,160,1)] bg-[rgba(11,15,24,1)] font-normal leading-[21px] text-[rgba(187,227,255,1)]" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
           <Fuel size={13} className="mr-1.5 inline" /> Histórico de abastecimentos
         </button>
         <button type="button" onClick={() => setTab("fornecedores")} className={`rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold transition-colors ${tab === "fornecedores" ? "border-primary bg-card text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -381,11 +381,7 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
 
           {!clienteSelecionado ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Cotistas</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Todos os cotistas cadastrados aparecem aqui. A organização mensal fica dentro do perfil.</p>
-                </div>
+              <div className="mx-[6px] flex flex-wrap items-center justify-center gap-2 px-[9px]">
                 <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 sm:w-auto">
                   <Search size={13} className="text-muted-foreground" />
                   <input value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} placeholder="Buscar cotista..." className="w-full bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground sm:w-48" />

@@ -461,7 +461,7 @@ body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
   padding: 0;
   overscroll-behavior: contain;
 }
-.app-topbar { --borda-controle-cabecalho: rgb(96 112 121 / .8); }
+.app-topbar { --borda-controle-cabecalho: rgb(60 70 75 / .61); }
 .app-topbar .tophead-control { border-color: var(--borda-controle-cabecalho); }
 
 /* Apenas ações de navegação recebem deslocamento; indicadores ficam estáticos. */

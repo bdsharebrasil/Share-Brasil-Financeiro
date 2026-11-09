@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Trash2, Upload, X, FileText, RefreshCw } from "lucide-react";
+import { Building2, ChevronLeft, CalendarRange, FolderOpen, MoreVertical, Edit3, Fuel, MapPin, Plane, Plus, Search, Trash2, Upload, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
@@ -345,9 +345,6 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
               <ChevronLeft size={13} /> Voltar
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={() => void load()} disabled={loading} className="h-9 gap-1.5 text-[10px]">
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Atualizar
-          </Button>
         </div>
       </div>
 
@@ -394,16 +391,13 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
                 ) : cotistasFiltrados.length ? (
                     cotistasFiltrados.map((item) => (
                     <button key={item.id} type="button" onClick={() => { setTabCliente("vinculados"); setMesAberto(null); setClienteSelecionado(item.id); }} className={`${card} group relative flex flex-col p-4 text-left transition-all hover:border-primary/50 hover:bg-card`}>
-                      <div className="mb-4 flex items-start justify-between">
-                        <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                          <Building2 size={16} />
-                        </span>
-                        <span className="rounded-md border border-border bg-secondary/50 px-2 py-1 font-mono text-[9px] font-bold text-muted-foreground">
+                      <div className="-mt-[7px] mb-[-16px] ml-auto flex flex-wrap items-stretch justify-end pt-[7px] pb-[7px]">
+                        <span className="my-[10px] rounded-md border border-border bg-secondary/50 px-2 py-1.5 font-mono text-[9px] font-bold text-muted-foreground">
                           {item.quantidade} registro{item.quantidade === 1 ? "" : "s"}
                         </span>
                       </div>
                       <h3 className="truncate text-sm font-bold text-foreground">{item.nome}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.quantidade ? `${item.quantidade} abastecimento${item.quantidade === 1 ? "" : "s"}` : "Nenhum abastecimento ainda"}</p>
+                      {item.quantidade ? <p className="mt-1 text-xs text-muted-foreground">{`${item.quantidade} abastecimento${item.quantidade === 1 ? "" : "s"}`}</p> : null}
                       <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-primary">
                         <span>Ver histórico</span>
                         <ChevronLeft size={12} className="rotate-180 transition-transform group-hover:translate-x-0.5" />

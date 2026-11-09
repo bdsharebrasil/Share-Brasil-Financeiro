@@ -676,7 +676,7 @@ function AcoesCronograma({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, a
 }) {
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const [pesoAberto, setPesoAberto] = useState(false);
-  return (<div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+  return (<div className="mt-auto flex flex-wrap items-center gap-[42px] mx-9 pl-[14px] pr-[50px] pt-4">
       {!emVisualizacao && <button type="button" onClick={() => aoAbrir(item)} className="min-h-[34px] flex-1 overflow-hidden rounded-[9px] border border-[rgba(37,107,62,0.84)] [border-style:solid] dark:border-[rgba(37,107,62,0.84)] dark:[border-style:outset] bg-[rgba(10,48,49,0.184)] dark:bg-[rgba(10,48,49,0.45)] mx-0 px-3 py-2 text-[11px] font-semibold text-[rgba(6,7,5,1)] dark:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card hover:bg-primary/15">ABRIR</button>}{!emVisualizacao && String(item.status || "").trim().toLowerCase() === "pendente" && <button type="button" onClick={() => aoConfirmar(item)} className="min-h-[34px] flex-1 overflow-hidden rounded-[9px] border border-[rgba(6,172,63,0.84)] [border-style:double] dark:border-[rgba(6,172,63,0.84)] dark:[border-style:outset] bg-[rgba(58,209,120,0.36)] dark:bg-[rgba(16,120,60,0.45)] mx-0 px-3 py-2 text-[11px] font-semibold text-[rgba(18,70,4,1)] dark:text-[rgba(220,252,231,1)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card hover:bg-primary/15">CONFIRMAR AGENDAMENTO</button>}
       {acoes.mostrarChecklist && (!acoes.mostrarJornada || emVisualizacao) && <button type="button" onClick={() => aoChecklist(item)} className={cn("min-h-9 flex-1 overflow-hidden rounded-[8px] border mx-[1px] px-[9px] py-2 text-[9px] font-semibold leading-[15px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card", acoes.checklistConcluido ? ACAO_CONCLUIDA : [ACAO_HOVER_MOVIMENTO, acoes.checklistLabel === "INICIAR CHECKLIST" ? "bg-[rgba(198,233,255,1)] border-[rgba(24,97,131,1)] text-sky-900 hover:bg-sky-200 dark:bg-[rgba(2,42,65,0.57)] dark:border-[rgba(56,159,230,0.37)] dark:text-[rgba(216,246,231,1)] px-[5px] text-[10px] font-semibold [border-style:double]" : "bg-emerald-100 border-emerald-500 text-emerald-900 hover:bg-emerald-200 dark:bg-[rgba(3,36,23,0.94)] dark:border-[rgba(11,128,59,1)] dark:text-[rgba(205,240,224,1)] [border-style:ridge]"])}>{acoes.checklistLabel}</button>}
       {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn("min-h-[32px] flex-1 overflow-hidden rounded-[8px] border px-[13px] py-2 text-[10px] font-semibold leading-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card", Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0 ? ACAO_CONCLUIDA : ["bg-amber-100 border-amber-500 text-amber-950 hover:bg-amber-200 dark:bg-amber-400/10 dark:border-amber-300/40 dark:text-amber-200", acoes.jornadaLabel === "INICIAR JORNADA" && `${ACAO_HOVER_MOVIMENTO} bg-[rgba(254,241,199,1)] border-[rgba(245,166,35,1)] text-[rgba(146,94,6,1)] hover:bg-amber-200 dark:bg-[rgba(39,39,10,0.5)] dark:border-[rgba(219,255,55,0.48)] dark:text-[rgba(212,246,181,1)] [border-style:solid]`])}>{acoes.jornadaLabel}</button>}
@@ -827,11 +827,12 @@ function DetalhesSolicitacao({ acoes, selecionada, opcoes, tripulacao, pilotoId,
       <CabecalhoSecao 
         icon={<ClipboardList size={15} />} 
         title={`Voo ${selecionada.numero_voo || "aguardando confirmação"}`}
+        tituloClassName="font-normal"
         detail={`${selecionada.origem} → ${selecionada.destino} · ${formatarData(selecionada.data_agendada)}`} 
-        action={<button type="button" onClick={aoFechar} aria-label="Voltar ao cronograma" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs text-muted-foreground hover:bg-secondary"><ChevronLeft size={16} /> Voltar ao cronograma</button>}
+        action={<button type="button" onClick={aoFechar} aria-label="Voltar ao cronograma" className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs text-[rgba(199,207,221,1)] hover:bg-secondary"><ChevronLeft size={16} /> Voltar ao cronograma</button>}
       />
-      <div className="space-y-6 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center gap-3 border-b border-border pb-5"><span className="rounded-lg bg-primary/10 px-3 py-2 font-mono text-lg font-bold text-primary">{selecionada.origem} → {selecionada.destino}</span><EtiquetaStatus tone={tomStatus(selecionada.status)}>{statusLabel(selecionada.status)}</EtiquetaStatus></div>
+      <div className="space-y-6 mt-[13px] px-4 py-0 sm:px-6">
+        <div className="flex flex-wrap items-center gap-8 border-b border-border pb-5"><span className="rounded-lg border border-[rgba(0,44,105,1)] bg-[rgba(2,82,121,0.1)] px-3 py-2 font-mono text-lg font-bold text-[rgba(142,188,212,1)]">{selecionada.origem} → {selecionada.destino}</span><EtiquetaStatus tone={tomStatus(selecionada.status)}>{statusLabel(selecionada.status)}</EtiquetaStatus></div>
         <div className="grid gap-3 sm:grid-cols-2"><Detalhe label="Comandante (PIC)" valor={selecionada.piloto_nome || tripulacao.find((t) => t.id === selecionada.piloto_id)?.nome_completo || "A definir"} /><Detalhe label="Segundo em comando (SIC)" valor={selecionada.copiloto_nome || tripulacao.find((t) => t.id === selecionada.copiloto_id)?.nome_completo || "Não escalado"} /></div>
         {selecionada.observacoes && <div className="rounded-xl border border-border bg-muted/20 p-4"><h3 className="text-xs font-semibold">Observações da operação</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">{selecionada.observacoes}</p></div>}
         {selecionada.status === "pendente" ? (
@@ -922,8 +923,8 @@ function DetalhesSolicitacao({ acoes, selecionada, opcoes, tripulacao, pilotoId,
           </div>
         ) : (
           // === VISÃO DE LEITURA (APROVADO / ENCERRADO) ===
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
+          <div className="space-y-6 mt-[13px] py-0">
+            <div className="grid grid-cols-2 gap-3 mx-1 px-0 sm:grid-cols-4 lg:grid-cols-4">
               <Detalhe label="Cliente / sócio" valor={selecionada.socio_nome || selecionada.cliente_razao_social || selecionada.codigo_cliente || "Não informado"} />
               <Detalhe label="Aeronave" valor={`${selecionada.matricula_registro || "A definir"} · ${selecionada.modelo || "—"}`} />
               <Detalhe label="Horário / UTC" valor={`Brasília ${horarioAtual.brasilia} · UTC ${horarioAtual.utc}`} />
@@ -934,10 +935,9 @@ function DetalhesSolicitacao({ acoes, selecionada, opcoes, tripulacao, pilotoId,
               <Detalhe label="Empréstimo" valor={emprestimoAtual} />
             </div>
             
-            <div className="rounded-xl border border-border bg-secondary/15 p-5">
+            <div className="mt-[13px] rounded-xl border border-border bg-secondary/15 p-5">
               <p className="text-sm font-bold text-foreground">{selecionada.status === "encerrada" ? "Voo encerrado" : "Solicitação processada"}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Status atual: <strong className="text-foreground">{statusLabel(selecionada.status)}</strong>{selecionada.motivo_rejeicao ? ` · ${selecionada.motivo_rejeicao}` : ""}.</p>
-              <Button type="button" variant="outline" onClick={() => setEditandoAgendamento((atual) => !atual)} className="mt-4 gap-2 text-xs"><Pencil size={13} /> {editandoAgendamento ? "Cancelar edição" : "Editar agendamento"}</Button>
+              <Button type="button" variant="outline" onClick={() => setEditandoAgendamento((atual) => !atual)} className="-mt-4 -mb-[3px] ml-auto flex flex-wrap items-stretch justify-end gap-2 py-[6px] text-xs"><Pencil size={13} /> {editandoAgendamento ? "Cancelar edição" : "Editar agendamento"}</Button>
               {editandoAgendamento && <div className="mt-4 grid gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div><Label className="text-[10px]">Origem</Label><Input value={dadosAgendamento.origem || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, origem: event.target.value.toUpperCase() }))} className="mt-1 h-9 text-xs" /></div>
                 <div><Label className="text-[10px]">Destino</Label><Input value={dadosAgendamento.destino || ""} onChange={(event) => setDadosAgendamento((atual) => ({ ...atual, destino: event.target.value.toUpperCase() }))} className="mt-1 h-9 text-xs" /></div>
@@ -966,7 +966,7 @@ function DetalhesSolicitacao({ acoes, selecionada, opcoes, tripulacao, pilotoId,
           </div>
         )}
       </div>
-      <div className="border-t border-border bg-muted/20 p-4 sm:p-6"><h3 className="text-xs font-semibold">Ações do voo</h3>{acoes}</div>
+      <div className="-mt-[11px] -mb-[11px] border-t border-border bg-muted/20 p-4 sm:p-6"><h3 className="text-xs font-semibold">Ações do voo</h3>{acoes}</div>
       {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
     </section>
   );

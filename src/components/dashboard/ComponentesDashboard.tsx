@@ -14,13 +14,13 @@ export function IndicadorPagina({ children }: { children: ReactNode }) {
   );
 }
 
-export function CabecalhoSecao({ icon, title, detail, action }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode }) {
+export function CabecalhoSecao({ icon, title, detail, action, tituloClassName }: { icon: ReactNode; title: string; detail?: string; action?: ReactNode; tituloClassName?: string }) {
   return (
     <div className="flex flex-col items-start justify-between gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:px-4 sm:py-3.5">
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="shrink-0 text-primary">{icon}</span>
         <div className="min-w-0">
-          <h2 className="truncate text-xs font-bold">{title}</h2>
+          <h2 className={cn("truncate text-xs font-bold", tituloClassName)}>{title}</h2>
           {detail && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{detail}</p>}
         </div>
       </div>

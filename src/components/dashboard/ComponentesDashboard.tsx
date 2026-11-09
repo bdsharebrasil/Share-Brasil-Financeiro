@@ -114,11 +114,11 @@ export function BarraProgresso({ value, color = "blue" }: { value: number; color
   );
 }
 
-export function EtiquetaStatus({ children, tone = "neutral" }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "violet" | "neutral" }) {
+export function EtiquetaStatus({ children, tone = "neutral", className }: { children: ReactNode; tone?: "green" | "amber" | "red" | "blue" | "violet" | "neutral"; className?: string }) {
   const styles = { green: "text-emerald-500 dark:text-emerald-300", amber: "text-amber-500 dark:text-amber-300", red: "text-red-500 dark:text-red-300", blue: "text-sky-500 dark:text-sky-300", violet: "text-violet-500 dark:text-violet-300", neutral: "text-muted-foreground" };
   const rotulo = typeof children === "string" ? children.replace(/_/g, " ") : children;
   return (
-    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone])}>
+    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[.07em]", styles[tone], className)}>
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
       <span className="truncate">{rotulo}</span>
     </span>

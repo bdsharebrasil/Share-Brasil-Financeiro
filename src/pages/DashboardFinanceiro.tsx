@@ -302,7 +302,7 @@ export default function DashboardFinanceiro({
           label="E-mail"
           detail="Caixa de saída"
           iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)]"
-          iconeInternoClassName="border border-[rgba(148,4,177,1)] text-[rgba(148,4,177,1)]"
+          iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
         />
         <AcaoRapida

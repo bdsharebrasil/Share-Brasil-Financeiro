@@ -343,7 +343,7 @@ export default function DashboardFinanceiro({
                 type="button"
                 variant="outline"
                 onClick={() => aoNavegar("movimentacoes")}
-                className="menu-dashboard h-8 flex-1 gap-1.5 overflow-hidden rounded-[9px] border-[rgba(19,119,226,0.89)] bg-[rgba(204,217,252,1)] px-2.5 text-[10px] sm:flex-none"
+                className="menu-dashboard h-8 flex-1 gap-1.5 overflow-hidden rounded-[9px] border-[rgba(17,145,212,1)] bg-[rgba(228,248,248,1)] px-2.5 text-[10px] sm:flex-none"
               >
                 <FolderOpen size={12} /> Ver todas
               </Button>

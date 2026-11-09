@@ -1,7 +1,7 @@
 import { visualStatusAgendamento } from "@/components/agendamento/agendamentoVisual";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type FormEvent } from "react";
-import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, List, MoreVertical, Pencil, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, Copy, List, MoreVertical, Pencil, Plane, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
 import { DayPicker, type DateRange } from "react-day-picker";
@@ -72,7 +72,7 @@ const nomesDias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
    edite só o objeto dele.
    ========================================================================== */
 const estiloCartao = {
-  base: "inline-flex h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-lg border px-3 text-[11px] font-semibold tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+  base: "inline-flex min-h-12 min-w-0 w-full items-center justify-center whitespace-normal rounded-xl border px-2 py-2 text-center text-[10px] font-semibold leading-tight [overflow-wrap:anywhere] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
   // ABRIR: neutro nos dois temas (nunca verde)
   abrir: "border-slate-300 bg-slate-100 text-slate-900 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-700",
   // CONFIRMAR AGENDAMENTO: verde nos dois temas
@@ -80,9 +80,9 @@ const estiloCartao = {
   checklistIniciar: "border-sky-600 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-100 dark:hover:bg-sky-900/60",
   checklistAndamento: "border-emerald-500 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:hover:bg-emerald-900/60",
   concluido: "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800",
-  jornada: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20",
+  jornada: "border-yellow-400/70 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 dark:border-[#FFE45C]/70 dark:bg-[linear-gradient(135deg,rgba(255,228,92,0.23),rgba(255,204,0,0.07))] dark:text-[#FFF19B] dark:shadow-[inset_0_1px_0_rgba(255,244,170,0.16),0_0_18px_rgba(255,221,40,0.14)] dark:hover:border-[#FFF19B] dark:hover:bg-yellow-300/20 dark:hover:shadow-[inset_0_1px_0_rgba(255,244,170,0.22),0_0_24px_rgba(255,221,40,0.24)]",
   finalizar: "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60",
-  menu: "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card/60 text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+  menu: "inline-flex h-full min-h-12 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card/60 text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
   operacaoConcluida: "inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap text-[11px] font-semibold text-emerald-700 dark:text-[#86c23e]",
   lixeira: "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:text-red-400",
 } as const;
@@ -92,7 +92,7 @@ const estiloDetalhe = {
   checklistIniciar: "border-sky-600 bg-sky-100 text-sky-900 hover:bg-sky-200 dark:border-sky-500/50 dark:bg-sky-950/60 dark:text-sky-100 dark:hover:bg-sky-900/60",
   checklistAndamento: "border-emerald-500 bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-100 dark:hover:bg-emerald-900/60",
   concluido: "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800 dark:border-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-800",
-  jornada: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:border-amber-300/40 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/20",
+  jornada: "border-yellow-400/70 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 dark:border-[#FFE45C]/70 dark:bg-[linear-gradient(135deg,rgba(255,228,92,0.23),rgba(255,204,0,0.07))] dark:text-[#FFF19B] dark:shadow-[inset_0_1px_0_rgba(255,244,170,0.16),0_0_18px_rgba(255,221,40,0.14)] dark:hover:border-[#FFF19B] dark:hover:bg-yellow-300/20 dark:hover:shadow-[inset_0_1px_0_rgba(255,244,170,0.22),0_0_24px_rgba(255,221,40,0.24)]",
   finalizar: "border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60",
   verChecklist: "border-primary/40 bg-transparent text-foreground hover:bg-primary/15",
   operacaoConcluida: "inline-flex h-11 min-w-[180px] flex-1 items-center justify-center gap-2 whitespace-nowrap text-xs font-semibold text-emerald-700 dark:text-[#86c23e]",
@@ -753,29 +753,39 @@ function AcoesCartao({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFin
   const checklistInicial = acoes.checklistLabel === "INICIAR CHECKLIST";
   const e = estiloCartao;
 
+  // A quantidade de colunas depende das ações, nunca da largura da viewport.
+  // O card pode continuar estreito mesmo em um monitor grande.
+  const temPrincipal = !pendente && (acoes.mostrarJornada || acoes.mostrarChecklist);
+  const temMenu = !pendente && (acoes.mostrarChecklist || acoes.checklistConcluido || acoes.podeFinalizar);
+  const colunas = pendente
+    ? "minmax(0, 0.8fr) minmax(0, 1.2fr)"
+    : temPrincipal && temMenu
+      ? "minmax(0, 0.8fr) minmax(0, 1.5fr) 2.5rem"
+      : temPrincipal
+        ? "minmax(0, 0.8fr) minmax(0, 1.5fr)"
+        : temMenu ? "minmax(0, 1fr) 2.5rem" : "minmax(0, 1fr)";
+
   return (
-    <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
-      <button type="button" onClick={() => aoAbrir(item)} className={cn(e.base, e.abrir, pendente ? "col-span-1" : "col-span-2")}>ABRIR</button>
-      {pendente && <button type="button" onClick={() => aoConfirmar(item)} className={cn(e.base, e.confirmar, "col-span-1")}>
-        <span className="sm:hidden">CONFIRMAR</span><span className="hidden sm:inline">CONFIRMAR AGENDAMENTO</span>
-      </button>}
-      <div className="col-span-2 flex flex-wrap items-center gap-2 empty:hidden">
-        {acoes.mostrarChecklist && !acoes.mostrarJornada && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, "flex-1", acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
-        {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, "flex-1", jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
-        {acoes.checklistConcluido && <PesoBalanceamentoFicha item={item} aberto={pesoAberto} aoAlterarAberto={setPesoAberto} />}
-        {(acoes.mostrarChecklist || acoes.checklistConcluido) && <DropdownMenu>
+    <div className="mt-auto min-w-0 pt-4">
+      <div className="grid min-w-0 items-stretch gap-2" style={{ gridTemplateColumns: colunas }}>
+        <button type="button" onClick={() => aoAbrir(item)} className={cn(e.base, e.abrir)}>ABRIR</button>
+        {pendente && <button type="button" onClick={() => aoConfirmar(item)} title="Confirmar agendamento" className={cn(e.base, e.confirmar)}>CONFIRMAR</button>}
+        {!pendente && acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
+        {!pendente && acoes.mostrarChecklist && !acoes.mostrarJornada && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
+        {temMenu && <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" aria-label="Mais opções do voo" title="Mais opções" className={e.menu}><MoreVertical size={15} /></button>
+            <button type="button" aria-label="Ações do voo" title="Ações do voo" className={e.menu}><MoreVertical size={16} /></button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {acoes.mostrarChecklist && <DropdownMenuItem onSelect={() => aoChecklist(item)}>Ver checklist</DropdownMenuItem>}
             {acoes.checklistConcluido && <DropdownMenuItem onSelect={() => setPesoAberto(true)}>Gerar peso e balanceamento</DropdownMenuItem>}
+            {acoes.podeFinalizar && <DropdownMenuItem onSelect={() => aoFinalizar(item)}>Concluir operação</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>}
-        {acoes.podeFinalizar
-          ? <button type="button" onClick={() => aoFinalizar(item)} className={cn(e.base, "flex-1", e.finalizar)}>Concluir operação</button>
-          : acoes.historico && <span className={e.operacaoConcluida}><Check size={13} /> Operação concluída</span>}
       </div>
+      {/* O diálogo controlado continua montado; seu acionador fica no menu. */}
+      {acoes.checklistConcluido && <div className="[&>button]:hidden"><PesoBalanceamentoFicha item={item} aberto={pesoAberto} aoAlterarAberto={setPesoAberto} /></div>}
+      {acoes.historico && <p className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300"><Check size={13} /> Operação concluída</p>}
     </div>
   );
 }
@@ -1069,14 +1079,15 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
 
               {selecionada.status === "aprovada" && (
                 <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-2">
-                  <div className="flex flex-col rounded-lg border border-primary/20 bg-primary/5 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-primary">Mensagem para o cliente</p>
-                    <textarea readOnly value={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`} className="mt-3 min-h-24 w-full flex-1 resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
-                  </div>
-                  <div className="flex flex-col rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-sky-500">Mensagem para o tripulante</p>
-                    <textarea readOnly value={`Olá ${tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`} className="mt-3 min-h-24 w-full flex-1 resize-none rounded-md border border-border bg-background/50 p-3 text-xs leading-relaxed" />
-                  </div>
+                  <CardMensagem
+                    titulo="Mensagem para o cliente"
+                    mensagem={`Olá ${selecionada.socio_nome || selecionada.cliente_razao_social || "Cotista"}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(selecionada.data_agendada)} com o tripulante ${selecionada.piloto_nome || tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "escalado"}.`}
+                  />
+                  <CardMensagem
+                    titulo="Mensagem para o tripulante"
+                    tom="sky"
+                    mensagem={`Olá ${selecionada.piloto_nome || tripulacao.find((tripulante) => tripulante.id === selecionada.piloto_id)?.nome_completo || "tripulante escalado"}, você foi escalado para o voo - ${selecionada.numero_voo || ""}, no dia ${formatarData(selecionada.data_agendada)} na aeronave ${selecionada.matricula_registro || "a definir"} com o cotista ${selecionada.socio_nome || selecionada.cliente_razao_social || "não informado"} às ${horarioAtual.utc} UTC.`}
+                  />
                 </div>
               )}
             </div>
@@ -1084,9 +1095,57 @@ function DetalhesSolicitacao({ acoes, aoExcluir, selecionada, opcoes, tripulacao
         )}
       </div>
       <div className="border-t border-border bg-muted/20 p-4 sm:p-6"><h3 className="text-xs font-semibold">Ações do voo</h3>{acoes}</div>
-      {selecionada.status === "encerrada" && <div className="border-t border-border p-5"><JornadaVoo item={selecionada} /></div>}
+      {selecionada.status === "encerrada" && <div className="border-t border-border p-4 sm:p-5"><JornadaVoo key={selecionada.id} item={selecionada} /></div>}
     </section>
   );
+}
+
+/* Mensagens: API moderna de cópia, alternativa legada e seleção manual. */
+function CardMensagem({ titulo, mensagem, tom = "primary" }: { titulo: string; mensagem: string; tom?: "primary" | "sky" }) {
+  const { toast } = useToast();
+  const [copiado, setCopiado] = useState(false);
+  const campo = useRef<HTMLTextAreaElement>(null);
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setCopiado(false);
+    return () => { if (temporizador.current) clearTimeout(temporizador.current); };
+  }, [mensagem]);
+
+  const copiar = async () => {
+    const elementoAtivo = document.activeElement;
+    const rolagem = { x: window.scrollX, y: window.scrollY };
+    let sucesso = false;
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(mensagem); sucesso = true; } catch { /* tenta a alternativa */ }
+    }
+    if (!sucesso && campo.current) {
+      campo.current.focus({ preventScroll: true });
+      campo.current.select();
+      campo.current.setSelectionRange(0, mensagem.length);
+      try { sucesso = document.execCommand("copy"); } catch { sucesso = false; }
+    }
+    if (!sucesso) {
+      toast({ title: "Selecione e copie a mensagem", description: "Use Ctrl+C, ⌘C ou a opção Copiar do celular." });
+      return;
+    }
+    if (elementoAtivo instanceof HTMLElement) elementoAtivo.focus({ preventScroll: true });
+    window.scrollTo(rolagem.x, rolagem.y);
+    setCopiado(true);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setCopiado(false), 2200);
+  };
+
+  return <div className={cn("flex min-w-0 flex-col rounded-xl border p-4", tom === "sky" ? "border-sky-500/20 bg-sky-500/5" : "border-primary/20 bg-primary/5")}>
+    <div className="flex items-start justify-between gap-3">
+      <p className={cn("pt-2 text-[10px] font-bold uppercase tracking-wide", tom === "sky" ? "text-sky-600 dark:text-sky-300" : "text-primary")}>{titulo}</p>
+      <button type="button" onClick={() => void copiar()} aria-label={copiado ? "Mensagem copiada" : `Copiar ${titulo.toLowerCase()}`} title={copiado ? "Copiado!" : "Copiar mensagem"} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {copiado ? <Check size={16} className="text-emerald-600 dark:text-emerald-300" /> : <Copy size={16} />}
+      </button>
+    </div>
+    <textarea ref={campo} readOnly aria-label={titulo} value={mensagem} className="mt-3 min-h-28 w-full flex-1 resize-y rounded-lg border border-border bg-background/50 p-3 text-xs leading-relaxed text-foreground" />
+    <p role="status" aria-live="polite" className="mt-2 min-h-4 text-[10px] text-emerald-700 dark:text-emerald-300">{copiado ? "Mensagem copiada!" : ""}</p>
+  </div>;
 }
 
 // Bloco de informação da página de detalhes (altura mínima igual para alinhar o grid)

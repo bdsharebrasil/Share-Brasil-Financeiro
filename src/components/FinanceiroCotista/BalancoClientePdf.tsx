@@ -1,4 +1,4 @@
-import { Document, Line, Page, Path, Rect, Svg, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Line, Page, Path, Rect, Svg, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import type { LancamentoEconomico } from "@/lib/financeiro-share-api";
 import { documentoDoLancamento, nomeFornecedorLancamento, nomePagadoresDoLancamento, rateioDoCotista, tipoRateioLancamento, valorPagoLancamento, type OpcaoFornecedorLancamento } from "@/lib/financeiro-cotista-lancamentos";
@@ -10,6 +10,8 @@ const STYLE = StyleSheet.create({
   page: { padding: 34, paddingBottom: 55, fontFamily: "Helvetica", fontSize: 9, color: C.ink, backgroundColor: C.white },
   cover: { padding: 42, paddingBottom: 50, backgroundColor: C.navy, color: C.white, justifyContent: "space-between" },
   brand: { fontSize: 10, letterSpacing: 2.2, color: "#c4d7e8", fontFamily: "Helvetica-Bold" },
+  coverBrandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  coverLogo: { width: 34, height: 34 },
   coverLabel: { color: C.gold, fontSize: 9, letterSpacing: 2.4, textTransform: "uppercase", marginBottom: 12 },
   coverTitle: { fontSize: 31, lineHeight: 1.12, fontFamily: "Helvetica-Bold", maxWidth: 430 },
   coverRule: { width: 58, height: 3, backgroundColor: C.gold, marginTop: 22, marginBottom: 20 },
@@ -221,7 +223,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
 
   return <Document title={`Fechamento financeiro · ${aeronave} · ${periodo}`} author="Share Brasil" subject="Relatório completo do fechamento financeiro por cotista">
     <Page size="A4" style={STYLE.cover}>
-      <View><Text style={STYLE.brand}>SHARE BRASIL</Text><View style={{ height: 1, backgroundColor: "#49647f", marginTop: 14 }} /></View>
+      <View><View style={STYLE.coverBrandRow}><Image src="/icon.png" style={STYLE.coverLogo} /><Text style={STYLE.brand}>SHARE BRASIL</Text></View><View style={{ height: 1, backgroundColor: "#49647f", marginTop: 14 }} /></View>
       <View>
         <Text style={STYLE.coverLabel}>Relatório financeiro · fechamento completo</Text>
         <Text style={STYLE.coverTitle}>Balanço financeiro</Text>

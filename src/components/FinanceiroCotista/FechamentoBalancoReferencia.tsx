@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { FileDown } from "lucide-react";
+import { FileDown, Search } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export function FechamentoBalancoReferencia({
     (categoria === "Todas" || (origem.categoria || "Sem categoria") === categoria)
     && `${nomeFornecedorLancamento(origem, fornecedores)} ${origem.descricao}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")),
   );
+  const totalListado = lancamentosFiltrados.reduce((soma, item) => soma + (item.valorCentavos ?? 0), 0);
   const projecao = total && b && total.naoClassificados === 0
     ? projetarCustos(total, totalHoras, b.meses.length, horasProjetadas)
     : null;
@@ -289,27 +290,58 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "lancamentos" && <section id="fb-panel-lancamentos" role="tabpanel" aria-labelledby="fb-tab-lancamentos">
-        <div className="fb-tools">
-          <select value={categoria} onChange={(event) => setCategoria(event.target.value)} aria-label="Filtrar por categoria"><option>Todas</option>{categorias.map((item) => <option key={item}>{item}</option>)}</select>
-          <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
-        </div>
-        <section className="fb-card"><div className="fb-scroll"><table>
-          <thead><tr><th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th><th className="fb-num">Valor pago</th><th>PAGO POR</th>{cotistas.map((cotista) => <th className="fb-num fb-share-header" key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}</tr></thead>
-          <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
-            <td><span className="fb-date-label">Emissão</span>{formatarDataSemAno(origem.dataEmissao || origem.data)}<span className="fb-date-label">Vencimento</span>{formatarDataSemAno(origem.prazo)}</td>
-            <td>{documentoDoLancamento(origem) || "—"}</td><td>{origem.descricao || "—"}</td>
-            <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td><td>{origem.categoria || "Sem categoria"}</td>
-            <td>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</td>
-            <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
-            <td className="fb-num">{formatarCentavos(valorPagoLancamento(origem))}</td>
-            <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-            {cotistas.map((cotista) => {
-              const rateio = rateioDoCotista(origem, cotista, cotistas);
-              return <td className="fb-num" key={cotista.id}>{rateio ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div> : <span>—</span>}</td>;
-            })}
-          </tr>)}</tbody>
-          <tfoot><tr><td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>{cotistas.map((cotista) => <td className="fb-num" key={cotista.id}>{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0), 0))}</td>)}</tr></tfoot>
-        </table></div>
+        <section className="fb-card fb-ledger-card">
+          <header className="fb-ledger-head">
+            <div><span className="fb-kicker">LANÇAMENTOS</span><h2>Despesas do período</h2></div>
+            <div className="fb-ledger-total"><span>Total listado</span><strong>{formatarCentavos(totalListado)}</strong></div>
+          </header>
+
+          <div className="fb-ledger-tools">
+            <select value={categoria} onChange={(event) => setCategoria(event.target.value)} aria-label="Filtrar por categoria">
+              <option>Todas</option>{categorias.map((item) => <option key={item}>{item}</option>)}
+            </select>
+            <label className="fb-search">
+              <Search size={15} aria-hidden="true" />
+              <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
+            </label>
+            <span className="fb-ledger-count">{lancamentosFiltrados.length} lançamentos</span>
+          </div>
+
+          <div className="fb-scroll fb-ledger"><table>
+            <thead><tr>
+              <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
+              <th className="fb-num">Valor pago</th><th>PAGO POR</th>
+              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
+            </tr></thead>
+            <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
+              <td>
+                <div className="fb-date-stack">
+                  <span><small>Emissão</small><b>{formatarDataSemAno(origem.dataEmissao || origem.data)}</b></span>
+                  <span><small>Vencimento</small><b>{formatarDataSemAno(origem.prazo)}</b></span>
+                </div>
+              </td>
+              <td className="fb-doc">{documentoDoLancamento(origem) || "—"}</td>
+              <td className="fb-desc">{origem.descricao || "—"}</td>
+              <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td>
+              <td>{origem.categoria || "Sem categoria"}</td>
+              <td><span className={`fb-status fb-status-${tomStatus(origem.status)}`}>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</span></td>
+              <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
+              <td className="fb-num fb-money">{formatarCentavos(valorPagoLancamento(origem))}</td>
+              <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
+              {cotistas.map((cotista, i) => {
+                const rateio = rateioDoCotista(origem, cotista, cotistas);
+                return <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
+                  {rateio
+                    ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div>
+                    : <span className="fb-muted-dash">—</span>}
+                </td>;
+              })}
+            </tr>)}</tbody>
+            <tfoot><tr>
+              <td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>
+              {cotistas.map((cotista, i) => <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0), 0))}</td>)}
+            </tr></tfoot>
+          </table></div>
           {!lancamentosFiltrados.length && <Vazio>Nenhum lançamento encontrado com esses filtros.</Vazio>}
         </section>
       </section>}
@@ -427,6 +459,15 @@ function formatarDataSemAno(valor: string | null | undefined) {
   return formatarData(valor).replace(/\/\d{4}$/, "");
 }
 
+function tomStatus(status: string | null | undefined) {
+  const s = String(status ?? "").trim().toUpperCase();
+  if (["PAGO", "PAGO_DIRETAMENTE", "REEMBOLSADO", "RECEBIDO"].includes(s)) return "ok";
+  if (s === "EM_ABERTO") return "pend";
+  if (s === "EM_ATRASO") return "late";
+  if (s === "AGUARDANDO_REEMBOLSO") return "wait";
+  return "neutral";
+}
+
 type VooBalanco = NonNullable<DashboardBalanco["balanco_operacional"]>["voos"][number];
 
 function formatarHorarioDiario(valor: string | null) {
@@ -466,4 +507,62 @@ const CSS = `
 @media(max-width:780px){.fb-g3{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-g2{grid-template-columns:1fr}.fb{padding:12px 0 24px}.fb-hero{padding:18px}.fb-hero-stats{gap:16px}.fb-card{padding:14px}}
 @media(max-width:480px){.fb-g3{grid-template-columns:1fr 1fr}.fb-kpi{padding:12px}.fb-kpi>strong{font-size:17px}.fb-tabs button{padding:10px}.fb-page-actions{align-items:flex-start;flex-direction:column}.fb-tools{flex-direction:column}.fb-tools select,.fb-tools input{width:100%;min-width:0}}
 @media print{.fb{--fb-bg:#fff;--fb-card:#fff;--fb-text:#14202e;--fb-muted:#5d6b7b;--fb-border:#d9dfe5;--fb-navy:#0f3d6e;background:#fff;max-width:none;padding:0}.fb-tabs,.fb-page-actions button,.fb-tools,.fb-range{display:none}.fb-card,.fb-kpi{break-inside:avoid}.fb-scroll{overflow:visible}.fb table{font-size:9px}.fb th,.fb td{padding:5px}.fb-chart{height:190px}}
+.fb{--fb-ok:#1f8a5b;--fb-warn:#b7791f;--fb-bad:#d14343;--fb-wait:#7c5cd6;--fb-violet:#7c5cd6}
+:root[data-theme="dark"] .fb,.dark .fb{--fb-ok:#5fd09b;--fb-warn:#f0c15a;--fb-bad:#f07878;--fb-wait:#b7a2f5;--fb-violet:#b7a2f5}
+
+.fb .fb-ledger-card{padding:0;overflow:hidden;border-radius:14px}
+.fb-ledger-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 18px;border-bottom:1px solid var(--fb-border)}
+.fb-ledger-head h2{margin:4px 0 0;font-size:15px}
+.fb-kicker{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--fb-blue)}
+.fb-ledger-total{padding-left:18px;border-left:1px solid var(--fb-border);text-align:right}
+.fb-ledger-total span{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fb-muted)}
+.fb-ledger-total strong{display:block;margin-top:3px;font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.02em}
+
+.fb-ledger-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;background:var(--fb-soft);border-bottom:1px solid var(--fb-border)}
+.fb .fb-ledger-tools select{height:36px;min-width:180px;padding:0 28px 0 10px;border:1px solid var(--fb-border);border-radius:8px;background:var(--fb-card)}
+.fb-search{display:flex;align-items:center;gap:8px;flex:1 1 260px;max-width:420px;height:36px;padding:0 11px;border:1px solid var(--fb-border);border-radius:8px;background:var(--fb-card);color:var(--fb-muted);transition:border-color .15s,box-shadow .15s}
+.fb-search:focus-within{border-color:var(--fb-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--fb-blue) 16%,transparent)}
+.fb-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--fb-text);font-size:13px}
+.fb-ledger-count{margin-left:auto;font-size:11px;font-weight:600;color:var(--fb-muted)}
+
+.fb .fb-ledger{max-height:70vh;overflow:auto}
+.fb .fb-ledger table{min-width:1180px;border-collapse:separate;border-spacing:0}
+.fb .fb-ledger thead th{position:sticky;top:0;z-index:2;padding:12px 14px;background:var(--fb-soft);color:var(--fb-muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--fb-border);border-right:1px solid color-mix(in srgb,var(--fb-border) 55%,transparent)}
+.fb .fb-ledger thead th:last-child{border-right:0}
+.fb .fb-ledger tbody td{padding:14px;vertical-align:middle;font-size:12.5px;line-height:1.4;border-bottom:1px solid color-mix(in srgb,var(--fb-border) 70%,transparent);border-right:1px solid color-mix(in srgb,var(--fb-border) 35%,transparent);transition:background-color .12s}
+.fb .fb-ledger tbody td:last-child{border-right:0}
+.fb .fb-ledger tbody tr:nth-child(even) td{background-color:color-mix(in srgb,var(--fb-soft) 45%,transparent)}
+.fb .fb-ledger tbody tr:hover td{background-color:color-mix(in srgb,var(--fb-blue) 6%,transparent)}
+.fb .fb-doc{font:600 11.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-blue)}
+.fb .fb-desc{min-width:200px;font-weight:600}
+.fb .fb-money{font:700 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+.fb-date-stack{display:grid;gap:6px}
+.fb-date-stack span{display:block;white-space:nowrap}
+.fb-date-stack small{display:block;color:var(--fb-muted);font-size:9px;letter-spacing:.06em;text-transform:uppercase}
+.fb-date-stack b{font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace}
+
+.fb-status{--t:var(--fb-muted);display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;color:var(--t);background:color-mix(in srgb,var(--t) 13%,transparent);border:1px solid color-mix(in srgb,var(--t) 24%,transparent);font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1.2}
+.fb-status::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
+.fb-status-ok{--t:var(--fb-ok)}.fb-status-pend{--t:var(--fb-warn)}.fb-status-late{--t:var(--fb-bad)}.fb-status-wait{--t:var(--fb-wait)}
+
+.fb .fb-ledger .fb-tag{padding:4px 9px;border-radius:6px;background:color-mix(in srgb,var(--fb-blue) 11%,transparent);color:var(--fb-blue);font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1.25}
+
+.fb .fb-ledger .fb-tone-0{background-image:linear-gradient(color-mix(in srgb,var(--fb-blue) 6%,transparent),color-mix(in srgb,var(--fb-blue) 6%,transparent))}
+.fb .fb-ledger .fb-tone-1{background-image:linear-gradient(color-mix(in srgb,var(--fb-violet) 6%,transparent),color-mix(in srgb,var(--fb-violet) 6%,transparent))}
+.fb .fb-ledger thead .fb-tone-0 strong{color:var(--fb-blue)}
+.fb .fb-ledger thead .fb-tone-1 strong{color:var(--fb-violet)}
+.fb .fb-ledger .fb-share-header span{text-transform:none;letter-spacing:0;font-weight:500;font-size:10px}
+.fb .fb-share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.fb .fb-share-cell span{font:500 11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-muted)}
+.fb .fb-share-cell strong{margin:0;font:700 15px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.02em}
+.fb .fb-muted-dash{color:var(--fb-muted)}
+
+.fb .fb-ledger tfoot td{position:sticky;bottom:0;z-index:2;padding:12px 14px;background:var(--fb-soft);border-top:1px solid var(--fb-border);font-size:12px;font-weight:700}
+
+@media(max-width:640px){
+  .fb-ledger-head{padding:14px}
+  .fb-search{max-width:none}
+  .fb-ledger-count{width:100%;margin:0}
+}
 `;

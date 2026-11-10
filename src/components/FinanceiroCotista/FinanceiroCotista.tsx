@@ -188,6 +188,16 @@ const DESPESAS_ESTILOS = `
 .erp-financeiro .erp-tabela-saidas .erp-linha { height:auto; }
 .erp-financeiro .erp-tabela-saidas .erp-celula-quebra { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; }
 .erp-financeiro .erp-tabela-saidas .erp-celula-quebra .despesa-cell-text { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; line-height:1.35; }
+.despesas-shell .erp-financeiro .erp-tabela th { height:34px; padding:0 10px; }
+.despesas-shell .erp-financeiro .erp-tabela td { padding:4px 10px; font-size:12px; line-height:1.3; }
+.despesas-shell .erp-financeiro .erp-tabela td.erp-td-data { padding-top:4px; padding-bottom:4px; }
+.despesas-shell .erp-financeiro .erp-tabela tfoot td { padding:2px 10px; }
+.despesas-shell .erp-financeiro .erp-linha { height:34px; }
+.despesas-shell .erp-financeiro .erp-ordenar { height:30px; }
+.despesas-shell .erp-financeiro .erp-texto-secundario { margin-top:2px; margin-bottom:2px; line-height:13px; }
+.despesas-shell .erp-financeiro .erp-expandir { height:22px; }
+.despesas-shell .erp-financeiro .erp-valor { font-size:13px; }
+.despesas-shell .erp-financeiro .erp-tabela .erp-documento { font-size:11px; }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
 .despesas-theme .text-muted-foreground { color:hsl(var(--muted-foreground)); }
 .despesas-theme .text-foreground { color:hsl(var(--foreground)); }

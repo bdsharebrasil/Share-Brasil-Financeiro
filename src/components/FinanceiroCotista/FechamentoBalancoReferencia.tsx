@@ -404,12 +404,12 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       <Dialog open={dialogPdfAberto} onOpenChange={setDialogPdfAberto}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Gerar relatório do fechamento</DialogTitle>
-            <DialogDescription>O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader className="min-w-0">
+            <DialogTitle className="break-words">Gerar relatório do fechamento</DialogTitle>
+            <DialogDescription className="break-words">O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
               <Checkbox
                 checked={cotistasPdfSelecionados.length === b.participantes.length && b.participantes.length > 0}
@@ -427,7 +427,7 @@ export function FechamentoBalancoReferencia({
                     onCheckedChange={(checked) => setCotistasPdfSelecionados((atuais) => checked ? [...new Set([...atuais, item.id])] : atuais.filter((id) => id !== item.id))}
                     aria-label={`Incluir ${item.nome} no PDF`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.nome}</span>
+                  <span className="min-w-0 flex-1 break-words text-sm font-medium">{item.nome}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">{item.holding ? "Holding" : "Cotista"}</span>
                 </label>;
               })}
@@ -436,8 +436,8 @@ export function FechamentoBalancoReferencia({
             <p className="text-xs text-muted-foreground">O arquivo será gerado como PDF profissional, com capa, título, aeronave, período selecionado e paginação. O download funciona também em dispositivos móveis.</p>
           </div>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setDialogPdfAberto(false)} disabled={gerandoPdf}>Cancelar</Button>
-            <Button type="button" onClick={() => void gerarRelatorioPdf()} disabled={gerandoPdf || cotistasPdfSelecionados.length === 0}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDialogPdfAberto(false)} disabled={gerandoPdf}>Cancelar</Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => void gerarRelatorioPdf()} disabled={gerandoPdf || cotistasPdfSelecionados.length === 0}>
               <FileDown size={15} className="mr-2" />{gerandoPdf ? "Gerando PDF…" : "Gerar PDF completo"}
             </Button>
           </DialogFooter>

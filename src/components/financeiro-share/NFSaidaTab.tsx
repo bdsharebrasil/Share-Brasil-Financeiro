@@ -1,3 +1,4 @@
+import "./nf-saida.css";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
@@ -740,9 +741,9 @@ export default function NFSaidaTab() {
 
   return <div className="nf-workspace">
     <style>{STYLES}</style>
-    <style>{`.nf-workspace{background:#080d17}.nf-workspace .nf-stats{gap:12px;margin:4px 0 12px;padding:0 12px;grid-template-columns:repeat(2,minmax(0,1fr))}.nf-workspace .nf-row-actions .nf-email-action{width:auto;padding:0 10px;gap:6px;font-size:12px;font-weight:600}.nf-workspace .nf-stat{padding:12px 14px;border-radius:10px;background:#111b2b;box-shadow:none}.nf-workspace .nf-stat:before{top:12px;bottom:12px}.nf-workspace .nf-stat-top{margin-bottom:8px}.nf-workspace .nf-stat-top span{font-size:10px}.nf-workspace .nf-stat-top svg{width:16px;height:16px}.nf-workspace .nf-stat strong{font-size:clamp(17px,1.5vw,21px);font-weight:600}.nf-workspace .nf-stat small{margin-top:4px;font-size:9px}.nf-workspace .nf-month-year>h3{margin:0 22px}@container(max-width:490px){.nf-workspace .nf-month-year>h3{margin-inline:14px}}`}</style>
+
     <header className="nf-header">
-      <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div></div>
+      <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div><h1>Documentos de saída</h1></div>
       <div className="nf-header-actions"><button className="nf-btn" disabled={loading} onClick={() => void fetchNotas()}><RefreshCw className={loading ? "nf-spin" : ""} /> Atualizar</button><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
     </header>
     {!showForm && !baixaTarget && !deleteId && feedback}

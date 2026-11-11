@@ -409,7 +409,7 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       <Dialog open={dialogPdfAberto} onOpenChange={setDialogPdfAberto}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-lg">
+        <DialogContent className="despesas-theme despesa-dialog w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-lg">
           <DialogHeader className="min-w-0">
             <DialogTitle className="break-words">Gerar relatório do fechamento</DialogTitle>
             <DialogDescription className="break-words">O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>

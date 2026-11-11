@@ -1016,7 +1016,7 @@ export type MediasCotista = {
 export type MediasCotistaMensais = MediasCotista & { mes: string };
 
 type CotistaOperacionalBalanco = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
-type VooOperacionalBalanco = { id: string; data: string; numero: string | null; numeroSequencial: number | null; trecho: string | null; tempoDep: string | null; tempoPou: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null };
+type VooOperacionalBalanco = { id: string; data: string; numero: string | null; numeroSequencial: number | null; trecho: string | null; tempoDep: string | null; tempoPou: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null; minutosTotal?: number | null; minutosVoo?: number | null; distanciaNm?: number | null };
 type ViagemOperacionalBalanco = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
 export type BalancoOperacionalCotista = {
   versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;

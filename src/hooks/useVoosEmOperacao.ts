@@ -17,16 +17,8 @@ function mockVoo(tick: number): VooEmOperacao {
   return { id: "mock-voo", numero_voo: "SBR-MOCK", status: "em_voo", aeronave_id: "mock-aeronave", matricula_registro: "PT-MOCK", modelo: "Cessna 172", icao_hex: "A1B2C3", origem: "SBGR", destino: "SBGL", origem_coord: origem, destino_coord: destino, horario_previsto_agendamento: new Date().toISOString(), cotista_nome: "Simulação", piloto_nome: "Piloto de teste", copiloto_nome: null, rastreio, rastreio_status: rastreio.visto_ha_s <= 30 ? "ao_vivo" : "atrasado", perna_atual: null, pernas: [] };
 }
 
-function deduplicarVoos(voos: VooEmOperacao[]): VooEmOperacao[] {
-  const porAeronave = new Map<string, VooEmOperacao>();
-  voos.forEach((voo) => { const chave = voo.aeronave_id || voo.id; if (!porAeronave.has(chave)) porAeronave.set(chave, voo); });
-  return [...porAeronave.values()];
-}
-
 export function useVoosEmOperacao(): Estado {
   const [estado, setEstado] = useState<Estado>({ voos: [], carregando: true, erro: null, atualizadoEm: null });
-  const trilhas = useRef(new Map<string, Array<{ lat: number; lon: number }>>());
-  const ultimasPosicoes = useRef(new Map<string, RastreioAeronave>());
   const destinos = useRef(new Map<string, { lat: number; lon: number }>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const carregamentoAtual = useRef(0);
@@ -39,26 +31,16 @@ export function useVoosEmOperacao(): Estado {
     try {
       const resposta = import.meta.env.VITE_RASTREIO_MOCK === "1" ? { atualizado_em: new Date().toISOString(), voos: [mockVoo(tickMock.current++)] } : await buscarVoosEmOperacao();
       if (id !== carregamentoAtual.current) return;
-      const voos = deduplicarVoos(Array.isArray(resposta.voos) ? resposta.voos : []);
+      const voos = Array.isArray(resposta.voos) ? resposta.voos : [];
       await Promise.all(voos.map(async (voo) => {
         if (voo.destino_coord || !voo.destino || destinos.current.has(voo.destino)) return;
         try { const resultado = await buscarRotaerOperacao(voo.destino); const coordenadas = resultado.airport?.coordinates; if (coordenadas && Number.isFinite(coordenadas.lat) && Number.isFinite(coordenadas.lng)) destinos.current.set(voo.destino, { lat: coordenadas.lat!, lon: coordenadas.lng! }); } catch { /* aeródromo sem ficha ROTAER */ }
       }));
       voos.forEach((voo) => {
-        const posicao = voo.rastreio;
         if (!voo.destino_coord && voo.destino) voo.destino_coord = destinos.current.get(voo.destino) || null;
-        if (!posicao) {
-          voo.rastreio = ultimasPosicoes.current.get(voo.aeronave_id || voo.id) || null;
-          voo.trilha = trilhas.current.get(voo.aeronave_id || voo.id) || [];
-          return;
-        }
-        ultimasPosicoes.current.set(voo.aeronave_id || voo.id, posicao);
-        const trilha = trilhas.current.get(voo.aeronave_id || voo.id) || [];
-        const ultima = trilha[trilha.length - 1];
-        if (!ultima || ultima.lat !== posicao.lat || ultima.lon !== posicao.lon) trilha.push({ lat: posicao.lat, lon: posicao.lon });
-        trilhas.current.set(voo.aeronave_id || voo.id, trilha.slice(-120));
-        voo.trilha = trilhas.current.get(voo.aeronave_id || voo.id);
+        // A trilha e os eventos pertencem ao agendamento e vêm completos do servidor.
       });
+      if (id !== carregamentoAtual.current) return;
       backoff.current = 0;
       setEstado({ voos, carregando: false, erro: null, atualizadoEm: resposta.atualizado_em || new Date().toISOString() });
     } catch (erro) {
@@ -70,8 +52,8 @@ export function useVoosEmOperacao(): Estado {
 
   useEffect(() => {
     let montado = true;
-    const agendar = () => { if (!montado) return; timer.current = setTimeout(async () => { await carregar(); agendar(); }, backoff.current || (estado.voos.length ? INTERVALO_COM_VOO : INTERVALO_SEM_VOO)); };
-    const aoVisibilidade = () => { if (document.visibilityState === "visible") { backoff.current = 0; void carregar(); } else if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+    const agendar = () => { if (!montado || document.visibilityState !== "visible") return; timer.current = setTimeout(async () => { await carregar(); agendar(); }, backoff.current || (estado.voos.length ? INTERVALO_COM_VOO : INTERVALO_SEM_VOO)); };
+    const aoVisibilidade = () => { if (document.visibilityState === "visible") { backoff.current = 0; if (timer.current) clearTimeout(timer.current); void carregar().finally(agendar); } else if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
     void carregar();
     agendar();
     document.addEventListener("visibilitychange", aoVisibilidade);
@@ -80,3 +62,4 @@ export function useVoosEmOperacao(): Estado {
 
   return estado;
 }
+

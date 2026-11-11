@@ -1,7 +1,8 @@
 import { API_BASE } from './api';
 import { supabase } from './supabase';
-export interface RateioBaixa { id: string; cotista_id?: string; socio_id?: string; valor_rateado_centavos: number; valor_pago_real_centavos: number; data_vencimento?: string | null; status: string }
-export interface ContextoBaixa { natureza: 'RECEBIMENTO_SHARE' | 'PAGAMENTO_DIRETO'; conta_id: string | null; cotista_id: string | null; lancamento: { descricao: string; aeronave_id: string }; rateios: RateioBaixa[] }
+export interface RateioBaixa { id: string; cotista_id?: string | null; socio_id?: string | null; valor_rateado_centavos: number; valor_pago_real_centavos: number | null; data_vencimento?: string | null; status: string; data_pagamento?: string | null; numero_nf?: string | null; numero_doc?: string | null; numero_recibo?: string | null; cotista_nome?: string | null }
+export interface HistoricoPagamentoBaixa { id: string; rateio_id: string; valor_centavos: number; data_pagamento: string; comprovante_url?: string | null; forma_pagamento?: string | null; pagador_cotista_id?: string | null; pagador_holding_id?: string | null; observacoes?: string | null }
+export interface ContextoBaixa { natureza: 'RECEBIMENTO_SHARE' | 'PAGAMENTO_DIRETO'; conta_id: string | null; cotista_id: string | null; lancamento: { descricao: string; aeronave_id: string }; rateios: RateioBaixa[]; pagamentos?: HistoricoPagamentoBaixa[] }
 export interface PagamentoConciliado { idempotency_key: string; tipo_pagador: 'COTISTA' | 'HOLDING'; pagador_cotista_id?: string; pagador_holding_id?: string; valor_centavos: number; data_pagamento: string; conta_bancaria_id?: string | null; forma_pagamento: string; comprovante_url?: string | null; observacoes?: string; rateios: {rateio_id: string; valor_centavos: number}[] }
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const { data: { session }, error } = await supabase.auth.getSession();
@@ -21,3 +22,4 @@ export function avisarAtualizacaoFinanceiro() {
   window.dispatchEvent(new Event('financeiro-atualizado'));
   try { localStorage.setItem('financeiro-atualizado', `${Date.now()}-${crypto.randomUUID()}`); } catch { /* Same-tab refresh still works. */ }
 }
+

@@ -124,7 +124,7 @@ export function FechamentoBalancoReferencia({
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item): item is { horas: number; fixoHora: number; variavelHora: number; extraHora: number; custoHora: number; custoMensal: number } => item !== null)
     : [];
-  const voosOperacionais = (participante?.voos ?? d?.balanco_operacional?.voos ?? [])
+  const voosOperacionais = (participante?.voos ?? b?.voos ?? [])
     .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
   const voosDoParticipante = participante?.voos ?? [];
   const voos = voosOperacionais
@@ -284,7 +284,7 @@ export function FechamentoBalancoReferencia({
         <section className="fb-card fb-spaced"><h2>Utilização e médias do período</h2><div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Etapas</th><th className="fb-num">H. voo</th><th className="fb-num">H. totais atribuídas</th><th className="fb-num">Distância (NM)</th><th className="fb-num">Dias com voo</th><th className="fb-num">Custo/h</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{fmt(mes.voos, 0)}</td><td className="fb-num">{horas(mes.horasVoo)}</td><td className="fb-num">{horas(mes.horas)}</td><td className="fb-num">{fmt(mes.distanciaNm)}</td><td className="fb-num">{fmt(mes.diasVoo, 0)}</td><td className="fb-num">{money(mes.custoHora)}</td></tr>)}</tbody>
-        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
+        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. O cálculo usa os horários quando disponíveis; na ausência deles, usa o tempo registrado. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
         <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
       </section>}
 

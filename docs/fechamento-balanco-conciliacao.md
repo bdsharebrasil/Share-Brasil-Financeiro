@@ -1,45 +1,68 @@
-# Conciliação do fechamento do cotista com a referência PT-JPK
+# Conciliação do fechamento PT-JPK com os extratos reais
 
-## Problema encontrado
+## Fontes e diagnóstico confirmado
 
-O PDF de agosto/2026 registra R$ 15.596,58 e 25 minutos para a aeronave, mas zero etapas/horas para a Santa Rosa (100% da cota). O fechamento calculava utilização individual apenas com `clienteId`/`socioId` diretos. Já o diário remove esses titulares em `TR - Traslado` e `VT - Voo Teste`, por serem operações compartilhadas. Essas etapas iam para “Operação sem cotista vinculado”, bloqueando o custo/hora e a projeção do cotista.
+Foram conferidos o export `jpk.sql` do diário da aeronave `23fe8674-422f-42e0-bd27-cbee106b6c71` e o CSV `2 - CONTROLE GERAL PT JPK TESTE(C.csv`, fornecidos em 11/11/2026. Também foi considerada a comparação dos PDFs anteriores.
 
-O padrão do PDF é compatível com essa falha. A natureza e os vínculos do registro real ainda precisam ser confirmados na base de produção: os anexos não exibem esses campos.
+O diário contém **seis etapas: quatro VT - Voo Teste e dois TR - Traslado**. Todas têm `cliente_id`, `socio_id` e `holding_id` nulos, sem empréstimo. O registro de 28/08 é efetivamente um voo de teste. Isso confirma a causa do zero individual: o fechamento anterior exigia titular direto para reconhecer as horas do cotista.
 
-## Comportamento corrigido
+A correção dos PRs frontend #124 e backend #16 já foi incorporada ao `main` pelo usuário. Compartilhamento considera cotistas ativos com participação positiva do cadastro atual, em parcelas iguais, preservando a duração física de cada etapa. A participação de 100% da Santa Rosa foi informada no PDF anterior; não faz parte do export do diário.
 
-- TR/VT: parcelas iguais entre cotistas ativos com participação positiva do cadastro operacional atual. Duração física preservada; a parcela de horas e distância aparece separadamente. Uma etapa compartilhada pode constar no histórico de vários cotistas; as contagens de etapas/dias não são somáveis entre cotistas.
-- Voo particular: titular explícito. Holding sem sócio só resolve titular quando há um único participante correspondente.
-- Empréstimo: apenas o tomador identificado. Nunca atribuir ao cedente ou dividir entre proprietários como alternativa.
-- Outros voos sem titular: permanecem pendentes, com aviso. Não atribuir automaticamente ao único proprietário.
-- Custo/hora individual: despesas atribuídas ÷ tempo total atribuído (acionamento até corte). Tempo de voo (decolagem até pouso) é mostrado separadamente.
-- Tela e PDF usam a mesma atribuição. O diário na seleção de cotista mostra suas etapas, incluindo compartilhadas.
-- Custos, tabela e PDF usam a mesma competência de emissão; cancelamentos masculinos/femininos são excluídos.
-- Projeção de 1 a 45 h/mês: fixos ÷ número de meses selecionados ÷ horas projetadas + variáveis ÷ horas registradas + extras ÷ horas registradas. Zero horas ou custos não classificados não geram estimativas artificiais.
-- Multiplicador explícito dos fixos, padrão 1, altera apenas a projeção. O fator 2 permite simular a base fixa dobrada observada na planilha; não confirma que esse fator seja a regra contratual.
+## Precisão dos tempos
 
-Não há histórico de vigência das cotas nesta carga. Compartilhamento usa o cadastro atual, explicitado na interface/PDF; períodos com troca de proprietários precisam de conferência histórica.
+Os horários são a referência quando completos e válidos. Os valores decimais gravados continuam disponíveis, sem alteração do D1. O backend acrescenta minutos de AC a COR e de DEP a POU; o fechamento converte esses minutos para horas sem arredondar cada etapa. Se os horários estiverem ausentes ou inválidos, utiliza o tempo decimal registrado. Relógios cruzando meia-noite são tratados como uma etapa de até 24 horas.
 
-## Diferenças dos documentos que exigem conciliação dos dados
+| Data D1 | Natureza | AC–COR | DEP–POU | Tempo total gravado |
+| --- | --- | --- | --- | --- |
+| 14/01/2026 | Voo teste | 22 min | 15 min | 0,37 h |
+| 30/01/2026 | Traslado | 48 min | 37 min | 0,80 h |
+| 27/02/2026 | Voo teste | 25 min | 14 min | 0,42 h |
+| 11/05/2026 | Traslado | 27 min | 15 min | 0,45 h |
+| 28/08/2026 | Voo teste | 25 min | 14 min | 0,42 h |
+| 16/09/2026 | Voo teste | 27 min | 15 min | 0,45 h |
+| **Total** | **6 etapas** | **174 min = 2h54** | **110 min = 1h50** | **2,91 h, exibidas como 2h55** |
 
-| Ponto | PDF gerado pelo sistema | Referência manual |
-| --- | --- | --- |
-| Período | Agosto/2026 | Janeiro a setembro/2026 |
-| Total de agosto | R$ 15.596,58 | R$ 15.596,58, somando os lançamentos de agosto |
-| Mão de obra de pneus | R$ 1.415,25 como FIXO | EXTRA |
-| Horas totais em agosto | Custo/hora da aeronave implica 0,42 h; exibe 0h25 | 0,41 h; diário exibe 0:25 |
-| Custo/hora de agosto | R$ 37.134,71 na aeronave; faltava no cotista | R$ 38.040,44 (R$ 15.596,58 ÷ 0,41) |
-| Datas do diário e resumo mensal | Exige conferir registros de origem | As duas etapas de fevereiro aparecem agregadas no resumo de janeiro; a etapa de março aparece em fevereiro |
-| Total de horas manual | — | Resumo: 2,88 h; diário: 02:54, equivalente a 2,90 h |
-| Média mensal fixa manual | Média dos valores registrados nos meses selecionados | Hangaragem usa R$ 3.500/mês, embora esteja presente em apenas quatro dos nove meses |
-| Base fixa da projeção manual | Multiplicador padrão 1 | R$ 17.226,49 para 1 h/mês, aproximadamente duas vezes R$ 8.613,25 |
+Em agosto, 25 minutos equivalem a **25/60 h**, e não exatamente 0,42 nem 0,41. Com R$ 15.596,58 de despesas, o custo/hora é **R$ 37.431,79**. O cálculo anterior com 0,42 produzia R$ 37.134,71; a planilha resumida com 0,41 produzia R$ 38.040,44. A diferença é de precisão do denominador, não de valor financeiro.
 
-Não mudar datas, horas ou classificação financeira por comparação visual. Para reproduzir todas as células manuais, é necessário conferir as fórmulas da planilha original, especialmente a mensalização dos fixos e o fator da projeção. Os valores do PDF manual não definem por si só uma regra consistente para todas as células.
+## Conciliação do CSV de despesas
 
-## Validação
+O CSV contém lançamentos históricos de 2020 a novembro de 2026. Foram selecionados apenas janeiro a setembro de 2026 para o período dos PDFs: **27 despesas e R$ 92.098,40**. Cabeçalhos, linhas vazias e linhas de modelo sem data não são despesas.
 
-- Testes executáveis de cálculo reproduzem os R$ 15.596,58 de agosto com 0,42 h compartilhadas: custo/hora da Santa Rosa igual ao da aeronave, R$ 37.134,71, e projeção disponível.
-- Casos adicionais: dois/três cotistas, cotas inativas/zeradas, empréstimo com/sem tomador, holding ambígua, ausência de horas, competências descontínuas, cancelamento e multiplicador dos fixos.
-- PDF renderizado com o componente real e dados de teste; tabela completa dividida em páginas com cabeçalhos próprios.
-- Testes antigos de fechamento possuem três falhas de expressões regulares já presentes no commit base, reproduzidas sem esta alteração. Não representam novas falhas de cálculo.
-- Não foi consultado nem alterado o D1 de produção. A validação numérica usa os valores dos anexos e registros de teste; a homologação final precisa do registro operacional real.
+| Mês | Despesas | Etapas D1 | Horas totais pelos horários |
+| --- | ---: | ---: | ---: |
+| Janeiro | R$ 27.309,40 | 2 | 1h10 |
+| Fevereiro | R$ 5.000,00 | 1 | 0h25 |
+| Março | R$ 6.519,01 | 0 | 0h00 |
+| Abril | R$ 5.251,13 | 0 | 0h00 |
+| Maio | R$ 6.680,00 | 1 | 0h27 |
+| Junho | R$ 8.742,28 | 0 | 0h00 |
+| Julho | R$ 8.500,00 | 0 | 0h00 |
+| Agosto | R$ 15.596,58 | 1 | 0h25 |
+| Setembro | R$ 8.500,00 | 1 | 0h27 |
+| **Total** | **R$ 92.098,40** | **6** | **2h54** |
+
+Custo/hora do conjunto conciliado: R$ 92.098,40 ÷ 2,9 h = **R$ 31.758,07/h**. Este valor combina as despesas do CSV com os horários do diário exportado; não comprova sozinho que o financeiro do D1 contenha todos os mesmos lançamentos.
+
+A despesa de 26/08, documento 53, R$ 1.415,25, está como **EXTRA** no CSV. No PDF do sistema aparecia como FIXO. O CSV de agosto implica R$ 8.500,00 fixos, R$ 5.681,33 variáveis e R$ 1.415,25 extras. O export `jpk.sql` contém somente o diário: não permite corrigir ou confirmar o tipo cadastrado no financeiro. Essa classificação deve ser conciliada no lançamento/rateio de origem; não inferir o tipo pelo texto da descrição.
+
+A distância do D1 soma **59,0 NM** e o combustível abastecido no diário soma **147,1 L**. O PDF manual usava 61,4 NM. Datas, distâncias, categorias e arredondamentos devem seguir os registros conciliados, não cópias dos totais divergentes do PDF.
+
+## Regras mantidas
+
+- Voos particulares usam titular explícito. Holding sem sócio resolve titular apenas quando existe um único participante correspondente.
+- Empréstimos pertencem apenas ao tomador identificado. Nunca usar o cedente como alternativa.
+- Voos particulares sem titular ficam pendentes, com aviso, inclusive em aeronave de proprietário único.
+- Etapas compartilhadas podem aparecer em vários históricos. Contagens de etapas e dias não devem ser somadas entre cotistas; horas e distâncias são atribuídas proporcionalmente.
+- Tela e PDF usam os mesmos tempos normalizados e a mesma atribuição. O custo/hora usa AC–COR; o tempo de voo DEP–POU aparece separado.
+- Custos usam a competência de emissão e excluem cancelamentos.
+- Projeção: fixos ÷ meses selecionados ÷ horas projetadas + variáveis ÷ horas atribuídas + extras ÷ horas atribuídas. Multiplicador dos fixos é explícito, padrão 1, e altera somente a projeção. Ausência de horas ou custos não classificados impede estimativas artificiais.
+
+## Limites e validação
+
+O CSV exporta somente a aba de lançamentos e seus valores. Não contém fórmulas, abas do diário, resumos ou simuladores. Portanto, permite conciliar despesas e classificação, mas não recuperar as fórmulas de mensalização dos fixos nem confirmar a justificativa do fator 2 observado no PDF manual. Os testes não assumem essas fórmulas como regras contratuais.
+
+Não há histórico de vigência das cotas nesta carga. Compartilhamento utiliza o cadastro atual, explicitado na interface/PDF; períodos com troca de proprietários exigem conferência histórica.
+
+Testes com campos operacionais dos seis registros reais e os 27 valores do CSV verificam quantidades, competência, 174 minutos, classificação financeira, custo/hora e compatibilidade com payloads antigos. O SQL exportado foi executado apenas em SQLite em memória para a conciliação. Nenhuma alteração foi feita no D1 de produção.
+
+Os testes antigos de conferência de texto ainda apresentam três falhas de expressões regulares já existentes no commit base; elas não são novas falhas de cálculo.

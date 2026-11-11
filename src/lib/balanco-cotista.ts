@@ -7,7 +7,7 @@ import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 type Lancamento = NonNullable<DashboardCotista["lancamentos"]>[number];
 type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
 export type VooBalanco = { id: string; data: string; numero: string | null; numeroSequencial: number | null; trecho: string | null; tempoDep: string | null; tempoPou: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null; holdingId?: string | null; tempoAc?: string | null; tempoCor?: string | null; distanciaNm?: number | null; comandante?: string | null; copiloto?: string | null };
-type Voo = VooBalanco & { percentualAtribuido?: number; compartilhado?: boolean };
+type Voo = VooBalanco & { percentualAtribuido?: number; compartilhado?: boolean; minutosTotal?: number | null; minutosVoo?: number | null };
 type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
 export type BalancoOperacional = {
   versao: 1; aeronaveId: string; inicio: string | null; fim: string | null;
@@ -68,8 +68,8 @@ export const horas = (v: number | null) => {
 export const compacto = (v: number) => new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(v / 100);
 
 export const vooCompartilhado = (v: VooBalanco) => !v.emprestado && ["TR - TRASLADO", "VT - VOO TESTE"].includes(norm(v.natureza));
-export const horasAtribuidas = (v: Voo) => v.horas === null ? null : v.horas * (v.percentualAtribuido ?? 100) / 100;
-const medidaAtribuida = (v: Voo, valor: number | null | undefined) => valor == null ? null : valor * (v.percentualAtribuido ?? 100) / 100;
+export const horasAtribuidas = (v: Voo) => v.horas === null ? null : v.horas * ((v.percentualAtribuido ?? 100) / 100);
+const medidaAtribuida = (v: Voo, valor: number | null | undefined) => valor == null ? null : valor * ((v.percentualAtribuido ?? 100) / 100);
 
 function classificar(l: Registro): Grupo {
   // A natureza do custo vem do cadastro, nunca do pagador ou da identidade do cotista.
@@ -195,7 +195,13 @@ export function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], 
     }
   }
 
-  const voos = (op?.voos ?? []).filter((v) => seleciona.has(mes(v.data)));
+  const horasComPrecisao = (minutos: number | null | undefined, registradas: number | null) =>
+    minutos != null && Number.isFinite(minutos) && minutos >= 0 ? minutos / 60 : registradas;
+  const voos = (op?.voos ?? []).filter((v) => seleciona.has(mes(v.data))).map((v) => ({
+    ...v,
+    horas: horasComPrecisao(v.minutosTotal, v.horas),
+    horasVoo: horasComPrecisao(v.minutosVoo, v.horasVoo),
+  }));
   const viagens = (op?.viagens ?? []).filter((v) => seleciona.has(mes(v.data)));
   const abastecimentos = (op?.abastecimentos ?? []).filter((a) => seleciona.has(mes(a.data)));
   const donoVoo = (v: Voo) => (v.emprestado ? cadastro.operacional(v.clienteTomadorId, v.socioTomadorId) : cadastro.operacional(v.clienteId, v.socioId, v.holdingId));
@@ -314,7 +320,7 @@ export function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], 
     && ["PAGO", "RECEBIDO", "REEMBOLSADO", "ENTRADA", "APORTE_MENSAL", "RENDIMENTO_BANCARIO"].includes(norm(m.status)));
 
   return {
-    meses, mensais, total, totalHoras,
+    meses, mensais, total, totalHoras, voos,
     totalVoos: somarMedida(mensais, (m) => m.voos, true), totalPousos: somarMedida(mensais, (m) => m.pousos, true),
     participantes,
     categorias: [...categorias].map(([nome, c]) => ({ nome, ...c })).sort((a, b) => b.total - a.total),

@@ -1,0 +1,59 @@
+@import './financeiro-tema.css';
+html .baixa-dialog {
+  display: flex; flex-direction: column; gap: 0; width: min(44rem, calc(100vw - 2rem)) !important;
+  max-width: 44rem !important; max-height: 92dvh !important; height: auto !important;
+  padding: 0 !important; overflow: hidden; border: 1px solid var(--fin-border); border-radius: 12px;
+  background: var(--fin-surface); color: var(--fin-text); box-shadow: 0 20px 60px #0004;
+}
+.baixa-dialog .baixa-header { flex-shrink: 0; padding: 22px 24px 18px; border-bottom: 1px solid var(--fin-border); text-align: left; }
+.baixa-dialog .baixa-kicker { margin-bottom: 8px; color: var(--fin-accent); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+.baixa-dialog .baixa-titulo { display: flex; gap: 8px; align-items: center; font-size: 20px; font-weight: 600; color: var(--fin-text); }
+.baixa-dialog .baixa-header > p:last-child { font-size: 13px; line-height: 1.5; color: var(--fin-muted); }
+.baixa-dialog .baixa-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px; display: grid; gap: 20px; }
+.baixa-dialog .baixa-footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--fin-border); padding: 16px 24px; background: var(--fin-soft); }
+.baixa-dialog .baixa-resumo { min-width: 0; padding: 20px; border: 1px solid var(--fin-border); border-radius: 14px; background: var(--fin-soft); }
+.baixa-resumo-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.baixa-resumo-topo > div:first-child { flex: 1 1 220px; min-width: 0; }
+.baixa-resumo h3 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.baixa-resumo p { margin: 6px 0 0; color: var(--fin-muted); font-size: 12px; overflow-wrap: anywhere; }
+.baixa-resumo-valor { padding: 10px 14px; border: 1px solid var(--fin-success); border-radius: 12px; background: var(--fin-success-soft); color: var(--fin-success); text-align: right; }
+.baixa-resumo-valor span { display: block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.baixa-resumo-valor strong { font-size: 22px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.baixa-resumo-fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--fin-border); }
+.baixa-resumo-fatos > div { display: flex; align-items: flex-start; min-width: 0; gap: 8px; }
+.baixa-resumo-fatos svg { flex-shrink: 0; margin-top: 2px; color: var(--fin-accent); }
+.baixa-resumo-fatos dt { color: var(--fin-muted); font-size: 9px; text-transform: uppercase; }
+.baixa-resumo-fatos dd { margin: 4px 0 0; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.baixa-dialog .baixa-cotistas { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.baixa-dialog .baixa-cotista { width: 100%; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; border: 1px solid var(--fin-border); border-radius: 10px; background: var(--fin-soft); color: var(--fin-text); }
+.baixa-dialog .baixa-cotista[aria-checked="true"] { border-color: var(--fin-accent); background: var(--fin-accent-soft); }
+.baixa-cotista strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.baixa-cotista small { display: block; margin-top: 4px; font-size: 11px; color: var(--fin-muted); }
+.baixa-cotista > span:last-child { flex-shrink: 0; font-size: 11px; color: var(--fin-accent); }
+.baixa-dialog .baixa-campos { display: grid; gap: 16px; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.baixa-dialog .baixa-campos > div { min-width: 0; }
+.baixa-dialog .baixa-campo-inteiro { grid-column: 1 / -1; }
+.baixa-dialog .baixa-campos label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500; }
+html .baixa-dialog :is(input:not([type="file"]), textarea, select, .campo) { min-height: 40px; width: 100%; border: 1px solid var(--fin-border); border-radius: 7px; padding: 8px 12px; background: var(--fin-surface); color: var(--fin-text); font-size: 13px; }
+.baixa-dialog .baixa-upload { display: flex !important; align-items: center; gap: 12px; position: relative; padding: 16px; border: 1px dashed var(--fin-border); border-radius: 10px; background: var(--fin-soft); cursor: pointer; }
+.baixa-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.baixa-upload small, .baixa-nota { color: var(--fin-muted); font-size: 12px; }
+.baixa-upload strong { display: block; overflow-wrap: anywhere; }
+.baixa-dialog .baixa-mensagem { padding: 12px; border-radius: 8px; font-size: 12px; background: var(--fin-success-soft); color: var(--fin-success); }
+.baixa-dialog [role="alert"] { padding: 12px; border-radius: 8px; background: var(--fin-danger-soft); color: var(--fin-danger); }
+.baixa-dialog .baixa-historico { padding: 14px; border: 1px solid var(--fin-border); border-radius: 10px; font-size: 12px; }
+.baixa-historico li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--fin-border); }
+.baixa-historico a { color: var(--fin-accent); text-decoration: underline; }
+@media (max-width: 540px) {
+  .baixa-dialog .baixa-header, .baixa-dialog .baixa-body, .baixa-dialog .baixa-footer { padding: 16px; }
+  .baixa-dialog .baixa-campos { grid-template-columns: minmax(0,1fr); }
+  .baixa-resumo-fatos { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .baixa-dialog .baixa-cotista { align-items: flex-start; }
+}
+
+/* A mesma composição no recebimento de notas e recibos de saída. */
+html dialog.baixa-dialog:not([open]) { display: none; }
+.baixa-dialog .nf-modal-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.baixa-dialog .nf-modal-head h2 { color: var(--fin-text); font-size: 20px; }
+.baixa-dialog .nf-modal-body { flex: 1; }
+.baixa-dialog .nf-modal-body form > .baixa-resumo { margin-bottom: 16px; }

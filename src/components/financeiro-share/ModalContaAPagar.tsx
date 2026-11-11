@@ -1,13 +1,11 @@
+import { BaixaResumo } from "@/components/financeiro-design/BaixaResumo";
 import { useRef, useState } from "react";
 import {
-  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   FileCheck2,
   Paperclip,
-  Plane,
   UploadCloud,
-  UserRound,
 } from "lucide-react";
 import {
   Dialog,
@@ -160,31 +158,19 @@ export function ModalContaAPagar({
   return (
     <Dialog open={aberto} onOpenChange={(valor) => { if (!valor && !ocupada) onFechar(); }}>
       <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-0 bg-card dark:bg-[#0a0f17] p-0 text-foreground dark:text-slate-100 shadow-[0_20px_60px_rgba(0,0,0,.55)] sm:max-w-2xl sm:rounded-xl"
+        className="despesas-theme baixa-dialog"
         onEscapeKeyDown={(evento) => { if (ocupada) evento.preventDefault(); }}
         onPointerDownOutside={(evento) => { if (ocupada) evento.preventDefault(); }}
       >
-        <DialogHeader className="shrink-0 border-b border-border dark:border-white/[.08] px-4 py-3 pr-12 text-left sm:px-5 sm:py-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-300">Contas a pagar · liquidação</p>
-          <DialogTitle className="mt-1 break-words text-base font-semibold leading-snug text-slate-50 sm:text-lg">
-            Dar baixa — {conta.descricao || conta.categoriaNome || "Conta a pagar"}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Informe os dados do pagamento e anexe o comprovante.</DialogDescription>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground dark:text-slate-300">
-            <span className="inline-flex min-w-0 items-center gap-1.5"><UserRound size={13} className="shrink-0 text-cyan-300" /><span className="break-words">{conta.fornecedor || "Fornecedor não informado"}</span></span>
-            {conta.aeronaveId && <span className="inline-flex items-center gap-1.5"><Plane size={13} className="text-cyan-300" />Despesa de aeronave</span>}
-            <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} className="text-cyan-300" />Vence em {dataLegivel(conta.dataVencimento)}</span>
-          </div>
+        <DialogHeader className="baixa-header">
+          <p className="baixa-kicker">Financeiro Share · Saída</p>
+          <DialogTitle className="baixa-titulo"><CircleDollarSign size={20}/>Registrar pagamento</DialogTitle>
+          <DialogDescription>Registre a saída da conta bancária da Share com a data e o comprovante do pagamento.</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-5 sm:py-4">
+        <div className="baixa-body">
+          <BaixaResumo descricao={conta.descricao || conta.categoriaNome || "Conta a pagar"} detalhe={conta.fornecedor || "Fornecedor não informado"} valor={moeda} rotuloValor="Valor da saída" vencimento={dataLegivel(conta.dataVencimento)} categoria={conta.categoriaNome || "—"} situacao={conta.status || "Em aberto"}/>
           <fieldset disabled={ocupada} className="min-w-0 space-y-4">
-            <section className="grid min-w-0 grid-cols-1 gap-2 border-b border-border dark:border-white/[.08] pb-3 sm:grid-cols-3">
-              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Valor da saída</span><strong className="mt-0.5 block break-words text-sm font-semibold text-foreground dark:text-slate-100">{moeda}</strong></div>
-              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Categoria</span><strong className="mt-0.5 block break-words text-sm font-semibold text-foreground dark:text-slate-100">{conta.categoriaNome || "—"}</strong></div>
-              <div className="min-w-0"><span className="text-[11px] text-muted-foreground dark:text-slate-400">Situação</span><strong className="mt-0.5 block break-words text-sm font-semibold text-emerald-300">{conta.status || "Em aberto"}</strong></div>
-            </section>
-
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-foreground dark:text-slate-100">Dados do pagamento</h3>
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
@@ -245,9 +231,9 @@ export function ModalContaAPagar({
           </fieldset>
         </div>
 
-        <DialogFooter className="shrink-0 gap-2 border-t border-border dark:border-white/[.08] bg-card dark:bg-[#0a0f17] px-4 py-3 sm:px-5">
+        <DialogFooter className="baixa-footer">
           <Button variant="ghost" onClick={onFechar} disabled={ocupada} className="text-muted-foreground dark:text-slate-300 hover:bg-white/[.05]">Cancelar</Button>
-          <Button onClick={() => void confirmar()} disabled={ocupada || !contaBancariaId} className="gap-2 bg-cyan-400 font-semibold text-slate-950 hover:bg-cyan-300">
+          <Button onClick={() => void confirmar()} disabled={ocupada || !contaBancariaId} className="gap-2 bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
             {enviando ? "Confirmando…" : <><CheckCircle2 size={16} />Confirmar pagamento</>}
           </Button>
         </DialogFooter>
@@ -255,3 +241,4 @@ export function ModalContaAPagar({
     </Dialog>
   );
 }
+

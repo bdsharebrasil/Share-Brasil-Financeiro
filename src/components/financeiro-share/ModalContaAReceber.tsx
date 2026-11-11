@@ -1,16 +1,13 @@
+import { BaixaResumo } from "@/components/financeiro-design/BaixaResumo";
 import { useId, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowDownToLine,
-  CalendarDays,
   Check,
-  ChevronDown,
   Loader2,
   Paperclip,
-  Plane,
   Plus,
   Trash2,
-  UserRound,
   X,
 } from 'lucide-react';
 
@@ -357,88 +354,23 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
         if (envioEmCurso.current) event.preventDefault();
       }}
       onInteractOutside={(event) => event.preventDefault()}
-      className="!flex h-[100dvh] max-h-[100dvh] w-full !max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-card !p-0 text-card-foreground shadow-xl [&>button]:hidden max-sm:!left-0 max-sm:!top-0 max-sm:!pl-[var(--safe-area-left)] max-sm:!pr-[var(--safe-area-right)] max-sm:!translate-x-0 max-sm:!translate-y-0 sm:h-auto sm:max-h-[calc(100dvh_-_2rem)] sm:w-[calc(100%_-_2rem)] sm:!max-w-5xl sm:rounded-xl sm:border sm:border-border"
+      className="despesas-theme baixa-dialog [&>button]:hidden"
     >
-      <DialogHeader className="relative shrink-0 space-y-0 border-b border-border px-4 pb-3 pl-16 pr-16 pt-[calc(0.75rem_+_var(--safe-area-top))] text-left sm:px-6 sm:py-4 sm:pl-[4.75rem] sm:pr-16">
-        <span className="financeiro-title-icon absolute left-4 top-[calc(0.75rem_+_var(--safe-area-top))] sm:left-6 sm:top-4">
-          <ArrowDownToLine size={17} aria-hidden="true" />
-        </span>
-        <p className="financeiro-eyebrow !text-muted-foreground">Financeiro / Contas a receber</p>
-        <DialogTitle className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-          Registrar recebimento
-        </DialogTitle>
-        <p id={descricaoId} className="mt-1 line-clamp-2 break-words text-sm text-muted-foreground">
-          {conta.descricao || conta.categoriaNome || 'Conta a receber'}
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Fechar"
-          disabled={enviando}
-          onClick={onFechar}
-          className="absolute right-3 top-[calc(0.5rem_+_var(--safe-area-top))] h-11 w-11 text-muted-foreground hover:bg-secondary hover:text-foreground sm:right-4 sm:top-3"
-        >
-          <X size={18} aria-hidden="true" />
-        </Button>
+      <DialogHeader className="baixa-header relative pr-14">
+        <p className="baixa-kicker">Financeiro Share · Entrada</p>
+        <DialogTitle className="baixa-titulo"><ArrowDownToLine size={20}/>Registrar recebimento</DialogTitle>
+        <p id={descricaoId}>Registre os pagamentos recebidos na conta da Share, com datas, pagadores e comprovantes individuais.</p>
+        <Button type="button" variant="ghost" size="icon" aria-label="Fechar" disabled={enviando} onClick={onFechar} className="absolute right-3 top-3 text-muted-foreground"><X size={18}/></Button>
       </DialogHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-4 py-4 sm:px-6 sm:py-5">
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-5">
-          <aside aria-label="Resumo da conta" className="financeiro-panel min-w-0 text-card-foreground">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold text-foreground">Resumo da conta</h3>
-              <dl className="mt-3 grid gap-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                  <dt className="text-sm text-muted-foreground">Valor original</dt>
-                  <dd className="break-words text-sm font-medium tabular-nums">{exibirValor(totalConta)}</dd>
-                </div>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                  <dt className="text-sm text-muted-foreground">Já recebido</dt>
-                  <dd className="break-words text-sm font-medium tabular-nums">{exibirValor(totalRecebido)}</dd>
-                </div>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 border-t border-border pt-3 lg:block">
-                  <dt className="text-sm font-medium text-foreground">Saldo em aberto</dt>
-                  <dd className="break-words font-mono text-xl font-medium tracking-tight text-foreground tabular-nums lg:mt-1">
-                    {exibirValor(saldo)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-            <dl className="grid gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:grid-cols-3 lg:grid-cols-1">
-              <div className="flex min-w-0 items-start gap-2">
-                <dt><UserRound size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Cotista</span></dt>
-                <dd className="min-w-0 break-words">{cotista}</dd>
-              </div>
-              <div className="flex min-w-0 items-start gap-2">
-                <dt><Plane size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Aeronave</span></dt>
-                <dd className="min-w-0 break-words">{aeronave}</dd>
-              </div>
-              <div className="flex min-w-0 items-start gap-2">
-                <dt><CalendarDays size={15} aria-hidden="true" className="mt-0.5" /><span className="sr-only">Vencimento</span></dt>
-                <dd>{vencimento ? `Vence em ${dataBR.format(vencimento)}` : 'Vencimento não informado'}</dd>
-              </div>
-            </dl>
-            {valoresProjetados.length > 0 && (
-              <details className="group border-t border-border">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-medium text-foreground hover:bg-muted/40 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-                  Projeção dos rateios
-                  <ChevronDown size={16} aria-hidden="true" className="shrink-0 group-open:rotate-180" />
-                </summary>
-                <dl className="space-y-2 px-4 pb-3">
-                  {valoresProjetados.map((rateio) => (
-                    <div key={rateio.id}>
-                      <dt className="break-words text-sm font-medium">{rateio.nome}</dt>
-                      <dd className="mt-0.5 break-words text-xs text-muted-foreground tabular-nums">
-                        {exibirValor(rateio.projetado)} de {exibirValor(rateio.previsto)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </details>
-            )}
-          </aside>
-
+      <div className="baixa-body">
+        <div className="min-w-0 space-y-5">
+          <BaixaResumo descricao={conta.descricao || conta.categoriaNome || 'Conta a receber'} detalhe={`${cotista} · ${aeronave}`} valor={exibirValor(totalInformado)} rotuloValor="Total deste recebimento" vencimento={vencimento ? dataBR.format(vencimento) : 'Não informado'} categoria={conta.categoriaNome || '—'} situacao={conta.status || 'Em aberto'}/>
+          <dl className="grid grid-cols-3 gap-3 text-xs">
+            <div><dt className="text-muted-foreground">Valor original</dt><dd className="mt-1 font-semibold">{exibirValor(totalConta)}</dd></div>
+            <div><dt className="text-muted-foreground">Já recebido</dt><dd className="mt-1 font-semibold">{exibirValor(totalRecebido)}</dd></div>
+            <div><dt className="text-muted-foreground">Saldo em aberto</dt><dd className="mt-1 font-semibold">{exibirValor(saldo)}</dd></div>
+          </dl>
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-base font-semibold text-foreground">Pagamentos</h3>
@@ -495,7 +427,7 @@ function Recebimento({ conta, onFechar, onConfirmar, contasBancarias, envioEmCur
         </div>
       </div>
 
-      <footer className="shrink-0 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,var(--safe-area-bottom))] sm:px-6 sm:pb-3">
+      <footer className="baixa-footer">
         {erro && (
           <p role="alert" className="mb-2 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-sm text-foreground">
             <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
@@ -735,3 +667,4 @@ function EditorPagamento({
     </section>
   );
 }
+

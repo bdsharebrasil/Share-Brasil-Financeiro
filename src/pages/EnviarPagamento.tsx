@@ -72,6 +72,11 @@ function anexoAplicaAoCotista(anexo: AnexoLinha, cotistaId: string) {
   return !anexo.cotista_id || anexo.cotista_id === cotistaId;
 }
 
+function cotistasComAnexos<T extends { id: string }>(cotistas: T[], anexos: AnexoLinha[], fallback: T[]) {
+  const comAnexo = cotistas.filter((cotista) => anexos.some((anexo) => anexo.cotista_id === cotista.id));
+  return comAnexo.length ? comAnexo : fallback;
+}
+
 function notificarEnvioCliente(tipo: "success" | "error" | "warning", mensagem: string) {
   const opcoes = {
     duration: 5000,
@@ -762,7 +767,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         const respostaCotistas = await buscarCotistasAeronave(formRestaurado.aeronave_id);
         setCotistas(respostaCotistas.cotistas);
         const idsSelecionados = new Set(cotistaIds);
-        const cotistasSelecionadosSalvos = respostaCotistas.cotistas.filter((cotista) => idsSelecionados.has(cotista.id));
+        const cotistasSelecionadosSalvos = cotistasComAnexos(respostaCotistas.cotistas, anexosRestaurados, respostaCotistas.cotistas.filter((cotista) => idsSelecionados.has(cotista.id)));
         setCotistasEmail(cotistasSelecionadosSalvos);
         setEmailsPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, cotista.email || ""])));
         setRascunhosEmailPorCotista(Object.fromEntries(cotistasSelecionadosSalvos.map((cotista) => [cotista.id, { assunto: `Solicitação de pagamento — ${envio.descricao} — ${cotista.nome}`, mensagem: `Olá, ${cotista.nome}.\n\nEncaminho os documentos referentes à despesa “${envio.descricao}”.\n\nAtenciosamente, Share Brasil` }])));
@@ -954,8 +959,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
-        const cotistasComAnexo = cotistas.filter((cotista) => form.anexos.some((anexo) => anexo.cotista_id === cotista.id));
-        const cotistasParaEmail = cotistasComAnexo.length ? cotistasComAnexo : cotistasSelecionados;
+        const cotistasParaEmail = cotistasComAnexos(cotistas, form.anexos, cotistasSelecionados);
         const emails = Object.fromEntries(cotistasParaEmail.map((cotista) => [
           cotista.id,
           cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",

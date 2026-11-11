@@ -1,5 +1,5 @@
 import { AnimatedStepper, AnimatedStepPanel } from "@/components/envio-pagamento/AnimatedStepper";
-import { anexosSelecionadosDoCotista } from "@/components/envio-pagamento/email-cotista";
+import { anexosSelecionadosDoCotista, cotistasDoEnvio } from "@/components/envio-pagamento/email-cotista";
 import "@/components/envio-pagamento/envio-pagamento.css";
 import { SeletorCotistaEmail } from "@/components/envio-pagamento/SeletorCotistaEmail";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -283,6 +283,10 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [preparandoCotistaId, setPreparandoCotistaId] = useState<string | null>(null);
   const preparandoCotistaRef = useRef(false);
+  const finalizandoEmailRef = useRef(false);
+  const emailsConfirmadosRef = useRef(new Map<string, Record<string, string>>());
+  const rascunhosFinalizadosRef = useRef(new Set<string>());
+  const enviosConvertidosRef = useRef(new Set<string>());
   const [cotistaEmailAberto, setCotistaEmailAberto] = useState<string | null>(null);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
@@ -371,6 +375,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     if (rascunhosExcluidosRef.current.has(id)) return;
     const cotistasDestinatarios = (opcoes.dados?.cotistasEmail as CotistaAeronave[] | undefined) ?? cotistasEmail;
     const anexosDestinatarios = (opcoes.dados?.anexosEnvioEmail as AnexoLinha[] | undefined) ?? anexosEnvioEmail;
+    const dadosCapturados = opcoes.dados ?? construirDadosRascunho();
     const statusRascunho = opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado && envioRecemCriado.tipo !== "share" ? "EMAIL_PENDENTE" : "PREENCHIMENTO");
     setStatusSalvamento("salvando");
     const gravacao = filaSalvamento.current.then(async () => {
@@ -379,10 +384,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         id,
         tipo_envio: tipoRascunho,
         etapa_atual: opcoes.etapa ?? etapa,
-        dados: opcoes.dados ?? construirDadosRascunho(),
+        dados: { ...dadosCapturados,
+          envioConvertido: Boolean(dadosCapturados.envioConvertido || enviosConvertidosRef.current.has(id)),
+          statusEmailCotista: { ...(dadosCapturados.statusEmailCotista as Record<string, string> || {}), ...emailsConfirmadosRef.current.get(id) },
+        },
         idempotency_key: chave,
         envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
-        status: statusRascunho,
+        status: rascunhosFinalizadosRef.current.has(id) ? "CONCLUIDO" : statusRascunho,
         destinatarios: cotistasDestinatarios.filter((cotista) => tipoRascunho !== "cliente" || anexosDestinatarios.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))).map((cotista) => cotista.id),
       });
       return resultado;
@@ -394,7 +402,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setStatusSalvamento("salvo");
       setSalvoEm(resultado.atualizado_em);
       setRascunhos((atuais) => {
-        if (opcoes.status === "CONCLUIDO") return atuais.filter((rascunho) => rascunho.id !== id);
+        if (opcoes.status === "CONCLUIDO" || rascunhosFinalizadosRef.current.has(id)) return atuais.filter((rascunho) => rascunho.id !== id);
         const existente = atuais.find((rascunho) => rascunho.id === id);
         const atualizado: RascunhoEnvioPagamento = {
           id, tipo_envio: tipoRascunho, etapa_atual: opcoes.etapa ?? etapa,
@@ -619,7 +627,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setOrigemDespesa(dados.origemDespesa || "");
       setVincularDespesaExistente(dados.vincularDespesaExistente ?? Boolean(dados.origemDespesa));
       setEnvioRecemCriado(envioSalvo ? { ...envioSalvo, tipo: rascunho.tipo_envio } : null);
-      setEnvioConvertido(Boolean(dados.envioConvertido));
+      setEnvioConvertido(Boolean(dados.envioConvertido || String(envioSalvo?.status).toUpperCase() === "CONVERTIDO"));
       setAssunto(dados.assunto || "");
       setCorpoEmail(dados.corpoEmail || "");
       setDestinatario(dados.destinatario || "");
@@ -628,12 +636,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setAnexosPorCotista(dados.anexosPorCotista || {});
       setAnexosEnvioEmail((dados.anexosEnvioEmail || []).map((anexo: AnexoLinha) => ({ ...anexo, file: null, uploading: false })));
       setArquivosPersistidos(dados.arquivosPersistidos || []);
-      const cotistasSalvos = dados.cotistasEmail || [];
+      const idsSelecionados = new Set<string>(formSalvo.cotista_ids || []);
+      const cotistasSalvos = (dados.cotistasEmail || []).filter((cotista: CotistaAeronave) => !idsSelecionados.size || idsSelecionados.has(cotista.id));
       setCotistasEmail(cotistasSalvos);
       setCotistas(cotistasSalvos);
       setEmailsPorCotista(dados.emailsPorCotista || {});
       setRascunhosEmailPorCotista(dados.rascunhosEmailPorCotista || {});
       const statusRestaurados: Record<string, string> = { ...dados.statusEmailCotista, ...Object.fromEntries(destinatarios.map((destinatario: DestinatarioRascunhoEnvio) => [destinatario.cotista_id, destinatario.status])) };
+      emailsConfirmadosRef.current.set(rascunho.id, Object.fromEntries(Object.entries(statusRestaurados).filter(([, status]) => status === "ENVIADO")));
+      if (dados.envioConvertido || String(envioSalvo?.status).toUpperCase() === "CONVERTIDO") enviosConvertidosRef.current.add(rascunho.id);
+      if (rascunho.status === "CONCLUIDO") rascunhosFinalizadosRef.current.add(rascunho.id);
       setStatusEmailCotista(statusRestaurados);
       setEmailsEnviados(Object.entries(statusRestaurados).filter(([, status]) => status === "ENVIADO").map(([id]) => id));
       setRascunhoConcluido(rascunho.status === "CONCLUIDO");
@@ -965,7 +977,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
-        const cotistasParaEmail = cotistasComAnexos(cotistas, form.anexos, cotistasSelecionados);
+        const cotistasParaEmail = cotistasDoEnvio(cotistas, form.cotista_ids).filter(cotista => tipo !== "cliente" || form.anexos.some(anexo => anexoAplicaAoCotista(anexo, cotista.id)));
         const emails = Object.fromEntries(cotistasParaEmail.map((cotista) => [
           cotista.id,
           cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",
@@ -1076,6 +1088,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       if (envioRecemCriado?.tipo === "cliente" && !envioConvertido) {
         await converterEnvioPagamento(envioRecemCriado.id);
         setEnvioConvertido(true);
+        if (rascunhoId) enviosConvertidosRef.current.add(rascunhoId);
         atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
       }
       setCotistaEmailAberto(cotistaId);
@@ -1088,38 +1101,58 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     }
   };
 
-  const concluirEnvioCotista = async (cotistaId: string) => {
+  const concluirEnvioCotista = async (cotistaId?: string) => {
+    if (finalizandoEmailRef.current || !envioRecemCriado || !rascunhoId) return;
     const idRascunhoAtual = rascunhoId;
-    const enviados = new Set([
-      ...emailsEnviados,
-      ...Object.entries(statusEmailCotista).filter(([, status]) => status === "ENVIADO").map(([id]) => id),
-      cotistaId,
-    ]);
-    setEmailsEnviados([...enviados]);
-    setStatusEmailCotista((atual) => ({ ...atual, [cotistaId]: "ENVIADO" }));
-    const nomeCotista = cotistasEmail.find((cotista) => cotista.id === cotistaId)?.nome || "o cliente";
-    const gruposSelecionados = cotistasEmail.filter((cotista) => envioRecemCriado?.tipo !== "cliente" || anexosSelecionadosDoCotista(anexosEnvioEmail, cotista.id, anexosSelecionados, anexosPorCotista).length > 0);
-    const todosConcluidos = gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviados.has(cotista.id));
+    const statusConfirmados = {
+      ...statusEmailCotista,
+      ...emailsConfirmadosRef.current.get(idRascunhoAtual),
+      ...(cotistaId ? { [cotistaId]: "ENVIADO" } : {}),
+    };
+    emailsConfirmadosRef.current.set(idRascunhoAtual, statusConfirmados);
+    setEmailsEnviados(Object.keys(statusConfirmados).filter(id => statusConfirmados[id] === "ENVIADO"));
+    setStatusEmailCotista(statusConfirmados);
+    const selecionados = cotistasDoEnvio(cotistasEmail, form.cotista_ids).filter(c => envioRecemCriado.tipo !== "cliente" || anexosSelecionadosDoCotista(anexosEnvioEmail, c.id, anexosSelecionados, anexosPorCotista).length > 0);
+    const todosConcluidos = selecionados.length > 0 && selecionados.every(c => statusConfirmados[c.id] === "ENVIADO");
+    finalizandoEmailRef.current = true;
+    setEnviandoEmail(true);
+    setErroEmail("");
     try {
-      if (envioRecemCriado?.tipo === "reembolso" && !envioConvertido) {
+      // A confirmação do e-mail não depende do sucesso da conversão financeira.
+      await persistirRascunho({ status: "EMAIL_PENDENTE", envioId: envioRecemCriado.id,
+        dados: { ...construirDadosRascunho(), cotistasEmail: selecionados, statusEmailCotista: statusConfirmados } });
+      if (!todosConcluidos) {
+        setSucessoEmail("E-mail enviado. Ainda há destinatários selecionados pendentes.");
+        return;
+      }
+      // O backend exige EMAIL_ENVIADO antes de converter um reembolso do colaborador.
+      await registrarEmailEnvioPagamento(envioRecemCriado.id);
+      if (!envioConvertido && !enviosConvertidosRef.current.has(idRascunhoAtual)) {
         await converterEnvioPagamento(envioRecemCriado.id);
+        enviosConvertidosRef.current.add(idRascunhoAtual);
         setEnvioConvertido(true);
         atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
       }
-      if (envioRecemCriado && todosConcluidos) await registrarEmailEnvioPagamento(envioRecemCriado.id);
-      await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id, dados: { ...construirDadosRascunho(), envioConvertido: envioConvertido || envioRecemCriado?.tipo === "reembolso", statusEmailCotista: { ...statusEmailCotista, [cotistaId]: "ENVIADO" } } });
-      if (todosConcluidos) {
-        setRascunhoConcluido(true);
-        if (idRascunhoAtual) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-        notificarEnvioCliente("success", `E-mail para ${nomeCotista} enviado com sucesso. Todos os destinatários selecionados foram concluídos.`);
-        fecharModalEmail();
-      } else {
-        setSucessoEmail(`E-mail para ${nomeCotista} enviado. Ainda há destinatários pendentes.`);
-      }
+      rascunhosFinalizadosRef.current.add(idRascunhoAtual);
+      await persistirRascunho({ status: "CONCLUIDO", envioId: envioRecemCriado.id,
+        dados: { ...construirDadosRascunho(), cotistasEmail: selecionados, envioConvertido: true, statusEmailCotista: statusConfirmados } });
+      setRascunhoConcluido(true);
+      setRascunhos(atuais => atuais.filter(r => r.id !== idRascunhoAtual));
+      notificarEnvioCliente("success", "Envio concluído para todos os cotistas selecionados.");
+      fecharModalEmail();
     } catch (cause) {
-      notificarEnvioCliente("warning", `E-mail enviado para ${nomeCotista}, mas não foi possível concluir a atualização do registro: ${cause instanceof Error ? cause.message : "erro desconhecido"}`);
+      const mensagem = `O e-mail já foi enviado. Use “Concluir registro do envio” para atualizar o registro sem reenviar: ${cause instanceof Error ? cause.message : "erro desconhecido"}`;
+      setErroEmail(mensagem);
+      notificarEnvioCliente("warning", mensagem);
+    } finally {
+      finalizandoEmailRef.current = false;
+      setEnviandoEmail(false);
     }
   };
+
+  const destinatariosSelecionadosEmail = cotistasDoEnvio(cotistasEmail, form.cotista_ids);
+  const destinatariosObrigatorios = destinatariosSelecionadosEmail.filter(c => envioRecemCriado?.tipo !== "cliente" || anexosSelecionadosDoCotista(anexosEnvioEmail, c.id, anexosSelecionados, anexosPorCotista).length > 0);
+  const todosEmailsConfirmados = destinatariosObrigatorios.length > 0 && destinatariosObrigatorios.every(c => emailsEnviados.includes(c.id) || statusEmailCotista[c.id] === "ENVIADO");
 
   const cotistaEmailDialogo = cotistasEmail.find((cotista) => cotista.id === cotistaEmailAberto) ?? null;
   const anexosCotistaEmailDialogo: AnexoEmail[] = cotistaEmailDialogo
@@ -1137,9 +1170,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         </div>
       </header>
 
-      {envioRecemCriado && envioRecemCriado.tipo !== "share" && etapa !== totalEtapas && <section className="envio-continuar-email" aria-label="Envio de e-mail da solicitação">
+      {envioRecemCriado && envioRecemCriado.tipo !== "share" && <section className="envio-continuar-email" aria-label="Envio de e-mail da solicitação">
         <div><strong>Documentos prontos para envio</strong><p>{envioRecemCriado.descricao} · Escolha o cotista e revise a prévia antes de enviar.</p></div>
-        <Button type="button" onClick={() => { setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : "Enviar e-mail"}</Button>
+        <Button type="button" onClick={() => { if (todosEmailsConfirmados) { void concluirEnvioCotista(); return; } setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : enviandoEmail ? "Concluindo registro…" : todosEmailsConfirmados ? "Concluir registro do envio" : "Enviar e-mail"}</Button>
       </section>}
 
       <section className="envio-fluxo !mt-[18px] mb-[20px] py-px overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
@@ -1250,14 +1283,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   <div className="grid gap-3 sm:grid-cols-2">
                   <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   {tipo === "share" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
+                  <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+                  <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   <Campo label="Vencimento" obrigatorio={tipo === "share"}><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
+                  </div>
                   <Campo label="Fornecedor"><div className="flex items-center gap-2"><SearchableCombobox items={fornecedoresItems} value={fornecedorSelecionadoId} onChange={(id, label) => { const fornecedor = fornecedores.find((item) => item.id === id); setForm((atual) => ({ ...atual, fornecedor_id: fornecedor ? id.slice(fornecedor.origem.length + 1) : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor correspondente encontrado." allowFreeText />{Boolean(form.fornecedor.trim()) && !form.fornecedor_id && <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-sm" onClick={() => setDialogoFornecedor(true)} aria-label="Adicionar fornecedor ao cadastro" title="Adicionar fornecedor ao cadastro">{salvandoFornecedor ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}</Button>}</div></Campo>
                   {tipo === "cliente" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, centro_custo: "", subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].find(Boolean) || ""} onChange={(id) => { const nivel = (["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const).find((campo) => categoriaSelecionada?.[campo] === id); setForm((atual) => ({ ...atual, subcategoria_1: nivel === "subcategoria_1" ? id : "", subcategoria_2: nivel === "subcategoria_2" ? id : "", subcategoria_3: nivel === "subcategoria_3" ? id : "", subcategoria_4: nivel === "subcategoria_4" ? id : "" })); }} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
                   {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={opcoesPeriodicidadeEnvio} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id as Periodicidade)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
-                  <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   </div>
                 </div>
               )}
@@ -1284,7 +1319,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="envio-bloco min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento. Deixe “Todos os cotistas da aeronave” para compartilhar o anexo com todos no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} cotistas={tipo === "cliente" || tipo === "reembolso" ? cotistasSelecionados.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId)} /></div>
+                  <div className="envio-bloco min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento. Deixe “Todos os cotistas da aeronave” para compartilhar o anexo com os cotistas selecionados neste envio.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} cotistas={tipo === "cliente" || tipo === "reembolso" ? cotistasSelecionados.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId)} /></div>
                   {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
                 </div>
               )}
@@ -1304,9 +1339,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </div>
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
-          ) : (
+          ) : !envioRecemCriado || envioRecemCriado.tipo === "share" ? (
             <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Enviar e-mail" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -1399,13 +1434,15 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         preparandoId={preparandoCotistaId}
         erro={erroEmail}
         sucesso={sucessoEmail}
-        destinatarios={cotistasEmail.map((cotista) => {
+        destinatarios={destinatariosSelecionadosEmail.map((cotista) => {
           const quantidade = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id)).length;
           return { id: cotista.id, nome: cotista.nome, email: emailsPorCotista[cotista.id] ?? cotista.email ?? "", anexos: quantidade,
             enviado: emailsEnviados.includes(cotista.id) || statusEmailCotista[cotista.id] === "ENVIADO",
             indisponivel: envioRecemCriado?.tipo === "cliente" && quantidade === 0 };
         })}
         onSelecionar={(id) => void abrirEnvioCotista(id)}
+        onConcluir={() => void concluirEnvioCotista()}
+        concluindo={enviandoEmail}
       />
 
       <EnviarEmailClienteDialog
@@ -1452,3 +1489,4 @@ function Campo({ label, obrigatorio, className = "", rotuloClassName = "", child
 function Resumo({ label, valor }: { label: string; valor: string }) {
   return <div className="flex items-start justify-between gap-4 border-t border-border/60 py-2 text-[11px]"><span className="text-muted-foreground">{label}</span><strong className="text-right text-foreground">{valor || "—"}</strong></div>;
 }
+

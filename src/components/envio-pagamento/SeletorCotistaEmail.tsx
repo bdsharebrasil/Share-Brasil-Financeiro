@@ -10,7 +10,7 @@ export type DestinatarioEnvio = {
   indisponivel: boolean;
 };
 
-export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, preparandoId, carregando, erro, sucesso, onSelecionar }: {
+export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, preparandoId, carregando, erro, sucesso, onSelecionar, onConcluir, concluindo = false }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   destinatarios: DestinatarioEnvio[];
@@ -19,9 +19,11 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
   erro: string;
   sucesso: string;
   onSelecionar: (id: string) => void;
+  onConcluir?: () => void;
+  concluindo?: boolean;
 }) {
   const pendentes = destinatarios.filter((item) => !item.enviado && !item.indisponivel).length;
-  return <Dialog open={open} onOpenChange={(aberto) => { if (!preparandoId) onOpenChange(aberto); }}>
+  return <Dialog open={open} onOpenChange={(aberto) => { if (!preparandoId && !concluindo) onOpenChange(aberto); }}>
     <DialogContent className="despesas-theme envio-cotista-selector">
       <DialogHeader>
         <span className="envio-seletor-kicker"><Mail size={14} /> ENVIO DE DOCUMENTOS</span>
@@ -32,7 +34,7 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
       {sucesso && <p role="status" className="envio-aviso envio-aviso-sucesso">{sucesso}</p>}
       <div className="envio-destinatarios" aria-busy={carregando || Boolean(preparandoId)}>
         {carregando ? <p className="envio-seletor-vazio"><Loader2 size={18} className="animate-spin" /> Carregando destinatários…</p> : destinatarios.map((item) => <button
-          type="button" key={item.id} className="envio-destinatario" disabled={Boolean(preparandoId) || item.enviado || item.indisponivel}
+          type="button" key={item.id} className="envio-destinatario" disabled={concluindo || Boolean(preparandoId) || item.enviado || item.indisponivel}
           onClick={() => onSelecionar(item.id)} aria-label={`Revisar e-mail para ${item.nome}`} data-enviado={item.enviado}
         >
           <span className="envio-destinatario-avatar" aria-hidden="true">{item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]).join("")}</span>
@@ -41,7 +43,8 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
         </button>)}
         {!carregando && !destinatarios.length && <p className="envio-seletor-vazio">Nenhum cotista disponível. Retome a solicitação e confira os vínculos da aeronave.</p>}
       </div>
-      <footer className="envio-seletor-footer"><span>{pendentes} cotista(s) pendente(s)</span><button type="button" onClick={() => onOpenChange(false)} disabled={Boolean(preparandoId)}>Continuar depois</button></footer>
+      {onConcluir && destinatarios.some(item => !item.indisponivel) && destinatarios.filter(item => !item.indisponivel).every(item => item.enviado) && <button type="button" className="envio-destinatario" disabled={concluindo} onClick={onConcluir}>{concluindo ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} {concluindo ? "Concluindo registro…" : "Concluir registro do envio"}</button>}
+      <footer className="envio-seletor-footer"><span>{pendentes} cotista(s) pendente(s)</span><button type="button" onClick={() => onOpenChange(false)} disabled={concluindo || Boolean(preparandoId)}>Continuar depois</button></footer>
     </DialogContent>
   </Dialog>;
 }

@@ -32,9 +32,11 @@ import {
 import {
   fmt,
   horas,
+  horasAtribuidas,
   money,
   montarBalanco,
   norm,
+  participanteDoCotista,
   projetarCustos,
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
@@ -62,7 +64,7 @@ const ABAS: { id: Aba; nome: string }[] = [
   { id: "diario", nome: "Diário de bordo" },
   { id: "curiosidades", nome: "Seu período em voo" },
 ];
-const MESES_PROJECAO = [1, 2, 3, 5, 10, 15, 20, 30, 45];
+const MESES_PROJECAO = Array.from({ length: 45 }, (_, index) => index + 1);
 const CORES = { fixos: "#2f6db5", variaveis: "#52794a", extras: "#e8b94a", naoClassificados: "#8291a4" };
 
 export function FechamentoBalancoReferencia({
@@ -76,6 +78,7 @@ export function FechamentoBalancoReferencia({
 }: Props) {
   const [aba, setAba] = useState<Aba>("balanco");
   const [horasProjetadas, setHorasProjetadas] = useState(10);
+  const [fatorFixo, setFatorFixo] = useState(1);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
   const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
@@ -92,10 +95,11 @@ export function FechamentoBalancoReferencia({
     () => calcularAcertoContasCotistas(d?.balanco_fontes, mesesAcerto),
     [d?.balanco_fontes, mesesAcerto],
   );
-  const participante = b?.participantes.find((item) => item.id === cotistaId);
+  const cadastroCotista = cotistaId ? cotistas.find((item) => item.id === cotistaId) : undefined;
+  const participante = b ? participanteDoCotista(b, cadastroCotista, cotistas) ?? b.participantes.find((item) => item.id === cotistaId) : undefined;
   const total = participante?.custo ?? b?.total;
   const meses = participante?.mensal ?? b?.mensais ?? [];
-  const totalHoras = participante?.horas ?? b?.totalHoras ?? null;
+  const totalHoras = participante ? participante.horas : b?.totalHoras ?? null;
   const periodo = b?.meses.map(rotuloMesCotista).join(" · ") ?? "";
   const aeronave = b?.aeronave || "Aeronave selecionada";
   const lancamentos = (d?.lancamentos ?? [])
@@ -111,31 +115,22 @@ export function FechamentoBalancoReferencia({
   );
   const totalListado = lancamentosFiltrados.reduce((soma, item) => soma + (item.valorCentavos ?? 0), 0);
   const projecao = total && b && total.naoClassificados === 0
-    ? projetarCustos(total, totalHoras, b.meses.length, horasProjetadas)
+    ? projetarCustos(total, totalHoras, b.meses.length, horasProjetadas, fatorFixo)
     : null;
   const serieProjecao = total && b && total.naoClassificados === 0
     ? Array.from({ length: 45 }, (_, index) => {
         const horasMes = index + 1;
-        const ponto = projetarCustos(total, totalHoras, b.meses.length, horasMes);
+        const ponto = projetarCustos(total, totalHoras, b.meses.length, horasMes, fatorFixo);
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item): item is { horas: number; fixoHora: number; variavelHora: number; extraHora: number; custoHora: number; custoMensal: number } => item !== null)
     : [];
-  const voosOperacionais = (d?.balanco_operacional?.voos ?? [])
+  const voosOperacionais = (participante?.voos ?? d?.balanco_operacional?.voos ?? [])
     .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
   const voosDoParticipante = participante?.voos ?? [];
   const voos = voosOperacionais
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
-  const cadastroCotista = cotistaId ? cotistas.find((item) => item.id === cotistaId) : undefined;
-  const voosDoCadastroCotista = cadastroCotista ? voos.filter((voo) => {
-    const clienteId = cadastroCotista.cliente_id;
-    const socioId = cadastroCotista.socio_id;
-    return (clienteId && (voo.clienteId === clienteId || (voo.emprestado && voo.clienteTomadorId === clienteId)))
-      || (socioId && (voo.socioId === socioId || (voo.emprestado && voo.socioTomadorId === socioId)));
-  }) : [];
-  const voosParaCuriosidades = participante
-    ? (voosDoParticipante.length ? voosDoParticipante : voosDoCadastroCotista)
-    : voos;
+  const voosParaCuriosidades = participante ? voosDoParticipante : voos;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
@@ -153,8 +148,7 @@ export function FechamentoBalancoReferencia({
   const saldo = participante && acerto.balanco
     ? acerto.balanco.saldos.find((item) => item.id === participante.id)?.saldoCentavos ?? null
     : null;
-  const participanteTemVoos = Boolean(voosDoParticipante.length);
-  const quantidadeVoos = participanteTemVoos ? voos.length : (b.totalVoos ?? voos.length);
+  const quantidadeVoos = diarioDisponivel ? voos.length : b.totalVoos;
   const pousos = voos.reduce((soma, voo) => soma + (voo.pousos ?? 0), 0);
   const custoMensalMedio = b.meses.length ? total.total / b.meses.length : 0;
   const custoFixos = total.fixos;
@@ -184,6 +178,7 @@ export function FechamentoBalancoReferencia({
         cotistas={cotistas}
         fornecedores={fornecedores}
         horasProjetadas={horasProjetadas}
+        fatorFixo={fatorFixo}
       />).toBlob();
       const slug = `${aeronave}-${b.meses.join("_")}-${participantesDoRelatorio.length === b.participantes.length ? "todos-cotistas" : participantesDoRelatorio.map((item) => item.nome).join("-")}`
         .normalize("NFD")
@@ -214,6 +209,7 @@ export function FechamentoBalancoReferencia({
       <div className="fb-page-actions">
         <button type="button" className="fb-button" onClick={abrirDialogPdf} disabled={!b.participantes.length}><FileDown size={15} /> Gerar PDF</button>
       </div>
+      {b.voosSemVinculo.length > 0 && <p className="fb-note" role="status">{b.voosSemVinculo.length} voo(s) sem titular identificado: entram no total da aeronave, mas precisam de vínculo no diário para compor as horas individuais.</p>}
       <nav className="fb-tabs" role="tablist" aria-label="Seções do fechamento">
         {ABAS.map((item) => <button
           type="button"
@@ -285,6 +281,10 @@ export function FechamentoBalancoReferencia({
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{money(mes.fixos)}</td><td className="fb-num">{money(mes.variaveis)}</td><td className="fb-num">{money(mes.extras)}</td><td className="fb-num">{money(mes.naoClassificados)}</td><td className="fb-num"><b>{money(mes.total)}</b></td></tr>)}</tbody>
           <tfoot><tr><td>Total</td><td className="fb-num">{money(total.fixos)}</td><td className="fb-num">{money(total.variaveis)}</td><td className="fb-num">{money(total.extras)}</td><td className="fb-num">{money(total.naoClassificados)}</td><td className="fb-num">{money(total.total)}</td></tr></tfoot>
         </table></div></section>
+        <section className="fb-card fb-spaced"><h2>Utilização e médias do período</h2><div className="fb-scroll"><table>
+          <thead><tr><th>Mês</th><th className="fb-num">Etapas</th><th className="fb-num">H. voo</th><th className="fb-num">H. totais atribuídas</th><th className="fb-num">Distância (NM)</th><th className="fb-num">Dias com voo</th><th className="fb-num">Custo/h</th></tr></thead>
+          <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{fmt(mes.voos, 0)}</td><td className="fb-num">{horas(mes.horasVoo)}</td><td className="fb-num">{horas(mes.horas)}</td><td className="fb-num">{fmt(mes.distanciaNm)}</td><td className="fb-num">{fmt(mes.diasVoo, 0)}</td><td className="fb-num">{money(mes.custoHora)}</td></tr>)}</tbody>
+        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
         <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
       </section>}
 
@@ -356,6 +356,8 @@ export function FechamentoBalancoReferencia({
           <Kpi titulo="Variável + extras por hora" valor={projecao ? money(projecao.variavelHora + projecao.extraHora) : "—"} detalhe="Da seleção usada na projeção" />
         </div>
         <section className="fb-card fb-spaced"><h2>Projeção de custo por hora — {participante?.nome ?? "aeronave"}</h2>
+          <label className="fb-range-label">Multiplicador do custo fixo mensal: <input type="number" min="1" max="10" step="0.1" value={fatorFixo} onChange={(event) => setFatorFixo(Math.min(10, Math.max(1, Number(event.target.value) || 1)))} aria-label="Multiplicador do custo fixo mensal" /></label>
+          <p className="fb-note">Base fixa: {money(total.fixos / b.meses.length)} por mês × {fmt(fatorFixo)}. Use 1 para os custos registrados ou 2 para o cenário com base fixa em dobro. Este ajuste altera somente a projeção.</p>
           <label className="fb-range-label" htmlFor="fb-horas">Horas voadas no mês: <b>{horasProjetadas}</b></label>
           <input className="fb-range" id="fb-horas" type="range" min="1" max="45" value={horasProjetadas} onChange={(event) => setHorasProjetadas(Number(event.target.value))} disabled={!projecao} />
           {projecao ? <div className="fb-chart fb-chart-tall"><ResponsiveContainer width="100%" height="100%"><LineChart data={serieProjecao} margin={{ top: 14, right: 16, left: 0, bottom: 8 }}>
@@ -369,7 +371,7 @@ export function FechamentoBalancoReferencia({
         {projecao && <section className="fb-card fb-spaced"><h2>Tabela de projeção</h2><div className="fb-scroll"><table>
           <thead><tr><th>H. voadas</th><th className="fb-num">Custo fixo</th><th className="fb-num">Custo variável</th><th className="fb-num">Custo extra</th><th className="fb-num">Custo por hora</th><th className="fb-num">Custo mensal</th></tr></thead>
           <tbody>{MESES_PROJECAO.map((h) => {
-            const item = projetarCustos(total, totalHoras, b.meses.length, h);
+            const item = projetarCustos(total, totalHoras, b.meses.length, h, fatorFixo);
             return item && <tr key={h} className={h === horasProjetadas ? "fb-highlight" : undefined}>
               <td>{h}</td><td className="fb-num">{money(item.fixoHora)}</td><td className="fb-num">{money(item.variavelHora)}</td><td className="fb-num">{money(item.extraHora)}</td><td className="fb-num"><b>{money(item.custoHora)}</b></td><td className="fb-num">{money(item.custoMensal)}</td>
             </tr>;
@@ -380,18 +382,21 @@ export function FechamentoBalancoReferencia({
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
         <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
           {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
-            <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>VOO PARA</th></tr></thead>
+            <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
             <tbody>{voos.map((voo, index) => <tr key={voo.id}>
               <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
               <td>{formatarData(voo.data)}</td>
               <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
               <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
               <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
+              <td>{horas(voo.horas)}</td>
+              {participante && <td>{horas(horasAtribuidas(voo))}</td>}
               <td>{destinoVoo(voo, cotistas)}</td>
             </tr>)}</tbody>
           </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
             : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
         </section>
+        <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
       </section>}
 
       {aba === "curiosidades" && <section id="fb-panel-curiosidades" role="tabpanel" aria-labelledby="fb-tab-curiosidades">
@@ -566,3 +571,4 @@ const CSS = `
   .fb-ledger-count{width:100%;margin:0}
 }
 `;
+

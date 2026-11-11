@@ -2,7 +2,7 @@ import { Document, Image, Line, Page, Path, Rect, Svg, StyleSheet, Text, View } 
 import type { CotistaAeronave } from "@/lib/colaborador-api";
 import type { LancamentoEconomico } from "@/lib/financeiro-share-api";
 import { documentoDoLancamento, nomeFornecedorLancamento, nomePagadoresDoLancamento, rateioDoCotista, tipoRateioLancamento, valorPagoLancamento, type OpcaoFornecedorLancamento } from "@/lib/financeiro-cotista-lancamentos";
-import { fmt, horas, money, norm, projetarCustos, type Balanco, type DashboardBalanco, type LinhaLancamento, type ParticipanteBalanco } from "@/lib/balanco-cotista";
+import { fmt, horas, horasAtribuidas, money, norm, projetarCustos, type Balanco, type DashboardBalanco, type LinhaLancamento, type ParticipanteBalanco } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 
 const C = { navy: "#12365a", navy2: "#1c4b77", gold: "#d9ad59", ink: "#192b3d", muted: "#627386", line: "#dce4ec", soft: "#f2f6fa", blue: "#3475ae", green: "#4e8761", amber: "#d7a848", slate: "#8392a2", white: "#ffffff" };
@@ -66,6 +66,7 @@ type Props = {
   cotistas?: CotistaAeronave[];
   fornecedores?: OpcaoFornecedorLancamento[];
   horasProjetadas?: number;
+  fatorFixo?: number;
   lancamentos?: LinhaLancamento[];
 };
 
@@ -121,9 +122,9 @@ function MonthlyChart({ participante }: { participante: ParticipanteBalanco }) {
   </View>;
 }
 
-function ProjectionChart({ participante, meses, horasProjetadas }: { participante: ParticipanteBalanco; meses: number; horasProjetadas: number }) {
+function ProjectionChart({ participante, meses, horasProjetadas, fatorFixo }: { participante: ParticipanteBalanco; meses: number; horasProjetadas: number; fatorFixo: number }) {
   if (participante.custo.naoClassificados > 0 || participante.horas == null || participante.horas <= 0) return <Text style={STYLE.paragraph}>A projeção não está disponível para este cotista porque faltam horas voadas ou existem custos não classificados.</Text>;
-  const data = Array.from({ length: 45 }, (_, index) => projetarCustos(participante.custo, participante.horas, meses, index + 1)).filter((item) => item !== null);
+  const data = Array.from({ length: 45 }, (_, index) => projetarCustos(participante.custo, participante.horas, meses, index + 1, fatorFixo)).filter((item) => item !== null);
   const values = data.map((item) => item.custoHora);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -213,7 +214,7 @@ function reportTitle(period: string) {
   return period.includes(" · ") ? `${period.split(" · ").length} meses selecionados` : period;
 }
 
-export function BalancoClientePdf({ balanco, dashboard, participantes, p, aeronave, cotistas = [], fornecedores = [], horasProjetadas = 10, lancamentos }: Props) {
+export function BalancoClientePdf({ balanco, dashboard, participantes, p, aeronave, cotistas = [], fornecedores = [], horasProjetadas = 10, fatorFixo = 1, lancamentos }: Props) {
   const participantesDoPdf = participantes ?? (p ? [p] : []);
   const periodo = balanco.meses.map(rotuloMesCotista).join(" · ");
   const periodoCurto = reportTitle(periodo);
@@ -248,14 +249,18 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
         voo.trecho || `${voo.origem || "—"} × ${voo.destino || "—"}`,
         voo.tempoDep?.slice(0, 5) || "—",
         voo.tempoPou?.slice(0, 5) || "—",
+        horas(voo.horasVoo),
         horas(voo.horas),
+        horas(horasAtribuidas(voo)),
         fmt(voo.pousos, 0),
-        voo.natureza || (voo.emprestado ? "Voo emprestado" : "Operação da aeronave"),
+        fmt(voo.distanciaNm),
+        [voo.comandante, voo.copiloto].filter(Boolean).join(" / ") || "—",
+        `${voo.natureza || (voo.emprestado ? "Voo emprestado" : "Operação da aeronave")}${voo.compartilhado ? ` · Compartilhado (${fmt(voo.percentualAtribuido)}%)` : ""}`,
       ]);
       const compensacoes = balanco.compensacoes.filter((item) => item.credorId === participante.id || item.devedorId === participante.id);
       const custoCategorias = GROUPS.map((group) => [group.label, money(participante.custo[group.key]), `${fmt(participante.custo.total ? participante.custo[group.key] / participante.custo.total * 100 : 0, 1)}%`]);
-      const projecaoRows = [1, 2, 3, 5, 10, 15, 20, 30, 45].flatMap((hours) => {
-        const estimate = participante.custo.naoClassificados === 0 && participante.horas != null ? projetarCustos(participante.custo, participante.horas, balanco.meses.length, hours) : null;
+      const projecaoRows = Array.from({ length: 45 }, (_, index) => index + 1).flatMap((hours) => {
+        const estimate = projetarCustos(participante.custo, participante.horas, balanco.meses.length, hours, fatorFixo);
         return estimate ? [[`${hours} h`, money(estimate.fixoHora), money(estimate.variavelHora), money(estimate.extraHora), money(estimate.custoHora), money(estimate.custoMensal)]] : [];
       });
       const mesesCotista = participante.mensal;
@@ -269,7 +274,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           <View style={STYLE.band}><Text style={STYLE.bandEyebrow}>CUSTO ATRIBUÍDO NO PERÍODO</Text><Text style={STYLE.bandValue}>{money(participante.custo.total)}</Text><Text style={STYLE.bandCaption}>{periodo}</Text></View>
           <View style={STYLE.kpis}>
             <Kpi label="Média mensal" value={money(balanco.meses.length ? participante.custo.total / balanco.meses.length : 0)} detail={`${balanco.meses.length} mês(es)`} />
-            <Kpi label="Horas voadas" value={horas(participante.horas)} detail={`${participante.voos.length} voo(s)`} />
+            <Kpi label="Horas atribuídas" value={horas(participante.horas)} detail={`${participante.voos.length} etapa(s) · ${horas(participante.horasCompartilhadas)} compartilhadas`} />
             <Kpi label="Custo por hora" value={money(participante.custoHora)} detail="Com base nas horas registradas" />
           </View>
           <Text style={STYLE.sectionTitle}>Composição do custo</Text>
@@ -314,26 +319,37 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           </View>
           <View style={STYLE.card}>
             <Text style={STYLE.cardTitle}>Projeção do custo por hora · {horasProjetadas} h/mês</Text>
-            <ProjectionChart participante={participante} meses={balanco.meses.length} horasProjetadas={horasProjetadas} />
-            <Table headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"]} widths={[.85, 1, 1, 1, 1, 1.15]} rows={projecaoRows} />
+            <Text style={STYLE.paragraph}>Base fixa mensal: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Ajuste aplicado apenas à projeção.</Text>
+            <ProjectionChart participante={participante} meses={balanco.meses.length} horasProjetadas={horasProjetadas} fatorFixo={fatorFixo} />
             <Text style={[STYLE.paragraph, { marginTop: 7 }]}>Projeção estimada com base nos custos registrados e classificados; não é previsão de manutenção nem compromisso de custo.</Text>
           </View>
-          <View style={STYLE.card}>
+          <View style={STYLE.card} wrap={false}>
             <Text style={STYLE.cardTitle}>Utilização frente à cota</Text>
             <Text style={STYLE.paragraph}>Participação nas horas voadas: {participante.uso == null ? "—" : `${fmt(participante.uso, 1)}%`} · Referência proporcional: {horas(participante.referencia)} · Diferença: {horas(participante.saldoHoras)}.</Text>
           </View>
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>,
 
+        ...(projecaoRows.length ? [0, 23].map((inicio) => <Page key={`${participante.id}-projecao-${inicio}`} size="A4" style={STYLE.page}>
+          <SectionHeading section="03 · Custo por hora" period={periodoCurto} />
+          <Text style={STYLE.title}>Tabela de projeção · {inicio + 1} a {Math.min(inicio + 23, 45)} h/mês</Text>
+          <Text style={STYLE.subtitle}>{participante.nome} · {periodo}</Text>
+          <Text style={STYLE.paragraph}>Fixo mensal médio: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Variáveis e extras usam as {horas(participante.horas)} atribuídas no período.</Text>
+          <View style={STYLE.card}><Table headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"]} widths={[.85, 1, 1, 1, 1, 1.15]} rows={projecaoRows.slice(inicio, inicio + 23)} /></View>
+          <PageFooter aeronave={aeronave} participante={participante.nome} />
+        </Page>) : []),
+
         <Page key={`${participante.id}-diario`} size="A4" orientation="landscape" style={STYLE.page}>
           <SectionHeading section="04 · Diário de bordo" period={periodoCurto} />
           <Text style={STYLE.title}>Histórico de voos · {participante.nome}</Text>
           <Text style={STYLE.subtitle}>{participante.voos.length} etapa(s) vinculada(s) ao cotista no período selecionado</Text>
-          {participante.voos.length ? <View style={STYLE.card}><Table headers={["Data", "Voo", "Trecho", "Decolagem", "Pouso", "Duração", "Pousos", "Natureza"]} widths={[.8, .6, 1.8, .75, .75, .7, .65, 1.3]} rows={vooRows} /></View> : <View style={STYLE.card}><Text style={STYLE.paragraph}>Nenhum voo operacional vinculado a este cotista no período selecionado.</Text></View>}
-          <Text style={STYLE.note}>Voos emprestados são atribuídos ao tomador identificado. Traslados, voos de teste e registros sem titular podem não compor a utilização individual do cotista.</Text>
+          {participante.voos.length ? <View style={STYLE.card}><Table headers={["Data", "Voo", "Trecho", "DEP", "POU", "T. voo", "T. total", "H. atribuídas", "Pousos", "Dist. NM", "Tripulação", "Natureza"]} widths={[.85, .4, 1.5, .55, .55, .6, .6, .7, .5, .6, 1.25, 1.3]} rows={vooRows} /></View> : <View style={STYLE.card}><Text style={STYLE.paragraph}>Nenhum voo operacional vinculado a este cotista no período selecionado.</Text></View>}
+          <Text style={STYLE.note}>Custo/hora = custo atribuído ÷ horas totais atribuídas (acionamento até corte). Traslados e voos de teste são divididos igualmente entre cotistas ativos do cadastro atual, sem duplicar as horas da aeronave. Voos emprestados pertencem ao tomador identificado. Registros sem titular ficam pendentes de vínculo.</Text>
+          {balanco.voosSemVinculo.length > 0 && <Text style={STYLE.note}>{balanco.voosSemVinculo.length} voo(s) da aeronave sem titular identificado no período; não compõem as horas deste cotista.</Text>}
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>
       ];
     })}
   </Document>;
 }
+

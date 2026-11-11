@@ -46,7 +46,7 @@ export function AnimatedStepper({ etapas, atual }: { etapas: readonly EtapaEnvio
 }
 
 /** Somente a apresentação muda; campos, rascunhos e validações pertencem à página. */
-export function AnimatedStepPanel({ etapa, titulo, children }: { etapa: number; titulo: string; children: ReactNode }) {
+export function AnimatedStepPanel({ etapa, titulo, children }: { etapa: number; titulo?: string; children: ReactNode }) {
   const anterior = useRef(etapa);
   const montado = useRef(false);
   const ultimaDirecao = useRef(1);
@@ -63,7 +63,7 @@ export function AnimatedStepPanel({ etapa, titulo, children }: { etapa: number; 
 }
 
 function EtapaAnimada({ titulo, direcao, reduzido, focar, children }: {
-  titulo: string; direcao: number; reduzido: boolean; focar: boolean; children: ReactNode;
+  titulo?: string; direcao: number; reduzido: boolean; focar: boolean; children: ReactNode;
 }) {
   const id = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -74,14 +74,14 @@ function EtapaAnimada({ titulo, direcao, reduzido, focar, children }: {
   return (
     <motion.section
       className="envio-stepper-painel"
-      aria-labelledby={id}
+      aria-labelledby={titulo ? id : undefined}
       aria-hidden={presente ? undefined : true}
       inert={!presente}
       initial={reduzido ? false : { opacity: 0, x: 12 * direcao }}
       animate={{ opacity: 1, x: 0, transition: { duration: reduzido ? 0 : ENTER, ease: EASE_OUT } }}
       exit={{ opacity: 0, transition: { duration: reduzido ? 0 : EXIT, ease: EASE_IN } }}
     >
-      <h2 ref={heading} id={id} tabIndex={-1} className="envio-stepper-heading">{titulo}</h2>
+      {titulo && <h2 ref={heading} id={id} tabIndex={-1} className="envio-stepper-heading">{titulo}</h2>}
       {children}
     </motion.section>
   );

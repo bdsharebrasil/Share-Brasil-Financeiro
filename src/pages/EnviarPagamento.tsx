@@ -63,6 +63,7 @@ type OpcaoEnvio = {
   regra: string;
   icon: typeof WalletCards;
   cor: string;
+  corBorda: string;
 };
 type ArquivoPersistidoEmail = { key: string; url: string; filename: string; content_type: string; cotista_id?: string };
 type RateioDuplicado = { id: string; tabela: string; data_vencimento?: string | null; categoria_nome?: string | null; valor_total_centavos?: number; documento_url?: string | null; numero_nf?: string | null; numero_recibo?: string | null; numero_boleto?: string | null; numero_demonstrativo?: string | null; numero_voo?: string | null; url_nf?: string | null; url_recibo?: string | null; url_boleto?: string | null; url_demonstrativo?: string | null; url_doc?: string | null };
@@ -132,7 +133,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Share",
     regra: "Não gera rateio",
     icon: WalletCards,
-    cor: "text-primary",
+    cor: "text-[#7ed321]",
+    corBorda: "border-[#7ed321]/65",
   },
   {
     tipo: "reembolso",
@@ -143,7 +145,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Share + rateio",
     regra: "Cliente reembolsa depois",
     icon: HandCoins,
-    cor: "text-amber-500",
+    cor: "text-sky-400",
+    corBorda: "border-sky-400/65",
   },
   {
     tipo: "cliente",
@@ -155,6 +158,7 @@ const opcoes: OpcaoEnvio[] = [
     regra: "Pago diretamente",
     icon: Users,
     cor: "text-[#7ed321]",
+    corBorda: "border-[#7ed321]/65",
   },
 ];
 const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();
@@ -1127,7 +1131,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         <Button type="button" onClick={() => { setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : "Enviar e-mail"}</Button>
       </section>}
 
-      <section className="envio-fluxo overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
+      <section className="envio-fluxo !mt-[18px] mb-[20px] py-px overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
         <div className="envio-fluxo-header flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
@@ -1143,12 +1147,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         ]} />
 
         <div className="envio-fluxo-conteudo flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
-          <AnimatedStepPanel etapa={etapa} titulo={tituloEtapa}>
+          <AnimatedStepPanel etapa={etapa} titulo={etapa === 0 ? undefined : tituloEtapa}>
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[.16em] text-muted-foreground">Modo da solicitação <sup className="text-primary">*</sup></p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.</p>
+                <p className="text-[11px] font-bold uppercase tracking-[.16em] text-muted-foreground dark:!text-[rgba(163,199,253,1)]">Modo da solicitação <sup className="text-primary">*</sup></p>
+                <p className="mt-1 !text-[11px] text-muted-foreground">Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
                 {opcoesVisiveis.map((opcao) => {
@@ -1160,7 +1164,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`envio-modo relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
+                      className={`envio-modo relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? `${opcao.corBorda} bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]` : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -1282,7 +1286,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="envio-fluxo-footer my-0 flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
+        <div className="envio-fluxo-footer -my-[5px] flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>

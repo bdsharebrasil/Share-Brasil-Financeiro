@@ -3,7 +3,7 @@
 /* Superfícies do assistente e do seletor: contraste sem depender de fundos brancos iguais. */
 html .envio-pagamento {
   --envio-sombra: 0 2px 4px #13223a06, 0 8px 24px #13223a0a;
-  padding: 20px; background: var(--fin-canvas); border-radius: 12px;
+  padding: 35px 14px; margin: 27px 5px; background: var(--fin-canvas); border-radius: 12px;
   font-size: 13px; line-height: 1.5;
 }
 html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; background: rgba(8, 15, 22, 1); }
@@ -18,8 +18,8 @@ html body .envio-pagamento .envio-fluxo.border {
   background: var(--fin-surface); box-shadow: var(--envio-sombra);
 }
 html.dark body .envio-pagamento .envio-fluxo.border { border-color: rgba(8, 14, 19, 1); }
-html .envio-pagamento .envio-fluxo-header,
-html .envio-pagamento .envio-fluxo-footer { padding: 16px 20px; background: var(--fin-soft); border-color: var(--fin-border); }
+html .envio-pagamento .envio-fluxo-header { padding: 16px 20px; background: var(--fin-soft); border-color: var(--fin-border); }
+html .envio-pagamento .envio-fluxo-footer { padding: 24px 20px; background: var(--fin-soft); border-color: var(--fin-border); }
 html.dark .envio-pagamento .envio-fluxo-header,
 html.dark .envio-pagamento .envio-fluxo-footer { background: rgba(14, 21, 31, 1); }
 html .envio-pagamento .envio-fluxo-conteudo { padding: 20px; gap: 16px; }

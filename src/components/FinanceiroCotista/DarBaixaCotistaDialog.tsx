@@ -30,6 +30,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const [enviando,setEnviando] = useState(false);
   const [uploading,setUploading] = useState(false);
   const [precisaAtualizar,setPrecisaAtualizar] = useState(false);
+  const [baixaRegistrada,setBaixaRegistrada] = useState(false);
   const trava = useRef(false);
   const tentativas = useRef<Record<string,{ chave: string; snapshot?: string }>>({});
   const sessao = useRef(0);
@@ -38,7 +39,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
     const lancamentoId = lancamento?.id;
     const versao = ++sessao.current;
     if (!lancamentoId) return;
-    setLoading(true); setUploading(false); setErro(''); setMensagem(''); setContexto(null); setPrecisaAtualizar(false); setParcelas({}); setSelecionado(''); tentativas.current = {};
+    setLoading(true); setUploading(false); setErro(''); setMensagem(''); setContexto(null); setPrecisaAtualizar(false); setBaixaRegistrada(false); setParcelas({}); setSelecionado(''); tentativas.current = {};
     Promise.all([buscarContextoBaixa(lancamentoId),buscarOpcoesLancamento()]).then(([ctx,opts]) => {
       if (sessao.current !== versao) return;
       setContexto(ctx); setOpcoes(opts);
@@ -54,7 +55,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const parcela = parcelas[selecionado];
   const direto = contexto?.natureza === 'PAGAMENTO_DIRETO';
   const ocupado = enviando || uploading;
-  const somenteLeitura = ocupado || precisaAtualizar || Boolean(rateio && quitado(rateio));
+  const somenteLeitura = ocupado || precisaAtualizar || baixaRegistrada || Boolean(rateio && quitado(rateio));
   const total = parcela ? cents(parcela.valor) : 0;
   const pendentes = rateios.filter(r => !quitado(r));
   const nomeCotista = (r: RateioBaixa) => opcoes?.cotistas.find(c => c.id === (r.cotista_id || r.socio_id))?.nome || r.cotista_nome || lancamento?.rateios?.find(item => item.id === r.id)?.cotista || 'Cotista não identificado';
@@ -82,13 +83,11 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
     setContexto(ctx);
     setParcelas(anteriores => Object.fromEntries(ctx.rateios.map(r => [r.id, quitado(r) || r.id === selecionado ? novaParcela(r) : anteriores[r.id] || novaParcela(r)])));
     setPrecisaAtualizar(false);
-    const proximo = ctx.rateios.find(r => !quitado(r) && r.id !== selecionado) || ctx.rateios.find(r => !quitado(r));
-    if (proximo) setSelecionado(proximo.id);
     await onConcluido();
   }
 
   async function confirmar() {
-    if (!lancamento || !contexto || trava.current || uploading) return;
+    if (!lancamento || !contexto || trava.current || uploading || (baixaRegistrada && !precisaAtualizar)) return;
     if (!precisaAtualizar) {
       if (!rateio || !parcela || quitado(rateio)) {setErro('Selecione um cotista com saldo em aberto.');return;}
       if (!parcela.pagador || !pessoas.some(p=>p.id===parcela.pagador)) {setErro('Selecione o pagador real desta parcela.');return;}
@@ -108,7 +107,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
         if(tentativa.snapshot && tentativa.snapshot!==snapshot) throw new Error('Confira o saldo fechando e reabrindo a janela antes de alterar uma tentativa de pagamento.');
         tentativa.snapshot=snapshot;
         await confirmarBaixaConciliada(lancamento.id,pagamento);
-        registrado=true;setPrecisaAtualizar(true); delete tentativas.current[selecionado];
+        registrado=true;setPrecisaAtualizar(true);setBaixaRegistrada(true); delete tentativas.current[selecionado];
         setMensagem(`Pagamento de ${nomeCotista(rateio)} registrado. Os saldos de cada cotista foram atualizados.`);
         avisarAtualizacaoFinanceiro();
       }
@@ -131,7 +130,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
             <h3 className="text-sm font-semibold">Qual cotista deseja baixar?</h3>
             <p className="baixa-nota mb-3 mt-1">Cada confirmação registra somente a parcela selecionada. A despesa permanece aberta até a quitação de todos.</p>
             <div className="baixa-cotistas" role="radiogroup" aria-label="Cotista da baixa">
-              {rateios.map(r=><button key={r.id} type="button" role="radio" aria-checked={selecionado===r.id} disabled={ocupado||precisaAtualizar} className="baixa-cotista" onClick={()=>{setSelecionado(r.id);setErro('');}}>
+              {rateios.map(r=><button key={r.id} type="button" role="radio" aria-checked={selecionado===r.id} disabled={ocupado||precisaAtualizar} className="baixa-cotista" onClick={()=>{setSelecionado(r.id);setBaixaRegistrada(false);setErro('');}}>
                 <span><strong>{nomeCotista(r)}</strong><small>Previsto: {formatarCentavos(Number(r.valor_rateado_centavos))} · Pago: {formatarCentavos(Number(r.valor_pago_real_centavos||0))} · Saldo: {formatarCentavos(saldo(r))}</small>{r.data_pagamento&&<small>Pagamento: {dataLegivel(r.data_pagamento)}</small>}</span>
                 <span>{quitado(r)?'Quitado':selecionado===r.id?'Selecionado':'Selecionar'}</span>
               </button>)}
@@ -153,7 +152,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
         {mensagem&&<p role="status" className="baixa-mensagem">{mensagem}</p>}
         {erro&&<p role="alert">{erro}</p>}
       </div>
-      <DialogFooter className="baixa-footer"><Button variant="outline" disabled={ocupado} onClick={onFechar}>Fechar</Button>{(pendentes.length>0||precisaAtualizar)&&<Button disabled={loading||ocupado||!contexto||(!precisaAtualizar&&Boolean(rateio&&quitado(rateio)))} onClick={()=>void confirmar()}>{enviando?<Loader2 size={16} className="mr-2 animate-spin"/>:<CheckCircle2 size={16} className="mr-2"/>}{precisaAtualizar?'Atualizar saldos':'Confirmar baixa individual'}</Button>}</DialogFooter>
+      <DialogFooter className="baixa-footer"><Button variant="outline" disabled={ocupado} onClick={onFechar}>Fechar</Button>{(pendentes.length>0||precisaAtualizar)&&<Button disabled={loading||ocupado||!contexto||(!precisaAtualizar&&(baixaRegistrada||Boolean(rateio&&quitado(rateio))))} onClick={()=>void confirmar()}>{enviando?<Loader2 size={16} className="mr-2 animate-spin"/>:<CheckCircle2 size={16} className="mr-2"/>}{precisaAtualizar?'Atualizar saldos':baixaRegistrada?'Selecione o próximo pagamento':'Confirmar baixa individual'}</Button>}</DialogFooter>
     </DialogContent>
   </Dialog>;
 }

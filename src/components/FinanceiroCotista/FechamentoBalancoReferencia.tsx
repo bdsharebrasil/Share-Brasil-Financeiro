@@ -527,22 +527,23 @@ const CSS = `
 
 .fb .fb-ledger{max-height:70vh;overflow:auto}
 .fb .fb-ledger table{min-width:1180px;border-collapse:separate;border-spacing:0}
-.fb .fb-ledger thead th{position:sticky;top:0;z-index:2;padding:7px 10px;background:var(--fb-soft);color:var(--fb-muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--fb-border);border-right:1px solid color-mix(in srgb,var(--fb-border) 55%,transparent)}
+.fb .fb-ledger thead th{position:sticky;top:0;z-index:2;height:34px;padding:0 10px;background:var(--fb-soft);color:var(--fb-muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--fb-border);border-right:1px solid color-mix(in srgb,var(--fb-border) 55%,transparent)}
 .fb .fb-ledger thead th:last-child{border-right:0}
-.fb .fb-ledger tbody td{padding:5px 10px;vertical-align:middle;font-size:12px;line-height:1.3;border-bottom:1px solid color-mix(in srgb,var(--fb-border) 70%,transparent);border-right:1px solid color-mix(in srgb,var(--fb-border) 35%,transparent);transition:background-color .12s}
+.fb .fb-ledger tbody tr{height:34px}
+.fb .fb-ledger tbody td{padding:4px 10px;vertical-align:middle;font-size:12px;line-height:1.3;border-bottom:1px solid color-mix(in srgb,var(--fb-border) 70%,transparent);border-right:1px solid color-mix(in srgb,var(--fb-border) 35%,transparent);transition:background-color .12s}
 .fb .fb-ledger tbody td:last-child{border-right:0}
 .fb .fb-ledger tbody tr:nth-child(even) td{background-color:color-mix(in srgb,var(--fb-soft) 45%,transparent)}
 .fb .fb-ledger tbody tr:hover td{background-color:color-mix(in srgb,var(--fb-blue) 6%,transparent)}
-.fb .fb-doc{font:600 11.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-blue)}
+.fb .fb-doc{font:600 11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-blue)}
 .fb .fb-desc{min-width:200px;font-weight:600}
-.fb .fb-money{font:700 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+.fb .fb-money{font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
 
-.fb-date-stack{display:grid;gap:2px}
+.fb-date-stack{display:grid;gap:1px}
 .fb-date-stack span{display:block;white-space:nowrap}
 .fb-date-stack small{display:block;color:var(--fb-muted);font-size:9px;letter-spacing:.06em;text-transform:uppercase}
 .fb-date-stack b{font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace}
 
-.fb-status{--t:var(--fb-muted);display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;color:var(--t);background:color-mix(in srgb,var(--t) 13%,transparent);border:1px solid color-mix(in srgb,var(--t) 24%,transparent);font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1.2}
+.fb-status{--t:var(--fb-muted);display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:999px;color:var(--t);background:color-mix(in srgb,var(--t) 13%,transparent);border:1px solid color-mix(in srgb,var(--t) 24%,transparent);font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1.2}
 .fb-status::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
 .fb-status-ok{--t:var(--fb-ok)}.fb-status-pend{--t:var(--fb-warn)}.fb-status-late{--t:var(--fb-bad)}.fb-status-wait{--t:var(--fb-wait)}
 
@@ -553,12 +554,12 @@ const CSS = `
 .fb .fb-ledger thead .fb-tone-0 strong{color:var(--fb-blue)}
 .fb .fb-ledger thead .fb-tone-1 strong{color:var(--fb-violet)}
 .fb .fb-ledger .fb-share-header span{text-transform:none;letter-spacing:0;font-weight:500;font-size:10px}
-.fb .fb-share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.fb .fb-share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .fb .fb-share-cell span{font:500 11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-muted)}
 .fb .fb-share-cell strong{margin:0;font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.02em}
 .fb .fb-muted-dash{color:var(--fb-muted)}
 
-.fb .fb-ledger tfoot td{position:sticky;bottom:0;z-index:2;padding:6px 10px;background:var(--fb-soft);border-top:1px solid var(--fb-border);font-size:12px;font-weight:700}
+.fb .fb-ledger tfoot td{position:sticky;bottom:0;z-index:2;padding:2px 10px;background:var(--fb-soft);border-top:1px solid var(--fb-border);font-size:12px;font-weight:700}
 
 @media(max-width:640px){
   .fb-ledger-head{padding:14px}

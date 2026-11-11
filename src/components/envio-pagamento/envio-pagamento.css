@@ -6,18 +6,22 @@ html .envio-pagamento {
   padding: 20px; background: var(--fin-canvas); border-radius: 12px;
   font-size: 13px; line-height: 1.5;
 }
-html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; }
+html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; background: rgba(8, 15, 22, 1); }
 html .envio-pagamento .envio-pagina-header {
   padding: 20px 24px; border: 1px solid var(--fin-border); border-radius: 10px;
   background: var(--fin-surface); background-image: none; box-shadow: var(--envio-sombra);
 }
 html .envio-pagamento .envio-pagina-header h1 { font-size: 24px; font-weight: 600; line-height: 1.4; }
+html.dark .envio-pagamento .envio-pagina-header { background: rgba(12, 19, 27, 1) !important; }
 html body .envio-pagamento .envio-fluxo.border {
   border: 1px solid var(--fin-border); border-radius: 10px;
   background: var(--fin-surface); box-shadow: var(--envio-sombra);
 }
+html.dark body .envio-pagamento .envio-fluxo.border { border-color: rgba(8, 14, 19, 1); }
 html .envio-pagamento .envio-fluxo-header,
 html .envio-pagamento .envio-fluxo-footer { padding: 16px 20px; background: var(--fin-soft); border-color: var(--fin-border); }
+html.dark .envio-pagamento .envio-fluxo-header,
+html.dark .envio-pagamento .envio-fluxo-footer { background: rgba(14, 21, 31, 1); }
 html .envio-pagamento .envio-fluxo-conteudo { padding: 20px; gap: 16px; }
 html .envio-pagamento .envio-modo {
   padding: 18px 40px 18px 16px; border: 1px solid var(--fin-border); border-radius: 8px;

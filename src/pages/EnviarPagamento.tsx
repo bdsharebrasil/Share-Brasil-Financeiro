@@ -138,8 +138,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Share",
     regra: "Não gera rateio",
     icon: WalletCards,
-    cor: "!text-[#7ed321]",
-    corBorda: "!border-[#7ed321]/65",
+    cor: "!text-[rgba(168,109,10,1)] [&_rect]:!stroke-[rgba(158,102,9,1)] [&_path]:!stroke-[rgba(148,93,3,1)]",
+    corBorda: "!border-[rgba(161,106,14,0.81)]",
   },
   {
     tipo: "reembolso",

@@ -3,15 +3,16 @@
 /* Superfícies do assistente e do seletor: contraste sem depender de fundos brancos iguais. */
 html .envio-pagamento {
   --envio-sombra: 0 2px 4px #13223a06, 0 8px 24px #13223a0a;
-  padding: 35px 14px; margin: 18px 5px; background: var(--fin-canvas); border-radius: 12px;
+  padding: 35px 28px; margin: 18px 5px; background: var(--fin-canvas); border-radius: 12px;
   font-size: 13px; line-height: 1.5;
 }
 html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; background: rgba(8, 15, 22, 1); }
 html .envio-pagamento .envio-pagina-header {
-  padding: 20px 24px; border: 1px solid var(--fin-border); border-radius: 10px;
+  margin: -9px 0; padding: 18px 24px; border: 1px solid var(--fin-border); border-radius: 10px;
   background: var(--fin-surface); background-image: none; box-shadow: var(--envio-sombra);
 }
-html .envio-pagamento .envio-pagina-header h1 { font-size: 24px; font-weight: 600; line-height: 1.4; }
+html .envio-pagamento .envio-pagina-header > div > div:first-child { font-size: 10px; }
+html .envio-pagamento .envio-pagina-header h1 { font-size: 21px; font-weight: 500; line-height: 1.4; }
 html.dark .envio-pagamento .envio-pagina-header { background: rgba(12, 19, 27, 1) !important; }
 html body .envio-pagamento .envio-fluxo.border {
   border: 1px solid var(--fin-border); border-radius: 10px;

@@ -1,6 +1,9 @@
+import { anexosSelecionadosDoCotista } from "@/components/envio-pagamento/email-cotista";
+import "@/components/envio-pagamento/envio-pagamento.css";
+import { SeletorCotistaEmail } from "@/components/envio-pagamento/SeletorCotistaEmail";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Landmark, Loader2, Mail, MapPin, Plus, Send, Smartphone, Users, WalletCards, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Loader2, Mail, Plus, Send, Users, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
 import { EnviarEmailClienteDialog, type AnexoEmail } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
-import { SeletorContatoEmail } from "@/components/email/SeletorContatoEmail";
-import { AnexosEmail } from "@/components/email/AnexosEmail";
 import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { HistoricoEnvios } from "@/components/envio-pagamento/historico/HistoricoEnvios";
 import { usePaginaHistorico } from "@/components/envio-pagamento/historico/usePaginaHistorico";
 import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDinamicosField";
-import logoShare from "@/assets/share-signature-logo.png";
-import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarContatoShare, criarFornecedorCombustivel, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
+import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarContatoShare, criarFornecedorCombustivel, enviarAnexoEnvioPagamento, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
 import { opcoesPeriodicidade } from "@/data/opcoes";
 import type { Periodicidade } from "@/types/financeiro";
@@ -256,15 +256,12 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const confirmarDuplicidadeRef = useRef(false);
   const [contatos, setContatos] = useState<ContatoEmail[]>([]);
   const [assinaturaEmail, setAssinaturaEmail] = useState<AssinaturaEmail | null>(null);
-  const [contasBancarias, setContasBancarias] = useState<ContaBancariaEmail[]>([]);
-  const [bancoSelecionado, setBancoSelecionado] = useState<ContaBancariaEmail | null>(null);
-  const [buscaContato, setBuscaContato] = useState("");
   const [destinatario, setDestinatario] = useState("");
   const [nomeDestinatario, setNomeDestinatario] = useState("");
   const [assunto, setAssunto] = useState("");
   const [corpoEmail, setCorpoEmail] = useState("");
   const [anexosSelecionados, setAnexosSelecionados] = useState<string[]>([]);
-  const [arquivosNovos, setArquivosNovos] = useState<File[]>([]);
+  const [anexosPorCotista, setAnexosPorCotista] = useState<Record<string, string[]>>({});
   const [arquivosPersistidos, setArquivosPersistidos] = useState<ArquivoPersistidoEmail[]>([]);
   const [anexosEnvioEmail, setAnexosEnvioEmail] = useState<AnexoLinha[]>([]);
   const [cotistasEmail, setCotistasEmail] = useState<CotistaAeronave[]>([]);
@@ -272,6 +269,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   const [rascunhosEmailPorCotista, setRascunhosEmailPorCotista] = useState<Record<string, { assunto: string; mensagem: string }>>({});
   const [emailsEnviados, setEmailsEnviados] = useState<string[]>([]);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [preparandoCotistaId, setPreparandoCotistaId] = useState<string | null>(null);
+  const preparandoCotistaRef = useRef(false);
   const [cotistaEmailAberto, setCotistaEmailAberto] = useState<string | null>(null);
   const [erroEmail, setErroEmail] = useState("");
   const [sucessoEmail, setSucessoEmail] = useState("");
@@ -344,6 +343,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     destinatario,
     nomeDestinatario,
     anexosSelecionados,
+    anexosPorCotista,
     anexosEnvioEmail: anexosEnvioEmail.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo),
     arquivosPersistidos,
     cotistasEmail,
@@ -357,6 +357,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     if (!tipoRascunho) return;
     const { id, chave } = garantirIdentidadeRascunho();
     if (rascunhosExcluidosRef.current.has(id)) return;
+    const cotistasDestinatarios = (opcoes.dados?.cotistasEmail as CotistaAeronave[] | undefined) ?? cotistasEmail;
+    const anexosDestinatarios = (opcoes.dados?.anexosEnvioEmail as AnexoLinha[] | undefined) ?? anexosEnvioEmail;
     const statusRascunho = opcoes.status ?? (rascunhoConcluido ? "CONCLUIDO" : envioRecemCriado && envioRecemCriado.tipo !== "share" ? "EMAIL_PENDENTE" : "PREENCHIMENTO");
     setStatusSalvamento("salvando");
     const gravacao = filaSalvamento.current.then(async () => {
@@ -369,7 +371,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         idempotency_key: chave,
         envio_id: opcoes.envioId === undefined ? envioRecemCriado?.id || null : opcoes.envioId,
         status: statusRascunho,
-        destinatarios: cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))).map((cotista) => cotista.id),
+        destinatarios: cotistasDestinatarios.filter((cotista) => tipoRascunho !== "cliente" || anexosDestinatarios.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))).map((cotista) => cotista.id),
       });
       return resultado;
     });
@@ -431,10 +433,9 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setCarregandoEmail(true);
     setErroEmail("");
     try {
-      const [dados, assinatura, bancos] = await Promise.all([buscarCentralEmail(), buscarMinhaAssinatura(), buscarContasBancariasEmail()]);
+      const [dados, assinatura] = await Promise.all([buscarCentralEmail(), buscarMinhaAssinatura()]);
       setContatos(dados.contatos);
       setAssinaturaEmail(assinatura);
-      setContasBancarias(bancos.contas);
     } catch {
       setErroEmail("Não foi possível carregar os contatos de e-mail.");
     } finally {
@@ -518,11 +519,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     const percentuaisValidos = percentuaisInformados.every((item) => Number.isFinite(item) && item >= 0 && item <= 100);
     return linhas.length > 0 && linhas.every((linha) => idsValidos.has(linha.cotista_id)) && percentuaisValidos && anexosValidos && Math.abs(percentual - 100) < 0.01 && valor === valorCentavos;
   };
-
-  const contatosFiltrados = useMemo(() => {
-    const termo = buscaContato.trim().toLowerCase();
-    return !termo ? contatos : contatos.filter((item) => `${item.nome} ${item.email} ${item.tipo}`.toLowerCase().includes(termo));
-  }, [buscaContato, contatos]);
 
   const montarCorpoEmail = (envio: EnvioPagamento) => {
     const linhas = [
@@ -614,16 +610,17 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setDestinatario(dados.destinatario || "");
       setNomeDestinatario(dados.nomeDestinatario || "");
       setAnexosSelecionados(dados.anexosSelecionados || []);
+      setAnexosPorCotista(dados.anexosPorCotista || {});
       setAnexosEnvioEmail((dados.anexosEnvioEmail || []).map((anexo: AnexoLinha) => ({ ...anexo, file: null, uploading: false })));
       setArquivosPersistidos(dados.arquivosPersistidos || []);
-      setArquivosNovos([]);
       const cotistasSalvos = dados.cotistasEmail || [];
       setCotistasEmail(cotistasSalvos);
       setCotistas(cotistasSalvos);
       setEmailsPorCotista(dados.emailsPorCotista || {});
       setRascunhosEmailPorCotista(dados.rascunhosEmailPorCotista || {});
-      setStatusEmailCotista(Object.fromEntries(destinatarios.map((destinatario: DestinatarioRascunhoEnvio) => [destinatario.cotista_id, destinatario.status])));
-      setEmailsEnviados(destinatarios.filter((destinatario: DestinatarioRascunhoEnvio) => destinatario.status === "ENVIADO").map((destinatario: DestinatarioRascunhoEnvio) => destinatario.cotista_id));
+      const statusRestaurados: Record<string, string> = { ...dados.statusEmailCotista, ...Object.fromEntries(destinatarios.map((destinatario: DestinatarioRascunhoEnvio) => [destinatario.cotista_id, destinatario.status])) };
+      setStatusEmailCotista(statusRestaurados);
+      setEmailsEnviados(Object.entries(statusRestaurados).filter(([, status]) => status === "ENVIADO").map(([id]) => id));
       setRascunhoConcluido(rascunho.status === "CONCLUIDO");
       setRascunhoId(rascunho.id);
       setChaveRascunho(rascunho.idempotency_key);
@@ -747,6 +744,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setAssunto(`Solicitação de pagamento — ${envio.descricao}`);
       setCorpoEmail(montarCorpoEmail(envio));
       setAnexosEnvioEmail(anexosRestaurados);
+      setAnexosPorCotista({});
       setAnexosSelecionados(anexosRestaurados.map((anexo) => anexo.id));
       setCotistasEmail([]);
       setEmailsPorCotista({});
@@ -966,8 +964,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setAssunto(`Solicitação de pagamento — ${registro.descricao}`);
         setCorpoEmail(montarCorpoEmail(registro));
         setAnexosSelecionados(form.anexos.map((anexo) => anexo.id).filter(Boolean));
-        setArquivosNovos(form.anexos.map((anexo) => anexo.file).filter((arquivo): arquivo is File => Boolean(arquivo)));
         setAnexosEnvioEmail(form.anexos);
+        setAnexosPorCotista({});
         setCotistasEmail(cotistasParaEmail);
         setEmailsPorCotista(emails);
         setRascunhosEmailPorCotista(rascunhosEmail);
@@ -975,7 +973,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         setStatusEmailCotista({});
         setDestinatario("");
         setNomeDestinatario("");
-        setBancoSelecionado(null);
         const contatoInicial = contatos.find((c) => c.cliente_id === registro.cliente_id);
         if (contatoInicial) {
           setDestinatario(contatoInicial.email);
@@ -992,6 +989,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             envioId: registro.id,
             assunto: `Solicitação de pagamento — ${registro.descricao}`,
             corpoEmail: montarCorpoEmail(registro),
+            anexosPorCotista: {},
             anexosSelecionados: form.anexos.map((anexo) => anexo.id).filter(Boolean),
             anexosEnvioEmail: form.anexos.map(({ file: _file, uploading: _uploading, ...anexo }) => anexo),
             cotistasEmail: cotistasParaEmail,
@@ -1026,21 +1024,6 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setSucessoEmail("");
   };
 
-  const alternarAnexo = (id: string) => setAnexosSelecionados((atual) => atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]);
-  const adicionarArquivos = async (arquivos: File[]) => {
-    try {
-      const enviados = await Promise.all(arquivos.map(async (arquivo) => {
-        const resultado = await enviarAnexoEnvioPagamento(arquivo, crypto.randomUUID());
-        return { key: resultado.key, url: resultado.url, filename: arquivo.name, content_type: arquivo.type || "application/octet-stream" } satisfies ArquivoPersistidoEmail;
-      }));
-      setArquivosPersistidos((atuais) => [...atuais, ...enviados]);
-      setArquivosNovos([]);
-    } catch (cause) {
-      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível armazenar o anexo.");
-    }
-  };
-  const removerArquivo = (index: number) => setArquivosNovos((atual) => atual.filter((_, i) => i !== index));
-  const removerArquivoPersistido = (key: string) => setArquivosPersistidos((atuais) => atuais.filter((arquivo) => arquivo.key !== key));
   const selecionarFonteAnexo = (fonte: any) => {
     const cotistaIdPadrao = cotistasSelecionados.length === 1 ? cotistasSelecionados[0].id : undefined;
     const novos: AnexoLinha[] = origemAnexo === "recibos"
@@ -1065,68 +1048,29 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setBuscaAnexo("");
   };
 
-  const dispararEmail = async () => {
-    if (!destinatario.trim() || !assunto.trim() || !corpoEmail.trim()) {
-      setErroEmail("Informe destinatário, assunto e mensagem.");
-      return;
-    }
+  const abrirEnvioCotista = async (cotistaId: string) => {
+    if (preparandoCotistaRef.current || emailsEnviados.includes(cotistaId) || statusEmailCotista[cotistaId] === "ENVIADO") return;
+    if (!cotistasEmail.some((cotista) => cotista.id === cotistaId)) return;
+    preparandoCotistaRef.current = true;
+    setPreparandoCotistaId(cotistaId);
     setEnviandoEmail(true);
     setErroEmail("");
     setSucessoEmail("");
-    const idRascunhoAtual = rascunhoId;
-    const chaveRascunhoAtual = chaveRascunhoRef.current || chaveRascunho;
     try {
-      await enviarEmailCliente({
-        destinatarios: [destinatario.trim()],
-        assunto: assunto.trim(),
-        mensagem: corpoEmail.trim(),
-        anexos: anexosEnvioEmail.filter((anexo) => anexosSelecionados.includes(anexo.id)).map((anexo) => anexo.id),
-        referencias: envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : undefined,
-        rascunho_id: idRascunhoAtual || undefined,
-        cotista_id: "__principal__",
-        idempotency_key: idRascunhoAtual && chaveRascunhoAtual ? `email:${idRascunhoAtual}:__principal__` : undefined,
-        arquivos: arquivosNovos,
-        arquivos_persistidos: arquivosPersistidos.map(({ key, filename, content_type }) => ({ key, filename, content_type })),
-        nome_destinatario: nomeDestinatario || undefined,
-      });
-      if (envioRecemCriado) {
-        await registrarEmailEnvioPagamento(envioRecemCriado.id);
-        if (envioRecemCriado.tipo === "reembolso") {
-          await converterEnvioPagamento(envioRecemCriado.id);
-          atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
-        }
-      }
-      if (idRascunhoAtual) {
-        setRascunhoConcluido(true);
-        await persistirRascunho({ status: "CONCLUIDO", envioId: envioRecemCriado?.id });
-        setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
-      }
-      setSucessoEmail(envioRecemCriado?.tipo === "reembolso"
-        ? "E-mail enviado. Lançamento e rateio criados."
-        : "E-mail enviado com sucesso.");
-      setMensagem("Lançamento criado e e-mail enviado ao cliente.");
-      setTimeout(() => fecharModalEmail(), 1800);
-    } catch (cause) {
-      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível enviar o e-mail.");
-    } finally {
-      setEnviandoEmail(false);
-    }
-  };
-
-  const abrirEnvioCotista = async (cotistaId: string) => {
-    setErroEmail("");
-    setSucessoEmail("");
-    if (envioRecemCriado && !envioConvertido) {
-      try {
+      // Cliente direto mantém a conversão antes da revisão. Reembolso converte após o envio confirmado.
+      if (envioRecemCriado?.tipo === "cliente" && !envioConvertido) {
         await converterEnvioPagamento(envioRecemCriado.id);
         setEnvioConvertido(true);
         atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
-      } catch (cause) {
-        setErroEmail(cause instanceof Error ? cause.message : "Não foi possível preparar o envio.");
-        return;
       }
+      setCotistaEmailAberto(cotistaId);
+    } catch (cause) {
+      setErroEmail(cause instanceof Error ? cause.message : "Não foi possível preparar o envio.");
+    } finally {
+      preparandoCotistaRef.current = false;
+      setPreparandoCotistaId(null);
+      setEnviandoEmail(false);
     }
-    setCotistaEmailAberto(cotistaId);
   };
 
   const concluirEnvioCotista = async (cotistaId: string) => {
@@ -1139,11 +1083,16 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
     setEmailsEnviados([...enviados]);
     setStatusEmailCotista((atual) => ({ ...atual, [cotistaId]: "ENVIADO" }));
     const nomeCotista = cotistasEmail.find((cotista) => cotista.id === cotistaId)?.nome || "o cliente";
-    const gruposSelecionados = cotistasEmail.filter((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id) && anexosSelecionados.includes(anexo.id)));
+    const gruposSelecionados = cotistasEmail.filter((cotista) => envioRecemCriado?.tipo !== "cliente" || anexosSelecionadosDoCotista(anexosEnvioEmail, cotista.id, anexosSelecionados, anexosPorCotista).length > 0);
     const todosConcluidos = gruposSelecionados.length > 0 && gruposSelecionados.every((cotista) => enviados.has(cotista.id));
     try {
+      if (envioRecemCriado?.tipo === "reembolso" && !envioConvertido) {
+        await converterEnvioPagamento(envioRecemCriado.id);
+        setEnvioConvertido(true);
+        atualizarStatusLocal(envioRecemCriado.id, "CONVERTIDO");
+      }
       if (envioRecemCriado && todosConcluidos) await registrarEmailEnvioPagamento(envioRecemCriado.id);
-      await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id });
+      await persistirRascunho({ status: todosConcluidos ? "CONCLUIDO" : "EMAIL_PENDENTE", envioId: envioRecemCriado?.id, dados: { ...construirDadosRascunho(), envioConvertido: envioConvertido || envioRecemCriado?.tipo === "reembolso", statusEmailCotista: { ...statusEmailCotista, [cotistaId]: "ENVIADO" } } });
       if (todosConcluidos) {
         setRascunhoConcluido(true);
         if (idRascunhoAtual) setRascunhos((atuais) => atuais.filter((rascunho) => rascunho.id !== idRascunhoAtual));
@@ -1159,23 +1108,27 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
   const cotistaEmailDialogo = cotistasEmail.find((cotista) => cotista.id === cotistaEmailAberto) ?? null;
   const anexosCotistaEmailDialogo: AnexoEmail[] = cotistaEmailDialogo
-    ? anexosEnvioEmail
-      .filter((anexo) => anexoAplicaAoCotista(anexo, cotistaEmailDialogo.id) && anexosSelecionados.includes(anexo.id))
+    ? anexosSelecionadosDoCotista(anexosEnvioEmail, cotistaEmailDialogo.id, anexosSelecionados, anexosPorCotista)
       .map((anexo) => ({ id: anexo.id, label: anexo.file?.name || anexo.numero || anexo.tipo }))
     : [];
 
   return (
-    <div className={`route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
+    <div className={`despesas-theme envio-pagamento route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
       {!historico && <>
-      <header className="relative overflow-hidden rounded-2xl border border-border dark:border-[#1b2a3f] bg-card dark:bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "var(--light-surface, rgb(16, 20, 39))" }}>
+      <header className="envio-pagina-header relative overflow-hidden rounded-2xl border border-border dark:border-[#1b2a3f] bg-card dark:bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "var(--light-surface, rgb(16, 20, 39))" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
-        <div className="flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
+      {envioRecemCriado && envioRecemCriado.tipo !== "share" && etapa !== totalEtapas && <section className="envio-continuar-email" aria-label="Envio de e-mail da solicitação">
+        <div><strong>Documentos prontos para envio</strong><p>{envioRecemCriado.descricao} · Escolha o cotista e revise a prévia antes de enviar.</p></div>
+        <Button type="button" onClick={() => { setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : "Enviar e-mail"}</Button>
+      </section>}
+
+      <section className="envio-fluxo overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
+        <div className="envio-fluxo-header flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
@@ -1193,7 +1146,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
+        <div className="envio-fluxo-conteudo flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
               <div>
@@ -1210,7 +1163,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
+                      className={`envio-modo relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? "border-primary/65 bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -1298,7 +1251,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               )}
               {etapa === totalEtapas && (
                 <div className="space-y-3">
-                  <div className="rounded-sm border border-border bg-secondary/[.14] p-3">
+                  <div className="envio-bloco rounded-sm border border-border bg-secondary/[.14] p-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground">Revisão antes do envio</p>
                       <strong className="rounded-sm bg-primary px-3 py-1.5 font-mono text-sm text-primary-foreground">{formatarValor(valorInformado)}</strong>
@@ -1319,7 +1272,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     </div>
                   </div>
                   <Campo label="Observações"><textarea value={form.observacoes} onChange={(e) => alterar("observacoes", e.target.value)} placeholder="Informações para o financeiro, rateio ou reembolso..." className="campo min-h-24 resize-y" /></Campo>
-                  <div className="min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento. Deixe “Todos os cotistas da aeronave” para compartilhar o anexo com todos no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId)} /></div>
+                  <div className="envio-bloco min-w-0 space-y-4 rounded-xl border border-border/70 bg-background/30 p-3 sm:p-4"><div><p className="text-[11px] font-semibold">Deseja vincular documentos à despesa?</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Os arquivos serão vinculados ao lançamento. Deixe “Todos os cotistas da aeronave” para compartilhar o anexo com todos no envio do e-mail.</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDialogoAnexos(true)}>Selecionar arquivos</Button><Button type="button" size="sm" variant="ghost" onClick={() => setForm((atual) => ({ ...atual, anexos: [] }))}>Remover todos</Button></div>{anexos.length > 0 && <p className="mt-2 text-[10px] text-emerald-500">{anexos.length} anexo(s) vinculado(s).</p>}</div><AnexosDinamicosField anexos={anexos} onChange={(next) => setForm((atual) => ({ ...atual, anexos: next }))} cotistas={tipo === "cliente" ? cotistas.map((cotista) => ({ id: cotista.id, label: `${cotista.nome} · ${cotista.id.slice(0, 8)}` })) : []} uploadFile={async (arquivo, anexoId) => enviarAnexoEnvioPagamento(arquivo, anexoId)} /></div>
                   {uploadsPendentes && <p role="status" className="rounded-lg border border-primary/20 bg-primary/[.05] px-3 py-2 text-[11px] text-primary">Enviando anexos para armazenamento. A programação será liberada ao concluir.</p>}
                 </div>
               )}
@@ -1330,7 +1283,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="my-0 flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
+        <div className="envio-fluxo-footer my-0 flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
@@ -1338,7 +1291,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {etapa < totalEtapas ? (
             <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : (
-            <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Continuar envio" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
+            <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Enviar e-mail" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
           )}
         </div>
       </section>
@@ -1425,173 +1378,53 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = false; }}>Cancelar envio</Button><Button type="button" onClick={() => { setRateiosDuplicados([]); confirmarDuplicidadeRef.current = true; void enviar(); }}>Concluir envio mesmo assim</Button></div>
         </DialogContent>
       </Dialog>
-      <Dialog open={modalEmail && cotistaEmailDialogo === null} onOpenChange={(open) => { if (!open && !enviandoEmail) fecharModalEmail(); }}>
-        <DialogContent
-          className="
-            flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl
-            flex-col gap-0 overflow-hidden rounded-2xl
-            border border-border dark:border-[#1a2638]
-            bg-card dark:bg-[#080e19]
-            p-0
-            shadow-[0_24px_70px_rgba(0,0,0,.45)]
-            sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]
-          "
-        >
-          <DialogHeader className="shrink-0 border-b border-border dark:border-[#172235] bg-card dark:bg-[linear-gradient(135deg,#0b1422,#080e19)] px-4 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14">
-            <DialogTitle className="flex items-center gap-2 text-base font-bold tracking-tight"><Mail size={18} className="text-primary" /> Enviar solicitação por e-mail</DialogTitle>
-            <DialogDescription className="max-w-xl text-[11px] leading-5 text-muted-foreground">{envioRecemCriado?.tipo === "cliente" ? "O rateio da despesa será criado antes do envio. Cada cotista receberá apenas os anexos selecionados para ele." : "Revise o e-mail, os anexos e o destinatário antes de enviar a solicitação."}</DialogDescription>
-          </DialogHeader>
-
-          {carregandoEmail ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
-          ) : (
-            <>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
-                <div className="space-y-4 pb-1">
-                  {erroEmail && <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/[.07] p-3 text-[11px] leading-5 text-red-600 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-red-200">{erroEmail}</div>}
-                  {sucessoEmail && <div role="status" className="rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] p-3 text-[11px] leading-5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,.02)] dark:text-emerald-200">{sucessoEmail}</div>}
-
-                  {envioRecemCriado?.tipo === "cliente" ? (
-                    <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/[.035] p-3 sm:p-4">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Destinatários e anexos por cotista</p>
-                        <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Cada cotista receberá uma mensagem separada, somente com os documentos marcados abaixo.</p>
-                      </div>
-                      {cotistasEmail.map((cotista) => {
-                        const anexosDoCotista = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id));
-                        const selecionados = anexosDoCotista.filter((anexo) => anexosSelecionados.includes(anexo.id)).length;
-                        const statusEmail = statusEmailCotista[cotista.id];
-                        const emailEnviado = emailsEnviados.includes(cotista.id) || statusEmail === "ENVIADO";
-                        const rascunhoEmail = rascunhosEmailPorCotista[cotista.id] || { assunto: "", mensagem: "" };
-                        return (
-                          <div key={cotista.id} className="min-w-0 space-y-3 rounded-xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#0b1220]/75 p-4 shadow-[0_12px_30px_rgba(0,0,0,.16)]">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <strong className="min-w-0 truncate text-xs">{cotista.nome}</strong>
-                              <span className={`text-[10px] ${emailEnviado ? "font-semibold text-emerald-500" : "text-muted-foreground"}`}>{emailEnviado ? "E-mail enviado" : `${selecionados} de ${anexosDoCotista.length} anexo(s)`}</span>
-                            </div>
-                            <div className="space-y-2">
-                              <label htmlFor={`email-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">E-mail do destinatário</label>
-                              <Input
-                                id={`email-cotista-${cotista.id}`}
-                                type="email"
-                                value={emailsPorCotista[cotista.id] || ""}
-                                onChange={(event) => setEmailsPorCotista((atuais) => ({ ...atuais, [cotista.id]: event.target.value }))}
-                                placeholder="Digite o e-mail do cotista"
-                                disabled={emailEnviado}
-                                className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label htmlFor={`assunto-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
-                              <Input
-                                id={`assunto-cotista-${cotista.id}`}
-                                value={rascunhoEmail.assunto}
-                                onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, assunto: event.target.value } }))}
-                                placeholder="Assunto do e-mail"
-                                disabled={emailEnviado}
-                                className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label htmlFor={`mensagem-cotista-${cotista.id}`} className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
-                              <Textarea
-                                id={`mensagem-cotista-${cotista.id}`}
-                                value={rascunhoEmail.mensagem}
-                                onChange={(event) => setRascunhosEmailPorCotista((atuais) => ({ ...atuais, [cotista.id]: { ...rascunhoEmail, mensagem: event.target.value } }))}
-                                placeholder="Escreva o texto do e-mail"
-                                disabled={emailEnviado}
-                                className="campo min-h-28 resize-y !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              {anexosDoCotista.map((anexo) => (
-                                <label key={anexo.id} className="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-3 text-xs transition-all hover:border-primary/30 hover:bg-white/[.04]">
-                                  <input type="checkbox" checked={anexosSelecionados.includes(anexo.id)} onChange={() => alternarAnexo(anexo.id)} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={emailEnviado} />
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate font-medium">{anexo.file?.name || anexo.numero || anexo.url?.split("/").pop() || "Arquivo selecionado"}</span>
-                                    <span className="mt-0.5 block text-[10px] uppercase text-muted-foreground">{anexo.tipo}</span>
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                            <div className="flex justify-end">
-                              <Button type="button" onClick={() => void abrirEnvioCotista(cotista.id)} disabled={enviandoEmail || emailEnviado || selecionados === 0} className="h-9 gap-2 rounded-lg px-4 text-xs font-semibold">
-                                <Send size={14} />
-                                {emailEnviado ? "E-mail enviado" : `Revisar e enviar para ${cotista.nome}`}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {!cotistasEmail.some((cotista) => anexosEnvioEmail.some((anexo) => anexoAplicaAoCotista(anexo, cotista.id))) && <p className="rounded-lg border border-amber-500/25 bg-amber-500/[.06] p-3 text-[11px] text-amber-700 dark:text-amber-200">Adicione anexos para disponibilizá-los aos cotistas.</p>}
-                    </section>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Destinatário</label>
-                      <SeletorContatoEmail contatos={contatosFiltrados} busca={buscaContato} emailSelecionado={destinatario} onBusca={setBuscaContato} onSelecionar={(contato) => { setDestinatario(contato.email); setNomeDestinatario(contato.nome); }} />
-                      <Input value={destinatario} onChange={(e) => { setDestinatario(e.target.value); setNomeDestinatario(""); }} placeholder="Ou digite um e-mail manualmente" type="email" className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
-                    </div>
-                  )}
-
-                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Assunto</label>
-                    <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} className="campo !h-10 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
-                  </div>}
-
-                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Mensagem</label>
-                    <Textarea value={corpoEmail} onChange={(e) => setCorpoEmail(e.target.value)} className="campo min-h-32 !rounded-xl border-border dark:border-white/[.08] bg-card dark:bg-[#080e19] resize-y shadow-[inset_0_1px_0_rgba(255,255,255,.025)]" />
-                  </div>}
-
-                  {assinaturaEmail && <div className="rounded-xl border border-border dark:border-white/[.08] bg-white p-4 font-[Arial,sans-serif] text-[#333] shadow-[0_10px_28px_rgba(0,0,0,.18)]">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[.1em] text-slate-500">Assinatura aplicada automaticamente</p>
-                    <div className="flex items-center gap-3">
-                      <img src={assinaturaEmail.logo_url || logoShare} alt="Share Brasil" className="h-auto w-16 shrink-0 object-contain" />
-                      <div className="min-w-0 text-[11px] leading-4">
-                        <strong className="block text-[14px] leading-4 text-black">{assinaturaEmail.nome}</strong>
-                        {assinaturaEmail.cargo && <span className="block text-[10px] leading-3">{assinaturaEmail.cargo}</span>}
-                        {assinaturaEmail.telefone && <span className="flex items-center gap-1"><Smartphone size={10} /> {assinaturaEmail.telefone}</span>}
-                        {assinaturaEmail.endereco && <span className="flex items-start gap-1 text-[10px] leading-3"><MapPin size={11} className="mt-0.5 shrink-0" /> {assinaturaEmail.endereco}</span>}
-                      </div>
-                    </div>
-                  </div>}
-
-                  {envioRecemCriado?.tipo !== "cliente" && <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">Anexos</label>
-                    {arquivosPersistidos.length > 0 && <div className="space-y-1.5">{arquivosPersistidos.map((arquivo) => <div key={arquivo.key} className="flex items-center justify-between gap-3 rounded border border-border/70 px-3 py-2 text-[11px]"><span className="min-w-0 truncate">{arquivo.filename}</span><button type="button" onClick={() => removerArquivoPersistido(arquivo.key)} className="shrink-0 text-rose-500">Remover</button></div>)}</div>}
-                    <AnexosEmail somenteArquivosLocais anexos={[]} selecionados={[]} onAlternar={() => undefined} arquivosNovos={arquivosNovos} onAdicionarArquivos={adicionarArquivos} onRemoverArquivo={removerArquivo} />
-                  </div>}
-
-                  {contasBancarias.length > 0 && <div className="rounded-xl border border-primary/20 bg-primary/[.035] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.02)]">
-                    <div className="mb-2 flex items-center gap-2"><Landmark size={14} className="text-primary" /><p className="text-[10px] font-bold uppercase tracking-[.1em] text-foreground">Selecionar banco</p></div>
-                    <div className="grid gap-2 sm:grid-cols-2">{contasBancarias.map((conta) => <button type="button" key={conta.id} onClick={() => setBancoSelecionado((atual) => atual?.id === conta.id ? null : conta)} className={`rounded-xl border p-3 text-left text-[10px] transition-all ${bancoSelecionado?.id === conta.id ? "border-primary/70 bg-primary/[.10] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]" : "border-border dark:border-white/[.07] bg-white/[.025] hover:border-primary/45 hover:bg-white/[.04]"}`}><span className="block font-bold">{conta.banco}</span><span className="mt-1 block text-muted-foreground">{conta.tipo_conta || "Conta"} {conta.numero_conta || ""}</span></button>)}</div>
-                    {bancoSelecionado && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-300">Dados de {bancoSelecionado.banco} serão anexados ao email.</p>}
-                  </div>}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-3 sm:px-6 sm:py-4">
-                <Button type="button" variant="ghost" onClick={fecharModalEmail} disabled={enviandoEmail} className="h-9 gap-2 rounded-xl px-3 text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><X size={14} /> Cancelar</Button>
-                {envioRecemCriado?.tipo !== "cliente" && <Button type="button" onClick={() => dispararEmail()} disabled={enviandoEmail || !destinatario.trim() || !assunto.trim() || !corpoEmail.trim()} className="h-10 w-full gap-2 rounded-lg px-5 text-xs font-semibold sm:w-auto">{enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar e-mail</Button>}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <SeletorCotistaEmail
+        open={modalEmail && cotistaEmailDialogo === null}
+        onOpenChange={(aberto) => { if (!aberto) fecharModalEmail(); }}
+        carregando={carregandoEmail}
+        preparandoId={preparandoCotistaId}
+        erro={erroEmail}
+        sucesso={sucessoEmail}
+        destinatarios={cotistasEmail.map((cotista) => {
+          const quantidade = anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotista.id)).length;
+          return { id: cotista.id, nome: cotista.nome, email: emailsPorCotista[cotista.id] ?? cotista.email ?? "", anexos: quantidade,
+            enviado: emailsEnviados.includes(cotista.id) || statusEmailCotista[cotista.id] === "ENVIADO",
+            indisponivel: envioRecemCriado?.tipo === "cliente" && quantidade === 0 };
+        })}
+        onSelecionar={(id) => void abrirEnvioCotista(id)}
+      />
 
       <EnviarEmailClienteDialog
         open={cotistaEmailDialogo !== null}
         onOpenChange={(aberto) => { if (!aberto) setCotistaEmailAberto(null); }}
         onSent={() => { if (cotistaEmailDialogo) void concluirEnvioCotista(cotistaEmailDialogo.id); }}
-        destinatarioInicial={cotistaEmailDialogo ? emailsPorCotista[cotistaEmailDialogo.id] || "" : ""}
-        assuntoSugerido={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.assunto || "" : ""}
-        mensagemSugerida={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.mensagem || "" : ""}
+        destinatarioInicial={cotistaEmailDialogo ? emailsPorCotista[cotistaEmailDialogo.id] ?? cotistaEmailDialogo.email ?? (cotistasEmail.length === 1 ? destinatario : "") : ""}
+        assuntoSugerido={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.assunto ?? assunto : ""}
+        mensagemSugerida={cotistaEmailDialogo ? rascunhosEmailPorCotista[cotistaEmailDialogo.id]?.mensagem ?? corpoEmail : ""}
+        key={cotistaEmailAberto || "email-fechado"}
         anexos={anexosCotistaEmailDialogo}
+        anexosDisponiveis={cotistaEmailDialogo ? anexosEnvioEmail.filter((anexo) => anexoAplicaAoCotista(anexo, cotistaEmailDialogo.id)).map((anexo) => ({ id: anexo.id, label: anexo.file?.name || anexo.numero || anexo.tipo })) : []}
+        exigirAnexo={envioRecemCriado?.tipo === "cliente"}
+        onAnexosChange={(ids) => {
+          if (!cotistaEmailDialogo) return;
+          setAnexosPorCotista((atuais) => ({ ...atuais, [cotistaEmailDialogo.id]: ids }));
+        }}
+        onDraftChange={(rascunho) => {
+          if (!cotistaEmailDialogo) return;
+          const id = cotistaEmailDialogo.id;
+          const emails = { ...emailsPorCotista, [id]: rascunho.destinatario };
+          const textos = { ...rascunhosEmailPorCotista, [id]: { assunto: rascunho.assunto, mensagem: rascunho.mensagem } };
+          setEmailsPorCotista(emails);
+          setRascunhosEmailPorCotista(textos);
+          void persistirRascunho({ dados: { ...construirDadosRascunho(), emailsPorCotista: emails, rascunhosEmailPorCotista: textos } }).catch(() => toast.error("Não foi possível salvar a revisão do e-mail."));
+        }}
         referencias={envioRecemCriado ? [`envio_despesa:${envioRecemCriado.id}`] : []}
         envioExtra={cotistaEmailDialogo ? {
           rascunho_id: rascunhoId || undefined,
           cotista_id: cotistaEmailDialogo.id,
           idempotency_key: rascunhoId && (chaveRascunhoRef.current || chaveRascunho) ? `email:${rascunhoId}:${cotistaEmailDialogo.id}` : undefined,
           nome_destinatario: cotistaEmailDialogo.nome,
+          arquivos_persistidos: arquivosPersistidos.filter((arquivo) => !arquivo.cotista_id || arquivo.cotista_id === cotistaEmailDialogo.id).map(({ key, filename, content_type }) => ({ key, filename, content_type })),
         } : {}}
       />
     </div>

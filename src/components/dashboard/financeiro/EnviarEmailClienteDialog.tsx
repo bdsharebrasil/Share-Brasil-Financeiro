@@ -7,6 +7,8 @@ import {
 } from "@/lib/colaborador-api";
 import { gerarEmailClienteHtml } from "@/lib/email-cliente-template";
 
+export type RascunhoEmailCliente = { destinatario: string; assunto: string; mensagem: string };
+
 export type AnexoEmail = { id?: string; url?: string; label?: string; filename?: string };
 
 type SendStatus = "idle" | "sending" | "sent";
@@ -20,7 +22,11 @@ type Props = {
   mensagemSugerida?: string;
   anexos?: AnexoEmail[];
   referencias?: string[];
-  envioExtra?: Partial<Pick<Parameters<typeof enviarEmailCliente>[0], "rascunho_id" | "cotista_id" | "idempotency_key" | "nome_destinatario">>;
+  anexosDisponiveis?: AnexoEmail[];
+  onAnexosChange?: (ids: string[]) => void;
+  exigirAnexo?: boolean;
+  onDraftChange?: (rascunho: RascunhoEmailCliente) => void;
+  envioExtra?: Partial<Pick<Parameters<typeof enviarEmailCliente>[0], "rascunho_id" | "cotista_id" | "idempotency_key" | "nome_destinatario" | "arquivos_persistidos">>;
   /** Usado apenas na prévia. A identidade do envio é definida pelo backend. */
   nomeEmpresa?: string;
 };
@@ -269,6 +275,7 @@ textarea.ec-input{min-height:220px; padding:14px 16px; line-height:26px; resize:
 export function EnviarEmailClienteDialog({
   open, onOpenChange, onSent, destinatarioInicial = "", assuntoSugerido = "",
   mensagemSugerida = "", anexos = [], referencias = [], envioExtra = {}, nomeEmpresa = "Share Brasil",
+  anexosDisponiveis, onAnexosChange, exigirAnexo = false, onDraftChange,
 }: Props) {
   const id = useId();
   const tema = useTema();
@@ -278,8 +285,9 @@ export function EnviarEmailClienteDialog({
   const envioEmCurso = useRef(false);
   const sessao = useRef(0);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recentes = useRef({ onOpenChange, onSent, destinatarioInicial, assuntoSugerido, mensagemSugerida });
-  recentes.current = { onOpenChange, onSent, destinatarioInicial, assuntoSugerido, mensagemSugerida };
+  const recentes = useRef({ onOpenChange, onSent, destinatarioInicial, assuntoSugerido, mensagemSugerida, onDraftChange });
+  const rascunhoAtual = useRef<RascunhoEmailCliente>({ destinatario: "", assunto: "", mensagem: "" });
+  recentes.current = { onOpenChange, onSent, destinatarioInicial, assuntoSugerido, mensagemSugerida, onDraftChange };
 
   const [destinatario, setDestinatario] = useState("");
   const [paraFocado, setParaFocado] = useState(false);
@@ -296,6 +304,7 @@ export function EnviarEmailClienteDialog({
   const [erro, setErro] = useState("");
   const [visualizacao, setVisualizacao] = useState<"editar" | "previa">("editar");
   const bloqueado = status !== "idle";
+  rascunhoAtual.current = { destinatario, assunto, mensagem };
 
   // Inicializa uma vez por abertura. Mudanças de props não apagam o texto em edição.
   useEffect(() => {
@@ -347,6 +356,7 @@ export function EnviarEmailClienteDialog({
       if (evento.key === "Escape") {
         evento.preventDefault();
         if (envioEmCurso.current) return;
+        recentes.current.onDraftChange?.(rascunhoAtual.current);
         recentes.current.onOpenChange(false);
       }
       if (evento.key !== "Tab" || !dialogRef.current) return;
@@ -393,10 +403,13 @@ export function EnviarEmailClienteDialog({
   }, [erro]);
 
   const anexosSemId = anexos.filter((anexo) => !anexo.id?.trim());
-  const podeEnviar = Boolean(destinatario.trim() && assunto.trim() && mensagem.trim() && !bloqueado && !anexosSemId.length);
+  const podeEnviar = Boolean(destinatario.trim() && assunto.trim() && mensagem.trim() && !bloqueado && !anexosSemId.length && (!exigirAnexo || anexos.length > 0));
 
   const fechar = () => {
-    if (!envioEmCurso.current) recentes.current.onOpenChange(false);
+    if (!envioEmCurso.current) {
+      recentes.current.onDraftChange?.(rascunhoAtual.current);
+      recentes.current.onOpenChange(false);
+    }
   };
 
   const selecionarContato = (contato: ContatoEmail) => {
@@ -453,6 +466,11 @@ export function EnviarEmailClienteDialog({
       return;
     }
 
+    if (exigirAnexo && !anexos.length) {
+      setErro("Selecione ao menos um documento deste cotista para enviar.");
+      return;
+    }
+    recentes.current.onDraftChange?.(rascunhoAtual.current);
     envioEmCurso.current = true;
     setStatus("sending");
     setErro("");
@@ -498,7 +516,7 @@ export function EnviarEmailClienteDialog({
             <span className="ec-header-icon"><Mail size={20} aria-hidden="true" /></span>
             <div className="ec-header-text">
               <h2 id={`${id}-titulo`} className="ec-title">Enviar por e-mail</h2>
-              <p className="ec-subtitle">Comunicação com o cliente</p>
+              <p className="ec-subtitle">{envioExtra.nome_destinatario ? `Documentos para ${envioExtra.nome_destinatario}` : "Comunicação com o cliente"}</p>
             </div>
             <button type="button" className="ec-btn ec-btn-icon" onClick={fechar} disabled={bloqueado} aria-label="Fechar janela">
               <X size={18} aria-hidden="true" />
@@ -595,23 +613,29 @@ export function EnviarEmailClienteDialog({
               <iframe className="ec-preview-frame" title="Prévia do conteúdo do e-mail" srcDoc={htmlPrevia} sandbox="" tabIndex={-1} />
             </section>}
 
-            {anexos.length > 0 && <section className="ec-attach" aria-labelledby={`${id}-anexos`}>
+            {(anexosDisponiveis ?? anexos).length > 0 && <section className="ec-attach" aria-labelledby={`${id}-anexos`}>
               <h3 id={`${id}-anexos`}>Documentos anexados ({anexos.length})</h3>
               <div className="ec-attach-list">
-                {anexos.map((anexo, indice) => {
+                {(anexosDisponiveis ?? anexos).map((anexo, indice) => {
                   const ok = Boolean(anexo.id?.trim());
+                  const selecionado = anexos.some((item) => item.id === anexo.id);
                   return <div key={`${anexo.id || anexo.url || "anexo"}-${indice}`} className="ec-attach-item" data-ok={ok}>
-                    <Paperclip size={17} aria-hidden="true" />
+                    {onAnexosChange ? <input type="checkbox" aria-label={`Anexar ${anexo.label || anexo.filename || `Documento ${indice + 1}`}`} checked={selecionado} disabled={bloqueado || !ok}
+                      onChange={() => onAnexosChange(selecionado ? anexos.flatMap((item) => item.id && item.id !== anexo.id ? [item.id] : []) : [...anexos.flatMap((item) => item.id ? [item.id] : []), anexo.id!])} /> : <Paperclip size={17} aria-hidden="true" />}
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <p className="ec-attach-nome">{anexo.label || anexo.filename || `Documento ${indice + 1}`}</p>
-                      <p className="ec-help">{ok ? "Incluído automaticamente no envio" : "Documento indisponível para envio"}</p>
+                      <p className="ec-help">{!ok ? "Documento indisponível para envio" : selecionado ? "Incluído no envio deste cotista" : "Não incluído neste e-mail"}</p>
                     </div>
                   </div>;
                 })}
               </div>
+              {exigirAnexo && !anexos.length && <p className="ec-help" style={{ color: "var(--ec-warn)" }}>Selecione ao menos um documento para este cotista.</p>}
               {anexosSemId.length > 0 && <p className="ec-help" style={{ color: "var(--ec-warn)" }}>
                 Feche esta janela e selecione novamente os documentos indisponíveis para continuar.
               </p>}
+            </section>}
+            {Boolean(envioExtra.arquivos_persistidos?.length) && <section className="ec-attach" aria-label="Arquivos adicionais salvos">
+              <h3>Arquivos adicionais salvos</h3><div className="ec-attach-list">{envioExtra.arquivos_persistidos!.map((arquivo) => <div className="ec-attach-item" key={arquivo.key}><Paperclip size={17} /><p className="ec-attach-nome">{arquivo.filename}</p></div>)}</div>
             </section>}
 
             {erro && <div role="alert" className="ec-notice" data-tipo="erro" style={{ marginTop: 24 }}>

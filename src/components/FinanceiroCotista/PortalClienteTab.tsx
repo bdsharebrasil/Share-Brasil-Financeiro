@@ -161,7 +161,7 @@ export function PortalClienteTab({ aeronaveId }: Props) {
   };
 
   return (
-    <section className="financeiro-panel overflow-hidden">
+    <section className="financeiro-panel cotista-portal overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div>
           <p className="financeiro-eyebrow">ACESSO AO PORTAL DO CLIENTE</p>
@@ -229,7 +229,7 @@ export function PortalClienteTab({ aeronaveId }: Props) {
       <Dialog open={Boolean(cotistaCriando)} onOpenChange={(aberto) => {
         if (!aberto && !processando) { setCotistaCriando(null); setSenhaCriacao(""); setEnviarAoCriar(false); setEmailAoCriar(""); }
       }}>
-        <DialogContent>
+        <DialogContent className="despesas-theme despesa-dialog">
           <form onSubmit={(event) => void criarAcesso(event)} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Criar acesso ao Portal Cliente</DialogTitle>
@@ -253,7 +253,7 @@ export function PortalClienteTab({ aeronaveId }: Props) {
       <Dialog open={Boolean(cotistaEnviando)} onOpenChange={(aberto) => {
         if (!aberto && !processando) { setCotistaEnviando(null); setSenhaParaEnvio(""); setEmailDestinatario(""); }
       }}>
-        <DialogContent>
+        <DialogContent className="despesas-theme despesa-dialog">
           <form onSubmit={(event) => void enviarAcesso(event)} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Enviar nova senha por e-mail</DialogTitle>
@@ -270,7 +270,7 @@ export function PortalClienteTab({ aeronaveId }: Props) {
       </Dialog>
 
       <Dialog open={Boolean(credenciaisCriadas)} onOpenChange={(aberto) => { if (!aberto) setCredenciaisCriadas(null); }}>
-        <DialogContent>
+        <DialogContent className="despesas-theme despesa-dialog">
           <DialogHeader>
             <DialogTitle>Acesso criado</DialogTitle>
             <DialogDescription>Senha definida para {credenciaisCriadas?.nome}. Ela será exibida somente nesta janela; copie-a agora se precisar guardá-la.</DialogDescription>
@@ -286,7 +286,7 @@ export function PortalClienteTab({ aeronaveId }: Props) {
       <Dialog open={Boolean(cotistaEditando)} onOpenChange={(aberto) => {
         if (!aberto) { setCotistaEditando(null); setSenhaNova(""); }
       }}>
-        <DialogContent>
+        <DialogContent className="despesas-theme despesa-dialog">
           <form onSubmit={(event) => void salvarCredenciais(event)} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Editar credenciais do Portal Cliente</DialogTitle>

@@ -114,7 +114,7 @@ export function DarBaixaCotistaDialog({ lancamento, onFechar, onConcluido }: Pro
   const selectClass='h-10 w-full rounded-lg border border-border bg-background px-3 text-sm';
   const formBusy=enviando||uploading;
   return <Dialog open={Boolean(lancamento)} onOpenChange={o=>{if(!o&&!trava.current)onFechar();}}>
-    <DialogContent className="max-h-[92dvh] overflow-y-auto border-slate-700 bg-card dark:bg-[#111c2e] text-foreground dark:text-slate-100 shadow-2xl sm:max-w-2xl" onEscapeKeyDown={e=>{if(trava.current)e.preventDefault();}} onPointerDownOutside={e=>{if(trava.current)e.preventDefault();}}>
+    <DialogContent className="despesas-theme despesa-dialog max-h-[92dvh] overflow-y-auto border-slate-700 bg-card dark:bg-[#111c2e] text-foreground dark:text-slate-100 shadow-2xl sm:max-w-2xl" onEscapeKeyDown={e=>{if(trava.current)e.preventDefault();}} onPointerDownOutside={e=>{if(trava.current)e.preventDefault();}}>
       <DialogHeader className="border-b border-slate-700 pb-4">
         <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-sky-300">Financeiro Cotista · Baixa</p>
         <DialogTitle className="flex items-center gap-2 text-xl"><Receipt className="h-5 w-5 text-sky-300"/>{direto?'Registrar pagamento direto':'Registrar pagamento à Share'}</DialogTitle>

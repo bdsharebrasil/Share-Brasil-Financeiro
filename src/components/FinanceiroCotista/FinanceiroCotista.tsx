@@ -1,3 +1,4 @@
+import "./financeiro-cotista.css";
 import { DarBaixaCotistaDialog } from "./DarBaixaCotistaDialog";
 import {
   Fragment,
@@ -3816,7 +3817,7 @@ export default function FinanceiroCotista() {
     <div className="financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
-        <div className="-mt-3.5 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="cotista-contexto flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Financeiro Cotista
@@ -3849,7 +3850,7 @@ export default function FinanceiroCotista() {
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && (
-        <div className="mt-0.5 flex items-center gap-2 py-[5px]">
+        <div className="cotista-navegacao flex items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -4018,7 +4019,7 @@ export default function FinanceiroCotista() {
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
             <div className="space-y-4">
-              <div className="financeiro-panel grid grid-cols-1 items-center gap-3 px-4 pt-px pb-px md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)_auto]">
+              <div className="financeiro-panel cotista-fechamento-filtros grid grid-cols-1 items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)_auto]">
                 <div className="min-w-0">
                   <p className="text-sm font-bold">Fechamento por cotista</p>
                   <p className="mt-1 text-[10px] text-muted-foreground">

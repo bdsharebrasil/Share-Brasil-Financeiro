@@ -1,0 +1,91 @@
+@import "../financeiro-design/financeiro-tema.css";
+
+/* Escopo dos documentos de saída: mesmo contraste no Financeiro e no Gestor. */
+html :is(.nf-workspace, .nf-modal) {
+  --nf-bg: var(--fin-canvas); --nf-panel: var(--fin-surface);
+  --nf-line: var(--fin-border); --nf-muted: var(--fin-muted);
+  --nf-text: var(--fin-text); --nf-blue: var(--fin-accent);
+  background: var(--fin-surface); color: var(--fin-text); font-size: 13px;
+}
+html .nf-workspace { width: 100%; min-width: 0; padding: 24px; border: 1px solid var(--fin-border); border-radius: 10px; }
+html .nf-workspace .nf-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 24px; padding: 0; }
+html .nf-workspace .nf-eyebrow { font-size: 10px; letter-spacing: .08em; line-height: 1.5; color: var(--fin-muted); }
+html .nf-workspace .nf-header h1 { margin: 6px 0 0; font-size: 20px; line-height: 1.4; font-weight: 600; color: var(--fin-text); }
+html .nf-workspace .nf-header-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+html .nf-workspace .nf-header-actions .nf-btn { margin: 0; }
+html .nf-workspace .nf-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; padding: 0; }
+html .nf-workspace .nf-stat { padding: 18px 20px; border: 1px solid var(--fin-border); border-radius: 8px; background: var(--fin-soft); box-shadow: none; }
+html .nf-workspace .nf-stat::before { top: 18px; bottom: 18px; width: 2px; background: var(--fin-accent); }
+html .nf-workspace .nf-stat.amber::before { background: var(--fin-warning); }
+html .nf-workspace .nf-stat-top { margin-bottom: 8px; color: var(--fin-muted); }
+html .nf-workspace .nf-stat-top span { font-size: 12px; }
+html .nf-workspace .nf-stat-top svg { width: 16px; height: 16px; color: var(--fin-accent); }
+html .nf-workspace .nf-stat.amber .nf-stat-top svg { color: var(--fin-warning); }
+html .nf-workspace .nf-stat strong { color: var(--fin-text); font-size: 24px; font-weight: 600; line-height: 1.4; }
+html .nf-workspace .nf-stat small { margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--fin-muted); }
+html .nf-workspace .nf-panel { border: 1px solid var(--fin-border); border-radius: 8px; background: var(--fin-surface); box-shadow: none; }
+html .nf-workspace .nf-panel-top { padding: 16px; border-color: var(--fin-border); }
+html .nf-workspace .nf-segment { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin: 0; border: 1px solid var(--fin-border); border-radius: 7px; background: var(--fin-soft); }
+html .nf-workspace .nf-segment button { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 8px 12px; min-height: 34px; border: 1px solid transparent; border-radius: 4px; font-size: 12px; font-weight: 500; color: var(--fin-muted); background: transparent; box-shadow: none; }
+html .nf-workspace .nf-segment button.active { background: var(--fin-surface); color: var(--fin-accent); border-color: var(--fin-border); }
+html .nf-workspace .nf-segment button span { margin: 0; min-width: 22px; height: auto; padding: 1px 5px; background: var(--fin-accent-soft); color: var(--fin-accent); font-size: 10px; border-radius: 4px; }
+html .nf-workspace .nf-toolbar { padding: 12px 16px; gap: 12px; background: var(--fin-soft); border-color: var(--fin-border); }
+html .nf-workspace .nf-toolbar :is(select, .nf-search, .nf-btn) { height: 36px; min-height: 36px; border-radius: 5px; font-size: 12px; border-color: var(--fin-border); background: var(--fin-surface); color: var(--fin-text); }
+html .nf-workspace .nf-search input { color: var(--fin-text); font-size: 12px; }
+html .nf-workspace .nf-search input::placeholder { color: var(--fin-muted); opacity: 1; }
+html .nf-workspace .nf-list-heading { padding: 16px; gap: 12px; }
+html .nf-workspace .nf-list-heading h2 { color: var(--fin-text); font-size: 14px; font-weight: 600; }
+html .nf-workspace .nf-list-heading p { margin-top: 4px; font-size: 11px; color: var(--fin-muted); }
+html .nf-workspace .nf-table { font-size: 12px; line-height: 1.5; }
+html .nf-workspace .nf-table th { height: 44px; padding: 12px; background: var(--fin-header); color: var(--fin-muted); border-color: var(--fin-border); font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+html .nf-workspace .nf-table td { padding: 14px 12px; border-color: var(--fin-grid); color: var(--fin-text); }
+html .nf-workspace .nf-table tbody tr:hover { background: var(--fin-hover); }
+html .nf-workspace .nf-doc-cell strong { color: var(--fin-text); font-size: 12px; }
+html .nf-workspace .nf-doc-cell :is(span, small) { color: var(--fin-muted); line-height: 1.5; }
+html .nf-workspace .nf-doc-cell small { font-size: 11px; }
+html .nf-workspace .nf-amount { font-size: 13px; color: var(--fin-text); font-variant-numeric: tabular-nums; }
+html .nf-workspace .nf-category { color: var(--fin-muted); }
+html .nf-workspace .nf-dates small { font-size: 11px; }
+html .nf-workspace .nf-dates .nf-late { color: var(--fin-danger); }
+html .nf-workspace .nf-pagination { padding: 14px 16px; border-color: var(--fin-border); color: var(--fin-muted); font-size: 11px; background: var(--fin-soft); }
+html .nf-workspace .nf-row-actions .nf-email-action { width: auto; padding: 0 10px; gap: 6px; font-size: 12px; font-weight: 500; }
+html :is(.nf-workspace, .nf-modal) .nf-btn { min-height: 36px; padding: 8px 12px; border-color: var(--fin-border); border-radius: 5px; background: var(--fin-surface); color: var(--fin-text); font-size: 12px; line-height: 1.4; }
+html :is(.nf-workspace, .nf-modal) .nf-btn.primary { background: var(--fin-primary); border-color: var(--fin-primary); color: white; }
+html :is(.nf-workspace, .nf-modal) .nf-btn.primary:hover { background: var(--fin-primary-hover); color: white; }
+html :is(.nf-workspace, .nf-modal) .nf-btn:not(.primary):hover,
+html :is(.nf-workspace, .nf-modal) .nf-icon:hover { background: var(--fin-hover); color: var(--fin-accent); }
+html .nf-modal { border: 1px solid var(--fin-border); border-radius: 10px; }
+html .nf-modal::backdrop { background: #0b142766; backdrop-filter: blur(3px); }
+html .nf-modal :is(.nf-modal-head, .nf-modal-footer) { padding: 18px 24px; background: var(--fin-soft); border-color: var(--fin-border); }
+html .nf-modal .nf-modal-body { padding: 24px; }
+html .nf-modal :is(input, select, textarea) { background: var(--fin-surface); color: var(--fin-text); border-color: var(--fin-border); font-size: 13px; }
+html .nf-workspace .nf-mobile-doc { border-color: var(--fin-border); background: var(--fin-surface); box-shadow: none; }
+html .nf-workspace .nf-folder { border-color: var(--fin-border); background: var(--fin-soft); box-shadow: none; }
+html .nf-workspace .nf-folder:hover { background: var(--fin-hover); }
+@container (max-width: 760px) {
+  html .nf-workspace .nf-header { flex-wrap: wrap; }
+  html .nf-workspace .nf-header-actions { width: 100%; }
+  html .nf-workspace .nf-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html .nf-workspace .nf-search { grid-column: 1 / -1; }
+  html .nf-workspace .nf-toolbar > .nf-btn { grid-column: 1 / -1; }
+}
+@container (max-width: 490px) {
+  html .nf-workspace .nf-stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  html .nf-workspace .nf-stat { padding: 16px; }
+  html .nf-workspace .nf-panel-top { padding: 12px; }
+  html .nf-workspace .nf-segment { display: flex; }
+  html .nf-workspace .nf-segment button { flex: 1; }
+}
+@media (max-width: 640px) {
+  html .nf-workspace { padding: 16px; }
+  html .nf-workspace .nf-header h1 { font-size: 18px; }
+  html .nf-modal :is(.nf-modal-body, .nf-modal-head, .nf-modal-footer) { padding: 16px; }
+}
+html .nf-workspace .nf-badge { border-radius: 5px; padding: 4px 8px; font-size: 11px; line-height: 1.4; font-weight: 500; }
+html .nf-workspace .nf-badge.pending { background: var(--fin-warning-soft); color: var(--fin-warning); border-color: color-mix(in srgb, var(--fin-warning) 24%, transparent); }
+html .nf-workspace .nf-badge.paid { background: var(--fin-success-soft); color: var(--fin-success); border-color: color-mix(in srgb, var(--fin-success) 24%, transparent); }
+html .nf-modal .nf-btn.destructive { background: var(--fin-danger); color: var(--fin-surface); border-color: var(--fin-danger); }
+html .nf-workspace .nf-mobile-docs { display: none; }
+@container (max-width: 760px) {
+  html .nf-workspace .nf-mobile-docs { display: grid; }
+}

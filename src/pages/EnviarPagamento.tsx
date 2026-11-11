@@ -954,7 +954,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
       setMensagem(exigeCliente ? "Solicitação registrada. Revise os destinatários e anexos por cotista." : "Lançamento criado corretamente em movimentações.");
 
       if (exigeCliente) {
-        const cotistasParaEmail = form.anexos.some((anexo) => !anexo.cotista_id) ? cotistas : cotistasSelecionados;
+        const cotistasComAnexo = cotistas.filter((cotista) => form.anexos.some((anexo) => anexo.cotista_id === cotista.id));
+        const cotistasParaEmail = cotistasComAnexo.length ? cotistasComAnexo : cotistasSelecionados;
         const emails = Object.fromEntries(cotistasParaEmail.map((cotista) => [
           cotista.id,
           cotista.email || contatos.find((contato) => contato.cliente_id === cotista.cliente_id)?.email || "",

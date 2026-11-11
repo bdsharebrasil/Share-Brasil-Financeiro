@@ -64,7 +64,7 @@
 .hp-metric dd { margin-block-start: 5px; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .hp-sections { display: flex; flex-wrap: wrap; gap: 6px; border-block-end: 1px solid var(--hp-line); padding-block-end: 10px; }
 .hp-sections button { flex: 1 1 120px; min-block-size: 44px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--hp-dim); padding: 8px 11px; font-size: 13px; font-weight: 550; }
-.hp-sections button[aria-current="page"] { border-color: hsl(var(--primary) / .55); background: hsl(var(--primary) / .12); color: hsl(var(--primary)); }
+.hp-sections button[aria-current="page"] { border-color: rgba(209, 253, 165, 1); background: hsl(var(--primary) / .12); color: rgba(217, 240, 174, 1); }
 .hp-sections button > span { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .8; }
 .hp-toolbar { display: grid; gap: 10px; }
 .hp-search { display: flex; align-items: center; gap: 9px; inline-size: 100%; min-block-size: 44px; border: 1px solid var(--hp-line); border-radius: 8px; background: var(--hp-surface); padding-inline: 12px 4px; color: var(--hp-faint); }

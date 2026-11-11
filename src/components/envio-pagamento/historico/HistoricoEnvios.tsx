@@ -196,7 +196,7 @@ export function HistoricoEnvios(props: HistoricoEnviosProps) {
       <header className="hp-page-header"><button type="button" className="hp-icon-button hp-back" onClick={aeronaveSelecionada ? voltarAeronaves : props.onVoltar} aria-label={aeronaveSelecionada ? "Voltar para lista de aeronaves" : "Voltar para programar pagamento"}><ArrowLeft size={18} /></button><div className="hp-page-heading"><h1 ref={cabecalho} tabIndex={-1}>{aeronaveSelecionada ? aeronaveAtual?.nome ?? "Histórico da aeronave" : "HISTÓRICO ENVIO DE PAGAMENTOS"}</h1><p>{aeronaveSelecionada ? "Histórico de envios separado por mês e ano." : ""}</p></div><button type="button" className="hp-button hp-refresh" onClick={() => void props.onAtualizar()} disabled={props.carregando} aria-label="Atualizar histórico"><RefreshCw size={15} className={props.carregando ? "hp-spin" : ""} /><span>Atualizar</span></button></header>
 
       <section className="hp-summary" aria-label={aeronaveSelecionada ? "Resumo do histórico da aeronave" : "Resumo geral do histórico"}>
-        <div className="hp-summary-value"><p className="hp-eyebrow">Valor programado</p><p className="hp-total">{moeda(resumo.total)}</p><p className="hp-open">{moeda(resumo.aberto)} em aberto</p></div>
+        <div className="hp-summary-value" />
         <dl className="hp-summary-metrics"><Metrica titulo="Clientes" valor={resumo.clientes} /><Metrica titulo="Programações" valor={historicoResumo.length} /><Metrica titulo="Caixa Share" valor={resumo.share} /><Metrica titulo="Com e-mail" valor={resumo.emails} /></dl>
       </section>
 

@@ -1,9 +1,10 @@
+import { AnimatedStepper, AnimatedStepPanel } from "@/components/envio-pagamento/AnimatedStepper";
 import { anexosSelecionadosDoCotista } from "@/components/envio-pagamento/email-cotista";
 import "@/components/envio-pagamento/envio-pagamento.css";
 import { SeletorCotistaEmail } from "@/components/envio-pagamento/SeletorCotistaEmail";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ClipboardCheck, HandCoins, History, Info, Loader2, Mail, Plus, Send, Users, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, HandCoins, History, Info, Loader2, Mail, Plus, Send, Users, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -475,8 +476,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   }, [buscaAnexo, fontesAnexos, origemAnexo]);
   const exigeDadosAeronave = exigeCliente || (tipo === "share" && vincularAeronave === true);
   const totalEtapas = 3;
-  const progresso = ((etapa + 1) / (totalEtapas + 1)) * 100;
-  const tituloEtapa = etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : tipo === "cliente" ? "Aeronave, cotistas e valor" : "Aeronave, voo e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
+  const tituloEtapa = etapa === 0 ? "Modo da solicitação" : etapa === 1 ? (tipo === "share" && !exigeDadosAeronave ? "Vinculação da aeronave" : tipo === "cliente" ? "Aeronave, cotistas e valor" : "Aeronave, voo e rateio") : etapa === 2 ? "Dados da despesa" : "Revisão e envio";
   const alterar = (campo: keyof Formulario, valor: string | boolean) => setForm((atual) => ({ ...atual, [campo]: valor }));
   const alterarPercentual = (cotistaId: string, bruto: string) => setForm((atual) => {
     const percentual = bruto.replace(",", ".");
@@ -1129,24 +1129,21 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
       <section className="envio-fluxo overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
         <div className="envio-fluxo-header flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/25 bg-primary/[.09] text-primary"><ClipboardCheck size={15} /></span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}{statusSalvamento === "salvando" ? " · Salvando…" : statusSalvamento === "salvo" && salvoEm ? ` · Salvo às ${new Date(salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : statusSalvamento === "erro" ? " · Falha ao salvar" : ""}</p>
           </div>
-          <div
-            className="ml-auto flex w-[38%] min-w-[90px] max-w-[440px] items-center"
-            role="progressbar"
-            aria-label={`Progresso: etapa ${etapa + 1}`}
-            aria-valuenow={Math.round(progresso)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <span className="block h-[3px] w-full bg-card dark:bg-[#0d1727]"><span className="block h-full bg-primary transition-[width] duration-300" style={{ width: `${progresso}%` }} /></span>
-          </div>
         </div>
 
+        <AnimatedStepper atual={etapa} etapas={[
+          { id: "modo", titulo: "Modo de envio" },
+          { id: "vinculacao", titulo: tipo === "share" ? "Aeronave" : "Aeronave e rateio" },
+          { id: "despesa", titulo: "Dados da despesa" },
+          { id: "revisao", titulo: "Revisão e envio" },
+        ]} />
+
         <div className="envio-fluxo-conteudo flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
+          <AnimatedStepPanel etapa={etapa} titulo={tituloEtapa}>
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
               <div>
@@ -1236,7 +1233,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                     })}</div>
                   </div>}
                   <div className="grid gap-3 sm:grid-cols-2">
-                  <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input autoFocus value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
+                  <Campo label="Descrição da despesa" obrigatorio className="sm:col-span-2"><input value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} placeholder="Ex.: manutenção, imposto, combustível" className="campo" /></Campo>
                   {tipo !== "cliente" && <Campo label="Valor da despesa" obrigatorio><input type="text" inputMode="decimal" value={form.valor} onChange={(e) => alterar("valor", e.target.value)} placeholder="0,00" className="campo font-mono" /></Campo>}
                   <Campo label="Vencimento" obrigatorio={tipo === "share"}><input type="date" value={form.vencimento} onChange={(e) => alterar("vencimento", e.target.value)} className="campo" /></Campo>
                   <Campo label="Fornecedor"><div className="flex items-center gap-2"><SearchableCombobox items={fornecedoresItems} value={fornecedorSelecionadoId} onChange={(id, label) => { const fornecedor = fornecedores.find((item) => item.id === id); setForm((atual) => ({ ...atual, fornecedor_id: fornecedor ? id.slice(fornecedor.origem.length + 1) : "", fornecedor: label })); }} placeholder="Selecione ou digite o fornecedor" searchPlaceholder="Buscar fornecedor" emptyMessage="Nenhum fornecedor correspondente encontrado." allowFreeText />{Boolean(form.fornecedor.trim()) && !form.fornecedor_id && <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-sm" onClick={() => setDialogoFornecedor(true)} aria-label="Adicionar fornecedor ao cadastro" title="Adicionar fornecedor ao cadastro">{salvandoFornecedor ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}</Button>}</div></Campo>
@@ -1278,6 +1275,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
               )}
             </div>
           )}
+
+          </AnimatedStepPanel>
 
           {erro && <div role="alert" className="mt-4 rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-600 dark:text-red-200">{erro}</div>}
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}

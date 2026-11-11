@@ -660,9 +660,12 @@ export function buscarPainelOperacoes(data?: string) {
 
 export type StatusRastreio = "ao_vivo" | "atrasado" | "sem_sinal" | "sem_identificador" | "indisponivel";
 export type RastreioAeronave = { hex: string; matricula: string | null; callsign: string | null; lat: number; lon: number; alt_ft: number | null; no_solo: boolean; gs_kt: number | null; rumo_graus: number | null; vs_fpm: number | null; visto_ha_s: number | null; squawk: string | null; fonte: string };
-export type StatusVooOperacao = "acionado" | "decolado" | "em_voo" | "em_solo";
-export type VooEmOperacao = { id: string; numero_voo: string | null; status: StatusVooOperacao; aeronave_id: string | null; matricula_registro: string | null; modelo: string | null; icao_hex: string | null; origem: string | null; destino: string | null; origem_coord: { lat: number; lon: number } | null; destino_coord: { lat: number; lon: number } | null; horario_previsto_agendamento: string | null; cotista_nome: string | null; piloto_nome: string | null; copiloto_nome: string | null; rastreio: RastreioAeronave | null; rastreio_status: StatusRastreio; perna_atual: PernaOperacao | null; pernas: PernaOperacao[]; trilha?: Array<{ lat: number; lon: number; alt_ft?: number | null }> };
+export type StatusVooOperacao = "aguardando" | "encerrada" | "acionado" | "decolado" | "em_voo" | "em_solo";
+export type PontoRastreio = { lat: number; lon: number; alt_ft?: number | null; registrado_em?: string; trilha_id?: string };
+export type EventoRastreio = { id: number; tipo: "SINAL_RECEBIDO" | "SINAL_PERDIDO" | "EM_SOLO_ADSB"; ocorrido_em: string; detectado_em: string; lat: number; lon: number };
+export type VooEmOperacao = { id: string; numero_voo: string | null; status: StatusVooOperacao; aeronave_id: string | null; matricula_registro: string | null; modelo: string | null; icao_hex: string | null; origem: string | null; destino: string | null; origem_coord: { lat: number; lon: number } | null; destino_coord: { lat: number; lon: number } | null; horario_previsto_agendamento: string | null; cotista_nome: string | null; piloto_nome: string | null; copiloto_nome: string | null; rastreio: RastreioAeronave | null; rastreio_status: StatusRastreio; perna_atual: PernaOperacao | null; pernas: PernaOperacao[]; trilha?: PontoRastreio[]; eventos_rastreio?: EventoRastreio[]; historico_disponivel?: boolean };
 export function buscarVoosEmOperacao() { return colaboradorRequest<{ atualizado_em: string; voos: VooEmOperacao[] }>("/api/interno/voos-em-operacao"); }
+export function buscarHistoricoRastreio(solicitacaoId: string) { return colaboradorRequest<VooEmOperacao>(`/api/interno/solicitacoes/${encodeURIComponent(solicitacaoId)}/rastreio`); }
 export function buscarRotaerOperacao(icao: string) { return colaboradorRequest<{ airport?: { coordinates?: { lat?: number; lng?: number } } }>(`/api/rotaer/${encodeURIComponent(icao)}`); }
 
 export function buscarSolicitacoesInternas(status?: string) {
@@ -1746,3 +1749,4 @@ export function buscarAniversariosShare() { return colaboradorRequest<{ aniversa
 export function criarAniversarioShare(payload: AniversarioSharePayload) { return colaboradorRequest<{ aniversario: AniversarioShare }>("/api/interno/aniversarios", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarAniversarioShare(id: string, payload: AniversarioSharePayload) { return colaboradorRequest<{ aniversario: AniversarioShare; success: boolean }>(`/api/interno/aniversarios/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirAniversarioShare(id: string) { return colaboradorRequest<{ success: boolean }>(`/api/interno/aniversarios/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+

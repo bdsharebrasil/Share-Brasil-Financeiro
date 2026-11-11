@@ -6,14 +6,16 @@ import type { Feature, FeatureCollection, LineString } from "geojson";
 import { Plane } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import type { VooEmOperacao } from "@/lib/colaborador-api";
+import { segmentosTrilha, horarioRastreio, vooComSinalNoAr } from '@/lib/rastreio';
+import type { VooEmOperacao, PontoRastreio } from "@/lib/colaborador-api";
 
 interface MapaVooProps {
   voo: VooEmOperacao;
+  historico?: boolean;
+  compacto?: boolean;
 }
 
 type Coord = { lat: number; lon: number };
-type PontoTrilha = { lat: number; lon: number; alt_ft?: number | null };
 
 // Esri World Topo: mapa com relevo, estradas e cidades (parecido com o FlightRadar24), sem chave de API.
 const ESTILO_TERRENO: StyleSpecification = {
@@ -53,21 +55,13 @@ function linhaGeoJSON(coordenadas: [number, number][]): Feature<LineString> | nu
   };
 }
 
-export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
+export default function VooEmOperacaoMapa({ voo, historico = !vooComSinalNoAr(voo), compacto = false }: MapaVooProps) {
   const mapRef = useRef<MapRef>(null);
 
   const pernas = voo.pernas ?? [];
-  const pernaAtual = voo.perna_atual ?? null;
-  const pernaJaPousou = pernaAtual ? ["pousado", "cortado"].includes(pernaAtual.status) : false;
-
-  // Avião: posição ADS-B; sem sinal, fica no pouso da perna (se já pousou) ou na origem dela
-  const posicaoAviao = useMemo<Coord | null>(() => {
-    const rastreio = voo.rastreio;
-    if (rastreio && rastreio.lat != null && rastreio.lon != null) {
-      return { lat: rastreio.lat, lon: rastreio.lon };
-    }
-    return (pernaJaPousou ? voo.destino_coord : voo.origem_coord) ?? null;
-  }, [voo.rastreio, voo.origem_coord, voo.destino_coord, pernaJaPousou]);
+  // Somente uma posição recente no ar representa o avião ao vivo.
+  const posicaoAviao: Coord | null = !historico && voo.rastreio
+    ? { lat: voo.rastreio.lat, lon: voo.rastreio.lon } : null;
 
   const rumoAviao = voo.rastreio?.rumo_graus ?? 0;
 
@@ -88,8 +82,8 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
 
   const initialViewState = useMemo(
     () => ({
-      latitude: posicaoAviao?.lat ?? -23.55,
-      longitude: posicaoAviao?.lon ?? -46.63,
+      latitude: posicaoAviao?.lat ?? voo.trilha?.[0]?.lat ?? -23.55,
+      longitude: posicaoAviao?.lon ?? voo.trilha?.[0]?.lon ?? -46.63,
       zoom: 7,
     }),
     // só na montagem: depois disso o usuário controla o mapa
@@ -99,9 +93,14 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
 
   // Enquadra todas as pernas e o avião quando o mapa carrega
   const enquadrarRota = () => {
-    const pontos: [number, number][] = aerodromos.map(([, c]) => [c.lon, c.lat]);
+    const pontos: [number, number][] = historico ? [] : aerodromos.map(([, c]) => [c.lon, c.lat]);
+    (voo.trilha || []).forEach((ponto) => pontos.push([ponto.lon, ponto.lat]));
     if (posicaoAviao) pontos.push([posicaoAviao.lon, posicaoAviao.lat]);
-    if (pontos.length < 2) return;
+    if (pontos.length === 1) {
+      mapRef.current?.jumpTo({ center: pontos[0], zoom: 9 });
+      return;
+    }
+    if (!pontos.length) return;
     const lons = pontos.map(([lon]) => lon);
     const lats = pontos.map(([, lat]) => lat);
     mapRef.current?.fitBounds(
@@ -109,36 +108,24 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
         [Math.min(...lons), Math.min(...lats)],
         [Math.max(...lons), Math.max(...lats)],
       ],
-      { padding: 70, maxZoom: 9, duration: 0 },
+      { padding: compacto ? 35 : 60, maxZoom: 9, duration: 0 },
     );
   };
 
-  // Pernas anteriores: linha cheia e discreta
-  const pernasAnterioresGeoJSON = useMemo((): FeatureCollection<LineString> | null => {
-    const features = pernas
-      .filter((perna) => perna.id !== pernaAtual?.id && perna.origem_coord && perna.destino_coord)
-      .map((perna) => linhaGeoJSON([
-        [perna.origem_coord!.lon, perna.origem_coord!.lat],
-        [perna.destino_coord!.lon, perna.destino_coord!.lat],
-      ]))
-      .filter((feature): feature is Feature<LineString> => feature !== null);
-    return features.length ? { type: "FeatureCollection", features } : null;
-  }, [pernas, pernaAtual?.id]);
-
   // Perna atual: tracejada
   const rotaAtualGeoJSON = useMemo(() => {
-    if (!voo.origem_coord || !voo.destino_coord) return null;
+    if (historico || !voo.origem_coord || !voo.destino_coord) return null;
     return linhaGeoJSON([
       [voo.origem_coord.lon, voo.origem_coord.lat],
       [voo.destino_coord.lon, voo.destino_coord.lat],
     ]);
-  }, [voo.origem_coord, voo.destino_coord]);
+  }, [historico, voo.origem_coord, voo.destino_coord]);
 
-  // Trilha real da perna atual: um segmento por par de pontos, com a altitude para colorir
+  // Trilha real do agendamento: um segmento por par de pontos, com a altitude para colorir
   const trilhaGeoJSON = useMemo((): FeatureCollection<LineString, { alt: number }> | null => {
-    const pontos: PontoTrilha[] = [...((voo.trilha ?? []) as PontoTrilha[])];
+    const pontos: PontoRastreio[] = [...(voo.trilha ?? [])];
     const atual = voo.rastreio;
-    if (atual && atual.lat != null && atual.lon != null) {
+    if (!historico && atual && atual.lat != null && atual.lon != null) {
       const ultimo = pontos[pontos.length - 1];
       if (!ultimo || ultimo.lat !== atual.lat || ultimo.lon !== atual.lon) {
         pontos.push({ lat: atual.lat, lon: atual.lon, alt_ft: atual.no_solo ? 0 : atual.alt_ft ?? 0 });
@@ -147,24 +134,24 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
     if (pontos.length < 2) return null;
     return {
       type: "FeatureCollection",
-      features: pontos.slice(1).map((ponto, i) => ({
+      features: segmentosTrilha(pontos).map(({ anterior, ponto }) => ({
         type: "Feature",
         properties: { alt: ponto.alt_ft ?? 0 },
         geometry: {
           type: "LineString",
           coordinates: [
-            [pontos[i].lon, pontos[i].lat],
+            [anterior.lon, anterior.lat],
             [ponto.lon, ponto.lat],
           ],
         },
       })),
     };
-  }, [voo.trilha, voo.rastreio]);
+  }, [historico, voo.trilha, voo.rastreio]);
 
   return (
     <div
-      className="h-[360px] w-full overflow-hidden rounded-xl bg-slate-200"
-      aria-label="Mapa das pernas do voo e posição da aeronave"
+      className={`${compacto || historico ? "h-[220px]" : "h-[320px]"} w-full overflow-hidden rounded-xl bg-slate-200`}
+      aria-label={historico ? "Histórico do percurso captado por ADS-B" : "Percurso e posição da aeronave ao vivo"}
     >
       <Map
         ref={mapRef}
@@ -175,16 +162,6 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
         onLoad={enquadrarRota}
       >
         <NavigationControl position="top-right" showCompass={false} />
-
-        {pernasAnterioresGeoJSON && (
-          <Source id="pernas-anteriores" type="geojson" data={pernasAnterioresGeoJSON}>
-            <Layer
-              id="linha-pernas-anteriores"
-              type="line"
-              paint={{ "line-color": "#475569", "line-width": 2.5, "line-opacity": 0.75 }}
-            />
-          </Source>
-        )}
 
         {rotaAtualGeoJSON && (
           <Source id="rota-planejada" type="geojson" data={rotaAtualGeoJSON}>
@@ -218,11 +195,17 @@ export default function VooEmOperacaoMapa({ voo }: MapaVooProps) {
           </Source>
         )}
 
-        {aerodromos.map(([icao, coord]) => (
+        {!historico && aerodromos.map(([icao, coord]) => (
           <Marker key={icao} longitude={coord.lon} latitude={coord.lat} anchor="bottom">
             <span className="rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white shadow">
               {icao}
             </span>
+          </Marker>
+        ))}
+
+        {historico && [voo.trilha?.[0], voo.trilha?.slice(-1)[0]].map((ponto, indice) => ponto && (
+          <Marker key={`sinal-${indice}`} longitude={ponto.lon} latitude={ponto.lat} anchor={indice ? 'top' : 'bottom'}>
+            <span className="rounded bg-slate-900/90 px-2 py-1 text-[9px] font-semibold text-white shadow">{indice ? 'Último sinal' : 'Primeiro sinal'} · {horarioRastreio(ponto.registrado_em)}</span>
           </Marker>
         ))}
 

@@ -430,6 +430,20 @@ html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-300, .text-red-400, 
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
 
+/* Planilhas do financeiro (Cotista e Share): cabeçalho escuro, bordas firmes e total em destaque. */
+html:not(.dark) .erp-financeiro .erp-tabela-container { background: #ffffff; border-color: #8fa0b3; }
+html:not(.dark) .erp-financeiro .erp-tabela thead { background: linear-gradient(#2d4156, #223446); }
+html:not(.dark) .erp-financeiro .erp-tabela th { color: #ffffff; border-bottom-color: #13212f; border-right-color: rgb(255 255 255 / .16); }
+html:not(.dark) .erp-financeiro .erp-tabela th .erp-ordenar { color: #ffffff; }
+html:not(.dark) .erp-financeiro .erp-tabela td { color: #1b293b; border-bottom-color: #aebbcb; border-right-color: #d3dbe5; }
+html:not(.dark) .erp-financeiro .erp-tabela td.erp-valor { font-weight: 600; }
+html:not(.dark) .erp-financeiro .erp-linha { background: #ffffff; }
+html:not(.dark) .erp-financeiro .erp-linha:nth-child(even) { background: #f3f6fa; }
+html:not(.dark) .erp-financeiro .erp-linha:hover { background: #dcecf7; }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot { background: #2d4156; }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot td { color: #ffffff; border-top-color: #13212f; }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: #ffffff; background: #176846; }
+
 @media print {
   html:not(.dark) :is(.app-card, .app-table-frame, .financeiro-panel, .financeiro-kpi, .sb-panel, .sb-kpi, .fb-card, .fb-kpi) { box-shadow: none; }
 }

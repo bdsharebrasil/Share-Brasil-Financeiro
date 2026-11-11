@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { FileDown } from "lucide-react";
+import { FileDown, Search } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export function FechamentoBalancoReferencia({
     (categoria === "Todas" || (origem.categoria || "Sem categoria") === categoria)
     && `${nomeFornecedorLancamento(origem, fornecedores)} ${origem.descricao}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")),
   );
+  const totalListado = lancamentosFiltrados.reduce((soma, item) => soma + (item.valorCentavos ?? 0), 0);
   const projecao = total && b && total.naoClassificados === 0
     ? projetarCustos(total, totalHoras, b.meses.length, horasProjetadas)
     : null;
@@ -211,7 +212,6 @@ export function FechamentoBalancoReferencia({
     <div className="fb">
       <style>{CSS}</style>
       <div className="fb-page-actions">
-        <span>{aeronave} · {periodo}</span>
         <button type="button" className="fb-button" onClick={abrirDialogPdf} disabled={!b.participantes.length}><FileDown size={15} /> Gerar PDF</button>
       </div>
       <nav className="fb-tabs" role="tablist" aria-label="Seções do fechamento">
@@ -289,27 +289,58 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "lancamentos" && <section id="fb-panel-lancamentos" role="tabpanel" aria-labelledby="fb-tab-lancamentos">
-        <div className="fb-tools">
-          <select value={categoria} onChange={(event) => setCategoria(event.target.value)} aria-label="Filtrar por categoria"><option>Todas</option>{categorias.map((item) => <option key={item}>{item}</option>)}</select>
-          <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
-        </div>
-        <section className="fb-card"><div className="fb-scroll"><table>
-          <thead><tr><th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th><th className="fb-num">Valor pago</th><th>PAGO POR</th>{cotistas.map((cotista) => <th className="fb-num fb-share-header" key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}</tr></thead>
-          <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
-            <td><span className="fb-date-label">Emissão</span>{formatarDataSemAno(origem.dataEmissao || origem.data)}<span className="fb-date-label">Vencimento</span>{formatarDataSemAno(origem.prazo)}</td>
-            <td>{documentoDoLancamento(origem) || "—"}</td><td>{origem.descricao || "—"}</td>
-            <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td><td>{origem.categoria || "Sem categoria"}</td>
-            <td>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</td>
-            <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
-            <td className="fb-num">{formatarCentavos(valorPagoLancamento(origem))}</td>
-            <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-            {cotistas.map((cotista) => {
-              const rateio = rateioDoCotista(origem, cotista, cotistas);
-              return <td className="fb-num" key={cotista.id}>{rateio ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div> : <span>—</span>}</td>;
-            })}
-          </tr>)}</tbody>
-          <tfoot><tr><td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>{cotistas.map((cotista) => <td className="fb-num" key={cotista.id}>{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0), 0))}</td>)}</tr></tfoot>
-        </table></div>
+        <section className="fb-card fb-ledger-card">
+          <header className="fb-ledger-head">
+            <div><span className="fb-kicker">LANÇAMENTOS</span><h2>Despesas do período</h2></div>
+            <div className="fb-ledger-total"><span>Total listado</span><strong>{formatarCentavos(totalListado)}</strong></div>
+          </header>
+
+          <div className="fb-ledger-tools">
+            <select value={categoria} onChange={(event) => setCategoria(event.target.value)} aria-label="Filtrar por categoria">
+              <option>Todas</option>{categorias.map((item) => <option key={item}>{item}</option>)}
+            </select>
+            <label className="fb-search">
+              <Search size={15} aria-hidden="true" />
+              <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
+            </label>
+            <span className="fb-ledger-count">{lancamentosFiltrados.length} lançamentos</span>
+          </div>
+
+          <div className="fb-scroll fb-ledger"><table>
+            <thead><tr>
+              <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
+              <th className="fb-num">Valor pago</th><th>PAGO POR</th>
+              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
+            </tr></thead>
+            <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
+              <td>
+                <div className="fb-date-stack">
+                  <span><small>Emissão</small><b>{formatarDataSemAno(origem.dataEmissao || origem.data)}</b></span>
+                  <span><small>Vencimento</small><b>{formatarDataSemAno(origem.prazo)}</b></span>
+                </div>
+              </td>
+              <td className="fb-doc">{documentoDoLancamento(origem) || "—"}</td>
+              <td className="fb-desc">{origem.descricao || "—"}</td>
+              <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td>
+              <td>{origem.categoria || "Sem categoria"}</td>
+              <td><span className={`fb-status fb-status-${tomStatus(origem.status)}`}>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</span></td>
+              <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
+              <td className="fb-num fb-money">{formatarCentavos(valorPagoLancamento(origem))}</td>
+              <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
+              {cotistas.map((cotista, i) => {
+                const rateio = rateioDoCotista(origem, cotista, cotistas);
+                return <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
+                  {rateio
+                    ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div>
+                    : <span className="fb-muted-dash">—</span>}
+                </td>;
+              })}
+            </tr>)}</tbody>
+            <tfoot><tr>
+              <td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>
+              {cotistas.map((cotista, i) => <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>{formatarCentavos(lancamentosFiltrados.reduce((soma, item) => soma + (rateioDoCotista(item, cotista, cotistas)?.valorCentavos ?? 0), 0))}</td>)}
+            </tr></tfoot>
+          </table></div>
           {!lancamentosFiltrados.length && <Vazio>Nenhum lançamento encontrado com esses filtros.</Vazio>}
         </section>
       </section>}
@@ -372,12 +403,12 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       <Dialog open={dialogPdfAberto} onOpenChange={setDialogPdfAberto}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Gerar relatório do fechamento</DialogTitle>
-            <DialogDescription>O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader className="min-w-0">
+            <DialogTitle className="break-words">Gerar relatório do fechamento</DialogTitle>
+            <DialogDescription className="break-words">O PDF terá capa e conteúdo completo das quatro seções para {aeronave}, no período {periodo}. Selecione um ou mais cotistas, ou marque todos.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
               <Checkbox
                 checked={cotistasPdfSelecionados.length === b.participantes.length && b.participantes.length > 0}
@@ -395,7 +426,7 @@ export function FechamentoBalancoReferencia({
                     onCheckedChange={(checked) => setCotistasPdfSelecionados((atuais) => checked ? [...new Set([...atuais, item.id])] : atuais.filter((id) => id !== item.id))}
                     aria-label={`Incluir ${item.nome} no PDF`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.nome}</span>
+                  <span className="min-w-0 flex-1 break-words text-sm font-medium">{item.nome}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">{item.holding ? "Holding" : "Cotista"}</span>
                 </label>;
               })}
@@ -404,8 +435,8 @@ export function FechamentoBalancoReferencia({
             <p className="text-xs text-muted-foreground">O arquivo será gerado como PDF profissional, com capa, título, aeronave, período selecionado e paginação. O download funciona também em dispositivos móveis.</p>
           </div>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setDialogPdfAberto(false)} disabled={gerandoPdf}>Cancelar</Button>
-            <Button type="button" onClick={() => void gerarRelatorioPdf()} disabled={gerandoPdf || cotistasPdfSelecionados.length === 0}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDialogPdfAberto(false)} disabled={gerandoPdf}>Cancelar</Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => void gerarRelatorioPdf()} disabled={gerandoPdf || cotistasPdfSelecionados.length === 0}>
               <FileDown size={15} className="mr-2" />{gerandoPdf ? "Gerando PDF…" : "Gerar PDF completo"}
             </Button>
           </DialogFooter>
@@ -425,6 +456,15 @@ function Vazio({ children }: { children: ReactNode }) {
 
 function formatarDataSemAno(valor: string | null | undefined) {
   return formatarData(valor).replace(/\/\d{4}$/, "");
+}
+
+function tomStatus(status: string | null | undefined) {
+  const s = String(status ?? "").trim().toUpperCase();
+  if (["PAGO", "PAGO_DIRETAMENTE", "REEMBOLSADO", "RECEBIDO"].includes(s)) return "ok";
+  if (s === "EM_ABERTO") return "pend";
+  if (s === "EM_ATRASO") return "late";
+  if (s === "AGUARDANDO_REEMBOLSO") return "wait";
+  return "neutral";
 }
 
 type VooBalanco = NonNullable<DashboardBalanco["balanco_operacional"]>["voos"][number];
@@ -460,10 +500,69 @@ const CSS = `
 .fb *{box-sizing:border-box}.fb button,.fb input,.fb select{font:inherit;color:inherit}.fb button{cursor:pointer}.fb :is(button,input,select):focus-visible{outline:2px solid var(--fb-blue);outline-offset:2px}.fb-page-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--fb-muted);font-size:12px}.fb-button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--fb-border);margin-bottom:18px}.fb-tabs button{flex-shrink:0;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--fb-muted);padding:10px 14px}.fb-tabs button[aria-selected=true]{border-bottom-color:#e8b94a;color:var(--fb-text);font-weight:650}
 .fb-hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px;background:var(--fb-navy);color:#fff;border-radius:10px;padding:22px 24px}.fb-hero small{font-size:13px;opacity:.8}.fb-big{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}.fb-hero-stats{display:flex;gap:26px;flex-wrap:wrap}.fb-hero-stats div{font-size:12px;opacity:.95}.fb-hero-stats strong{display:block;font-size:16px}.fb-grid{display:grid;gap:14px;margin-top:14px}.fb-g3{grid-template-columns:repeat(3,minmax(0,1fr))}.fb-g2{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-no-top{margin-top:0}.fb-kpi,.fb-card{background:var(--fb-card);border:1px solid var(--fb-border);border-radius:8px}.fb-kpi{padding:15px 17px;min-width:0}.fb-kpi>span{display:block;color:var(--fb-muted);font-size:12px}.fb-kpi>strong{display:block;margin:6px 0;font-size:21px;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.fb-kpi>small{display:block;color:var(--fb-muted);font-size:11px}.fb-card{min-width:0;padding:16px 18px}.fb-card h2{margin:0 0 12px;font-size:15px;font-weight:650}.fb-spaced{margin-top:14px}.fb-scroll{width:100%;overflow-x:auto}.fb table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.fb-flight-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.fb-flight-heading h2{margin:0 0 12px}.fb-flight-table{min-width:720px;table-layout:fixed}.fb-flight-ref{color:var(--fb-blue);font-family:ui-monospace,monospace;font-weight:700;white-space:nowrap}.fb-flight-route{font-family:ui-monospace,monospace;font-weight:700}.fb-flight-accent{color:var(--fb-blue)!important;font-weight:700}.fb th,.fb td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--fb-border);vertical-align:top}.fb th{color:var(--fb-muted);font-size:11px;font-weight:600}.fb .fb-num{text-align:right;white-space:nowrap}.fb tfoot td{font-weight:700;border-bottom:0;background:var(--fb-soft)}.fb .fb-bar{height:8px;min-width:80px;border-radius:4px;background:var(--fb-soft);overflow:hidden}.fb .fb-bar i{display:block;height:100%;border-radius:4px;background:var(--fb-blue)}.fb-chart{height:240px;width:100%;min-width:0}.fb-chart-tall{height:280px}.fb-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;color:var(--fb-muted);font-size:11px}.fb-legend span{white-space:nowrap}.fb-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}.fb-note{margin:16px 0 0;color:var(--fb-muted);font-size:11px;line-height:1.65}.fb-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.fb-tools select,.fb-tools input{min-width:210px;border:1px solid var(--fb-border);border-radius:6px;background:var(--fb-card);padding:7px 10px}.fb-tag{display:inline-block;border-radius:10px;background:var(--fb-soft);padding:1px 8px;font-size:11px}.fb-date-label{display:block;color:var(--fb-muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.fb-range-label{display:block;color:var(--fb-muted);font-size:12px}.fb-range{width:100%;accent-color:var(--fb-blue)}.fb-highlight{background:var(--fb-soft)}.fb-empty{padding:24px 12px;text-align:center;color:var(--fb-muted)}
 .fb-share-header{min-width:150px}.fb-share-header strong,.fb-share-header span{display:block}.fb-share-header strong{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fb-text);font-size:12px;text-transform:uppercase}.fb-share-header span{margin-top:3px;font-weight:400}.fb-share-cell span,.fb-share-cell strong{display:block}.fb-share-cell span{color:var(--fb-muted);font-size:12px}.fb-share-cell strong{margin-top:4px;color:var(--fb-text);font-size:15px;font-weight:700}
-.fb{max-width:1240px;padding:16px 0 32px}.fb-page-actions{min-height:38px;margin:0 0 10px}.fb-button{min-height:36px;border-color:color-mix(in srgb,var(--fb-border) 78%,transparent);border-radius:8px;transition:background-color .16s ease,border-color .16s ease}.fb-button:hover{background:var(--fb-soft);border-color:var(--fb-muted)}.fb-tabs{gap:8px;margin:0 0 16px;border-color:color-mix(in srgb,var(--fb-border) 82%,transparent)}.fb-tabs button{border-bottom-width:2px;border-radius:7px 7px 0 0;padding:10px 13px;transition:color .16s ease,background-color .16s ease}.fb-tabs button:hover{background:var(--fb-soft)}.fb-tabs button[aria-selected=true]{border-bottom-color:var(--fb-blue);color:var(--fb-blue)}.fb-hero{border:1px solid color-mix(in srgb,var(--fb-navy) 80%,white);border-radius:12px;padding:22px 24px;box-shadow:0 8px 24px rgba(15,61,110,.08)}.fb-grid{gap:12px;margin-top:12px}.fb-kpi,.fb-card{border-color:color-mix(in srgb,var(--fb-border) 82%,transparent);border-radius:10px;box-shadow:0 1px 2px rgba(18,36,56,.025)}.fb-kpi{padding:14px 16px}.fb-card{padding:16px}.fb-card h2{margin-bottom:10px}.fb th,.fb td{padding:9px 10px;border-color:color-mix(in srgb,var(--fb-border) 82%,transparent)}
+.fb{max-width:1240px;padding:16px 0 32px}.fb-page-actions{min-height:38px;margin:-28px 0 -21px;padding:0;justify-content:flex-end;align-items:flex-start}.fb-button{min-height:36px;border-color:color-mix(in srgb,var(--fb-border) 78%,transparent);border-radius:8px;transition:background-color .16s ease,border-color .16s ease}.fb-button:hover{background:var(--fb-soft);border-color:var(--fb-muted)}.fb-tabs{gap:8px;margin:0 0 16px;border-color:color-mix(in srgb,var(--fb-border) 82%,transparent)}.fb-tabs button{border-bottom-width:2px;border-radius:7px 7px 0 0;padding:10px 13px;transition:color .16s ease,background-color .16s ease}.fb-tabs button:hover{background:var(--fb-soft)}.fb-tabs button[aria-selected=true]{border-bottom-color:var(--fb-blue);color:var(--fb-blue)}.fb-hero{border:1px solid color-mix(in srgb,var(--fb-navy) 80%,white);border-radius:12px;padding:22px 24px;box-shadow:0 8px 24px rgba(15,61,110,.08)}.fb-grid{gap:12px;margin-top:12px}.fb-kpi,.fb-card{border-color:color-mix(in srgb,var(--fb-border) 82%,transparent);border-radius:10px;box-shadow:0 1px 2px rgba(18,36,56,.025)}.fb-kpi{padding:14px 16px}.fb-card{padding:16px}.fb-card h2{margin-bottom:10px}.fb th,.fb td{padding:9px 10px;border-color:color-mix(in srgb,var(--fb-border) 82%,transparent)}
 :root[data-theme="dark"] .fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}
 .dark .fb{--fb-bg:#0d141c;--fb-card:#152130;--fb-text:#e8eef5;--fb-muted:#93a3b5;--fb-border:#25364a;--fb-navy:#10325a;--fb-blue:#4f8fd6;--fb-soft:#1b2b3f;color-scheme:dark}
 @media(max-width:780px){.fb-g3{grid-template-columns:repeat(2,minmax(0,1fr))}.fb-g2{grid-template-columns:1fr}.fb{padding:12px 0 24px}.fb-hero{padding:18px}.fb-hero-stats{gap:16px}.fb-card{padding:14px}}
 @media(max-width:480px){.fb-g3{grid-template-columns:1fr 1fr}.fb-kpi{padding:12px}.fb-kpi>strong{font-size:17px}.fb-tabs button{padding:10px}.fb-page-actions{align-items:flex-start;flex-direction:column}.fb-tools{flex-direction:column}.fb-tools select,.fb-tools input{width:100%;min-width:0}}
 @media print{.fb{--fb-bg:#fff;--fb-card:#fff;--fb-text:#14202e;--fb-muted:#5d6b7b;--fb-border:#d9dfe5;--fb-navy:#0f3d6e;background:#fff;max-width:none;padding:0}.fb-tabs,.fb-page-actions button,.fb-tools,.fb-range{display:none}.fb-card,.fb-kpi{break-inside:avoid}.fb-scroll{overflow:visible}.fb table{font-size:9px}.fb th,.fb td{padding:5px}.fb-chart{height:190px}}
+.fb{--fb-ok:#1f8a5b;--fb-warn:#b7791f;--fb-bad:#d14343;--fb-wait:#7c5cd6;--fb-violet:#7c5cd6}
+:root[data-theme="dark"] .fb,.dark .fb{--fb-ok:#5fd09b;--fb-warn:#f0c15a;--fb-bad:#f07878;--fb-wait:#b7a2f5;--fb-violet:#b7a2f5}
+
+.fb .fb-ledger-card{padding:0;overflow:hidden;border-radius:14px}
+.fb-ledger-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--fb-border)}
+.fb-ledger-head h2{margin:2px 0 0;font-size:14px}
+.fb-kicker{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--fb-blue)}
+.fb-ledger-total{padding-left:18px;border-left:1px solid var(--fb-border);text-align:right}
+.fb-ledger-total span{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fb-muted)}
+.fb-ledger-total strong{display:block;margin-top:2px;font:700 14px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.02em}
+
+.fb-ledger-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 12px;background:var(--fb-soft);border-bottom:1px solid var(--fb-border)}
+.fb .fb-ledger-tools select{height:32px;min-width:180px;padding:0 28px 0 10px;border:1px solid var(--fb-border);border-radius:8px;background:var(--fb-card)}
+.fb-search{display:flex;align-items:center;gap:8px;flex:1 1 260px;max-width:420px;height:32px;padding:0 11px;border:1px solid var(--fb-border);border-radius:8px;background:var(--fb-card);color:var(--fb-muted);transition:border-color .15s,box-shadow .15s}
+.fb-search:focus-within{border-color:var(--fb-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--fb-blue) 16%,transparent)}
+.fb-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--fb-text);font-size:13px}
+.fb-ledger-count{margin-left:auto;font-size:11px;font-weight:600;color:var(--fb-muted)}
+
+.fb .fb-ledger{max-height:70vh;overflow:auto}
+.fb .fb-ledger table{min-width:1180px;border-collapse:separate;border-spacing:0}
+.fb .fb-ledger thead th{position:sticky;top:0;z-index:2;height:34px;padding:0 10px;background:var(--fb-soft);color:var(--fb-muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--fb-border);border-right:1px solid color-mix(in srgb,var(--fb-border) 55%,transparent)}
+.fb .fb-ledger thead th:last-child{border-right:0}
+.fb .fb-ledger tbody tr{height:34px}
+.fb .fb-ledger tbody td{padding:4px 10px;vertical-align:middle;font-size:12px;line-height:1.3;border-bottom:1px solid color-mix(in srgb,var(--fb-border) 70%,transparent);border-right:1px solid color-mix(in srgb,var(--fb-border) 35%,transparent);transition:background-color .12s}
+.fb .fb-ledger tbody td:last-child{border-right:0}
+.fb .fb-ledger tbody tr:nth-child(even) td{background-color:color-mix(in srgb,var(--fb-soft) 45%,transparent)}
+.fb .fb-ledger tbody tr:hover td{background-color:color-mix(in srgb,var(--fb-blue) 6%,transparent)}
+.fb .fb-doc{font:600 11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-blue)}
+.fb .fb-desc{min-width:200px;font-weight:600}
+.fb .fb-money{font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+.fb-date-stack{display:grid;gap:1px}
+.fb-date-stack span{display:block;white-space:nowrap}
+.fb-date-stack small{display:block;color:var(--fb-muted);font-size:9px;letter-spacing:.06em;text-transform:uppercase}
+.fb-date-stack b{font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace}
+
+.fb-status{--t:var(--fb-muted);display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:999px;color:var(--t);background:color-mix(in srgb,var(--t) 13%,transparent);border:1px solid color-mix(in srgb,var(--t) 24%,transparent);font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1.2}
+.fb-status::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:currentColor}
+.fb-status-ok{--t:var(--fb-ok)}.fb-status-pend{--t:var(--fb-warn)}.fb-status-late{--t:var(--fb-bad)}.fb-status-wait{--t:var(--fb-wait)}
+
+.fb .fb-ledger .fb-tag{padding:2px 7px;border-radius:6px;background:color-mix(in srgb,var(--fb-blue) 11%,transparent);color:var(--fb-blue);font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1.25}
+
+.fb .fb-ledger .fb-tone-0{background-image:linear-gradient(color-mix(in srgb,var(--fb-blue) 6%,transparent),color-mix(in srgb,var(--fb-blue) 6%,transparent))}
+.fb .fb-ledger .fb-tone-1{background-image:linear-gradient(color-mix(in srgb,var(--fb-violet) 6%,transparent),color-mix(in srgb,var(--fb-violet) 6%,transparent))}
+.fb .fb-ledger thead .fb-tone-0 strong{color:var(--fb-blue)}
+.fb .fb-ledger thead .fb-tone-1 strong{color:var(--fb-violet)}
+.fb .fb-ledger .fb-share-header span{text-transform:none;letter-spacing:0;font-weight:500;font-size:10px}
+.fb .fb-share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.fb .fb-share-cell span{font:500 11px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fb-muted)}
+.fb .fb-share-cell strong{margin:0;font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.02em}
+.fb .fb-muted-dash{color:var(--fb-muted)}
+
+.fb .fb-ledger tfoot td{position:sticky;bottom:0;z-index:2;padding:2px 10px;background:var(--fb-soft);border-top:1px solid var(--fb-border);font-size:12px;font-weight:700}
+
+@media(max-width:640px){
+  .fb-ledger-head{padding:14px}
+  .fb-search{max-width:none}
+  .fb-ledger-count{width:100%;margin:0}
+}
 `;

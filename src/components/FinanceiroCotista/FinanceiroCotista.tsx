@@ -188,6 +188,16 @@ const DESPESAS_ESTILOS = `
 .erp-financeiro .erp-tabela-saidas .erp-linha { height:auto; }
 .erp-financeiro .erp-tabela-saidas .erp-celula-quebra { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; }
 .erp-financeiro .erp-tabela-saidas .erp-celula-quebra .despesa-cell-text { overflow:visible; overflow-wrap:anywhere; text-overflow:clip; white-space:normal; line-height:1.35; }
+.despesas-shell .erp-financeiro .erp-tabela th { height:34px; padding:0 10px; }
+.despesas-shell .erp-financeiro .erp-tabela td { padding:4px 10px; font-size:12px; line-height:1.3; }
+.despesas-shell .erp-financeiro .erp-tabela td.erp-td-data { padding-top:4px; padding-bottom:4px; }
+.despesas-shell .erp-financeiro .erp-tabela tfoot td { padding:2px 10px; }
+.despesas-shell .erp-financeiro .erp-linha { height:34px; }
+.despesas-shell .erp-financeiro .erp-ordenar { height:30px; }
+.despesas-shell .erp-financeiro .erp-texto-secundario { margin-top:2px; margin-bottom:2px; line-height:13px; }
+.despesas-shell .erp-financeiro .erp-expandir { height:22px; }
+.despesas-shell .erp-financeiro .erp-valor { font-size:13px; }
+.despesas-shell .erp-financeiro .erp-tabela .erp-documento { font-size:11px; }
 .despesas-shell { min-width:0; width:100%; max-width:100%; contain:inline-size; }
 .despesas-theme .text-muted-foreground { color:hsl(var(--muted-foreground)); }
 .despesas-theme .text-foreground { color:hsl(var(--foreground)); }
@@ -3767,6 +3777,41 @@ export default function FinanceiroCotista() {
 
   const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
 
+  const controlesMesesCotista = (
+    <div className="flex flex-wrap items-center gap-2">
+      <SeletorMesesCotista
+        mesesSelecionados={mesesAplicados}
+        aoAlternar={alternarMesSelecionado}
+        aoSelecionarMesAtual={() => selecionarMesUnico(mesAtual)}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-10 px-3"
+        aria-label="Mês anterior"
+        onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
+      >
+        ‹
+      </Button>
+      <span className="min-w-32 text-center text-xs text-muted-foreground" aria-live="polite">
+        {mesesAplicados.length === 1
+          ? rotuloMesCotista(mesReferencia)
+          : `${mesesAplicados.length} meses selecionados`}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-10 px-3"
+        aria-label="Próximo mês"
+        onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
+      >
+        ›
+      </Button>
+    </div>
+  );
+
   return (
     <div className="financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full space-y-3">
       <style>{DESPESAS_ESTILOS}</style>
@@ -3915,48 +3960,14 @@ export default function FinanceiroCotista() {
         <>
           {paginaAberta &&
             abaAtiva !== "portal-cliente" &&
-            abaAtiva !== "lancamentos" && (
+            abaAtiva !== "lancamentos" &&
+            abaAtiva !== "fechamento-balanco" && (
               <section
-                className="financeiro-panel px-4 py-3"
+                className="financeiro-panel -mt-px -mb-1 px-4 py-3"
                 aria-label="Competência dos lançamentos"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SeletorMesesCotista
-                      mesesSelecionados={mesesAplicados}
-                      aoAlternar={alternarMesSelecionado}
-                      aoSelecionarMesAtual={() => selecionarMesUnico(mesAtual)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 px-3"
-                      aria-label="Mês anterior"
-                      onClick={() =>
-                        selecionarMesUnico(deslocarMes(mesReferencia, -1))
-                      }
-                    >
-                      ‹
-                    </Button>
-                    <span className="min-w-32 text-center text-xs text-muted-foreground" aria-live="polite">
-                      {mesesAplicados.length === 1
-                        ? rotuloMesCotista(mesReferencia)
-                        : `${mesesAplicados.length} meses selecionados`}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 px-3"
-                      aria-label="Próximo mês"
-                      onClick={() =>
-                        selecionarMesUnico(deslocarMes(mesReferencia, 1))
-                      }
-                    >
-                      ›
-                    </Button>
-                  </div>
+                  {controlesMesesCotista}
                   <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-2">
                     {[
                       ["Lançamentos", String(lancamentosFiltrados.length)],
@@ -4007,8 +4018,8 @@ export default function FinanceiroCotista() {
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
             <div className="space-y-4">
-              <div className="financeiro-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+              <div className="financeiro-panel grid grid-cols-1 items-center gap-3 px-4 pt-px pb-px md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)_auto]">
+                <div className="min-w-0">
                   <p className="text-sm font-bold">Fechamento por cotista</p>
                   <p className="mt-1 text-[10px] text-muted-foreground">
                     Balanço calculado pelos lançamentos da aeronave, meses e cotista selecionados.
@@ -4030,6 +4041,7 @@ export default function FinanceiroCotista() {
                   className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
                   popoverClassName="border-border bg-popover text-popover-foreground"
                 />
+                {controlesMesesCotista}
               </div>
               <FechamentoBalancoReferencia
                 dashboard={dashboard}

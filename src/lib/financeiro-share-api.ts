@@ -6,6 +6,7 @@ import type {
 } from "./balanco-cotistas";
 
 import { API_BASE } from "./api";
+import type { Periodicidade } from "@/types/financeiro";
 
 import { supabase } from "./supabase";
 
@@ -702,7 +703,7 @@ export type LancamentoShare = {
 
   observacoes: string | null;
 
-  periodicidade: string | null;
+  periodicidade: Periodicidade | null;
 
   criado_em: string | null;
 
@@ -766,7 +767,7 @@ export type RateioEconomico = {
 
   tipoRateio?: string | null;
 
-  periodicidade?: string | null;
+  periodicidade?: Periodicidade | null;
 
   pagoPor?: string | null;
 
@@ -868,7 +869,7 @@ export type LancamentoEconomico = {
 
   local?: string | null;
 
-  periodicidade?: string | null;
+  periodicidade?: Periodicidade | null;
 
   numeroVoo?: string | null;
 

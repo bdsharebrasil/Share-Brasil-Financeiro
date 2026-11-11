@@ -1,3 +1,5 @@
+import type { PERIODICIDADES_RATEIO } from '../../shared/financeiro-contracts';
+
 export type StatusLancamento =
 'EM_ABERTO' |
 'PAGO' |
@@ -12,14 +14,7 @@ export type Fluxo = 'DESPESA' | 'RECEITA' | 'REEMBOLSO' | 'ENTRADA' | 'SAIDA';
 
 export type TipoRateio = 'FIXO' | 'VARIAVEL_POR_HORA' | 'VARIAVEL_POR_VOO' | 'EXTRA';
 
-export type Periodicidade =
-'ÚNICO' |
-'EVENTUAL' |
-'MENSAL' |
-'BIMESTRAL' |
-'TRIMESTRAL' |
-'SEMESTRAL' |
-'ANUAL';
+export type Periodicidade = typeof PERIODICIDADES_RATEIO[number];
 
 export type GrupoCategoria =
 'DESPESAS EMPRESA' |

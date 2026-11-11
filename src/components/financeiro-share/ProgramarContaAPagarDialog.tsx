@@ -18,6 +18,8 @@ import {
 } from "@/lib/colaborador-api";
 import { allocateCentavos } from "@/lib/money";
 import { useFornecedores } from "@/hooks/useFornecedores";
+import { opcoesPeriodicidade } from "@/data/opcoes";
+import type { Periodicidade } from "@/types/financeiro";
 
 const tipos = ["FIXO", "VARIAVEL_POR_VOO", "VARIAVEL_POR_HORA", "EXTRA"] as const;
 const rotulosTipoRateio: Record<(typeof tipos)[number], string> = {
@@ -26,7 +28,6 @@ const rotulosTipoRateio: Record<(typeof tipos)[number], string> = {
   VARIAVEL_POR_HORA: "VARIAVEL POR HORA",
   EXTRA: "EXTRA",
 };
-const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
 const camposSubcategoria = ["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const;
 type CampoSubcategoria = (typeof camposSubcategoria)[number];
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -80,7 +81,7 @@ export type RateioDiretoPayload = {
   fornecedor_nome?: string | null;
   categoria_id?: string | null;
   categoria_nome?: string | null;
-  periodicidade?: string | null;
+  periodicidade?: Periodicidade | null;
   data_vencimento: string;
   numero_voo?: string | null;
   observacoes?: string | null;
@@ -139,7 +140,7 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
   const [fornecedorNome, setFornecedorNome] = useState("");
   const [subcategoria, setSubcategoria] = useState("");
   const [tipoRateio, setTipoRateio] = useState<(typeof tipos)[number]>("FIXO");
-  const [periodicidade, setPeriodicidade] = useState("ÚNICO");
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>("ÚNICO");
   const [cotistas, setCotistas] = useState<CotistaAeronave[]>([]);
   const [percentuais, setPercentuais] = useState<Record<string, string>>({});
   const [observacoes, setObservacoes] = useState("");
@@ -518,9 +519,9 @@ export default function ProgramarContaAPagarDialog({ open, recibo, aeronaves, ca
 
                   <Campo rotulo="Periodicidade">
                     <SearchableCombobox
-                      items={periodicidades.map((item) => ({ id: item, label: item }))}
+                      items={opcoesPeriodicidade}
                       value={periodicidade}
-                      onChange={(value) => setPeriodicidade(value)}
+                      onChange={(value) => setPeriodicidade(value as Periodicidade)}
                       placeholder="Selecione a periodicidade"
                       searchPlaceholder="Buscar periodicidade..."
                       emptyMessage="Nenhuma periodicidade encontrada."

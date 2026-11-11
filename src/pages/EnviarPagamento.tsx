@@ -18,6 +18,8 @@ import AnexosDinamicosField, { type AnexoLinha } from "@/components/ui/AnexosDin
 import logoShare from "@/assets/share-signature-logo.png";
 import { registrarEmailEnvioPagamento, converterEnvioPagamento, buscarCentralEmail, buscarContasBancariasEmail, buscarEnviosPagamento, buscarMinhaAssinatura, buscarOpcoesEnvioPagamento, buscarOpcoesAnexosEnvioPagamento, buscarCotistasAeronave, criarEnvioPagamento, criarContatoShare, criarFornecedorCombustivel, enviarAnexoEnvioPagamento, enviarEmailCliente, buscarRascunhosEnvioPagamento, buscarRascunhoEnvioPagamento, excluirRascunhoEnvioPagamento, salvarRascunhoEnvioPagamento, type RascunhoEnvioPagamento, type DestinatarioRascunhoEnvio, type AssinaturaEmail, type ContaBancariaEmail, type ContatoEmail, type EnvioPagamento, type OpcaoEnvioPagamento, type OpcoesAnexosEnvioPagamento, type CotistaAeronave, buscarDespesasOrigemEnvio, type OrigemDespesaEnvio, type DespesaOrigemEnvio } from "@/lib/colaborador-api";
 import { allocateCentavos, parseReaisToCentavos } from "@/lib/money";
+import { opcoesPeriodicidade } from "@/data/opcoes";
+import type { Periodicidade } from "@/types/financeiro";
 
 type TipoEnvio = EnvioPagamento["tipo"];
 type Categoria = "FOLHA DE PAGAMENTO" | "DESPESAS EMPRESA" | "DESPESAS EMPRESA-BANCO" | "DESPESAS PARTICULARES" | "IMPOSTOS" | "RECEITAS OPERACIONAIS" | "CAIXA CLIENTE" | "DESPESAS REEMBOLSÁVEIS" | "REEMBOLSOS ENTRADAS";
@@ -26,7 +28,7 @@ type Formulario = {
   valor: string;
   data_despesa: string;
   vencimento: string;
-  periodicidade: "ÚNICO" | "EVENTUAL" | "MENSAL" | "BIMESTRAL" | "TRIMESTRAL" | "SEMESTRAL" | "ANUAL";
+  periodicidade: Periodicidade;
   fornecedor: string;
   cliente_id: string;
   socio_id: string;
@@ -154,8 +156,6 @@ const opcoes: OpcaoEnvio[] = [
     cor: "text-[#7ed321]",
   },
 ];
-const periodicidades = ["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"] as const;
-
 const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();
 const statusChaveConvertido = (status?: string | null) => normalizarStatus(status) === "convertido";
 
@@ -1291,7 +1291,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].find(Boolean) || ""} onChange={(id) => { const nivel = (["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const).find((campo) => categoriaSelecionada?.[campo] === id); setForm((atual) => ({ ...atual, subcategoria_1: nivel === "subcategoria_1" ? id : "", subcategoria_2: nivel === "subcategoria_2" ? id : "", subcategoria_3: nivel === "subcategoria_3" ? id : "", subcategoria_4: nivel === "subcategoria_4" ? id : "" })); }} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
-                  {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={periodicidades.map((item) => ({ id: item, label: item }))} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
+                  {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={opcoesPeriodicidade} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id as Periodicidade)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
                   <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   </div>
                 </div>

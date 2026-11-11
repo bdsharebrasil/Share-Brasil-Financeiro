@@ -62,6 +62,8 @@ import {
   type RelatorioDespesaViagem as Relatorio,
 } from "@/lib/colaborador-api";
 import { toast } from "sonner";
+import { opcoesPeriodicidade } from "@/data/opcoes";
+import type { Periodicidade } from "@/types/financeiro";
 
 const LIMITE_PDF_RELATORIO_BYTES = 25 * 1024 * 1024;
 
@@ -302,7 +304,7 @@ export default function RelatorioDespesaViagem({
   const [pdfPreview, setPdfPreview] = useState<{ item: Relatorio; blob: Blob; url: string } | null>(null);
   const [mensagensAprovacao, setMensagensAprovacao] = useState<Partial<Record<1 | 2, string>>>({});
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
-  const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: string; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: PERIODICIDADE_REEMBOLSO_PADRAO, tipoRateio: TIPO_RATEIO_REEMBOLSO_PADRAO, prefill: null });
+  const [reembolsoForm, setReembolsoForm] = useState<{ aberto: boolean; vencimento: string; periodicidade: Periodicidade; tipoRateio: string; prefill: any | null }>({ aberto: false, vencimento: new Date().toISOString().slice(0, 10), periodicidade: PERIODICIDADE_REEMBOLSO_PADRAO, tipoRateio: TIPO_RATEIO_REEMBOLSO_PADRAO, prefill: null });
   const [emailReembolsoAberto, setEmailReembolsoAberto] = useState(false);
   const [emailReembolsoConcluido, setEmailReembolsoConcluido] = useState(false);
 
@@ -1648,7 +1650,7 @@ export default function RelatorioDespesaViagem({
           {reembolsoForm.prefill && <div className="space-y-4">
             <div className="break-words rounded-md border bg-muted/30 p-3 text-sm"><p><strong>Descrição:</strong> {reembolsoForm.prefill.descricao}</p><p><strong>Valor a reembolsar:</strong> {moeda(reembolsoForm.prefill.valor)}</p><p><strong>Fornecedor:</strong> {reembolsoForm.prefill.fornecedor}</p><p><strong>Categoria:</strong> {reembolsoForm.prefill.subcategoria}</p><p><strong>Aeronave:</strong> {reembolsoForm.prefill.aeronave_matricula || "—"}</p></div>
             <div><Label htmlFor="reembolso-vencimento">Vencimento</Label><Input id="reembolso-vencimento" type="date" value={reembolsoForm.vencimento} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, vencimento: e.target.value }))} /></div>
-            <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value }))}>{["ÚNICO", "EVENTUAL", "MENSAL", "BIMESTRAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL"].map((item) => <option key={item}>{item}</option>)}</select></div>
+            <div><Label htmlFor="reembolso-periodicidade">Periodicidade</Label><select id="reembolso-periodicidade" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.periodicidade} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, periodicidade: e.target.value as Periodicidade }))}>{opcoesPeriodicidade.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></div>
             <div><Label htmlFor="reembolso-rateio">Tipo de rateio</Label><select id="reembolso-rateio" className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={reembolsoForm.tipoRateio} onChange={(e) => setReembolsoForm((atual) => ({ ...atual, tipoRateio: e.target.value }))}>{["FIXO", "VARIAVEL POR VOO", "VARIAVEL POR HORA", "EXTRA"].map((item) => <option key={item}>{item}</option>)}</select></div>
           </div>}
           <DialogFooter><Button type="button" variant="outline" onClick={() => setReembolsoForm((atual) => ({ ...atual, aberto: false }))}>Cancelar</Button><Button type="button" onClick={() => void confirmarReembolso()} disabled={salvando || !reembolsoForm.vencimento}><Send size={15} /> Enviar por e-mail</Button></DialogFooter>

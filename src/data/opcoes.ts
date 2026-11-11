@@ -1,6 +1,7 @@
 import type { ComboboxItem } from '../components/ui/searchableCombobox';
 import { aeronaves, categorias, cotistas } from './financeiro';
 import type { Fluxo, Periodicidade, StatusLancamento, TipoRateio } from '../types/financeiro';
+import { PERIODICIDADES_RATEIO } from '../../shared/financeiro-contracts';
 
 export const opcoesCategoria: ComboboxItem[] = categorias.map((c) => ({
   id: c.id,
@@ -76,14 +77,33 @@ export const opcoesRateio: {id: TipoRateio;label: string;descricao: string;}[] =
 }];
 
 
-export const opcoesPeriodicidade: {id: Periodicidade;label: string;descricao: string;}[] = [
-{ id: 'ÚNICO', label: 'Único', descricao: 'Cobrança que acontece uma só vez.' },
-{ id: 'EVENTUAL', label: 'Eventual', descricao: 'Sem data fixa — ocorre conforme a operação.' },
-{ id: 'MENSAL', label: 'Mensal', descricao: 'Repete todos os meses na mesma competência.' },
-{ id: 'BIMESTRAL', label: 'Bimestral', descricao: 'Repete a cada dois meses.' },
-{ id: 'TRIMESTRAL', label: 'Trimestral', descricao: 'Repete a cada três meses.' },
-{ id: 'SEMESTRAL', label: 'Semestral', descricao: 'Repete a cada seis meses.' },
-{ id: 'ANUAL', label: 'Anual', descricao: 'Repete uma vez por ano.' }];
+const periodicidadeLabels: Record<Periodicidade, string> = {
+  'ÚNICO': 'Único',
+  EVENTUAL: 'Eventual',
+  MENSAL: 'Mensal',
+  BIMESTRAL: 'Bimestral',
+  TRIMESTRAL: 'Trimestral',
+  SEMESTRAL: 'Semestral',
+  ANUAL: 'Anual',
+  'A CADA 50 H': 'A cada 50 horas',
+  'A CADA 100 H': 'A cada 100 horas',
+};
+const periodicidadeDescricoes: Record<Periodicidade, string> = {
+  'ÚNICO': 'Cobrança que acontece uma só vez.',
+  EVENTUAL: 'Sem data fixa — ocorre conforme a operação.',
+  MENSAL: 'Repete todos os meses na mesma competência.',
+  BIMESTRAL: 'Repete a cada dois meses.',
+  TRIMESTRAL: 'Repete a cada três meses.',
+  SEMESTRAL: 'Repete a cada seis meses.',
+  ANUAL: 'Repete uma vez por ano.',
+  'A CADA 50 H': 'Periodicidade definida a cada 50 horas de operação.',
+  'A CADA 100 H': 'Periodicidade definida a cada 100 horas de operação.',
+};
+export const opcoesPeriodicidade = PERIODICIDADES_RATEIO.map((id) => ({
+  id,
+  label: periodicidadeLabels[id],
+  descricao: periodicidadeDescricoes[id],
+}));
 
 
 export const opcoesFormaPagamento: ComboboxItem[] = [

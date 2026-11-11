@@ -133,8 +133,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Share",
     regra: "Não gera rateio",
     icon: WalletCards,
-    cor: "text-[#7ed321]",
-    corBorda: "border-[#7ed321]/65",
+    cor: "!text-[#7ed321]",
+    corBorda: "!border-[#7ed321]/65",
   },
   {
     tipo: "reembolso",
@@ -145,8 +145,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Share + rateio",
     regra: "Cliente reembolsa depois",
     icon: HandCoins,
-    cor: "text-sky-400",
-    corBorda: "border-sky-400/65",
+    cor: "!text-sky-400",
+    corBorda: "!border-sky-400/65",
   },
   {
     tipo: "cliente",
@@ -157,8 +157,8 @@ const opcoes: OpcaoEnvio[] = [
     destino: "Caixa Cliente + rateio",
     regra: "Pago diretamente",
     icon: Users,
-    cor: "text-[#7ed321]",
-    corBorda: "border-[#7ed321]/65",
+    cor: "!text-[#7ed321]",
+    corBorda: "!border-[#7ed321]/65",
   },
 ];
 const normalizarStatus = (status?: string | null) => String(status || "").toLowerCase();

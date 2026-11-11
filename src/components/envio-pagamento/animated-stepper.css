@@ -5,7 +5,9 @@
   --step-out: cubic-bezier(.2,.8,.2,1);
   --step-in: cubic-bezier(.4,0,1,1);
   container-type: inline-size;
-  padding: 20px;
+  padding: 12px 20px;
+  margin: -7px 0;
+  font-weight: 200;
   border-bottom: 1px solid var(--fin-border);
   background: var(--fin-surface);
 }

@@ -10,6 +10,11 @@
   --hp-blue: hsl(var(--primary));
   container: pagamentos / inline-size;
   box-sizing: border-box;
+  margin-block: -26px;
+  margin-inline: 0;
+  padding-inline: 0;
+  border-radius: 6px;
+  overflow: hidden;
   inline-size: 100%;
   max-inline-size: 100%;
   min-inline-size: 0;
@@ -30,6 +35,7 @@
 .hp-root :where([hidden]) { display: none !important; }
 .hp-root svg { flex-shrink: 0; }
 .hp-page {
+  margin-block: -2px;
   inline-size: 100%;
   max-inline-size: 1480px;
   margin-inline: auto;
@@ -39,8 +45,8 @@
   gap: 16px;
 }
 .hp-page-header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; padding-block-end: 5px; }
-.hp-page-heading { flex: 1 1 180px; }
-.hp-page-heading h1 { margin-block-start: 5px; font-size: clamp(20px, 3cqi, 29px); font-weight: 650; line-height: 1.18; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.hp-page-heading { flex: 1 1 180px; margin-inline: 22px; font-size: 3px; line-height: 10.5px; font-weight: 300; }
+.hp-page-heading h1 { margin-block-start: 5px; font-size: 26px; font-weight: 650; line-height: 1.18; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .hp-page-heading > p:last-child { margin-block-start: 7px; max-inline-size: 780px; color: var(--hp-dim); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .hp-eyebrow { color: var(--hp-faint); font-size: 10px; font-weight: 550; letter-spacing: .065em; line-height: 1.6; text-transform: uppercase; overflow-wrap: anywhere; }
 .hp-accent { display: flex; align-items: center; gap: 6px; color: var(--hp-blue); }
@@ -50,15 +56,15 @@
 .hp-button--danger { color: #ffaaaa; }
 .hp-refresh { margin-inline-start: auto; }
 .hp-refresh span { display: none; }
-.hp-summary { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--hp-line); border-radius: 10px; background: var(--hp-surface); }
-.hp-total { margin-block-start: 4px !important; font-size: clamp(20px, 3cqi, 24px); font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.15; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.hp-summary { display: flex; flex-direction: column; gap: 12px; margin-block: -9px; padding: 12px; font-size: 12px; border: 1px solid var(--hp-line); border-radius: 10px; background: var(--hp-surface); }
+.hp-total { margin-block-start: 4px !important; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.15; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .hp-open { margin-block-start: 5px !important; color: #f2c36c; font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .hp-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding-block-start: 10px !important; border-block-start: 1px solid var(--hp-line); }
 .hp-metric dt { color: var(--hp-faint); font-size: 10px; text-transform: uppercase; letter-spacing: .045em; overflow-wrap: anywhere; }
 .hp-metric dd { margin-block-start: 5px; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .hp-sections { display: flex; flex-wrap: wrap; gap: 6px; border-block-end: 1px solid var(--hp-line); padding-block-end: 10px; }
 .hp-sections button { flex: 1 1 120px; min-block-size: 44px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--hp-dim); padding: 8px 11px; font-size: 13px; font-weight: 550; }
-.hp-sections button[aria-current="page"] { border-color: hsl(var(--primary) / .55); background: hsl(var(--primary) / .12); color: hsl(var(--primary)); }
+.hp-sections button[aria-current="page"] { border-color: rgba(209, 253, 165, 1); background: hsl(var(--primary) / .12); color: rgba(217, 240, 174, 1); }
 .hp-sections button > span { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .8; }
 .hp-toolbar { display: grid; gap: 10px; }
 .hp-search { display: flex; align-items: center; gap: 9px; inline-size: 100%; min-block-size: 44px; border: 1px solid var(--hp-line); border-radius: 8px; background: var(--hp-surface); padding-inline: 12px 4px; color: var(--hp-faint); }

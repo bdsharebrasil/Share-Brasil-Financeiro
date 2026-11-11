@@ -1,0 +1,54 @@
+/* Cores do sistema; geometria e movimento do Animated Stepper fornecido. */
+.envio-stepper {
+  --step-enter: 240ms;
+  --step-exit: 150ms;
+  --step-out: cubic-bezier(.2,.8,.2,1);
+  --step-in: cubic-bezier(.4,0,1,1);
+  container-type: inline-size;
+  padding: 20px;
+  border-bottom: 1px solid var(--fin-border);
+  background: var(--fin-surface);
+}
+.envio-stepper-lista { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.envio-stepper-item { display: flex; flex-direction: column; min-width: 0; }
+.envio-stepper-identidade { display: flex; align-items: center; gap: 10px; }
+.envio-stepper-no {
+  display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px;
+  border: 2px solid var(--fin-border); border-radius: 50%; background: var(--fin-surface);
+  color: var(--fin-muted); font-size: 13px; font-weight: 600;
+  transition: color var(--step-exit) var(--step-in), border-color var(--step-exit) var(--step-in), background-color var(--step-exit) var(--step-in);
+}
+.envio-stepper-numero, .envio-stepper-check { grid-area: 1 / 1; }
+.envio-stepper-numero { transition: opacity var(--step-enter) var(--step-out); }
+.envio-stepper-check { width: 16px; height: 16px; }
+.envio-stepper-check path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--step-exit) var(--step-in); }
+.envio-stepper-texto { display: grid; gap: 2px; min-width: 0; }
+.envio-stepper-titulo { display: grid; color: var(--fin-muted); font-size: 13px; line-height: 20px; font-weight: 500; }
+.envio-stepper-titulo > span { grid-area: 1 / 1; }
+.envio-stepper-reserva { visibility: hidden; font-weight: 600; }
+.envio-stepper-estado { font-size: 11px; line-height: 16px; color: var(--fin-muted); }
+.envio-stepper-conector { position: relative; display: block; overflow: hidden; margin: 5px 0 5px 14px; width: 2px; height: 16px; border-radius: 2px; background: var(--fin-border); }
+.envio-stepper-conector > span { position: absolute; inset: 0; border-radius: inherit; background: var(--fin-accent); transform: scaleY(0); transform-origin: top; transition: transform var(--step-exit) var(--step-in); }
+.envio-stepper-item[data-estado="atual"] .envio-stepper-no { border-color: var(--fin-accent); color: var(--fin-text); }
+.envio-stepper-item[data-estado="atual"] .envio-stepper-titulo { font-weight: 600; color: var(--fin-text); }
+.envio-stepper-item[data-estado="concluida"] .envio-stepper-no { border-color: var(--fin-accent); background: var(--fin-accent); color: var(--fin-surface); transition-duration: var(--step-enter); transition-timing-function: var(--step-out); }
+.envio-stepper-item[data-estado="concluida"] .envio-stepper-numero { opacity: 0; transition-duration: var(--step-exit); }
+.envio-stepper-item[data-estado="concluida"] .envio-stepper-check path { stroke-dashoffset: 0; transition-duration: var(--step-enter); transition-timing-function: var(--step-out); }
+.envio-stepper-item[data-estado="concluida"] .envio-stepper-titulo { color: var(--fin-text); }
+.envio-stepper-item[data-estado="concluida"] .envio-stepper-conector > span { transform: scale(1); transition-duration: var(--step-enter); transition-timing-function: var(--step-out); }
+.envio-stepper-painel { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.envio-stepper-painel[inert] { pointer-events: none; }
+.envio-stepper-heading { width: fit-content; margin: 0; border-radius: 4px; color: var(--fin-text); font-size: 16px; line-height: 24px; font-weight: 600; }
+.envio-stepper-heading:focus-visible { outline: 2px solid var(--fin-accent); outline-offset: 4px; }
+@container (min-width: 660px) {
+  .envio-stepper-lista { flex-direction: row; align-items: center; }
+  .envio-stepper-item { flex: 1; flex-direction: row; align-items: center; }
+  .envio-stepper-item:last-child { flex: none; }
+  .envio-stepper-conector { flex: 1; min-width: 16px; width: auto; height: 2px; margin: 0 12px; }
+  .envio-stepper-conector > span { transform: scaleX(0); transform-origin: left; }
+}
+@media (max-width: 640px) { .envio-stepper { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  .envio-stepper *, .envio-stepper *::before, .envio-stepper *::after { transition: none !important; animation: none !important; }
+  .envio-stepper-painel { transform: none !important; }
+}

@@ -128,6 +128,8 @@ const inicial: Formulario = {
   anexos: [],
 };
 
+const opcoesPeriodicidadeEnvio = opcoesPeriodicidade.map((opcao) => ({ ...opcao, label: opcao.label.toUpperCase() }));
+
 const opcoes: OpcaoEnvio[] = [
   {
     tipo: "share",
@@ -1250,7 +1252,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                   {tipo === "reembolso" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias_cliente.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, subcategoria_1: "", subcategoria_2: "", subcategoria_3: "", subcategoria_4: "" }))} placeholder="Selecione o grupo categoria" searchPlaceholder="Buscar grupo categoria" emptyMessage="Nenhum grupo categoria encontrado." /></Campo>}
                   {tipo === "share" && <Campo label="Grupo categoria"><SearchableCombobox items={dadosOpcoes.categorias.map((c) => ({ id: c.id, label: c.nome }))} value={form.categoria_id} onChange={(id, label) => setForm((atual) => ({ ...atual, categoria_id: id, categoria_nome: label, grupo_categoria: "DESPESAS EMPRESA" }))} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria" emptyMessage="Nenhuma categoria de despesas empresa encontrada." /></Campo>}
                   {tipo !== "share" && subcategorias.length > 0 && <Campo label="Subcategoria"><SearchableCombobox items={subcategorias.map((subcategoria) => ({ id: subcategoria, label: subcategoria }))} value={[form.subcategoria_1, form.subcategoria_2, form.subcategoria_3, form.subcategoria_4].find(Boolean) || ""} onChange={(id) => { const nivel = (["subcategoria_1", "subcategoria_2", "subcategoria_3", "subcategoria_4"] as const).find((campo) => categoriaSelecionada?.[campo] === id); setForm((atual) => ({ ...atual, subcategoria_1: nivel === "subcategoria_1" ? id : "", subcategoria_2: nivel === "subcategoria_2" ? id : "", subcategoria_3: nivel === "subcategoria_3" ? id : "", subcategoria_4: nivel === "subcategoria_4" ? id : "" })); }} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria" /></Campo>}
-                  {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={opcoesPeriodicidade} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id as Periodicidade)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
+                  {tipo !== "share" && <Campo label="Periodicidade"><SearchableCombobox items={opcoesPeriodicidadeEnvio} value={form.periodicidade} onChange={(id) => alterar("periodicidade", id as Periodicidade)} placeholder="Selecione a periodicidade" searchPlaceholder="Buscar periodicidade" /></Campo>}
                   <Campo label="Data de emissão" obrigatorio><input type="date" value={form.data_despesa} onChange={(e) => alterar("data_despesa", e.target.value)} className="campo" /></Campo>
                   </div>
                 </div>
@@ -1270,7 +1272,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       <Resumo label="Categoria" valor={form.grupo_categoria} />
                       <Resumo label="Data de emissão" valor={dataBr(form.data_despesa)} />
                       <Resumo label="Vencimento" valor={dataBr(form.vencimento)} />
-                      <Resumo label="Periodicidade" valor={form.periodicidade} />
+                      <Resumo label="Periodicidade" valor={form.periodicidade.toUpperCase()} />
                       <Resumo label="Anexos" valor={`${anexos.length} documento(s)`} />
                       <Resumo label="Rateio" valor={exigeCliente ? `${cotistasSelecionados.length} cotista(s)${cotistasSelecionados.some((c) => c.eh_holding) ? " · holding identificado" : ""}` : "Não se aplica"} />
                       {tipo === "cliente" && <Resumo label="Status do pagamento" valor="Pendente — em aberto para todos até a baixa" />}

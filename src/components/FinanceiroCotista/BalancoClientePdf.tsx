@@ -136,7 +136,7 @@ function ProjectionChart({ participante, meses, horasProjetadas, fatorFixo }: { 
   const current = data[Math.max(0, Math.min(data.length - 1, horasProjetadas - 1))]?.custoHora;
   return <View>
     <Svg width={510} height={88}><Line x1="6" y1="78" x2="504" y2="78" stroke={C.line} strokeWidth={1} /><Path d={path} fill="none" stroke={C.blue} strokeWidth={2.5} /></Svg>
-    <Text style={STYLE.paragraph}>Custo por hora estimado para {horasProjetadas} h/mês: {money(current)}. Estimativa pela natureza informada ou pela média histórica do custo/hora, independente da forma de rateio.</Text>
+    <Text style={STYLE.paragraph}>Custo por hora estimado para {horasProjetadas} h/mês: {money(current)}. Estimativa pela natureza cadastrada ou classificada, ou pela média histórica do custo/hora, independente da forma de rateio.</Text>
   </View>;
 }
 
@@ -280,7 +280,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
             <Kpi label="Custo por hora" value={money(participante.custoHora)} detail="Com base nas horas registradas" />
           </View>
           <Text style={STYLE.sectionTitle}>Composição do custo</Text>
-          <View style={STYLE.card}><CategoryBars participante={participante} /><Table headers={["Grupo", "Valor", "% do total"]} widths={[2, 1, 1]} rows={custoCategorias} total={["Total atribuído", money(participante.custo.total), "100%"]} /></View>
+          <View style={STYLE.card}><CategoryBars participante={participante} /><Table headers={["Grupo", "Valor", "% do total"]} widths={[2, 1, 1]} rows={custoCategorias} total={["Total atribuído", money(participante.custo.total), "100%"]} /><Text style={[STYLE.paragraph, { marginTop: 6 }]}>Natureza: informação cadastrada ou regra da categoria e descrição. A forma de rateio permanece independente.</Text></View>
           <Text style={STYLE.sectionTitle}>Resumo mês a mês</Text>
           <View style={STYLE.card}><MonthlyChart participante={participante} /><Table headers={["Mês", "Fixos", "Variáveis", "Extras", "Sem natureza", "Total", "Horas", "Custo/h"]} widths={[1.2, 1, 1, 1, 1, 1, .75, 1]} rows={monthlyRows(participante)} total={["Total", money(participante.custo.fixos), money(participante.custo.variaveis), money(participante.custo.extras), money(participante.custo.naoClassificados), money(todosMesesCotista), horas(participante.horas), money(participante.custoHora)]} /></View>
           <Text style={STYLE.sectionTitle}>Acerto de contas</Text>
@@ -323,7 +323,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
             <Text style={STYLE.cardTitle}>Projeção do custo por hora · {horasProjetadas} h/mês</Text>
             {participante.custo.naoClassificados === 0 ? <Text style={STYLE.paragraph}>Base fixa mensal: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Ajuste aplicado apenas à projeção.</Text> : <Text style={STYLE.paragraph}>Estimativa pela média histórica do custo/hora. A forma de rateio não define a natureza econômica do gasto; não há separação presumida entre parcelas fixas, variáveis e extras.</Text>}
             <ProjectionChart participante={participante} meses={balanco.meses.length} horasProjetadas={horasProjetadas} fatorFixo={fatorFixo} />
-            <Text style={[STYLE.paragraph, { marginTop: 7 }]}>Projeção estimada pela natureza informada ou pela média histórica; não é previsão de manutenção nem compromisso de custo.</Text>
+            <Text style={[STYLE.paragraph, { marginTop: 7 }]}>Projeção estimada pela natureza cadastrada ou classificada, ou pela média histórica; não é previsão de manutenção nem compromisso de custo.</Text>
           </View>
           <View style={STYLE.card} wrap={false}>
             <Text style={STYLE.cardTitle}>Utilização frente à cota</Text>

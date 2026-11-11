@@ -32,7 +32,7 @@ test("fechamento segue as quatro seções da referência com valores derivados d
   assert.match(referencia, /montarBalanco\(d, cotistas, mesesSelecionados\)/);
   assert.match(referencia, /projetarCustos\(total, totalHoras, b\.meses\.length/);
   assert.match(referencia, /d\?\.lancamentos/);
-  assert.match(referencia, /balanco_operacional\?\.voos/);
+  assert.match(referencia, /participante\?\.voos \?\? b\?\.voos/);
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
@@ -175,3 +175,4 @@ test("lançamentos prioriza demonstrativo e mostra números de recibo e NF na ex
   assert.match(financeiro, /\["Número do recibo", lancamento\.numeroRecibo \|\|/);
   assert.match(financeiro, /\["Número da NF", lancamento\.numeroNf \|\|/);
 });
+

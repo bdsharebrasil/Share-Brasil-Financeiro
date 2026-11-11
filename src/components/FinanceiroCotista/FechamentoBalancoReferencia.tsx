@@ -114,17 +114,17 @@ export function FechamentoBalancoReferencia({
     && `${nomeFornecedorLancamento(origem, fornecedores)} ${origem.descricao}`.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")),
   );
   const totalListado = lancamentosFiltrados.reduce((soma, item) => soma + (item.valorCentavos ?? 0), 0);
-  const projecao = total && b && total.naoClassificados === 0
+  const projecao = total && b
     ? projetarCustos(total, totalHoras, b.meses.length, horasProjetadas, fatorFixo)
     : null;
-  const serieProjecao = total && b && total.naoClassificados === 0
+  const serieProjecao = total && b
     ? Array.from({ length: 45 }, (_, index) => {
         const horasMes = index + 1;
         const ponto = projetarCustos(total, totalHoras, b.meses.length, horasMes, fatorFixo);
         return ponto ? { horas: horasMes, ...ponto } : null;
-      }).filter((item): item is { horas: number; fixoHora: number; variavelHora: number; extraHora: number; custoHora: number; custoMensal: number } => item !== null)
+      }).filter((item) => item !== null)
     : [];
-  const voosOperacionais = (participante?.voos ?? d?.balanco_operacional?.voos ?? [])
+  const voosOperacionais = (participante?.voos ?? b?.voos ?? [])
     .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
   const voosDoParticipante = participante?.voos ?? [];
   const voos = voosOperacionais
@@ -248,7 +248,7 @@ export function FechamentoBalancoReferencia({
               <tfoot><tr><td>Total geral</td><td className="fb-num">{money(total.total)}</td><td className="fb-num">100%</td><td /></tr></tfoot>
             </table></div> : <Vazio>Não há despesas classificadas no período.</Vazio>}
           </section>
-          <section className="fb-card"><h2>Custo mensal</h2>
+          <section className="fb-card"><h2>Custo mensal</h2><p className="fb-note">Natureza econômica e forma de rateio são informações independentes. Um rateio FIXO pode distribuir qualquer natureza de gasto.</p>
             <div className="fb-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={seriesCusto} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="var(--fb-border)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="nome" tick={{ fontSize: 11, fill: "var(--fb-muted)" }} />
@@ -258,13 +258,13 @@ export function FechamentoBalancoReferencia({
               <Bar dataKey="fixos" name="Fixos" stackId="custo" fill={CORES.fixos} isAnimationActive={false} />
               <Bar dataKey="variaveis" name="Variáveis" stackId="custo" fill={CORES.variaveis} isAnimationActive={false} />
               <Bar dataKey="extras" name="Extras" stackId="custo" fill={CORES.extras} isAnimationActive={false} />
-              <Bar dataKey="naoClassificados" name="Não classificados" stackId="custo" fill={CORES.naoClassificados} isAnimationActive={false} />
+              <Bar dataKey="naoClassificados" name="Sem natureza informada" stackId="custo" fill={CORES.naoClassificados} isAnimationActive={false} />
             </BarChart></ResponsiveContainer></div>
             <div className="fb-legend">
               <span><i style={{ background: CORES.fixos }} />Fixos {money(custoFixos)}</span>
               <span><i style={{ background: CORES.variaveis }} />Variáveis {money(custoVariavel)}</span>
               <span><i style={{ background: CORES.extras }} />Extras {money(custoExtra)}</span>
-              {custoNaoClassificado > 0 && <span><i style={{ background: CORES.naoClassificados }} />Não classificados {money(custoNaoClassificado)}</span>}
+              {custoNaoClassificado > 0 && <span><i style={{ background: CORES.naoClassificados }} />Sem natureza informada {money(custoNaoClassificado)}</span>}
             </div>
           </section>
         </div>
@@ -277,14 +277,14 @@ export function FechamentoBalancoReferencia({
           />
         </section>
         <section className="fb-card fb-spaced"><h2>Resumo mês a mês</h2><div className="fb-scroll"><table>
-          <thead><tr><th>Mês</th><th className="fb-num">Fixos</th><th className="fb-num">Variáveis</th><th className="fb-num">Extras</th><th className="fb-num">Não classificados</th><th className="fb-num">Total</th></tr></thead>
+          <thead><tr><th>Mês</th><th className="fb-num">Fixos</th><th className="fb-num">Variáveis</th><th className="fb-num">Extras</th><th className="fb-num">Sem natureza informada</th><th className="fb-num">Total</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{money(mes.fixos)}</td><td className="fb-num">{money(mes.variaveis)}</td><td className="fb-num">{money(mes.extras)}</td><td className="fb-num">{money(mes.naoClassificados)}</td><td className="fb-num"><b>{money(mes.total)}</b></td></tr>)}</tbody>
           <tfoot><tr><td>Total</td><td className="fb-num">{money(total.fixos)}</td><td className="fb-num">{money(total.variaveis)}</td><td className="fb-num">{money(total.extras)}</td><td className="fb-num">{money(total.naoClassificados)}</td><td className="fb-num">{money(total.total)}</td></tr></tfoot>
         </table></div></section>
         <section className="fb-card fb-spaced"><h2>Utilização e médias do período</h2><div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Etapas</th><th className="fb-num">H. voo</th><th className="fb-num">H. totais atribuídas</th><th className="fb-num">Distância (NM)</th><th className="fb-num">Dias com voo</th><th className="fb-num">Custo/h</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{fmt(mes.voos, 0)}</td><td className="fb-num">{horas(mes.horasVoo)}</td><td className="fb-num">{horas(mes.horas)}</td><td className="fb-num">{fmt(mes.distanciaNm)}</td><td className="fb-num">{fmt(mes.diasVoo, 0)}</td><td className="fb-num">{money(mes.custoHora)}</td></tr>)}</tbody>
-        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
+        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. O cálculo usa os horários quando disponíveis; na ausência deles, usa o tempo registrado. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
         <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
       </section>}
 
@@ -352,12 +352,13 @@ export function FechamentoBalancoReferencia({
         </div>
         <div className="fb-grid fb-g3">
           <Kpi titulo={`Projeção por hora · ${horasProjetadas} h/mês`} valor={projecao ? money(projecao.custoHora) : "—"} detalhe={participante ? `Cotista: ${participante.nome}` : "Aeronave completa"} />
-          <Kpi titulo="Parte fixa por hora" valor={projecao ? money(projecao.fixoHora) : "—"} detalhe="Da seleção usada na projeção" />
-          <Kpi titulo="Variável + extras por hora" valor={projecao ? money(projecao.variavelHora + projecao.extraHora) : "—"} detalhe="Da seleção usada na projeção" />
+          <Kpi titulo="Parte fixa por hora" valor={projecao ? money(projecao.fixoHora) : "—"} detalhe={projecao?.metodo === "media_historica" ? "Sem separação por natureza do custo" : "Da seleção usada na projeção"} />
+          <Kpi titulo="Variável + extras por hora" valor={projecao?.metodo === "natureza_custo" ? money(projecao.variavelHora + projecao.extraHora) : "—"} detalhe={projecao?.metodo === "media_historica" ? "Sem separação por natureza do custo" : "Da seleção usada na projeção"} />
         </div>
         <section className="fb-card fb-spaced"><h2>Projeção de custo por hora — {participante?.nome ?? "aeronave"}</h2>
-          <label className="fb-range-label">Multiplicador do custo fixo mensal: <input type="number" min="1" max="10" step="0.1" value={fatorFixo} onChange={(event) => setFatorFixo(Math.min(10, Math.max(1, Number(event.target.value) || 1)))} aria-label="Multiplicador do custo fixo mensal" /></label>
-          <p className="fb-note">Base fixa: {money(total.fixos / b.meses.length)} por mês × {fmt(fatorFixo)}. Use 1 para os custos registrados ou 2 para o cenário com base fixa em dobro. Este ajuste altera somente a projeção.</p>
+          {projecao?.metodo === "natureza_custo" && <label className="fb-range-label">Multiplicador do custo fixo mensal: <input type="number" min="1" max="10" step="0.1" value={fatorFixo} onChange={(event) => setFatorFixo(Math.min(10, Math.max(1, Number(event.target.value) || 1)))} aria-label="Multiplicador do custo fixo mensal" /></label>}
+          {projecao?.metodo === "natureza_custo" && <p className="fb-note">Base fixa: {money(total.fixos / b.meses.length)} por mês × {fmt(fatorFixo)}. Use 1 para os custos registrados ou 2 para o cenário com base fixa em dobro. Este ajuste altera somente a projeção.</p>}
+          {projecao?.metodo === "media_historica" && <p className="fb-note">Estimativa pela média histórica: custo atribuído ÷ horas registradas. O custo/hora é mantido e o custo mensal acompanha as horas simuladas. A forma de rateio FIXO, por voo ou por hora não define a natureza do gasto.</p>}
           <label className="fb-range-label" htmlFor="fb-horas">Horas voadas no mês: <b>{horasProjetadas}</b></label>
           <input className="fb-range" id="fb-horas" type="range" min="1" max="45" value={horasProjetadas} onChange={(event) => setHorasProjetadas(Number(event.target.value))} disabled={!projecao} />
           {projecao ? <div className="fb-chart fb-chart-tall"><ResponsiveContainer width="100%" height="100%"><LineChart data={serieProjecao} margin={{ top: 14, right: 16, left: 0, bottom: 8 }}>
@@ -366,17 +367,17 @@ export function FechamentoBalancoReferencia({
             <YAxis tickFormatter={(value) => fmt(value / 100, 0)} width={62} tick={{ fontSize: 10, fill: "var(--fb-muted)" }} />
             <Tooltip formatter={(value) => money(Number(value))} labelFormatter={(value) => `${value} horas/mês`} contentStyle={tooltipEstilo} />
             <Line dataKey="custoHora" name="Custo por hora" stroke="#e8b94a" strokeWidth={3} dot={false} isAnimationActive={false} />
-          </LineChart></ResponsiveContainer></div> : <Vazio>A projeção exige custos classificados, horas registradas e meses selecionados.</Vazio>}
+          </LineChart></ResponsiveContainer></div> : <Vazio>A projeção exige horas registradas e meses selecionados.</Vazio>}
         </section>
         {projecao && <section className="fb-card fb-spaced"><h2>Tabela de projeção</h2><div className="fb-scroll"><table>
-          <thead><tr><th>H. voadas</th><th className="fb-num">Custo fixo</th><th className="fb-num">Custo variável</th><th className="fb-num">Custo extra</th><th className="fb-num">Custo por hora</th><th className="fb-num">Custo mensal</th></tr></thead>
+          <thead><tr><th>H. voadas</th>{projecao.metodo === "natureza_custo" && <><th className="fb-num">Custo fixo</th><th className="fb-num">Custo variável</th><th className="fb-num">Custo extra</th></>}<th className="fb-num">Custo por hora</th><th className="fb-num">Custo mensal</th></tr></thead>
           <tbody>{MESES_PROJECAO.map((h) => {
             const item = projetarCustos(total, totalHoras, b.meses.length, h, fatorFixo);
             return item && <tr key={h} className={h === horasProjetadas ? "fb-highlight" : undefined}>
-              <td>{h}</td><td className="fb-num">{money(item.fixoHora)}</td><td className="fb-num">{money(item.variavelHora)}</td><td className="fb-num">{money(item.extraHora)}</td><td className="fb-num"><b>{money(item.custoHora)}</b></td><td className="fb-num">{money(item.custoMensal)}</td>
+              <td>{h}</td>{item.metodo === "natureza_custo" && <><td className="fb-num">{money(item.fixoHora)}</td><td className="fb-num">{money(item.variavelHora)}</td><td className="fb-num">{money(item.extraHora)}</td></>}<td className="fb-num"><b>{money(item.custoHora)}</b></td><td className="fb-num">{money(item.custoMensal)}</td>
             </tr>;
           })}</tbody>
-        </table></div><p className="fb-note">Projeção estimada com custos fixos médios por mês e custos variáveis e extras proporcionais às horas registradas no período. Não é previsão de manutenção nem compromisso de custo.</p></section>}
+        </table></div><p className="fb-note">Projeção estimada pela natureza do custo, quando informada, ou pela média histórica do custo/hora. O método de rateio é preservado. Não é previsão de manutenção nem compromisso de custo.</p></section>}
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">

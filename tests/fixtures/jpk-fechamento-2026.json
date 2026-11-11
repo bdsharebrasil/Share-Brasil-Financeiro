@@ -1,0 +1,286 @@
+{
+  "fonte": "Extratos PT-JPK fornecidos em 11/11/2026. Campos operacionais e valores do CSV, sem dados pessoais.",
+  "voos": [
+    {
+      "id": "etapa-1",
+      "data": "2026-01-14",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.37,
+      "horasVoo": 0.25,
+      "minutosTotal": 22.0,
+      "minutosVoo": 15.0,
+      "natureza": "VT - Voo Teste",
+      "pousos": 1,
+      "distanciaNm": 0,
+      "emprestado": false
+    },
+    {
+      "id": "etapa-2",
+      "data": "2026-01-30",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.8,
+      "horasVoo": 0.62,
+      "minutosTotal": 48.0,
+      "minutosVoo": 37.0,
+      "natureza": "TR - Traslado",
+      "pousos": 1,
+      "distanciaNm": 46.7,
+      "emprestado": false
+    },
+    {
+      "id": "etapa-3",
+      "data": "2026-02-27",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.42,
+      "horasVoo": 0.23,
+      "minutosTotal": 25.0,
+      "minutosVoo": 14.0,
+      "natureza": "VT - Voo Teste",
+      "pousos": 1,
+      "distanciaNm": 0,
+      "emprestado": false
+    },
+    {
+      "id": "etapa-4",
+      "data": "2026-05-11",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.45,
+      "horasVoo": 0.25,
+      "minutosTotal": 27.0,
+      "minutosVoo": 15.0,
+      "natureza": "TR - Traslado",
+      "pousos": 1,
+      "distanciaNm": 12.3,
+      "emprestado": false
+    },
+    {
+      "id": "etapa-5",
+      "data": "2026-08-28",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.42,
+      "horasVoo": 0.23,
+      "minutosTotal": 25.0,
+      "minutosVoo": 14.0,
+      "natureza": "VT - Voo Teste",
+      "pousos": 1,
+      "distanciaNm": 0,
+      "emprestado": false
+    },
+    {
+      "id": "etapa-6",
+      "data": "2026-09-16",
+      "clienteId": null,
+      "socioId": null,
+      "holdingId": null,
+      "horas": 0.45,
+      "horasVoo": 0.25,
+      "minutosTotal": 27.0,
+      "minutosVoo": 15.0,
+      "natureza": "VT - Voo Teste",
+      "pousos": 1,
+      "distanciaNm": 0,
+      "emprestado": false
+    }
+  ],
+  "custos": [
+    {
+      "data": "2026-01-08",
+      "documento": "119",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-01-14",
+      "documento": "770",
+      "categoria": "COMBUSTÍVEIS",
+      "tipo": "VARIÁVEL P/ HORA",
+      "valorCentavos": 205940
+    },
+    {
+      "data": "2026-01-15",
+      "documento": "5",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "EXTRA",
+      "valorCentavos": 25000
+    },
+    {
+      "data": "2026-01-16",
+      "documento": "66",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "VARIÁVEL P/ HORA",
+      "valorCentavos": 2000000
+    },
+    {
+      "data": "2026-02-02",
+      "documento": "124",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-03-02",
+      "documento": "131",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-03-06",
+      "documento": "5459614",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "VARIÁVEL P/ VOO",
+      "valorCentavos": 24228
+    },
+    {
+      "data": "2026-03-12",
+      "documento": "29414",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 4425
+    },
+    {
+      "data": "2026-03-12",
+      "documento": "29409",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 670
+    },
+    {
+      "data": "2026-03-16",
+      "documento": "10097150",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "FIXO",
+      "valorCentavos": 101922
+    },
+    {
+      "data": "2026-03-19",
+      "documento": "17565",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "VARIÁVEL P/ HORA",
+      "valorCentavos": 20656
+    },
+    {
+      "data": "2026-04-02",
+      "documento": "140",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-04-07",
+      "documento": "554624-9",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "VARIÁVEL P/ VOO",
+      "valorCentavos": 25113
+    },
+    {
+      "data": "2026-05-04",
+      "documento": "146",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-05-21",
+      "documento": "35",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "EXTRA",
+      "valorCentavos": 168000
+    },
+    {
+      "data": "2026-06-01",
+      "documento": "151",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-06-01",
+      "documento": "2183",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 350000
+    },
+    {
+      "data": "2026-06-09",
+      "documento": "5477070",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "VARIÁVEL P/ VOO",
+      "valorCentavos": 24228
+    },
+    {
+      "data": "2026-07-01",
+      "documento": "155",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-07-02",
+      "documento": "2239",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 350000
+    },
+    {
+      "data": "2026-08-03",
+      "documento": "161",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-08-06",
+      "documento": "577678-3",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "VARIÁVEL P/ VOO",
+      "valorCentavos": 7133
+    },
+    {
+      "data": "2026-08-07",
+      "documento": "2285",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 350000
+    },
+    {
+      "data": "2026-08-21",
+      "documento": "60093",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "VARIÁVEL P/ HORA",
+      "valorCentavos": 561000
+    },
+    {
+      "data": "2026-08-26",
+      "documento": "53",
+      "categoria": "MANUTENÇÃO",
+      "tipo": "EXTRA",
+      "valorCentavos": 141525
+    },
+    {
+      "data": "2026-09-01",
+      "documento": "164",
+      "categoria": "TRIPULAÇÃO & ADM",
+      "tipo": "FIXO",
+      "valorCentavos": 500000
+    },
+    {
+      "data": "2026-09-01",
+      "documento": "2329",
+      "categoria": "HANGARAGENS & TAXAS",
+      "tipo": "FIXO",
+      "valorCentavos": 350000
+    }
+  ]
+}

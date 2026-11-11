@@ -53,7 +53,7 @@ const GROUPS = [
   { key: "fixos", label: "Fixos", color: C.blue },
   { key: "variaveis", label: "Variáveis", color: C.green },
   { key: "extras", label: "Extras", color: C.amber },
-  { key: "naoClassificados", label: "Não classificados", color: C.slate },
+  { key: "naoClassificados", label: "Sem natureza informada", color: C.slate },
 ] as const;
 type GroupKey = typeof GROUPS[number]["key"];
 
@@ -123,7 +123,7 @@ function MonthlyChart({ participante }: { participante: ParticipanteBalanco }) {
 }
 
 function ProjectionChart({ participante, meses, horasProjetadas, fatorFixo }: { participante: ParticipanteBalanco; meses: number; horasProjetadas: number; fatorFixo: number }) {
-  if (participante.custo.naoClassificados > 0 || participante.horas == null || participante.horas <= 0) return <Text style={STYLE.paragraph}>A projeção não está disponível para este cotista porque faltam horas voadas ou existem custos não classificados.</Text>;
+  if (participante.horas == null || participante.horas <= 0) return <Text style={STYLE.paragraph}>A projeção não está disponível para este cotista porque faltam horas registradas.</Text>;
   const data = Array.from({ length: 45 }, (_, index) => projetarCustos(participante.custo, participante.horas, meses, index + 1, fatorFixo)).filter((item) => item !== null);
   const values = data.map((item) => item.custoHora);
   const min = Math.min(...values);
@@ -136,7 +136,7 @@ function ProjectionChart({ participante, meses, horasProjetadas, fatorFixo }: { 
   const current = data[Math.max(0, Math.min(data.length - 1, horasProjetadas - 1))]?.custoHora;
   return <View>
     <Svg width={510} height={88}><Line x1="6" y1="78" x2="504" y2="78" stroke={C.line} strokeWidth={1} /><Path d={path} fill="none" stroke={C.blue} strokeWidth={2.5} /></Svg>
-    <Text style={STYLE.paragraph}>Custo por hora estimado para {horasProjetadas} h/mês: {money(current)}. Cenário calculado a partir dos custos classificados do período.</Text>
+    <Text style={STYLE.paragraph}>Custo por hora estimado para {horasProjetadas} h/mês: {money(current)}. Estimativa pela natureza informada ou pela média histórica do custo/hora, independente da forma de rateio.</Text>
   </View>;
 }
 
@@ -261,7 +261,9 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
       const custoCategorias = GROUPS.map((group) => [group.label, money(participante.custo[group.key]), `${fmt(participante.custo.total ? participante.custo[group.key] / participante.custo.total * 100 : 0, 1)}%`]);
       const projecaoRows = Array.from({ length: 45 }, (_, index) => index + 1).flatMap((hours) => {
         const estimate = projetarCustos(participante.custo, participante.horas, balanco.meses.length, hours, fatorFixo);
-        return estimate ? [[`${hours} h`, money(estimate.fixoHora), money(estimate.variavelHora), money(estimate.extraHora), money(estimate.custoHora), money(estimate.custoMensal)]] : [];
+        return estimate ? [estimate.metodo === "media_historica"
+          ? [`${hours} h`, money(estimate.custoHora), money(estimate.custoMensal)]
+          : [`${hours} h`, money(estimate.fixoHora), money(estimate.variavelHora), money(estimate.extraHora), money(estimate.custoHora), money(estimate.custoMensal)]] : [];
       });
       const mesesCotista = participante.mensal;
       const todosMesesCotista = mesesCotista.reduce((sum, month) => sum + month.total, 0);
@@ -280,7 +282,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           <Text style={STYLE.sectionTitle}>Composição do custo</Text>
           <View style={STYLE.card}><CategoryBars participante={participante} /><Table headers={["Grupo", "Valor", "% do total"]} widths={[2, 1, 1]} rows={custoCategorias} total={["Total atribuído", money(participante.custo.total), "100%"]} /></View>
           <Text style={STYLE.sectionTitle}>Resumo mês a mês</Text>
-          <View style={STYLE.card}><MonthlyChart participante={participante} /><Table headers={["Mês", "Fixos", "Variáveis", "Extras", "Não classif.", "Total", "Horas", "Custo/h"]} widths={[1.2, 1, 1, 1, 1, 1, .75, 1]} rows={monthlyRows(participante)} total={["Total", money(participante.custo.fixos), money(participante.custo.variaveis), money(participante.custo.extras), money(participante.custo.naoClassificados), money(todosMesesCotista), horas(participante.horas), money(participante.custoHora)]} /></View>
+          <View style={STYLE.card}><MonthlyChart participante={participante} /><Table headers={["Mês", "Fixos", "Variáveis", "Extras", "Sem natureza", "Total", "Horas", "Custo/h"]} widths={[1.2, 1, 1, 1, 1, 1, .75, 1]} rows={monthlyRows(participante)} total={["Total", money(participante.custo.fixos), money(participante.custo.variaveis), money(participante.custo.extras), money(participante.custo.naoClassificados), money(todosMesesCotista), horas(participante.horas), money(participante.custoHora)]} /></View>
           <Text style={STYLE.sectionTitle}>Acerto de contas</Text>
           <View style={STYLE.card}>
             <Table headers={["Pagamento informado", "Devido acumulado", "Saldo informado"]} widths={[1, 1, 1]} rows={[[money(participante.acerto?.pagoCentavos), money(participante.acerto?.devidoCentavos), money(participante.acerto?.saldoCentavos)]]} />
@@ -319,9 +321,9 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           </View>
           <View style={STYLE.card}>
             <Text style={STYLE.cardTitle}>Projeção do custo por hora · {horasProjetadas} h/mês</Text>
-            <Text style={STYLE.paragraph}>Base fixa mensal: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Ajuste aplicado apenas à projeção.</Text>
+            {participante.custo.naoClassificados === 0 ? <Text style={STYLE.paragraph}>Base fixa mensal: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Ajuste aplicado apenas à projeção.</Text> : <Text style={STYLE.paragraph}>Estimativa pela média histórica do custo/hora. A forma de rateio não define a natureza econômica do gasto; não há separação presumida entre parcelas fixas, variáveis e extras.</Text>}
             <ProjectionChart participante={participante} meses={balanco.meses.length} horasProjetadas={horasProjetadas} fatorFixo={fatorFixo} />
-            <Text style={[STYLE.paragraph, { marginTop: 7 }]}>Projeção estimada com base nos custos registrados e classificados; não é previsão de manutenção nem compromisso de custo.</Text>
+            <Text style={[STYLE.paragraph, { marginTop: 7 }]}>Projeção estimada pela natureza informada ou pela média histórica; não é previsão de manutenção nem compromisso de custo.</Text>
           </View>
           <View style={STYLE.card} wrap={false}>
             <Text style={STYLE.cardTitle}>Utilização frente à cota</Text>
@@ -334,8 +336,8 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           <SectionHeading section="03 · Custo por hora" period={periodoCurto} />
           <Text style={STYLE.title}>Tabela de projeção · {inicio + 1} a {Math.min(inicio + 23, 45)} h/mês</Text>
           <Text style={STYLE.subtitle}>{participante.nome} · {periodo}</Text>
-          <Text style={STYLE.paragraph}>Fixo mensal médio: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Variáveis e extras usam as {horas(participante.horas)} atribuídas no período.</Text>
-          <View style={STYLE.card}><Table headers={["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"]} widths={[.85, 1, 1, 1, 1, 1.15]} rows={projecaoRows.slice(inicio, inicio + 23)} /></View>
+          {participante.custo.naoClassificados === 0 ? <Text style={STYLE.paragraph}>Fixo mensal médio: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Variáveis e extras usam as {horas(participante.horas)} atribuídas no período.</Text> : <Text style={STYLE.paragraph}>Média histórica: {money(participante.custoHora)}/h × horas simuladas. Parcelas por natureza não informadas; os tipos de rateio permanecem como cadastrados.</Text>}
+          <View style={STYLE.card}><Table headers={participante.custo.naoClassificados === 0 ? ["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"] : ["Horas/mês", "Custo/h histórico", "Custo mensal estimado"]} widths={participante.custo.naoClassificados === 0 ? [.85, 1, 1, 1, 1, 1.15] : [1, 1, 1.3]} rows={projecaoRows.slice(inicio, inicio + 23)} /></View>
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>) : []),
 

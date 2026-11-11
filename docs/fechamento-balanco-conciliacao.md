@@ -43,7 +43,15 @@ O CSV contém lançamentos históricos de 2020 a novembro de 2026. Foram selecio
 
 Custo/hora do conjunto conciliado: R$ 92.098,40 ÷ 2,9 h = **R$ 31.758,07/h**. Este valor combina as despesas do CSV com os horários do diário exportado; não comprova sozinho que o financeiro do D1 contenha todos os mesmos lançamentos.
 
-A despesa de 26/08, documento 53, R$ 1.415,25, está como **EXTRA** no CSV. No PDF do sistema aparecia como FIXO. O CSV de agosto implica R$ 8.500,00 fixos, R$ 5.681,33 variáveis e R$ 1.415,25 extras. O export `jpk.sql` contém somente o diário: não permite corrigir ou confirmar o tipo cadastrado no financeiro. Essa classificação deve ser conciliada no lançamento/rateio de origem; não inferir o tipo pelo texto da descrição.
+### Forma de rateio e natureza econômica são conceitos diferentes
+
+Esclarecimento do usuário: **FIXO no sistema é a forma de rateio**, independente da utilização por voo ou hora. Na PT-JPK, com um único cotista, esse rateio está correto inclusive para manutenção eventual. **EXTRA no Excel é a natureza do gasto**. Portanto, os R$ 1.415,25 de pneus podem legitimamente ser EXTRA no Excel e ter rateio FIXO no sistema. Não existe pendência de reclassificar esse rateio, e não se deve alterá-lo para imitar a planilha.
+
+O fechamento não utiliza `tipoRateio`, `tipo_rateio`, `grupoCategoria` (que também pode ser alias do rateio), periodicidade ou texto da descrição para presumir natureza econômica. Uma natureza separada, quando explicitamente informada em `naturezaCusto`/`natureza_custo`, pode compor os grupos econômicos. Sua ausência é apresentada como “Sem natureza informada”, sem afetar totais, categorias, rateios ou custo/hora realizado.
+
+Na falta de natureza econômica separada, a projeção permanece disponível pela **média histórica**: custo atribuído ÷ horas registradas; custo mensal estimado = essa média × horas simuladas. As parcelas fixas/variáveis/extras ficam sem valor presumido e o método é identificado na tela e no PDF. Não representa uma previsão de manutenção, nem permite presumir diluição de fixos apenas a partir do rateio. O multiplicador dos fixos só se aplica quando há natureza econômica completa.
+
+O cenário de teste com os 27 valores reais utiliza rateio FIXO para todas as despesas e mantém R$ 92.098,40 no acumulado, R$ 15.596,58 em agosto e os mesmos custos/hora realizados. A coluna TIPO do CSV é uma informação da planilha, não um comando para atualizar `tipo_rateio` no D1.
 
 A distância do D1 soma **59,0 NM** e o combustível abastecido no diário soma **147,1 L**. O PDF manual usava 61,4 NM. Datas, distâncias, categorias e arredondamentos devem seguir os registros conciliados, não cópias dos totais divergentes do PDF.
 
@@ -55,7 +63,7 @@ A distância do D1 soma **59,0 NM** e o combustível abastecido no diário soma 
 - Etapas compartilhadas podem aparecer em vários históricos. Contagens de etapas e dias não devem ser somadas entre cotistas; horas e distâncias são atribuídas proporcionalmente.
 - Tela e PDF usam os mesmos tempos normalizados e a mesma atribuição. O custo/hora usa AC–COR; o tempo de voo DEP–POU aparece separado.
 - Custos usam a competência de emissão e excluem cancelamentos.
-- Projeção: fixos ÷ meses selecionados ÷ horas projetadas + variáveis ÷ horas atribuídas + extras ÷ horas atribuídas. Multiplicador dos fixos é explícito, padrão 1, e altera somente a projeção. Ausência de horas ou custos não classificados impede estimativas artificiais.
+- Projeção: quando a natureza econômica está informada, separa fixos mensais, variáveis e extras. Quando está ausente, usa a média histórica do custo/hora. Ausência de horas impede projeção. Nenhum desses métodos altera a forma de rateio.
 
 ## Limites e validação
 
@@ -63,6 +71,6 @@ O CSV exporta somente a aba de lançamentos e seus valores. Não contém fórmul
 
 Não há histórico de vigência das cotas nesta carga. Compartilhamento utiliza o cadastro atual, explicitado na interface/PDF; períodos com troca de proprietários exigem conferência histórica.
 
-Testes com campos operacionais dos seis registros reais e os 27 valores do CSV verificam quantidades, competência, 174 minutos, classificação financeira, custo/hora e compatibilidade com payloads antigos. O SQL exportado foi executado apenas em SQLite em memória para a conciliação. Nenhuma alteração foi feita no D1 de produção.
+Testes com campos operacionais dos seis registros reais e os 27 valores do CSV verificam quantidades, competência, 174 minutos, independência entre natureza e rateio, custo/hora e compatibilidade com payloads antigos. O SQL exportado foi executado apenas em SQLite em memória para a conciliação. Nenhuma alteração foi feita no D1 de produção.
 
 Os testes antigos de conferência de texto ainda apresentam três falhas de expressões regulares já existentes no commit base; elas não são novas falhas de cálculo.

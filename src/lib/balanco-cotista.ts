@@ -1,3 +1,4 @@
+import { classificarNaturezaCusto, projetarCustoPeriodo } from "../../shared/natureza-custo";
 import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import { formatCentavos as formatarCentavos } from "./money";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
@@ -25,23 +26,11 @@ export type Custo = { total: number; fixos: number; variaveis: number; extras: n
 type Participante = { id: string; nome: string; quota: number | null; holding: boolean; confirmado: boolean };
 
 export function projetarCustos(total: Custo, horasRegistradas: number | null, meses: number, horasProjetadas: number, fatorFixo = 1) {
-  if (horasRegistradas === null || ![horasRegistradas, meses, horasProjetadas, fatorFixo].every((v) => Number.isFinite(v) && v > 0)) return null;
-  if (total.naoClassificados !== 0) return null;
-  const fixoMensal = total.fixos / meses * fatorFixo;
-  const fixoHora = fixoMensal / horasProjetadas;
-  const variavelHora = total.variaveis / horasRegistradas;
-  const extraHora = total.extras / horasRegistradas;
-  return {
-    fixoHora,
-    variavelHora,
-    extraHora,
-    custoHora: fixoHora + variavelHora + extraHora,
-    custoMensal: fixoMensal + (total.variaveis + total.extras) / horasRegistradas * horasProjetadas,
-  };
+  return projetarCustoPeriodo(total, horasRegistradas, meses, horasProjetadas, fatorFixo);
 }
 
 export const GRUPOS = ["fixos", "variaveis", "extras", "naoClassificados"] as const;
-export const NOME_GRUPO: Record<Grupo, string> = { fixos: "Fixos", variaveis: "Variáveis", extras: "Extras", naoClassificados: "Não classificados" };
+export const NOME_GRUPO: Record<Grupo, string> = { fixos: "Fixos", variaveis: "Variáveis", extras: "Extras", naoClassificados: "Sem natureza informada" };
 export const COR_GRUPO: Record<Grupo, string> = { fixos: "#2f6db5", variaveis: "#52794a", extras: "#e8b94a", naoClassificados: "#8291a4" };
 
 export const obj = (v: unknown): Registro => (v && typeof v === "object" ? (v as Registro) : {});
@@ -71,14 +60,7 @@ export const vooCompartilhado = (v: VooBalanco) => !v.emprestado && ["TR - TRASL
 export const horasAtribuidas = (v: Voo) => v.horas === null ? null : v.horas * ((v.percentualAtribuido ?? 100) / 100);
 const medidaAtribuida = (v: Voo, valor: number | null | undefined) => valor == null ? null : valor * ((v.percentualAtribuido ?? 100) / 100);
 
-function classificar(l: Registro): Grupo {
-  // A natureza do custo vem do cadastro, nunca do pagador ou da identidade do cotista.
-  const tipo = norm(l.tipoRateio || l.tipo_rateio || l.grupoCategoria);
-  if (/EXTRA/.test(tipo)) return "extras";
-  if (/FIX/.test(tipo)) return "fixos";
-  if (/VARIAVEL|HORA|VOO/.test(tipo)) return "variaveis";
-  return "naoClassificados";
-}
+const classificar = classificarNaturezaCusto;
 
 export function somarMedida<T>(itens: T[], valor: (t: T) => number | null, disponivel: boolean): number | null {
   if (!disponivel || itens.some((t) => valor(t) === null)) return null;
@@ -304,12 +286,7 @@ export function montarBalanco(d: DashboardBalanco, cotistas: CotistaAeronave[], 
     };
   });
 
-  const custosSemClassificacao = despesas.some((l) =>
-    l.rateios?.length
-      ? l.rateios.some((r) => classificar({ ...obj(l), ...obj(r), tipoRateio: obj(r).tipoRateio || obj(l).tipoRateio }) === "naoClassificados")
-      : classificar(obj(l)) === "naoClassificados",
-  );
-  const projecao = !custosSemClassificacao && totalHoras !== null && totalHoras > 0 && meses.length > 0
+  const projecao = totalHoras !== null && totalHoras > 0 && meses.length > 0
     ? [5, 10, 15, 20, 25, 30, 40, 50, 60].map((h) => ({
         horas: h,
         ...projetarCustos(total, totalHoras, meses.length, h)!,
@@ -364,7 +341,7 @@ export function destaques(b: Balanco, p: ParticipanteBalanco): string[] {
   const total = p.custo.total;
   const cats = categoriasDoParticipante(b, p);
   if (cats[0] && total > 0) out.push(`${cats[0].nome} é o seu maior gasto: ${pct((cats[0].valor / total) * 100)} do total (${money(cats[0].valor)}).`);
-  if (total > 0) out.push(`${pct((p.custo.fixos / total) * 100)} do seu custo é fixo e acontece mesmo sem voar.`);
+  if (total > 0 && p.custo.naoClassificados === 0) out.push(`${pct((p.custo.fixos / total) * 100)} do seu custo é fixo e acontece mesmo sem voar.`);
   if (p.uso != null && p.quota != null) out.push(`Você usou ${pct(p.uso)} das horas da aeronave; sua cota é ${pct(p.quota)}.`);
   const caro = [...p.mensal].sort((a, c) => c.total - a.total)[0];
   if (caro && caro.total > 0) out.push(`O mês mais caro foi ${caro.nome}: ${money(caro.total)}.`);

@@ -12,9 +12,9 @@ const voo = (extra = {}) => ({
   origem: "SWLV", destino: "SWLV", consumoEstimadoLitros: 20,
   emprestado: false, clienteTomadorId: null, socioTomadorId: null, natureza: "VT - Voo Teste", ...extra,
 });
-const despesa = (valor, tipo, extra = {}) => ({
+const despesa = (valor, natureza, extra = {}) => ({
   id: `custo-${valor}`, data: "2026-08-21", dataEmissao: "2026-08-21", status: "PAGO", fluxo: "SAIDA",
-  valorCentavos: valor, tipoRateio: tipo, descricao: "Despesa", categoria: "Manutenção", aeronaveNome: "PT-JPK",
+  valorCentavos: valor, tipoRateio: "FIXO", naturezaCusto: natureza, descricao: "Despesa", categoria: "Manutenção", aeronaveNome: "PT-JPK",
   rateios: [{ cotistaId: "santa-rosa", cotista: "santa-rosa", valorCentavos: valor }], ...extra,
 });
 const dashboard = (cotistas, voos, lancamentos = []) => ({
@@ -112,17 +112,17 @@ test("projeção usa todos os meses selecionados e aplica fator só à parcela f
   const custo = { total: 60000, fixos: 40000, variaveis: 15000, extras: 5000, naoClassificados: 0 };
   const base = projetarCustos(custo, 10, 2, 5);
   const dobro = projetarCustos(custo, 10, 2, 5, 2);
-  assert.deepEqual(base, { fixoHora: 4000, variavelHora: 1500, extraHora: 500, custoHora: 6000, custoMensal: 30000 });
+  assert.deepEqual(base, { metodo: "natureza_custo", fixoHora: 4000, variavelHora: 1500, extraHora: 500, custoHora: 6000, custoMensal: 30000 });
   assert.equal(dobro.fixoHora, 8000);
   assert.equal(dobro.variavelHora, base.variavelHora);
   assert.equal(dobro.extraHora, base.extraHora);
   assert.equal(dobro.custoMensal, dobro.custoHora * 5);
 });
 
-test("projeção não calcula com denominador ausente/inválido ou custos sem classificação", () => {
+test("projeção valida denominadores e usa média histórica sem natureza econômica", () => {
   const custo = { total: 100, fixos: 100, variaveis: 0, extras: 0, naoClassificados: 0 };
   for (const h of [null, 0, -1, NaN, Infinity]) assert.equal(projetarCustos(custo, h, 1, 10), null);
-  assert.equal(projetarCustos({ ...custo, naoClassificados: 1 }, 1, 1, 10), null);
+  assert.equal(projetarCustos({ ...custo, naoClassificados: 1 }, 1, 1, 10).metodo, "media_historica");
   assert.equal(projetarCustos(custo, 1, 0, 10), null);
   assert.equal(projetarCustos(custo, 1, 1, 10, 0), null);
 });
@@ -148,4 +148,15 @@ test("resumo mensal distingue tempo de voo, total e distância atribuída", () =
   assert.equal(p.mensal[0].horasVoo, 0.25);
   assert.equal(p.mensal[0].distanciaNm, 20);
   assert.equal(p.mensal[0].diasVoo, 1);
+});
+
+test("alterar apenas a forma de rateio não muda natureza, valores atribuídos ou projeção", () => {
+  const apurar = (tipoRateio) => {
+    const d = dashboard([cotista("santa-rosa")], [voo()], [despesa(141525, "EXTRA", { tipoRateio })]);
+    const b = montar(d);
+    assert.equal(d.lancamentos[0].tipoRateio, tipoRateio);
+    return { custo: b.total, custoHora: b.custoHora, projecao: b.projecao, parte: b.participantes[0].lancamentos[0].suaParteCentavos };
+  };
+  assert.deepEqual(apurar("FIXO"), apurar("VARIAVEL_POR_HORA"));
+  assert.deepEqual(apurar("FIXO"), apurar("VARIAVEL_POR_VOO"));
 });

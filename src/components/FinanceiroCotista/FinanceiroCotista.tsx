@@ -95,6 +95,8 @@ import type {
 } from "@/lib/financeiro-share-api";
 import {
   documentoDoLancamento,
+  documentosDoLancamento,
+  numerosDocumentosDoLancamento,
   nomeFornecedorLancamento,
   nomePagadoresDoLancamento,
   opcaoFornecedorLancamento,
@@ -1397,56 +1399,14 @@ function LancamentoExpandido({
       return "Relatório de viagem";
     return nome || "Documento";
   };
-  const documentosLegados = [
-    { nome: "Documento", url: lancamento.urlDoc, numero: lancamento.numeroDoc },
-    { nome: "Nota fiscal", url: lancamento.urlNf, numero: lancamento.numeroNf },
-    {
-      nome: "Recibo",
-      url: lancamento.urlRecibo,
-      numero: lancamento.numeroRecibo,
-    },
-    {
-      nome: "Demonstrativo",
-      url: lancamento.urlDemonstrativo,
-      numero: lancamento.numeroDemonstrativo,
-    },
-    { nome: "Boleto", url: lancamento.urlBoleto, numero: null },
-  ].filter(
-    (
-      item,
-    ): item is {
-      nome: string;
-      url: string;
-      numero: string | null | undefined;
-    } => Boolean(item.url),
-  );
-  const documentosGerais = [
-    ...(lancamento.documentos ?? []),
-    ...documentosLegados,
-  ]
-    .filter(
-      (doc, index, todos) =>
-        todos.findIndex((outro) => outro.url === doc.url) === index,
-      );
-  const documentosExpansao = [
-    ...documentosGerais.map((documento) => ({ ...documento, responsavel: "" })),
-    ...(lancamento.rateios ?? []).flatMap((rateio) =>
-      (rateio.documentos ?? []).map((documento) => ({
-        ...documento,
-        responsavel: rateio.cotista || "Cotista",
-      })),
-    ),
-  ].filter(
-    (documento, index, todos) =>
-      Boolean(documento.url) &&
-      todos.findIndex((outro) => outro.url === documento.url) === index,
-  );
+  const documentosExpansao = documentosDoLancamento(lancamento, cotistasAeronave)
+    .filter((documento) => Boolean(documento.url));
   return (
     <div className="erp-detalhes">
       <dl className="erp-detalhes-campos">
         <div><dt>Categoria</dt><dd>{lancamento.categoria || "—"}</dd></div>
         <div><dt>Favorecido</dt><dd>{nomeFornecedorLancamento(lancamento, fornecedoresEdicao) || "—"}</dd></div>
-        <div><dt>Nº do documento</dt><dd>{documentoDoLancamento(lancamento) || "—"}</dd></div>
+        <div><dt>Nº dos documentos</dt><dd>{numerosDocumentosDoLancamento(lancamento) || "—"}</dd></div>
         <div><dt>Observações</dt><dd className="erp-observacoes">{lancamento.observacoes || "—"}</dd></div>
       </dl>
       <section className="erp-anexos" aria-label="Anexos do lançamento">
@@ -1458,9 +1418,10 @@ function LancamentoExpandido({
           <div className="erp-anexos-grade">
             {documentosExpansao.map((documento) => {
               const titulo = tituloDocumento(documento);
-              const nome = `${documento.responsavel ? `${documento.responsavel} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`;
+              const responsaveis = documento.responsaveis.join(", ");
+              const nome = `${responsaveis ? `${responsaveis} · ` : ""}${titulo}${documento.numero ? ` · ${documento.numero}` : ""}`;
               return (
-                <article key={`${documento.responsavel}-${documento.url}`} className="erp-anexo-card">
+                <article key={documento.url} className="erp-anexo-card">
                   <button
                     type="button"
                     className="erp-anexo-link"
@@ -1469,7 +1430,10 @@ function LancamentoExpandido({
                     onClick={() => aoAbrirDocumento(nome, documento.url)}
                   >
                     <IconeAnexo nome={titulo} />
-                    <span className="erp-anexo-nome">{titulo}{documento.numero ? ` ${documento.numero}` : ""}</span>
+                    <span className="erp-anexo-conteudo">
+                      <span className="erp-anexo-nome">{titulo}{documento.numero ? ` ${documento.numero}` : ""}</span>
+                      <span className="erp-anexo-cotista">{responsaveis || "Documento do lançamento"}</span>
+                    </span>
                   </button>
                 </article>
               );
@@ -1820,7 +1784,7 @@ function LancamentosDespesa({
             item.participanteNome,
             item.participanteId,
             item.categoria,
-            documentoDoLancamento(item),
+            numerosDocumentosDoLancamento(item),
             item.dataEmissao || item.data,
             formatarData(item.dataEmissao || item.data),
             formatarCentavos(item.valorCentavos),
@@ -1908,10 +1872,10 @@ function LancamentosDespesa({
       titulo: "Doc",
       largura: 130,
       minimo: 96,
-      valor: documentoDoLancamento,
+      valor: numerosDocumentosDoLancamento,
       render: (item) => (
-        <span className="erp-documento" title={documentoDoLancamento(item) || undefined}>
-          {documentoDoLancamento(item) || "—"}
+        <span className="erp-documento" title={numerosDocumentosDoLancamento(item) || undefined}>
+          {numerosDocumentosDoLancamento(item) || "—"}
         </span>
       ),
     },

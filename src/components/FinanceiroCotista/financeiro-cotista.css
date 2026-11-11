@@ -291,3 +291,29 @@ html .financeiro-profissional .cotista-portal .text-amber-600 { color: var(--fin
 @media (max-width: 640px) {
   html .financeiro-profissional :is(.fb-g2, .fb-g3) { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* O número e o titular permanecem visíveis em cada documento do rateio. */
+html .financeiro-profissional .erp-financeiro .erp-tabela .erp-documento {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+html .financeiro-profissional .erp-anexo-link {
+  height: auto;
+  min-height: 64px;
+  padding-block: 10px;
+}
+html .financeiro-profissional .erp-anexo-conteudo {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+html .financeiro-profissional .erp-anexo-conteudo .erp-anexo-nome,
+html .financeiro-profissional .erp-anexo-cotista {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+html .financeiro-profissional .erp-anexo-cotista {
+  color: var(--fin-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}

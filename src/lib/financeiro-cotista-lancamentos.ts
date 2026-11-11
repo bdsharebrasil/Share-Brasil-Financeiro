@@ -1,5 +1,5 @@
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import type { LancamentoEconomico } from "@/lib/financeiro-share-api";
+import type { DocumentoVinculado, LancamentoEconomico } from "@/lib/financeiro-share-api";
 
 export type OpcaoFornecedorLancamento = { id: string; label: string };
 
@@ -106,6 +106,59 @@ export function documentoDoLancamento(lancamento: LancamentoEconomico) {
   );
 }
 
+export type DocumentoDoLancamento = DocumentoVinculado & { responsaveis: string[] };
+
+/** Reúne os anexos sem perder o vínculo quando a API também os traz no lançamento. */
+export function documentosDoLancamento(
+  lancamento: LancamentoEconomico,
+  cotistas: CotistaAeronave[] = [],
+): DocumentoDoLancamento[] {
+  const documentos = new Map<string, DocumentoDoLancamento>();
+  const adicionar = (documento: DocumentoVinculado, responsavel?: string) => {
+    if (!documento.url && !documento.numero?.trim()) return;
+    const chave = documento.url || `${documento.tipo || documento.nome}:${documento.numero}`;
+    const anterior = documentos.get(chave);
+    documentos.set(chave, {
+      ...anterior,
+      ...documento,
+      nome: documento.nome || anterior?.nome || "Documento",
+      numero: documento.numero?.trim() || anterior?.numero || null,
+      tipo: documento.tipo || anterior?.tipo || null,
+      responsaveis: [...new Set([...(anterior?.responsaveis ?? []), ...(responsavel ? [responsavel] : [])])],
+    });
+  };
+  const legados = [
+    { nome: "Documento", tipo: "documento", url: lancamento.urlDoc, numero: lancamento.numeroDoc },
+    { nome: "Nota fiscal", tipo: "nota_fiscal", url: lancamento.urlNf, numero: lancamento.numeroNf },
+    { nome: "Recibo", tipo: "recibo", url: lancamento.urlRecibo, numero: lancamento.numeroRecibo },
+    { nome: "Demonstrativo", tipo: "demonstrativo", url: lancamento.urlDemonstrativo, numero: lancamento.numeroDemonstrativo },
+    { nome: "Boleto", tipo: "boleto", url: lancamento.urlBoleto, numero: lancamento.numeroBoleto },
+  ];
+  for (const documento of legados) {
+    if (documento.url) adicionar({ ...documento, url: documento.url });
+  }
+  for (const documento of lancamento.documentos ?? []) adicionar(documento);
+  for (const rateio of lancamento.rateios ?? []) {
+    const cotista = rateio.cotistaId ? cotistas.find((item) =>
+      [item.id, item.cliente_id, item.socio_id, ...(item.cotista_ids ?? [])].includes(rateio.cotistaId),
+    ) : undefined;
+    const responsavel = cotista?.nome || rateio.cotista || "Cotista não identificado";
+    for (const documento of rateio.documentos ?? []) adicionar(documento, responsavel);
+  }
+  return [...documentos.values()];
+}
+
+/** Resumo para leitura/busca; a edição continua usando o campo original individual. */
+export function numerosDocumentosDoLancamento(lancamento: LancamentoEconomico) {
+  const numeros = [
+    lancamento.numeroDemonstrativo, lancamento.documentoNumero, lancamento.numeroNf,
+    lancamento.numeroRecibo, lancamento.numeroDoc, lancamento.numeroBoleto,
+    ...(lancamento.documentos ?? []).map((documento) => documento.numero),
+    ...(lancamento.rateios ?? []).flatMap((rateio) => (rateio.documentos ?? []).map((documento) => documento.numero)),
+  ].map((numero) => numero?.trim()).filter((numero): numero is string => Boolean(numero));
+  return [...new Set(numeros)].join(" / ") || documentoDoLancamento(lancamento);
+}
+
 export function tipoRateioLancamento(lancamento: LancamentoEconomico) {
   return String(lancamento.tipoRateio || lancamento.tipo || "—")
     .replace(/_/g, " ")
@@ -120,3 +173,4 @@ export function valorPagoLancamento(lancamento: LancamentoEconomico) {
   }
   return Math.min(lancamento.valorCentavos, pagoInformado);
 }
+

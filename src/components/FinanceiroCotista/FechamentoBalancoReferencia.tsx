@@ -248,7 +248,7 @@ export function FechamentoBalancoReferencia({
               <tfoot><tr><td>Total geral</td><td className="fb-num">{money(total.total)}</td><td className="fb-num">100%</td><td /></tr></tfoot>
             </table></div> : <Vazio>Não há despesas classificadas no período.</Vazio>}
           </section>
-          <section className="fb-card"><h2>Custo mensal</h2><p className="fb-note">Natureza econômica e forma de rateio são informações independentes. Um rateio FIXO pode distribuir qualquer natureza de gasto.</p>
+          <section className="fb-card"><h2>Custo mensal</h2><p className="fb-note">A natureza cadastrada tem prioridade. Quando ausente, usamos regras da categoria e descrição da despesa. A forma de rateio permanece independente.</p>
             <div className="fb-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={seriesCusto} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="var(--fb-border)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="nome" tick={{ fontSize: 11, fill: "var(--fb-muted)" }} />
@@ -377,7 +377,7 @@ export function FechamentoBalancoReferencia({
               <td>{h}</td>{item.metodo === "natureza_custo" && <><td className="fb-num">{money(item.fixoHora)}</td><td className="fb-num">{money(item.variavelHora)}</td><td className="fb-num">{money(item.extraHora)}</td></>}<td className="fb-num"><b>{money(item.custoHora)}</b></td><td className="fb-num">{money(item.custoMensal)}</td>
             </tr>;
           })}</tbody>
-        </table></div><p className="fb-note">Projeção estimada pela natureza do custo, quando informada, ou pela média histórica do custo/hora. O método de rateio é preservado. Não é previsão de manutenção nem compromisso de custo.</p></section>}
+        </table></div><p className="fb-note">Projeção estimada pela natureza cadastrada ou classificada, ou pela média histórica do custo/hora. O método de rateio é preservado. Não é previsão de manutenção nem compromisso de custo.</p></section>}
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">

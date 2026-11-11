@@ -8,7 +8,7 @@ const meses = Array.from({ length: 9 }, (_, i) => `2026-${String(i + 1).padStart
 const dashboard = () => ({
   lancamentos: fixture.custos.map((c, index) => ({
     id: `custo-${index}`, data: c.data, dataEmissao: c.data, documentoNumero: c.documento,
-    fluxo: 'SAIDA', status: 'PAGO', tipoRateio: "FIXO", categoria: c.categoria, valorCentavos: c.valorCentavos,
+    fluxo: 'SAIDA', status: 'PAGO', tipoRateio: "FIXO", categoria: c.categoria, descricao: c.descricao, valorCentavos: c.valorCentavos,
     rateios: [{ cotistaId: 'santa-rosa', valorCentavos: c.valorCentavos }],
   })),
   balanco_operacional: {
@@ -37,23 +37,24 @@ test('conciliação dos extratos: 27 despesas, seis etapas, R$ 92.098,40 e 2h54 
   assert.equal(d.balanco_operacional.voos[4].horas, 0.42, 'não modifica os decimais recebidos');
 });
 
-test('agosto mantém rateio FIXO, custo/hora realizado e projeção histórica sem presumir natureza', () => {
+test('agosto classifica a natureza confirmada, preservando rateio FIXO e custo/hora realizado', () => {
   const b = montarBalanco(dashboard(), [], ['2026-08']);
   const p = b.participantes.find((p) => p.id === 'santa-rosa');
   assert.equal(b.total.total, 1559658);
-  assert.equal(b.total.fixos, 0);
-  assert.equal(b.total.variaveis, 0);
+  assert.equal(b.total.fixos, 850000);
+  assert.equal(b.total.variaveis, 709658);
   assert.equal(b.total.extras, 0);
-  assert.equal(b.total.naoClassificados, 1559658);
+  assert.equal(b.total.naoClassificados, 0);
   assert.ok(dashboard().lancamentos.every((c) => c.tipoRateio === "FIXO"));
   assert.equal(p.horas, 25 / 60);
   assert.equal(Math.round(p.custoHora), 3743179);
   assert.equal(Math.round(b.custoHora), 3743179);
   assert.equal(horas(p.horas), '0h25');
   const projecao = projetarCustos(p.custo, p.horas, 1, 10);
-  assert.equal(projecao.metodo, "media_historica");
-  assert.equal(projecao.fixoHora, null);
-  assert.equal(Math.round(projecao.custoHora), 3743179);
+  assert.equal(projecao.metodo, "natureza_custo");
+  assert.equal(projecao.fixoHora, 85000);
+  assert.equal(Math.round(projecao.variavelHora), 1703179);
+  assert.equal(Math.round(projecao.custoHora), 1788179);
 });
 
 test('servidor anterior ou horários ausentes preservam os tempos decimais registrados', () => {

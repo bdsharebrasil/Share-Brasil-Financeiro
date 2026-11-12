@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ArrowLeft,
   Check,
@@ -15,9 +22,9 @@ import {
   colaboradorRequest,
 } from '@/lib/colaborador-api';
 import {
+  LAYOUT_PDF_PROPOSTA,
   calcularProposta,
   centavos,
-  dataBR,
   edicaoDoContrato,
   moeda,
   novaEdicao,
@@ -26,7 +33,6 @@ import {
   ROTULOS_STATUS,
   STATUS_CONTRATOS,
   validarEdicao,
-  validadeProposta,
   type Contrato,
   type EdicaoContrato,
   type EventoContrato,
@@ -34,6 +40,7 @@ import {
   type Proposta,
 } from './modelo';
 import './contratos.css';
+const PreviaProposta = lazy(() => import('./PreviaProposta'));
 
 type Opcoes = {
   empresa: { razao_social?: string; cnpj?: string; endereco?: string } | null;
@@ -408,11 +415,15 @@ export function ContratosGerenciamento() {
     setOcupado(true);
     setErro('');
     try {
+      if (
+        registroRef.current?.dados_adicionais.layout_pdf !== LAYOUT_PDF_PROPOSTA
+      )
+        mudar({});
       const r = await salvar();
       const snapshot = { ...e, numero: r.numero || e.numero };
       const { gerarPropostaPdf } = await import('./PropostaGerenciamentoPdf');
       const blob = await gerarPropostaPdf(snapshot);
-      const nome = `${r.numero || 'proposta'}-r${r.revisao || 0}.pdf`;
+      const nome = `${r.numero || 'proposta'}-r${r.revisao || 0}-premium.pdf`;
       const form = new FormData();
       form.set('arquivo', new File([blob], nome, { type: 'application/pdf' }));
       form.set('tipo', 'PROPOSTA_GERADA');
@@ -461,13 +472,11 @@ export function ContratosGerenciamento() {
     }
   };
   const p = edicao?.proposta;
-  let valor = 0,
-    unitario = 0;
+  let valor = 0;
   try {
     if (p) {
       const t = calcularProposta(p);
       valor = t.total;
-      unitario = t.unitario;
     }
   } catch {
     /* O formulário exibe o erro ao salvar. */
@@ -1184,105 +1193,15 @@ export function ContratosGerenciamento() {
               </>
             )}
             {aba === 'Prévia' && (
-              <div className="ct-previa">
-                <div className="ct-folha">
-                  <div className="ct-marca">
-                    SHARE BRASIL <small>GERENCIAMENTO DE AERONAVES</small>
+              <Suspense
+                fallback={
+                  <div className="ct-vazio" role="status">
+                    Preparando a prévia do PDF…
                   </div>
-                  <span className="ct-sobre">
-                    PROPOSTA COMERCIAL · {edicao.numero}
-                  </span>
-                  <h1>{edicao.titulo}</h1>
-                  <div className="ct-previa-dados">
-                    <div>
-                      <small>PREPARADA PARA</small>
-                      <strong>
-                        {edicao.contratante.nome || 'Cliente a definir'}
-                      </strong>
-                      <span>{edicao.contratante.documento}</span>
-                    </div>
-                    <div>
-                      <small>AERONAVE</small>
-                      <strong>
-                        {p!.aeronave_descricao || 'Aeronave a definir'}
-                      </strong>
-                      <span>Válida até {dataBR(validadeProposta(p!))}</span>
-                    </div>
-                  </div>
-                  <h2>Gestão para voar com tranquilidade</h2>
-                  {p!.apresentacao.split(/\n\s*\n/).map((t, i) => (
-                    <p key={i}>{t}</p>
-                  ))}
-                  <h2>Serviços incluídos</h2>
-                  {p!.servicos
-                    .filter((s) => s.incluido)
-                    .map((s) => (
-                      <section key={s.id}>
-                        <h3>{s.titulo}</h3>
-                        {p!.modo_cobranca === 'SERVICOS' && (
-                          <strong>{moeda(s.valor_centavos)} / mês</strong>
-                        )}
-                        <ul>
-                          {s.itens
-                            .filter((t) => t.trim())
-                            .map((t, i) => (
-                              <li key={i}>{t}</li>
-                            ))}
-                        </ul>
-                      </section>
-                    ))}
-                  <h2>Investimento e atendimento</h2>
-                  <div className="ct-previa-investimento">
-                    <strong>
-                      {moeda(unitario)}{' '}
-                      <small>
-                        / mês{' '}
-                        {p!.unidade === 'POR_COTISTA'
-                          ? 'por cotista'
-                          : 'por aeronave'}
-                      </small>
-                    </strong>
-                    <p>Total mensal da proposta: {moeda(valor)}</p>
-                  </div>
-                  <p>{p!.descricao_servicos}</p>
-                  <h3>Áreas de atuação</h3>
-                  <ul>
-                    {p!.areas
-                      .filter((t) => t.trim())
-                      .map((t, i) => (
-                        <li key={i}>{t}</li>
-                      ))}
-                  </ul>
-                  <h3>Pagamento e condições</h3>
-                  <p>{edicao.forma_pagamento}</p>
-                  <p className="ct-texto-livre">{p!.condicoes}</p>
-                  <p>
-                    Validade: {p!.validade_dias} dias. Emissão:{' '}
-                    {dataBR(p!.emissao)}.
-                    {edicao.data_inicio
-                      ? ` Início previsto: ${dataBR(edicao.data_inicio)}.`
-                      : ''}
-                    {edicao.data_fim
-                      ? ` Término previsto: ${dataBR(edicao.data_fim)}.`
-                      : ''}
-                  </p>
-                  {edicao.foro && <p>Foro: {edicao.foro}</p>}
-                  <p>
-                    {p!.cidade}, {dataBR(p!.emissao)}.
-                  </p>
-                  <h3>{p!.encerramento}</h3>
-                  <strong>{edicao.contratada.nome}</strong>
-                  <p>
-                    {[
-                      edicao.contratada.documento,
-                      edicao.contratada.email,
-                      edicao.contratada.telefone,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                </div>
-              </div>
+                }
+              >
+                <PreviaProposta edicao={edicao} />
+              </Suspense>
             )}
           </fieldset>
         </>

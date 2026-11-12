@@ -1,3 +1,4 @@
+export const LAYOUT_PDF_PROPOSTA = 'PREMIUM_SHARE_V1';
 export const STATUS_CONTRATOS = [
   'RASCUNHO',
   'EM_REVISAO',
@@ -371,6 +372,7 @@ export function payloadContrato(e: EdicaoContrato, anterior?: Contrato | null) {
     dados_adicionais: {
       ...anterior?.dados_adicionais,
       modelo: 'PROPOSTA_GERENCIAMENTO',
+      layout_pdf: LAYOUT_PDF_PROPOSTA,
       proposta_gerenciamento: e.proposta,
       tipo_vinculo: e.cotista_id ? 'COTISTA' : 'MANUAL',
       cotista_id: e.cotista_id || null,

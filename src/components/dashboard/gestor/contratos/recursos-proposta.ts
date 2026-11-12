@@ -9,13 +9,14 @@ export type RecursosProposta = {
 };
 
 export function recursosPropostaPadrao(): RecursosProposta {
-  const base = `${import.meta.env?.BASE_URL || '/'}propostas/`;
+  const publicBase = import.meta.env?.BASE_URL || '/';
+  const base = `${publicBase}propostas/`;
   return {
     fonteRegular: `${base}fontes/OpenSans-Regular.ttf`,
     fonteSemibold: `${base}fontes/OpenSans-Semibold.ttf`,
     fonteSerifada: `${base}fontes/NotoSerif-Regular.ttf`,
     logo: `${base}logo-share.png`,
-    logoCapa: `${base}logo-share-branca.png`,
+    logoCapa: `${publicBase}logoshare.branco.png`,
   };
 }
 

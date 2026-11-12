@@ -128,12 +128,13 @@ const s = StyleSheet.create({
     fontFamily: 'PropostaSans',
     color: cor.branco,
   },
+  // Compensa as margens transparentes do PNG oficial sem alterar a imagem.
   coverLogo: {
     position: 'absolute',
-    left: 49,
-    top: 41,
-    width: 149,
-    height: 60,
+    left: 34.4,
+    top: 29.2,
+    width: 197,
+    height: 72.92,
     objectFit: 'contain',
   },
   coverNumber: {

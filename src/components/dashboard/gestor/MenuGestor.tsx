@@ -1,3 +1,4 @@
+import { ContratosGerenciamento } from './contratos/ContratosGerenciamento';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, CalendarDays, FileDown, FileText, RefreshCw, Save, Search, Upload, WalletCards } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -294,7 +295,7 @@ export default function MenuGestor() {
         <TabsTrigger value="contratos" className="shrink-0 gap-2 rounded-md px-3 py-1.5 text-xs"><FileText size={14} /> Contratos</TabsTrigger>
       </TabsList>
       <TabsContent value="previsao" className="mt-0"><PrevisaoFinanceira /></TabsContent>
-      <TabsContent value="contratos" className="mt-0"><Contratos /></TabsContent>
+      <TabsContent value="contratos" className="mt-0"><CentralContratos /></TabsContent>
     </Tabs>
   </div>;
 }
@@ -471,7 +472,7 @@ function Contratos() {
         colaboradorRequest<Contrato[]>("/api/gestor/contratos"),
         colaboradorRequest<OpcoesContrato>("/api/gestor/contratos/opcoes"),
       ]);
-      setContratos(lista);
+      setContratos(lista.filter((contrato) => contrato.dados_adicionais?.modelo !== "PROPOSTA_GERENCIAMENTO"));
       setOpcoes(cadastros);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível carregar os contratos.");
@@ -758,4 +759,9 @@ function Contratos() {
       </div>
     </div>
   </div>;
+}
+
+function CentralContratos() {
+  const [secao, setSecao] = useState("gerenciamento");
+  return <div className="space-y-4"><div className="flex flex-wrap gap-2" aria-label="Tipos de contrato"><Button variant={secao === "gerenciamento" ? "default" : "outline"} onClick={() => setSecao("gerenciamento")}>Propostas de gerenciamento</Button><Button variant={secao === "demais" ? "default" : "outline"} onClick={() => setSecao("demais")}>Demais contratos</Button></div>{secao === "gerenciamento" ? <ContratosGerenciamento /> : <Contratos />}</div>;
 }

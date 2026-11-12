@@ -17,7 +17,9 @@ const recursos = {
   fonteSemibold: raiz + 'fontes/OpenSans-Semibold.ttf',
   fonteSerifada: raiz + 'fontes/NotoSerif-Regular.ttf',
   logo: raiz + 'logo-share.png',
-  logoCapa: raiz + 'logo-share-branca.png',
+  logoCapa: fileURLToPath(
+    new URL('../public/logoshare.branco.png', import.meta.url),
+  ),
 };
 function edicao() {
   const e = novaEdicao();

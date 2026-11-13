@@ -10,7 +10,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const flightRoutes = [
   { y: "-18vh", duration: "19s", delay: "-4s", size: 22, opacity: 0.34 },
-  { y: "8vh", duration: "27s", delay: "-14s", size: 16, opacity: 0.2 },
+  { y: "8vh", duration: "25s", delay: "-14s", size: 16, opacity: 0.2 },
   { y: "25vh", duration: "23s", delay: "-8s", size: 18, opacity: 0.25 },
   { y: "-34vh", duration: "31s", delay: "-22s", size: 14, opacity: 0.16 },
   { y: "35vh", duration: "25s", delay: "-17s", size: 20, opacity: 0.22 },

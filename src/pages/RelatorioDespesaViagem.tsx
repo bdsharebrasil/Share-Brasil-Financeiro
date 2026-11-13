@@ -625,8 +625,13 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
+  const tripulanteAssinou = Boolean(relatorio && (
+    relatorio.aprovado_tripulante_1_em || relatorio.aprovado_tripulante_2_em || relatorio.aprovado_tripulante_em ||
+    String(relatorio.status_aprovacao_tripulante || "").toLowerCase() === "aprovado" ||
+    String(relatorio.status_aprovacao_tripulante_2 || "").toLowerCase() === "aprovado"
+  ));
   const voltarParaRascunho = async () => {
-    if (!relatorio || relatorio.status !== "finalizado" || relatorio.token_aprovacao_tripulante_1 || relatorio.token_aprovacao_tripulante_2) return;
+    if (!relatorio || !(["finalizado", "aguardando_aprovacao"].includes(relatorio.status)) || tripulanteAssinou) return;
     setSalvando(true);
     setMensagem(null);
     try {
@@ -1003,8 +1008,10 @@ export default function RelatorioDespesaViagem({
       ),
     );
   const aprovado = relatorio?.status === "aprovado";
-  const podeVoltarParaRascunho = relatorio?.status === "finalizado" && !relatorio.token_aprovacao_tripulante_1 && !relatorio.token_aprovacao_tripulante_2;
-  const bloqueado = Boolean(relatorio && relatorio.status !== "ajuste_necessario" && (
+  const podeVoltarParaRascunho = ["finalizado", "aguardando_aprovacao"].includes(relatorio?.status || "") && !tripulanteAssinou;
+  const reabertoPorReprovacao = Boolean(relatorio && !tripulanteAssinou && !(["aprovado", "enviado_cliente"].includes(relatorio.status)) && [relatorio.status_aprovacao_tripulante, relatorio.status_aprovacao_tripulante_2].some((status) => ["reprovado", "rejeitado"].includes(String(status || "").toLowerCase())));
+  const podeEnviarAprovacao = ["finalizado", "ajuste_necessario", "ajuste_concluido", ...(reabertoPorReprovacao ? [] : ["aguardando_aprovacao"])];
+  const bloqueado = Boolean(relatorio && !reabertoPorReprovacao && relatorio.status !== "ajuste_necessario" && (
     !["rascunho", "finalizado"].includes(relatorio.status) ||
     ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status) ||
     relatorio.enviado_para_tripulante_em || relatorio.enviado_para_tripulante_2_em ||
@@ -1061,7 +1068,7 @@ export default function RelatorioDespesaViagem({
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {podeVoltarParaRascunho && (
             <Button type="button" variant="outline" onClick={() => void voltarParaRascunho()} disabled={salvando} className="gap-2">
-              <ArrowLeft size={15} /> Voltar para rascunho
+              <ArrowLeft size={15} /> Retornar a rascunho
             </Button>
           )}
           {relatorio?.status === "rascunho" && (
@@ -1447,13 +1454,13 @@ export default function RelatorioDespesaViagem({
               disabled={salvando || bloqueado}
               className="gap-2"
             >
-              <Save size={15} /> {relatorio?.status === "ajuste_necessario" ? "Salvar ajustes" : "Salvar rascunho"}
+              <Save size={15} /> {relatorio?.status === "ajuste_necessario" || reabertoPorReprovacao ? "Salvar ajustes" : "Salvar rascunho"}
             </Button>
             {relatorio && (
               <Button
                 type="button"
                 onClick={() => void finalizar()}
-                disabled={salvando || bloqueado || !["rascunho", "ajuste_necessario"].includes(relatorio.status)}
+                disabled={salvando || bloqueado || !(["rascunho", "ajuste_necessario"].includes(relatorio.status) || reabertoPorReprovacao)}
                 className="gap-2"
               >
                 <CheckCircle2 size={15} /> Finalizar relatório
@@ -1486,12 +1493,7 @@ export default function RelatorioDespesaViagem({
               onCopiarMensagem={copiarMensagemAprovacao}
               disabled={
                 !relatorio ||
-                ![
-                  "finalizado",
-                  "ajuste_necessario",
-                  "ajuste_concluido",
-                  "aguardando_aprovacao",
-                ].includes(relatorio.status) ||
+                !podeEnviarAprovacao.includes(relatorio.status) ||
                 salvando ||
                 aprovado
               }
@@ -1510,12 +1512,7 @@ export default function RelatorioDespesaViagem({
               onCopiarMensagem={copiarMensagemAprovacao}
               disabled={
                 !relatorio?.tripulante_id_2 ||
-                ![
-                  "finalizado",
-                  "ajuste_necessario",
-                  "ajuste_concluido",
-                  "aguardando_aprovacao",
-                ].includes(relatorio.status) ||
+                !podeEnviarAprovacao.includes(relatorio.status) ||
                 salvando ||
                 aprovado
               }

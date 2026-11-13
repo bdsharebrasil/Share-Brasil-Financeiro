@@ -1,3 +1,4 @@
+import { podeRetornarRelatorioRascunho } from "@/lib/relatorio-viagem-rascunho";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -259,6 +260,8 @@ function mensagemErroRelatorio(texto: string) {
     numero_relatorio_ja_utilizado: "ESTE NÚMERO DE RELATÓRIO JÁ ESTÁ EM USO",
     numero_relatorio_ja_utilizado_ou_relatorio_alterado: "O RELATÓRIO FOI ALTERADO OU O NÚMERO JÁ ESTÁ EM USO. ATUALIZE E TENTE NOVAMENTE",
     numero_relatorio_alteravel_somente_em_rascunho: "O NÚMERO DO RELATÓRIO SÓ PODE SER ALTERADO NO RASCUNHO",
+    relatorio_aprovacao_tripulante_nao_pendente: "A APROVAÇÃO DO TRIPULANTE PRECISA ESTAR PENDENTE PARA RETORNAR A RASCUNHO",
+    relatorio_alterado_concorrente: "O RELATÓRIO FOI ALTERADO. ATUALIZE A PÁGINA E TENTE NOVAMENTE",
     relatorio_ja_finalizado: "ESTE RELATÓRIO JÁ FOI FINALIZADO",
     sessao_expirada: "SUA SESSÃO EXPIROU. ENTRE NOVAMENTE E TENTE DE NOVO",
     sessao_nao_encontrada: "NÃO FOI POSSÍVEL IDENTIFICAR SUA SESSÃO. ENTRE NOVAMENTE",
@@ -631,7 +634,7 @@ export default function RelatorioDespesaViagem({
     String(relatorio.status_aprovacao_tripulante_2 || "").toLowerCase() === "aprovado"
   ));
   const voltarParaRascunho = async () => {
-    if (!relatorio || !(["finalizado", "aguardando_aprovacao"].includes(relatorio.status)) || tripulanteAssinou) return;
+    if (!relatorio || !podeRetornarRelatorioRascunho(relatorio)) return;
     setSalvando(true);
     setMensagem(null);
     try {
@@ -642,7 +645,7 @@ export default function RelatorioDespesaViagem({
       setRelatorios((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
       setMensagensAprovacao({});
       setPdfPreview((atual) => { if (atual) URL.revokeObjectURL(atual.url); return null; });
-      setMensagem({ tipo: "ok", texto: "Relatório retornou a rascunho. O PDF anterior foi invalidado; será gerado novamente ao finalizar." });
+      setMensagem({ tipo: "ok", texto: "Relatório retornou a rascunho. O PDF e os links de aprovação anteriores foram invalidados; finalize novamente para gerar uma nova versão." });
     } catch (error) {
       setMensagem({ tipo: "erro", texto: error instanceof Error ? error.message : "Não foi possível voltar o relatório para rascunho." });
     } finally {
@@ -1008,7 +1011,7 @@ export default function RelatorioDespesaViagem({
       ),
     );
   const aprovado = relatorio?.status === "aprovado";
-  const podeVoltarParaRascunho = ["finalizado", "aguardando_aprovacao"].includes(relatorio?.status || "") && !tripulanteAssinou;
+  const podeVoltarParaRascunho = podeRetornarRelatorioRascunho(relatorio);
   const reabertoPorReprovacao = Boolean(relatorio && !tripulanteAssinou && !(["aprovado", "enviado_cliente"].includes(relatorio.status)) && [relatorio.status_aprovacao_tripulante, relatorio.status_aprovacao_tripulante_2].some((status) => ["reprovado", "rejeitado"].includes(String(status || "").toLowerCase())));
   const podeEnviarAprovacao = ["finalizado", "ajuste_necessario", "ajuste_concluido", ...(reabertoPorReprovacao ? [] : ["aguardando_aprovacao"])];
   const bloqueado = Boolean(relatorio && !reabertoPorReprovacao && relatorio.status !== "ajuste_necessario" && (
@@ -2176,3 +2179,4 @@ function AprovacaoLinha({
     </div>
   );
 }
+

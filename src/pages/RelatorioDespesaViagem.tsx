@@ -625,8 +625,13 @@ export default function RelatorioDespesaViagem({
       setSalvando(false);
     }
   };
+  const tripulanteAssinou = Boolean(relatorio && (
+    relatorio.aprovado_tripulante_1_em || relatorio.aprovado_tripulante_2_em || relatorio.aprovado_tripulante_em ||
+    String(relatorio.status_aprovacao_tripulante || "").toLowerCase() === "aprovado" ||
+    String(relatorio.status_aprovacao_tripulante_2 || "").toLowerCase() === "aprovado"
+  ));
   const voltarParaRascunho = async () => {
-    if (!relatorio || relatorio.status !== "finalizado" || relatorio.token_aprovacao_tripulante_1 || relatorio.token_aprovacao_tripulante_2) return;
+    if (!relatorio || relatorio.status !== "finalizado" || tripulanteAssinou) return;
     setSalvando(true);
     setMensagem(null);
     try {
@@ -1003,7 +1008,7 @@ export default function RelatorioDespesaViagem({
       ),
     );
   const aprovado = relatorio?.status === "aprovado";
-  const podeVoltarParaRascunho = relatorio?.status === "finalizado" && !relatorio.token_aprovacao_tripulante_1 && !relatorio.token_aprovacao_tripulante_2;
+  const podeVoltarParaRascunho = relatorio?.status === "finalizado" && !tripulanteAssinou;
   const bloqueado = Boolean(relatorio && relatorio.status !== "ajuste_necessario" && (
     !["rascunho", "finalizado"].includes(relatorio.status) ||
     ["aguardando_aprovacao", "aprovado", "enviado_cliente"].includes(relatorio.status) ||

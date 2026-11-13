@@ -862,10 +862,6 @@ export default function RelatorioDespesaViagem({
           )
         : copyText(link);
       if (!copiado) throw new Error("copia_indisponivel");
-      setMensagem({
-        tipo: "ok",
-        texto: "Link copiado! Agora você pode enviá-lo pelo WhatsApp.",
-      });
       return true;
     } catch {
       setMensagem({
@@ -2156,21 +2152,21 @@ function AprovacaoLinha({
             ? "Não aprovado"
             : "Pendente"}
       </Badge>
-      {!naoAplicavel && <Button
+      {!naoAplicavel && <span className="relative inline-flex w-full sm:w-auto">
+        <Button
           type="button"
           size="sm"
           variant="outline"
           onClick={() => enviado && link ? void copiarLink() : onEnviar()}
           disabled={disabled}
-          className={`w-full justify-center gap-1.5 whitespace-normal text-center transition-all duration-200 active:scale-95 sm:w-auto sm:whitespace-nowrap ${linkCopiado ? "animate-[bounce_500ms_ease-in-out_1] border-emerald-400/50 bg-emerald-400/15 text-emerald-200 shadow-[0_0_18px_rgba(52,211,153,0.2)]" : ""}`}
+          className="w-full justify-center gap-1.5 whitespace-normal text-center transition-colors active:scale-95 sm:w-auto sm:whitespace-nowrap"
         >
           {enviado && link
-            ? linkCopiado
-              ? <><CheckCircle2 size={14} /> LINK COPIADO</>
-              : <><Copy size={14} /> COPIAR LINK</>
+            ? <><Copy size={14} /> COPIAR LINK</>
             : <><Send size={13} /> {relatorioAjustado ? "ENVIAR RELATORIO AJUSTADO" : "Enviar para aprovação tripulação"}</>}
-        </Button>}
-      {linkCopiado && <span role="status" className="text-xs font-semibold text-emerald-300">Link copiado para a área de transferência.</span>}
+        </Button>
+        {linkCopiado && <span role="status" className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-100 shadow-md">Link copiado</span>}
+      </span>}
       {mensagem && (
         <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs sm:basis-full">
           <p className="font-semibold text-primary">Mensagem automática para envio</p>

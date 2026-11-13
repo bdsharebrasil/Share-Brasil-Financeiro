@@ -56,11 +56,10 @@ html .envio-cotista-selector {
 .envio-destinatario-dados strong { font-size: 12px; line-height: 1.5; font-weight: 600; }
 .envio-destinatario-dados > span { color: var(--fin-muted); font-size: 12px; }
 .envio-destinatario-dados small { display: flex; align-items: center; gap: 4px; color: var(--fin-muted); font-size: 11px; }
-.envio-destinatario-estado { display: flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--fin-muted); font-size: 11px; }
+.envio-destinatario-estado { display: flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--fin-accent); font-size: 11px; font-weight: 600; }
 .envio-destinatario[data-enviado="true"] .envio-destinatario-estado { color: var(--fin-success); }
 .envio-seletor-vazio { display: flex; align-items: center; gap: 8px; padding: 16px; border: 1px dashed var(--fin-border); border-radius: 8px; color: var(--fin-muted); font-size: 12px; }
 .envio-seletor-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 16px; border-top: 1px solid var(--fin-border); color: var(--fin-muted); font-size: 12px; }
-.envio-seletor-footer button { padding: 8px 12px; border: 1px solid var(--fin-border); border-radius: 5px; color: var(--fin-text); background: var(--fin-surface); }
 .envio-aviso { padding: 12px; border: 1px solid var(--fin-border); border-radius: 6px; font-size: 12px; }
 .envio-aviso-erro { background: var(--fin-danger-soft); color: var(--fin-danger); }
 .envio-aviso-sucesso { background: var(--fin-success-soft); color: var(--fin-success); }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Check,
@@ -258,7 +258,7 @@ export default function AprovacaoRelatorioViagem() {
   useEffect(() => () => {
     if (imagemRejeicaoPreview) URL.revokeObjectURL(imagemRejeicaoPreview);
   }, [imagemRejeicaoPreview]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     /*
       A tela pública NÃO usa o ScrollArea do sistema.
       O body fica travado e existe um único viewport de rolagem:
@@ -275,8 +275,10 @@ export default function AprovacaoRelatorioViagem() {
       bodyHeight: body.style.height,
       bodyOverscroll: body.style.overscrollBehaviorY,
       colorScheme: html.style.colorScheme,
+      htmlDarkClass: html.classList.contains("dark"),
     };
 
+    html.classList.add("dark");
     html.style.overflow = "hidden";
     html.style.height = "100%";
     html.style.colorScheme = "dark";
@@ -289,6 +291,7 @@ export default function AprovacaoRelatorioViagem() {
       html.style.overflow = anterior.htmlOverflow;
       html.style.height = anterior.htmlHeight;
       html.style.colorScheme = anterior.colorScheme;
+      html.classList.toggle("dark", anterior.htmlDarkClass);
 
       body.style.overflow = anterior.bodyOverflow;
       body.style.height = anterior.bodyHeight;
@@ -751,7 +754,7 @@ export default function AprovacaoRelatorioViagem() {
 
   if (!data) {
     return (
-      <main className="fixed inset-0 overflow-y-auto bg-card dark:bg-[#060b14] text-white">
+      <main className="dark fixed inset-0 overflow-y-auto bg-[#060b14] text-white">
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
           <div className="w-full max-w-md rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
@@ -794,7 +797,7 @@ export default function AprovacaoRelatorioViagem() {
       <main
         ref={scrollRef}
         onScroll={verificarFimScroll}
-        className="fixed inset-0 z-10 overflow-y-auto overscroll-y-contain bg-card dark:bg-[#060b14] text-white"
+        className="dark fixed inset-0 z-10 overflow-y-auto overscroll-y-contain bg-[#060b14] text-white"
         style={{
           WebkitOverflowScrolling: "touch",
           touchAction: "pan-y",

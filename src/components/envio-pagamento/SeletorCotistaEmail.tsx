@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Loader2, Mail, Paperclip } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, Paperclip } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export type DestinatarioEnvio = {
@@ -39,12 +39,12 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
         >
           <span className="envio-destinatario-avatar" aria-hidden="true">{item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]).join("")}</span>
           <span className="envio-destinatario-dados"><strong>{item.nome}</strong><span>{item.email || "Informe o e-mail na próxima tela"}</span><small><Paperclip size={12} /> {item.anexos} documento(s){item.indisponivel && " · Sem documentos para este cotista"}</small></span>
-          <span className="envio-destinatario-estado">{preparandoId === item.id ? <Loader2 size={16} className="animate-spin" /> : item.enviado ? <><CheckCircle2 size={15} /> Enviado</> : <ArrowRight size={17} />}</span>
+          <span className="envio-destinatario-estado">{preparandoId === item.id ? <Loader2 size={16} className="animate-spin" /> : item.enviado ? <><CheckCircle2 size={15} /> Enviado</> : item.indisponivel ? "Indisponível" : <><Mail size={15} /> Enviar e-mail</>}</span>
         </button>)}
         {!carregando && !destinatarios.length && <p className="envio-seletor-vazio">Nenhum cotista disponível. Retome a solicitação e confira os vínculos da aeronave.</p>}
       </div>
       {onConcluir && destinatarios.some(item => !item.indisponivel) && destinatarios.filter(item => !item.indisponivel).every(item => item.enviado) && <button type="button" className="envio-destinatario" disabled={concluindo} onClick={onConcluir}>{concluindo ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} {concluindo ? "Concluindo registro…" : "Concluir registro do envio"}</button>}
-      <footer className="envio-seletor-footer"><span>{pendentes} cotista(s) pendente(s)</span><button type="button" onClick={() => onOpenChange(false)} disabled={concluindo || Boolean(preparandoId)}>Continuar depois</button></footer>
+      <footer className="envio-seletor-footer"><span>{pendentes} cotista(s) pendente(s)</span></footer>
     </DialogContent>
   </Dialog>;
 }

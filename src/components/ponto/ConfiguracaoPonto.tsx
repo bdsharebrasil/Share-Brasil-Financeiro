@@ -10,6 +10,13 @@ import {
 const campo =
   "h-10 w-full rounded-lg border border-input bg-background px-3 text-xs text-foreground";
 const box = "rounded-xl border border-border bg-card p-4";
+const modelosEscala = [
+  ["12X36", "12 × 36"],
+  ["6X1", "6 × 1"],
+  ["5X2", "5 × 2"],
+  ["ROTATIVA", "Turnos rotativos"],
+  ["SOBREAVISO", "Sobreaviso"],
+];
 const labels: Record<string, string> = {
   dsr_noturno_percentual: "DSR sobre adicional noturno (%)",
   extra_util_percentual: "Adicional de extra em dia útil (%)",
@@ -46,6 +53,12 @@ export default function ConfiguracaoPonto({
   const [ocupado, setOcupado] = useState(false);
   const [ok, setOk] = useState("");
   const [tipo, setTipo] = useState("12X36");
+  const [aba, setAba] = useState("vinculos");
+  const [nomeEscala, setNomeEscala] = useState("");
+  const [escalaSelecionada, setEscalaSelecionada] = useState("");
+  const [colaboradorSelecionado, setColaboradorSelecionado] = useState("");
+  const [coordenadores, setCoordenadores] = useState<string[]>([]);
+  const [erroCoordenacao, setErroCoordenacao] = useState("");
   const [ciclo, setCiclo] = useState<
     Array<{
       tipo: string;
@@ -74,9 +87,13 @@ export default function ConfiguracaoPonto({
     setOcupado(true);
     setOk("");
     try {
-      await salvarConfiguracaoPonto(tipo, body);
-      setOk("Configuração registrada no histórico.");
+      const resultado = await salvarConfiguracaoPonto(tipo, body);
       await carregar();
+      if (tipo === "escalas") {
+        setEscalaSelecionada(resultado.id);
+        setAba("vinculos");
+        setOk("Escala salva e selecionada. Conclua o vínculo do colaborador.");
+      } else setOk("Configuração registrada no histórico.");
     } catch (e) {
       aoErro(e);
     } finally {
@@ -96,8 +113,14 @@ export default function ConfiguracaoPonto({
     }
     if (tipo === "feriados")
       body.recorrente_anual = f.get("recorrente_anual") === "on";
-    if (tipo === "vinculos")
+    if (tipo === "vinculos") {
+      if (!coordenadores.length) {
+        setErroCoordenacao("Selecione ao menos um coordenador responsável.");
+        return;
+      }
+      body.gestores_ids = coordenadores;
       body.anuencia_colaborador = f.get("anuencia_colaborador") === "on";
+    }
     if (tipo === "escalas") {
       body.tipo = tipoEscala();
       body.ciclo = ciclo;
@@ -105,6 +128,16 @@ export default function ConfiguracaoPonto({
     void salvar(tipo, body);
   };
   const tipoEscala = () => tipo;
+  const iniciarModelo = (modelo: string) => {
+    if (!dados?.modelos[modelo]) return;
+    setTipo(modelo);
+    setNomeEscala(
+      `Escala ${modelosEscala.find(([id]) => id === modelo)?.[1] || modelo}`,
+    );
+    setCiclo(dados.modelos[modelo].map((dia) => ({ ...dia })));
+    setOk("");
+    setAba("escalas");
+  };
   if (!dados)
     return (
       <p role="status" className="text-sm text-muted-foreground">
@@ -112,7 +145,7 @@ export default function ConfiguracaoPonto({
       </p>
     );
   return (
-    <Tabs defaultValue="vinculos" className="space-y-4">
+    <Tabs value={aba} onValueChange={setAba} className="space-y-4">
       <TabsList
         aria-label="Configuração do ponto"
         className="h-auto max-w-full justify-start overflow-x-auto"
@@ -397,7 +430,11 @@ export default function ConfiguracaoPonto({
         )}
       </TabsContent>
       {!dados.permissoes.dp && (
-        <TabsContent value="vinculos">
+        <TabsContent
+          value="vinculos"
+          forceMount
+          className="space-y-4 data-[state=inactive]:hidden"
+        >
           <section className={box}>
             <h3 className="text-sm font-semibold">Vínculos cadastrados</h3>
             <div className="mt-3 divide-y divide-border">
@@ -415,6 +452,15 @@ export default function ConfiguracaoPonto({
                   </span>
                   <span className="text-muted-foreground">
                     Desde {v.vigencia_inicio} · {v.fuso_horario}
+                    {" · Coordenadores: "}
+                    {(v.gestores_ids || [v.gestor_id])
+                      .filter(Boolean)
+                      .map(
+                        (id: string) =>
+                          dados.gestores.find((g) => g.id === id)
+                            ?.nome_completo || "Responsável vinculado",
+                      )
+                      .join(", ")}
                   </span>
                 </div>
               ))}
@@ -426,12 +472,28 @@ export default function ConfiguracaoPonto({
         <>
           <TabsContent value="escalas">
             <form onSubmit={(e) => enviar(e, "escalas")} className={box}>
-              <h3 className="text-sm font-semibold">Escala recorrente</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Escala recorrente</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAba("vinculos")}
+                >
+                  Voltar ao vínculo
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Confira o nome, os horários e os intervalos do modelo antes de
+                salvar.
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Nome
                   <input
                     name="nome"
+                    value={nomeEscala}
+                    onChange={(e) => setNomeEscala(e.target.value)}
                     required
                     minLength={3}
                     className={campo}
@@ -555,7 +617,11 @@ export default function ConfiguracaoPonto({
               </p>
             </form>
           </TabsContent>
-          <TabsContent value="vinculos">
+          <TabsContent
+            value="vinculos"
+            forceMount
+            className="space-y-4 data-[state=inactive]:hidden"
+          >
             <form onSubmit={(e) => enviar(e, "vinculos")} className={box}>
               <h3 className="text-sm font-semibold">
                 Vincular colaborador à escala e ao grupo
@@ -563,7 +629,18 @@ export default function ConfiguracaoPonto({
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Colaborador
-                  <select required name="user_id" className={campo}>
+                  <select
+                    required
+                    name="user_id"
+                    value={colaboradorSelecionado}
+                    onChange={(e) => {
+                      setColaboradorSelecionado(e.target.value);
+                      setCoordenadores((ids) =>
+                        ids.filter((id) => id !== e.target.value),
+                      );
+                    }}
+                    className={campo}
+                  >
                     <option value="">Selecione</option>
                     {dados.equipe.map((u) => (
                       <option value={u.id} key={u.id}>
@@ -574,14 +651,47 @@ export default function ConfiguracaoPonto({
                 </label>
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Escala
-                  <select required name="escala_id" className={campo}>
-                    <option value="">Selecione</option>
-                    {dados.escalas.map((e) => (
-                      <option value={e.id} key={e.id}>
-                        {e.nome}
-                      </option>
-                    ))}
+                  <select
+                    aria-label="Escala"
+                    required
+                    name="escala_id"
+                    value={escalaSelecionada}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (valor.startsWith("modelo:"))
+                        iniciarModelo(valor.slice(7));
+                      else setEscalaSelecionada(valor);
+                    }}
+                    className={campo}
+                  >
+                    <option value="">
+                      {dados.escalas.length
+                        ? "Selecione uma escala"
+                        : "Escolha um modelo para cadastrar"}
+                    </option>
+                    {dados.escalas.length > 0 && (
+                      <optgroup label="Escalas cadastradas">
+                        {dados.escalas.map((e) => (
+                          <option value={e.id} key={e.id}>
+                            {e.nome}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Cadastrar a partir de um modelo">
+                      {modelosEscala.map(([id, nome]) => (
+                        <option key={id} value={`modelo:${id}`}>
+                          {nome} · criar escala
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
+                  {!dados.escalas.length && (
+                    <span className="block pt-1 leading-relaxed">
+                      Nenhuma escala cadastrada. Escolha um modelo, confira os
+                      horários e salve para continuar.
+                    </span>
+                  )}
                 </label>
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Regra validada do grupo
@@ -598,17 +708,70 @@ export default function ConfiguracaoPonto({
                       ))}
                   </select>
                 </label>
-                <label className="space-y-1 text-[11px] text-muted-foreground">
-                  Gestor responsável
-                  <select required name="gestor_id" className={campo}>
-                    <option value="">Selecione</option>
-                    {dados.gestores.map((g) => (
-                      <option value={g.id} key={g.id}>
-                        {g.nome_completo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <fieldset
+                  className="space-y-2 rounded-lg border border-border p-3 sm:col-span-2 xl:col-span-3"
+                  aria-describedby="ajuda-coordenadores-ponto"
+                >
+                  <legend className="px-1 text-xs font-medium">
+                    Coordenadores responsáveis
+                  </legend>
+                  <p
+                    id="ajuda-coordenadores-ponto"
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    Selecione um ou mais responsáveis. Gestor Master, Admin e
+                    Contabilidade podem atuar juntos na coordenação.
+                  </p>
+                  <div className="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
+                    {dados.gestores
+                      .filter((g) => g.id !== colaboradorSelecionado)
+                      .map((g) => (
+                        <label
+                          key={g.id}
+                          className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-xs ${coordenadores.includes(g.id) ? "border-primary/40 bg-primary/5" : "border-border"}`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="gestores_ids"
+                            value={g.id}
+                            checked={coordenadores.includes(g.id)}
+                            onChange={(e) => {
+                              setCoordenadores((ids) =>
+                                e.target.checked
+                                  ? [...ids, g.id]
+                                  : ids.filter((id) => id !== g.id),
+                              );
+                              setErroCoordenacao("");
+                            }}
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                          />
+                          <span>
+                            <span className="block font-medium">
+                              {g.nome_completo}
+                            </span>
+                            <span className="mt-1 block text-[10px] text-muted-foreground">
+                              {g.perfis?.join(" · ") || "Coordenador"}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                  {!dados.gestores.filter(
+                    (g) => g.id !== colaboradorSelecionado,
+                  ).length && (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhum outro responsável ativo disponível.
+                    </p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    {coordenadores.length} responsável(is) selecionado(s)
+                  </p>
+                  {erroCoordenacao && (
+                    <p role="alert" className="text-xs text-destructive">
+                      {erroCoordenacao}
+                    </p>
+                  )}
+                </fieldset>
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Data-base (dia 1 do ciclo)
                   <input
@@ -685,6 +848,15 @@ export default function ConfiguracaoPonto({
                     </span>
                     <span className="text-muted-foreground">
                       Desde {v.vigencia_inicio} · {v.fuso_horario}
+                      {" · Coordenadores: "}
+                      {(v.gestores_ids || [v.gestor_id])
+                        .filter(Boolean)
+                        .map(
+                          (id: string) =>
+                            dados.gestores.find((g) => g.id === id)
+                              ?.nome_completo || "Responsável vinculado",
+                        )
+                        .join(", ")}
                     </span>
                   </div>
                 ))}

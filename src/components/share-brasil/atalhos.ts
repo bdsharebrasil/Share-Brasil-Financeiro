@@ -91,19 +91,19 @@ export const ATALHOS_POR_ABA: Record<
   "minha-central": [
     {
       menu: "tarefas",
-      label: "Tarefas",
+      label: "TAREFAS",
       icon: ListTodo,
       tone: "border-amber-500/50 bg-amber-500/20 text-amber-900 dark:text-amber-300",
     },
     {
       menu: "ponto",
-      label: "Ponto",
+      label: "PONTO",
       icon: Clock3,
       tone: "border-emerald-500/50 bg-emerald-500/20 text-emerald-900 dark:text-emerald-300",
     },
     {
       menu: "centro-treinamento",
-      label: "Centro de treinamento",
+      label: "CENTRO DE TREINAMENTO",
       icon: GraduationCap,
       tone: "border-sky-500/50 bg-sky-500/20 text-sky-900 dark:text-sky-300",
     },

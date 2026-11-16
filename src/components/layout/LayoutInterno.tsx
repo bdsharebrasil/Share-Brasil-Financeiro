@@ -148,6 +148,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "senhas") return <SenhasPastas />;
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "cotistas") return <ContatosClientesShareBrasil somenteCotistas />;
     if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "aeronaves") return <AeronavesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;

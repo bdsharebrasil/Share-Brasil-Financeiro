@@ -156,7 +156,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
             <>
               <div
                 style={VARIAVEIS_GRID}
-                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-3 md:grid-cols-6 items-stretch gap-[var(--gap)] px-[7px] py-2"
+                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-3 md:grid-cols-7 items-stretch gap-[var(--gap)] px-[7px] py-2"
               >
                 {ATALHOS_POR_ABA[item.id].map((atalho) => (
                   <CardAtalho

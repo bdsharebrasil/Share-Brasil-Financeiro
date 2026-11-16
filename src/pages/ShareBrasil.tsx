@@ -926,8 +926,14 @@ export function SenhasShareBrasil() {
   );
 }
 
-export function ContatosClientesShareBrasil() {
-  const [tab, setTab] = useState<"contatos" | "clientes">("contatos");
+export function ContatosClientesShareBrasil({
+  somenteCotistas = false,
+}: {
+  somenteCotistas?: boolean;
+}) {
+  const [tab, setTab] = useState<"contatos" | "clientes">(
+    somenteCotistas ? "clientes" : "contatos",
+  );
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
     "ativos",
   );
@@ -2780,10 +2786,15 @@ export function ContatosClientesShareBrasil() {
 
   return (
     <Shell
-      title="AGENDA-COTISTAS"
-      detail="Agenda de contatos, perfis e criação de cotistas."
+      title={somenteCotistas ? "COTISTAS" : "AGENDA"}
+      detail={
+        somenteCotistas
+          ? "Cadastros dos cotistas, perfis e criação de cotistas."
+          : "Agenda de contatos, perfis e criação de cotistas."
+      }
     >
       <Feedback error={error} ok={ok} />
+      {!somenteCotistas && (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-[#101b2a] dark:to-[#0b131f] p-2">
         <div className="flex flex-wrap gap-1">
           <Button
@@ -2808,6 +2819,7 @@ export function ContatosClientesShareBrasil() {
         </div>
         {null}
       </div>
+      )}
       {tab === "contatos"
         ? contactsContent
         : selected

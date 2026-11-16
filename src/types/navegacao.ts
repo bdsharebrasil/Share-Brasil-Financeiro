@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   Mail,
   MessageSquare,
+  BadgeCheck,
   BriefcaseBusiness,
   NotebookPen,
   Receipt,
@@ -105,7 +106,8 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
-    { id: "contatos-clientes", label: "AGENDA-COTISTAS", icon: ContactRound },
+    { id: "contatos-clientes", label: "AGENDA", icon: ContactRound },
+    { id: "cotistas", label: "COTISTAS", icon: BadgeCheck },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [

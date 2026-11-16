@@ -38,7 +38,7 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
           onClick={() => onSelecionar(item.id)} aria-label={`Revisar e-mail para ${item.nome}`} data-enviado={item.enviado}
         >
           <span className="envio-destinatario-dados"><strong>{item.nome}</strong><span>{item.email || "Informe o e-mail na próxima tela"}</span><small><Paperclip size={12} /> {item.anexos} documento(s){item.indisponivel && " · Sem documentos para este cotista"}</small></span>
-          <span className="envio-destinatario-estado">{preparandoId === item.id ? <Loader2 size={16} className="animate-spin" /> : item.enviado ? <><CheckCircle2 size={15} /> Enviado</> : item.indisponivel ? "Indisponível" : <><Mail size={15} /> Enviar e-mail</>}</span>
+          <span className="envio-destinatario-estado">{preparandoId === item.id ? <Loader2 size={16} className="animate-spin" /> : item.enviado ? <><CheckCircle2 size={15} /> Enviado</> : item.indisponivel ? "Indisponível" : <><Mail size={15} /> SEGUIR PARA ENVIAR EMAIL PARA ESSE CLIENTE</>}</span>
         </button>)}
         {!carregando && !destinatarios.length && <p className="envio-seletor-vazio">Nenhum cotista disponível. Retome a solicitação e confira os vínculos da aeronave.</p>}
       </div>

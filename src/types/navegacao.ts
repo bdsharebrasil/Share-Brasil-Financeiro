@@ -114,6 +114,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
     { id: "gestor", label: "Gestor", icon: BriefcaseBusiness },
     { id: "financeiro-cotista", label: "Financeiro Cotista", icon: Receipt },
+    { id: "gestao-ponto", label: "Gestão de Ponto", icon: Clock3 },
     { id: "gestao-colaborador", label: "Gestão Colaborador", icon: IdCard },
     { id: "ferias", label: "Férias", icon: CalendarDays },
     { id: "simulador-custos", label: "Simulador de custos", icon: CircleDollarSign },
@@ -130,3 +131,4 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
 export function menuInicial(ambiente: Ambiente): string {
   return menusPorAmbiente[ambiente][0]?.id ?? "overview";
 }
+

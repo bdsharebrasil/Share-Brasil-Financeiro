@@ -25,18 +25,18 @@ import {
   Wallet,
   Wrench,
   Plane,
-  ContactRound,
   IdCard,
+  User,
   Users,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
 import { createElement, forwardRef, type ComponentType, type SVGProps } from "react";
 
-const URL_ICONE_COTISTAS = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2F8ef25b70e54a4d15b17faff626e0fe87?format=webp&width=800&height=1200";
+const URL_ICONE_AGENDA = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2F206f0cb63b6d4b2ebfd2582f4461d757?format=webp&width=800&height=1200";
 
-export function IconeCotistas({ size = 18, className }: LucideProps) {
-  return createElement("img", { src: URL_ICONE_COTISTAS, alt: "", width: size, height: size, className: `shrink-0 object-contain ${className ?? ""}` });
+export function IconeAgenda({ size = 18, className }: LucideProps) {
+  return createElement("img", { src: URL_ICONE_AGENDA, alt: "", width: size, height: size, className: `shrink-0 object-contain brightness-0 invert ${className ?? ""}` });
 }
 
 const BanknoteArrowUp: LucideIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => createElement(
@@ -106,8 +106,8 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
-    { id: "contatos-clientes", label: "AGENDA", icon: ContactRound },
-    { id: "cotistas", label: "COTISTAS", icon: IconeCotistas },
+    { id: "contatos-clientes", label: "AGENDA", icon: IconeAgenda },
+    { id: "cotistas", label: "COTISTAS", icon: User },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [

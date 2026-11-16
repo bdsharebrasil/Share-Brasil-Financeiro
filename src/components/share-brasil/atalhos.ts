@@ -7,12 +7,12 @@ import {
   KeyRound,
   ListTodo,
   Plane,
-  Users,
+  User,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { IconeCotistas } from "@/types/navegacao";
+import { IconeAgenda } from "@/types/navegacao";
 
 export type AbaDashboard = "share-brasil" | "minha-central";
 
@@ -49,13 +49,13 @@ export const ATALHOS_POR_ABA: Record<
     {
       menu: "contatos-clientes",
       label: "AGENDA",
-      icon: Users,
+      icon: IconeAgenda,
       tone: "border-cyan-500/50 bg-cyan-500/20 text-cyan-900 dark:text-cyan-300",
     },
     {
       menu: "cotistas",
       label: "COTISTAS",
-      icon: IconeCotistas,
+      icon: User,
       tone: "border-emerald-500/50 bg-emerald-500/20 text-emerald-900 dark:text-emerald-300",
     },
     {

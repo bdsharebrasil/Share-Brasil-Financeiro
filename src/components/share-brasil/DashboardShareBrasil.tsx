@@ -44,7 +44,7 @@ function CardAtalho({
       >
         <Icone size={18} strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:anywhere]">
+      <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:break-word]">
         <span className="block text-xs font-bold leading-snug text-foreground sm:text-sm">
           {item.label}
         </span>

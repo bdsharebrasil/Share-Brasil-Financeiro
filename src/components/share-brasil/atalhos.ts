@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   Building2,
   Cake,
   Clock3,
@@ -10,14 +9,17 @@ import {
   Plane,
   Users,
   type LucideIcon,
+  type LucideProps,
 } from "lucide-react";
+import type { ComponentType } from "react";
+import { IconeCotistas } from "@/types/navegacao";
 
 export type AbaDashboard = "share-brasil" | "minha-central";
 
 export interface AtalhoDashboard {
   menu: string;
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<LucideProps>;
   tone: string;
   fundo?: string;
 }
@@ -53,7 +55,7 @@ export const ATALHOS_POR_ABA: Record<
     {
       menu: "cotistas",
       label: "COTISTAS",
-      icon: BadgeCheck,
+      icon: IconeCotistas,
       tone: "border-emerald-500/50 bg-emerald-500/20 text-emerald-900 dark:text-emerald-300",
     },
     {

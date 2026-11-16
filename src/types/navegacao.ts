@@ -5,8 +5,6 @@ import {
   Clock3,
   CreditCard,
   GraduationCap,
-  Video,
-  BookOpen,
   Building2,
   FileBarChart,
   FileCheck2,
@@ -35,9 +33,9 @@ import {
 } from "lucide-react";
 import { createElement, forwardRef, type ComponentType, type SVGProps } from "react";
 
-const URL_ICONE_COTISTAS = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2Fa843931ee3254b34834b881ff58d3c1b?format=webp&width=800&height=1200";
+const URL_ICONE_COTISTAS = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2F8ef25b70e54a4d15b17faff626e0fe87?format=webp&width=800&height=1200";
 
-function IconeCotistas({ size = 18, className }: LucideProps) {
+export function IconeCotistas({ size = 18, className }: LucideProps) {
   return createElement("img", { src: URL_ICONE_COTISTAS, alt: "", width: size, height: size, className: `shrink-0 object-contain ${className ?? ""}` });
 }
 
@@ -105,9 +103,6 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "aniversarios", label: "Aniversários", icon: Cake },
     { id: "aeronaves", label: "Aeronaves", icon: Plane },
     { id: "centro-treinamento", label: "CENTRO TREINAMENTO", icon: GraduationCap },
-    { id: "sala-reuniao", label: "Sala de reunião", icon: Video },
-    { id: "tutorial", label: "Tutorial", icon: BookOpen },
-    { id: "treinamento", label: "Treinamento", icon: GraduationCap },
     { id: "ponto", label: "Ponto e jornada", icon: Clock3 },
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },

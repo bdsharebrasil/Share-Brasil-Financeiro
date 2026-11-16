@@ -305,13 +305,6 @@ export default function DashboardFinanceiro({
           iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
         />
-        <AcaoRapida
-          icon={<RefreshCw size={16} />}
-          label="Ciclo de voo"
-          detail="Consultar"
-          color="amber"
-          onClick={() => aoNavegar("ciclo")}
-        />
       </section>
 
 

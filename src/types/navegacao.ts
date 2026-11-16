@@ -79,14 +79,14 @@ export const descricoesAmbiente: Record<Ambiente, string> = {
 
 export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   operacoes: [
-    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-    { id: "agendamentos", label: "Agendamentos", icon: CalendarDays, badge: "4" },
-    { id: "plano-de-voo", label: "Plano de voo", icon: FileText },
-    { id: "diario-de-bordo", label: "Diário de bordo", icon: NotebookPen },
-    { id: "tripulacao", label: "Gestão Tripulação", icon: Users },
-    { id: "abastecimentos", label: "Abastecimentos", icon: Fuel },
+    { id: "overview", label: "VISÃO GERAL", icon: LayoutDashboard },
+    { id: "agendamentos", label: "AGENDAMENTOS", icon: CalendarDays, badge: "4" },
+    { id: "plano-de-voo", label: "PLANO DE VOO", icon: FileText },
+    { id: "diario-de-bordo", label: "DIÁRIO DE BORDO", icon: NotebookPen },
+    { id: "tripulacao", label: "GESTÃO TRIPULAÇÃO", icon: Users },
+    { id: "abastecimentos", label: "ABASTECIMENTOS", icon: Fuel },
     { id: "ctm", label: "CTM", icon: Wrench },
-    { id: "recados", label: "Recados", icon: MessageSquare },
+    { id: "recados", label: "RECADOS", icon: MessageSquare },
   ],
   financeiro: [
     { id: "overview", label: "VISÃO GERAL", icon: LayoutDashboard },

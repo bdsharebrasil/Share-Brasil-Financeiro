@@ -20,6 +20,7 @@ import {
   type GeolocalizacaoPonto,
 } from "@/lib/ponto-api";
 import { colaboradorRequest } from "@/lib/colaborador-api";
+import { useLocalidadePonto } from "@/lib/localidade-ponto";
 export default function AvisoEntradaPonto({
   usuarioId,
 }: {
@@ -31,6 +32,7 @@ export default function AvisoEntradaPonto({
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [comprovante, setComprovante] = useState<ComprovantePonto | null>(null);
+  const localidade = useLocalidadePonto(geo?.latitude, geo?.longitude);
   const [agora, setAgora] = useState(Date.now());
   const [offset, setOffset] = useState(0);
   const chave = useRef(crypto.randomUUID());
@@ -126,8 +128,8 @@ export default function AvisoEntradaPonto({
           <div>
             {geo?.status === "INFORMADA" ? (
               <>
-                <p className="font-mono">
-                  {geo.latitude?.toFixed(6)}, {geo.longitude?.toFixed(6)}
+                <p className="font-medium">
+                  {localidade ?? "Localizando cidade…"}
                 </p>
                 <p className="mt-1 text-muted-foreground">
                   Precisão estimada: {Math.round(geo.precisao_metros || 0)} m

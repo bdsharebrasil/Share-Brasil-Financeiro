@@ -8,9 +8,14 @@ import {
 import {
   Activity,
   Bell,
+  Check,
   CalendarDays,
+  Coffee,
   FileText,
   History,
+  LogIn,
+  LogOut,
+  Undo2,
   Wallet,
   Clock3,
   FileCheck2,
@@ -32,6 +37,7 @@ import EspelhoPonto, { EtiquetaPonto } from "@/components/ponto/EspelhoPonto";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CalendarioPonto from "@/components/ponto/CalendarioPonto";
 import ConfiguracaoPonto from "@/components/ponto/ConfiguracaoPonto";
+import { useLocalidadePonto } from "@/lib/localidade-ponto";
 import {
   acaoFechamentoPonto,
   baixarAnexoSolicitacaoPonto,
@@ -200,6 +206,47 @@ export default function PontoProfissional({
         ]
       : []),
   ];
+  const etapasPonto = [
+    {
+      acao: "entrada",
+      nome: "Entrada",
+      icone: LogIn,
+      horario: linhaAtual?.entrada_hora,
+      desabilitado: Boolean(linhaAtual?.entrada_hora),
+    },
+    {
+      acao: "inicio_almoco",
+      nome: "Iniciar intervalo",
+      icone: Coffee,
+      horario: linhaAtual?.inicio_almoco,
+      desabilitado:
+        !linhaAtual?.entrada_hora ||
+        Boolean(linhaAtual?.inicio_almoco) ||
+        Boolean(linhaAtual?.saida_hora),
+    },
+    {
+      acao: "fim_almoco",
+      nome: "Retornar do intervalo",
+      icone: Undo2,
+      horario: linhaAtual?.fim_almoco,
+      desabilitado:
+        !linhaAtual?.inicio_almoco ||
+        Boolean(linhaAtual?.fim_almoco) ||
+        Boolean(linhaAtual?.saida_hora),
+    },
+    {
+      acao: "saida",
+      nome: "Saída",
+      icone: LogOut,
+      horario: linhaAtual?.saida_hora,
+      desabilitado:
+        !linhaAtual?.entrada_hora || Boolean(linhaAtual?.saida_hora),
+    },
+  ];
+  const proximaAcao = etapasPonto.find(
+    (etapa) => !etapa.horario && !etapa.desabilitado,
+  )?.acao;
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -322,54 +369,72 @@ export default function PontoProfissional({
                     title="Registrar ponto"
                     detail={`${dataPonto(contexto.hoje)} · ${contexto.fuso_horario}`}
                   />
-                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                    {[
-                      [
-                        "entrada",
-                        "Entrada",
-                        Boolean(atual?.linha?.entrada_hora),
-                        atual?.linha?.entrada_hora,
-                      ],
-                      [
-                        "inicio_almoco",
-                        "Iniciar intervalo",
-                        !atual?.linha?.entrada_hora ||
-                          Boolean(atual?.linha?.inicio_almoco) ||
-                          Boolean(atual?.linha?.saida_hora),
-                        atual?.linha?.inicio_almoco,
-                      ],
-                      [
-                        "fim_almoco",
-                        "Retornar do intervalo",
-                        !atual?.linha?.inicio_almoco ||
-                          Boolean(atual?.linha?.fim_almoco) ||
-                          Boolean(atual?.linha?.saida_hora),
-                        atual?.linha?.fim_almoco,
-                      ],
-                      [
-                        "saida",
-                        "Saída",
-                        !atual?.linha?.entrada_hora ||
-                          Boolean(atual?.linha?.saida_hora),
-                        atual?.linha?.saida_hora,
-                      ],
-                    ].map(([acao, nome, desabilitado, horario], indice) => (
-                      <Button
-                        key={String(acao)}
-                        variant="outline"
-                        className="h-auto min-h-24 flex-col items-start gap-2 whitespace-normal px-4 py-3 text-left disabled:opacity-60"
-                        disabled={ocupado || Boolean(desabilitado)}
-                        onClick={() => void marcar(String(acao))}
-                      >
-                        <span className="text-[10px] text-muted-foreground">
-                          {String(indice + 1).padStart(2, "0")}
-                        </span>
-                        <span className="font-medium">{nome}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {horario || "A registrar"}
-                        </span>
-                      </Button>
-                    ))}
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {etapasPonto.map((etapa) => {
+                      const Icone = etapa.icone;
+                      const concluida = Boolean(etapa.horario);
+                      const proxima = etapa.acao === proximaAcao;
+                      const situacao = concluida
+                        ? "Registrada"
+                        : proxima
+                          ? "Próxima"
+                          : etapa.desabilitado
+                            ? "Aguardando"
+                            : "Disponível";
+                      return (
+                        <button
+                          key={etapa.acao}
+                          type="button"
+                          disabled={ocupado || etapa.desabilitado}
+                          aria-label={`${etapa.nome}, ${situacao.toLowerCase()}${concluida ? ` às ${etapa.horario}` : ""}`}
+                          onClick={() => void marcar(etapa.acao)}
+                          className={`flex min-h-28 flex-col justify-between rounded-xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 ${
+                            concluida
+                              ? "border-emerald-500/30 bg-emerald-500/5"
+                              : proxima
+                                ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/15 hover:bg-primary/10"
+                                : "border-border bg-background hover:border-primary/40 hover:bg-secondary/40"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                                concluida
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : proxima
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-secondary text-muted-foreground"
+                              }`}
+                            >
+                              {concluida ? <Check size={16} /> : <Icone size={16} />}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                concluida
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : proxima
+                                    ? "bg-primary/15 text-primary"
+                                    : "bg-secondary text-muted-foreground"
+                              }`}
+                            >
+                              {situacao}
+                            </span>
+                          </div>
+                          <div className="mt-4">
+                            <p className="text-sm font-medium">{etapa.nome}</p>
+                            <p
+                              className={`mt-1 font-mono text-lg font-semibold ${
+                                concluida
+                                  ? "text-emerald-700 dark:text-emerald-300"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {etapa.horario || "--:--"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                   {comprovante && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
@@ -380,9 +445,16 @@ export default function PontoProfissional({
                           { timeZone: comprovante.fuso_horario },
                         )}{" "}
                         ·{" "}
-                        {comprovante.geolocalizacao_status === "INFORMADA"
-                          ? `${comprovante.latitude?.toFixed(5)}, ${comprovante.longitude?.toFixed(5)}`
-                          : "Sem localização disponível"}
+                        {comprovante.geolocalizacao_status === "INFORMADA" &&
+                        comprovante.latitude != null &&
+                        comprovante.longitude != null ? (
+                          <LocalidadeComprovante
+                            latitude={comprovante.latitude}
+                            longitude={comprovante.longitude}
+                          />
+                        ) : (
+                          "Sem localização disponível"
+                        )}
                       </span>
                       <Button
                         size="sm"
@@ -797,6 +869,17 @@ export default function PontoProfissional({
     </div>
   );
 }
+function LocalidadeComprovante({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}) {
+  const localidade = useLocalidadePonto(latitude, longitude);
+  return <>{localidade ?? "Localizando cidade…"}</>;
+}
+
 function FormularioSolicitacao({
   data,
   ocupado,

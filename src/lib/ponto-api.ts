@@ -110,7 +110,7 @@ export type ConfiguracaoPonto = {
   bases_cct: any[];
   feriados: any[];
   equipe: MembroPonto[];
-  gestores: Array<{ id: string; nome_completo: string }>;
+  gestores: Array<{ id: string; nome_completo: string; perfis: string[] }>;
   regras: any[];
   escalas: any[];
   vinculos: any[];
@@ -230,7 +230,7 @@ export const salvarConfiguracaoPonto = (
   recurso: "escalas" | "regras" | "vinculos" | "feriados",
   body: unknown,
 ) =>
-  colaboradorRequest(`/api/sharebrasil/ponto/${recurso}`, {
+  colaboradorRequest<{ id: string }>(`/api/sharebrasil/ponto/${recurso}`, {
     method: "POST",
     body: JSON.stringify(body),
   });

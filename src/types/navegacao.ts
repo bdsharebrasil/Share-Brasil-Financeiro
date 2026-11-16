@@ -5,8 +5,6 @@ import {
   Clock3,
   CreditCard,
   GraduationCap,
-  Video,
-  BookOpen,
   Building2,
   FileBarChart,
   FileCheck2,
@@ -27,12 +25,19 @@ import {
   Wallet,
   Wrench,
   Plane,
-  ContactRound,
   IdCard,
+  User,
   Users,
   type LucideIcon,
+  type LucideProps,
 } from "lucide-react";
-import { createElement, forwardRef, type SVGProps } from "react";
+import { createElement, forwardRef, type ComponentType, type SVGProps } from "react";
+
+const URL_ICONE_AGENDA = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2F206f0cb63b6d4b2ebfd2582f4461d757?format=webp&width=800&height=1200";
+
+export function IconeAgenda({ size = 18, className }: LucideProps) {
+  return createElement("img", { src: URL_ICONE_AGENDA, alt: "", width: size, height: size, className: `shrink-0 object-contain brightness-0 invert ${className ?? ""}` });
+}
 
 const BanknoteArrowUp: LucideIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => createElement(
   "svg",
@@ -52,7 +57,7 @@ export const PONTO_ATIVO_STORAGE = "share-brasil:ponto-ativo";
 export type ItemMenu = {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<LucideProps>;
   badge?: string;
 };
 
@@ -74,38 +79,35 @@ export const descricoesAmbiente: Record<Ambiente, string> = {
 
 export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
   operacoes: [
-    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-    { id: "agendamentos", label: "Agendamentos", icon: CalendarDays, badge: "4" },
-    { id: "plano-de-voo", label: "Plano de voo", icon: FileText },
-    { id: "diario-de-bordo", label: "Diário de bordo", icon: NotebookPen },
-    { id: "tripulacao", label: "Gestão Tripulação", icon: Users },
-    { id: "abastecimentos", label: "Abastecimentos", icon: Fuel },
+    { id: "overview", label: "VISÃO GERAL", icon: LayoutDashboard },
+    { id: "agendamentos", label: "AGENDAMENTOS", icon: CalendarDays, badge: "4" },
+    { id: "plano-de-voo", label: "PLANO DE VOO", icon: FileText },
+    { id: "diario-de-bordo", label: "DIÁRIO DE BORDO", icon: NotebookPen },
+    { id: "tripulacao", label: "GESTÃO TRIPULAÇÃO", icon: Users },
+    { id: "abastecimentos", label: "ABASTECIMENTOS", icon: Fuel },
     { id: "ctm", label: "CTM", icon: Wrench },
-    { id: "recados", label: "Recados", icon: MessageSquare },
+    { id: "recados", label: "RECADOS", icon: MessageSquare },
   ],
   financeiro: [
-    { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-    { id: "recibos", label: "Emissão de recibo", icon: Receipt, badge: "8" },
-    { id: "despesas", label: "Relatório de despesa de viagem", icon: FileBarChart },
-    { id: "enviar-pagamento", label: "Enviar pagamento", icon: Send },
-    { id: "pagamentos", label: "Programação de pagamento", icon: CreditCard, badge: "5" },
-    { id: "email", label: "E-mail", icon: Mail },
-    { id: "ciclo", label: "Ciclo de voo", icon: RefreshCw },
-    { id: "recados", label: "Recados", icon: MessageSquare },
+    { id: "overview", label: "VISÃO GERAL", icon: LayoutDashboard },
+    { id: "recibos", label: "EMISSÃO DE RECIBO", icon: Receipt, badge: "8" },
+    { id: "despesas", label: "RELATÓRIO DE DESPESA DE VIAGEM", icon: FileBarChart },
+    { id: "enviar-pagamento", label: "ENVIAR PAGAMENTO", icon: Send },
+    { id: "pagamentos", label: "PROGRAMAÇÃO DE PAGAMENTO", icon: CreditCard, badge: "5" },
+    { id: "email", label: "E-MAIL", icon: Mail },
+    { id: "recados", label: "RECADOS", icon: MessageSquare },
   ],
   "share-brasil": [
     { id: "overview", label: "Visão geral", icon: LayoutDashboard },
     { id: "aniversarios", label: "Aniversários", icon: Cake },
     { id: "aeronaves", label: "Aeronaves", icon: Plane },
     { id: "centro-treinamento", label: "CENTRO TREINAMENTO", icon: GraduationCap },
-    { id: "sala-reuniao", label: "Sala de reunião", icon: Video },
-    { id: "tutorial", label: "Tutorial", icon: BookOpen },
-    { id: "treinamento", label: "Treinamento", icon: GraduationCap },
     { id: "ponto", label: "Ponto e jornada", icon: Clock3 },
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
-    { id: "contatos-clientes", label: "AGENDA-COTISTAS", icon: ContactRound },
+    { id: "contatos-clientes", label: "AGENDA", icon: IconeAgenda },
+    { id: "cotistas", label: "COTISTAS", icon: User },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [

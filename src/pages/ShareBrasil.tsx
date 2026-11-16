@@ -68,6 +68,7 @@ import {
   criarPastaDocumento,
   marcarPonto,
   enviarJustificativaAusencia,
+  solicitarCorrecaoPonto,
   buscarSenhas,
   revelarSenha,
   criarSenha,
@@ -265,6 +266,14 @@ export function PontoShareBrasil() {
   const [file, setFile] = useState<File>();
   const [absenceDate, setAbsenceDate] = useState<string>();
   const [justification, setJustification] = useState("");
+  const [acaoDia, setAcaoDia] = useState<"atestado" | "ajuste">("atestado");
+  const [ajuste, setAjuste] = useState({
+    entrada: "",
+    inicioAlmoco: "",
+    fimAlmoco: "",
+    saida: "",
+    justificativa: "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -334,6 +343,56 @@ export function PontoShareBrasil() {
       );
     }
   };
+  const calendarValue = useMemo(
+    () => new Date(`${absenceDate ?? `${calendarMonth}-01`}T12:00:00`),
+    [absenceDate, calendarMonth],
+  );
+  const selecionarDia = (date: Date) => {
+    const chave = chaveData(date);
+    const registro = data?.lancamentos?.find(
+      (item) => String(item.data_entrada).slice(0, 10) === chave,
+    );
+    setCalendarMonth(chaveMes(date));
+    setAbsenceDate(chave);
+    setAcaoDia("atestado");
+    setAjuste({
+      entrada: pontoValor(registro?.entrada_hora) ?? "",
+      inicioAlmoco: pontoValor(registro?.inicio_almoco) ?? "",
+      fimAlmoco: pontoValor(registro?.fim_almoco) ?? "",
+      saida: pontoValor(registro?.saida_hora) ?? "",
+      justificativa: "",
+    });
+    setError(null);
+    setOk(null);
+  };
+  const submitAjuste = async () => {
+    if (!absenceDate) return setError("Selecione um dia no calendário.");
+    if (!ajuste.justificativa.trim())
+      return setError("Informe o motivo do ajuste.");
+    try {
+      await solicitarCorrecaoPonto({
+        data: absenceDate,
+        entrada_hora: ajuste.entrada || null,
+        inicio_almoco: ajuste.inicioAlmoco || null,
+        fim_almoco: ajuste.fimAlmoco || null,
+        saida_hora: ajuste.saida || null,
+        justificativa: ajuste.justificativa.trim(),
+      });
+      setAjuste((atual) => ({ ...atual, justificativa: "" }));
+      setOk("Solicitação de ajuste enviada para análise.");
+      load();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Não foi possível enviar o ajuste.",
+      );
+    }
+  };
+  const rotulosAjuste = {
+    entrada: "Entrada",
+    inicioAlmoco: "Início do almoço",
+    fimAlmoco: "Fim do almoço",
+    saida: "Saída",
+  } as const;
   return (
     <Shell
       title="Ponto e jornada"
@@ -424,36 +483,87 @@ export function PontoShareBrasil() {
           />
           <div className="mt-4 space-y-3">
             <Calendar
-              value={new Date(`${calendarMonth}-01T12:00:00`)}
-              onChange={(date) => setCalendarMonth(chaveMes(date))}
+              value={calendarValue}
+              onChange={selecionarDia}
             />
             {absenceDate ? (
               <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/[.05] p-3">
                 <p className="text-xs font-semibold text-primary">
-                  Justificativa para{" "}
+                  Dia{" "}
                   {new Date(`${absenceDate}T12:00:00`).toLocaleDateString(
                     "pt-BR",
                   )}
                 </p>
-                <Textarea
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  placeholder="Descreva a justificativa"
-                  className="min-h-[82px] bg-background/70 text-sm"
-                />
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setFile(e.target.files?.[0])}
-                  className="h-10 text-xs"
-                />
-                <Button
-                  type="button"
-                  onClick={() => void submitAbsence()}
-                  className="h-10 gap-2 text-xs"
-                >
-                  <Upload size={14} /> Enviar justificativa
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={acaoDia === "atestado" ? "default" : "outline"}
+                    onClick={() => setAcaoDia("atestado")}
+                    className="h-9 text-xs"
+                  >
+                    Atestado ou falta
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={acaoDia === "ajuste" ? "default" : "outline"}
+                    onClick={() => setAcaoDia("ajuste")}
+                    className="h-9 text-xs"
+                  >
+                    Solicitar ajuste do ponto
+                  </Button>
+                </div>
+                {acaoDia === "atestado" ? (
+                  <>
+                    <Textarea
+                      value={justification}
+                      onChange={(e) => setJustification(e.target.value)}
+                      placeholder="Descreva a justificativa"
+                      className="min-h-[82px] bg-background/70 text-sm"
+                    />
+                    <Input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setFile(e.target.files?.[0])}
+                      className="h-10 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void submitAbsence()}
+                      className="h-10 gap-2 text-xs"
+                    >
+                      <Upload size={14} /> Enviar justificativa
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(Object.keys(rotulosAjuste) as Array<keyof typeof rotulosAjuste>).map((campo) => (
+                        <label key={campo} className="space-y-1 text-[10px] font-semibold uppercase tracking-[.1em] text-muted-foreground">
+                          {rotulosAjuste[campo]}
+                          <Input
+                            type="time"
+                            value={ajuste[campo]}
+                            onChange={(e) => setAjuste((atual) => ({ ...atual, [campo]: e.target.value }))}
+                            className="h-9 text-xs"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <Textarea
+                      value={ajuste.justificativa}
+                      onChange={(e) => setAjuste((atual) => ({ ...atual, justificativa: e.target.value }))}
+                      placeholder="Motivo do ajuste"
+                      className="min-h-[82px] bg-background/70 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void submitAjuste()}
+                      className="h-10 gap-2 text-xs"
+                    >
+                      <Upload size={14} /> Enviar solicitação de ajuste
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <p className="rounded-lg border border-dashed border-border/70 p-3 text-xs text-muted-foreground">
@@ -926,8 +1036,16 @@ export function SenhasShareBrasil() {
   );
 }
 
-export function ContatosClientesShareBrasil() {
-  const [tab, setTab] = useState<"contatos" | "clientes">("contatos");
+export function ContatosClientesShareBrasil({
+  somenteCotistas = false,
+  aoVoltar,
+}: {
+  somenteCotistas?: boolean;
+  aoVoltar?: () => void;
+}) {
+  const [tab, setTab] = useState<"contatos" | "clientes">(
+    somenteCotistas ? "clientes" : "contatos",
+  );
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
     "ativos",
   );
@@ -2780,10 +2898,27 @@ export function ContatosClientesShareBrasil() {
 
   return (
     <Shell
-      title="AGENDA-COTISTAS"
-      detail="Agenda de contatos, perfis e criação de cotistas."
+      title={somenteCotistas ? "COTISTAS" : "AGENDA"}
+      detail={
+        somenteCotistas
+          ? "Cadastros dos cotistas, perfis e criação de cotistas."
+          : "Agenda de contatos, perfis e criação de cotistas."
+      }
+      action={
+        aoVoltar && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={aoVoltar}
+            className="h-9 gap-1.5 text-[10px]"
+          >
+            <ChevronLeft size={13} /> Voltar
+          </Button>
+        )
+      }
     >
       <Feedback error={error} ok={ok} />
+      {!somenteCotistas && (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-[#101b2a] dark:to-[#0b131f] p-2">
         <div className="flex flex-wrap gap-1">
           <Button
@@ -2808,6 +2943,7 @@ export function ContatosClientesShareBrasil() {
         </div>
         {null}
       </div>
+      )}
       {tab === "contatos"
         ? contactsContent
         : selected

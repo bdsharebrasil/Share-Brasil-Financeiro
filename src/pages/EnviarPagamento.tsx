@@ -1172,7 +1172,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
 
       {envioRecemCriado && envioRecemCriado.tipo !== "share" && <section className="envio-continuar-email" aria-label="Envio de e-mail da solicitação">
         <div><strong>Documentos prontos para envio</strong><p>{envioRecemCriado.descricao} · Escolha o cotista e revise a prévia antes de enviar.</p></div>
-        <Button type="button" onClick={() => { if (todosEmailsConfirmados) { void concluirEnvioCotista(); return; } setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : enviandoEmail ? "Concluindo registro…" : todosEmailsConfirmados ? "Concluir registro do envio" : "Enviar e-mail"}</Button>
+        <Button type="button" onClick={() => { if (todosEmailsConfirmados) { void concluirEnvioCotista(); return; } setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : enviandoEmail ? "Concluindo registro…" : todosEmailsConfirmados ? "Concluir registro do envio" : "SEGUIR PARA ENVIAR EMAIL PARA ESSE CLIENTE"}</Button>
       </section>}
 
       <section className="envio-fluxo !mt-[18px] mb-[20px] py-px overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
@@ -1489,4 +1489,3 @@ function Campo({ label, obrigatorio, className = "", rotuloClassName = "", child
 function Resumo({ label, valor }: { label: string; valor: string }) {
   return <div className="flex items-start justify-between gap-4 border-t border-border/60 py-2 text-[11px]"><span className="text-muted-foreground">{label}</span><strong className="text-right text-foreground">{valor || "—"}</strong></div>;
 }
-

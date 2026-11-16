@@ -280,37 +280,30 @@ export default function DashboardFinanceiro({
       <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
-          label="Recibos"
+          label="RECIBOS"
           detail="Abrir emissão"
           onClick={() => aoNavegar("recibos")}
         />
         <AcaoRapida
           icon={<FileBarChart size={16} />}
-          label="Relatório de despesa de viagem"
+          label="RELATÓRIO DE DESPESA DE VIAGEM"
           detail="Criar e acompanhar"
           color="amber"
           onClick={() => aoNavegar("despesas")}
         />
         <AcaoRapida
           icon={<Send size={16} />}
-          label="Enviar pagamento"
+          label="ENVIAR PAGAMENTO"
           detail="Programar despesa"
           onClick={() => aoNavegar("enviar-pagamento")}
         />
         <AcaoRapida
           icon={<Mail size={16} className="text-[rgba(213,102,235,1)]" />}
-          label="E-mail"
+          label="E-MAIL"
           detail="Caixa de saída"
           iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)] dark:border-[rgba(138,12,165,0.59)] dark:bg-[rgba(55,14,233,0.15)]"
           iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
-        />
-        <AcaoRapida
-          icon={<RefreshCw size={16} />}
-          label="Ciclo de voo"
-          detail="Consultar"
-          color="amber"
-          onClick={() => aoNavegar("ciclo")}
         />
       </section>
 

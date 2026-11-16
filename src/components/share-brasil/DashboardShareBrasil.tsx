@@ -44,7 +44,7 @@ function CardAtalho({
       >
         <Icone size={18} strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:anywhere]">
+      <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:break-word]">
         <span className="block text-xs font-bold leading-snug text-foreground sm:text-sm">
           {item.label}
         </span>
@@ -156,7 +156,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
             <>
               <div
                 style={VARIAVEIS_GRID}
-                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-3 md:grid-cols-6 items-stretch gap-[var(--gap)] px-[7px] py-2"
+                className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-3 md:grid-cols-7 items-stretch gap-[var(--gap)] px-[7px] py-2"
               >
                 {ATALHOS_POR_ABA[item.id].map((atalho) => (
                   <CardAtalho

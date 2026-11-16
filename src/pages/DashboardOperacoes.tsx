@@ -104,11 +104,11 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
       </div>
 
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <AcaoRapida icon={<CalendarDays size={17} />} label="Agendamentos" detail={`${resumo?.pendencias ?? 0} pendentes`} onClick={() => aoNavegar("agendamentos")} color="blue" />
-        <AcaoRapida icon={<FileText size={17} />} label="Plano de Voo" detail="Abrir módulo" onClick={() => aoNavegar("plano-de-voo")} color="violet" />
-        <AcaoRapida icon={<NotebookPen size={17} />} label="Diário de Bordo" detail="Abrir módulo" onClick={() => aoNavegar("diario-de-bordo")} color="green" />
-        <AcaoRapida icon={<Users size={17} />} label="Tripulação" detail="Escalas do dia" onClick={() => aoNavegar("tripulacao")} color="violet" />
-        <AcaoRapida icon={<Fuel size={17} />} label="Abastecimento" detail="Abrir módulo" onClick={() => aoNavegar("abastecimentos")} color="amber" />
+        <AcaoRapida icon={<CalendarDays size={17} />} label="AGENDAMENTOS" detail={`${resumo?.pendencias ?? 0} pendentes`} onClick={() => aoNavegar("agendamentos")} color="blue" />
+        <AcaoRapida icon={<FileText size={17} />} label="PLANO DE VOO" detail="Abrir módulo" onClick={() => aoNavegar("plano-de-voo")} color="violet" />
+        <AcaoRapida icon={<NotebookPen size={17} />} label="DIÁRIO DE BORDO" detail="Abrir módulo" onClick={() => aoNavegar("diario-de-bordo")} color="green" />
+        <AcaoRapida icon={<Users size={17} />} label="TRIPULAÇÃO" detail="Escalas do dia" onClick={() => aoNavegar("tripulacao")} color="violet" />
+        <AcaoRapida icon={<Fuel size={17} />} label="ABASTECIMENTO" detail="Abrir módulo" onClick={() => aoNavegar("abastecimentos")} color="amber" />
         <AcaoRapida icon={<Wrench size={17} />} label="CTM" detail="Abrir módulo" onClick={() => aoNavegar("ctm")} color="green" iconeClassName="dark:border-[rgba(208,2,27,0.63)] dark:bg-[rgba(105,12,20,0.33)] dark:text-[rgba(245,166,35,0.8)]" />
       </section>
 

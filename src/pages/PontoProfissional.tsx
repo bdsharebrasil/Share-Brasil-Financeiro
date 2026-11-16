@@ -37,6 +37,7 @@ import EspelhoPonto, { EtiquetaPonto } from "@/components/ponto/EspelhoPonto";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CalendarioPonto from "@/components/ponto/CalendarioPonto";
 import ConfiguracaoPonto from "@/components/ponto/ConfiguracaoPonto";
+import { useLocalidadePonto } from "@/lib/localidade-ponto";
 import {
   acaoFechamentoPonto,
   baixarAnexoSolicitacaoPonto,
@@ -444,9 +445,16 @@ export default function PontoProfissional({
                           { timeZone: comprovante.fuso_horario },
                         )}{" "}
                         ·{" "}
-                        {comprovante.geolocalizacao_status === "INFORMADA"
-                          ? `${comprovante.latitude?.toFixed(5)}, ${comprovante.longitude?.toFixed(5)}`
-                          : "Sem localização disponível"}
+                        {comprovante.geolocalizacao_status === "INFORMADA" &&
+                        comprovante.latitude != null &&
+                        comprovante.longitude != null ? (
+                          <LocalidadeComprovante
+                            latitude={comprovante.latitude}
+                            longitude={comprovante.longitude}
+                          />
+                        ) : (
+                          "Sem localização disponível"
+                        )}
                       </span>
                       <Button
                         size="sm"
@@ -861,6 +869,17 @@ export default function PontoProfissional({
     </div>
   );
 }
+function LocalidadeComprovante({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}) {
+  const localidade = useLocalidadePonto(latitude, longitude);
+  return <>{localidade ?? "Localizando cidade…"}</>;
+}
+
 function FormularioSolicitacao({
   data,
   ocupado,

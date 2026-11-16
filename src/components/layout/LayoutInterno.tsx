@@ -30,7 +30,8 @@ const Aniversarios = lazy(() => import("@/pages/Aniversarios"));
 const CTM = lazy(() => import("@/pages/CTM"));
 const AeronavesShareBrasil = lazy(() => import("@/pages/AeronavesShareBrasil"));
 const DashboardShareBrasil = lazy(() => import("@/pages/ShareBrasil").then((module) => ({ default: module.DashboardShareBrasil })));
-const PontoShareBrasil = lazy(() => import("@/pages/ShareBrasil").then((module) => ({ default: module.PontoShareBrasil })));
+const PontoShareBrasil = lazy(() => import("@/pages/PontoProfissional"));
+const AvisoEntradaPonto = lazy(() => import("@/components/ponto/AvisoEntradaPonto"));
 const DocumentosShareBrasil = lazy(() => import("@/pages/ShareBrasil").then((module) => ({ default: module.DocumentosShareBrasil })));
 const TarefasShareBrasil = lazy(() => import("@/pages/ShareBrasil").then((module) => ({ default: module.TarefasShareBrasil })));
 const ContatosClientesShareBrasil = lazy(() => import("@/pages/ShareBrasil").then((module) => ({ default: module.ContatosClientesShareBrasil })));
@@ -49,6 +50,7 @@ export default function LayoutInterno() {
   const [ambiente, setAmbiente] = useState<Ambiente>(navegacaoInicial.ambiente);
   const [podeAcessarGestor, setPodeAcessarGestor] = useState(false);
   const [podeAcessarMenuGestor, setPodeAcessarMenuGestor] = useState(false);
+  const [usuarioPontoId, setUsuarioPontoId] = useState<string | null>(null);
   const [nomeColaborador, setNomeColaborador] = useState<string | null>(null);
   const [exibirBoasVindas, setExibirBoasVindas] = useState(false);
   const [menuAtivo, setMenuAtivo] = useState(navegacaoInicial.menuAtivo);
@@ -93,7 +95,7 @@ export default function LayoutInterno() {
   useEffect(() => { if (salaReuniaoDireta) { setAmbiente("share-brasil"); setMenuAtivo("sala-reuniao"); } }, [salaReuniaoDireta]);
   useEffect(() => { resetarRolagem(); }, [ambiente, menuAtivo, resetarRolagem]);
   useEffect(() => { salvarNavegacao(window.sessionStorage, { ambiente, menuAtivo }); }, [ambiente, menuAtivo]);
-  useEffect(() => { void buscarPerfilColaborador().then((response) => { const papeisDashboard = [response.perfil.tipo_user || "", ...response.funcoes.map((item) => item.funcao)].map((papel) => papel.trim().toLowerCase().replace(/[\s-]+/g, "_")); const papeisMenu = [...papeisDashboard, (response.perfil.departamento || "").trim().toLowerCase().replace(/[\s-]+/g, "_")]; const permitido = papeisDashboard.some((papel) => ["admin", "administrador", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(papel)); const menuGestorPermitido = papeisMenu.some((papel) => ["admin", "administrador", "gestor_master"].includes(papel)); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) {
+  useEffect(() => { void buscarPerfilColaborador().then((response) => { setUsuarioPontoId(response.perfil.id); const papeisDashboard = [response.perfil.tipo_user || "", ...response.funcoes.map((item) => item.funcao)].map((papel) => papel.trim().toLowerCase().replace(/[\s-]+/g, "_")); const papeisMenu = [...papeisDashboard, (response.perfil.departamento || "").trim().toLowerCase().replace(/[\s-]+/g, "_")]; const permitido = papeisDashboard.some((papel) => ["admin", "administrador", "financeiro_master", "gestor_master", "rh_master", "rh"].includes(papel)); const menuGestorPermitido = papeisMenu.some((papel) => ["admin", "administrador", "gestor_master"].includes(papel)); const nome = response.perfil.nome_exibicao || response.perfil.nome_completo; if (nome) {
         setNomeColaborador(nome);
         const chaveBoasVindas = `share-brasil-boas-vindas:${nome}`;
         if (!window.localStorage.getItem(chaveBoasVindas)) {
@@ -130,6 +132,7 @@ export default function LayoutInterno() {
     if (ambiente === "operacoes" && menuAtivo === "tripulacao") return <GestaoTripulacao aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "abastecimentos") return <ControleAbastecimento aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "operacoes" && menuAtivo === "ctm") return <CTM />;
+    if (ambiente === "gestor" && menuAtivo === "gestao-ponto") return <PontoShareBrasil gestaoInicial />;
     if (ambiente === "gestor" && menuAtivo === "ferias") return <Ferias />;
     if (ambiente === "gestor" && menuAtivo === "gestor" && podeAcessarMenuGestor) return <MenuGestor />;
     if (ambiente === "gestor" && menuAtivo === "financeiro-cotista") return <FinanceiroCotista />;
@@ -162,5 +165,6 @@ export default function LayoutInterno() {
     return podeAcessarGestor ? <DashboardGestorResumo aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
-  return <div className="app-shell app-noise fixed inset-0 flex min-w-0 max-w-[100vw] overflow-hidden bg-[rgba(224,225,233,1)] dark:bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="conteudo-principal flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(209,217,218,0.93)] dark:bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirRelatorio={abrirRelatorioNotificado} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll min-h-0 min-w-0 flex-1"><main className="mx-auto min-w-0 w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-8"><Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground" role="status">Carregando módulo…</div>}>{renderConteudo()}</Suspense></main></ScrollArea></div>{exibirBoasVindas && nomeColaborador && <WelcomeToast name={nomeColaborador} onClose={() => setExibirBoasVindas(false)} />}</div>;
+  return <div className="app-shell app-noise fixed inset-0 flex min-w-0 max-w-[100vw] overflow-hidden bg-[rgba(224,225,233,1)] dark:bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="conteudo-principal flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(209,217,218,0.93)] dark:bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirRelatorio={abrirRelatorioNotificado} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll min-h-0 min-w-0 flex-1"><main className="mx-auto min-w-0 w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-8"><Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground" role="status">Carregando módulo…</div>}>{renderConteudo()}</Suspense></main></ScrollArea></div>{usuarioPontoId && <Suspense fallback={null}><AvisoEntradaPonto key={usuarioPontoId} usuarioId={usuarioPontoId} /></Suspense>}{exibirBoasVindas && nomeColaborador && <WelcomeToast name={nomeColaborador} onClose={() => setExibirBoasVindas(false)} />}</div>;
 }
+

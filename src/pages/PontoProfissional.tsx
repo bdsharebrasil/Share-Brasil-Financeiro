@@ -8,6 +8,10 @@ import {
 import {
   Activity,
   Bell,
+  CalendarDays,
+  FileText,
+  History,
+  Wallet,
   Clock3,
   FileCheck2,
   RefreshCw,
@@ -25,6 +29,8 @@ import {
   IndicadorPagina,
 } from "@/components/dashboard/ComponentesDashboard";
 import EspelhoPonto, { EtiquetaPonto } from "@/components/ponto/EspelhoPonto";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import CalendarioPonto from "@/components/ponto/CalendarioPonto";
 import ConfiguracaoPonto from "@/components/ponto/ConfiguracaoPonto";
 import {
   acaoFechamentoPonto,
@@ -75,6 +81,9 @@ export default function PontoProfissional({
     solicitacao: SolicitacaoPonto;
     nome: string;
   } | null>(null);
+  const [espelhoAberto, setEspelhoAberto] = useState(false);
+  const [secaoPessoal, setSecaoPessoal] = useState("registro");
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<DadosEspelho | null>(null);
   const sequencia = useRef(0);
   useEffect(() => {
@@ -168,14 +177,8 @@ export default function PontoProfissional({
       setOcupado(false);
     }
   };
-  const hoje = espelho?.dias.find((d) => d.data === contexto?.hoje);
-  const aberta = espelho?.dias.find(
-    (d) =>
-      d.data <= (contexto?.hoje || "") &&
-      d.linha?.entrada_hora &&
-      !d.linha?.saida_hora,
-  );
-  const atual = linhaAtual ? { linha: linhaAtual } : aberta || hoje;
+  const atual = { linha: linhaAtual };
+  const espelhoDoMes = espelho?.competencia === mes ? espelho : null;
   const marcar = (acao: string) =>
     executar(async () => {
       const geo = await capturarLocalizacaoPonto();
@@ -215,7 +218,12 @@ export default function PontoProfissional({
             id="competencia-ponto"
             type="month"
             value={mes}
-            onChange={(e) => setMes(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value) {
+                setMes(e.target.value);
+                setDiaSelecionado(null);
+              }
+            }}
             className={`${campo} max-w-44`}
           />
           <Button
@@ -224,6 +232,7 @@ export default function PontoProfissional({
             disabled={carregando}
           >
             <RefreshCw size={14} />
+            <span className="sr-only">Atualizar ponto</span>
           </Button>
         </div>
       </header>
@@ -273,142 +282,290 @@ export default function PontoProfissional({
               antigos, quando existentes, continuam disponíveis para consulta.
             </p>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {[
-              [
-                "Trabalhado no mês",
-                horasPonto(espelho?.totais.trabalhados_min),
-              ],
-              ["Banco oficial", horasPonto(espelho?.banco.saldo_min)],
-              [
-                "Banco vencido a liquidar",
-                horasPonto(espelho?.banco.vencido_a_liquidar_min),
-              ],
-              [
-                "Noturno reduzido",
-                horasPonto(espelho?.totais.noturnos_reduzidos_min),
-              ],
-              [
-                "Sobreaviso equivalente",
-                horasPonto(espelho?.totais.sobreaviso_equivalente_min),
-              ],
-            ].map(([nome, valor]) => (
-              <div key={nome} className={painel}>
-                <p className="text-[11px] text-muted-foreground">{nome}</p>
-                <p className="mt-2 font-mono text-2xl font-semibold">{valor}</p>
-              </div>
-            ))}
-          </div>
-          {contexto.elegivel && (
-            <section className={painel}>
-              <CabecalhoSecao
-                icon={<Clock3 size={15} />}
-                title="Registrar ponto"
-                detail={`${dataPonto(contexto.hoje)} · ${contexto.fuso_horario}`}
-              />
-              <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                {[
-                  ["entrada", "Entrada", Boolean(atual?.linha?.entrada_hora)],
-                  [
-                    "inicio_almoco",
-                    "Iniciar intervalo",
-                    !atual?.linha?.entrada_hora ||
-                      Boolean(atual?.linha?.inicio_almoco) ||
-                      Boolean(atual?.linha?.saida_hora),
-                  ],
-                  [
-                    "fim_almoco",
-                    "Retornar do intervalo",
-                    !atual?.linha?.inicio_almoco ||
-                      Boolean(atual?.linha?.fim_almoco) ||
-                      Boolean(atual?.linha?.saida_hora),
-                  ],
-                  [
-                    "saida",
-                    "Saída",
-                    !atual?.linha?.entrada_hora ||
-                      Boolean(atual?.linha?.saida_hora),
-                  ],
-                ].map(([acao, nome, desabilitado]) => (
-                  <Button
-                    key={String(acao)}
-                    variant="outline"
-                    disabled={
-                      ocupado ||
-                      Boolean(desabilitado) ||
-                      mes !== contexto.hoje.slice(0, 7)
-                    }
-                    onClick={() => void marcar(String(acao))}
+          <Tabs value={secaoPessoal} onValueChange={setSecaoPessoal}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <TabsList
+                aria-label="Meu ponto"
+                className="h-auto max-w-full justify-start overflow-x-auto"
+              >
+                <TabsTrigger value="registro" className="gap-2">
+                  <Clock3 size={14} />
+                  Registrar ponto
+                </TabsTrigger>
+                <TabsTrigger value="justificativas" className="gap-2">
+                  <CalendarDays size={14} />
+                  Justificativas e ajustes
+                </TabsTrigger>
+                <TabsTrigger value="saldos" className="gap-2">
+                  <Wallet size={14} />
+                  Saldos do mês
+                </TabsTrigger>
+                <TabsTrigger value="historico" className="gap-2">
+                  <History size={14} />
+                  Minhas solicitações
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                variant="outline"
+                onClick={() => setEspelhoAberto(true)}
+                disabled={!espelho || espelho.competencia !== mes}
+              >
+                <FileText size={14} className="mr-2" />
+                Ver espelho
+              </Button>
+            </div>
+            <TabsContent value="registro" className="mt-4 space-y-4">
+              {contexto.elegivel && (
+                <section className={painel}>
+                  <CabecalhoSecao
+                    icon={<Clock3 size={15} />}
+                    title="Registrar ponto"
+                    detail={`${dataPonto(contexto.hoje)} · ${contexto.fuso_horario}`}
+                  />
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    {[
+                      [
+                        "entrada",
+                        "Entrada",
+                        Boolean(atual?.linha?.entrada_hora),
+                        atual?.linha?.entrada_hora,
+                      ],
+                      [
+                        "inicio_almoco",
+                        "Iniciar intervalo",
+                        !atual?.linha?.entrada_hora ||
+                          Boolean(atual?.linha?.inicio_almoco) ||
+                          Boolean(atual?.linha?.saida_hora),
+                        atual?.linha?.inicio_almoco,
+                      ],
+                      [
+                        "fim_almoco",
+                        "Retornar do intervalo",
+                        !atual?.linha?.inicio_almoco ||
+                          Boolean(atual?.linha?.fim_almoco) ||
+                          Boolean(atual?.linha?.saida_hora),
+                        atual?.linha?.fim_almoco,
+                      ],
+                      [
+                        "saida",
+                        "Saída",
+                        !atual?.linha?.entrada_hora ||
+                          Boolean(atual?.linha?.saida_hora),
+                        atual?.linha?.saida_hora,
+                      ],
+                    ].map(([acao, nome, desabilitado, horario], indice) => (
+                      <Button
+                        key={String(acao)}
+                        variant="outline"
+                        className="h-auto min-h-24 flex-col items-start gap-2 whitespace-normal px-4 py-3 text-left disabled:opacity-60"
+                        disabled={ocupado || Boolean(desabilitado)}
+                        onClick={() => void marcar(String(acao))}
+                      >
+                        <span className="text-[10px] text-muted-foreground">
+                          {String(indice + 1).padStart(2, "0")}
+                        </span>
+                        <span className="font-medium">{nome}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {horario || "A registrar"}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                  {comprovante && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
+                      <span>
+                        {rotulosPonto[comprovante.tipo]} ·{" "}
+                        {new Date(comprovante.registrado_em).toLocaleTimeString(
+                          "pt-BR",
+                          { timeZone: comprovante.fuso_horario },
+                        )}{" "}
+                        ·{" "}
+                        {comprovante.geolocalizacao_status === "INFORMADA"
+                          ? `${comprovante.latitude?.toFixed(5)}, ${comprovante.longitude?.toFixed(5)}`
+                          : "Sem localização disponível"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => baixarComprovantePonto(comprovante)}
+                      >
+                        Baixar registro
+                      </Button>
+                    </div>
+                  )}
+                </section>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Use as etapas acima para registrar sua jornada. Para justificar
+                uma ausência ou corrigir um horário, acesse Justificativas e
+                ajustes.
+              </p>
+            </TabsContent>
+            <TabsContent value="justificativas" className="mt-4">
+              <div className="grid items-start gap-4 lg:grid-cols-[minmax(280px,380px)_1fr]">
+                <CalendarioPonto
+                  mes={mes}
+                  hoje={contexto.hoje}
+                  selecionado={diaSelecionado}
+                  dias={espelho?.competencia === mes ? espelho.dias : []}
+                  solicitacoes={
+                    espelho?.competencia === mes ? espelho.solicitacoes : []
+                  }
+                  mudarMes={(valor) => {
+                    setMes(valor);
+                    setDiaSelecionado(null);
+                  }}
+                  selecionar={setDiaSelecionado}
+                />
+                {diaSelecionado && espelho?.competencia === mes ? (
+                  <div className="space-y-4">
+                    <section className={painel}>
+                      <h2 className="text-sm font-semibold">
+                        Dia selecionado · {dataPonto(diaSelecionado)}
+                      </h2>
+                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {[
+                          ["Entrada", "entrada_hora"],
+                          ["Intervalo", "inicio_almoco"],
+                          ["Retorno", "fim_almoco"],
+                          ["Saída", "saida_hora"],
+                        ].map(([nome, chave]) => (
+                          <div key={chave}>
+                            <p className="text-[11px] text-muted-foreground">
+                              {nome}
+                            </p>
+                            <p className="mt-1 font-mono text-sm">
+                              {espelho.dias.find(
+                                (d) => d.data === diaSelecionado,
+                              )?.linha?.[chave] || "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                    {contexto.elegivel && (
+                      <FormularioSolicitacao
+                        key={diaSelecionado}
+                        data={diaSelecionado}
+                        ocupado={ocupado}
+                        enviar={(f) =>
+                          executar(
+                            () => solicitarPonto(f),
+                            "Solicitação enviada ao gestor.",
+                          )
+                        }
+                      />
+                    )}
+                    <ListaSolicitacoes
+                      solicitacoes={espelho.solicitacoes.filter(
+                        (s) => s.data_referencia === diaSelecionado,
+                      )}
+                      nome="Solicitações deste dia"
+                      abrirAnexo={(id) =>
+                        void executar(
+                          () => baixarAnexoSolicitacaoPonto(id),
+                          "Arquivo disponível para download.",
+                        )
+                      }
+                    />
+                  </div>
+                ) : (
+                  <section
+                    className={`${painel} flex min-h-64 flex-col items-center justify-center text-center`}
                   >
-                    {nome}
-                  </Button>
+                    <CalendarDays
+                      size={28}
+                      className="mb-3 text-muted-foreground"
+                    />
+                    <h2 className="text-sm font-semibold">
+                      Selecione um dia no calendário
+                    </h2>
+                    <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                      Consulte os horários e escolha o que deseja enviar:
+                      justificativa de falta, atestado ou ajuste de ponto.
+                    </p>
+                  </section>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="saldos" className="mt-4 space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold">
+                  Saldos de {mes.split("-").reverse().join("/")}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Acompanhe as horas do mês e o saldo do banco após os
+                  fechamentos.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {[
+                  [
+                    "Trabalhado no mês",
+                    horasPonto(espelhoDoMes?.totais.trabalhados_min),
+                  ],
+                  ["Banco oficial", horasPonto(espelhoDoMes?.banco.saldo_min)],
+                  [
+                    "Banco vencido a liquidar",
+                    horasPonto(espelhoDoMes?.banco.vencido_a_liquidar_min),
+                  ],
+                  [
+                    "Noturno reduzido",
+                    horasPonto(espelhoDoMes?.totais.noturnos_reduzidos_min),
+                  ],
+                  [
+                    "Sobreaviso equivalente",
+                    horasPonto(espelhoDoMes?.totais.sobreaviso_equivalente_min),
+                  ],
+                ].map(([nome, valor]) => (
+                  <div key={nome} className={painel}>
+                    <p className="text-[11px] text-muted-foreground">{nome}</p>
+                    <p className="mt-2 font-mono text-2xl font-semibold">
+                      {valor}
+                    </p>
+                  </div>
                 ))}
               </div>
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                A localização é solicitada para cada marcação. Horários não são
-                editados diretamente; use uma solicitação de correção.
-              </p>
-              {comprovante && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
-                  <span>
-                    {rotulosPonto[comprovante.tipo]} ·{" "}
-                    {new Date(comprovante.registrado_em).toLocaleTimeString(
-                      "pt-BR",
-                      { timeZone: comprovante.fuso_horario },
-                    )}{" "}
-                    ·{" "}
-                    {comprovante.geolocalizacao_status === "INFORMADA"
-                      ? `${comprovante.latitude?.toFixed(5)}, ${comprovante.longitude?.toFixed(5)}`
-                      : "Sem localização disponível"}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => baixarComprovantePonto(comprovante)}
-                  >
-                    Baixar registro
-                  </Button>
-                </div>
+            </TabsContent>
+            <TabsContent value="historico" className="mt-4">
+              {espelhoDoMes && (
+                <ListaSolicitacoes
+                  solicitacoes={espelhoDoMes.solicitacoes}
+                  abrirAnexo={(id) =>
+                    void executar(
+                      () => baixarAnexoSolicitacaoPonto(id),
+                      "Arquivo disponível para download.",
+                    )
+                  }
+                />
               )}
-            </section>
-          )}
-          {espelho && (
-            <EspelhoPonto
-              dados={espelho}
-              conferir={
-                contexto.elegivel
-                  ? () =>
-                      void executar(
-                        () => acaoFechamentoPonto(mes, "conferir"),
-                        "Seu espelho foi conferido e enviado ao gestor.",
-                      )
-                  : undefined
-              }
-            />
-          )}
-          {contexto.elegivel && (
-            <FormularioSolicitacao
-              hoje={contexto.hoje}
-              ocupado={ocupado}
-              enviar={(f) =>
-                executar(
-                  () => solicitarPonto(f),
-                  "Solicitação enviada ao gestor.",
-                )
-              }
-            />
-          )}
-          {espelho && (
-            <ListaSolicitacoes
-              solicitacoes={espelho.solicitacoes}
-              abrirAnexo={(id) =>
-                void executar(
-                  () => baixarAnexoSolicitacaoPonto(id),
-                  "Arquivo disponível para download.",
-                )
-              }
-            />
-          )}
+            </TabsContent>
+          </Tabs>
+          <Dialog open={espelhoAberto} onOpenChange={setEspelhoAberto}>
+            <DialogContent
+              className="max-h-[90dvh] max-w-6xl overflow-y-auto bg-background"
+              aria-describedby={undefined}
+            >
+              <DialogHeader>
+                <DialogTitle>Meu espelho de ponto</DialogTitle>
+              </DialogHeader>
+              {espelho && espelho.competencia === mes && (
+                <EspelhoPonto
+                  dados={espelho}
+                  mostrarOcorrencias={contexto.permissoes.gestor}
+                  conferir={
+                    contexto.elegivel && !ocupado
+                      ? () =>
+                          void executar(
+                            () => acaoFechamentoPonto(mes, "conferir"),
+                            "Seu espelho foi conferido e enviado ao gestor.",
+                          )
+                      : undefined
+                  }
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </>
       )}
       {aba === "vivo" && contexto?.permissoes.gestor && (
@@ -615,7 +772,7 @@ export default function PontoProfissional({
           <DialogHeader>
             <DialogTitle>Espelho da equipe</DialogTitle>
           </DialogHeader>
-          {detalhe && <EspelhoPonto dados={detalhe} />}
+          {detalhe && <EspelhoPonto dados={detalhe} mostrarOcorrencias />}
         </DialogContent>
       </Dialog>
       {pedido && (
@@ -641,119 +798,139 @@ export default function PontoProfissional({
   );
 }
 function FormularioSolicitacao({
-  hoje,
+  data,
   ocupado,
   enviar,
 }: {
-  hoje: string;
+  data: string;
   ocupado: boolean;
   enviar: (form: FormData) => Promise<void>;
 }) {
   const [tipo, setTipo] = useState("CORRECAO");
-  const ref = useRef<HTMLFormElement>(null);
+  const [diaInteiro, setDiaInteiro] = useState(true);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     await enviar(form);
   };
   return (
-    <form ref={ref} onSubmit={(e) => void submit(e)} className={painel}>
-      <h2 className="text-sm font-semibold">Solicitar ajuste ou autorização</h2>
-      <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-1 text-[11px] text-muted-foreground">
-          Tipo
-          <select
-            name="tipo"
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-            className={campo}
-          >
-            {[
-              "CORRECAO",
-              "ATESTADO",
-              "DISPENSA",
-              "HORA_EXTRA",
-              "COMPENSACAO",
-            ].map((t) => (
-              <option key={t} value={t}>
-                {rotulosPonto[t]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-1 text-[11px] text-muted-foreground">
-          Data
-          <input
-            type="date"
-            name="data_referencia"
-            required
-            defaultValue={hoje}
-            className={campo}
-          />
-        </label>
-        {tipo === "CORRECAO" ? (
-          <>
-            <label className="space-y-1 text-[11px] text-muted-foreground">
-              Marcação
-              <select name="campo" className={campo}>
-                <option value="entrada_hora">Entrada</option>
-                <option value="inicio_almoco">Início do intervalo</option>
-                <option value="fim_almoco">Retorno do intervalo</option>
-                <option value="saida_hora">Saída</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-[11px] text-muted-foreground">
-              Horário correto
-              <input
-                type="time"
-                name="horario_corrigido"
+    <form onSubmit={(e) => void submit(e)} className={painel}>
+      <h2 className="text-sm font-semibold">O que deseja solicitar?</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Solicitação para {dataPonto(data)} · enviada para análise do gestor.
+      </p>
+      <input type="hidden" name="data_referencia" value={data} />
+      <input type="hidden" name="tipo" value={tipo} />
+      <Tabs
+        value={tipo}
+        onValueChange={(valor) => {
+          setTipo(valor);
+          setDiaInteiro(true);
+        }}
+        className="mt-4"
+      >
+        <TabsList
+          aria-label="Tipo de solicitação"
+          className="h-auto w-full flex-wrap justify-start gap-1"
+        >
+          {[
+            ["CORRECAO", "Ajustar horário"],
+            ["ATESTADO", "Enviar atestado"],
+            ["DISPENSA", "Justificar falta"],
+            ["HORA_EXTRA", "Hora extra"],
+            ["COMPENSACAO", "Compensação"],
+          ].map(([valor, nome]) => (
+            <TabsTrigger key={valor} value={valor}>
+              {nome}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent key={tipo} value={tipo}>
+          <div className="mt-4 grid items-end gap-3 sm:grid-cols-2">
+            {tipo === "CORRECAO" ? (
+              <>
+                <label className="space-y-1 text-[11px] text-muted-foreground">
+                  Marcação
+                  <select name="campo" className={campo}>
+                    <option value="entrada_hora">Entrada</option>
+                    <option value="inicio_almoco">Início do intervalo</option>
+                    <option value="fim_almoco">Retorno do intervalo</option>
+                    <option value="saida_hora">Saída</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-[11px] text-muted-foreground">
+                  Horário correto
+                  <input
+                    type="time"
+                    name="horario_corrigido"
+                    required
+                    className={campo}
+                  />
+                </label>
+              </>
+            ) : (
+              <div className="space-y-3 sm:col-span-2">
+                {["ATESTADO", "DISPENSA"].includes(tipo) && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={diaInteiro}
+                      onChange={(e) => setDiaInteiro(e.target.checked)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Dia inteiro
+                  </label>
+                )}
+                {["ATESTADO", "DISPENSA"].includes(tipo) && diaInteiro ? (
+                  <>
+                    <input type="hidden" name="minutos" value="1440" />
+                    <p className="text-[11px] text-muted-foreground">
+                      A duração será limitada à jornada prevista para este dia,
+                      após aprovação.
+                    </p>
+                  </>
+                ) : (
+                  <label className="block space-y-1 text-[11px] text-muted-foreground">
+                    Duração em minutos
+                    <input
+                      key={tipo}
+                      type="number"
+                      name="minutos"
+                      min={1}
+                      max={1440}
+                      required
+                      defaultValue={60}
+                      className={campo}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+            <label className="space-y-1 text-[11px] text-muted-foreground sm:col-span-2">
+              Justificativa
+              <textarea
+                name="justificativa"
                 required
-                className={campo}
+                minLength={5}
+                maxLength={4000}
+                className="min-h-20 w-full rounded-lg border border-input bg-background p-3 text-xs text-foreground"
               />
             </label>
-          </>
-        ) : (
-          <label className="space-y-1 text-[11px] text-muted-foreground">
-            Duração em minutos
-            <input
-              type="number"
-              name="minutos"
-              min={1}
-              max={1440}
-              required
-              defaultValue={tipo === "ATESTADO" ? 1440 : 60}
-              className={campo}
-            />
-          </label>
-        )}
-        <label className="space-y-1 text-[11px] text-muted-foreground sm:col-span-2">
-          Justificativa
-          <textarea
-            name="justificativa"
-            required
-            minLength={5}
-            maxLength={4000}
-            className="min-h-20 w-full rounded-lg border border-input bg-background p-3 text-xs text-foreground"
-          />
-        </label>
-        <label className="space-y-1 text-[11px] text-muted-foreground">
-          Comprovante (até 10 MB)
-          <input
-            type="file"
-            name="arquivo"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            className="w-full py-2 text-xs"
-          />
-        </label>
-        <Button type="submit" disabled={ocupado}>
-          {ocupado ? "Enviando…" : "Enviar ao gestor"}
-        </Button>
-      </div>
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        Para um atestado do dia inteiro, informe 1.440 minutos; o abono será
-        limitado à jornada prevista. Anexos ficam restritos ao colaborador e
-        gestores autorizados.
-      </p>
+            <label className="space-y-1 text-[11px] text-muted-foreground">
+              Comprovante (até 10 MB)
+              <input
+                type="file"
+                name="arquivo"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                className="w-full py-2 text-xs"
+              />
+            </label>
+            <Button type="submit" disabled={ocupado}>
+              {ocupado ? "Enviando…" : "Enviar ao gestor"}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </form>
   );
 }

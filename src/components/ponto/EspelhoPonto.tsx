@@ -19,7 +19,10 @@ export function EtiquetaPonto({ valor }: { valor: string }) {
     </span>
   );
 }
-export function exportarEspelhoPonto(dados: DadosEspelho) {
+export function exportarEspelhoPonto(
+  dados: DadosEspelho,
+  mostrarOcorrencias = false,
+) {
   const csv = (v: unknown) => {
     let s = String(v ?? "");
     if (/^[=+\-@]/.test(s)) s = `'${s}`;
@@ -51,7 +54,7 @@ export function exportarEspelhoPonto(dados: DadosEspelho) {
       "Noturno reduzido",
       "Sobreaviso equivalente",
       "Banco provisório",
-      "Ocorrências",
+      ...(mostrarOcorrencias ? ["Ocorrências"] : []),
     ],
     ...dados.dias.map((d) => [
       d.data,
@@ -64,7 +67,9 @@ export function exportarEspelhoPonto(dados: DadosEspelho) {
       horasPonto(d.noturnos_reduzidos_min),
       horasPonto(d.sobreaviso_equivalente_min),
       horasPonto(d.banco_min),
-      d.alertas.map((a) => rotulosPonto[a] || a).join(" / "),
+      ...(mostrarOcorrencias
+        ? [d.alertas.map((a) => rotulosPonto[a] || a).join(" / ")]
+        : []),
     ]),
   ];
   const url = URL.createObjectURL(
@@ -81,9 +86,11 @@ export function exportarEspelhoPonto(dados: DadosEspelho) {
 export default function EspelhoPonto({
   dados,
   conferir,
+  mostrarOcorrencias = false,
 }: {
   dados: DadosEspelho;
   conferir?: () => void;
+  mostrarOcorrencias?: boolean;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card">
@@ -103,7 +110,7 @@ export default function EspelhoPonto({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportarEspelhoPonto(dados)}
+            onClick={() => exportarEspelhoPonto(dados, mostrarOcorrencias)}
           >
             Exportar espelho
           </Button>
@@ -126,7 +133,7 @@ export default function EspelhoPonto({
                 "Previsto",
                 "Trabalhado",
                 "Extra",
-                "Ocorrências",
+                ...(mostrarOcorrencias ? ["Ocorrências"] : []),
               ].map((c) => (
                 <th key={c} className="whitespace-nowrap px-3 py-3 font-medium">
                   {c}
@@ -169,16 +176,18 @@ export default function EspelhoPonto({
                   {horasPonto(d.trabalhados_min)}
                 </td>
                 <td className="px-3 font-mono">{horasPonto(d.extras_min)}</td>
-                <td className="min-w-48 px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {d.alertas.map((a) => (
-                      <EtiquetaPonto key={a} valor={a} />
-                    ))}
-                    {!d.alertas.length && (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </div>
-                </td>
+                {mostrarOcorrencias && (
+                  <td className="min-w-48 px-3 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {d.alertas.map((a) => (
+                        <EtiquetaPonto key={a} valor={a} />
+                      ))}
+                      {!d.alertas.length && (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

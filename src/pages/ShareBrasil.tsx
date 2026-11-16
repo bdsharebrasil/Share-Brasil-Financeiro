@@ -928,8 +928,10 @@ export function SenhasShareBrasil() {
 
 export function ContatosClientesShareBrasil({
   somenteCotistas = false,
+  aoVoltar,
 }: {
   somenteCotistas?: boolean;
+  aoVoltar?: () => void;
 }) {
   const [tab, setTab] = useState<"contatos" | "clientes">(
     somenteCotistas ? "clientes" : "contatos",
@@ -2791,6 +2793,18 @@ export function ContatosClientesShareBrasil({
         somenteCotistas
           ? "Cadastros dos cotistas, perfis e criação de cotistas."
           : "Agenda de contatos, perfis e criação de cotistas."
+      }
+      action={
+        aoVoltar && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={aoVoltar}
+            className="h-9 gap-1.5 text-[10px]"
+          >
+            <ChevronLeft size={13} /> Voltar
+          </Button>
+        )
       }
     >
       <Feedback error={error} ok={ok} />

@@ -19,7 +19,6 @@ import {
   LayoutDashboard,
   Mail,
   MessageSquare,
-  BadgeCheck,
   BriefcaseBusiness,
   NotebookPen,
   Receipt,
@@ -32,8 +31,15 @@ import {
   IdCard,
   Users,
   type LucideIcon,
+  type LucideProps,
 } from "lucide-react";
-import { createElement, forwardRef, type SVGProps } from "react";
+import { createElement, forwardRef, type ComponentType, type SVGProps } from "react";
+
+const URL_ICONE_COTISTAS = "https://cdn.builder.io/api/v1/image/assets%2F46aa69654530411793d5011e629d04aa%2Fa843931ee3254b34834b881ff58d3c1b?format=webp&width=800&height=1200";
+
+function IconeCotistas({ size = 18, className }: LucideProps) {
+  return createElement("img", { src: URL_ICONE_COTISTAS, alt: "", width: size, height: size, className: `shrink-0 object-contain ${className ?? ""}` });
+}
 
 const BanknoteArrowUp: LucideIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => createElement(
   "svg",
@@ -53,7 +59,7 @@ export const PONTO_ATIVO_STORAGE = "share-brasil:ponto-ativo";
 export type ItemMenu = {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<LucideProps>;
   badge?: string;
 };
 
@@ -107,7 +113,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "senhas", label: "Senhas", icon: KeyRound },
     { id: "tarefas", label: "Tarefas", icon: ListTodo },
     { id: "contatos-clientes", label: "AGENDA", icon: ContactRound },
-    { id: "cotistas", label: "COTISTAS", icon: BadgeCheck },
+    { id: "cotistas", label: "COTISTAS", icon: IconeCotistas },
     { id: "hoteis", label: "Hotéis", icon: Building2 },
   ],
   gestor: [

@@ -37,7 +37,6 @@ export function SeletorCotistaEmail({ open, onOpenChange, destinatarios, prepara
           type="button" key={item.id} className="envio-destinatario" disabled={concluindo || Boolean(preparandoId) || item.enviado || item.indisponivel}
           onClick={() => onSelecionar(item.id)} aria-label={`Revisar e-mail para ${item.nome}`} data-enviado={item.enviado}
         >
-          <span className="envio-destinatario-avatar" aria-hidden="true">{item.nome.trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]).join("")}</span>
           <span className="envio-destinatario-dados"><strong>{item.nome}</strong><span>{item.email || "Informe o e-mail na próxima tela"}</span><small><Paperclip size={12} /> {item.anexos} documento(s){item.indisponivel && " · Sem documentos para este cotista"}</small></span>
           <span className="envio-destinatario-estado">{preparandoId === item.id ? <Loader2 size={16} className="animate-spin" /> : item.enviado ? <><CheckCircle2 size={15} /> Enviado</> : item.indisponivel ? "Indisponível" : <><Mail size={15} /> Enviar e-mail</>}</span>
         </button>)}

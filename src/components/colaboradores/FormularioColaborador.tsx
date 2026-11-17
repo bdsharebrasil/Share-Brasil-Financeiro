@@ -8,7 +8,6 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   Eye,
   EyeOff,
   Loader2,
@@ -17,8 +16,10 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
-import { SlidingTabs } from "@/components/ui/sliding-tabs";
+import {
+  AnimatedStepper,
+  AnimatedStepPanel,
+} from "@/components/envio-pagamento/AnimatedStepper";
 import {
   Dialog,
   DialogContent,
@@ -40,10 +41,6 @@ const etapas = [
   "Admissão e documentos",
   "Revisão",
 ];
-const EASE_OUT: [number, number, number, number] = [0.2, 0.8, 0.2, 1];
-const EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
-const ENTRADA = { duration: 0.22, ease: EASE_OUT };
-const SAIDA = { duration: 0.16, ease: EASE_IN };
 const departamentos = [
   "Operações",
   "Coordenador de Voo",
@@ -112,19 +109,12 @@ export function FormularioColaborador({
     {},
   );
   const [descartar, setDescartar] = useState(false);
-  const reduzido = useReducedMotion();
-  const painel = (i: number) => ({
-    opacity: etapa === i ? 1 : 0,
-    transition: reduzido ? { duration: 0 } : etapa === i ? ENTRADA : SAIDA,
-  });
   const formRef = useRef<HTMLFormElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
   const dirtyRef = useRef(false);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
-    if (etapa > 0) titleRef.current?.focus();
   }, [etapa]);
   const fechar = () => {
     if (salvando) return;
@@ -354,24 +344,10 @@ export function FormularioColaborador({
             </button>
           </header>
           <div className="rh-form-body" ref={bodyRef}>
-            <SlidingTabs
-              className="rh-steps"
-              ariaLabel="Etapas do cadastro"
-              value={String(etapa)}
-              onValueChange={(valor) => ir(Number(valor))}
-              items={etapas.map((nome, i) => ({
-                value: String(i),
-                disabled: i > etapa || salvando,
-                done: i < etapa,
-                content: (
-                  <>
-                    <span className="rh-step-number">
-                      {i < etapa ? <Check size={13} /> : `0${i + 1}`}
-                    </span>
-                    <span className="rh-step-name">{nome}</span>
-                  </>
-                ),
-              }))}
+            <AnimatedStepper
+              atual={etapa}
+              etapas={etapas.map((titulo, i) => ({ id: String(i), titulo }))}
+              ariaLabel="Etapas do cadastro do colaborador"
             />
             <div className="rh-form-content">
               {descartar ? (
@@ -399,450 +375,472 @@ export function FormularioColaborador({
                 </div>
               ) : null}
               {erro && <AvisoGestao erro>{erro}</AvisoGestao>}
-              <p className="sr-only" role="status">
-                Etapa {etapa + 1} de 4: {etapas[etapa]}
-              </p>
-              <h3 ref={titleRef} tabIndex={-1}>
-                {etapas[etapa]}
-              </h3>
-              <p className="rh-section-desc">
-                {
-                  [
-                    "Informações de identificação e contato.",
-                    "Lotação, admissão e acesso ao sistema.",
-                    "Situação do exame e arquivos do colaborador.",
-                    "Confira os dados antes de concluir o cadastro.",
-                  ][etapa]
-                }
-              </p>
               <div className="rh-panel-stack">
-              <motion.fieldset
-                className="rh-fields rh-panel"
-                animate={painel(0)}
-                inert={etapa !== 0}
-                disabled={salvando}
-              >
-                {field("nome_completo", "Nome completo *", {
-                  wide: true,
-                  autoComplete: "name",
-                  placeholder: "Nome e sobrenome",
-                })}
-                {field("nome_exibicao", "Nome de exibição", {
-                  placeholder: "Como prefere ser chamado",
-                })}
-                {field("data_nascimento", "Data de nascimento", {
-                  type: "date",
-                })}
-                {field("cpf", "CPF", {
-                  maxLength: 14,
-                  placeholder: "000.000.000-00",
-                })}
-                {field("rg", "RG")}
-                {field("telefone", "Telefone", {
-                  type: "tel",
-                  autoComplete: "tel",
-                  placeholder: "(00) 00000-0000",
-                })}
-                {field("cidade", "Cidade", { autoComplete: "address-level2" })}
-                <Campo nome="uf" titulo="Estado">
-                  <select
-                    name="uf"
-                    id="rh-uf"
-                    className="rh-input"
-                    defaultValue={inicial?.uf?.toUpperCase() || ""}
-                  >
-                    <option value="">Selecione</option>
-                    {estados.map((uf) => (
-                      <option key={uf}>{uf}</option>
-                    ))}
-                  </select>
-                </Campo>
-              </motion.fieldset>
-              <motion.fieldset
-                className="rh-fields rh-panel"
-                animate={painel(1)}
-                inert={etapa !== 1}
-                disabled={salvando}
-              >
-                <Campo nome="departamento" titulo="Departamento">
-                  <select
-                    id="rh-departamento"
-                    name="departamento"
-                    value={departamento}
-                    onChange={(e) => setDepartamento(e.target.value)}
-                    className="rh-input"
-                  >
-                    <option value="">Selecione o departamento</option>
-                    {[
-                      ...new Set([
-                        ...departamentos,
-                        ...(departamento ? [departamento] : []),
-                      ]),
-                    ].map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
-                </Campo>
-                {field("data_admissao", "Data de admissão", { type: "date" })}
-                {field(
-                  "canac",
-                  `CANAC${departamento === "Tripulante" ? " *" : ""}`,
-                  { help: "Obrigatório para tripulantes." },
-                )}
-                {inicial && (
-                  <Campo nome="status" titulo="Situação">
-                    <select
-                      id="rh-status"
-                      name="status"
-                      className="rh-input"
-                      defaultValue={inicial.status?.toLowerCase() || "ativo"}
-                    >
-                      <option value="ativo">Ativo</option>
-                      <option value="inativo">Inativo</option>
-                      <option value="ferias">Férias</option>
-                    </select>
-                  </Campo>
-                )}
-                {!inicial ? (
-                  <>
-                    <div className="rh-field-wide rh-form-divider">
-                      <h4>Acesso ao sistema</h4>
-                      <ShieldCheck size={18} className="rh-text-muted" />
-                    </div>
-                    <Campo
-                      nome="email"
-                      titulo="E-mail corporativo *"
-                      erro={erros.email}
-                      wide
-                    >
-                      <div className="rh-input-group">
-                        <input
-                          id="rh-email"
-                          name="email"
-                        aria-required="true"
-                          autoComplete="off"
-                          placeholder="nome.sobrenome"
-                          aria-invalid={Boolean(erros.email)}
-                          aria-describedby={
-                            erros.email ? "rh-error-email" : undefined
-                          }
-                          className="rh-input"
-                        />
-                        <span>@share-brasil.com</span>
-                      </div>
-                    </Campo>
-                    <Campo
-                      nome="senha"
-                      titulo="Senha inicial *"
-                      erro={erros.senha}
-                      help="Pelo menos 6 caracteres."
-                      wide
-                    >
-                      <div className="rh-input-group">
-                        <input
-                          id="rh-senha"
-                          name="senha"
-                        aria-required="true"
-                          type={mostrarSenha ? "text" : "password"}
-                          autoComplete="new-password"
-                          aria-invalid={Boolean(erros.senha)}
-                          aria-describedby={
-                            erros.senha ? "rh-error-senha" : undefined
-                          }
-                          className="rh-input"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setMostrarSenha((v) => !v)}
-                          aria-label={
-                            mostrarSenha ? "Ocultar senha" : "Mostrar senha"
-                          }
-                        >
-                          {mostrarSenha ? (
-                            <EyeOff size={17} />
-                          ) : (
-                            <Eye size={17} />
-                          )}
-                        </button>
-                      </div>
-                    </Campo>
-                  </>
-                ) : (
-                  <div className="rh-field-wide">
-                    <DadoFicha
-                      titulo="E-mail corporativo"
-                      valor={inicial.email}
-                    />
-                  </div>
-                )}
-              </motion.fieldset>
-              <motion.fieldset
-                className="rh-panel"
-                animate={painel(2)}
-                inert={etapa !== 2}
-                disabled={salvando}
-              >
-                <div className="rh-fields">
-                  <Campo
-                    nome="exame_admissional_realizado"
-                    titulo="Situação do exame"
-                  >
-                    <select
-                      id="rh-exame_admissional_realizado"
-                      name="exame_admissional_realizado"
-                      value={realizado ? "1" : "0"}
-                      onChange={(e) => setRealizado(e.target.value === "1")}
-                      className="rh-input"
-                    >
-                      <option value="0">Exame pendente</option>
-                      <option value="1">Exame realizado</option>
-                    </select>
-                  </Campo>
-                  <div hidden={realizado}>
-                    {field("exame_admissional_prazo", "Prazo para realizar *", {
+                <AnimatedStepPanel
+                  etapa={etapa}
+                  ativo={etapa === 0}
+                  titulo={etapas[0]}
+                  className="rh-panel"
+                >
+                  <p className="rh-section-desc">
+                    Informações de identificação e contato.
+                  </p>
+                  <fieldset className="rh-fields" disabled={salvando}>
+                    {field("nome_completo", "Nome completo *", {
+                      wide: true,
+                      autoComplete: "name",
+                      placeholder: "Nome e sobrenome",
+                    })}
+                    {field("nome_exibicao", "Nome de exibição", {
+                      placeholder: "Como prefere ser chamado",
+                    })}
+                    {field("data_nascimento", "Data de nascimento", {
                       type: "date",
                     })}
-                  </div>
-                  <div hidden={!realizado}>
-                    {field(
-                      "exame_admissional_data",
-                      `Data do exame${realizado ? " *" : ""}`,
-                      { type: "date" },
-                    )}
-                  </div>
-                  {field(
-                    "exame_admissional_local",
-                    `Local do exame${realizado ? " *" : ""}`,
-                    { placeholder: "Clínica ou endereço" },
-                  )}
-                  {field(
-                    "exame_admissional_empresa",
-                    `Empresa responsável${realizado ? " *" : ""}`,
-                  )}
-                  <Campo
-                    nome="exame_admissional_arquivo"
-                    titulo={
-                      inicial?.exame_admissional_documento_id
-                        ? "Substituir comprovante"
-                        : `Comprovante do exame${realizado ? " *" : ""}`
-                    }
-                    erro={erros.exame_admissional_arquivo}
-                    wide
-                  >
-                    <div className="rh-upload">
-                      <span className="rh-inline-meta">
-                        PDF · até 10 MB
-                        {inicial?.exame_admissional_documento_id
-                          ? " · Já existe um comprovante anexado"
-                          : ""}
-                      </span>
-                      <input
-                        id="rh-exame_admissional_arquivo"
-                        name="exame_admissional_arquivo"
-                        type="file"
-                        accept="application/pdf"
-                        aria-invalid={Boolean(erros.exame_admissional_arquivo)}
-                        aria-describedby={
-                          erros.exame_admissional_arquivo
-                            ? "rh-error-exame_admissional_arquivo"
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </Campo>
-                </div>
-                <div className="rh-form-divider">
-                  <h4>Documentos {inicial ? "adicionais" : "iniciais"}</h4>
-                  <button
-                    type="button"
-                    className="rh-btn"
-                    onClick={() =>
-                      setAnexos((current) => [...current, crypto.randomUUID()])
-                    }
-                  >
-                    <Plus size={15} /> Anexar
-                  </button>
-                </div>
-                {!anexos.length && (
-                  <p className="rh-inline-meta">
-                    RG, CPF e outros documentos podem ser anexados agora ou
-                    depois, na ficha.
+                    {field("cpf", "CPF", {
+                      maxLength: 14,
+                      placeholder: "000.000.000-00",
+                    })}
+                    {field("rg", "RG")}
+                    {field("telefone", "Telefone", {
+                      type: "tel",
+                      autoComplete: "tel",
+                      placeholder: "(00) 00000-0000",
+                    })}
+                    {field("cidade", "Cidade", {
+                      autoComplete: "address-level2",
+                    })}
+                    <Campo nome="uf" titulo="Estado">
+                      <select
+                        name="uf"
+                        id="rh-uf"
+                        className="rh-input"
+                        defaultValue={inicial?.uf?.toUpperCase() || ""}
+                      >
+                        <option value="">Selecione</option>
+                        {estados.map((uf) => (
+                          <option key={uf}>{uf}</option>
+                        ))}
+                      </select>
+                    </Campo>
+                  </fieldset>
+                </AnimatedStepPanel>
+                <AnimatedStepPanel
+                  etapa={etapa}
+                  ativo={etapa === 1}
+                  titulo={etapas[1]}
+                  className="rh-panel"
+                >
+                  <p className="rh-section-desc">
+                    Lotação, admissão e acesso ao sistema.
                   </p>
-                )}
-                <div className="rh-file-list">
-                  {anexos.map((id, i) => (
-                    <div key={id} className="rh-upload">
-                      <div
-                        className="rh-actions"
-                        style={{
-                          justifyContent: "space-between",
-                          marginBottom: 12,
-                        }}
+                  <fieldset className="rh-fields" disabled={salvando}>
+                    <Campo nome="departamento" titulo="Departamento">
+                      <select
+                        id="rh-departamento"
+                        name="departamento"
+                        value={departamento}
+                        onChange={(e) => setDepartamento(e.target.value)}
+                        className="rh-input"
                       >
-                        <strong style={{ fontSize: 12 }}>
-                          Documento {i + 1}
-                        </strong>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAnexos((current) =>
-                              current.filter((item) => item !== id),
-                            )
-                          }
-                          aria-label={`Remover documento ${i + 1}`}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                      <label className="rh-field">
-                        <span>Nome do documento</span>
-                        <input
-                          name={`documento_nome_${id}`}
+                        <option value="">Selecione o departamento</option>
+                        {[
+                          ...new Set([
+                            ...departamentos,
+                            ...(departamento ? [departamento] : []),
+                          ]),
+                        ].map((d) => (
+                          <option key={d}>{d}</option>
+                        ))}
+                      </select>
+                    </Campo>
+                    {field("data_admissao", "Data de admissão", {
+                      type: "date",
+                    })}
+                    {field(
+                      "canac",
+                      `CANAC${departamento === "Tripulante" ? " *" : ""}`,
+                      { help: "Obrigatório para tripulantes." },
+                    )}
+                    {inicial && (
+                      <Campo nome="status" titulo="Situação">
+                        <select
+                          id="rh-status"
+                          name="status"
                           className="rh-input"
-                          placeholder="Ex.: RG frente e verso"
-                        />
-                      </label>
-                      <Campo
-                        nome={`documento_arquivo_${id}`}
-                        titulo="Arquivo"
-                        erro={erros[`documento_arquivo_${id}`]}
-                      >
-                        <input
-                          id={`rh-documento_arquivo_${id}`}
-                          name={`documento_arquivo_${id}`}
-                          type="file"
-                          accept="application/pdf,image/jpeg,image/png,image/webp"
-                          aria-invalid={Boolean(
-                            erros[`documento_arquivo_${id}`],
-                          )}
-                          aria-describedby={
-                            erros[`documento_arquivo_${id}`]
-                              ? `rh-error-documento_arquivo_${id}`
-                              : undefined
+                          defaultValue={
+                            inicial.status?.toLowerCase() || "ativo"
                           }
+                        >
+                          <option value="ativo">Ativo</option>
+                          <option value="inativo">Inativo</option>
+                          <option value="ferias">Férias</option>
+                        </select>
+                      </Campo>
+                    )}
+                    {!inicial ? (
+                      <>
+                        <div className="rh-field-wide rh-form-divider">
+                          <h4>Acesso ao sistema</h4>
+                          <ShieldCheck size={18} className="rh-text-muted" />
+                        </div>
+                        <Campo
+                          nome="email"
+                          titulo="E-mail corporativo *"
+                          erro={erros.email}
+                          wide
+                        >
+                          <div className="rh-input-group">
+                            <input
+                              id="rh-email"
+                              name="email"
+                              aria-required="true"
+                              autoComplete="off"
+                              placeholder="nome.sobrenome"
+                              aria-invalid={Boolean(erros.email)}
+                              aria-describedby={
+                                erros.email ? "rh-error-email" : undefined
+                              }
+                              className="rh-input"
+                            />
+                            <span>@share-brasil.com</span>
+                          </div>
+                        </Campo>
+                        <Campo
+                          nome="senha"
+                          titulo="Senha inicial *"
+                          erro={erros.senha}
+                          help="Pelo menos 6 caracteres."
+                          wide
+                        >
+                          <div className="rh-input-group">
+                            <input
+                              id="rh-senha"
+                              name="senha"
+                              aria-required="true"
+                              type={mostrarSenha ? "text" : "password"}
+                              autoComplete="new-password"
+                              aria-invalid={Boolean(erros.senha)}
+                              aria-describedby={
+                                erros.senha ? "rh-error-senha" : undefined
+                              }
+                              className="rh-input"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setMostrarSenha((v) => !v)}
+                              aria-label={
+                                mostrarSenha ? "Ocultar senha" : "Mostrar senha"
+                              }
+                            >
+                              {mostrarSenha ? (
+                                <EyeOff size={17} />
+                              ) : (
+                                <Eye size={17} />
+                              )}
+                            </button>
+                          </div>
+                        </Campo>
+                      </>
+                    ) : (
+                      <div className="rh-field-wide">
+                        <DadoFicha
+                          titulo="E-mail corporativo"
+                          valor={inicial.email}
                         />
+                      </div>
+                    )}
+                  </fieldset>
+                </AnimatedStepPanel>
+                <AnimatedStepPanel
+                  etapa={etapa}
+                  ativo={etapa === 2}
+                  titulo={etapas[2]}
+                  className="rh-panel"
+                >
+                  <p className="rh-section-desc">
+                    Situação do exame e arquivos do colaborador.
+                  </p>
+                  <fieldset className="" disabled={salvando}>
+                    <div className="rh-fields">
+                      <Campo
+                        nome="exame_admissional_realizado"
+                        titulo="Situação do exame"
+                      >
+                        <select
+                          id="rh-exame_admissional_realizado"
+                          name="exame_admissional_realizado"
+                          value={realizado ? "1" : "0"}
+                          onChange={(e) => setRealizado(e.target.value === "1")}
+                          className="rh-input"
+                        >
+                          <option value="0">Exame pendente</option>
+                          <option value="1">Exame realizado</option>
+                        </select>
+                      </Campo>
+                      <div hidden={realizado}>
+                        {field(
+                          "exame_admissional_prazo",
+                          "Prazo para realizar *",
+                          {
+                            type: "date",
+                          },
+                        )}
+                      </div>
+                      <div hidden={!realizado}>
+                        {field(
+                          "exame_admissional_data",
+                          `Data do exame${realizado ? " *" : ""}`,
+                          { type: "date" },
+                        )}
+                      </div>
+                      {field(
+                        "exame_admissional_local",
+                        `Local do exame${realizado ? " *" : ""}`,
+                        { placeholder: "Clínica ou endereço" },
+                      )}
+                      {field(
+                        "exame_admissional_empresa",
+                        `Empresa responsável${realizado ? " *" : ""}`,
+                      )}
+                      <Campo
+                        nome="exame_admissional_arquivo"
+                        titulo={
+                          inicial?.exame_admissional_documento_id
+                            ? "Substituir comprovante"
+                            : `Comprovante do exame${realizado ? " *" : ""}`
+                        }
+                        erro={erros.exame_admissional_arquivo}
+                        wide
+                      >
+                        <div className="rh-upload">
+                          <span className="rh-inline-meta">
+                            PDF · até 10 MB
+                            {inicial?.exame_admissional_documento_id
+                              ? " · Já existe um comprovante anexado"
+                              : ""}
+                          </span>
+                          <input
+                            id="rh-exame_admissional_arquivo"
+                            name="exame_admissional_arquivo"
+                            type="file"
+                            accept="application/pdf"
+                            aria-invalid={Boolean(
+                              erros.exame_admissional_arquivo,
+                            )}
+                            aria-describedby={
+                              erros.exame_admissional_arquivo
+                                ? "rh-error-exame_admissional_arquivo"
+                                : undefined
+                            }
+                          />
+                        </div>
                       </Campo>
                     </div>
-                  ))}
-                </div>
-                {anexos.length > 0 && (
-                  <p className="rh-field-help" style={{ marginTop: 12 }}>
-                    PDF, JPG, PNG ou WEBP · até 10 MB por arquivo.
+                    <div className="rh-form-divider">
+                      <h4>Documentos {inicial ? "adicionais" : "iniciais"}</h4>
+                      <button
+                        type="button"
+                        className="rh-btn"
+                        onClick={() =>
+                          setAnexos((current) => [
+                            ...current,
+                            crypto.randomUUID(),
+                          ])
+                        }
+                      >
+                        <Plus size={15} /> Anexar
+                      </button>
+                    </div>
+                    {!anexos.length && (
+                      <p className="rh-inline-meta">
+                        RG, CPF e outros documentos podem ser anexados agora ou
+                        depois, na ficha.
+                      </p>
+                    )}
+                    <div className="rh-file-list">
+                      {anexos.map((id, i) => (
+                        <div key={id} className="rh-upload">
+                          <div
+                            className="rh-actions"
+                            style={{
+                              justifyContent: "space-between",
+                              marginBottom: 12,
+                            }}
+                          >
+                            <strong style={{ fontSize: 12 }}>
+                              Documento {i + 1}
+                            </strong>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAnexos((current) =>
+                                  current.filter((item) => item !== id),
+                                )
+                              }
+                              aria-label={`Remover documento ${i + 1}`}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                          <label className="rh-field">
+                            <span>Nome do documento</span>
+                            <input
+                              name={`documento_nome_${id}`}
+                              className="rh-input"
+                              placeholder="Ex.: RG frente e verso"
+                            />
+                          </label>
+                          <Campo
+                            nome={`documento_arquivo_${id}`}
+                            titulo="Arquivo"
+                            erro={erros[`documento_arquivo_${id}`]}
+                          >
+                            <input
+                              id={`rh-documento_arquivo_${id}`}
+                              name={`documento_arquivo_${id}`}
+                              type="file"
+                              accept="application/pdf,image/jpeg,image/png,image/webp"
+                              aria-invalid={Boolean(
+                                erros[`documento_arquivo_${id}`],
+                              )}
+                              aria-describedby={
+                                erros[`documento_arquivo_${id}`]
+                                  ? `rh-error-documento_arquivo_${id}`
+                                  : undefined
+                              }
+                            />
+                          </Campo>
+                        </div>
+                      ))}
+                    </div>
+                    {anexos.length > 0 && (
+                      <p className="rh-field-help" style={{ marginTop: 12 }}>
+                        PDF, JPG, PNG ou WEBP · até 10 MB por arquivo.
+                      </p>
+                    )}
+                  </fieldset>
+                </AnimatedStepPanel>
+                <AnimatedStepPanel
+                  etapa={etapa}
+                  ativo={etapa === 3}
+                  titulo={etapas[3]}
+                  className="rh-panel"
+                >
+                  <p className="rh-section-desc">
+                    Confira os dados antes de concluir o cadastro.
                   </p>
-                )}
-              </motion.fieldset>
+                  <div>
+                    <div className="rh-review-block">
+                      <h4>
+                        Identificação{" "}
+                        <button
+                          type="button"
+                          className="rh-link"
+                          onClick={() => ir(0)}
+                        >
+                          Editar
+                        </button>
+                      </h4>
+                      <dl className="rh-review">
+                        <DadoFicha
+                          titulo="Nome completo"
+                          valor={String(revisao.nome_completo || "")}
+                        />
+                        <DadoFicha
+                          titulo="Nome de exibição"
+                          valor={String(revisao.nome_exibicao || "")}
+                        />
+                        <DadoFicha
+                          titulo="Telefone"
+                          valor={String(revisao.telefone || "")}
+                        />
+                        <DadoFicha
+                          titulo="Cidade / UF"
+                          valor={[revisao.cidade, revisao.uf]
+                            .filter(Boolean)
+                            .join(" / ")}
+                        />
+                      </dl>
+                    </div>
+                    <div className="rh-review-block">
+                      <h4>
+                        Vínculo e acesso{" "}
+                        <button
+                          type="button"
+                          className="rh-link"
+                          onClick={() => ir(1)}
+                        >
+                          Editar
+                        </button>
+                      </h4>
+                      <dl className="rh-review">
+                        <DadoFicha titulo="Departamento" valor={departamento} />
+                        <DadoFicha
+                          titulo="Admissão"
+                          valor={dataBr(String(revisao.data_admissao || ""))}
+                        />
+                        <DadoFicha
+                          titulo="E-mail"
+                          valor={
+                            inicial?.email ||
+                            `${revisao.email || ""}@share-brasil.com`
+                          }
+                        />
+                        <DadoFicha
+                          titulo="CANAC"
+                          valor={String(revisao.canac || "")}
+                        />
+                      </dl>
+                    </div>
+                    <div className="rh-review-block">
+                      <h4>
+                        Admissão e documentos{" "}
+                        <button
+                          type="button"
+                          className="rh-link"
+                          onClick={() => ir(2)}
+                        >
+                          Editar
+                        </button>
+                      </h4>
+                      <dl className="rh-review">
+                        <DadoFicha
+                          titulo="Exame admissional"
+                          valor={realizado ? "Realizado" : "Pendente"}
+                        />
+                        <DadoFicha
+                          titulo={
+                            realizado ? "Data do exame" : "Prazo para realizar"
+                          }
+                          valor={dataBr(
+                            String(
+                              revisao[
+                                realizado
+                                  ? "exame_admissional_data"
+                                  : "exame_admissional_prazo"
+                              ] || "",
+                            ),
+                          )}
+                        />
+                        <DadoFicha
+                          titulo="Comprovante"
+                          valor={
+                            (revisao.exame_admissional_arquivo as File)?.name ||
+                            (inicial?.exame_admissional_documento_id
+                              ? "Já anexado"
+                              : "Sem anexo")
+                          }
+                        />
+                        <DadoFicha
+                          titulo="Documentos adicionais"
+                          valor={`${arquivoCount} arquivo(s)`}
+                        />
+                      </dl>
+                    </div>
+                  </div>
+                </AnimatedStepPanel>
               </div>
-              {etapa === 3 && (
-                <div className="rh-enter">
-                  <div className="rh-review-block">
-                    <h4>
-                      Identificação{" "}
-                      <button
-                        type="button"
-                        className="rh-link"
-                        onClick={() => ir(0)}
-                      >
-                        Editar
-                      </button>
-                    </h4>
-                    <dl className="rh-review">
-                      <DadoFicha
-                        titulo="Nome completo"
-                        valor={String(revisao.nome_completo || "")}
-                      />
-                      <DadoFicha
-                        titulo="Nome de exibição"
-                        valor={String(revisao.nome_exibicao || "")}
-                      />
-                      <DadoFicha
-                        titulo="Telefone"
-                        valor={String(revisao.telefone || "")}
-                      />
-                      <DadoFicha
-                        titulo="Cidade / UF"
-                        valor={[revisao.cidade, revisao.uf]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      />
-                    </dl>
-                  </div>
-                  <div className="rh-review-block">
-                    <h4>
-                      Vínculo e acesso{" "}
-                      <button
-                        type="button"
-                        className="rh-link"
-                        onClick={() => ir(1)}
-                      >
-                        Editar
-                      </button>
-                    </h4>
-                    <dl className="rh-review">
-                      <DadoFicha titulo="Departamento" valor={departamento} />
-                      <DadoFicha
-                        titulo="Admissão"
-                        valor={dataBr(String(revisao.data_admissao || ""))}
-                      />
-                      <DadoFicha
-                        titulo="E-mail"
-                        valor={
-                          inicial?.email ||
-                          `${revisao.email || ""}@share-brasil.com`
-                        }
-                      />
-                      <DadoFicha
-                        titulo="CANAC"
-                        valor={String(revisao.canac || "")}
-                      />
-                    </dl>
-                  </div>
-                  <div className="rh-review-block">
-                    <h4>
-                      Admissão e documentos{" "}
-                      <button
-                        type="button"
-                        className="rh-link"
-                        onClick={() => ir(2)}
-                      >
-                        Editar
-                      </button>
-                    </h4>
-                    <dl className="rh-review">
-                      <DadoFicha
-                        titulo="Exame admissional"
-                        valor={realizado ? "Realizado" : "Pendente"}
-                      />
-                      <DadoFicha
-                        titulo={
-                          realizado ? "Data do exame" : "Prazo para realizar"
-                        }
-                        valor={dataBr(
-                          String(
-                            revisao[
-                              realizado
-                                ? "exame_admissional_data"
-                                : "exame_admissional_prazo"
-                            ] || "",
-                          ),
-                        )}
-                      />
-                      <DadoFicha
-                        titulo="Comprovante"
-                        valor={
-                          (revisao.exame_admissional_arquivo as File)?.name ||
-                          (inicial?.exame_admissional_documento_id
-                            ? "Já anexado"
-                            : "Sem anexo")
-                        }
-                      />
-                      <DadoFicha
-                        titulo="Documentos adicionais"
-                        valor={`${arquivoCount} arquivo(s)`}
-                      />
-                    </dl>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <footer className="rh-form-footer">

@@ -1217,3 +1217,31 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Mesmo stepper e transição de Programar pagamento, com as cores do RH. */
+.rh-dialog .envio-stepper,
+.rh-dialog .envio-stepper-painel {
+  --fin-border: var(--rh-linha);
+  --fin-surface: var(--rh-superficie);
+  --fin-muted: var(--rh-muted);
+  --fin-accent: var(--rh-acento);
+  --fin-text: var(--rh-tinta);
+}
+.rh-dialog .envio-stepper {
+  margin: 0;
+  padding: 16px 28px;
+}
+.rh-dialog .envio-stepper-painel > fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rh-form-content .envio-stepper-painel .rh-section-desc {
+  margin-bottom: 4px;
+}
+@media (max-width: 760px) {
+  .rh-dialog .envio-stepper {
+    padding: 16px 18px;
+  }
+}

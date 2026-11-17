@@ -545,7 +545,6 @@ export default function GestaoColaborador() {
                     <th scope="col">Colaborador</th>
                     <th scope="col">Departamento</th>
                     <th scope="col">Admissão</th>
-                    <th scope="col">Situação</th>
                     <th scope="col">Exame</th>
                     <th scope="col">
                       <span className="sr-only">Abrir ficha</span>
@@ -582,7 +581,6 @@ export default function GestaoColaborador() {
                       <td style={{ whiteSpace: "nowrap" }}>
                         {dataBr(item.data_admissao)}
                       </td>
-                      <td>{status(item)}</td>
                       <td>
                         <StatusColaborador
                           tom={

@@ -1,0 +1,155 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Tailwind utilities backed by the tokens: bg-surface, text-muted, border-line, rounded-card, ... */
+@theme inline {
+  --font-sans: var(--ui-font);
+  --font-mono: var(--ui-font-mono);
+  --color-page: var(--ui-page);
+  --color-surface: var(--ui-surface);
+  --color-subtle: var(--ui-subtle);
+  --color-hover: var(--ui-hover);
+  --color-active: var(--ui-active);
+  --color-line: var(--ui-border);
+  --color-input: var(--ui-border-input);
+  --color-ink: var(--ui-text);
+  --color-muted: var(--ui-text-muted);
+  --color-faint: var(--ui-text-subtle);
+  --color-accent: var(--ui-accent);
+  --color-accent-hover: var(--ui-accent-hover);
+  --color-accent-fg: var(--ui-accent-fg);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-accent-text: var(--ui-accent-text);
+  --color-focus: var(--ui-focus);
+  --color-danger: var(--ui-danger);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-danger-fg: var(--ui-danger-fg);
+  --color-success: var(--ui-success);
+  --color-success-soft: var(--ui-success-soft);
+  --color-warning: var(--ui-warning);
+  --color-code: var(--ui-code-bg);
+  --color-scrim: var(--ui-scrim);
+  --radius-control: var(--ui-radius-control);
+  --radius-card: var(--ui-radius-card);
+  --shadow-float: var(--ui-shadow-float);
+  --shadow-raise: var(--ui-shadow-raise);
+  --ease-ui-out: var(--ui-ease-out);
+  --ease-ui-in: var(--ui-ease-in);
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+}
+
+@layer base {
+  html {
+    background: var(--ui-page);
+    color: var(--ui-text);
+    font-family: var(--ui-font);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ui-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--ui-accent) 24%, transparent);
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floating layers (menus, popovers, dialogs) animate with Base UI's data-starting-style and
+ * data-ending-style attributes: enter ease-out, exit ease-in, no movement with reduced motion. */
+@utility float-motion {
+  transition-property: opacity, transform;
+  transition-duration: var(--ui-dur-enter);
+  transition-timing-function: var(--ui-ease-out);
+  transform-origin: var(--transform-origin, center);
+  &[data-starting-style] {
+    opacity: 0;
+    transform: translateY(var(--float-y, 4px)) scale(0.98);
+  }
+  &[data-ending-style] {
+    opacity: 0;
+    transform: scale(0.98);
+    transition-duration: var(--ui-dur-exit);
+    transition-timing-function: var(--ui-ease-in);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &[data-starting-style],
+    &[data-ending-style] {
+      transform: none;
+    }
+  }
+}
+
+/* Popups slide 4 px from their anchor: down when below it, up when above. */
+[data-side] {
+  --float-y: -4px;
+}
+[data-side="top"] {
+  --float-y: 4px;
+}
+
+/* Side sheets slide in from their edge; with reduced motion they only fade. */
+@utility sheet-motion {
+  transition-property: opacity, transform;
+  transition-duration: var(--ui-dur-slow);
+  transition-timing-function: var(--ui-ease-out);
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translateX(-100%);
+  }
+  &[data-sheet-side="right"][data-starting-style],
+  &[data-sheet-side="right"][data-ending-style] {
+    transform: translateX(100%);
+  }
+  &[data-ending-style] {
+    transition-duration: var(--ui-dur-exit);
+    transition-timing-function: var(--ui-ease-in);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &[data-starting-style],
+    &[data-ending-style] {
+      transform: none;
+      opacity: 0;
+    }
+  }
+}
+
+@utility fade-motion {
+  transition-property: opacity;
+  transition-duration: var(--ui-dur-enter);
+  transition-timing-function: var(--ui-ease-out);
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+  &[data-ending-style] {
+    transition-duration: var(--ui-dur-exit);
+    transition-timing-function: var(--ui-ease-in);
+  }
+}
+
+/* Visually hidden but read by assistive tech. */
+@utility sr-only-ui {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

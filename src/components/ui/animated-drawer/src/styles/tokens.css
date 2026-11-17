@@ -1,0 +1,166 @@
+/*
+ * Design tokens: a cool neutral gray ramp, a 4 px grid and one near-black accent.
+ * Every demo, primitive and real component reads these variables; never hard-code a color.
+ * Theme: light by default, dark via prefers-color-scheme or [data-theme="dark"] on <html>.
+ */
+
+:root {
+  /* Demo stage geometry, in px. Mirrors src/engine/tokens.ts. */
+  --mk-stage-w: 560px;
+  --mk-window-h: 380px;
+  --mk-chrome-h: 36px;
+
+  /* Radii */
+  --mk-r-window: 12px;
+  --mk-r-overlay: 12px;
+  --mk-r-panel: 10px;
+  --mk-r-control: 8px;
+  --mk-r-pill: 999px;
+
+  /* Motion */
+  --mk-dur-fast: 120ms;
+  --mk-dur-exit: 160ms;
+  --mk-dur-enter: 220ms;
+  --mk-dur-slow: 320ms;
+  --mk-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mk-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --mk-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /*
+   * Typography: Inter, self-hosted from @fontsource/inter (Latin, weights 400/500/600, imported in
+   * src/main.tsx; no CDN). OFL-1.1 is allowed for font files only (licenses/policy.json, rule
+   * "OFL-1.1 fonts only"). The system stack is the fallback while the font loads.
+   */
+  --mk-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mk-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* Light theme (default) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Demo canvas and window */
+  --mk-canvas: #f6f7f9;
+  --mk-window: #ffffff;
+  --mk-window-border: #e1e4e9;
+  --mk-chrome: #fafbfc;
+  --mk-chrome-divider: #eceef2;
+  --mk-chrome-dot: #d3d7de;
+  --mk-url: #eef0f4;
+  --mk-url-mark: #d3d7de;
+  --mk-shadow-window: 0 1px 1px rgb(20 24 33 / 0.04), 0 10px 28px -8px rgb(20 24 33 / 0.12);
+
+  /* Wireframe tones (decorative placeholders), darkest to lightest */
+  --mk-wire-strong: #c6cbd3;
+  --mk-wire-title: #d8dce2;
+  --mk-wire: #e7eaee;
+  --mk-panel: #f1f3f6;
+
+  /* Active pattern */
+  --mk-accent: #17191d;
+  --mk-accent-hover: #2a2d33;
+  /* Demo cards: a hover lift that stays clearly near-black at card scale. */
+  --mk-wf-accent-hover: #262930;
+  --mk-accent-fg: #ffffff;
+  --mk-secondary: #eceef2;
+  --mk-secondary-hover: #e0e3e8;
+  --mk-surface: #ffffff;
+  --mk-scrim: rgb(18 21 28 / 0.26);
+  --mk-shadow-overlay: 0 1px 3px rgb(20 24 33 / 0.08), 0 18px 44px -12px rgb(20 24 33 / 0.32);
+
+  /* Label pill under each card */
+  --mk-label-bg: #eceef2;
+  --mk-label-fg: #464a53;
+
+  /* Cursor */
+  --mk-cursor-fill: #15171b;
+  --mk-cursor-stroke: #ffffff;
+
+  /* Page UI */
+  --mk-text: #15171b;
+  --mk-text-muted: #575c66;
+  --mk-border: #e1e4e9;
+  /* Form field outline: at least 3:1 against --mk-surface (WCAG 1.4.11 non-text contrast). */
+  --mk-control-border: #868b95;
+  --mk-surface-raised: #ffffff;
+  --mk-surface-sunken: #f2f4f7;
+  --mk-focus: #2563eb;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --mk-canvas: #0b0c0f;
+  --mk-window: #16181c;
+  --mk-window-border: #2a2d33;
+  --mk-chrome: #191b20;
+  --mk-chrome-divider: #23262b;
+  --mk-chrome-dot: #3a3e45;
+  --mk-url: #24272d;
+  --mk-url-mark: #3a3e45;
+  --mk-shadow-window: 0 1px 1px rgb(0 0 0 / 0.4), 0 10px 28px -8px rgb(0 0 0 / 0.6);
+  --mk-wire-strong: #4a4f58;
+  --mk-wire-title: #393d45;
+  --mk-wire: #2c2f36;
+  --mk-panel: #1f2227;
+  --mk-accent: #eceef2;
+  --mk-accent-hover: #ffffff;
+  --mk-wf-accent-hover: #f6f7f9;
+  --mk-accent-fg: #121418;
+  --mk-secondary: #2c2f36;
+  --mk-secondary-hover: #383c44;
+  --mk-surface: #1c1f24;
+  --mk-scrim: rgb(0 0 0 / 0.5);
+  --mk-shadow-overlay: 0 1px 3px rgb(0 0 0 / 0.35), 0 18px 44px -12px rgb(0 0 0 / 0.75);
+  --mk-label-bg: #1d2025;
+  --mk-label-fg: #c3c7cf;
+  --mk-cursor-fill: #15171b;
+  --mk-cursor-stroke: #ffffff;
+  --mk-text: #eceef2;
+  --mk-text-muted: #a1a6b0;
+  --mk-border: #2a2d33;
+  --mk-control-border: #6f747d;
+  --mk-surface-raised: #15171b;
+  --mk-surface-sunken: #111316;
+  --mk-focus: #7aa2ff;
+}
+
+/* System dark when the user has not picked a theme explicitly. Keep in sync with [data-theme="dark"]. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --mk-canvas: #0b0c0f;
+    --mk-window: #16181c;
+    --mk-window-border: #2a2d33;
+    --mk-chrome: #191b20;
+    --mk-chrome-divider: #23262b;
+    --mk-chrome-dot: #3a3e45;
+    --mk-url: #24272d;
+    --mk-url-mark: #3a3e45;
+    --mk-shadow-window: 0 1px 1px rgb(0 0 0 / 0.4), 0 10px 28px -8px rgb(0 0 0 / 0.6);
+    --mk-wire-strong: #4a4f58;
+    --mk-wire-title: #393d45;
+    --mk-wire: #2c2f36;
+    --mk-panel: #1f2227;
+    --mk-accent: #eceef2;
+    --mk-accent-hover: #ffffff;
+    --mk-wf-accent-hover: #f6f7f9;
+    --mk-accent-fg: #121418;
+    --mk-secondary: #2c2f36;
+    --mk-secondary-hover: #383c44;
+    --mk-surface: #1c1f24;
+    --mk-scrim: rgb(0 0 0 / 0.5);
+    --mk-shadow-overlay: 0 1px 3px rgb(0 0 0 / 0.35), 0 18px 44px -12px rgb(0 0 0 / 0.75);
+    --mk-label-bg: #1d2025;
+    --mk-label-fg: #c3c7cf;
+    --mk-cursor-fill: #15171b;
+    --mk-cursor-stroke: #ffffff;
+    --mk-text: #eceef2;
+    --mk-text-muted: #a1a6b0;
+    --mk-border: #2a2d33;
+    --mk-control-border: #6f747d;
+    --mk-surface-raised: #15171b;
+    --mk-surface-sunken: #111316;
+    --mk-focus: #7aa2ff;
+  }
+}

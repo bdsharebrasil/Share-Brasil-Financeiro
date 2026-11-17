@@ -1,0 +1,140 @@
+/*
+ * Design tokens for every kit. Zinc neutrals, one accent, 10 px control and 14 px card corners,
+ * 1 px borders, soft shadows on floating layers only.
+ *
+ * Change the brand color in one place: --ui-accent (one line in the light block; the dark block
+ * reuses it). Hover, soft fills, accent text and the focus ring are mixed from it.
+ *
+ * Theme: light by default, dark with [data-theme="dark"] on <html> or the system setting when no
+ * data-theme is set. Never hard-code a color in a component: use these variables (through the
+ * Tailwind classes in index.css: bg-surface, text-muted, border-line, ...).
+ */
+
+:root {
+  --ui-accent: #4f46e5;
+
+  --ui-radius-control: 10px;
+  --ui-radius-card: 14px;
+  --ui-radius-pill: 999px;
+
+  /* Motion: enter 180-260 ms ease-out, exit 120-180 ms ease-in. Mirrored in src/ui/motion.ts. */
+  --ui-dur-fast: 120ms;
+  --ui-dur-exit: 150ms;
+  --ui-dur-enter: 220ms;
+  --ui-dur-slow: 260ms;
+  --ui-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Inter, self-hosted from @fontsource/inter (imported in src/main.tsx). */
+  --ui-font: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ui-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --ui-page: #fafafa;
+  --ui-surface: #ffffff;
+  --ui-subtle: #f4f4f5;
+  --ui-hover: #f4f4f5;
+  --ui-active: #e4e4e7;
+  --ui-border: #e4e4e7;
+  /* Text field outlines: at least 3:1 against the surface (WCAG 1.4.11). */
+  --ui-border-input: #8a8a93;
+  --ui-text: #18181b;
+  --ui-text-muted: #52525b;
+  /* Secondary metadata. 4.5:1 on --ui-surface and --ui-page only; on --ui-subtle use --ui-text-muted. */
+  --ui-text-subtle: #71717a;
+  --ui-accent-fg: #ffffff;
+  --ui-accent-hover: color-mix(in oklab, var(--ui-accent) 86%, black);
+  --ui-accent-soft: color-mix(in oklab, var(--ui-accent) 9%, var(--ui-surface));
+  --ui-accent-text: color-mix(in oklab, var(--ui-accent) 88%, black);
+  --ui-focus: var(--ui-accent);
+  --ui-danger: #dc2626;
+  --ui-danger-fg: #ffffff;
+  --ui-danger-soft: #fef2f2;
+  --ui-success: #15803d;
+  --ui-success-soft: #f0fdf4;
+  --ui-warning: #b45309;
+  --ui-code-bg: #f4f4f5;
+  --ui-scrim: rgb(9 9 11 / 0.32);
+  --ui-shadow-float: 0 1px 2px rgb(24 24 27 / 0.06), 0 12px 32px -8px rgb(24 24 27 / 0.18);
+  --ui-shadow-raise: 0 1px 2px rgb(24 24 27 / 0.05);
+  /* Syntax colors for code blocks. */
+  --ui-code-keyword: #7c3aed;
+  --ui-code-string: #15803d;
+  --ui-code-number: #b45309;
+  --ui-code-comment: #5f5f68;
+  --ui-code-fn: #1d4ed8;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ui-page: #09090b;
+  --ui-surface: #131316;
+  --ui-subtle: #1c1c20;
+  --ui-hover: #1f1f23;
+  --ui-active: #2a2a2f;
+  --ui-border: #27272a;
+  --ui-border-input: #6e6e78;
+  --ui-text: #fafafa;
+  --ui-text-muted: #a1a1aa;
+  --ui-text-subtle: #8b8b94;
+  --ui-accent-fg: #ffffff;
+  --ui-accent-hover: color-mix(in oklab, var(--ui-accent) 84%, white);
+  --ui-accent-soft: color-mix(in oklab, var(--ui-accent) 18%, var(--ui-surface));
+  --ui-accent-text: color-mix(in oklab, var(--ui-accent) 42%, white);
+  --ui-focus: color-mix(in oklab, var(--ui-accent) 50%, white);
+  --ui-danger: #f87171;
+  --ui-danger-fg: #18181b;
+  --ui-danger-soft: #2a1414;
+  --ui-success: #4ade80;
+  --ui-success-soft: #0f2418;
+  --ui-warning: #fbbf24;
+  --ui-code-bg: #0c0c0e;
+  --ui-scrim: rgb(0 0 0 / 0.6);
+  --ui-shadow-float: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+  --ui-shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4);
+  --ui-code-keyword: #c4b5fd;
+  --ui-code-string: #86efac;
+  --ui-code-number: #fcd34d;
+  --ui-code-comment: #8b8b94;
+  --ui-code-fn: #93c5fd;
+}
+
+/* System dark when no theme was picked. Keep in sync with [data-theme="dark"]. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --ui-page: #09090b;
+    --ui-surface: #131316;
+    --ui-subtle: #1c1c20;
+    --ui-hover: #1f1f23;
+    --ui-active: #2a2a2f;
+    --ui-border: #27272a;
+    --ui-border-input: #6e6e78;
+    --ui-text: #fafafa;
+    --ui-text-muted: #a1a1aa;
+    --ui-text-subtle: #8b8b94;
+    --ui-accent-fg: #ffffff;
+    --ui-accent-hover: color-mix(in oklab, var(--ui-accent) 84%, white);
+    --ui-accent-soft: color-mix(in oklab, var(--ui-accent) 18%, var(--ui-surface));
+    --ui-accent-text: color-mix(in oklab, var(--ui-accent) 42%, white);
+    --ui-focus: color-mix(in oklab, var(--ui-accent) 50%, white);
+    --ui-danger: #f87171;
+    --ui-danger-fg: #18181b;
+    --ui-danger-soft: #2a1414;
+    --ui-success: #4ade80;
+    --ui-success-soft: #0f2418;
+    --ui-warning: #fbbf24;
+    --ui-code-bg: #0c0c0e;
+    --ui-scrim: rgb(0 0 0 / 0.6);
+    --ui-shadow-float: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -12px rgb(0 0 0 / 0.7);
+    --ui-shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4);
+    --ui-code-keyword: #c4b5fd;
+    --ui-code-string: #86efac;
+    --ui-code-number: #fcd34d;
+    --ui-code-comment: #8b8b94;
+    --ui-code-fn: #93c5fd;
+  }
+}

@@ -38,7 +38,7 @@ const ContatosClientesShareBrasil = lazy(() => import("@/pages/ShareBrasil").the
 const SenhasPastas = lazy(() => import("@/pages/SenhasPastas"));
 import { menusPorAmbiente, menuInicial, type Ambiente, type Tema } from "@/types/navegacao";
 import { BarraSuperior } from "@/components/layout/TopBar";
-import { MenuSuperior, Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { buscarPerfilColaborador } from "@/lib/colaborador-api";
 import { limparNavegacao, restaurarNavegacao, salvarNavegacao } from "@/lib/navigation-state";
 import { supabase } from "@/lib/supabase";
@@ -56,6 +56,7 @@ export default function LayoutInterno() {
   const [menuAtivo, setMenuAtivo] = useState(navegacaoInicial.menuAtivo);
   const [tema, setTema] = useState<Tema>(() => (localStorage.getItem("share-brasil-theme") as Tema) || "dark");
   const [menuAberto, setMenuAberto] = useState(false);
+  const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navegacaoManual = useRef(navegacaoInicial.restaurada);
   const navegar = useNavigate();
@@ -164,5 +165,6 @@ export default function LayoutInterno() {
     return podeAcessarGestor ? <DashboardGestorResumo aoNavegar={selecionarMenu} /> : <DashboardShareBrasil aoNavegar={selecionarMenu} />;
   };
 
-  return <div className="app-shell app-noise fixed inset-0 flex min-w-0 max-w-[100vw] overflow-hidden bg-[rgba(224,225,233,1)] dark:bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoSelecionar={selecionarMenu} /><div className="conteudo-principal flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(209,217,218,0.93)] dark:bg-background"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirRelatorio={abrirRelatorioNotificado} aoSair={sair} /><MenuSuperior ambiente={ambiente} menuAtivo={menuAtivo} podeAcessarMenuGestor={podeAcessarMenuGestor} aoSelecionar={selecionarMenu} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll min-h-0 min-w-0 flex-1"><main className="mx-auto min-w-0 w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-8"><Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground" role="status">Carregando módulo…</div>}>{renderConteudo()}</Suspense></main></ScrollArea></div>{usuarioPontoId && <Suspense fallback={null}><AvisoEntradaPonto key={usuarioPontoId} usuarioId={usuarioPontoId} /></Suspense>}{exibirBoasVindas && nomeColaborador && <WelcomeToast name={nomeColaborador} onClose={() => setExibirBoasVindas(false)} />}</div>;
+  return <div className="app-shell app-noise fixed inset-0 flex min-w-0 max-w-[100vw] overflow-hidden bg-[rgba(224,225,233,1)] dark:bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="conteudo-principal flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(209,217,218,0.93)] dark:bg-background md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirRelatorio={abrirRelatorioNotificado} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll min-h-0 min-w-0 flex-1"><main className="mx-auto min-w-0 w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-8"><Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground" role="status">Carregando módulo…</div>}>{renderConteudo()}</Suspense></main></ScrollArea></div>{usuarioPontoId && <Suspense fallback={null}><AvisoEntradaPonto key={usuarioPontoId} usuarioId={usuarioPontoId} /></Suspense>}{exibirBoasVindas && nomeColaborador && <WelcomeToast name={nomeColaborador} onClose={() => setExibirBoasVindas(false)} />}</div>;
 }
+

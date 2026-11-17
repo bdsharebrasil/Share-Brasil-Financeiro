@@ -151,7 +151,7 @@
 }
 .rh-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -448,6 +448,8 @@
   margin-bottom: 7px;
 }
 .rh-bar {
+  display: block;
+  width: 100%;
   height: 5px;
   border-radius: 10px;
   background: var(--rh-suave);
@@ -699,7 +701,8 @@
 .rh-panel-stack {
   display: grid;
 }
-.rh-panel {
+/* Somente as etapas do formulário compartilham a mesma célula. */
+.rh-panel-stack > .rh-panel {
   grid-area: 1 / 1;
   min-width: 0;
   margin: 0;
@@ -916,6 +919,24 @@
   margin: 6px 0;
   overflow-wrap: anywhere;
 }
+.rh-profile-details {
+  min-width: 0;
+}
+.rh-profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.rh-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin-top: 15px;
+}
+.rh-profile-meta .rh-dado {
+  min-width: 120px;
+}
 .rh-profile-contact {
   display: flex;
   flex-wrap: wrap;
@@ -962,10 +983,9 @@
   margin-top: 20px;
 }
 .rh-profile-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 20px;
-  align-items: start;
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
 .rh-details-grid {
   display: grid;
@@ -1058,9 +1078,6 @@
   .rh-side {
     grid-template-columns: 1fr 1fr;
   }
-  .rh-profile-layout {
-    grid-template-columns: minmax(0, 1fr) 260px;
-  }
 }
 @media (max-width: 760px) {
   .rh-top {
@@ -1075,6 +1092,9 @@
   .rh-metrics {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+  }
+  .rh-metrics > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .rh-metric {
     padding: 13px;
@@ -1124,7 +1144,6 @@
   .rh-fields {
     gap: 16px;
   }
-  .rh-profile-layout,
   .rh-doc-layout {
     grid-template-columns: 1fr;
   }

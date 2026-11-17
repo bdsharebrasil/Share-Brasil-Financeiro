@@ -78,29 +78,33 @@ export function FichaColaboradorAbas({
                 colaboradorId={perfil.id}
                 grande
               />
-              <div>
-                <StatusColaborador
-                  tom={
-                    inativo(perfil.status)
-                      ? "neutro"
+              <div className="rh-profile-details">
+                <div className="rh-profile-badges">
+                  <StatusColaborador
+                    tom={
+                      inativo(perfil.status)
+                        ? "neutro"
+                        : feriasAtuais
+                          ? "ambar"
+                          : "verde"
+                    }
+                  >
+                    {inativo(perfil.status)
+                      ? "Inativo"
                       : feriasAtuais
-                        ? "ambar"
-                        : "verde"
-                  }
-                >
-                  {inativo(perfil.status)
-                    ? "Inativo"
-                    : feriasAtuais
-                      ? "Em férias"
-                      : "Ativo"}
-                </StatusColaborador>
+                        ? "Em férias"
+                        : "Ativo"}
+                  </StatusColaborador>
+                  {ficha.funcoes.map((funcao) => (
+                    <StatusColaborador key={funcao.id} tom="azul">
+                      {formatarFuncao(funcao.funcao)}
+                    </StatusColaborador>
+                  ))}
+                </div>
                 <h1 id="rh-perfil-titulo" tabIndex={-1}>
                   {nomeColaborador(perfil)}
                 </h1>
                 <div className="rh-profile-contact">
-                  <span>
-                    {perfil.departamento || "Departamento não informado"}
-                  </span>
                   <a href={`mailto:${perfil.email}`}>
                     <Mail size={13} />
                     {perfil.email}
@@ -112,6 +116,16 @@ export function FichaColaboradorAbas({
                     </a>
                   )}
                 </div>
+                <dl className="rh-profile-meta">
+                  <DadoFicha
+                    titulo="Departamento"
+                    valor={perfil.departamento}
+                  />
+                  <DadoFicha
+                    titulo="Admissão"
+                    valor={dataBr(perfil.data_admissao)}
+                  />
+                </dl>
               </div>
             </div>
             <button type="button" className="rh-btn" onClick={onEdit}>
@@ -182,7 +196,6 @@ export function FichaColaboradorAbas({
                 </dl>
               </section>
             </div>
-            <ResumoVinculo ficha={ficha} />
           </div>
         </TabsContent>
         <TabsContent
@@ -191,49 +204,6 @@ export function FichaColaboradorAbas({
         >
           <div className="rh-profile-layout">
             <div>
-              <section className="rh-panel rh-profile-section">
-                <header className="rh-panel-head">
-                  <h2>Vínculo com a Share Brasil</h2>
-                </header>
-                <dl className="rh-details-grid">
-                  <DadoFicha
-                    titulo="Departamento"
-                    valor={perfil.departamento}
-                  />
-                  <DadoFicha
-                    titulo="Data de admissão"
-                    valor={dataBr(perfil.data_admissao)}
-                  />
-                  <DadoFicha
-                    titulo="Situação"
-                    valor={
-                      inativo(perfil.status)
-                        ? "Inativo"
-                        : feriasAtuais
-                          ? "Em férias"
-                          : "Ativo"
-                    }
-                  />
-                </dl>
-                <div style={{ padding: "0 23px 23px" }}>
-                  <p className="rh-inline-meta" style={{ marginBottom: 9 }}>
-                    Funções no sistema
-                  </p>
-                  <div className="rh-actions">
-                    {ficha.funcoes.length ? (
-                      ficha.funcoes.map((f) => (
-                        <StatusColaborador key={f.id} tom="azul">
-                          {formatarFuncao(f.funcao)}
-                        </StatusColaborador>
-                      ))
-                    ) : (
-                      <p className="rh-inline-meta">
-                        Nenhuma função cadastrada.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </section>
               <section className="rh-panel rh-profile-section">
                 <header className="rh-panel-head">
                   <h2>Exame admissional</h2>
@@ -273,7 +243,6 @@ export function FichaColaboradorAbas({
                 </dl>
               </section>
             </div>
-            <ResumoVinculo ficha={ficha} />
           </div>
         </TabsContent>
         <TabsContent value="documentos" className="rh-profile-content rh-enter">
@@ -439,35 +408,6 @@ export function FichaColaboradorAbas({
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-function ResumoVinculo({ ficha }: { ficha: FichaColaborador }) {
-  return (
-    <aside className="rh-panel">
-      <header className="rh-panel-head">
-        <h2>Na Share Brasil</h2>
-        <BriefcaseBusiness size={16} className="rh-text-muted" />
-      </header>
-      <dl className="rh-side-body">
-        <DadoFicha
-          titulo="Admissão"
-          valor={dataBr(ficha.perfil.data_admissao)}
-        />
-        <DadoFicha titulo="Departamento" valor={ficha.perfil.departamento} />
-        <DadoFicha
-          titulo="Exame admissional"
-          valor={
-            <StatusColaborador
-              tom={ficha.perfil.exame_admissional_realizado ? "verde" : "ambar"}
-            >
-              {ficha.perfil.exame_admissional_realizado
-                ? "Realizado"
-                : "Pendente"}
-            </StatusColaborador>
-          }
-        />
-      </dl>
-    </aside>
   );
 }
 function DocumentosColaborador({

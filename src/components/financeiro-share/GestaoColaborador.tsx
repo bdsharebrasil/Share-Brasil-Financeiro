@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Search,
   Users,
-  WalletCards,
 } from "lucide-react";
 import { FichaColaboradorAbas } from "@/components/GestaoColaboradorAbas";
 import {
@@ -27,11 +26,6 @@ import {
   type FichaColaborador,
 } from "@/lib/colaborador-api";
 import {
-  buscarResumoSalarios,
-  type ResumoSalarios,
-} from "@/lib/financeiro-share-api";
-import {
-  brl,
   dataBr,
   hojeLocal,
   inativo,
@@ -70,9 +64,6 @@ export default function GestaoColaborador() {
   const [aba, setAba] = useState<"ativos" | "inativos">("ativos");
   const [resumoFerias, setResumoFerias] =
     useState<FeriasCorporativasResponse | null>(null);
-  const [resumoSalarios, setResumoSalarios] = useState<ResumoSalarios | null>(
-    null,
-  );
   // Retém o cadastro e os uploads concluídos enquanto este formulário estiver aberto.
   // Uma falha de anexo nunca deve disparar uma segunda criação da mesma pessoa.
   const progresso = useRef<{
@@ -104,9 +95,6 @@ export default function GestaoColaborador() {
     void buscarFeriasCorporativas(hojeLocal())
       .then(setResumoFerias)
       .catch(() => setResumoFerias(null));
-    void buscarResumoSalarios()
-      .then(setResumoSalarios)
-      .catch(() => setResumoSalarios(null));
   };
   useEffect(() => {
     void carregar();
@@ -304,10 +292,6 @@ export default function GestaoColaborador() {
         .data_nascimento!.slice(8, 10)
         .localeCompare(b.data_nascimento!.slice(8, 10)),
     );
-  const mesFolha = Number(resumoSalarios?.folha?.competencia_mes);
-  const tituloFolha = Number.isInteger(mesFolha) && mesFolha >= 1 && mesFolha <= 12
-    ? `Folha · ${new Date(2000, mesFolha - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}`
-    : "Folha de pagamento";
   const indicadores = [
     {
       titulo: "Colaboradores ativos",
@@ -326,16 +310,6 @@ export default function GestaoColaborador() {
       valor: resumoFerias ? String(resumoFerias.resumo.solicitadas) : "—",
       detalhe: resumoFerias ? "Aguardando aprovação" : "Resumo indisponível",
       icon: CalendarDays,
-    },
-    {
-      titulo: tituloFolha,
-      valor: resumoSalarios?.disponivel
-        ? brl(resumoSalarios.resumo.total_folha)
-        : "—",
-      detalhe: resumoSalarios?.disponivel
-        ? "Total líquido"
-        : "Resumo indisponível",
-      icon: WalletCards,
     },
   ];
   const formulario = formAberto && (
@@ -715,7 +689,7 @@ export default function GestaoColaborador() {
           </footer>
         </section>
         <aside className="rh-side">
-          <section className="rh-panel">
+          <section className="rh-panel" aria-label="Equipe por departamento">
             <header className="rh-panel-head">
               <h2>Equipe por departamento</h2>
               <Users size={16} className="rh-text-muted" />
@@ -754,7 +728,7 @@ export default function GestaoColaborador() {
               )}
             </div>
           </section>
-          <section className="rh-panel">
+          <section className="rh-panel" aria-label="Aniversariantes do mês">
             <header className="rh-panel-head">
               <div>
                 <h2>Aniversariantes</h2>

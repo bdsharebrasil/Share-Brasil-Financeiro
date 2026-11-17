@@ -259,7 +259,7 @@ export const decidirSolicitacaoPonto = (
   motivo: string,
   minutos: number,
 ) =>
-  colaboradorRequest(
+  colaboradorRequest<{ success: boolean; avisos?: string[] }>(
     `/api/sharebrasil/ponto/solicitacoes/${encodeURIComponent(id)}/decisao`,
     { method: "POST", body: JSON.stringify({ status, motivo, minutos }) },
   );

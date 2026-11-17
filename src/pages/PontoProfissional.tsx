@@ -174,8 +174,8 @@ export default function PontoProfissional({
     setErro("");
     setMensagem("");
     try {
-      await acao();
-      setMensagem(sucesso);
+      const resultado = await acao();
+      setMensagem(typeof resultado === "string" ? resultado : sucesso);
       await carregar();
     } catch (e) {
       setErro(mensagemErroPonto(e));
@@ -855,13 +855,15 @@ export default function PontoProfissional({
           fechar={() => setPedido(null)}
           salvar={(status, motivo, minutos) =>
             void executar(async () => {
-              await decidirSolicitacaoPonto(
+              const resultado = await decidirSolicitacaoPonto(
                 pedido.solicitacao.id,
                 status,
                 motivo,
                 minutos,
               );
               setPedido(null);
+              if (resultado.avisos?.includes("HORARIOS_INCONSISTENTES"))
+                return "Decisão registrada. Atenção: horários inconsistentes para conferência.";
             }, "Decisão registrada no histórico.")
           }
         />

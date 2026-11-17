@@ -17,6 +17,8 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { SlidingTabs } from "@/components/ui/sliding-tabs";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +40,10 @@ const etapas = [
   "Admissão e documentos",
   "Revisão",
 ];
+const EASE_OUT: [number, number, number, number] = [0.2, 0.8, 0.2, 1];
+const EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
+const ENTRADA = { duration: 0.22, ease: EASE_OUT };
+const SAIDA = { duration: 0.16, ease: EASE_IN };
 const departamentos = [
   "Operações",
   "Coordenador de Voo",
@@ -106,6 +112,11 @@ export function FormularioColaborador({
     {},
   );
   const [descartar, setDescartar] = useState(false);
+  const reduzido = useReducedMotion();
+  const painel = (i: number) => ({
+    opacity: etapa === i ? 1 : 0,
+    transition: reduzido ? { duration: 0 } : etapa === i ? ENTRADA : SAIDA,
+  });
   const formRef = useRef<HTMLFormElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -343,34 +354,25 @@ export function FormularioColaborador({
             </button>
           </header>
           <div className="rh-form-body" ref={bodyRef}>
-            <nav className="rh-steps" aria-label="Etapas do cadastro">
-              <ol>
-                {etapas.map((nome, i) => (
-                  <li key={nome} className={i < etapa ? "rh-step-done" : ""}>
-                    <button
-                      type="button"
-                      disabled={i > etapa || salvando}
-                      onClick={() => ir(i)}
-                      aria-current={i === etapa ? "step" : undefined}
-                    >
-                      <span className="rh-step-number">
-                        {i < etapa ? <Check size={15} /> : `0${i + 1}`}
-                      </span>
-                      <span>
-                        {nome}
-                        <small>
-                          {i < etapa
-                            ? "Preenchido"
-                            : i === etapa
-                              ? "Etapa atual"
-                              : "A seguir"}
-                        </small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </nav>
+            <SlidingTabs
+              className="rh-steps"
+              ariaLabel="Etapas do cadastro"
+              value={String(etapa)}
+              onValueChange={(valor) => ir(Number(valor))}
+              items={etapas.map((nome, i) => ({
+                value: String(i),
+                disabled: i > etapa || salvando,
+                done: i < etapa,
+                content: (
+                  <>
+                    <span className="rh-step-number">
+                      {i < etapa ? <Check size={13} /> : `0${i + 1}`}
+                    </span>
+                    <span className="rh-step-name">{nome}</span>
+                  </>
+                ),
+              }))}
+            />
             <div className="rh-form-content">
               {descartar ? (
                 <div className="rh-review-block" role="alert">
@@ -413,9 +415,11 @@ export function FormularioColaborador({
                   ][etapa]
                 }
               </p>
-              <fieldset
-                hidden={etapa !== 0}
-                className={etapa === 0 ? "rh-fields rh-enter" : ""}
+              <div className="rh-panel-stack">
+              <motion.fieldset
+                className="rh-fields rh-panel"
+                animate={painel(0)}
+                inert={etapa !== 0}
                 disabled={salvando}
               >
                 {field("nome_completo", "Nome completo *", {
@@ -453,10 +457,11 @@ export function FormularioColaborador({
                     ))}
                   </select>
                 </Campo>
-              </fieldset>
-              <fieldset
-                hidden={etapa !== 1}
-                className={etapa === 1 ? "rh-fields rh-enter" : ""}
+              </motion.fieldset>
+              <motion.fieldset
+                className="rh-fields rh-panel"
+                animate={painel(1)}
+                inert={etapa !== 1}
                 disabled={salvando}
               >
                 <Campo nome="departamento" titulo="Departamento">
@@ -570,11 +575,12 @@ export function FormularioColaborador({
                     />
                   </div>
                 )}
-              </fieldset>
-              <fieldset
-                hidden={etapa !== 2}
+              </motion.fieldset>
+              <motion.fieldset
+                className="rh-panel"
+                animate={painel(2)}
+                inert={etapa !== 2}
                 disabled={salvando}
-                className={etapa === 2 ? "rh-enter" : ""}
               >
                 <div className="rh-fields">
                   <Campo
@@ -724,7 +730,8 @@ export function FormularioColaborador({
                     PDF, JPG, PNG ou WEBP · até 10 MB por arquivo.
                   </p>
                 )}
-              </fieldset>
+              </motion.fieldset>
+              </div>
               {etapa === 3 && (
                 <div className="rh-enter">
                   <div className="rh-review-block">

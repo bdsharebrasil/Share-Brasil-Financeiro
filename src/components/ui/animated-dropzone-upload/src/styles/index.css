@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Tailwind utilities backed by the kit tokens: bg-canvas, text-muted, border-line, ... */
+@theme inline {
+  --font-sans: var(--mk-font);
+  --font-mono: var(--mk-font-mono);
+  --color-canvas: var(--mk-canvas);
+  --color-ink: var(--mk-text);
+  --color-muted: var(--mk-text-muted);
+  --color-line: var(--mk-border);
+  --color-control-line: var(--mk-control-border);
+  --color-raised: var(--mk-surface-raised);
+  --color-sunken: var(--mk-surface-sunken);
+  --color-accent: var(--mk-accent);
+  --color-accent-hover: var(--mk-accent-hover);
+  --color-accent-fg: var(--mk-accent-fg);
+  --color-secondary: var(--mk-secondary);
+  --color-secondary-hover: var(--mk-secondary-hover);
+  --color-surface: var(--mk-surface);
+  --color-focus: var(--mk-focus);
+  --radius-window: var(--mk-r-window);
+  --radius-overlay: var(--mk-r-overlay);
+  --radius-panel: var(--mk-r-panel);
+  --radius-control: var(--mk-r-control);
+  --ease-kit-out: var(--mk-ease-out);
+  --ease-kit-in: var(--mk-ease-in);
+}
+
+@layer base {
+  html {
+    background: var(--mk-canvas);
+    color: var(--mk-text);
+    font-family: var(--mk-font);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--mk-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Visually hidden but available to assistive tech. */
+.sr-only-kit {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

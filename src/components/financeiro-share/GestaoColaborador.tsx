@@ -1,89 +1,803 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { BriefcaseBusiness, CalendarDays, Clock3, FileText, Plus, RefreshCw, Search, UserPlus, Users, WalletCards, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Gift,
+  LayoutGrid,
+  List,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import { FichaColaboradorAbas } from "@/components/GestaoColaboradorAbas";
-import { EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
-import { atualizarGestaoColaborador, buscarFichaColaborador, buscarFeriasCorporativas, buscarGestaoColaboradores, criarUsuarioColaborador, enviarDocumentoGestao, type ColaboradorGestao, type FeriasCorporativasResponse, type FichaColaborador } from "@/lib/colaborador-api";
-import { buscarResumoSalarios, type ResumoSalarios } from "@/lib/financeiro-share-api";
-import { SearchableCombobox } from "@/components/ui/searchableCombobox";
-
-const card = "rounded-xl border border-border bg-card/80 shadow-sm";
-const field = "h-10 w-full rounded-lg border border-border bg-background/60 px-3 text-xs outline-none transition-colors focus:border-primary/60";
-const label = "mb-1 block text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground";
-const brl = (value: unknown) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) || 0);
-const dataBr = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
-const rotulosFuncoes: Record<string, string> = { operacoes: "Operações", coordenador_de_voo: "Coordenador de voo", tripulante: "Tripulante", financeiro_master: "Financeiro Master", admin: "Admin", financeiro: "Financeiro", gestor_master: "Gestor Master" };
-const normalizarFuncao = (funcao: string) => funcao.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s-]+/g, "_");
-const formatarFuncao = (funcao: string) => rotulosFuncoes[normalizarFuncao(funcao)] || funcao.trim().replace(/_/g, " ");
-const classesBordaPorFuncao = (colaborador: Pick<ColaboradorGestao, "funcoes" | "departamento" | "departamentos_email" | "tipo_user">) => {
-  const normalizadas = new Set([
-    ...(colaborador.funcoes || []),
-    colaborador.departamento || "",
-    colaborador.departamentos_email || "",
-    colaborador.tipo_user || "",
-  ].map(normalizarFuncao));
-  if (["operacoes", "coordenador_de_voo"].some((funcao) => normalizadas.has(funcao))) return "border-amber-400/50 before:bg-amber-400 hover:border-amber-300/80";
-  if (normalizadas.has("tripulante")) return "border-[rgba(1,43,148,0.98)] before:bg-sky-400 hover:border-sky-300/80";
-  if (["financeiro_master", "admin", "financeiro"].some((funcao) => normalizadas.has(funcao))) return "border-[rgba(13,204,57,1)] before:bg-emerald-400 hover:border-emerald-300/80";
-  if (normalizadas.has("gestor_master")) return "border-pink-400/50 before:bg-pink-400 hover:border-pink-300/80";
-  return "border-border dark:border-white/[.08] before:bg-slate-600 hover:border-slate-400/40";
-};
-const departamentos = ["Operações", "Coordenador de Voo", "Tripulante", "Piloto Chefe", "Financeiro", "Financeiro Master", "Administrativo"];
+import {
+  atualizarGestaoColaborador,
+  buscarFichaColaborador,
+  buscarFeriasCorporativas,
+  buscarGestaoColaboradores,
+  criarUsuarioColaborador,
+  enviarDocumentoGestao,
+  type ColaboradorGestao,
+  type FeriasCorporativasResponse,
+  type FichaColaborador,
+} from "@/lib/colaborador-api";
+import {
+  buscarResumoSalarios,
+  type ResumoSalarios,
+} from "@/lib/financeiro-share-api";
+import {
+  brl,
+  dataBr,
+  hojeLocal,
+  inativo,
+  mensagemGestao,
+  nomeColaborador,
+  normalizar,
+} from "@/lib/gestao-colaboradores";
+import {
+  AvatarColaborador,
+  AvisoGestao,
+  StatusColaborador,
+  VazioColaboradores,
+} from "@/components/colaboradores/ComponentesColaboradores";
+import {
+  FormularioColaborador,
+  type CadastroColaborador,
+} from "@/components/colaboradores/FormularioColaborador";
+import "@/components/colaboradores/colaboradores.css";
 
 export default function GestaoColaborador() {
   const [colaboradores, setColaboradores] = useState<ColaboradorGestao[]>([]);
   const [busca, setBusca] = useState("");
+  const [departamento, setDepartamento] = useState("");
+  const [ordem, setOrdem] = useState("nome");
+  const [pagina, setPagina] = useState(1);
+  const [visual, setVisual] = useState<"lista" | "cards">("lista");
   const [carregando, setCarregando] = useState(true);
+  const [abrindo, setAbrindo] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<ColaboradorGestao | null>(null);
   const [ficha, setFicha] = useState<FichaColaborador | null>(null);
   const [erro, setErro] = useState("");
+  const [erroForm, setErroForm] = useState("");
   const [aviso, setAviso] = useState("");
   const [aba, setAba] = useState<"ativos" | "inativos">("ativos");
-  const [resumoFerias, setResumoFerias] = useState<FeriasCorporativasResponse | null>(null);
-  const [resumoSalarios, setResumoSalarios] = useState<ResumoSalarios | null>(null);
+  const [resumoFerias, setResumoFerias] =
+    useState<FeriasCorporativasResponse | null>(null);
+  const [resumoSalarios, setResumoSalarios] = useState<ResumoSalarios | null>(
+    null,
+  );
+  // Retém o cadastro e os uploads concluídos enquanto este formulário estiver aberto.
+  // Uma falha de anexo nunca deve disparar uma segunda criação da mesma pessoa.
+  const progresso = useRef<{
+    perfil: ColaboradorGestao | null;
+    arquivos: Map<string, string>;
+  }>({ perfil: null, arquivos: new Map() });
+  const [parcial, setParcial] = useState(false);
+  const travaSalvar = useRef(false);
+  const travaFicha = useRef(false);
+  const retornoFoco = useRef("");
 
-  const carregar = async () => { setCarregando(true); setErro(""); try { setColaboradores(await buscarGestaoColaboradores()); } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível carregar o RH."); } finally { setCarregando(false); } };
-  const carregarResumo = () => {
-    void buscarFeriasCorporativas().then(setResumoFerias).catch(() => setResumoFerias(null));
-    void buscarResumoSalarios().then(setResumoSalarios).catch(() => setResumoSalarios(null));
+  const carregar = async () => {
+    setCarregando(true);
+    setErro("");
+    try {
+      setColaboradores(await buscarGestaoColaboradores());
+    } catch (cause) {
+      setErro(
+        mensagemGestao(
+          cause,
+          "Não foi possível carregar os colaboradores. Tente atualizar a página.",
+        ),
+      );
+    } finally {
+      setCarregando(false);
+    }
   };
-  useEffect(() => { void carregar(); carregarResumo(); }, []);
-  const filtrados = useMemo(() => colaboradores.filter((item) => (aba === "inativos" ? ["inativo", "inactive"].includes(String(item.status || "").toLowerCase()) : !["inativo", "inactive"].includes(String(item.status || "").toLowerCase())) && `${item.nome_completo} ${item.email} ${item.departamento || ""}`.toLowerCase().includes(busca.toLowerCase())), [aba, busca, colaboradores]);
-  const abrirFicha = async (item: ColaboradorGestao) => { setErro(""); try { setFicha(await buscarFichaColaborador(item.id)); } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível carregar a ficha."); } };
-  const salvar = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSalvando(true); setErro(""); const formData = new FormData(event.currentTarget); const anexos = [...formData.entries()].filter(([key, value]) => key.startsWith("documento_arquivo_") && value instanceof File && value.size).map(([key, value]) => ({ arquivo: value as File, nome: String(formData.get(key.replace("arquivo", "nome")) || (value as File).name) })); const exameArquivo = formData.get("exame_admissional_arquivo"); const values: Record<string, unknown> = Object.fromEntries([...formData.entries()].filter(([key]) => !key.startsWith("documento_") && key !== "exame_admissional_arquivo")); values.exame_admissional_realizado = values.exame_admissional_realizado === "1"; if (values.exame_admissional_realizado && !(exameArquivo instanceof File && exameArquivo.size) && !editando?.exame_admissional_documento_id) { setErro("Anexe o PDF do exame admissional para marcar o exame como realizado."); setSalvando(false); return; } if (!editando && typeof values.email === "string") values.email = `${values.email.trim().split("@", 1)[0]}@share-brasil.com`; try { let colaborador: ColaboradorGestao; if (editando) { colaborador = await atualizarGestaoColaborador(editando.id, values); } else { colaborador = await criarUsuarioColaborador(values); } if (exameArquivo instanceof File && exameArquivo.size) { const documento = await enviarDocumentoGestao(colaborador.id, exameArquivo, "exame_admissional", "Exame admissional.pdf"); colaborador = await atualizarGestaoColaborador(colaborador.id, { exame_admissional_documento_id: documento.id }); } if (!editando) { for (const anexo of anexos) await enviarDocumentoGestao(colaborador.id, anexo.arquivo, "documentos", anexo.nome); await carregar(); setAviso(anexos.length ? `Usuário criado com ${anexos.length + (exameArquivo instanceof File && exameArquivo.size ? 1 : 0)} documento(s).` : "Usuário criado no Supabase, user_profiles e usuarios_funcoes."); } else { setColaboradores((items) => items.map((item) => item.id === colaborador.id ? { ...item, ...colaborador } : item)); setFicha((atual) => atual?.perfil.id === colaborador.id ? { ...atual, perfil: { ...atual.perfil, ...colaborador } } : atual); setAviso("Dados do colaborador atualizados."); } setFormAberto(false); setEditando(null); } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível salvar o colaborador."); } finally { setSalvando(false); } };
-
-  if (ficha) return <div className="route-enter min-w-0"><FichaColaboradorAbas ficha={ficha} onClose={() => setFicha(null)} onEdit={() => { setEditando(ficha.perfil); setFormAberto(true); }} />{formAberto && <FormularioColaborador inicial={editando} salvando={salvando} onCancel={() => { setFormAberto(false); setEditando(null); }} onSubmit={salvar} />}{erro && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-200">{erro}</p>}</div>;
-
-  const colaboradoresAtivos = colaboradores.filter((item) => !["inativo", "inactive"].includes(String(item.status || "").toLowerCase())).length;
+  const carregarResumo = () => {
+    void buscarFeriasCorporativas(hojeLocal())
+      .then(setResumoFerias)
+      .catch(() => setResumoFerias(null));
+    void buscarResumoSalarios()
+      .then(setResumoSalarios)
+      .catch(() => setResumoSalarios(null));
+  };
+  useEffect(() => {
+    void carregar();
+    carregarResumo();
+  }, []);
+  useEffect(() => setPagina(1), [aba, busca, departamento, ordem]);
+  const ativos = useMemo(
+    () => colaboradores.filter((item) => !inativo(item.status)),
+    [colaboradores],
+  );
+  const departamentos = useMemo(
+    () =>
+      [
+        ...new Set(colaboradores.map((p) => p.departamento).filter(Boolean)),
+      ].sort((a, b) => a!.localeCompare(b!, "pt-BR")),
+    [colaboradores],
+  );
+  const filtrados = useMemo(
+    () =>
+      colaboradores
+        .filter(
+          (item) =>
+            (aba === "inativos"
+              ? inativo(item.status)
+              : !inativo(item.status)) &&
+            (!departamento || item.departamento === departamento) &&
+            normalizar(
+              `${item.nome_completo} ${item.nome_exibicao || ""} ${item.email} ${item.departamento || ""}`,
+            ).includes(normalizar(busca)),
+        )
+        .sort((a, b) =>
+          ordem === "admissao"
+            ? (b.data_admissao || "").localeCompare(a.data_admissao || "") ||
+              nomeColaborador(a).localeCompare(nomeColaborador(b), "pt-BR")
+            : nomeColaborador(a).localeCompare(nomeColaborador(b), "pt-BR"),
+        ),
+    [aba, busca, departamento, ordem, colaboradores],
+  );
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / 12));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const exibidos = filtrados.slice((paginaAtual - 1) * 12, paginaAtual * 12);
+  const hoje = hojeLocal();
+  const emFerias = (item: ColaboradorGestao) =>
+    normalizar(item.status || "") === "ferias" ||
+    Boolean(
+      resumoFerias?.registros.some(
+        (r) =>
+          r.colaborador_id === item.id &&
+          r.status.toLowerCase() === "aprovada" &&
+          r.data_inicio <= hoje &&
+          r.data_fim >= hoje,
+      ),
+    );
+  const abrirFicha = async (item: ColaboradorGestao) => {
+    if (travaFicha.current) return;
+    travaFicha.current = true;
+    retornoFoco.current = item.id;
+    setAbrindo(item.id);
+    setErro("");
+    try {
+      setFicha(await buscarFichaColaborador(item.id));
+      window.scrollTo({ top: 0 });
+      requestAnimationFrame(() =>
+        document.getElementById("rh-perfil-titulo")?.focus(),
+      );
+    } catch (cause) {
+      setErro(
+        mensagemGestao(
+          cause,
+          "Não foi possível abrir a ficha. Tente novamente.",
+        ),
+      );
+    } finally {
+      setAbrindo("");
+      travaFicha.current = false;
+    }
+  };
+  const abrirFormulario = (item: ColaboradorGestao | null = null) => {
+    setEditando(item);
+    setErroForm("");
+    setParcial(false);
+    progresso.current = { perfil: null, arquivos: new Map() };
+    setFormAberto(true);
+  };
+  const fecharFormulario = () => {
+    if (salvando) return;
+    setFormAberto(false);
+    setEditando(null);
+    if (parcial) {
+      setAviso(
+        "Cadastro salvo. Os documentos pendentes podem ser enviados na ficha do colaborador.",
+      );
+      void carregar();
+    }
+    setParcial(false);
+  };
+  const salvar = async ({ values, exame, anexos }: CadastroColaborador) => {
+    if (travaSalvar.current) return;
+    travaSalvar.current = true;
+    setSalvando(true);
+    setErroForm("");
+    try {
+      const anterior = progresso.current.perfil;
+      const perfil =
+        editando || anterior
+          ? await atualizarGestaoColaborador((editando || anterior)!.id, values)
+          : await criarUsuarioColaborador(values);
+      progresso.current.perfil = perfil;
+      setParcial(true);
+      const enviar = async (
+        arquivo: File,
+        categoria: string,
+        nome: string,
+        chave: string,
+      ) => {
+        const assinatura = `${chave}:${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`;
+        let id = progresso.current.arquivos.get(assinatura);
+        if (!id) {
+          const doc = await enviarDocumentoGestao(
+            perfil.id,
+            arquivo,
+            categoria,
+            nome,
+          );
+          id = String(doc.id);
+          progresso.current.arquivos.set(assinatura, id);
+        }
+        return id;
+      };
+      if (exame) {
+        const id = await enviar(
+          exame,
+          "exame_admissional",
+          exame.name,
+          "exame",
+        );
+        await atualizarGestaoColaborador(perfil.id, {
+          exame_admissional_documento_id: id,
+        });
+      }
+      for (const anexo of anexos)
+        await enviar(anexo.arquivo, "documentos", anexo.nome, anexo.chave);
+      setFormAberto(false);
+      setEditando(null);
+      setParcial(false);
+      setAviso(
+        editando
+          ? "Cadastro atualizado com sucesso."
+          : "Colaborador cadastrado. O acesso já está disponível.",
+      );
+      // Recarrega a fonte oficial para refletir funções, exame e documentos.
+      if (ficha?.perfil.id === perfil.id) {
+        try {
+          setFicha(await buscarFichaColaborador(perfil.id));
+        } catch {
+          setFicha(null);
+          setAviso(
+            "Cadastro salvo. Abra a ficha novamente para consultar as informações atualizadas.",
+          );
+        }
+      }
+      await carregar();
+      carregarResumo();
+    } catch (cause) {
+      setErroForm(
+        `${progresso.current.perfil ? "O cadastro foi salvo, mas o envio não foi concluído. Tente novamente para enviar os documentos pendentes. " : ""}${mensagemGestao(cause, "Não foi possível concluir o cadastro. Confira os dados e tente novamente.")}`,
+      );
+    } finally {
+      setSalvando(false);
+      travaSalvar.current = false;
+    }
+  };
+  const status = (item: ColaboradorGestao) => (
+    <StatusColaborador
+      tom={inativo(item.status) ? "neutro" : emFerias(item) ? "ambar" : "verde"}
+    >
+      {inativo(item.status)
+        ? "Inativo"
+        : emFerias(item)
+          ? "Em férias"
+          : "Ativo"}
+    </StatusColaborador>
+  );
+  const grupos = departamentos
+    .map((d) => ({
+      nome: d!,
+      total: ativos.filter((p) => p.departamento === d).length,
+    }))
+    .filter((d) => d.total)
+    .sort((a, b) => b.total - a.total);
+  const aniversarios = ativos
+    .filter((p) => p.data_nascimento?.slice(5, 7) === hoje.slice(5, 7))
+    .sort((a, b) =>
+      a
+        .data_nascimento!.slice(8, 10)
+        .localeCompare(b.data_nascimento!.slice(8, 10)),
+    );
   const mesFolha = Number(resumoSalarios?.folha?.competencia_mes);
-  const labelFolha = Number.isInteger(mesFolha) && mesFolha >= 1 && mesFolha <= 12
-    ? `FOLHA · ${new Date(2000, mesFolha - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase()}`
-    : "FOLHA DO MÊS";
+  const tituloFolha = Number.isInteger(mesFolha) && mesFolha >= 1 && mesFolha <= 12
+    ? `Folha · ${new Date(2000, mesFolha - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}`
+    : "Folha de pagamento";
   const indicadores = [
-    { label: "COLABORADORES ATIVOS", value: String(colaboradoresAtivos), detail: "Equipe cadastrada", icon: Users, tone: "text-emerald-300 bg-emerald-400/10" },
-    { label: "EM FÉRIAS", value: resumoFerias ? String(resumoFerias.resumo.ativas) : "—", detail: "Afastamentos atuais", icon: CalendarDays, tone: "text-sky-300 bg-sky-400/10" },
-    { label: "FÉRIAS SOLICITADAS", value: resumoFerias ? String(resumoFerias.resumo.solicitadas) : "—", detail: "Aguardando aprovação", icon: Clock3, tone: "text-amber-300 bg-amber-400/10" },
-    { label: labelFolha, value: resumoSalarios?.disponivel ? brl(resumoSalarios.resumo.total_folha) : "—", detail: "Total líquido", icon: WalletCards, tone: "text-blue-300 bg-blue-400/10" },
+    {
+      titulo: "Colaboradores ativos",
+      valor: carregando ? "—" : String(ativos.length),
+      detalhe: "Pessoas na equipe",
+      icon: Users,
+    },
+    {
+      titulo: "Em férias",
+      valor: resumoFerias ? String(resumoFerias.resumo.ativas) : "—",
+      detalhe: resumoFerias ? "Afastamentos atuais" : "Resumo indisponível",
+      icon: CalendarDays,
+    },
+    {
+      titulo: "Férias solicitadas",
+      valor: resumoFerias ? String(resumoFerias.resumo.solicitadas) : "—",
+      detalhe: resumoFerias ? "Aguardando aprovação" : "Resumo indisponível",
+      icon: CalendarDays,
+    },
+    {
+      titulo: tituloFolha,
+      valor: resumoSalarios?.disponivel
+        ? brl(resumoSalarios.resumo.total_folha)
+        : "—",
+      detalhe: resumoSalarios?.disponivel
+        ? "Total líquido"
+        : "Resumo indisponível",
+      icon: WalletCards,
+    },
   ];
-  const hoje = new Date().toISOString().slice(0, 10);
-
-  return <div className="route-enter mx-auto max-w-[1480px] space-y-4 pb-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[9px] font-medium text-muted-foreground dark:text-slate-400">Share Brasil <span className="mx-1 text-slate-600">/</span> Gestão de Colaboradores</p><h1 className="mt-1 text-2xl font-extrabold tracking-[-.04em] text-foreground dark:text-slate-100 md:text-[30px]">Gestão de Colaboradores</h1><p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">RH · Fichas · Férias · Extrato Financeiro · {new Date().toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "")}</p></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => { void carregar(); carregarResumo(); }} disabled={carregando} className="h-9 gap-1.5 border-border dark:border-white/10 bg-white/[.03] text-[10px] text-foreground dark:text-slate-200"><RefreshCw size={13} className={carregando ? "animate-spin" : ""} /> Atualizar</Button><Button type="button" onClick={() => { setEditando(null); setFormAberto(true); }} className="h-9 gap-1.5 bg-sky-600 text-[10px] text-white hover:bg-sky-500"><Plus size={14} /> Novo colaborador</Button></div></div>
-    <section className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">{indicadores.map(({ label, value, detail, icon: Icone, tone }) => <div key={label} className="min-w-0 rounded-xl border border-border dark:border-white/[.08] bg-card dark:bg-[#111c31] p-3 shadow-[0_8px_24px_rgba(0,0,0,.16)] sm:p-4"><div className="flex items-start justify-between gap-2"><span className="text-[8px] font-bold uppercase tracking-[.13em] text-muted-foreground dark:text-slate-400 sm:text-[9px]">{label}</span><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone}`}><Icone size={14} /></span></div><strong className="mt-1 block truncate font-mono text-lg font-bold tracking-[-.04em] text-foreground dark:text-slate-100 sm:text-xl">{value}</strong><p className="mt-0.5 text-[9px] text-slate-500">{detail}</p></div>)}</section>
-    {(erro || aviso) && <div className={`rounded-lg border p-3 text-[11px] ${erro ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"}`}>{erro || aviso}</div>}
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex w-fit gap-1 rounded-xl border border-border dark:border-white/[.08] bg-card dark:bg-[#0c1422] p-1"><button type="button" onClick={() => setAba("ativos")} className={`rounded-lg px-3 py-2 text-[10px] font-bold transition-colors ${aba === "ativos" ? "bg-card dark:bg-[#1a2940] text-foreground dark:text-slate-100" : "text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"}`}>Ativos <span className="ml-1 text-muted-foreground dark:text-slate-400">{colaboradoresAtivos}</span></button><button type="button" onClick={() => setAba("inativos")} className={`rounded-lg px-3 py-2 text-[10px] font-bold transition-colors ${aba === "inativos" ? "bg-card dark:bg-[#1a2940] text-foreground dark:text-slate-100" : "text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"}`}>Inativos <span className="ml-1 text-muted-foreground dark:text-slate-400">{colaboradores.length - colaboradoresAtivos}</span></button></div><label className="flex h-9 w-full items-center gap-2 rounded-lg border border-border dark:border-white/[.08] bg-card dark:bg-[#0c1422] px-3 text-xs text-muted-foreground dark:text-slate-400 sm:max-w-sm"><Search size={14} /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar colaborador, e-mail ou departamento..." className="flex-1 bg-transparent text-foreground dark:text-slate-100 outline-none placeholder:text-slate-500" /></label></div>
-    {carregando ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="skeleton h-44 rounded-xl" />)}</div> : filtrados.length === 0 ? <EstadoVazio label={busca ? "Nenhum colaborador encontrado" : aba === "inativos" ? "Nenhum colaborador inativo" : "Nenhum colaborador cadastrado"} /> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtrados.map((item) => <article key={item.id} className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-card dark:bg-[#0d1728] p-3.5 shadow-[0_10px_28px_rgba(0,0,0,.16)] transition-all hover:-translate-y-0.5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:content-[''] ${classesBordaPorFuncao(item)}`} onClick={() => void abrirFicha(item)}><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-400/10 bg-sky-400/10 text-xs font-extrabold text-sky-300">{(item.nome_exibicao || item.nome_completo).split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</div><div className="min-w-0"><h2 className="truncate text-xs font-bold text-foreground dark:text-slate-100 sm:text-sm">{item.nome_exibicao || item.nome_completo}</h2><p className="mt-1 truncate text-[10px] text-muted-foreground dark:text-slate-400">{item.funcoes?.length ? item.funcoes.map(formatarFuncao).join(" · ") : formatarFuncao(item.departamento || "Departamento não informado")}</p></div></div><span className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-bold ${["inativo", "inactive"].includes(String(item.status || "").toLowerCase()) ? "border-red-400/20 bg-red-400/10 text-red-300" : resumoFerias?.registros.some((registro) => registro.colaborador_id === item.id && registro.status === "aprovada" && registro.data_inicio <= hoje && registro.data_fim >= hoje) ? "border-amber-400/20 bg-amber-400/10 text-amber-300" : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"}`}>{["inativo", "inactive"].includes(String(item.status || "").toLowerCase()) ? "Inativo" : resumoFerias?.registros.some((registro) => registro.colaborador_id === item.id && registro.status === "aprovada" && registro.data_inicio <= hoje && registro.data_fim >= hoje) ? "Em férias" : "Ativo"}</span></div><div className="mt-3 grid grid-cols-3 gap-1.5 text-[9px]"><div className="rounded-md border border-border dark:border-white/[.05] bg-card dark:bg-[#111e32] p-2"><span className="block text-[7px] font-bold uppercase tracking-[.12em] text-slate-500">Área</span><strong className="mt-1 block truncate text-[9px] font-semibold text-foreground dark:text-slate-200">{item.departamento || "—"}</strong></div><div className="rounded-md border border-border dark:border-white/[.05] bg-card dark:bg-[#111e32] p-2"><span className="block text-[7px] font-bold uppercase tracking-[.12em] text-slate-500">Admissão</span><strong className="mt-1 block truncate text-[9px] font-semibold text-foreground dark:text-slate-200">{dataBr(item.data_admissao)}</strong></div><div className="rounded-md border border-border dark:border-white/[.05] bg-card dark:bg-[#111e32] p-2"><span className="block text-[7px] font-bold uppercase tracking-[.12em] text-slate-500">Exame</span><strong className="mt-1 block truncate text-[9px] font-semibold text-foreground dark:text-slate-200">{item.exame_admissional_realizado ? "Realizado" : "Pendente"}</strong></div></div><div className="mt-3 flex min-h-7 items-center border-t border-border dark:border-white/[.06] pt-2 text-[9px] text-muted-foreground dark:text-slate-400"><span className="truncate">Abrir ficha, documentos e extrato</span></div></article>)}</div>}
-    {formAberto && <FormularioColaborador inicial={editando} salvando={salvando} onCancel={() => { setFormAberto(false); setEditando(null); }} onSubmit={salvar} />}
-  </div>;
-}
-
-function FichaModal({ ficha, onClose }: { ficha: FichaColaborador; onClose: () => void }) { const { perfil } = ficha; return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"><section className={`${card} max-h-[92dvh] w-full max-w-5xl overflow-y-auto bg-background p-5`}><div className="flex items-start justify-between gap-4"><div><IndicadorPagina>Ficha de RH</IndicadorPagina><h2 className="mt-1 text-xl font-extrabold">{perfil.nome_exibicao || perfil.nome_completo}</h2><p className="mt-1 text-xs text-muted-foreground">{perfil.departamento || "Departamento não informado"} · {perfil.email}</p></div><Button type="button" variant="ghost" size="icon" onClick={onClose}><X size={17} /></Button></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Info label="CPF" value={perfil.cpf || "—"} /><Info label="RG / CANAC" value={`${perfil.rg || "—"} / ${perfil.canac || "—"}`} /><Info label="Telefone" value={perfil.telefone || "—"} /><Info label="Admissão" value={dataBr(perfil.data_admissao)} /></div><div className="mt-5 grid gap-4 lg:grid-cols-3"><Panel icon={<FileText size={14} />} title="Documentos"><ListEmpty items={ficha.documentos} empty="Nenhum documento enviado" render={(item) => <p><strong>{String(item.nome_arquivo || item.categoria || "Documento")}</strong><span>{dataBr(String(item.criado_em || ""))}</span></p>} /></Panel><Panel icon={<CalendarDays size={14} />} title="Férias"><ListEmpty items={ficha.ferias} empty="Nenhuma solicitação" render={(item) => <p><strong>{dataBr(item.data_inicio)} a {dataBr(item.data_fim)}</strong><span>{item.quantidade_dias} dias · {item.status}</span></p>} /></Panel><Panel icon={<WalletCards size={14} />} title="Extrato recebido"><ListEmpty items={ficha.recebimentos} empty="Nenhum recebimento localizado" render={(item) => <p><strong>{String(item.descricao || "Recebimento")}</strong><span>{brl(item.valor)} · {dataBr(String(item.data_despesa || item.data || item.criado_em || ""))}</span></p>} /></Panel></div><div className="mt-4 rounded-xl border border-border bg-card/50 p-4"><p className="mb-3 flex items-center gap-2 text-xs font-bold"><BriefcaseBusiness size={14} className="text-primary" /> Funções e lotação</p><div className="flex flex-wrap gap-2">{ficha.funcoes.length ? ficha.funcoes.map((item) => <span key={item.id} className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary">{item.funcao}</span>) : <span className="text-[10px] text-muted-foreground">Nenhuma função registrada.</span>}</div></div></section></div>; }
-function Info({ label: title, value }: { label: string; value: string }) { return <div className="rounded-lg border border-border bg-card/50 p-3"><span className="text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">{title}</span><strong className="mt-1 block truncate text-xs">{value}</strong></div>; }
-function Panel({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) { return <section className="overflow-hidden rounded-xl border border-border bg-card/50"><div className="flex items-center gap-2 border-b border-border px-4 py-3 text-xs font-bold">{icon}<span>{title}</span></div><div className="space-y-2 p-4">{children}</div></section>; }
-function ListEmpty({ items, empty, render }: { items: Array<any>; empty: string; render: (item: any) => React.ReactNode }) { return items.length ? items.slice(0, 5).map((item, index) => <div key={String(item.id || index)} className="border-b border-border/60 pb-2 text-[10px] last:border-0 last:pb-0">{render(item)}</div>) : <p className="text-[10px] text-muted-foreground">{empty}</p>; }
-function FormularioColaborador({ inicial, salvando, onCancel, onSubmit }: { inicial: ColaboradorGestao | null; salvando: boolean; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
-  const [departamento, setDepartamento] = useState(inicial?.departamentos_email || inicial?.departamento || "");
-  const [anexos, setAnexos] = useState(() => inicial ? [] : [{ id: crypto.randomUUID() }]);
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><form onSubmit={onSubmit} className={`${card} max-h-[92dvh] w-full max-w-2xl overflow-y-auto bg-background p-5`}><div className="flex items-start justify-between"><div><IndicadorPagina>{inicial ? "Editar cadastro" : "Novo usuário"}</IndicadorPagina><h2 className="mt-1 text-xl font-extrabold">{inicial ? "Editar colaborador" : "Criar acesso do colaborador"}</h2></div><button type="button" onClick={onCancel} className="rounded-md p-1 text-muted-foreground hover:text-foreground"><X size={17} /></button></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><label><span className={label}>Nome completo *</span><input name="nome_completo" required defaultValue={inicial?.nome_completo || ""} className={field} /></label><label><span className={label}>Nome de exibição</span><input name="nome_exibicao" defaultValue={inicial?.nome_exibicao || ""} className={field} /></label>{!inicial && <><label><span className={label}>E-mail *</span><div className="flex h-10 overflow-hidden rounded-lg border border-border bg-background/60 focus-within:border-primary/60"><input name="email" type="text" required placeholder="nome" className="min-w-0 flex-1 bg-transparent px-3 text-xs outline-none" /><span className="flex items-center border-l border-border px-3 text-xs text-muted-foreground">@share-brasil.com</span></div></label><label><span className={label}>Senha inicial *</span><input name="senha" type="password" required minLength={6} className={field} /></label></>}<label><span className={label}>Departamento</span><input type="hidden" name="departamento" value={departamento} /><input type="hidden" name="departamentos_email" value={departamento} /><SearchableCombobox items={departamentos.map((item) => ({ id: item, label: item }))} value={departamento} onChange={(value) => setDepartamento(value)} placeholder="Selecione o departamento" searchPlaceholder="Buscar departamento..." /></label><label><span className={label}>Telefone</span><input name="telefone" defaultValue={inicial?.telefone || ""} className={field} /></label><label><span className={label}>Cidade</span><input name="cidade" defaultValue={inicial?.cidade || ""} className={field} /></label><label><span className={label}>UF</span><input name="uf" maxLength={2} defaultValue={inicial?.uf || ""} className={field} /></label><label><span className={label}>Data de nascimento</span><input name="data_nascimento" type="date" defaultValue={inicial?.data_nascimento?.slice(0, 10) || ""} className={field} /></label><label><span className={label}>Data de admissão</span><input name="data_admissao" type="date" defaultValue={inicial?.data_admissao?.slice(0, 10) || ""} className={field} /></label><label><span className={label}>CPF</span><input name="cpf" defaultValue={inicial?.cpf || ""} className={field} /></label><label><span className={label}>RG</span><input name="rg" defaultValue={inicial?.rg || ""} className={field} /></label><label><span className={label}>CANAC</span><input name="canac" defaultValue={inicial?.canac || ""} className={field} /></label>{inicial && <label><span className={label}>Status</span><select name="status" defaultValue={inicial.status || "ativo"} className={field}><option value="ativo">Ativo</option><option value="inativo">Inativo</option><option value="ferias">Férias</option></select></label>}<div className="sm:col-span-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3"><div className="mb-3"><span className={label}>RH · Exame admissional</span><p className="text-[9px] text-muted-foreground">Informe a situação do exame. O comprovante será salvo em documentos_colaboradores.</p></div><div className="grid gap-3 sm:grid-cols-2"><label><span className={label}>Exame realizado?</span><select name="exame_admissional_realizado" defaultValue={inicial?.exame_admissional_realizado ? "1" : "0"} className={field}><option value="0">Não — exame pendente</option><option value="1">Sim — exame realizado</option></select></label><label><span className={label}>Prazo para realizar (se pendente)</span><input name="exame_admissional_prazo" type="date" defaultValue={inicial?.exame_admissional_prazo?.slice(0, 10) || ""} className={field} /></label><label><span className={label}>Data do exame</span><input name="exame_admissional_data" type="date" defaultValue={inicial?.exame_admissional_data?.slice(0, 10) || ""} className={field} /></label><label><span className={label}>Local</span><input name="exame_admissional_local" defaultValue={inicial?.exame_admissional_local || ""} placeholder="Clínica ou endereço" className={field} /></label><label><span className={label}>Nome da empresa</span><input name="exame_admissional_empresa" defaultValue={inicial?.exame_admissional_empresa || ""} placeholder="Empresa responsável" className={field} /></label><label><span className={label}>{inicial?.exame_admissional_documento_id ? "Substituir comprovante (PDF)" : "Anexar comprovante (PDF)"}</span><input name="exame_admissional_arquivo" type="file" accept="application/pdf" className="h-10 w-full cursor-pointer rounded-lg border border-border bg-background/60 px-2 py-2 text-[10px]" /></label></div>{!inicial?.exame_admissional_realizado && <p className="mt-2 text-[10px] font-semibold text-amber-200">O exame admissional precisa ser realizado até o prazo informado.</p>}</div>{!inicial && <div className="sm:col-span-2 rounded-lg border border-border bg-card/40 p-3"><div className="mb-2 flex items-center justify-between"><div><span className={label}>Documentos iniciais</span><p className="text-[9px] text-muted-foreground">Escolha um arquivo, defina o nome que será salvo e adicione quantos precisar.</p></div><Button type="button" variant="outline" onClick={() => setAnexos((items) => [...items, { id: crypto.randomUUID() }])} className="h-8 gap-1 px-2 text-[10px]"><Plus size={13} /> Anexar outro</Button></div><div className="space-y-2">{anexos.map((anexo, index) => <div key={anexo.id} className="grid gap-2 sm:grid-cols-[1.2fr_1fr_auto]"><input name={`documento_nome_${anexo.id}`} placeholder={`Nome do documento ${index + 1} (ex.: RG frente)`} className={field} /><input name={`documento_arquivo_${anexo.id}`} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="h-10 w-full cursor-pointer rounded-lg border border-border bg-background/60 px-2 py-2 text-[10px]" />{anexos.length > 1 && <Button type="button" variant="ghost" onClick={() => setAnexos((items) => items.filter((item) => item.id !== anexo.id))} className="h-10 px-2 text-red-300" aria-label="Remover anexo">×</Button>}</div>)}</div><p className="mt-2 text-[9px] text-muted-foreground">PDF, JPG, PNG ou WEBP; até 10 MB por arquivo. Se o nome ficar vazio, será usado o nome original.</p></div>}</div><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={onCancel} className="h-9 text-[11px]">Cancelar</Button><Button type="submit" disabled={salvando} className="h-9 gap-2 text-[11px]"><UserPlus size={14} /> {salvando ? "Salvando..." : inicial ? "Salvar" : "Criar usuário"}</Button></div></form></div>;
+  const formulario = formAberto && (
+    <FormularioColaborador
+      inicial={editando}
+      salvando={salvando}
+      erro={erroForm}
+      parcial={parcial}
+      onCancel={fecharFormulario}
+      onSave={salvar}
+    />
+  );
+  if (ficha)
+    return (
+      <div className="rh rh-enter">
+        {aviso && (
+          <AvisoGestao onClose={() => setAviso("")}>{aviso}</AvisoGestao>
+        )}
+        <FichaColaboradorAbas
+          key={ficha.perfil.id}
+          ficha={ficha}
+          onClose={() => {
+            setFicha(null);
+            requestAnimationFrame(() =>
+              document
+                .querySelector<HTMLElement>(
+                  `[data-colaborador-ficha="${CSS.escape(retornoFoco.current)}"]`,
+                )
+                ?.focus(),
+            );
+          }}
+          onEdit={() =>
+            abrirFormulario({
+              ...ficha.perfil,
+              funcoes: ficha.funcoes.map((f) => f.funcao),
+            })
+          }
+        />
+        {formulario}
+      </div>
+    );
+  return (
+    <div className="rh rh-enter">
+      <header className="rh-top">
+        <div>
+          <p className="rh-eyebrow">Share Brasil / Pessoas</p>
+          <h1>Gestão de Colaboradores</h1>
+          <p className="rh-subtitle">
+            Sua equipe, os cadastros e as informações de RH em um só lugar.
+          </p>
+        </div>
+        <div className="rh-actions">
+          <button
+            type="button"
+            className="rh-btn rh-icon-btn"
+            onClick={() => {
+              void carregar();
+              carregarResumo();
+            }}
+            disabled={carregando}
+            aria-label="Atualizar colaboradores"
+          >
+            <RefreshCw size={16} className={carregando ? "rh-spin" : ""} />
+          </button>
+          <button
+            type="button"
+            className="rh-btn rh-btn-primary"
+            onClick={() => abrirFormulario()}
+          >
+            <Plus size={17} /> Novo colaborador
+          </button>
+        </div>
+      </header>
+      <section className="rh-metrics" aria-label="Resumo da equipe">
+        {indicadores.map(({ titulo, valor, detalhe, icon: Icon }) => (
+          <div className="rh-metric" key={titulo}>
+            <div className="rh-metric-top">
+              <span>{titulo}</span>
+              <span className="rh-metric-icon">
+                <Icon size={16} />
+              </span>
+            </div>
+            <strong>{valor}</strong>
+            <small>{detalhe}</small>
+          </div>
+        ))}
+      </section>
+      {erro && (
+        <AvisoGestao erro onClose={() => setErro("")}>
+          {erro}
+        </AvisoGestao>
+      )}
+      {aviso && <AvisoGestao onClose={() => setAviso("")}>{aviso}</AvisoGestao>}
+      <div className="rh-workspace">
+        <section className="rh-panel" aria-label="Diretório de colaboradores">
+          <div className="rh-panel-head">
+            <div>
+              <h2>Equipe Share Brasil</h2>
+              <p>Cadastro e acompanhamento dos colaboradores</p>
+            </div>
+            <div className="rh-view" aria-label="Visualização">
+              <button
+                type="button"
+                aria-label="Visualizar em lista"
+                aria-pressed={visual === "lista"}
+                onClick={() => setVisual("lista")}
+              >
+                <List size={17} />
+              </button>
+              <button
+                type="button"
+                aria-label="Visualizar em cartões"
+                aria-pressed={visual === "cards"}
+                onClick={() => setVisual("cards")}
+              >
+                <LayoutGrid size={17} />
+              </button>
+            </div>
+          </div>
+          <div className="rh-tabs" aria-label="Situação dos colaboradores">
+            <button
+              type="button"
+              aria-pressed={aba === "ativos"}
+              onClick={() => setAba("ativos")}
+            >
+              Ativos<span className="rh-count">{ativos.length}</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={aba === "inativos"}
+              onClick={() => setAba("inativos")}
+            >
+              Inativos
+              <span className="rh-count">
+                {colaboradores.length - ativos.length}
+              </span>
+            </button>
+          </div>
+          <div className="rh-toolbar">
+            <label className="rh-search">
+              <Search size={17} />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar nome, e-mail ou departamento"
+                aria-label="Buscar colaboradores"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  aria-label="Limpar busca"
+                  onClick={() => setBusca("")}
+                >
+                  ×
+                </button>
+              )}
+            </label>
+            <select
+              className="rh-select"
+              aria-label="Filtrar departamento"
+              value={departamento}
+              onChange={(e) => setDepartamento(e.target.value)}
+            >
+              <option value="">Todos os departamentos</option>
+              {departamentos.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </select>
+            <select
+              className="rh-select"
+              aria-label="Ordenar colaboradores"
+              value={ordem}
+              onChange={(e) => setOrdem(e.target.value)}
+            >
+              <option value="nome">Nome: A–Z</option>
+              <option value="admissao">Admissão recente</option>
+            </select>
+          </div>
+          {carregando ? (
+            <div
+              className="rh-loading"
+              role="status"
+              aria-label="Carregando colaboradores"
+            >
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="rh-skeleton" />
+              ))}
+            </div>
+          ) : !filtrados.length ? (
+            <VazioColaboradores
+              titulo={
+                busca || departamento
+                  ? "Nenhum resultado para os filtros"
+                  : aba === "inativos"
+                    ? "Nenhum colaborador inativo"
+                    : "Sua equipe começa aqui"
+              }
+              detalhe={
+                busca || departamento
+                  ? "Tente outro nome ou selecione outro departamento."
+                  : aba === "ativos"
+                    ? "Adicione o primeiro colaborador para organizar os cadastros."
+                    : undefined
+              }
+              acao={
+                busca || departamento ? (
+                  <button
+                    type="button"
+                    className="rh-btn"
+                    onClick={() => {
+                      setBusca("");
+                      setDepartamento("");
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                ) : aba === "ativos" ? (
+                  <button
+                    type="button"
+                    className="rh-btn rh-btn-primary"
+                    onClick={() => abrirFormulario()}
+                  >
+                    <Plus size={16} /> Novo colaborador
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : visual === "lista" ? (
+            <div className="rh-table-wrap">
+              <table className="rh-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Colaborador</th>
+                    <th scope="col">Departamento</th>
+                    <th scope="col">Admissão</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Exame</th>
+                    <th scope="col">
+                      <span className="sr-only">Abrir ficha</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exibidos.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className="rh-person"
+                          data-colaborador-ficha={item.id}
+                          disabled={Boolean(abrindo)}
+                          onClick={() => void abrirFicha(item)}
+                        >
+                          <AvatarColaborador
+                            nome={nomeColaborador(item)}
+                            url={item.url_avatar}
+                            colaboradorId={item.id}
+                          />
+                          <span>
+                            <strong>{nomeColaborador(item)}</strong>
+                            <small>{item.email}</small>
+                          </span>
+                        </button>
+                      </td>
+                      <td>
+                        {item.departamento || (
+                          <span className="rh-text-muted">Não informado</span>
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {dataBr(item.data_admissao)}
+                      </td>
+                      <td>{status(item)}</td>
+                      <td>
+                        <StatusColaborador
+                          tom={
+                            item.exame_admissional_realizado ? "verde" : "ambar"
+                          }
+                        >
+                          {item.exame_admissional_realizado
+                            ? "Realizado"
+                            : "Pendente"}
+                        </StatusColaborador>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="rh-btn rh-icon-btn"
+                          disabled={Boolean(abrindo)}
+                          aria-label={`Abrir ficha de ${nomeColaborador(item)}`}
+                          onClick={() => void abrirFicha(item)}
+                        >
+                          {abrindo === item.id ? (
+                            <Loader2 size={16} className="rh-spin" />
+                          ) : (
+                            <ArrowRight size={16} />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rh-grid rh-enter">
+              {exibidos.map((item) => (
+                <button
+                  type="button"
+                  className="rh-person-card"
+                  data-colaborador-ficha={item.id}
+                  key={item.id}
+                  onClick={() => void abrirFicha(item)}
+                  disabled={Boolean(abrindo)}
+                >
+                  <span className="rh-person">
+                    <AvatarColaborador
+                      nome={nomeColaborador(item)}
+                      url={item.url_avatar}
+                      colaboradorId={item.id}
+                    />
+                    <span>
+                      <strong>{nomeColaborador(item)}</strong>
+                      <small>
+                        {item.departamento || "Departamento não informado"}
+                      </small>
+                    </span>
+                  </span>
+                  {status(item)}
+                  <span
+                    className="rh-inline-meta"
+                    style={{ overflowWrap: "anywhere" }}
+                  >
+                    {item.email}
+                  </span>
+                  <span className="rh-person-card-bottom">
+                    <span>Admissão {dataBr(item.data_admissao)}</span>
+                    {abrindo === item.id ? (
+                      <Loader2 size={16} className="rh-spin" />
+                    ) : (
+                      <ArrowRight size={16} />
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <footer className="rh-footer">
+            <span role="status">
+              {filtrados.length
+                ? `${(paginaAtual - 1) * 12 + 1}–${Math.min(paginaAtual * 12, filtrados.length)} de ${filtrados.length} colaboradores`
+                : "0 colaboradores"}
+            </span>
+            <div className="rh-actions">
+              <button
+                type="button"
+                className="rh-btn rh-icon-btn"
+                aria-label="Página anterior"
+                disabled={paginaAtual <= 1}
+                onClick={() => setPagina((p) => p - 1)}
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span>
+                {paginaAtual} / {totalPaginas}
+              </span>
+              <button
+                type="button"
+                className="rh-btn rh-icon-btn"
+                aria-label="Próxima página"
+                disabled={paginaAtual >= totalPaginas}
+                onClick={() => setPagina((p) => p + 1)}
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </footer>
+        </section>
+        <aside className="rh-side">
+          <section className="rh-panel">
+            <header className="rh-panel-head">
+              <h2>Equipe por departamento</h2>
+              <Users size={16} className="rh-text-muted" />
+            </header>
+            <div className="rh-side-body">
+              {grupos.length ? (
+                grupos.map((g) => (
+                  <button
+                    type="button"
+                    style={{ textAlign: "left" }}
+                    key={g.nome}
+                    onClick={() => {
+                      setDepartamento(g.nome);
+                      setAba("ativos");
+                    }}
+                  >
+                    <span className="rh-bar-label">
+                      <span>{g.nome}</span>
+                      <strong>{g.total}</strong>
+                    </span>
+                    <span className="rh-bar">
+                      <span
+                        style={{
+                          width: `${(g.total / Math.max(ativos.length, 1)) * 100}%`,
+                        }}
+                      />
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="rh-side-note">
+                  {carregando
+                    ? "Carregando equipe..."
+                    : "Nenhum departamento informado."}
+                </p>
+              )}
+            </div>
+          </section>
+          <section className="rh-panel">
+            <header className="rh-panel-head">
+              <div>
+                <h2>Aniversariantes</h2>
+                <p>
+                  {new Date().toLocaleDateString("pt-BR", { month: "long" })}
+                </p>
+              </div>
+              <Gift size={17} className="rh-text-muted" />
+            </header>
+            <div className="rh-side-body">
+              {aniversarios.length ? (
+                aniversarios.map((p) => (
+                  <button
+                    type="button"
+                    className="rh-person"
+                    style={{ minWidth: 0 }}
+                    key={p.id}
+                    disabled={Boolean(abrindo)}
+                    onClick={() => void abrirFicha(p)}
+                  >
+                    <AvatarColaborador
+                      nome={nomeColaborador(p)}
+                      url={p.url_avatar}
+                      colaboradorId={p.id}
+                    />
+                    <span>
+                      <strong>{nomeColaborador(p)}</strong>
+                      <small>Dia {p.data_nascimento!.slice(8, 10)}</small>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="rh-side-note">
+                  {carregando
+                    ? "Carregando aniversariantes..."
+                    : "Nenhum aniversário informado neste mês."}
+                </p>
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
+      {formulario}
+    </div>
+  );
 }

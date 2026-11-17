@@ -1,130 +1,909 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CalendarDays, ChevronDown, Download, Eye, FileText, FolderOpen, Image as ImageIcon, Loader2, Pencil, Trash2, Upload, WalletCards, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { EtiquetaStatus, EstadoVazio, IndicadorPagina } from "@/components/dashboard/ComponentesDashboard";
-import { atualizarDocumentoGestao, carregarDocumentoGestao, excluirDocumentoGestao, enviarDocumentoGestao, type FichaColaborador } from "@/lib/colaborador-api";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  CalendarDays,
+  Download,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Trash2,
+  Upload,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
+import {
+  atualizarDocumentoGestao,
+  carregarDocumentoGestao,
+  excluirDocumentoGestao,
+  enviarDocumentoGestao,
+  type FichaColaborador,
+} from "@/lib/colaborador-api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  brl,
+  dataBr,
+  formatarFuncao,
+  hojeLocal,
+  inativo,
+  mensagemGestao,
+  nomeColaborador,
+  validarArquivo,
+} from "@/lib/gestao-colaboradores";
+import {
+  AvatarColaborador,
+  AvisoGestao,
+  DadoFicha,
+  StatusColaborador,
+  VazioColaboradores,
+} from "@/components/colaboradores/ComponentesColaboradores";
+import "@/components/colaboradores/colaboradores.css";
 
-const card = "rounded-xl border border-border bg-card/80 shadow-sm";
-const dataBr = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR") : "—";
-const brl = (value: unknown) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) || 0);
-
-type DocumentoFicha = FichaColaborador["documentos"][number];
-
-type GrupoTemporalProps<T> = {
-  items: T[];
-  dateFor: (item: T) => string;
-  empty: string;
-  render: (item: T) => ReactNode;
-  compact?: boolean;
-};
-
-export function FichaColaboradorAbas({ ficha, onClose, onEdit }: { ficha: FichaColaborador; onClose: () => void; onEdit: () => void }) {
+type Documento = FichaColaborador["documentos"][number];
+export function FichaColaboradorAbas({
+  ficha,
+  onClose,
+  onEdit,
+}: {
+  ficha: FichaColaborador;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
   const { perfil } = ficha;
-
-  return <section className={`${card} route-enter mt-6 w-full bg-background p-5`}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <IndicadorPagina>Ficha de RH</IndicadorPagina>
-          <h2 className="mt-1 text-xl font-extrabold">{perfil.nome_exibicao || perfil.nome_completo}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{perfil.departamento || "Departamento não informado"} · {perfil.email}</p>
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={onEdit} className="h-8 gap-1.5 px-3 text-[10px]"><Pencil size={12} /> Editar informações</Button><Button type="button" variant="outline" onClick={onClose} className="h-8 gap-1.5 px-3 text-[10px]"><X size={14} /> Voltar para colaboradores</Button></div>
-      </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Info label="CPF" value={perfil.cpf || "—"} />
-        <Info label="RG / CANAC" value={`${perfil.rg || "—"} / ${perfil.canac || "—"}`} />
-        <Info label="Telefone" value={perfil.telefone || "—"} />
-        <Info label="Admissão" value={dataBr(perfil.data_admissao)} />
-      </div>
-      <Tabs defaultValue="documentos" className="mt-5">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl bg-secondary/50 p-1">
-          <TabsTrigger value="documentos" className="h-10 gap-2 text-[10px] data-[state=active]:bg-background"><FileText size={14} /> Documentos</TabsTrigger>
-          <TabsTrigger value="ferias" className="h-10 gap-2 text-[10px] data-[state=active]:bg-background"><CalendarDays size={14} /> Férias</TabsTrigger>
-          <TabsTrigger value="extrato" className="h-10 gap-2 text-[10px] data-[state=active]:bg-background"><WalletCards size={14} /> Extrato recebido</TabsTrigger>
-        </TabsList>
-        <TabsContent value="documentos"><DocumentosColaborador documentos={ficha.documentos} colaboradorId={perfil.id} /></TabsContent>
-        <TabsContent value="ferias"><PastasTemporais items={ficha.ferias} dateFor={(item) => item.data_inicio} empty="Nenhuma solicitação de férias encontrada" render={(item) => <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold">{dataBr(item.data_inicio)} a {dataBr(item.data_fim)}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.observacoes || "Sem observações"}</p></div><div className="flex items-center gap-3"><span className="font-mono text-[10px] text-primary">{item.quantidade_dias} dias</span><EtiquetaStatus tone={item.status === "aprovada" ? "green" : item.status === "solicitada" ? "amber" : item.status === "reprovada" ? "red" : "neutral"}>{item.status}</EtiquetaStatus></div></div>} /></TabsContent>
-        <TabsContent value="extrato"><PastasTemporais items={ficha.recebimentos} dateFor={(item) => String(item.data_vencimento || item.vencimento || item.data || item.criado_em || "")} empty="Nenhum recebimento encontrado" render={(item) => { const status = String(item.status || ""); const pago = Boolean(item.data_pagamento); return <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold">{String(item.descricao || item.tipo || "Recebimento")}</p><p className="mt-1 text-[10px] text-muted-foreground">Vencimento: {dataBr(String(item.data_vencimento || item.vencimento || item.data || item.criado_em || ""))}{pago ? ` · Pagamento: ${dataBr(String(item.data_pagamento))}` : ""}{item.observacoes ? ` · ${String(item.observacoes)}` : ""}</p></div><div className="text-right"><p className="font-mono text-xs font-bold text-emerald-500">{brl(item.valor)}</p><EtiquetaStatus tone={status.toLowerCase() === "pago" || pago ? "green" : status.toLowerCase() === "cancelado" ? "red" : "amber"}>{status || "Registrado"}</EtiquetaStatus></div></div> }} /></TabsContent>
+  const hoje = hojeLocal();
+  const feriasAtuais =
+    ficha.ferias.some(
+      (f) =>
+        f.status.toLowerCase() === "aprovada" &&
+        f.data_inicio <= hoje &&
+        f.data_fim >= hoje,
+    ) || perfil.status?.toLowerCase() === "ferias";
+  return (
+    <div>
+      <button type="button" className="rh-profile-back" onClick={onClose}>
+        <ArrowLeft size={15} /> Todos os colaboradores
+      </button>
+      <Tabs defaultValue="pessoal">
+        <section className="rh-panel rh-profile-header">
+          <div className="rh-profile-identity">
+            <div className="rh-profile-name">
+              <AvatarColaborador
+                nome={nomeColaborador(perfil)}
+                url={perfil.url_avatar}
+                colaboradorId={perfil.id}
+                grande
+              />
+              <div>
+                <StatusColaborador
+                  tom={
+                    inativo(perfil.status)
+                      ? "neutro"
+                      : feriasAtuais
+                        ? "ambar"
+                        : "verde"
+                  }
+                >
+                  {inativo(perfil.status)
+                    ? "Inativo"
+                    : feriasAtuais
+                      ? "Em férias"
+                      : "Ativo"}
+                </StatusColaborador>
+                <h1 id="rh-perfil-titulo" tabIndex={-1}>
+                  {nomeColaborador(perfil)}
+                </h1>
+                <div className="rh-profile-contact">
+                  <span>
+                    {perfil.departamento || "Departamento não informado"}
+                  </span>
+                  <a href={`mailto:${perfil.email}`}>
+                    <Mail size={13} />
+                    {perfil.email}
+                  </a>
+                  {perfil.telefone && (
+                    <a href={`tel:${perfil.telefone.replace(/[^+\d]/g, "")}`}>
+                      <Phone size={13} />
+                      {perfil.telefone}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button type="button" className="rh-btn" onClick={onEdit}>
+              <Pencil size={15} /> Editar cadastro
+            </button>
+          </div>
+          <TabsList
+            className="rh-profile-tabs"
+            aria-label="Informações do colaborador"
+          >
+            <TabsTrigger value="pessoal" className="rh-profile-tab">
+              <UserRound size={15} /> Dados pessoais
+            </TabsTrigger>
+            <TabsTrigger value="profissional" className="rh-profile-tab">
+              <BriefcaseBusiness size={15} /> Profissional
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="rh-profile-tab">
+              <FolderOpen size={15} /> Documentos
+            </TabsTrigger>
+            <TabsTrigger value="ferias" className="rh-profile-tab">
+              <CalendarDays size={15} /> Férias
+            </TabsTrigger>
+            <TabsTrigger value="extrato" className="rh-profile-tab">
+              <WalletCards size={15} /> Extrato recebido
+            </TabsTrigger>
+          </TabsList>
+        </section>
+        <TabsContent value="pessoal" className="rh-profile-content rh-enter">
+          <div className="rh-profile-layout">
+            <div>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <h2>Informações pessoais</h2>
+                  <UserRound size={16} className="rh-text-muted" />
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha
+                    titulo="Nome completo"
+                    valor={perfil.nome_completo}
+                  />
+                  <DadoFicha
+                    titulo="Nome de exibição"
+                    valor={perfil.nome_exibicao}
+                  />
+                  <DadoFicha
+                    titulo="Data de nascimento"
+                    valor={dataBr(perfil.data_nascimento)}
+                  />
+                  <DadoFicha titulo="CPF" valor={perfil.cpf} />
+                  <DadoFicha titulo="RG" valor={perfil.rg} />
+                  <DadoFicha titulo="CANAC" valor={perfil.canac} />
+                </dl>
+              </section>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <h2>Contato e localização</h2>
+                  <MapPin size={16} className="rh-text-muted" />
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha titulo="E-mail" valor={perfil.email} />
+                  <DadoFicha titulo="Telefone" valor={perfil.telefone} />
+                  <DadoFicha
+                    titulo="Cidade / UF"
+                    valor={[perfil.cidade, perfil.uf]
+                      .filter(Boolean)
+                      .join(" / ")}
+                  />
+                </dl>
+              </section>
+            </div>
+            <ResumoVinculo ficha={ficha} />
+          </div>
+        </TabsContent>
+        <TabsContent
+          value="profissional"
+          className="rh-profile-content rh-enter"
+        >
+          <div className="rh-profile-layout">
+            <div>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <h2>Vínculo com a Share Brasil</h2>
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha
+                    titulo="Departamento"
+                    valor={perfil.departamento}
+                  />
+                  <DadoFicha
+                    titulo="Data de admissão"
+                    valor={dataBr(perfil.data_admissao)}
+                  />
+                  <DadoFicha
+                    titulo="Situação"
+                    valor={
+                      inativo(perfil.status)
+                        ? "Inativo"
+                        : feriasAtuais
+                          ? "Em férias"
+                          : "Ativo"
+                    }
+                  />
+                </dl>
+                <div style={{ padding: "0 23px 23px" }}>
+                  <p className="rh-inline-meta" style={{ marginBottom: 9 }}>
+                    Funções no sistema
+                  </p>
+                  <div className="rh-actions">
+                    {ficha.funcoes.length ? (
+                      ficha.funcoes.map((f) => (
+                        <StatusColaborador key={f.id} tom="azul">
+                          {formatarFuncao(f.funcao)}
+                        </StatusColaborador>
+                      ))
+                    ) : (
+                      <p className="rh-inline-meta">
+                        Nenhuma função cadastrada.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <h2>Exame admissional</h2>
+                  <StatusColaborador
+                    tom={perfil.exame_admissional_realizado ? "verde" : "ambar"}
+                  >
+                    {perfil.exame_admissional_realizado
+                      ? "Realizado"
+                      : "Pendente"}
+                  </StatusColaborador>
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha
+                    titulo="Data do exame"
+                    valor={dataBr(perfil.exame_admissional_data)}
+                  />
+                  <DadoFicha
+                    titulo="Local"
+                    valor={perfil.exame_admissional_local}
+                  />
+                  <DadoFicha
+                    titulo="Empresa responsável"
+                    valor={perfil.exame_admissional_empresa}
+                  />
+                  <DadoFicha
+                    titulo="Prazo para realizar"
+                    valor={dataBr(perfil.exame_admissional_prazo)}
+                  />
+                  <DadoFicha
+                    titulo="Comprovante"
+                    valor={
+                      perfil.exame_admissional_documento_id
+                        ? "Anexado em documentos"
+                        : "Não anexado"
+                    }
+                  />
+                </dl>
+              </section>
+            </div>
+            <ResumoVinculo ficha={ficha} />
+          </div>
+        </TabsContent>
+        <TabsContent value="documentos" className="rh-profile-content rh-enter">
+          <DocumentosColaborador
+            documentos={ficha.documentos}
+            colaboradorId={perfil.id}
+          />
+        </TabsContent>
+        <TabsContent value="ferias" className="rh-profile-content rh-enter">
+          <section className="rh-panel">
+            <header className="rh-panel-head">
+              <div>
+                <h2>Histórico de férias</h2>
+                <p>{ficha.ferias.length} solicitação(ões)</p>
+              </div>
+              <CalendarDays size={17} className="rh-text-muted" />
+            </header>
+            {ficha.ferias.length ? (
+              <div className="rh-table-wrap">
+                <table className="rh-table">
+                  <thead>
+                    <tr>
+                      <th>Período</th>
+                      <th>Dias</th>
+                      <th>Situação</th>
+                      <th>Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ficha.ferias.map((f) => (
+                      <tr key={f.id}>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {dataBr(f.data_inicio)} a {dataBr(f.data_fim)}
+                        </td>
+                        <td>{f.quantidade_dias}</td>
+                        <td>
+                          <StatusColaborador
+                            tom={
+                              f.status === "aprovada"
+                                ? "verde"
+                                : f.status === "solicitada"
+                                  ? "ambar"
+                                  : f.status === "reprovada"
+                                    ? "vermelho"
+                                    : "neutro"
+                            }
+                          >
+                            {{
+                              aprovada: "Aprovada",
+                              solicitada: "Solicitada",
+                              reprovada: "Reprovada",
+                              cancelada: "Cancelada",
+                            }[f.status] || f.status}
+                          </StatusColaborador>
+                        </td>
+                        <td>{f.motivo_reprovacao || f.observacoes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <VazioColaboradores
+                titulo="Nenhuma solicitação de férias"
+                detalhe="As solicitações deste colaborador aparecerão aqui."
+              />
+            )}
+          </section>
+        </TabsContent>
+        <TabsContent value="extrato" className="rh-profile-content rh-enter">
+          <section className="rh-panel">
+            <header className="rh-panel-head">
+              <div>
+                <h2>Extrato do colaborador</h2>
+                <p>Últimos {ficha.recebimentos.length} registros disponíveis</p>
+              </div>
+              <WalletCards size={17} className="rh-text-muted" />
+            </header>
+            {ficha.recebimentos.length ? (
+              <div className="rh-table-wrap">
+                <table className="rh-table">
+                  <thead>
+                    <tr>
+                      <th>Descrição</th>
+                      <th>Vencimento</th>
+                      <th>Pagamento</th>
+                      <th>Situação</th>
+                      <th style={{ textAlign: "right" }}>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ficha.recebimentos.map((r) => {
+                      const status = String(r.status || "").toLowerCase();
+                      const pago =
+                        Boolean(r.data_pagamento) || status === "pago";
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <strong>
+                              {r.descricao || r.tipo || "Recebimento"}
+                            </strong>
+                            {r.observacoes && (
+                              <p className="rh-inline-meta">{r.observacoes}</p>
+                            )}
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {dataBr(
+                              String(
+                                r.data_vencimento ||
+                                  r.vencimento ||
+                                  r.data ||
+                                  "",
+                              ),
+                            )}
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {dataBr(r.data_pagamento)}
+                          </td>
+                          <td>
+                            <StatusColaborador
+                              tom={
+                                status === "cancelado"
+                                  ? "neutro"
+                                  : pago
+                                    ? "verde"
+                                    : "ambar"
+                              }
+                            >
+                              {status === "cancelado"
+                                ? "Cancelado"
+                                : pago
+                                  ? "Pago"
+                                  : status === "pendente"
+                                    ? "Pendente"
+                                    : String(r.status || "Registrado").replace(
+                                        /_/g,
+                                        " ",
+                                      )}
+                            </StatusColaborador>
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {brl(r.valor)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <VazioColaboradores
+                titulo="Nenhum recebimento disponível"
+                detalhe="Os registros financeiros vinculados ao colaborador aparecerão aqui."
+              />
+            )}
+          </section>
+        </TabsContent>
       </Tabs>
-    </section>;
+    </div>
+  );
 }
-
-function Info({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg border border-border bg-card/50 p-3"><span className="text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">{label}</span><strong className="mt-1 block truncate text-xs">{value}</strong></div>;
+function ResumoVinculo({ ficha }: { ficha: FichaColaborador }) {
+  return (
+    <aside className="rh-panel">
+      <header className="rh-panel-head">
+        <h2>Na Share Brasil</h2>
+        <BriefcaseBusiness size={16} className="rh-text-muted" />
+      </header>
+      <dl className="rh-side-body">
+        <DadoFicha
+          titulo="Admissão"
+          valor={dataBr(ficha.perfil.data_admissao)}
+        />
+        <DadoFicha titulo="Departamento" valor={ficha.perfil.departamento} />
+        <DadoFicha
+          titulo="Exame admissional"
+          valor={
+            <StatusColaborador
+              tom={ficha.perfil.exame_admissional_realizado ? "verde" : "ambar"}
+            >
+              {ficha.perfil.exame_admissional_realizado
+                ? "Realizado"
+                : "Pendente"}
+            </StatusColaborador>
+          }
+        />
+      </dl>
+    </aside>
+  );
 }
-
-function DocumentosColaborador({ documentos: documentosIniciais, colaboradorId }: { documentos: DocumentoFicha[]; colaboradorId: string }) {
-  const [documentos, setDocumentos] = useState<DocumentoFicha[]>(documentosIniciais);
-  const [selecionado, setSelecionado] = useState<DocumentoFicha | null>(documentosIniciais[0] || null);
-  const [previewUrl, setPreviewUrl] = useState("");
+function DocumentosColaborador({
+  documentos: iniciais,
+  colaboradorId,
+}: {
+  documentos: Documento[];
+  colaboradorId: string;
+}) {
+  const [documentos, setDocumentos] = useState(iniciais);
+  const [selecionado, setSelecionado] = useState<Documento | null>(
+    iniciais[0] || null,
+  );
+  const [preview, setPreview] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
-  const [categoria, setCategoria] = useState("documentos");
-  const [arquivo, setArquivo] = useState<File | undefined>();
+  const [erroPreview, setErroPreview] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [arquivo, setArquivo] = useState<File>();
+  const [uploader, setUploader] = useState(false);
   const [editando, setEditando] = useState(false);
-
-  useEffect(() => { setDocumentos(documentosIniciais); setSelecionado(documentosIniciais[0] || null); }, [documentosIniciais]);
+  const [excluir, setExcluir] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const trava = useRef(false);
   useEffect(() => {
-    let ativo = true; let url = "";
-    setPreviewUrl(""); setErro("");
-    if (!selecionado) return () => undefined;
-    setCarregando(true);
-    void carregarDocumentoGestao(colaboradorId, String(selecionado.id)).then((blob) => { if (!ativo) return; url = URL.createObjectURL(blob); setPreviewUrl(url); }).catch((cause) => { if (ativo) setErro(cause instanceof Error ? cause.message : "Não foi possível abrir o documento."); }).finally(() => { if (ativo) setCarregando(false); });
-    return () => { ativo = false; if (url) URL.revokeObjectURL(url); };
-  }, [colaboradorId, selecionado]);
-
-  const mime = String(selecionado?.mime_type || selecionado?.tipo_arquivo || "").toLowerCase();
-  const baixar = () => { if (!previewUrl || !selecionado) return; const anchor = document.createElement("a"); anchor.href = previewUrl; anchor.download = selecionado.nome_arquivo || "documento"; anchor.click(); };
+    setDocumentos(iniciais);
+    setSelecionado(iniciais[0] || null);
+  }, [iniciais]);
+  useEffect(() => {
+    let ativo = true;
+    let url = "";
+    setPreview("");
+    setErroPreview("");
+    setExcluir(false);
+    setCarregando(Boolean(selecionado));
+    if (!selecionado) return;
+    void carregarDocumentoGestao(colaboradorId, String(selecionado.id))
+      .then((blob) => {
+        if (!ativo) return;
+        url = URL.createObjectURL(blob);
+        setPreview(url);
+      })
+      .catch((cause) => {
+        if (ativo)
+          setErroPreview(
+            mensagemGestao(
+              cause,
+              "Não foi possível abrir este arquivo. Tente novamente.",
+            ),
+          );
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+    return () => {
+      ativo = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [colaboradorId, selecionado, tentativa]);
+  const limpar = () => {
+    setUploader(false);
+    setEditando(false);
+    setArquivo(undefined);
+    setCategoria("");
+    setErro("");
+    if (fileRef.current) fileRef.current.value = "";
+  };
   const salvar = async () => {
-    if (!arquivo && !editando) return setErro("Selecione um arquivo para enviar.");
-    setSalvando(true); setErro("");
+    if (trava.current) return;
+    if (!arquivo && !editando) {
+      setErro("Selecione um arquivo para enviar.");
+      return;
+    }
+    if (arquivo) {
+      const issue = validarArquivo(arquivo);
+      if (issue) {
+        setErro(issue);
+        return;
+      }
+    }
+    trava.current = true;
+    setSalvando(true);
+    setErro("");
+    setAviso("");
     try {
-      const documento = editando && selecionado ? await atualizarDocumentoGestao(colaboradorId, String(selecionado.id), categoria, arquivo) : await enviarDocumentoGestao(colaboradorId, arquivo!, categoria);
-      const atualizado = { ...documento, mime_type: documento.tipo_arquivo, tamanho_bytes: documento.tamanho_arquivo, criado_em: documento.criado_em || new Date().toISOString() } as DocumentoFicha;
-      setDocumentos((items) => editando ? items.map((item) => item.id === atualizado.id ? atualizado : item) : [atualizado, ...items]);
-      setSelecionado(atualizado); setArquivo(undefined); setCategoria("documentos"); setEditando(false);
-    } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível salvar o documento."); } finally { setSalvando(false); }
+      const documento =
+        editando && selecionado
+          ? await atualizarDocumentoGestao(
+              colaboradorId,
+              String(selecionado.id),
+              categoria || "documentos",
+              arquivo,
+            )
+          : await enviarDocumentoGestao(
+              colaboradorId,
+              arquivo!,
+              categoria || "documentos",
+            );
+      const atualizado: Documento = {
+        ...documento,
+        criado_em:
+          documento.criado_em ||
+          (editando ? selecionado?.criado_em : null) ||
+          new Date().toISOString(),
+      };
+      setDocumentos((current) =>
+        editando
+          ? current.map((d) => (d.id === atualizado.id ? atualizado : d))
+          : [atualizado, ...current],
+      );
+      setSelecionado(atualizado);
+      limpar();
+      setAviso("Documento salvo com sucesso.");
+    } catch (cause) {
+      setErro(
+        mensagemGestao(
+          cause,
+          "Não foi possível salvar o documento. Tente novamente.",
+        ),
+      );
+    } finally {
+      setSalvando(false);
+      trava.current = false;
+    }
   };
   const remover = async () => {
-    if (!selecionado || !window.confirm("Excluir este documento? Essa ação não pode ser desfeita.")) return;
-    setSalvando(true); setErro("");
-    try { await excluirDocumentoGestao(colaboradorId, String(selecionado.id)); const restantes = documentos.filter((item) => item.id !== selecionado.id); setDocumentos(restantes); setSelecionado(restantes[0] || null); } catch (cause) { setErro(cause instanceof Error ? cause.message : "Não foi possível excluir o documento."); } finally { setSalvando(false); }
+    if (!selecionado || trava.current) return;
+    trava.current = true;
+    setSalvando(true);
+    setErro("");
+    try {
+      await excluirDocumentoGestao(colaboradorId, String(selecionado.id));
+      const restantes = documentos.filter((d) => d.id !== selecionado.id);
+      setDocumentos(restantes);
+      setSelecionado(restantes[0] || null);
+      setExcluir(false);
+      limpar();
+      setAviso("Documento excluído.");
+    } catch (cause) {
+      setErro(
+        mensagemGestao(
+          cause,
+          "Não foi possível excluir o documento. Tente novamente.",
+        ),
+      );
+    } finally {
+      setSalvando(false);
+      trava.current = false;
+    }
   };
-  const iniciarEdicao = () => { if (!selecionado) return; setCategoria(String(selecionado.categoria || "documentos")); setArquivo(undefined); setEditando(true); };
-
-  return <div className="mt-4 space-y-3">
-    <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card/50 p-3">
-      <label className="min-w-[180px] flex-1"><span className="mb-1 block text-[9px] font-bold uppercase tracking-[.08em] text-muted-foreground">Categoria</span><input value={categoria} onChange={(event) => setCategoria(event.target.value)} placeholder="RG, CPF, CNH..." className="h-9 w-full rounded-lg border border-border bg-background/60 px-3 text-[10px] outline-none focus:border-primary/60" /></label>
-      <label className="min-w-[220px] flex-[1.5] cursor-pointer"><span className="mb-1 block text-[9px] font-bold uppercase tracking-[.08em] text-muted-foreground">Arquivo {editando ? "para substituir (opcional)" : ""}</span><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setArquivo(event.target.files?.[0])} className="block h-9 w-full cursor-pointer rounded-lg border border-border bg-background/60 px-2 py-2 text-[10px]" /></label>
-      <Button type="button" disabled={salvando || (!arquivo && !editando)} onClick={() => void salvar()} className="h-9 gap-1.5 text-[10px]"><Upload size={13} /> {salvando ? "Salvando..." : editando ? "Salvar alteração" : "Enviar documento"}</Button>
-      {editando && <Button type="button" variant="outline" onClick={() => { setEditando(false); setArquivo(undefined); }} className="h-9 text-[10px]">Cancelar</Button>}
+  const baixar = () => {
+    if (!preview || !selecionado) return;
+    const a = document.createElement("a");
+    a.href = preview;
+    a.download = selecionado.nome_arquivo || "documento";
+    a.click();
+  };
+  const mime = String(
+    selecionado?.mime_type || selecionado?.tipo_arquivo || "",
+  ).toLowerCase();
+  const grupos = documentos.reduce<Record<string, Documento[]>>((acc, doc) => {
+    const key = String(doc.criado_em || "").slice(0, 7) || "Sem data";
+    (acc[key] ||= []).push(doc);
+    return acc;
+  }, {});
+  return (
+    <div>
+      <section className="rh-panel">
+        <header className="rh-panel-head">
+          <div>
+            <h2>Documentos do colaborador</h2>
+            <p>{documentos.length} arquivo(s) · PDF, JPG, PNG ou WEBP</p>
+          </div>
+          <button
+            type="button"
+            className="rh-btn rh-btn-primary"
+            disabled={salvando}
+            onClick={() => {
+              limpar();
+              setUploader(true);
+            }}
+          >
+            <Plus size={16} /> Anexar documento
+          </button>
+        </header>
+        {uploader && (
+          <div style={{ padding: 20 }} className="rh-enter">
+            <div className="rh-fields">
+              <label className="rh-field">
+                Categoria
+                <input
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  placeholder="Ex.: Identificação, contrato, exame"
+                  className="rh-input"
+                  disabled={salvando}
+                />
+              </label>
+              <label className="rh-field">
+                {editando
+                  ? "Substituir arquivo (opcional)"
+                  : "Arquivo · até 10 MB"}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    setArquivo(e.target.files?.[0]);
+                    setErro("");
+                  }}
+                  className="rh-input"
+                  disabled={salvando}
+                />
+              </label>
+            </div>
+            <div className="rh-actions" style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="rh-btn rh-btn-primary"
+                onClick={() => void salvar()}
+                disabled={salvando}
+              >
+                {salvando ? (
+                  <Loader2 size={16} className="rh-spin" />
+                ) : (
+                  <Upload size={16} />
+                )}
+                {editando ? "Salvar alteração" : "Enviar documento"}
+              </button>
+              <button
+                type="button"
+                className="rh-btn"
+                onClick={limpar}
+                disabled={salvando}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+      <div style={{ marginTop: 15 }}>
+        {erro && (
+          <AvisoGestao erro onClose={() => setErro("")}>
+            {erro}
+          </AvisoGestao>
+        )}
+        {aviso && (
+          <AvisoGestao onClose={() => setAviso("")}>{aviso}</AvisoGestao>
+        )}
+      </div>
+      <div className="rh-doc-layout">
+        <section className="rh-panel">
+          <header className="rh-panel-head">
+            <h3>Arquivos</h3>
+            <FolderOpen size={16} className="rh-text-muted" />
+          </header>
+          {documentos.length ? (
+            Object.entries(grupos).map(([periodo, docs]) => (
+              <details key={periodo} open>
+                <summary
+                  className="rh-inline-meta"
+                  style={{
+                    padding: "12px 15px",
+                    background: "var(--rh-suave)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {periodo === "Sem data"
+                    ? periodo
+                    : new Date(`${periodo}-01T12:00:00`).toLocaleDateString(
+                        "pt-BR",
+                        { month: "long", year: "numeric" },
+                      )}{" "}
+                  · {docs.length}
+                </summary>
+                {docs.map((doc) => (
+                  <button
+                    type="button"
+                    className="rh-doc-button"
+                    aria-pressed={selecionado?.id === doc.id}
+                    disabled={salvando}
+                    key={doc.id}
+                    onClick={() => {
+                      setSelecionado(doc);
+                      limpar();
+                    }}
+                  >
+                    <FileText size={17} style={{ flexShrink: 0 }} />
+                    <span style={{ minWidth: 0 }}>
+                      <strong>{doc.nome_arquivo || "Documento"}</strong>
+                      <small>
+                        {doc.categoria || "Documento"} · {dataBr(doc.criado_em)}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </details>
+            ))
+          ) : (
+            <VazioColaboradores
+              titulo="Nenhum documento anexado"
+              detalhe="Adicione os arquivos para organizar a ficha."
+            />
+          )}
+        </section>
+        <section className="rh-panel">
+          <header className="rh-panel-head" style={{ flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <h3 style={{ overflowWrap: "anywhere" }}>
+                {selecionado?.nome_arquivo || "Visualização do documento"}
+              </h3>
+              {selecionado && <p>{selecionado.categoria || "Documento"}</p>}
+            </div>
+            <div className="rh-actions">
+              {selecionado && (
+                <>
+                  <button
+                    type="button"
+                    className="rh-btn rh-icon-btn"
+                    aria-label="Editar documento"
+                    disabled={salvando}
+                    onClick={() => {
+                      limpar();
+                      setEditando(true);
+                      setCategoria(selecionado.categoria || "documentos");
+                      setUploader(true);
+                    }}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="rh-btn rh-icon-btn rh-btn-danger"
+                    aria-label="Excluir documento"
+                    disabled={salvando}
+                    onClick={() => setExcluir(true)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </>
+              )}
+              {preview && (
+                <button
+                  type="button"
+                  className="rh-btn rh-icon-btn"
+                  aria-label="Baixar documento"
+                  onClick={baixar}
+                >
+                  <Download size={15} />
+                </button>
+              )}
+            </div>
+          </header>
+          {excluir && (
+            <div
+              className="rh-upload rh-enter"
+              style={{ margin: 15 }}
+              role="alert"
+            >
+              <h3>Excluir este documento?</h3>
+              <p className="rh-inline-meta" style={{ margin: "5px 0 14px" }}>
+                O arquivo será removido permanentemente da ficha.
+              </p>
+              <div className="rh-actions">
+                <button
+                  type="button"
+                  className="rh-btn rh-btn-danger"
+                  disabled={salvando}
+                  onClick={() => void remover()}
+                >
+                  {salvando ? "Excluindo..." : "Excluir documento"}
+                </button>
+                <button
+                  type="button"
+                  className="rh-btn"
+                  disabled={salvando}
+                  onClick={() => setExcluir(false)}
+                >
+                  Manter arquivo
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="rh-doc-preview">
+            {!selecionado ? (
+              <p className="rh-inline-meta">
+                Selecione um arquivo para visualizar.
+              </p>
+            ) : carregando ? (
+              <p className="rh-actions" role="status">
+                <Loader2 size={18} className="rh-spin" /> Carregando
+                documento...
+              </p>
+            ) : erroPreview ? (
+              <div>
+                <AvisoGestao erro>{erroPreview}</AvisoGestao>
+                <button
+                  type="button"
+                  className="rh-btn"
+                  onClick={() => setTentativa((v) => v + 1)}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : preview && mime === "application/pdf" ? (
+              <iframe
+                src={preview}
+                title={`Documento: ${selecionado.nome_arquivo}`}
+              />
+            ) : preview && mime.startsWith("image/") ? (
+              <img
+                src={preview}
+                alt={selecionado.nome_arquivo || "Documento do colaborador"}
+              />
+            ) : (
+              <div>
+                <p className="rh-inline-meta">
+                  A pré-visualização deste formato não está disponível.
+                </p>
+                <button
+                  type="button"
+                  className="rh-btn"
+                  onClick={baixar}
+                  style={{ marginTop: 12 }}
+                >
+                  Baixar arquivo
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
-    {erro && <p className="rounded-lg border border-red-400/30 bg-red-400/10 p-2 text-[10px] text-red-200">{erro}</p>}
-    <div className="grid gap-4 lg:grid-cols-[minmax(220px,.8fr)_minmax(0,1.6fr)]">
-      <section className="overflow-hidden rounded-xl border border-border bg-card/50"><div className="flex items-center justify-between border-b border-border px-4 py-3"><div><p className="text-xs font-bold">Pastas de documentos</p><p className="mt-0.5 text-[10px] text-muted-foreground">RG, CPF, CNH e demais anexos</p></div><FolderOpen size={15} className="text-primary" /></div><div className="max-h-[470px] overflow-y-auto p-3"><PastasTemporais items={documentos} dateFor={(item) => item.criado_em} empty="Nenhum documento enviado" render={(item) => <button type="button" onClick={() => { setSelecionado(item); setEditando(false); }} className={`flex w-full items-center gap-2 rounded-lg p-2 text-left transition-colors ${selecionado?.id === item.id ? "bg-primary/10 text-primary" : "hover:bg-secondary/50"}`}><FileText size={14} className="shrink-0" /><span className="min-w-0 flex-1 truncate text-[10px] font-semibold">{item.nome_arquivo || item.categoria || "Documento"}</span><span className="max-w-20 truncate text-[9px] text-muted-foreground">{item.categoria}</span><Eye size={12} className="shrink-0 text-muted-foreground" /></button>} compact /></div></section>
-      <section className="min-h-[390px] overflow-hidden rounded-xl border border-border bg-card/50"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3"><div className="min-w-0"><p className="truncate text-xs font-bold">{selecionado?.nome_arquivo || "Visualização do documento"}</p>{selecionado && <p className="mt-0.5 text-[10px] text-muted-foreground">{selecionado.categoria || "Documento"} · {dataBr(selecionado.criado_em)}</p>}</div><div className="flex gap-1.5">{selecionado && <><Button type="button" variant="outline" onClick={iniciarEdicao} className="h-7 gap-1 px-2 text-[9px]"><Pencil size={11} /> Editar</Button><Button type="button" variant="outline" onClick={() => void remover()} disabled={salvando} className="h-7 gap-1 px-2 text-[9px] text-red-300"><Trash2 size={11} /> Excluir</Button></>}{previewUrl && <Button type="button" variant="outline" onClick={baixar} className="h-7 gap-1.5 px-2 text-[9px]"><Download size={12} /> Baixar</Button>}</div></div><div className="flex min-h-[340px] items-center justify-center bg-secondary/20 p-3">{!selecionado ? <EstadoVazio label="Selecione um documento" /> : carregando ? <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Carregando documento...</div> : erro ? <p className="text-xs text-red-300">{erro}</p> : previewUrl && mime === "application/pdf" ? <iframe src={previewUrl} title={`Visualização de ${selecionado.nome_arquivo}`} className="h-[500px] w-full rounded-lg border border-border bg-background" /> : previewUrl && mime.startsWith("image/") ? <img src={previewUrl} alt={selecionado.nome_arquivo} className="max-h-[500px] max-w-full rounded-lg object-contain" /> : previewUrl ? <div className="text-center"><ImageIcon size={26} className="mx-auto text-muted-foreground" /><p className="mt-2 text-xs text-muted-foreground">Pré-visualização não disponível para este formato.</p><Button type="button" variant="outline" onClick={baixar} className="mt-3 h-8 text-[10px]">Baixar arquivo</Button></div> : null}</div></section>
-    </div>
-  </div>;
-}
-function PastasTemporais<T>({ items, dateFor, empty, render, compact = false }: GrupoTemporalProps<T>) {
-  const grupos = useMemo(() => {
-    const porAno = new Map<string, Map<string, T[]>>();
-    items.forEach((item) => {
-      const valor = dateFor(item).slice(0, 10);
-      const data = valor ? new Date(`${valor}T00:00:00`) : null;
-      const valido = Boolean(data && !Number.isNaN(data.getTime()));
-      const ano = valido ? String(data!.getFullYear()) : "Sem data";
-      const mes = valido ? String(data!.getMonth() + 1).padStart(2, "0") : "00";
-      if (!porAno.has(ano)) porAno.set(ano, new Map());
-      const meses = porAno.get(ano)!;
-      if (!meses.has(mes)) meses.set(mes, []);
-      meses.get(mes)!.push(item);
-    });
-    return [...porAno.entries()].sort(([anoA], [anoB]) => anoB.localeCompare(anoA, "pt-BR", { numeric: true })).map(([ano, meses]) => ({ ano, meses: [...meses.entries()].sort(([mesA], [mesB]) => Number(mesA) - Number(mesB)) }));
-  }, [dateFor, items]);
-
-  if (!items.length) return <div className={compact ? "py-5" : "rounded-xl border border-border bg-card/50 py-8"}><EstadoVazio label={empty} /></div>;
-  return <div className="space-y-2">{grupos.map(({ ano, meses }) => <details key={ano} open className="overflow-hidden rounded-xl border border-border bg-card/50"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-xs font-bold"><FolderOpen size={15} className="text-primary" /> Ano {ano}<span className="ml-auto flex items-center gap-2 text-[10px] font-normal text-muted-foreground">{meses.reduce((total, [, registros]) => total + registros.length, 0)} registro(s)<ChevronDown size={14} /></span></summary><div className="space-y-3 border-t border-border p-3">{meses.map(([mes, registros]) => <details key={mes} open className="overflow-hidden rounded-lg border border-border/70"><summary className="flex cursor-pointer list-none items-center gap-2 bg-secondary/30 px-3 py-2 text-[10px] font-bold capitalize"><FolderOpen size={13} className="text-primary/80" /> {mes === "00" ? "Sem mês" : new Date(2024, Number(mes) - 1, 1).toLocaleDateString("pt-BR", { month: "long" })}<span className="ml-auto text-muted-foreground">{registros.length}</span></summary><div className="divide-y divide-border/60">{registros.map((item, index) => <div key={String((item as { id?: string }).id || index)} className="p-3">{render(item)}</div>)}</div></details>)}</div></details>)}</div>;
+  );
 }

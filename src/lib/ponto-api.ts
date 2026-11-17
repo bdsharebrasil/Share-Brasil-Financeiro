@@ -234,6 +234,20 @@ export const salvarConfiguracaoPonto = (
     method: "POST",
     body: JSON.stringify(body),
   });
+export const atualizarConfiguracaoPonto = (
+  recurso: "escalas" | "vinculos",
+  id: string,
+  body: unknown,
+) =>
+  colaboradorRequest<{ id: string }>(
+    recurso === "vinculos"
+      ? "/api/sharebrasil/ponto/vinculos"
+      : `/api/sharebrasil/ponto/escalas/${encodeURIComponent(id)}`,
+    {
+      method: recurso === "vinculos" ? "POST" : "PATCH",
+      body: JSON.stringify(recurso === "vinculos" ? { ...(body as object), id } : body),
+    },
+  );
 export const solicitarPonto = (form: FormData) =>
   colaboradorRequest("/api/sharebrasil/ponto/solicitacoes", {
     method: "POST",

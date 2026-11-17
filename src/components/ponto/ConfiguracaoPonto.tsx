@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
+  atualizarConfiguracaoPonto,
   carregarConfiguracaoPonto,
   salvarConfiguracaoPonto,
   validarReferenciaPonto,
@@ -56,6 +57,8 @@ export default function ConfiguracaoPonto({
   const [aba, setAba] = useState("vinculos");
   const [nomeEscala, setNomeEscala] = useState("");
   const [escalaSelecionada, setEscalaSelecionada] = useState("");
+  const [escalaEditando, setEscalaEditando] = useState<string | null>(null);
+  const [vinculoEditando, setVinculoEditando] = useState<any | null>(null);
   const [colaboradorSelecionado, setColaboradorSelecionado] = useState("");
   const [coordenadores, setCoordenadores] = useState<string[]>([]);
   const [erroCoordenacao, setErroCoordenacao] = useState("");
@@ -87,12 +90,20 @@ export default function ConfiguracaoPonto({
     setOcupado(true);
     setOk("");
     try {
-      const resultado = await salvarConfiguracaoPonto(tipo, body);
+      const resultado = tipo === "escalas" && escalaEditando
+        ? await atualizarConfiguracaoPonto("escalas", escalaEditando, body)
+        : tipo === "vinculos" && vinculoEditando
+          ? await atualizarConfiguracaoPonto("vinculos", vinculoEditando.id, body)
+          : await salvarConfiguracaoPonto(tipo, body);
       await carregar();
       if (tipo === "escalas") {
         setEscalaSelecionada(resultado.id);
+        setEscalaEditando(null);
         setAba("vinculos");
-        setOk("Escala salva e selecionada. Conclua o vínculo do colaborador.");
+        setOk(escalaEditando ? "Horários da escala atualizados." : "Escala salva e selecionada. Conclua o vínculo do colaborador.");
+      } else if (tipo === "vinculos") {
+        setVinculoEditando(null);
+        setOk(vinculoEditando ? "Vínculo, regra e horários atualizados." : "Configuração registrada no histórico.");
       } else setOk("Configuração registrada no histórico.");
     } catch (e) {
       aoErro(e);
@@ -130,6 +141,7 @@ export default function ConfiguracaoPonto({
   const tipoEscala = () => tipo;
   const iniciarModelo = (modelo: string) => {
     if (!dados?.modelos[modelo]) return;
+    setEscalaEditando(null);
     setTipo(modelo);
     setNomeEscala(
       `Escala ${modelosEscala.find(([id]) => id === modelo)?.[1] || modelo}`,
@@ -470,10 +482,25 @@ export default function ConfiguracaoPonto({
       )}
       {dados.permissoes.dp && (
         <>
-          <TabsContent value="escalas">
-            <form onSubmit={(e) => enviar(e, "escalas")} className={box}>
+          <TabsContent value="escalas" className="space-y-4">
+            <section className={box}>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Escalas cadastradas</h3>
+                <span className="text-[10px] text-muted-foreground">Edite horários e intervalos sem perder os vínculos.</span>
+              </div>
+              <div className="mt-3 divide-y divide-border">
+                {dados.escalas.map((escala: any) => (
+                  <div key={escala.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs">
+                    <span><strong>{escala.nome}</strong><span className="ml-2 text-muted-foreground">{escala.tipo}</span></span>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setEscalaEditando(escala.id); setNomeEscala(escala.nome); setTipo(escala.tipo); setCiclo(JSON.parse(escala.ciclo_json || "[]")); setAba("escalas"); }}>Editar horários</Button>
+                  </div>
+                ))}
+                {!dados.escalas.length && <p className="py-2 text-xs text-muted-foreground">Nenhuma escala cadastrada.</p>}
+              </div>
+            </section>
+            <form key={escalaEditando || "nova-escala"} onSubmit={(e) => enviar(e, "escalas")} className={box}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Escala recorrente</h3>
+                <h3 className="text-sm font-semibold">{escalaEditando ? "Editar escala recorrente" : "Escala recorrente"}</h3>
                 <Button
                   type="button"
                   variant="ghost"
@@ -609,7 +636,7 @@ export default function ConfiguracaoPonto({
                     Adicionar dia ao ciclo
                   </Button>
                 )}
-                <Button disabled={ocupado}>Salvar escala</Button>
+                <Button disabled={ocupado}>{escalaEditando ? "Salvar alterações" : "Salvar escala"}</Button>
               </div>
               <p className="mt-3 text-[10px] text-muted-foreground">
                 O ciclo se repete a partir da data-base do vínculo. Turnos que
@@ -622,10 +649,13 @@ export default function ConfiguracaoPonto({
             forceMount
             className="space-y-4 data-[state=inactive]:hidden"
           >
-            <form onSubmit={(e) => enviar(e, "vinculos")} className={box}>
-              <h3 className="text-sm font-semibold">
-                Vincular colaborador à escala e ao grupo
-              </h3>
+            <form key={vinculoEditando?.id || "novo-vinculo"} onSubmit={(e) => enviar(e, "vinculos")} className={box}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">
+                  {vinculoEditando ? "Editar vínculo, regra e escala do colaborador" : "Vincular colaborador à escala e ao grupo"}
+                </h3>
+                {vinculoEditando && <Button type="button" variant="ghost" size="sm" onClick={() => { setVinculoEditando(null); setColaboradorSelecionado(""); setEscalaSelecionada(""); setCoordenadores([]); }}>Cancelar edição</Button>}
+              </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Colaborador
@@ -695,7 +725,7 @@ export default function ConfiguracaoPonto({
                 </label>
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Regra validada do grupo
-                  <select required name="regra_id" className={campo}>
+                  <select required name="regra_id" defaultValue={vinculoEditando?.regra_id || ""} className={campo}>
                     <option value="">Selecione</option>
                     {dados.regras
                       .filter((r) =>
@@ -778,6 +808,7 @@ export default function ConfiguracaoPonto({
                     type="date"
                     required
                     name="data_base"
+                    defaultValue={vinculoEditando?.data_base || ""}
                     className={campo}
                   />
                 </label>
@@ -787,6 +818,7 @@ export default function ConfiguracaoPonto({
                     type="date"
                     required
                     name="vigencia_inicio"
+                    defaultValue={vinculoEditando?.vigencia_inicio || ""}
                     className={campo}
                   />
                 </label>
@@ -796,12 +828,13 @@ export default function ConfiguracaoPonto({
                     type="date"
                     required
                     name="comunicada_em"
+                    defaultValue={vinculoEditando?.comunicada_em || ""}
                     className={campo}
                   />
                 </label>
                 <label className="space-y-1 text-[11px] text-muted-foreground">
                   Justificativa de força maior (se necessária)
-                  <input name="justificativa_escala" className={campo} />
+                  <input name="justificativa_escala" defaultValue={vinculoEditando?.justificativa_escala || ""} className={campo} />
                 </label>
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" name="anuencia_colaborador" />
@@ -812,7 +845,7 @@ export default function ConfiguracaoPonto({
                   <select
                     required
                     name="fuso_horario"
-                    defaultValue="America/Cuiaba"
+                    defaultValue={vinculoEditando?.fuso_horario || "America/Cuiaba"}
                     className={campo}
                   >
                     <option value="America/Cuiaba">Cuiabá (MT)</option>
@@ -858,6 +891,7 @@ export default function ConfiguracaoPonto({
                         )
                         .join(", ")}
                     </span>
+                    {dados.permissoes.dp && <Button type="button" variant="outline" size="sm" onClick={() => { setVinculoEditando(v); setColaboradorSelecionado(v.user_id); setEscalaSelecionada(v.escala_id); setCoordenadores(v.gestores_ids || (v.gestor_id ? [v.gestor_id] : [])); setAba("vinculos"); }}>Editar</Button>}
                   </div>
                 ))}
               </div>

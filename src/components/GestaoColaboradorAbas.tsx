@@ -10,6 +10,12 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
+import {
+  formatarCpf,
+  formatarTelefone,
+  TIPOS_CONTA,
+  TIPOS_CHAVE_PIX,
+} from "@/lib/cadastro-colaborador";
 import type { FichaColaborador } from "@/lib/colaborador-api";
 import { DocumentosColaborador } from "@/components/colaboradores/DocumentosColaborador";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -158,7 +164,10 @@ export function FichaColaboradorAbas({
                     titulo="Data de nascimento"
                     valor={dataBr(perfil.data_nascimento)}
                   />
-                  <DadoFicha titulo="CPF" valor={perfil.cpf} />
+                  <DadoFicha
+                    titulo="CPF"
+                    valor={formatarCpf(perfil.cpf || "")}
+                  />
                   <DadoFicha titulo="RG" valor={perfil.rg} />
                   <DadoFicha titulo="CANAC" valor={perfil.canac} />
                 </dl>
@@ -170,13 +179,49 @@ export function FichaColaboradorAbas({
                 </header>
                 <dl className="rh-details-grid">
                   <DadoFicha titulo="E-mail" valor={perfil.email} />
-                  <DadoFicha titulo="Telefone" valor={perfil.telefone} />
+                  <DadoFicha
+                    titulo="Telefone"
+                    valor={formatarTelefone(perfil.telefone || "")}
+                  />
+                  <div className="rh-field-wide">
+                    <DadoFicha titulo="Endereço" valor={perfil.endereco} />
+                  </div>
                   <DadoFicha
                     titulo="Cidade / UF"
                     valor={[perfil.cidade, perfil.uf]
                       .filter(Boolean)
                       .join(" / ")}
                   />
+                </dl>
+              </section>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <h2>Dados bancários</h2>
+                  <WalletCards size={16} className="rh-text-muted" />
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha titulo="Banco" valor={perfil.nome_banco} />
+                  <DadoFicha
+                    titulo="Tipo de conta"
+                    valor={
+                      TIPOS_CONTA.find((t) => t.value === perfil.tipo_conta)
+                        ?.label || perfil.tipo_conta
+                    }
+                  />
+                  <DadoFicha titulo="Agência" valor={perfil.agencia_numero} />
+                  <DadoFicha
+                    titulo="Número da conta"
+                    valor={perfil.conta_numero}
+                  />
+                  <DadoFicha
+                    titulo="Tipo de chave Pix"
+                    valor={
+                      TIPOS_CHAVE_PIX.find(
+                        (t) => t.value === perfil.tipo_chave_pix,
+                      )?.label || perfil.tipo_chave_pix
+                    }
+                  />
+                  <DadoFicha titulo="Chave Pix" valor={perfil.pix} />
                 </dl>
               </section>
             </div>

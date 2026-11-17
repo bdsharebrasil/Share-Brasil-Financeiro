@@ -1,20 +1,21 @@
 /* Paleta e medidas. Para usar o tema do seu sistema, troque os valores aqui. */
 .page {
-  --bg-page: #0f1115;
-  --bg-surface: #14171c;
-  --bg-hover: #181c22;
-  --bg-selected: #202630;
-  --border: #232832;
-  --text: #e6e8eb;
-  --text-muted: #8b93a0;
-  --accent: #1f8fd6;
---success: #3fb27f;
---success-bg: rgba(63, 178, 127, 0.12);
---success-border: rgba(63, 178, 127, 0.25);
-  --danger: #f53228e0;
-  --warning: #eab54b;
-  --warning-bg: rgba(234, 181, 75, 0.12);
-  --warning-border: rgba(234, 181, 75, 0.25);
+  --bg-page: #0d1721;
+  --bg-surface: #14222e;
+  --bg-hover: #192a38;
+  --bg-selected: #20394b;
+  --border: #263947;
+  --text: #e7eef3;
+  --text-muted: #a9bac6;
+  --accent: #1684bd;
+  --success: #86c994;
+  --success-bg: rgba(134, 201, 148, 0.12);
+  --success-border: rgba(134, 201, 148, 0.25);
+  --danger: #f1a3a0;
+  --danger-bg: rgba(241, 163, 160, 0.12);
+  --warning: #efbd45;
+  --warning-bg: rgba(239, 189, 69, 0.12);
+  --warning-border: rgba(239, 189, 69, 0.25);
   --row-height: 40px;
   --header-height: 32px;
   --toolbar-height: 36px;
@@ -34,9 +35,13 @@
   font-variant-numeric: tabular-nums;
 }
 :global(html:not(.dark)) .page {
-  --bg-page: #edf1f6; --bg-surface: #fff; --bg-hover: #e8eef5; --bg-selected: #e4f1f9;
-  --border: #bdc8d6; --text: #1b293b; --text-muted: #526176;
-  --accent: #03658d; --success: #176846; --danger: #b52c32; --warning: #835900;
+  --bg-page: #f3f6f8; --bg-surface: #fff; --bg-hover: #eef2f4; --bg-selected: #e2edf3;
+  --border: #e3e9ed; --text: #172b3a; --text-muted: #607281;
+  --accent: #0969a8; --success: #4e7d3e; --danger: #b54c4c; --warning: #8a681c;
+  --success-bg: rgba(78, 125, 62, 0.1); --success-border: rgba(78, 125, 62, 0.24);
+  --danger-bg: rgba(181, 76, 76, 0.1);
+  --warning-bg: rgba(239, 189, 69, 0.14); --warning-border: rgba(138, 104, 28, 0.24);
+  --danger-bg: rgba(181, 76, 76, 0.1); --danger-border: rgba(181, 76, 76, 0.24);
   color-scheme: light;
 }
 
@@ -114,9 +119,9 @@
   display: inline-flex; align-items: center; max-width: 100%; height: 20px; padding: 0 6px;
   border-radius: 3px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pending { color: var(--warning); background: rgba(212, 167, 44, 0.12); }
-.overdue { color: var(--danger); background: rgba(229, 83, 75, 0.12); }
-.received { color: var(--success); background: rgba(63, 178, 127, 0.12); }
+.pending { color: var(--warning); background: var(--warning-bg); }
+.overdue { color: var(--danger); background: var(--danger-bg); }
+.received { color: var(--success); background: var(--success-bg); }
 .positive { color: var(--success); }
 .negative { color: var(--danger); }
 

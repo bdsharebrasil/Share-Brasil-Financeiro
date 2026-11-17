@@ -28,42 +28,47 @@
   --app-header-height: calc(68px + var(--safe-area-top));
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --background: 214 25% 94%;
-  --foreground: 215 34% 15%;
-  --border: 214 20% 78%;
+  --background: 204 26.32% 96.27%;
+  --foreground: 205.71 43.21% 15.88%;
+  --border: 204 21.74% 90.98%;
   --card: 0 0% 100%;
-  --card-foreground: 215 34% 15%;
-  --card-border: 214 20% 78%;
-  --sidebar: 215 42% 16%;
-  --sidebar-foreground: 215 26% 87%;
-  --sidebar-border: 214 28% 25%;
-  --sidebar-primary: var(--cerulean-400);
-  --sidebar-primary-foreground: 215 42% 13%;
-  --sidebar-accent: 215 34% 23%;
-  --sidebar-accent-foreground: 215 26% 93%;
-  --sidebar-ring: var(--cerulean-400);
+  --card-foreground: 205.71 43.21% 15.88%;
+  --card-border: 204 21.74% 90.98%;
+  --sidebar: 208.57 56.76% 14.51%;
+  --sidebar-foreground: 205 30% 88%;
+  --sidebar-border: 205.45 30.28% 21.37%;
+  --sidebar-primary: 42.35 84.16% 60.39%;
+  --sidebar-primary-foreground: 208.57 56.76% 14.51%;
+  --sidebar-accent: 207 48% 23%;
+  --sidebar-accent-foreground: 205 30% 92%;
+  --sidebar-ring: 42.35 84.16% 60.39%;
   --popover: 0 0% 100%;
-  --popover-foreground: 215 34% 15%;
-  --popover-border: 214 20% 78%;
-  --primary: var(--cerulean-500);
+  --popover-foreground: 205.71 43.21% 15.88%;
+  --popover-border: 204 21.74% 90.98%;
+  --primary: 203.77 89.83% 34.71%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 214 30% 92%;
-  --secondary-foreground: 215 34% 20%;
-  --muted: 214 30% 93%;
-  --muted-foreground: 215 18% 38%;
-  --accent: 151 52% 31%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 70% 48%;
+  --secondary: 200 21.43% 94.51%;
+  --secondary-foreground: 205.71 43.21% 15.88%;
+  --muted: 200 21.43% 94.51%;
+  --muted-foreground: 207.27 14.67% 44.12%;
+  --accent: 42.35 84.16% 60.39%;
+  --accent-foreground: 208.57 56.76% 14.51%;
+  --destructive: 0 42% 50%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 20% 68%;
-  --ring: var(--cerulean-500);
-  --chart-1: var(--cerulean-500);
-  --chart-2: 139 48% 41%;
-  --chart-3: 43 89% 57%;
+  --input: 206.67 19.57% 81.96%;
+  --ring: 203.77 89.83% 34.71%;
+  --chart-1: 203.77 89.83% 34.71%;
+  --chart-2: 104.76 33.69% 36.67%;
+  --chart-3: 42.35 84.16% 60.39%;
   --chart-4: 271 56% 61%;
   --chart-5: 0 70% 53%;
   --app-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --app-font-mono: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --brand-blue: #0969a8;
+  --brand-green: #4e7d3e;
+  --brand-gold: #efbd45;
+  --brand-navy: #10263a;
+  --app-color-scheme: light;
   --radius: 0.75rem;
   --button-outline: rgba(16, 40, 66, .14);
   --elevate-1: rgba(16, 40, 66, .04);
@@ -76,43 +81,70 @@
 }
 
 .dark {
-  --background: 222 46% 4%;
-  --foreground: 211 30% 91%;
-  --border: 216 28% 15%;
-  --card: 222 40% 7%;
-  --card-foreground: 211 30% 91%;
-  --card-border: 216 28% 16%;
-  --sidebar: 224 50% 5%;
-  --sidebar-foreground: 213 24% 82%;
-  --sidebar-border: 216 28% 14%;
-  --sidebar-primary: 199 88% 48%;
-  --sidebar-primary-foreground: 220 42% 5%;
-  --sidebar-accent: 215 34% 14%;
-  --sidebar-accent-foreground: 210 28% 92%;
-  --sidebar-ring: 199 88% 48%;
-  --popover: 222 40% 8%;
-  --popover-foreground: 211 30% 91%;
-  --popover-border: 216 28% 17%;
-  --primary: 204 90% 37%;
-  --primary-foreground: 220 42% 5%;
-  --secondary: 221 32% 10%;
-  --secondary-foreground: 211 30% 87%;
-  --muted: 220 30% 9%;
-  --muted-foreground: 214 18% 56%;
-  --accent: 151 50% 38%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 72% 60%;
-  --destructive-foreground: 216 38% 7%;
-  --input: 218 28% 17%;
-  --ring: 199 88% 48%;
-  --chart-1: 199 88% 48%;
-  --chart-2: 139 49% 51%;
-  --chart-3: 43 90% 58%;
+  --background: 210 43.48% 9.02%;
+  --foreground: 205 33.33% 92.94%;
+  --border: 205.45 30.28% 21.37%;
+  --card: 207.69 39.39% 12.94%;
+  --card-foreground: 205 33.33% 92.94%;
+  --card-border: 205.45 30.28% 21.37%;
+  --sidebar: 208.57 56.76% 14.51%;
+  --sidebar-foreground: 205 28% 84%;
+  --sidebar-border: 205.45 30.28% 21.37%;
+  --sidebar-primary: 200.48 79.15% 41.37%;
+  --sidebar-primary-foreground: 210 43.48% 9.02%;
+  --sidebar-accent: 207 38% 21%;
+  --sidebar-accent-foreground: 205 28% 92%;
+  --sidebar-ring: 42.35 84.16% 60.39%;
+  --popover: 207.69 39.39% 12.94%;
+  --popover-foreground: 205 33.33% 92.94%;
+  --popover-border: 205.45 30.28% 21.37%;
+  --primary: 200.48 79.15% 41.37%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 207.1 38.27% 15.88%;
+  --secondary-foreground: 205 33.33% 92.94%;
+  --muted: 207.1 38.27% 15.88%;
+  --muted-foreground: 205.71 17.95% 69.41%;
+  --accent: 42.35 84.16% 60.39%;
+  --accent-foreground: 210 43.48% 9.02%;
+  --destructive: 0 75% 68%;
+  --destructive-foreground: 210 43.48% 9.02%;
+  --input: 205.45 30.28% 21.37%;
+  --ring: 200.48 79.15% 41.37%;
+  --chart-1: 200.48 79.15% 41.37%;
+  --chart-2: 132.54 38.29% 65.69%;
+  --chart-3: 42.35 84.16% 60.39%;
   --chart-4: 271 65% 70%;
   --chart-5: 0 72% 60%;
   --button-outline: rgba(190, 225, 240, .13);
   --elevate-1: rgba(190, 225, 240, .04);
   --elevate-2: rgba(190, 225, 240, .09);
+  --brand-blue: #1684bd;
+  --brand-green: #86c994;
+  --brand-gold: #efbd45;
+  --brand-navy: #10263a;
+  --app-color-scheme: dark;
+  --light-canvas: #0d1721;
+  --light-surface: #14222e;
+  --light-soft: #192a38;
+  --light-line: #263947;
+  --light-text: #e7eef3;
+  --light-muted: #a9bac6;
+  --light-info: #1684bd;
+  --light-info-soft: #18364a;
+  --light-info-line: #31566d;
+  --light-success: #86c994;
+  --light-success-soft: #1b352a;
+  --light-success-line: #3e7851;
+  --light-warning: #efbd45;
+  --light-warning-soft: #39321c;
+  --light-warning-line: #806a32;
+  --light-danger: #f1a3a0;
+  --light-danger-soft: #3c252e;
+  --light-danger-line: #76505a;
+  --light-violet: #c5a7ef;
+  --light-violet-soft: #30243e;
+  --light-violet-line: #57426f;
+  --light-elevation: 0 1px 2px rgb(0 0 0 / .18), 0 8px 24px rgb(0 0 0 / .16);
   --primary-border: hsl(var(--primary));
   --secondary-border: hsl(var(--secondary));
   --muted-border: hsl(var(--muted));
@@ -145,22 +177,11 @@
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: var(--app-header-height); padding-top: var(--safe-area-top); }
   html:not(.dark) .app-topbar {
-    --background: var(--sidebar);
-    --foreground: var(--sidebar-foreground);
-    --border: var(--sidebar-border);
-    --card: var(--sidebar-accent);
-    --card-foreground: var(--sidebar-accent-foreground);
-    --secondary: var(--sidebar-accent);
-    --secondary-foreground: var(--sidebar-accent-foreground);
-    --muted-foreground: var(--sidebar-foreground);
-    --popover: var(--sidebar);
-    --popover-foreground: var(--sidebar-foreground);
-    --input: var(--sidebar-border);
-    background-color: hsl(var(--sidebar));
-    border-bottom-color: hsl(var(--sidebar-border));
+    background-color: hsl(var(--card)) !important;
+    border-bottom-color: hsl(var(--border)) !important;
   }
   html:not(.dark) .app-topbar [style*="rgb(255, 255, 255)"] {
-    background-color: hsl(var(--sidebar-accent)) !important;
+    background-color: hsl(var(--card)) !important;
   }
   [aria-label="Notifications (F8)"] { margin-block: -20px; }
   @media (max-width: 767px) {
@@ -349,23 +370,23 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
 html:not(.dark) {
   color-scheme: light;
   --app-color-scheme: light;
-  --light-canvas: #edf1f6;
+  --light-canvas: #f3f6f8;
   --light-surface: #ffffff;
-  --light-soft: #e8eef5;
-  --light-line: #bdc8d6;
-  --light-text: #1b293b;
-  --light-muted: #526176;
-  --light-info: #03658d;
-  --light-info-soft: #e4f1f9;
+  --light-soft: #eef2f4;
+  --light-line: #e3e9ed;
+  --light-text: #172b3a;
+  --light-muted: #607281;
+  --light-info: #0969a8;
+  --light-info-soft: #e5f1f7;
   --light-info-line: #91bcd3;
-  --light-success: #176846;
-  --light-success-soft: #e8f5ee;
-  --light-success-line: #36cc7a;
-  --light-warning: #f5aa1f;
-  --light-warning-soft: #fff5db;
+  --light-success: #4e7d3e;
+  --light-success-soft: #eaf5ed;
+  --light-success-line: #4e7d3e;
+  --light-warning: #8a681c;
+  --light-warning-soft: #fff6df;
   --light-warning-line: #dfc785;
-  --light-danger: #b40710;
-  --light-danger-soft: #fcecee;
+  --light-danger: #b54c4c;
+  --light-danger-soft: #fff0ef;
   --light-danger-line: #e1acb2;
   --light-violet: #6f42aa;
   --light-violet-soft: #f2ecfa;
@@ -375,14 +396,14 @@ html:not(.dark) {
 
 /* Módulos que ainda declaram uma paleta HSL própria, inclusive em portais. */
 html:not(.dark) :is(.financeiro-profissional, .despesas-theme, .company-cash, .cash-dialog, .cash-popover) {
-  --background: 214 25% 94%; --foreground: 215 34% 17%;
-  --card: 0 0% 100%; --card-foreground: 215 34% 17%;
-  --popover: 0 0% 100%; --popover-foreground: 215 34% 17%;
-  --muted: 214 30% 92%; --muted-foreground: 215 18% 38%;
-  --border: 214 20% 78%; --input: 214 20% 68%;
-  --primary: 196.36 88.51% 34.12%; --primary-foreground: 0 0% 100%;
-  --accent: 204 55% 92%; --accent-foreground: 204 75% 26%;
-  --ring: 196.36 88.51% 34.12%; --destructive: 0 70% 43%;
+  --background: 204 26.32% 96.27%; --foreground: 205.71 43.21% 15.88%;
+  --card: 0 0% 100%; --card-foreground: 205.71 43.21% 15.88%;
+  --popover: 0 0% 100%; --popover-foreground: 205.71 43.21% 15.88%;
+  --muted: 200 21.43% 94.51%; --muted-foreground: 207.27 14.67% 44.12%;
+  --border: 204 21.74% 90.98%; --input: 206.67 19.57% 81.96%;
+  --primary: 203.77 89.83% 34.71%; --primary-foreground: 0 0% 100%;
+  --accent: 42.35 84.16% 60.39%; --accent-foreground: 208.57 56.76% 14.51%;
+  --ring: 203.77 89.83% 34.71%; --destructive: 0 42% 50%;
   color-scheme: light;
 }
 
@@ -419,9 +440,9 @@ html:not(.dark) .task-compose { background: hsl(var(--card)); border-color: hsl(
 html:not(.dark) .task-compose .bg-background\/50 { background-color: hsl(var(--muted)); border-color: hsl(var(--input)); }
 html:not(.dark) .task-compose .text-muted-foreground { color: hsl(var(--muted-foreground)); }
 html:not(.dark) .task-compose select { color-scheme: light; }
-html:not(.dark) .bcp { --bcp-accent: #03658d; --bcp-heading: #526176; }
-html:not(.dark) .fb { --fb-border: #bdc8d6; }
-html:not(.dark) .sb { --line: #bdc8d6; }
+html:not(.dark) .bcp { --bcp-accent: #0969a8; --bcp-heading: #607281; }
+html:not(.dark) .fb { --fb-border: #e3e9ed; }
+html:not(.dark) .sb { --line: #e3e9ed; }
 
 /* Status discretos, com contraste sobre superfícies claras. */
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-emerald-300, .text-emerald-400, .text-green-400) { color: var(--light-success); }
@@ -458,15 +479,17 @@ html:not(.dark) .nf-btn.primary:hover { background: hsl(var(--primary)); color: 
 html:not(.dark) .nf-btn.destructive { background: hsl(var(--destructive)); color: #fff; }
 html:not(.dark) .nf-icon:hover { color: hsl(var(--foreground)); }
 html:not(.dark) :is(.company-cash, .cash-dialog, .cash-popover) {
-  --cash-soft: #e8eef5; --cash-accent-soft: #e4f1f9;
-  --cash-expense-soft: #fcecee; --cash-warning-soft: #fff5db;
+  --cash-soft: #eef2f4; --cash-accent-soft: #e5f1f7;
+  --cash-expense-soft: #fff0ef; --cash-warning-soft: #fff6df;
 }
-html:not(.dark) .despesas-theme { --bg-hover: #e8eef5; }
+html:not(.dark) .despesas-theme { --bg-hover: #eef2f4; }
 
 
 /* A moldura não participa da rolagem: apenas o viewport de conteúdo se move. */
 body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
 .app-shell { padding-inline: var(--safe-area-left) var(--safe-area-right); }
+html:not(.dark) .app-shell { background-color: hsl(var(--background)) !important; }
+html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !important; }
 .app-main-scroll [data-radix-scroll-area-viewport] {
   display: block;
   width: 100%;

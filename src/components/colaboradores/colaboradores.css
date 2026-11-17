@@ -1,20 +1,20 @@
 /* Isolado ao RH. Tempos e curva de entrada adaptados do UI Motion Kit. */
 .rh,
 .rh-dialog {
-  --rh-fundo: #f5f7fa;
+  --rh-fundo: #f3f6f8;
   --rh-superficie: #fff;
-  --rh-suave: #f7f9fc;
-  --rh-linha: #e3e8ef;
-  --rh-tinta: #1b293c;
-  --rh-muted: #627086;
-  --rh-acento: #187bb7;
-  --rh-acento-suave: #edf6fc;
-  --rh-verde: #22734f;
-  --rh-verde-bg: #eaf6ef;
-  --rh-ambar: #926213;
-  --rh-ambar-bg: #fcf5e7;
-  --rh-vermelho: #b3333e;
-  --rh-vermelho-bg: #fceff0;
+  --rh-suave: #eef2f4;
+  --rh-linha: #e3e9ed;
+  --rh-tinta: #172b3a;
+  --rh-muted: #607281;
+  --rh-acento: #0969a8;
+  --rh-acento-suave: #e5f1f7;
+  --rh-verde: #4e7d3e;
+  --rh-verde-bg: #eaf5ed;
+  --rh-ambar: #8a681c;
+  --rh-ambar-bg: #fff6df;
+  --rh-vermelho: #b54c4c;
+  --rh-vermelho-bg: #fff0ef;
   --rh-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color: var(--rh-tinta);
   font-size: 14px;
@@ -22,19 +22,19 @@
 }
 .dark .rh,
 .dark .rh-dialog {
-  --rh-fundo: #10151e;
-  --rh-superficie: #171e29;
-  --rh-suave: #1c2532;
-  --rh-linha: #2c3747;
-  --rh-tinta: #e9eef6;
-  --rh-muted: #9daabd;
-  --rh-acento: #78c5f3;
-  --rh-acento-suave: #1b3244;
-  --rh-verde: #8ed3ac;
-  --rh-verde-bg: #1d352d;
-  --rh-ambar: #e4c184;
-  --rh-ambar-bg: #383121;
-  --rh-vermelho: #f1a3aa;
+  --rh-fundo: #0d1721;
+  --rh-superficie: #14222e;
+  --rh-suave: #192a38;
+  --rh-linha: #263947;
+  --rh-tinta: #e7eef3;
+  --rh-muted: #a9bac6;
+  --rh-acento: #1684bd;
+  --rh-acento-suave: #18364a;
+  --rh-verde: #86c994;
+  --rh-verde-bg: #1b352a;
+  --rh-ambar: #efbd45;
+  --rh-ambar-bg: #39321c;
+  --rh-vermelho: #f1a3a0;
   --rh-vermelho-bg: #3c252e;
 }
 .rh {
@@ -119,13 +119,13 @@
   transform: translateY(1px);
 }
 .rh-btn-primary {
-  background: #187bb7;
+  background: #0969a8;
   color: white;
-  border-color: #187bb7;
+  border-color: #0969a8;
 }
 .rh-btn-primary:hover {
-  background: #12699f;
-  border-color: #12699f;
+  background: #075786;
+  border-color: #075786;
 }
 .rh-btn-danger {
   color: var(--rh-vermelho);

@@ -1,21 +1,22 @@
 /* Paleta e medidas. Para usar o tema do seu sistema, troque os valores aqui. */
 .page {
-  --bg-page: #0d1721;
-  --bg-surface: #14222e;
-  --bg-hover: #192a38;
-  --bg-selected: #20394b;
-  --border: #263947;
+  --bg-page: #03111e;
+  --bg-surface: #092132;
+  --bg-hover: #0b2a3c;
+  --bg-selected: #16465b;
+  --border: #16465b;
   --text: #e7eef3;
-  --text-muted: #a9bac6;
-  --accent: #1684bd;
-  --success: #86c994;
-  --success-bg: rgba(134, 201, 148, 0.12);
-  --success-border: rgba(134, 201, 148, 0.25);
-  --danger: #f1a3a0;
-  --danger-bg: rgba(241, 163, 160, 0.12);
-  --warning: #efbd45;
-  --warning-bg: rgba(239, 189, 69, 0.12);
-  --warning-border: rgba(239, 189, 69, 0.25);
+  --text-muted: #93aab8;
+  --accent: #21b8e6;
+  --success: #19c37d;
+  --success-bg: rgba(25, 195, 125, 0.14);
+  --success-border: rgba(25, 195, 125, 0.3);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.14);
+  --danger-border: rgba(239, 68, 68, 0.28);
+  --warning: #f2bd11;
+  --warning-bg: rgba(242, 189, 17, 0.14);
+  --warning-border: rgba(242, 189, 17, 0.3);
   --row-height: 40px;
   --header-height: 32px;
   --toolbar-height: 36px;
@@ -35,13 +36,12 @@
   font-variant-numeric: tabular-nums;
 }
 :global(html:not(.dark)) .page {
-  --bg-page: #f3f6f8; --bg-surface: #fff; --bg-hover: #eef2f4; --bg-selected: #e2edf3;
-  --border: #e3e9ed; --text: #172b3a; --text-muted: #607281;
-  --accent: #0969a8; --success: #4e7d3e; --danger: #b54c4c; --warning: #8a681c;
-  --success-bg: rgba(78, 125, 62, 0.1); --success-border: rgba(78, 125, 62, 0.24);
-  --danger-bg: rgba(181, 76, 76, 0.1);
-  --warning-bg: rgba(239, 189, 69, 0.14); --warning-border: rgba(138, 104, 28, 0.24);
-  --danger-bg: rgba(181, 76, 76, 0.1); --danger-border: rgba(181, 76, 76, 0.24);
+  --bg-page: #e6edf2; --bg-surface: #eff4f7; --bg-hover: #dde7ed; --bg-selected: #d6e5ee;
+  --border: #c7d4de; --text: #172b3a; --text-muted: #536b7a;
+  --accent: #0969a8; --success: #34733e; --danger: #b54c4c; --warning: #8a681c;
+  --success-bg: rgba(52, 115, 62, 0.12); --success-border: rgba(52, 115, 62, 0.28);
+  --danger-bg: rgba(181, 76, 76, 0.12); --danger-border: rgba(181, 76, 76, 0.28);
+  --warning-bg: rgba(242, 189, 17, 0.18); --warning-border: rgba(138, 104, 28, 0.28);
   color-scheme: light;
 }
 

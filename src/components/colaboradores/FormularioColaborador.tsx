@@ -17,6 +17,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,10 @@ const etapas = [
   "Admissão e documentos",
   "Revisão",
 ];
+const EASE_OUT: [number, number, number, number] = [0.2, 0.8, 0.2, 1];
+const EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
+const ENTRADA = { duration: 0.22, ease: EASE_OUT };
+const SAIDA = { duration: 0.16, ease: EASE_IN };
 const departamentos = [
   "Operações",
   "Coordenador de Voo",
@@ -106,6 +111,12 @@ export function FormularioColaborador({
     {},
   );
   const [descartar, setDescartar] = useState(false);
+  const reduzido = useReducedMotion();
+  const transicao = reduzido ? { duration: 0 } : ENTRADA;
+  const painel = (i: number) => ({
+    opacity: etapa === i ? 1 : 0,
+    transition: reduzido ? { duration: 0 } : etapa === i ? ENTRADA : SAIDA,
+  });
   const formRef = useRef<HTMLFormElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -347,6 +358,14 @@ export function FormularioColaborador({
               <ol>
                 {etapas.map((nome, i) => (
                   <li key={nome} className={i < etapa ? "rh-step-done" : ""}>
+                    {i === etapa && (
+                      <motion.span
+                        aria-hidden="true"
+                        layoutId="rh-step-pill"
+                        className="rh-step-pill"
+                        transition={transicao}
+                      />
+                    )}
                     <button
                       type="button"
                       disabled={i > etapa || salvando}
@@ -413,9 +432,11 @@ export function FormularioColaborador({
                   ][etapa]
                 }
               </p>
-              <fieldset
-                hidden={etapa !== 0}
-                className={etapa === 0 ? "rh-fields rh-enter" : ""}
+              <div className="rh-panel-stack">
+              <motion.fieldset
+                className="rh-fields rh-panel"
+                animate={painel(0)}
+                inert={etapa !== 0}
                 disabled={salvando}
               >
                 {field("nome_completo", "Nome completo *", {
@@ -453,10 +474,11 @@ export function FormularioColaborador({
                     ))}
                   </select>
                 </Campo>
-              </fieldset>
-              <fieldset
-                hidden={etapa !== 1}
-                className={etapa === 1 ? "rh-fields rh-enter" : ""}
+              </motion.fieldset>
+              <motion.fieldset
+                className="rh-fields rh-panel"
+                animate={painel(1)}
+                inert={etapa !== 1}
                 disabled={salvando}
               >
                 <Campo nome="departamento" titulo="Departamento">
@@ -570,11 +592,12 @@ export function FormularioColaborador({
                     />
                   </div>
                 )}
-              </fieldset>
-              <fieldset
-                hidden={etapa !== 2}
+              </motion.fieldset>
+              <motion.fieldset
+                className="rh-panel"
+                animate={painel(2)}
+                inert={etapa !== 2}
                 disabled={salvando}
-                className={etapa === 2 ? "rh-enter" : ""}
               >
                 <div className="rh-fields">
                   <Campo
@@ -724,7 +747,8 @@ export function FormularioColaborador({
                     PDF, JPG, PNG ou WEBP · até 10 MB por arquivo.
                   </p>
                 )}
-              </fieldset>
+              </motion.fieldset>
+              </div>
               {etapa === 3 && (
                 <div className="rh-enter">
                   <div className="rh-review-block">

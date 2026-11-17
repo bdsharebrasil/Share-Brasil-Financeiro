@@ -652,6 +652,31 @@
   flex-shrink: 0;
   transition: background 220ms var(--rh-ease);
 }
+.rh-steps li {
+  position: relative;
+}
+.rh-steps li > button {
+  position: relative;
+  z-index: 1;
+}
+.rh-step-pill {
+  position: absolute;
+  inset: -7px -8px;
+  border-radius: 12px;
+  background: var(--rh-superficie);
+  border: 1px solid var(--rh-linha);
+  z-index: 0;
+}
+.rh-panel-stack {
+  display: grid;
+}
+.rh-panel {
+  grid-area: 1 / 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 .rh-steps [aria-current="step"] {
   color: var(--rh-acento);
   font-weight: 600;

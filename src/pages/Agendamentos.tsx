@@ -405,7 +405,7 @@ export default function Agendamentos() {
       await excluirAgendamento(agendamentoParaExcluir.id);
       if (selecionada?.id === agendamentoParaExcluir.id) setSelecionada(null);
       setAgendamentoParaExcluir(null);
-      toast({ title: "Agendamento excluído", description: "O registro foi removido do cronograma de voos." });
+      toast({ title: "Agendamento excluído", description: "O registro foi excluído definitivamente do sistema e do banco de dados." });
       await carregar(true);
     } catch (error) {
       toast({ title: "Não foi possível excluir", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });

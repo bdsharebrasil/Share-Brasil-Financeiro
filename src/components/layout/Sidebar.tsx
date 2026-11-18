@@ -112,7 +112,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex">
+      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-sidebar-border bg-[rgb(7,17,25)] py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />

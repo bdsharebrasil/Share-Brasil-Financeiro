@@ -2647,30 +2647,31 @@ export default function FinanceiroCotista() {
   ];
 
   return (
-    <div className="financeiro-shell financeiro-profissional financeiro-cotista-view route-enter min-w-0 max-w-full space-y-3">
-      <div className="financeiro-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="financeiro-eyebrow">CLIENTE / AERONAVE</p>
-          <h2 className="mt-1 text-xl font-extrabold tracking-[-.035em] md:text-2xl">
-            Financeiro do Cotista
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Visão econômica consolidada de cotistas e holdings.
-          </p>
+    <div className="fc-shell route-enter min-w-0 max-w-full">
+      {/* ── Cabeçalho compacto ───────────────────────────── */}
+      <div className="fc-topbar flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+            <Plane size={13} className="text-muted-foreground" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight">Financeiro Cotista</p>
+            <p className="truncate text-[10px] text-muted-foreground leading-tight">Consolidação de custos e rateios</p>
+          </div>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={aeronaveSelecionada || "selecionar"}
             onValueChange={(valor) =>
               setAeronaveSelecionada(valor === "selecionar" ? "" : valor)
             }
           >
-            <SelectTrigger className="h-11 w-full gap-2 rounded-xl text-sm sm:w-[200px]">
-              <Plane size={14} className="text-muted-foreground" />
-              <SelectValue placeholder="Selecione uma aeronave" />
+            <SelectTrigger className="h-8 gap-1.5 rounded-md border-border text-xs sm:w-[180px]">
+              <Plane size={12} className="text-muted-foreground" />
+              <SelectValue placeholder="Selecione a aeronave" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="selecionar">Selecione uma aeronave</SelectItem>
+              <SelectItem value="selecionar">Selecione a aeronave</SelectItem>
               {aeronaves.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.matricula_registro} · {a.modelo}
@@ -2678,69 +2679,29 @@ export default function FinanceiroCotista() {
               ))}
             </SelectContent>
           </Select>
+          {aeronaveSelecionada && abaAtiva !== "portal-cliente" && (
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
+                className="fc-ctrl-btn" aria-label="Mês anterior">‹</button>
+              <Input type="month" value={mesReferencia} onChange={(e) => selecionarMesUnico(e.target.value)}
+                className="h-8 w-[132px] rounded-md border-border text-xs" />
+              <button type="button" onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
+                className="fc-ctrl-btn" aria-label="Próximo mês">›</button>
+            </div>
+          )}
         </div>
       </div>
 
       {!aeronaveSelecionada ? (
-        <div className="financeiro-panel rounded-xl border-dashed px-5 py-14 text-center">
-          <Plane className="mx-auto h-8 w-8 text-muted-foreground/60" />
-          <p className="mt-3 text-sm font-semibold">Selecione uma aeronave</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Os dados financeiros do cotista serão exibidos depois da seleção.
-          </p>
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <Plane className="h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium">Selecione uma aeronave no campo acima</p>
+          <p className="text-xs text-muted-foreground">Os dados financeiros serão exibidos após a seleção.</p>
         </div>
       ) : (
         <>
-          {aeronaveSelecionada && cotistasAeronave.length > 0 && (
-            <details className="financeiro-panel px-4 py-2.5">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                Participação na aeronave · {cotistasAeronave.length} cotista(s)
-              </summary>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {cotistasAeronave.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium ${c.eh_holding ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}
-                  >
-                    {c.eh_holding ? (
-                      <Building2 size={11} />
-                    ) : (
-                      <User size={11} />
-                    )}
-                    {c.nome}
-                    <span className="font-mono text-[10px] opacity-60">
-                      {c.percentual_sociedade}%
-                    </span>
-                    <button type="button" className="ml-1 rounded p-1 hover:bg-background/60" aria-label={`Editar participação de ${c.nome}`} onClick={() => { setParticipacaoEditando(c); setPercentualEditado(String(c.percentual_sociedade)); setAeronaveEditada(c.aeronave_id); }}><Pencil size={12} /></button>
-                    <button type="button" className="rounded p-1 text-red-500 hover:bg-red-500/10" aria-label={`Excluir vínculo de ${c.nome}`} onClick={() => void removerParticipacao(c)}><Trash2 size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {abaAtiva !== "lancamentos" && <section className="financeiro-panel overflow-hidden">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <p className="financeiro-eyebrow">CENTRO DE CUSTOS DA AERONAVE</p>
-                <p className="mt-1 text-base font-semibold">{aeronaves.find((a) => a.id === aeronaveSelecionada)?.matricula_registro || "Aeronave selecionada"}</p>
-                <p className="text-[10px] text-muted-foreground"></p>
-              </div>
-              <div className="grid grid-cols-2 divide-x divide-border rounded-lg border border-border sm:grid-cols-4">
-                {[
-                  ["Lançamentos", String(lancamentosFiltrados.length), ""],
-                  ["Total do mês", formatarMoeda(dashboard?.resumo?.saidas ?? 0), ""],
-                ].map(([label, value, tone]) => (
-                  <div key={label} className="min-w-[104px] px-3 py-2.5 first:pl-3">
-                    <p className="text-[8px] font-bold uppercase tracking-[.12em] text-muted-foreground">{label}</p>
-                    <p className={`mt-1 font-mono text-xs font-bold ${tone}`}>{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>}
-
-          <div className="financeiro-tabs flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-muted/30 p-1" role="tablist" aria-label="Visões do financeiro cotista">
+          {/* ── Abas ───────────────────────────────────────── */}
+          <div className="fc-tabs-bar flex items-center gap-0 overflow-x-auto border-b border-border bg-card px-4" role="tablist" aria-label="Visões do financeiro cotista">
             {([
               ["lancamentos", "Lançamentos mensais", ReceiptText],
               ["resumo", "Visão por cotista", LayoutDashboard],

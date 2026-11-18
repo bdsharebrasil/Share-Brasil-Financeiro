@@ -28,12 +28,12 @@
   --app-header-height: calc(68px + var(--safe-area-top));
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --background: 204.00 26.32% 96.27%;
-  --foreground: 203.08 32.50% 15.69%;
-  --border: 204.71 24.64% 86.47%;
+  --background: 204.00 26.32% 92.50%;
+  --foreground: 203.08 40.00% 10.50%;
+  --border: 204.71 22.00% 76.50%;
   --card: 0.00 0.00% 100.00%;
-  --card-foreground: 203.08 32.50% 15.69%;
-  --card-border: 204.71 24.64% 86.47%;
+  --card-foreground: 203.08 40.00% 10.50%;
+  --card-border: 204.71 22.00% 76.50%;
   --sidebar: 208.57 56.76% 14.51%;
   --sidebar-foreground: 210.00 38.89% 92.94%;
   --sidebar-border: 207.06 38.93% 25.69%;
@@ -47,15 +47,15 @@
   --popover-border: 204.71 24.64% 86.47%;
   --primary: 203.77 89.83% 34.71%;
   --primary-foreground: 0.00 0.00% 100.00%;
-  --secondary: 202.50 28.57% 94.51%;
-  --secondary-foreground: 203.08 32.50% 15.69%;
-  --muted: 202.50 28.57% 94.51%;
-  --muted-foreground: 204.00 15.00% 39.22%;
+  --secondary: 202.50 28.57% 89.50%;
+  --secondary-foreground: 203.08 40.00% 10.50%;
+  --muted: 202.50 28.57% 90.50%;
+  --muted-foreground: 204.00 22.00% 27.00%;
   --accent: 204.00 66.67% 94.12%;
   --accent-foreground: 203.77 89.83% 34.71%;
   --destructive: 0 42% 50%;
   --destructive-foreground: 0 0% 100%;
-  --input: 203.57 23.73% 76.86%;
+  --input: 203.57 25.00% 66.00%;
   --ring: 203.77 89.83% 34.71%;
   --chart-1: 203.77 89.83% 34.71%;
   --chart-2: 104.76 33.69% 36.67%;
@@ -433,6 +433,11 @@ html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-200, .text-amber-3
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-200, .text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-200, .text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-200, .text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-slate-100, .text-slate-200, .text-\[\#dde2e9\]) { color: hsl(var(--foreground)); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-slate-300, .text-slate-400) { color: hsl(var(--muted-foreground)); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.font-thin, .font-extralight, .font-light) { font-weight: 400; }
+html:not(.dark) :where(main, [role="dialog"]) [class*="text-muted-foreground/"] { color: hsl(var(--muted-foreground)); opacity: 1; }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-100, .text-sky-200, .text-cyan-100, .text-cyan-200) { color: var(--light-info); }
 
 /* Planilhas do financeiro (Cotista e Share): cabeçalho escuro, bordas firmes e total em destaque. */
 html:not(.dark) .erp-financeiro .erp-tabela-container { background: #eff4f7; border-color: #9eafbc; }
@@ -568,6 +573,7 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 .app-topbar .menu-cabecalho[aria-pressed="true"] { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); box-shadow: none; }
 .app-topbar .tophead-control { background-color: hsl(var(--secondary) / .5); }
 .app-sidebar { border-color: hsl(var(--sidebar-border)); }
+html:not(.dark) .app-topbar { --foreground: 203.00 30.00% 94.00%; --muted-foreground: 200.00 15.00% 66.00%; --border: 205.00 30.00% 22.00%; }
 html:not(.dark) .app-topbar :is(.text-emerald-200, .text-emerald-300) { color: var(--app-success); }
 html:not(.dark) .app-topbar :is(.text-rose-200, .text-rose-300) { color: var(--app-danger); }
 ::selection { background: hsl(var(--primary) / .24); }

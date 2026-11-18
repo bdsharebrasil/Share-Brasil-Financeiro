@@ -50,16 +50,19 @@ export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChe
       ? "yellow"
       : "red";
 
+  const podeFinalizar = !historico && Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0;
+
   return {
     historico,
+    jornadaIniciada: jornadaExistente,
+    abrirLabel: jornadaExistente ? "VER HISTORICO" : "ABRIR",
     mostrarChecklist: !historico && operacional,
     checklistConcluido,
     preparacaoPendencias: Number(item.preparacao_pendencias || 0),
     checklistLabel: checklistConcluido ? Number(item.preparacao_pendencias || 0)>0 ? `VER PREPARAÇÃO · ${item.preparacao_pendencias} PENDÊNCIA(S)` : "VER CHECKLIST" : checklistIniciado ? "CONCLUIR CHECKLIST" : "INICIAR CHECKLIST",
     corChecklist,
     mostrarJornada: !historico && operacional && (jornadaExistente || checklistConcluido),
-    jornadaLabel: jornadaExistente ? "VER JORNADA" : "INICIAR JORNADA",
-    podeFinalizar: !historico && Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0,
+    jornadaLabel: podeFinalizar ? "ENCERRAR OPERAÇÃO" : jornadaExistente ? "ATUALIZAR HORARIOS" : "INICIAR JORNADA",
+    podeFinalizar,
   } as const;
 }
-

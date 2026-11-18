@@ -578,3 +578,60 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   .menu-dashboard, .menu-cabecalho, .aba-dashboard { transition: none; }
   .menu-dashboard:hover, .menu-cabecalho:hover, .aba-dashboard:hover { transform: none; }
 }
+
+/* Agendamentos — linguagem de produto inspirada no painel de referência.
+   Tudo fica encapsulado para não alterar outras áreas do sistema. */
+.agendamentos-page {
+  --agenda-surface: hsl(var(--card));
+  --agenda-subtle: hsl(var(--secondary) / .5);
+  --agenda-line: hsl(var(--border));
+  --agenda-shadow: 0 14px 34px hsl(var(--foreground) / .045);
+  --agenda-radius: 14px;
+}
+.agendamentos-page .agendamento-heading { position: relative; padding: 4px 2px 2px; }
+.agendamentos-page .agendamento-heading::after { content: ""; position: absolute; right: 0; bottom: 0; width: min(38%, 220px); height: 1px; background: linear-gradient(90deg, transparent, hsl(var(--primary) / .45)); }
+.agendamentos-page .agendamento-heading h1 { letter-spacing: -.045em; }
+.agendamentos-page .agendamento-primary-action { min-height: 40px; border-radius: 10px; box-shadow: 0 10px 24px hsl(var(--primary) / .2); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+.agendamentos-page .agendamento-primary-action:hover { transform: translateY(-1px); box-shadow: 0 14px 30px hsl(var(--primary) / .28); filter: brightness(1.06); }
+.agendamentos-page .agendamento-tabs { border-radius: 12px; background: hsl(var(--card) / .72); box-shadow: inset 0 0 0 1px hsl(var(--foreground) / .02), 0 8px 24px hsl(var(--foreground) / .025); }
+.agendamentos-page .agendamento-tabs button { min-height: 38px; border-radius: 9px; }
+.agendamentos-page .agendamento-tabs button:not(.bg-primary):hover { background: hsl(var(--primary) / .08); }
+.agendamentos-page > .grid > :is(div, section) { border-radius: var(--agenda-radius); background: radial-gradient(circle at 100% 0, hsl(var(--primary) / .055), transparent 40%), var(--agenda-surface); box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agendamento-cronograma { border-radius: var(--agenda-radius); background: var(--agenda-surface); box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] { background: linear-gradient(180deg, hsl(var(--card) / .96), hsl(var(--secondary) / .16)); }
+.agendamentos-page .agendamento-cronograma input,
+.agendamentos-page .agendamento-cronograma [role="group"] { border-radius: 9px; }
+.agendamentos-page .agendamento-card { border-color: hsl(var(--border)); background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--secondary) / .22)); box-shadow: 0 8px 24px hsl(var(--foreground) / .04); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.agendamentos-page .agendamento-card:hover { border-color: hsl(var(--primary) / .42); box-shadow: 0 14px 30px hsl(var(--primary) / .09); }
+.agendamentos-page .agendamento-card > div:first-child { border-color: hsl(var(--border) / .8); }
+.agendamentos-page .agendamento-card [class*="bg-background\/25"] { background: hsl(var(--secondary) / .24); border-color: hsl(var(--border) / .75); border-radius: 10px; }
+.agendamentos-page .agendamento-form,
+.agendamentos-page .agendamento-detail { border-color: hsl(var(--primary) / .25); border-radius: var(--agenda-radius); box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agendamento-form > form > div,
+.agendamentos-page .agendamento-detail [class*="rounded-lg"][class*="border"] { transition: border-color .18s ease, background-color .18s ease; }
+.agendamentos-page .agendamento-form input,
+.agendamentos-page .agendamento-form select,
+.agendamentos-page .agendamento-form textarea,
+.agendamentos-page .agendamento-detail input,
+.agendamentos-page .agendamento-detail select,
+.agendamentos-page .agendamento-detail textarea { border-radius: 9px; background-color: hsl(var(--secondary) / .22); }
+.agendamentos-page .agendamento-form label,
+.agendamentos-page .agendamento-detail label { color: hsl(var(--muted-foreground)); font-weight: 700; letter-spacing: .02em; }
+.agendamentos-page .agendamento-form > form > div:last-child,
+.agendamentos-page .agendamento-form > form > div[class*="sticky"] { border-color: hsl(var(--border)); background: hsl(var(--card) / .96); }
+.agendamentos-page [role="alert"] { border-radius: 12px; box-shadow: 0 10px 26px hsl(var(--destructive) / .08); }
+.agendamentos-page [data-radix-popper-content-wrapper] [role="dialog"],
+.agendamentos-page [data-radix-popper-content-wrapper] { border-radius: 12px; }
+
+/* Toast compartilhado: respeita os tokens do tema em vez de impor branco/preto. */
+[data-radix-toast-viewport] { gap: 10px; padding: 14px; }
+[data-radix-toast] { min-height: 62px; border-color: hsl(var(--border)); border-radius: 14px; background: linear-gradient(145deg, hsl(var(--card) / .98), hsl(var(--secondary) / .42)); box-shadow: 0 18px 45px hsl(var(--foreground) / .16); }
+[data-radix-toast-title] { font-size: 12px; letter-spacing: -.01em; }
+[data-radix-toast-description] { margin-top: 2px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.45; }
+[data-radix-toast][data-variant="destructive"] { border-color: hsl(var(--destructive) / .42); background: linear-gradient(145deg, hsl(var(--destructive) / .13), hsl(var(--card) / .98)); color: hsl(var(--foreground)); }
+.dark [data-radix-toast] { box-shadow: 0 18px 45px rgb(0 0 0 / .32); }
+@media (max-width: 640px) {
+  .agendamentos-page .agendamento-heading::after { width: 46%; }
+  .agendamentos-page .agendamento-tabs { margin-inline: -2px; }
+  [data-radix-toast-viewport] { right: 0; left: 0; width: 100%; padding: 10px; }
+}

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { buscarAerodromos, calcularPlanoVoo } from "@/lib/flightplan-api";
+import { buscarAerodromos, buscarRotaer, calcularPlanoVoo } from "@/lib/flightplan-api";
 import { supabase } from "@/lib/supabase";
-import { guardarRascunho, lerRascunho, localizarAgendamento, vinculosDoAgendamento, horarioFpl, type RascunhoPlano } from "@/lib/plano-voo";
-import { buscarPainelAgendamento } from "@/lib/colaborador-api";
+import { codigoAerodromoValido, formularioDaPerna, ordenarPernas, pernaInicial, pernaPodePlanejar, guardarRascunho, lerRascunho, localizarAgendamento, vinculosDoAgendamento, horarioFpl, type RascunhoPlano } from "@/lib/plano-voo";
+import { buscarPainelAgendamento, buscarPernasPlanoVoo } from "@/lib/colaborador-api";
 import {
   calcularCombustivel,
   distanciaKm,
@@ -17,6 +17,7 @@ import type {
   ContextoVoo,
   FormularioIcao,
   PontoRota,
+  PernaPlanoVoo,
   RespostaRotas,
   Segmento,
   SugestaoVoo,
@@ -72,6 +73,9 @@ export function usePlanoVoo() {
   const [ventoKt, setVentoKt] = useState(0);
   const [combustivelABordo, setCombustivelABordo] = useState<string>("");
 
+  const [pernas, setPernas] = useState<PernaPlanoVoo[]>([]);
+  const [pernaSelecionadaId, setPernaSelecionadaId] = useState("");
+  const [formulariosPorPerna, setFormulariosPorPerna] = useState<Record<string, FormularioIcao>>({});
   const [consultaAerodromo, setConsultaAerodromo] = useState("");
   const [aerodromoAtivo, setAerodromoAtivo] = useState("");
   const [usuario, setUsuario] = useState<string | null>(null);
@@ -91,6 +95,9 @@ export function usePlanoVoo() {
     setContexto(contextoSalvo ? { ...contextoSalvo, ...(agendamento ? vinculosDoAgendamento(agendamento) : {}) } : null);
     setCoordenadas(dados?.coordenadas ?? {});
     setRotaAisweb(dados?.rotaAisweb ?? null);
+    setPernas(ordenarPernas(dados?.pernas ?? []));
+    setPernaSelecionadaId(dados?.pernaSelecionadaId ?? "");
+    setFormulariosPorPerna(dados?.formulariosPorPerna ?? {});
     setMinutosReserva(dados?.minutosReserva ?? 45);
     setMinutosTaxi(dados?.minutosTaxi ?? 10);
     setVentoKt(dados?.ventoKt ?? 0);
@@ -132,8 +139,8 @@ export function usePlanoVoo() {
 
   useEffect(() => {
     if (!pronto || !usuario) return;
-    try { guardarRascunho(window.localStorage, usuario, { formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo }); } catch { /* O formulário continua disponível sem armazenamento local. */ }
-  }, [pronto, usuario, formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo]);
+    try { guardarRascunho(window.localStorage, usuario, { pernas, pernaSelecionadaId, formulariosPorPerna, formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo }); } catch { /* O formulário continua disponível sem armazenamento local. */ }
+  }, [pronto, usuario, pernas, pernaSelecionadaId, formulariosPorPerna, formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo]);
 
   const atualizar = useCallback(<C extends keyof FormularioIcao>(campo: C, valor: FormularioIcao[C]) => {
     if (campo === "adep" || campo === "ades") {
@@ -188,6 +195,11 @@ export function usePlanoVoo() {
       const painel = painelRef.current ?? await buscarPainelAgendamento("2000-01-01", "2099-12-31").catch(() => { throw new Error("Não foi possível consultar os voos. Tente novamente."); });
       if (sequencia !== consulta.current) return;
       const solicitacao = localizarAgendamento(painel.agendamentos, numeroVoo);
+      const dadosPernas = await buscarPernasPlanoVoo(solicitacao.id).catch(() => { throw new Error("Não foi possível carregar os trechos deste voo. Tente buscar novamente."); });
+      if (sequencia !== consulta.current) return;
+      const pernasDoVoo = ordenarPernas(dadosPernas.pernas);
+      const selecionada = pernaInicial(pernasDoVoo);
+      if (pernasDoVoo.length && !selecionada) throw new Error("Os trechos deste voo estão cancelados ou com origem e destino incompletos. Revise as pernas cadastradas.");
       const aeronave = painel.aeronaves.find((item) => item.id === solicitacao.aeronave_id) ?? null;
       const piloto = painel.tripulacao.find((item) => item.id === solicitacao.piloto_id) ?? null;
       const copiloto = painel.tripulacao.find((item) => item.id === solicitacao.copiloto_id) ?? null;
@@ -232,7 +244,7 @@ export function usePlanoVoo() {
       setRotaAisweb(null);
       setConsultaAerodromo("");
       setAerodromoAtivo("");
-      setFormulario({
+      const base: FormularioIcao = {
         ...atual,
         identificacao: solicitacao.numero_voo ?? atual.identificacao,
         adep: solicitacao.origem.toUpperCase(),
@@ -247,7 +259,11 @@ export function usePlanoVoo() {
         outrasInformacoes: aeronave?.matricula_registro
           ? `REG/${aeronave.matricula_registro.replace("-", "")} TYP/${aeronave.modelo ?? ""}`.trim()
           : atual.outrasInformacoes,
-      });
+      };
+      setPernas(pernasDoVoo);
+      setPernaSelecionadaId(selecionada?.id ?? "");
+      setFormulariosPorPerna({});
+      setFormulario(selecionada ? formularioDaPerna(base, selecionada, pernasDoVoo[0]?.id === selecionada.id && selecionada.data.slice(0, 10) === solicitacao.data_agendada.slice(0, 10) ? solicitacao.horario_previsto_agendamento : null) : base);
     } catch (e) {
       if (sequencia !== consulta.current) return;
       setErro(e instanceof Error ? e.message : "Falha ao consultar o voo.");
@@ -256,11 +272,26 @@ export function usePlanoVoo() {
     }
   }, []);
 
+  const selecionarPerna = useCallback((id: string) => {
+    const perna = pernas.find(p => p.id === id);
+    if (!perna || !pernaPodePlanejar(perna) || id === pernaSelecionadaId) return;
+    consulta.current += 1;
+    setCarregando(false);
+    setFormulariosPorPerna(atual => ({ ...atual, ...(pernaSelecionadaId ? { [pernaSelecionadaId]: formulario } : {}) }));
+    setFormulario(formulariosPorPerna[id] ?? formularioDaPerna(formulario, perna,
+      pernas[0]?.id === id && perna.data.slice(0, 10) === contexto?.solicitacao.data_agendada.slice(0, 10) ? contexto?.solicitacao.horario_previsto_agendamento : null));
+    setPernaSelecionadaId(id);
+    setRotaAisweb(null);
+    setConsultaAerodromo("");
+    setAerodromoAtivo(perna.origem.trim().toUpperCase());
+    setErro(null);
+  }, [pernas, pernaSelecionadaId, formulario, formulariosPorPerna, contexto]);
+
   const icaosDeInteresse = useMemo(
     () =>
       [formulario.adep, formulario.ades, formulario.alternado1, formulario.alternado2]
         .map((v) => v.trim().toUpperCase())
-        .filter((v) => /^[A-Z]{4}$/.test(v)),
+        .filter(codigoAerodromoValido),
     [formulario.adep, formulario.ades, formulario.alternado1, formulario.alternado2],
   );
 
@@ -269,23 +300,28 @@ export function usePlanoVoo() {
     let ativo = true;
     const pendentes = icaosDeInteresse.filter(icao => !coordenadas[icao]);
     if (!pendentes.length) return;
-    void buscarAerodromos().then(({ aerodromos }) => {
-      if (!ativo) return;
+    void (async () => {
+      const { aerodromos } = await buscarAerodromos().catch(() => ({ aerodromos: [] }));
       const novas: typeof coordenadas = {};
-      for (const icao of pendentes) {
+      await Promise.all(pendentes.map(async icao => {
         const achado = aerodromos.find(a => a.id.toUpperCase() === icao);
         const coord = interpretarCoordenadas(achado?.coordenadas);
-        if (achado && coord) novas[icao] = { ...coord, nome: achado.name };
-      }
-      setCoordenadas(atual => ({ ...novas, ...atual }));
-    }).catch(() => { /* A consulta da rota também pode fornecer as coordenadas. */ });
+        if (achado && coord) { novas[icao] = { ...coord, nome: achado.name }; return; }
+        try {
+          const { airport } = await buscarRotaer(icao);
+          const lat = airport.coordinates?.lat, lon = airport.coordinates?.lng;
+          if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) novas[icao] = { lat, lon, nome: airport.name || icao };
+        } catch { /* A ficha pode ficar indisponível; não inventa coordenadas. */ }
+      }));
+      if (ativo) setCoordenadas(atual => ({ ...novas, ...atual }));
+    })();
     return () => { ativo = false; };
   }, [icaosDeInteresse, revisaoPlano]);
 
   const consultarRotaAisweb = useCallback(async (adepInformado?: string, adesInformado?: string) => {
     const adep = (adepInformado ?? formulario.adep).trim().toUpperCase();
     const ades = (adesInformado ?? formulario.ades).trim().toUpperCase();
-    if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) return;
+    if (!codigoAerodromoValido(adep) || !codigoAerodromoValido(ades)) return;
     const sequencia = ++consulta.current;
     setFormulario((atual) => ({ ...atual, adep, ades }));
     setCarregando(true);
@@ -328,8 +364,9 @@ export function usePlanoVoo() {
   const pontos: PontoRota[] = useMemo(() => {
     const lista: PontoRota[] = [];
     const adicionar = (icao: string, tipo: PontoRota["tipo"]) => {
-      const coord = coordenadas[icao.toUpperCase()];
-      if (coord) lista.push({ nome: icao.toUpperCase(), lat: coord.lat, lon: coord.lon, tipo });
+      const codigo = icao.trim().toUpperCase();
+      const coord = coordenadas[codigo];
+      if (coord) lista.push({ nome: codigo, lat: coord.lat, lon: coord.lon, tipo });
     };
     adicionar(formulario.adep, "adep");
     adicionar(formulario.ades, "ades");
@@ -411,6 +448,9 @@ export function usePlanoVoo() {
 
   return {
     pronto,
+    pernas, pernaSelecionadaId, selecionarPerna, formulariosPorPerna,
+    pernaSelecionada: pernas.find(p => p.id === pernaSelecionadaId),
+    icaosDoVoo: [...new Set([...icaosDeInteresse, ...pernas.flatMap(p => [p.origem.trim().toUpperCase(), p.destino.trim().toUpperCase()])].filter(codigoAerodromoValido))],
     carregandoSugestoes,
     recarregarVoos: () => setRevisaoVoos(r => r + 1),
     consultaAerodromo, setConsultaAerodromo,

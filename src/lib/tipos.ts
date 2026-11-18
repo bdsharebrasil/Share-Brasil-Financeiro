@@ -59,6 +59,22 @@ export interface SugestaoVoo {
   modelo?: string | null;
 }
 
+export interface PernaPlanoVoo {
+  id: string;
+  jornada_id: string;
+  numero_jornada: number;
+  data: string;
+  numero: number;
+  origem: string;
+  destino: string;
+  numero_passageiros: number;
+  horario_ac: string | null;
+  horario_dep: string | null;
+  horario_pouso: string | null;
+  horario_corte: string | null;
+  status: string;
+}
+
 export interface AerodromoResumo {
   id: string;
   label: string;

@@ -1,6 +1,34 @@
 import { chaveNumeroVoo } from "./format";
 import type { SolicitacaoVooInterna } from "./colaborador-api";
-import type { ContextoVoo, FormularioIcao, RespostaRotas } from "./tipos";
+import type { ContextoVoo, FormularioIcao, PernaPlanoVoo, RespostaRotas } from "./tipos";
+
+export function codigoAerodromoValido(valor: string): boolean {
+  return /^[A-Z0-9]{4}$/i.test(valor.trim());
+}
+
+export function ordenarPernas(pernas: PernaPlanoVoo[]): PernaPlanoVoo[] {
+  return [...new Map(pernas.map(perna => [perna.id, perna])).values()]
+    .sort((a, b) => a.data.localeCompare(b.data) || a.numero_jornada - b.numero_jornada || a.numero - b.numero || a.id.localeCompare(b.id));
+}
+
+export function pernaPodePlanejar(perna: PernaPlanoVoo): boolean {
+  return codigoAerodromoValido(perna.origem) && codigoAerodromoValido(perna.destino)
+    && perna.origem.trim().toUpperCase() !== perna.destino.trim().toUpperCase()
+    && !["cancelada", "cancelado"].includes(perna.status?.toLowerCase());
+}
+
+export function pernaInicial(pernas: PernaPlanoVoo[]): PernaPlanoVoo | undefined {
+  const validas = ordenarPernas(pernas).filter(pernaPodePlanejar);
+  return validas.find(p => !p.horario_corte && (p.horario_ac || p.horario_dep) && !["cortado", "encerrada", "encerrado"].includes(p.status?.toLowerCase()))
+    ?? validas.find(p => !p.horario_corte && !p.horario_pouso && !["cortado", "pousado", "encerrada", "encerrado"].includes(p.status?.toLowerCase()))
+    ?? validas[0];
+}
+
+export function formularioDaPerna(base: FormularioIcao, perna: PernaPlanoVoo, horarioInicial?: string | null): FormularioIcao {
+  const horario = horarioFpl(perna.horario_dep || perna.horario_ac || horarioInicial, perna.data.slice(0, 10));
+  return { ...base, adep: perna.origem.trim().toUpperCase(), ades: perna.destino.trim().toUpperCase(), dataVoo: horario.data, eobt: horario.hora,
+    pessoasABordo: String(perna.numero_passageiros ?? ""), rota: "", alternado1: "", alternado2: "", eet: "" };
+}
 
 export function vinculosDoAgendamento(voo: SolicitacaoVooInterna): Pick<ContextoVoo, "cliente" | "cotista"> {
   return {
@@ -31,6 +59,9 @@ export function horarioFpl(valor: string | null | undefined, data: string) {
 }
 
 export type RascunhoPlano = {
+  pernas: PernaPlanoVoo[];
+  pernaSelecionadaId: string;
+  formulariosPorPerna: Record<string, FormularioIcao>;
   formulario: FormularioIcao;
   contexto: ContextoVoo | null;
   coordenadas: Record<string, { lat: number; lon: number; nome: string }>;

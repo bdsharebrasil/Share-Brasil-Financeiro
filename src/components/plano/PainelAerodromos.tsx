@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { codigoAerodromoValido } from "@/lib/plano-voo";
 import { API_ORIGIN } from "@/lib/api";
 import {
   buscarAerodromos,
@@ -124,7 +125,7 @@ async function consultar(icao: string, forcar: boolean) {
 }
 
 export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: string[]; selecionado?: string; aoSelecionar?: (icao: string) => void }) {
-  const lista = useMemo(() => Array.from(new Set(icaos.map(i => i.trim().toUpperCase()).filter(i => /^[A-Z]{4}$/.test(i)))), [icaos]);
+  const lista = useMemo(() => Array.from(new Set(icaos.map(i => i.trim().toUpperCase()).filter(codigoAerodromoValido))), [icaos]);
   const [codigo, setCodigo] = useState("");
   const preferido = selecionado ?? codigo;
   const ativo = lista.includes(preferido) ? preferido : lista[0] ?? "";

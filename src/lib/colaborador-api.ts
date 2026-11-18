@@ -1323,6 +1323,9 @@ export type LimitesJornada = { jornada_id: string; tripulante_id: string | null;
 export type JornadaVoo = { id: string; solicitacao_id: string; aeronave_id: string; tripulante_id: string | null; tripulante_nome?: string | null; numero_voo?: string | null; origem?: string | null; destino?: string | null; matricula_registro?: string | null; modelo?: string | null; funcao_tripulante: "PIC" | "SIC"; jornada_principal_id: string | null; numero_jornada: number; data: string; horario_acionamento: string | null; horario_apresentacao: string | null; horario_pouso: string | null; horario_corte: string | null; horario_encerramento?: string | null; minutos_reais?: number | null; minutos_pos_corte: number; minutos_jornada: number | null; nivel_alerta: NivelAlertaJornada; status: string; status_agendamento?: string; observacoes: string | null; pernas: Array<{ id: string; jornada_id?: string; numero: number; origem: string; destino: string; numero_passageiros: number; horario_ac: string | null; horario_dep: string | null; horario_pouso: string | null; horario_corte: string | null; status: string; lancamento_diario_id?: string | null }>; tripulantes?: JornadaTripulante[]; historico?: JornadaVoo[] };
 export type JornadaTripulante = JornadaVoo & { funcao_tripulante: "PIC" | "SIC"; limites: LimitesJornada };
 export function buscarJornadaVoo(id: string) { return colaboradorRequest<JornadaVoo | null>(`/api/interno/agendamento/${id}/jornada`); }
+export function buscarPernasPlanoVoo(id: string) {
+  return colaboradorRequest<{ pernas: import("./tipos").PernaPlanoVoo[] }>(`/api/interno/agendamento/${encodeURIComponent(id)}/pernas-plano`);
+}
 export function buscarExtratoJornadaTripulante(id: string, inicio?: string, fim?: string) {
   const params = new URLSearchParams();
   if (inicio) params.set("inicio", inicio);

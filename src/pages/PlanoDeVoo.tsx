@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, CloudSun, FilePlus2, FolderOpen, MapPin, Route, Save } from "lucide-react";
 
+import { codigoAerodromoValido } from "@/lib/plano-voo";
+import { TrechosDoVoo } from "@/components/plano/TrechosDoVoo";
 import { BuscaVoo } from "@/components/plano/BuscaVoo";
 import MapaRota from "@/components/plano/MapaRota";
 import { PainelAerodromos } from "@/components/plano/PainelAerodromos";
@@ -50,10 +52,7 @@ export default function PlanoDeVoo() {
     if (aba === "salvos") void carregarPlanosSalvos();
   }, [aba, carregarPlanosSalvos]);
 
-  const icaos = useMemo(
-    () => [plano.formulario.adep, plano.formulario.ades, plano.formulario.alternado1, plano.formulario.alternado2],
-    [plano.formulario.adep, plano.formulario.ades, plano.formulario.alternado1, plano.formulario.alternado2],
-  );
+  const icaos = plano.icaosDoVoo;
 
   const iniciarNovo = () => {
     plano.resetar();
@@ -66,8 +65,8 @@ export default function PlanoDeVoo() {
   const salvar = async () => {
     const adep = plano.formulario.adep.trim().toUpperCase();
     const ades = plano.formulario.ades.trim().toUpperCase();
-    if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) {
-      setMensagem("Informe ADEP e ADES com códigos ICAO de quatro letras antes de salvar.");
+    if (!codigoAerodromoValido(adep) || !codigoAerodromoValido(ades)) {
+      setMensagem("Informe ADEP e ADES com códigos de aeródromo com quatro letras ou números antes de salvar.");
       return;
     }
     if (adep === ades) {
@@ -86,6 +85,9 @@ export default function PlanoDeVoo() {
         eobt: plano.formulario.eobt || null,
         form: plano.formulario,
         contexto: plano.contexto,
+        pernas: plano.pernas,
+        pernaSelecionadaId: plano.pernaSelecionadaId,
+        formulariosPorPerna: plano.formulariosPorPerna,
         coordenadas: plano.coordenadas,
         minutosReserva: plano.minutosReserva,
         minutosTaxi: plano.minutosTaxi,
@@ -162,7 +164,7 @@ export default function PlanoDeVoo() {
                 selecionado={plano.contexto?.solicitacao.id}
                 aoRecarregar={plano.recarregarVoos}
                 erro={plano.erro}
-                resumo={plano.contexto ? `${plano.contexto.solicitacao.origem} → ${plano.contexto.solicitacao.destino}` : null}
+                resumo={plano.contexto ? `${plano.formulario.adep} → ${plano.formulario.ades}` : null}
                 sugestoes={plano.sugestoes}
                 aoBuscar={(numero) => {
                   setSalvo(false);
@@ -170,7 +172,8 @@ export default function PlanoDeVoo() {
                   void plano.buscarVoo(numero);
                 }}
               />
-              {plano.contexto && <Secao titulo="Resumo do voo consultado" descricao="Dados do agendamento usados para auxiliar o preenchimento"><ResumoVoo contexto={plano.contexto} /></Secao>}
+              <TrechosDoVoo pernas={plano.pernas} selecionada={plano.pernaSelecionadaId} aoSelecionar={(id) => { plano.selecionarPerna(id); setSalvo(false); setMensagem(null); }} />
+              {plano.contexto && <Secao titulo="Resumo do voo consultado" descricao="Dados do agendamento usados para auxiliar o preenchimento"><ResumoVoo contexto={plano.contexto} perna={plano.pernaSelecionada} formulario={plano.formulario} /></Secao>}
               <Secao titulo="Formulário de plano de voo ICAO" descricao="Itens 7 a 19 · revise e confirme os dados antes de encaminhar ao órgão AIS">
                 <PlanoIcao formulario={plano.formulario} atualizar={plano.atualizar} />
               </Secao>
@@ -202,7 +205,7 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
     event.preventDefault();
     const adep = origem.trim().toUpperCase();
     const ades = destino.trim().toUpperCase();
-    if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades) || adep === ades) {
+    if (!codigoAerodromoValido(adep) || !codigoAerodromoValido(ades) || adep === ades) {
       setValidacao("Informe dois códigos ICAO válidos e diferentes para os pontos A e B.");
       return;
     }
@@ -214,6 +217,7 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
 
   return (
     <div className="space-y-5">
+      <TrechosDoVoo pernas={plano.pernas} selecionada={plano.pernaSelecionadaId} aoSelecionar={plano.selecionarPerna} />
       <Secao titulo="Pontos A e B" descricao="Consulte a rota publicada e veja o trecho no mapa">
         <form onSubmit={consultar} className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
           <label className="text-xs font-semibold text-muted-foreground">Ponto A · ADEP
@@ -261,8 +265,8 @@ function ConsultaAerodromo({ plano, icaos }: { plano: ReturnType<typeof usePlano
   const buscar = (event: React.FormEvent) => {
     event.preventDefault();
     const codigo = icao.trim().toUpperCase();
-    if (!/^[A-Z]{4}$/.test(codigo)) {
-      setErro("Informe um código ICAO de quatro letras, por exemplo SBGR.");
+    if (!codigoAerodromoValido(codigo)) {
+      setErro("Informe um código de aeródromo com quatro letras ou números, por exemplo SN9T.");
       return;
     }
     setErro("");

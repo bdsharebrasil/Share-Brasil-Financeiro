@@ -1,3 +1,4 @@
+import { interpretarCafe } from "@/lib/cafe-manha";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,10 +10,10 @@ import { atualizarHotelShare, buscarHoteisShare, buscarPerfilColaborador, criarH
 
 const card = "rounded-xl border border-border bg-card/80 shadow-sm";
 const field = "h-10 w-full rounded-lg border border-border bg-background/60 px-3 text-xs outline-none transition-colors focus:border-primary/60";
-const emptyHotel: Partial<HotelShare> = { nome: "", cidade: "", uf: "", endereco: "", telefone: "", telefone_reservas: "", email: "", email_comercial: "", contato_comercial: "", telefone_comercial: "", preco_single: null, preco_duplo: null, estrelas: 0, convenio: false, observacoes: "", cafe_manha: "NÃO" };
+const emptyHotel: Partial<HotelShare> = { nome: "", cidade: "", uf: "", endereco: "", telefone: "", telefone_reservas: "", email: "", email_comercial: "", contato_comercial: "", telefone_comercial: "", preco_single: null, preco_duplo: null, estrelas: 0, convenio: false, observacoes: "", cafe_manha: "A_CONFIRMAR" };
 function isManager(value?: string | null) { return ["admin", "administrador", "gestor_master", "gestormaster"].includes((value || "").toLowerCase().replace(/[\s-]+/g, "_")); }
 function money(value: number | null) { return value == null ? "—" : value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
-function cafeManhaLabel(value: string | null) { const text = String(value || "").trim(); const normalizado = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase(); if (normalizado === "SIM") return "Café da manhã incluído"; if (normalizado === "NAO") return "Café da manhã não incluído"; const preco = Number(text.replace(",", ".")); return Number.isFinite(preco) && preco > 0 ? `Café da manhã cobrado: ${money(preco)}` : "Café da manhã: não informado"; }
+function cafeManhaLabel(value: string | null) { return interpretarCafe(value).rotulo; }
 function Stars({ count }: { count: number }) { return <div className="flex gap-0.5" aria-label={`${count} estrelas`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} size={15} className={index < count ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"} />)}</div>; }
 
 export default function HoteisShareBrasil() {
@@ -29,9 +30,9 @@ export default function HoteisShareBrasil() {
       return Number(String(value));
     };
 
-    const tipoCafeManha = String(raw.cafe_manha_tipo ?? "NAO");
+    const tipoCafeManha = String(raw.cafe_manha_tipo ?? "A_CONFIRMAR");
     const precoCafeManha = valorNumero("cafe_manha_valor");
-    if (tipoCafeManha === "COBRADO" && (precoCafeManha == null || !Number.isFinite(precoCafeManha) || precoCafeManha <= 0)) {
+    if (tipoCafeManha === "A_PARTE" && String(raw.cafe_manha_valor || "").trim() && (precoCafeManha == null || !Number.isFinite(precoCafeManha) || precoCafeManha <= 0)) {
       setError("Informe um valor maior que zero para o café da manhã cobrado.");
       return;
     }
@@ -52,7 +53,7 @@ export default function HoteisShareBrasil() {
       preco_single: valorNumero("preco_single"),
       preco_duplo: valorNumero("preco_duplo"),
       convenio: form.get("convenio") === "on" || form.get("convenio") === "true",
-      cafe_manha: tipoCafeManha === "SIM" ? "SIM" : tipoCafeManha === "NAO" ? "NÃO" : String(precoCafeManha!.toFixed(2)),
+      cafe_manha: tipoCafeManha === "A_PARTE" && precoCafeManha != null ? precoCafeManha.toFixed(2) : tipoCafeManha,
     };
 
     setSaving(true);
@@ -85,9 +86,10 @@ function HotelList({ hotels, manager, onReserve, onEdit, onDelete, onCopy }: { h
 function HotelEditor({ initial, saving, error, onCancel, onSubmit }: { initial: Partial<HotelShare>; saving: boolean; error: string; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const cafeSalvo = String(initial.cafe_manha || "").trim();
   const cafeNormalizado = cafeSalvo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-  const tipoCafeInicial: "SIM" | "NAO" | "COBRADO" = cafeNormalizado === "SIM" ? "SIM" : cafeNormalizado === "NAO" || !cafeSalvo ? "NAO" : "COBRADO";
-  const valorCafeInicial = tipoCafeInicial === "COBRADO" ? (cafeSalvo.match(/\d+(?:[.,]\d+)?/)?.[0] || "") : "";
-  const [tipoCafe, setTipoCafe] = useState<"SIM" | "NAO" | "COBRADO">(tipoCafeInicial);
+  const cafe = interpretarCafe(cafeSalvo);
+  const tipoCafeInicial = cafe.tipo;
+  const valorCafeInicial = cafe.valor;
+  const [tipoCafe, setTipoCafe] = useState(tipoCafeInicial);
   return (
     <DialogContent className="ac-dialog" onEscapeKeyDown={(event) => { if (saving) event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
       <DialogHeader className="ac-dialog-header">
@@ -120,8 +122,8 @@ function HotelEditor({ initial, saving, error, onCancel, onSubmit }: { initial: 
               <label className="ac-field" htmlFor="hotel-preco-duplo"><span>Preço duplo (R$)</span><input id="hotel-preco-duplo" name="preco_duplo" type="number" min="0" step="0.01" defaultValue={initial.preco_duplo ?? ""} disabled={saving} className="ac-control" /></label>
               <label className="ac-field" htmlFor="hotel-estrelas"><span>Estrelas</span><input id="hotel-estrelas" name="estrelas" type="number" min="0" max="5" defaultValue={initial.estrelas || 0} disabled={saving} className="ac-control" /></label>
               <label className="ac-field" htmlFor="hotel-convenio"><span>Convênio</span><span className="ac-control flex items-center gap-2"><input id="hotel-convenio" name="convenio" type="checkbox" defaultChecked={Boolean(initial.convenio)} disabled={saving} className="accent-primary" /> Hotel conveniado</span></label>
-              <label className="ac-field ac-full" htmlFor="hotel-cafe-manha"><span>INCLUI CAFÉ DA MANHÃ?</span><select id="hotel-cafe-manha" name="cafe_manha_tipo" value={tipoCafe} onChange={(event) => setTipoCafe(event.target.value as "SIM" | "NAO" | "COBRADO")} disabled={saving} className="ac-control"><option value="SIM">SIM</option><option value="NAO">NÃO</option><option value="COBRADO">COBRADO</option></select></label>
-              {tipoCafe === "COBRADO" && <label className="ac-field ac-full" htmlFor="hotel-cafe-valor"><span>Valor do café da manhã (R$) *</span><input id="hotel-cafe-valor" name="cafe_manha_valor" type="number" min="0.01" step="0.01" required defaultValue={valorCafeInicial} disabled={saving} placeholder="0,00" className="ac-control" /></label>}
+              <label className="ac-field ac-full" htmlFor="hotel-cafe-manha"><span>Café da manhã</span><select id="hotel-cafe-manha" name="cafe_manha_tipo" value={tipoCafe} onChange={(event) => setTipoCafe(event.target.value)} disabled={saving} className="ac-control"><option value="A_CONFIRMAR">A confirmar</option><option value="INCLUIDO">Incluído na diária</option><option value="A_PARTE">Pago à parte</option><option value="NAO_OFERECE">Não oferece</option></select></label>
+              {tipoCafe === "A_PARTE" && <label className="ac-field ac-full" htmlFor="hotel-cafe-valor"><span>Valor do café da manhã (R$)</span><input id="hotel-cafe-valor" name="cafe_manha_valor" type="number" min="0.01" step="0.01" defaultValue={valorCafeInicial} disabled={saving} placeholder="0,00" className="ac-control" /></label>}
             </div>
           </section>
           <section className="ac-section" aria-labelledby="hotel-observacoes">
@@ -135,3 +137,4 @@ function HotelEditor({ initial, saving, error, onCancel, onSubmit }: { initial: 
   );
 }
 function ReservationModal({ hotel, onClose, onSuccess }: { hotel: HotelShare; onClose: () => void; onSuccess: (message: string) => void }) { const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget); const payload = { data_checkin: String(form.get("data_checkin")), data_checkout: String(form.get("data_checkout")), tipo_quarto: String(form.get("tipo_quarto")), quantidade_hospedes: Number(form.get("quantidade_hospedes")), hospede_nome: String(form.get("hospede_nome")), hospede_telefone: String(form.get("hospede_telefone")), hospede_email: String(form.get("hospede_email") || ""), observacoes: String(form.get("observacoes") || "") }; try { const result = await reservarHotelShare(hotel.id, payload); onSuccess(`Solicitação enviada para ${result.destinatario_email}.`); } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível enviar a reserva."); } finally { setSaving(false); } }; return createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><form onSubmit={submit} className={`${card} max-h-[90dvh] w-full max-w-xl overflow-y-auto bg-background p-5`}><div className="flex items-start justify-between"><div><IndicadorPagina>Nova solicitação</IndicadorPagina><h2 className="mt-1 text-xl font-extrabold">Reservar em {hotel.nome}</h2><p className="mt-1 text-[11px] text-muted-foreground">A solicitação será enviada para {hotel.email || hotel.email_comercial}.</p></div><button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground"><X size={17} /></button></div>{error && <p className="mt-4 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-[11px] text-red-200">{error}</p>}<div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="text-[10px] font-bold text-muted-foreground">Check-in<input name="data_checkin" type="date" required className={`${field} mt-1`} /></label><label className="text-[10px] font-bold text-muted-foreground">Check-out<input name="data_checkout" type="date" required className={`${field} mt-1`} /></label><select name="tipo_quarto" className={field}><option>Single</option><option>Duplo</option><option>Triplo</option><option>Não informado</option></select><input name="quantidade_hospedes" type="number" min="1" defaultValue="1" required placeholder="Quantidade de hóspedes" className={field} /><input name="hospede_nome" required placeholder="Nome do hóspede" className={`${field} sm:col-span-2`} /><input name="hospede_telefone" required placeholder="Telefone do hóspede" className={field} /><input name="hospede_email" type="email" placeholder="E-mail do hóspede" className={field} /><textarea name="observacoes" placeholder="Observações da reserva" className="min-h-20 rounded-lg border border-border bg-background/60 p-3 text-xs outline-none focus:border-primary/60 sm:col-span-2" /></div><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose} className="h-9 text-[11px]">Cancelar</Button><Button type="submit" disabled={saving} className="h-9 gap-2 text-[11px]"><Send size={14} /> {saving ? "Enviando..." : "Enviar solicitação"}</Button></div></form></div>, document.body); }
+

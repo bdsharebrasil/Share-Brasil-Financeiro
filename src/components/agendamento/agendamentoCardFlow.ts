@@ -2,6 +2,7 @@ import { TOTAL_ITENS_CHECKLIST } from "./checklistStructure";
 
 type AgendamentoOperacional = {
   status: string;
+  preparacao_pendencias?: number | null;
   checklist_status?: string | null;
   checklist_itens_respondidos?: number | string | null;
   jornadas_abertas?: number | string | null;
@@ -43,7 +44,7 @@ export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChe
   const checklistConcluido = checklistStatus === "concluido";
   const checklistIniciado = Boolean(checklistStatus) || checklistAberto || progressoChecklist > 0;
   const jornadaExistente = Number(item.jornadas_abertas || 0) > 0 || Number(item.jornadas_encerradas || 0) > 0;
-  const corChecklist = checklistConcluido || progressoChecklist === 100
+  const corChecklist = Number(item.preparacao_pendencias || 0)>0 ? "yellow" : checklistConcluido || progressoChecklist === 100
     ? "green"
     : progressoChecklist === 0
       ? "yellow"
@@ -53,10 +54,12 @@ export function obterAcoesAgendamento(item: AgendamentoOperacional, progressoChe
     historico,
     mostrarChecklist: !historico && operacional,
     checklistConcluido,
-    checklistLabel: checklistConcluido ? "VER CHECKLIST" : checklistIniciado ? "CONCLUIR CHECKLIST" : "INICIAR CHECKLIST",
+    preparacaoPendencias: Number(item.preparacao_pendencias || 0),
+    checklistLabel: checklistConcluido ? Number(item.preparacao_pendencias || 0)>0 ? `VER PREPARAÇÃO · ${item.preparacao_pendencias} PENDÊNCIA(S)` : "VER CHECKLIST" : checklistIniciado ? "CONCLUIR CHECKLIST" : "INICIAR CHECKLIST",
     corChecklist,
     mostrarJornada: !historico && operacional && (jornadaExistente || checklistConcluido),
     jornadaLabel: jornadaExistente ? "VER JORNADA" : "INICIAR JORNADA",
     podeFinalizar: !historico && Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0,
   } as const;
 }
+

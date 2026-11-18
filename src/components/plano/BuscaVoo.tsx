@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-
+import { Plane } from "lucide-react";
+import { SearchableCombobox } from "@/components/ui/searchableCombobox";
 import { chaveNumeroVoo, formatarData } from "@/lib/format";
 import type { SugestaoVoo } from "@/lib/tipos";
 
@@ -8,99 +8,36 @@ interface Props {
   erro: string | null;
   resumo: string | null;
   sugestoes: SugestaoVoo[];
-  aoBuscar: (numeroVoo: string) => void;
+  selecionado?: string;
+  aoRecarregar?: () => void;
+  aoBuscar: (idOuNumero: string) => void;
 }
 
-export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Props) {
-  const [valor, setValor] = useState("");
-  const [aberto, setAberto] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-  const sugestoesFiltradas = sugestoes.filter((s) => chaveNumeroVoo(s.numero_voo).includes(chaveNumeroVoo(valor)));
-
-  useEffect(() => {
-    const fora = (e: MouseEvent) => {
-      if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false);
-    };
-    document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
-  }, []);
-
-  const enviar = (evento: FormEvent) => {
-    evento.preventDefault();
-    if (valor.trim()) {
-      setAberto(false);
-      aoBuscar(valor.trim());
-    }
-  };
-
-  const escolher = (numero: string) => {
-    setValor(numero);
-    setAberto(false);
-    aoBuscar(numero);
-  };
-
+export function BuscaVoo({ carregando, erro, resumo, sugestoes, selecionado, aoBuscar, aoRecarregar }: Props) {
   return (
-    <form onSubmit={enviar} className="rounded-xl border border-border bg-card px-[21px] py-4 sm:py-5">
-      <label
-        htmlFor="numero-voo"
-        className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-      >
-        Número do voo
-      </label>
-      <div ref={caixa} className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-        <input
-          id="numero-voo"
-          value={valor}
-          onChange={(e) => {
-            setValor(e.target.value.toUpperCase());
-            setAberto(true);
-          }}
-          onFocus={() => setAberto(true)}
-          placeholder="EBL-0003/26"
-          autoComplete="off"
-          className="min-w-0 max-w-[94%] rounded-lg border border-input bg-background px-4 py-3 font-mono text-xl font-semibold tracking-widest text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary"
-        />
-        <button
-          type="submit"
-          disabled={carregando}
-          className="max-w-[94%] min-h-[4px] shrink-0 rounded-lg bg-primary px-[47px] py-[3px] text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {carregando ? "Buscando..." : "Buscar"}
-        </button>
-
-        {aberto && sugestoesFiltradas.length > 0 && (
-          <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
-            {sugestoesFiltradas.map((s) => (
-              <li key={s.numero_voo}>
-                <button
-                  type="button"
-                  onClick={() => escolher(s.numero_voo)}
-                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-background"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-mono text-sm font-semibold text-foreground">
-                      {s.numero_voo}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
-                      {[s.origem, s.destino].filter(Boolean).join(" → ")}
-                      {s.matricula_registro ? ` · ${s.matricula_registro}` : ""}
-                      {s.modelo ? ` ${s.modelo}` : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block font-mono text-[11px] text-muted-foreground">
-                      {s.data_agendada ? formatarData(s.data_agendada) : ""}
-                    </span>
-                    <span className="block text-[10px] uppercase text-primary">{s.status ?? ""}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
-      {resumo && !erro && <p className="mt-3 text-sm text-primary">✓ Voo encontrado · {resumo}</p>}
-    </form>
+    <div className="rounded-xl border border-border bg-card p-4">
+      <label htmlFor="numero-voo" className="mb-2 block text-xs font-semibold text-muted-foreground">Número do voo</label>
+      <SearchableCombobox
+        id="numero-voo"
+        icon={<Plane size={16} />}
+        value={selecionado ?? ""}
+        items={sugestoes.map(voo => ({
+          id: voo.id,
+          label: [voo.numero_voo, voo.cliente, `${voo.origem} → ${voo.destino}`, formatarData(voo.data_agendada), voo.matricula_registro].filter(Boolean).join(" · "),
+        }))}
+        onChange={id => aoBuscar(id)}
+        placeholder={carregando ? "Carregando voos…" : "Selecione um voo"}
+        searchPlaceholder="Buscar número, cliente, data ou matrícula…"
+        filterItem={(item, busca) => chaveNumeroVoo(item.label).includes(chaveNumeroVoo(busca))}
+        emptyMessage="Nenhum voo encontrado. Confira o número informado."
+        disabled={carregando}
+        wrapItemLabels
+        wrapSelectedLabel
+        className="h-auto min-h-11 py-2 text-left"
+      />
+      {erro && <p role="alert" className="mt-3 text-sm text-destructive">{erro}</p>}
+      {erro && !sugestoes.length && aoRecarregar && <button type="button" disabled={carregando} onClick={aoRecarregar} className="mt-2 text-sm font-semibold text-primary">Tentar carregar voos</button>}
+      {resumo && !erro && <p className="mt-3 text-sm text-primary">Voo selecionado · {resumo}</p>}
+    </div>
   );
 }

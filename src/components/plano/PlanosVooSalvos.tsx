@@ -8,6 +8,7 @@ type Props = {
   carregando: boolean;
   erro: string | null;
   onRecarregar: () => void;
+  aoAbrir?: (plano: PlanoVooSalvo) => void;
 };
 
 type GrupoAeronave = { id: string; matricula: string; planos: PlanoVooSalvo[] };
@@ -110,7 +111,7 @@ function PlanoLinha({ plano, onAbrir }: { plano: PlanoVooSalvo; onAbrir: () => v
   );
 }
 
-export default function PlanosVooSalvos({ planos, carregando, erro, onRecarregar }: Props) {
+export default function PlanosVooSalvos({ planos, carregando, erro, onRecarregar, aoAbrir }: Props) {
   const [busca, setBusca] = useState("");
   const [aeronaveAberta, setAeronaveAberta] = useState<string | null>(null);
   const [mesAberto, setMesAberto] = useState<string | null>(null);
@@ -186,6 +187,7 @@ export default function PlanosVooSalvos({ planos, carregando, erro, onRecarregar
           <DialogHeader><DialogTitle>{selecionado?.numero_voo || "Plano de voo"} · {selecionado?.adep} → {selecionado?.ades}</DialogTitle></DialogHeader>
           {selecionado && (
             <div className="space-y-4">
+              {aoAbrir && <button type="button" onClick={() => { setSelecionado(null); aoAbrir(selecionado); }} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Abrir no formulário</button>}
               <div className="grid gap-2 sm:grid-cols-3">
                 <Resumo rotulo="Aeronave" valor={matriculaPlano(selecionado)} />
                 <Resumo rotulo="Data do voo" valor={dataBr(dataPlano(selecionado))} />

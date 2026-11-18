@@ -31,6 +31,7 @@ interface SearchableComboboxProps {
   onChange: (value: string, label: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
+  filterItem?: (item: ComboboxItem, busca: string) => boolean;
   emptyMessage?: string;
   icon?: React.ReactNode;
   disabled?: boolean;
@@ -51,6 +52,7 @@ export function SearchableCombobox({
   onChange,
   placeholder = "Selecione...",
   searchPlaceholder = "Buscar...",
+  filterItem,
   emptyMessage = "Nenhum item encontrado.",
   icon,
   disabled,
@@ -71,7 +73,7 @@ export function SearchableCombobox({
 
   // Filtra items baseado no searchValue
   const filteredItems = items.filter((item) =>
-    item.label.toLowerCase().includes(searchValue.toLowerCase())
+    filterItem ? filterItem(item, searchValue) : item.label.toLowerCase().includes(searchValue.toLowerCase())
   )
 
   return (

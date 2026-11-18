@@ -26,7 +26,7 @@ export function distanciaMetros(a: Coordenada, b: Coordenada): number {
   const senU1 = Math.sin(U1), cosU1 = Math.cos(U1);
   const senU2 = Math.sin(U2), cosU2 = Math.cos(U2);
 
-  let lambda = L, lambdaAnterior = 0, iteracoes = 0;
+  let lambda = L, lambdaAnterior = Infinity, iteracoes = 0;
   let senSigma = 0, cosSigma = 0, sigma = 0, cos2SigmaM = 0, cosQuadAlfa = 0;
 
   while (Math.abs(lambda - lambdaAnterior) > 1e-12 && iteracoes < 200) {

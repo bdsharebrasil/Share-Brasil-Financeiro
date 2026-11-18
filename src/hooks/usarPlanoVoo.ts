@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { buscarAerodromos, calcularPlanoVoo } from "@/lib/flightplan-api";
+import { supabase } from "@/lib/supabase";
+import { guardarRascunho, lerRascunho, localizarAgendamento, vinculosDoAgendamento, horarioFpl, type RascunhoPlano } from "@/lib/plano-voo";
 import { buscarPainelAgendamento } from "@/lib/colaborador-api";
 import {
   calcularCombustivel,
@@ -70,27 +72,100 @@ export function usePlanoVoo() {
   const [ventoKt, setVentoKt] = useState(0);
   const [combustivelABordo, setCombustivelABordo] = useState<string>("");
 
-  const atualizar = useCallback(<C extends keyof FormularioIcao>(campo: C, valor: FormularioIcao[C]) => {
-    setFormulario((atual) => ({ ...atual, [campo]: valor }));
-  }, []);
+  const [consultaAerodromo, setConsultaAerodromo] = useState("");
+  const [aerodromoAtivo, setAerodromoAtivo] = useState("");
+  const [usuario, setUsuario] = useState<string | null>(null);
+  const [pronto, setPronto] = useState(false);
+  const [carregandoSugestoes, setCarregandoSugestoes] = useState(true);
+  const [revisaoVoos, setRevisaoVoos] = useState(0);
+  const [revisaoPlano, setRevisaoPlano] = useState(0);
+  const consulta = useRef(0);
+  const painelRef = useRef<Awaited<ReturnType<typeof buscarPainelAgendamento>> | null>(null);
 
-  const resetar = useCallback(() => {
-    setContexto(null);
-    setFormulario({ ...FORMULARIO_INICIAL, dataVoo: new Date().toISOString().slice(0, 10) });
-    setCoordenadas({});
-    setRotaAisweb(null);
-    setMinutosReserva(45);
-    setMinutosTaxi(10);
-    setVentoKt(0);
-    setCombustivelABordo("");
+  const restaurar = useCallback((dados: Partial<RascunhoPlano> | null) => {
+    consulta.current += 1;
+    setRevisaoPlano(r => r + 1);
+    setFormulario({ ...FORMULARIO_INICIAL, dataVoo: new Date().toISOString().slice(0, 10), ...dados?.formulario });
+    const contextoSalvo = dados?.contexto;
+    const agendamento = painelRef.current?.agendamentos.find(item => item.id === contextoSalvo?.solicitacao.id);
+    setContexto(contextoSalvo ? { ...contextoSalvo, ...(agendamento ? vinculosDoAgendamento(agendamento) : {}) } : null);
+    setCoordenadas(dados?.coordenadas ?? {});
+    setRotaAisweb(dados?.rotaAisweb ?? null);
+    setMinutosReserva(dados?.minutosReserva ?? 45);
+    setMinutosTaxi(dados?.minutosTaxi ?? 10);
+    setVentoKt(dados?.ventoKt ?? 0);
+    setCombustivelABordo(dados?.combustivelABordo ?? "");
+    setConsultaAerodromo(dados?.consultaAerodromo ?? "");
+    setAerodromoAtivo(dados?.aerodromoAtivo ?? "");
     setErro(null);
+    setCarregando(false);
   }, []);
 
   useEffect(() => {
     let ativo = true;
+    let eventoRecebido = false;
+    let usuarioCarregado: string | null | undefined;
+    const carregarUsuario = (id: string | null) => {
+      if (!ativo || usuarioCarregado === id) return;
+      if (usuarioCarregado !== undefined) {
+        painelRef.current = null;
+        setSugestoes([]);
+        setRevisaoVoos(r => r + 1);
+      }
+      usuarioCarregado = id;
+      let dados: Partial<RascunhoPlano> | null = null;
+      try { if (id) dados = lerRascunho(window.localStorage, id); } catch { /* Armazenamento indisponível. */ }
+      restaurar(dados);
+      setUsuario(id);
+      setPronto(true);
+    };
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!eventoRecebido) carregarUsuario(data.session?.user.id ?? null);
+    }).catch(() => { if (!eventoRecebido) carregarUsuario(null); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, sessao) => {
+      if (evento === "TOKEN_REFRESHED" || evento === "USER_UPDATED") return;
+      eventoRecebido = true;
+      carregarUsuario(sessao?.user.id ?? null);
+    });
+    return () => { ativo = false; consulta.current += 1; subscription.unsubscribe(); };
+  }, [restaurar]);
+
+  useEffect(() => {
+    if (!pronto || !usuario) return;
+    try { guardarRascunho(window.localStorage, usuario, { formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo }); } catch { /* O formulário continua disponível sem armazenamento local. */ }
+  }, [pronto, usuario, formulario, contexto, coordenadas, rotaAisweb, minutosReserva, minutosTaxi, ventoKt, combustivelABordo, consultaAerodromo, aerodromoAtivo]);
+
+  const atualizar = useCallback(<C extends keyof FormularioIcao>(campo: C, valor: FormularioIcao[C]) => {
+    if (campo === "adep" || campo === "ades") {
+      consulta.current += 1;
+      setCarregando(false);
+      setRotaAisweb(null);
+    }
+    setFormulario((atual) => ({ ...atual, [campo]: valor }));
+  }, []);
+
+  const resetar = useCallback(() => restaurar(null), [restaurar]);
+  const abrirSalvo = useCallback((payload: Record<string, any>) => {
+    restaurar({
+      ...payload,
+      formulario: { ...FORMULARIO_INICIAL, identificacao: payload.numero_voo ?? "", adep: payload.adep ?? "", ades: payload.ades ?? "", dataVoo: payload.data_voo ?? FORMULARIO_INICIAL.dataVoo, eobt: payload.eobt ?? "", ...payload.form },
+      rotaAisweb: payload.rota ?? null,
+    });
+  }, [restaurar]);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregandoSugestoes(true);
     void buscarPainelAgendamento("2000-01-01", "2099-12-31").then((painel) => {
       if (!ativo) return;
+      painelRef.current = painel;
+      setContexto(atual => {
+        const agendamento = painel.agendamentos.find(item => item.id === atual?.solicitacao.id);
+        return atual && agendamento ? { ...atual, ...vinculosDoAgendamento(agendamento) } : atual;
+      });
       setSugestoes(painel.agendamentos.filter((item) => item.numero_voo).map((item) => ({
+        id: item.id,
+        cliente: item.cliente_razao_social || item.socio_nome,
         numero_voo: item.numero_voo!,
         origem: item.origem,
         destino: item.destino,
@@ -100,18 +175,19 @@ export function usePlanoVoo() {
         modelo: item.modelo,
       })));
     }).catch(() => {
-      if (ativo) setSugestoes([]);
-    });
+      if (ativo) { setSugestoes([]); setErro("Não foi possível carregar a lista de voos. Tente novamente."); }
+    }).finally(() => { if (ativo) setCarregandoSugestoes(false); });
     return () => { ativo = false; };
-  }, []);
+  }, [revisaoVoos]);
 
   const buscarVoo = useCallback(async (numeroVoo: string) => {
+    const sequencia = ++consulta.current;
     setCarregando(true);
     setErro(null);
     try {
-      const painel = await buscarPainelAgendamento("2000-01-01", "2099-12-31");
-      const solicitacao = painel.agendamentos.find((item) => item.numero_voo && chaveNumeroVoo(item.numero_voo) === chaveNumeroVoo(numeroVoo));
-      if (!solicitacao) throw new Error("Voo não encontrado nas solicitações de reserva.");
+      const painel = painelRef.current ?? await buscarPainelAgendamento("2000-01-01", "2099-12-31").catch(() => { throw new Error("Não foi possível consultar os voos. Tente novamente."); });
+      if (sequencia !== consulta.current) return;
+      const solicitacao = localizarAgendamento(painel.agendamentos, numeroVoo);
       const aeronave = painel.aeronaves.find((item) => item.id === solicitacao.aeronave_id) ?? null;
       const piloto = painel.tripulacao.find((item) => item.id === solicitacao.piloto_id) ?? null;
       const copiloto = painel.tripulacao.find((item) => item.id === solicitacao.copiloto_id) ?? null;
@@ -141,8 +217,7 @@ export function usePlanoVoo() {
           base: aeronave.base,
           ano: aeronave.ano,
         } : null,
-        cliente: solicitacao.cliente_id ? { id: solicitacao.cliente_id, nome: solicitacao.cliente_razao_social, codigo_cliente: solicitacao.codigo_cliente } : null,
-        cotista: null,
+        ...vinculosDoAgendamento(solicitacao),
         tripulacao: {
           piloto: piloto ? { id: piloto.id, canac: piloto.canac, nome_completo: piloto.nome_completo, tipo_licenca: piloto.tipo_licenca } : null,
           copiloto: copiloto ? { id: copiloto.id, canac: copiloto.canac, nome_completo: copiloto.nome_completo, tipo_licenca: copiloto.tipo_licenca } : null,
@@ -152,13 +227,18 @@ export function usePlanoVoo() {
       };
       setContexto(contexto);
       const velocidade = (aeronave?.performance_velocidade_cruzeiro_kt ?? Number(aeronave?.velocidade_cruzeiro)) || null;
-      setFormulario((atual) => ({
+      const horario = horarioFpl(solicitacao.horario_previsto_agendamento, solicitacao.data_agendada?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+      const atual = { ...FORMULARIO_INICIAL };
+      setRotaAisweb(null);
+      setConsultaAerodromo("");
+      setAerodromoAtivo("");
+      setFormulario({
         ...atual,
         identificacao: solicitacao.numero_voo ?? atual.identificacao,
         adep: solicitacao.origem.toUpperCase(),
         ades: solicitacao.destino.toUpperCase(),
-        dataVoo: solicitacao.data_agendada?.slice(0, 10) || atual.dataVoo,
-        eobt: (solicitacao.horario_previsto_agendamento ?? "").slice(0, 5),
+        dataVoo: horario.data,
+        eobt: horario.hora,
         tipoAeronave: aeronave?.modelo ?? atual.tipoAeronave,
         esteira: ESTEIRA_POR_TIPO[aeronave?.tipo_aeronave?.toUpperCase() ?? ""] ?? atual.esteira,
         velocidade: velocidade ? `N${String(Math.round(velocidade)).padStart(4, "0")}` : atual.velocidade,
@@ -167,12 +247,12 @@ export function usePlanoVoo() {
         outrasInformacoes: aeronave?.matricula_registro
           ? `REG/${aeronave.matricula_registro.replace("-", "")} TYP/${aeronave.modelo ?? ""}`.trim()
           : atual.outrasInformacoes,
-      }));
+      });
     } catch (e) {
-      setContexto(null);
+      if (sequencia !== consulta.current) return;
       setErro(e instanceof Error ? e.message : "Falha ao consultar o voo.");
     } finally {
-      setCarregando(false);
+      if (sequencia === consulta.current) setCarregando(false);
     }
   }, []);
 
@@ -184,34 +264,29 @@ export function usePlanoVoo() {
     [formulario.adep, formulario.ades, formulario.alternado1, formulario.alternado2],
   );
 
-  // Coordenadas dos aeródromos (D1 via Worker)
+  // Uma consulta resolve todos os aeródromos, sem cancelar a atualização a cada coordenada.
   useEffect(() => {
     let ativo = true;
-    const pendentes = icaosDeInteresse.filter((icao) => !coordenadas[icao]);
+    const pendentes = icaosDeInteresse.filter(icao => !coordenadas[icao]);
     if (!pendentes.length) return;
-    (async () => {
+    void buscarAerodromos().then(({ aerodromos }) => {
+      if (!ativo) return;
+      const novas: typeof coordenadas = {};
       for (const icao of pendentes) {
-        try {
-          const { aerodromos } = await buscarAerodromos();
-          const achado = aerodromos.find((a) => a.id === icao);
-          const coord = interpretarCoordenadas(achado?.coordenadas);
-          if (ativo && achado && coord) {
-            setCoordenadas((atual) => ({ ...atual, [icao]: { ...coord, nome: achado.name } }));
-          }
-        } catch {
-          /* aeródromo sem coordenada cadastrada */
-        }
+        const achado = aerodromos.find(a => a.id.toUpperCase() === icao);
+        const coord = interpretarCoordenadas(achado?.coordenadas);
+        if (achado && coord) novas[icao] = { ...coord, nome: achado.name };
       }
-    })();
-    return () => {
-      ativo = false;
-    };
-  }, [icaosDeInteresse, coordenadas]);
+      setCoordenadas(atual => ({ ...novas, ...atual }));
+    }).catch(() => { /* A consulta da rota também pode fornecer as coordenadas. */ });
+    return () => { ativo = false; };
+  }, [icaosDeInteresse, revisaoPlano]);
 
   const consultarRotaAisweb = useCallback(async (adepInformado?: string, adesInformado?: string) => {
     const adep = (adepInformado ?? formulario.adep).trim().toUpperCase();
     const ades = (adesInformado ?? formulario.ades).trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(adep) || !/^[A-Z]{4}$/.test(ades)) return;
+    const sequencia = ++consulta.current;
     setFormulario((atual) => ({ ...atual, adep, ades }));
     setCarregando(true);
     setErro(null);
@@ -226,6 +301,7 @@ export function usePlanoVoo() {
         reserveMin: minutosReserva,
         aircraftId: contexto?.aeronave?.id,
       });
+      if (sequencia !== consulta.current) return;
       const resposta: RespostaRotas = {
         adep,
         ades,
@@ -241,10 +317,11 @@ export function usePlanoVoo() {
       }));
       atualizar("rota", dados.flightplan.route);
     } catch (e) {
+      if (sequencia !== consulta.current) return;
       setRotaAisweb(null);
-      setErro(e instanceof Error ? e.message : "Falha ao consultar rotas.");
+      setErro("Não foi possível consultar a rota. Confira os aeródromos e tente novamente.");
     } finally {
-      setCarregando(false);
+      if (sequencia === consulta.current) setCarregando(false);
     }
   }, [formulario.adep, formulario.ades, formulario.velocidade, contexto, atualizar, minutosReserva]);
 
@@ -333,6 +410,12 @@ export function usePlanoVoo() {
   }, [minutosVoo]);
 
   return {
+    pronto,
+    carregandoSugestoes,
+    recarregarVoos: () => setRevisaoVoos(r => r + 1),
+    consultaAerodromo, setConsultaAerodromo,
+    aerodromoAtivo, setAerodromoAtivo,
+    abrirSalvo,
     contexto,
     sugestoes,
     carregando,

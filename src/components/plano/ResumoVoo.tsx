@@ -1,5 +1,6 @@
 import { Dado } from "./Secao";
 import { formatarData } from "@/lib/format";
+import { horarioFpl } from "@/lib/plano-voo";
 import type { ContextoVoo } from "@/lib/tipos";
 
 export function ResumoVoo({ contexto }: { contexto: ContextoVoo }) {
@@ -10,7 +11,7 @@ export function ResumoVoo({ contexto }: { contexto: ContextoVoo }) {
       <Dado rotulo="Aeronave" valor={aeronave?.matricula_registro ?? "—"} />
       <Dado rotulo="Modelo" valor={`${aeronave?.fabricante ?? ""} ${aeronave?.modelo ?? ""}`.trim() || "—"} />
       <Dado rotulo="Tipo" valor={aeronave?.tipo_aeronave ?? "—"} />
-      <Dado rotulo="Cliente" valor={cliente?.nome ?? "—"} />
+      <Dado rotulo="Cliente" valor={cliente?.nome || cotista?.nome || "—"} />
       <Dado rotulo="Cotista" valor={cotista?.nome ?? "—"} />
       <Dado rotulo="Código" valor={cotista?.codigo_cliente ?? cliente?.codigo_cliente ?? "—"} />
       <Dado rotulo="Rota" valor={`${solicitacao.origem} → ${solicitacao.destino}`} />
@@ -24,7 +25,7 @@ export function ResumoVoo({ contexto }: { contexto: ContextoVoo }) {
       />
       <Dado rotulo="Passageiros" valor={contexto.passageiros || "—"} />
       <Dado rotulo="Data" valor={formatarData(solicitacao.data_agendada)} />
-      <Dado rotulo="EOBT (UTC)" valor={(solicitacao.horario_previsto_agendamento ?? "—").slice(0, 5)} />
+      <Dado rotulo="EOBT (UTC)" valor={horarioFpl(solicitacao.horario_previsto_agendamento, solicitacao.data_agendada).hora || "—"} />
       <Dado rotulo="Status" valor={solicitacao.status ?? "—"} />
     </div>
   );

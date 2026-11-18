@@ -1115,7 +1115,7 @@ export default function AprovacaoRelatorioViagem() {
       </main>
 
       {!decisaoRegistrada || podeReprocessarFinanceiro ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/[.96] shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
               <span
@@ -1192,7 +1192,7 @@ export default function AprovacaoRelatorioViagem() {
           </div>
         </div>
       ) : foiAprovado ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/[.96] shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <button
               type="button"

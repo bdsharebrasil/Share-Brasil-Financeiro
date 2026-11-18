@@ -277,7 +277,7 @@ export default function DashboardFinanceiro({
         </div>
       )}
 
-      <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 text-center min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="RECIBOS"

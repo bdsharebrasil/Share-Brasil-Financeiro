@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/dialog";
 import type { ColaboradorGestao } from "@/lib/colaborador-api";
 import { dataBr, hojeLocal, validarArquivo } from "@/lib/gestao-colaboradores";
+import {
+  aplicarMascara,
+  formatarCpf,
+  formatarTelefone,
+  TIPOS_CONTA,
+  TIPOS_CHAVE_PIX,
+} from "@/lib/cadastro-colaborador";
 import { AvisoGestao, DadoFicha } from "./ComponentesColaboradores";
 
 export type CadastroColaborador = {
@@ -38,6 +45,7 @@ export type CadastroColaborador = {
 const etapas = [
   "Dados pessoais",
   "Vínculo e acesso",
+  "Dados bancários",
   "Admissão e documentos",
   "Revisão",
 ];
@@ -104,6 +112,9 @@ export function FormularioColaborador({
   const [departamento, setDepartamento] = useState(
     inicial?.departamentos_email || inicial?.departamento || "",
   );
+  const [tipoPix, setTipoPix] = useState(
+    String(inicial?.tipo_chave_pix || "").toLowerCase(),
+  );
   const [anexos, setAnexos] = useState<string[]>([]);
   const [revisao, setRevisao] = useState<Record<string, FormDataEntryValue>>(
     {},
@@ -135,6 +146,11 @@ export function FormularioColaborador({
           "A data de nascimento não pode estar no futuro.";
       if (value("cpf") && value("cpf").replace(/\D/g, "").length !== 11)
         errors.cpf = "Informe os 11 números do CPF.";
+      if (
+        value("telefone") &&
+        ![10, 11].includes(value("telefone").replace(/\D/g, "").length)
+      )
+        errors.telefone = "Informe o DDD e o telefone com 10 ou 11 números.";
     }
     if (target === 1) {
       if (!inicial) {
@@ -152,6 +168,23 @@ export function FormularioColaborador({
         required("canac", "Informe o CANAC do tripulante.");
     }
     if (target === 2) {
+      const pix = value("pix");
+      const tipo = value("tipo_chave_pix");
+      if (pix && !tipo)
+        errors.tipo_chave_pix = "Selecione o tipo da chave Pix.";
+      if (tipo && !pix) errors.pix = "Informe a chave Pix.";
+      if (pix && tipo === "cpf" && pix.replace(/\D/g, "").length !== 11)
+        errors.pix = "Informe os 11 números do CPF da chave Pix.";
+      if (
+        pix &&
+        tipo === "telefone" &&
+        ![10, 11].includes(pix.replace(/\D/g, "").length)
+      )
+        errors.pix = "Informe o DDD e o telefone da chave Pix.";
+      if (pix && tipo === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pix))
+        errors.pix = "Informe um e-mail válido para a chave Pix.";
+    }
+    if (target === 3) {
       if (realizado) {
         required("exame_admissional_data", "Informe a data do exame.");
         required("exame_admissional_local", "Informe o local do exame.");
@@ -202,12 +235,12 @@ export function FormularioColaborador({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (salvando) return;
-    if (etapa < 3) {
+    if (etapa < etapas.length - 1) {
       ir(etapa + 1);
       return;
     }
     const formData = dados();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < etapas.length - 1; i++) {
       const errors = validar(i, formData);
       if (Object.keys(errors).length) {
         setErros(errors);
@@ -232,6 +265,16 @@ export function FormularioColaborador({
     if (!inicial)
       values.email = `${String(values.email).trim().toLowerCase()}@share-brasil.com`;
     if (typeof values.uf === "string") values.uf = values.uf.toUpperCase();
+    for (const campo of [
+      "endereco",
+      "nome_banco",
+      "agencia_numero",
+      "conta_numero",
+      "pix",
+    ]) {
+      if (typeof values[campo] === "string")
+        values[campo] = values[campo].trim();
+    }
     const exame = formData.get("exame_admissional_arquivo");
     await onSave({
       values,
@@ -260,6 +303,8 @@ export function FormularioColaborador({
       placeholder?: string;
       maxLength?: number;
       autoComplete?: string;
+      mascara?: (value: string) => string;
+      inputMode?: "text" | "numeric" | "tel";
     } = {},
   ) => (
     <Campo
@@ -273,9 +318,21 @@ export function FormularioColaborador({
         id={`rh-${name}`}
         name={name}
         type={options.type || "text"}
-        defaultValue={String(
-          inicial?.[name as keyof ColaboradorGestao] || "",
-        ).slice(0, options.type === "date" ? 10 : undefined)}
+        defaultValue={
+          options.mascara
+            ? options.mascara(
+                String(inicial?.[name as keyof ColaboradorGestao] || ""),
+              )
+            : String(inicial?.[name as keyof ColaboradorGestao] || "").slice(
+                0,
+                options.type === "date" ? 10 : undefined,
+              )
+        }
+        inputMode={options.inputMode}
+        onChange={(event) => {
+          if (options.mascara)
+            aplicarMascara(event.currentTarget, options.mascara);
+        }}
         placeholder={options.placeholder}
         autoComplete={options.autoComplete}
         maxLength={options.maxLength}
@@ -400,12 +457,21 @@ export function FormularioColaborador({
                     {field("cpf", "CPF", {
                       maxLength: 14,
                       placeholder: "000.000.000-00",
+                      mascara: formatarCpf,
+                      inputMode: "numeric",
                     })}
                     {field("rg", "RG")}
                     {field("telefone", "Telefone", {
                       type: "tel",
                       autoComplete: "tel",
-                      placeholder: "(00) 00000-0000",
+                      placeholder: "(00)0000-0000",
+                      mascara: formatarTelefone,
+                      inputMode: "tel",
+                    })}
+                    {field("endereco", "Endereço", {
+                      wide: true,
+                      autoComplete: "street-address",
+                      placeholder: "Rua, número, bairro e complemento",
                     })}
                     {field("cidade", "Cidade", {
                       autoComplete: "address-level2",
@@ -556,6 +622,95 @@ export function FormularioColaborador({
                   etapa={etapa}
                   ativo={etapa === 2}
                   titulo={etapas[2]}
+                  className="rh-panel"
+                >
+                  <p className="rh-section-desc">
+                    Conta e chave Pix do colaborador.
+                  </p>
+                  <fieldset className="rh-fields" disabled={salvando}>
+                    {field("nome_banco", "Banco", {
+                      placeholder: "Nome do banco",
+                    })}
+                    <Campo nome="tipo_conta" titulo="Tipo de conta">
+                      <select
+                        id="rh-tipo_conta"
+                        name="tipo_conta"
+                        className="rh-input"
+                        defaultValue={inicial?.tipo_conta || "corrente"}
+                      >
+                        {TIPOS_CONTA.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                        {inicial?.tipo_conta &&
+                          !TIPOS_CONTA.some(
+                            (t) => t.value === inicial.tipo_conta,
+                          ) && (
+                            <option value={inicial.tipo_conta}>
+                              {inicial.tipo_conta}
+                            </option>
+                          )}
+                      </select>
+                    </Campo>
+                    {field("agencia_numero", "Agência", {
+                      placeholder: "0000",
+                    })}
+                    {field("conta_numero", "Número da conta", {
+                      placeholder: "00000-0",
+                    })}
+                    <Campo
+                      nome="tipo_chave_pix"
+                      titulo="Tipo de chave Pix"
+                      erro={erros.tipo_chave_pix}
+                    >
+                      <select
+                        id="rh-tipo_chave_pix"
+                        name="tipo_chave_pix"
+                        className="rh-input"
+                        value={tipoPix}
+                        onChange={(e) => setTipoPix(e.target.value)}
+                        aria-invalid={Boolean(erros.tipo_chave_pix)}
+                        aria-describedby={
+                          erros.tipo_chave_pix
+                            ? "rh-error-tipo_chave_pix"
+                            : undefined
+                        }
+                      >
+                        <option value="">Sem chave Pix</option>
+                        {TIPOS_CHAVE_PIX.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                        {tipoPix &&
+                          !TIPOS_CHAVE_PIX.some((t) => t.value === tipoPix) && (
+                            <option value={tipoPix}>{tipoPix}</option>
+                          )}
+                      </select>
+                    </Campo>
+                    {field("pix", "Chave Pix", {
+                      placeholder:
+                        tipoPix === "cpf"
+                          ? "000.000.000-00"
+                          : tipoPix === "telefone"
+                            ? "(00)0000-0000"
+                            : tipoPix === "email"
+                              ? "nome@exemplo.com"
+                              : "Digite a chave Pix",
+                      mascara:
+                        tipoPix === "cpf"
+                          ? formatarCpf
+                          : tipoPix === "telefone"
+                            ? formatarTelefone
+                            : undefined,
+                    })}
+                  </fieldset>
+                </AnimatedStepPanel>
+                <AnimatedStepPanel
+                  etapa={etapa}
+                  ativo={etapa === 3}
+                  titulo={etapas[3]}
                   className="rh-panel"
                 >
                   <p className="rh-section-desc">
@@ -723,8 +878,8 @@ export function FormularioColaborador({
                 </AnimatedStepPanel>
                 <AnimatedStepPanel
                   etapa={etapa}
-                  ativo={etapa === 3}
-                  titulo={etapas[3]}
+                  ativo={etapa === 4}
+                  titulo={etapas[4]}
                   className="rh-panel"
                 >
                   <p className="rh-section-desc">
@@ -750,6 +905,14 @@ export function FormularioColaborador({
                         <DadoFicha
                           titulo="Nome de exibição"
                           valor={String(revisao.nome_exibicao || "")}
+                        />
+                        <DadoFicha
+                          titulo="CPF"
+                          valor={String(revisao.cpf || "")}
+                        />
+                        <DadoFicha
+                          titulo="Endereço"
+                          valor={String(revisao.endereco || "")}
                         />
                         <DadoFicha
                           titulo="Telefone"
@@ -795,11 +958,57 @@ export function FormularioColaborador({
                     </div>
                     <div className="rh-review-block">
                       <h4>
-                        Admissão e documentos{" "}
+                        Dados bancários{" "}
                         <button
                           type="button"
                           className="rh-link"
                           onClick={() => ir(2)}
+                        >
+                          Editar
+                        </button>
+                      </h4>
+                      <dl className="rh-review">
+                        <DadoFicha
+                          titulo="Banco"
+                          valor={String(revisao.nome_banco || "")}
+                        />
+                        <DadoFicha
+                          titulo="Tipo de conta"
+                          valor={
+                            TIPOS_CONTA.find(
+                              (t) => t.value === revisao.tipo_conta,
+                            )?.label || String(revisao.tipo_conta || "")
+                          }
+                        />
+                        <DadoFicha
+                          titulo="Agência"
+                          valor={String(revisao.agencia_numero || "")}
+                        />
+                        <DadoFicha
+                          titulo="Número da conta"
+                          valor={String(revisao.conta_numero || "")}
+                        />
+                        <DadoFicha
+                          titulo="Tipo de chave Pix"
+                          valor={
+                            TIPOS_CHAVE_PIX.find(
+                              (t) => t.value === revisao.tipo_chave_pix,
+                            )?.label || String(revisao.tipo_chave_pix || "")
+                          }
+                        />
+                        <DadoFicha
+                          titulo="Chave Pix"
+                          valor={String(revisao.pix || "")}
+                        />
+                      </dl>
+                    </div>
+                    <div className="rh-review-block">
+                      <h4>
+                        Admissão e documentos{" "}
+                        <button
+                          type="button"
+                          className="rh-link"
+                          onClick={() => ir(3)}
                         >
                           Editar
                         </button>
@@ -853,7 +1062,9 @@ export function FormularioColaborador({
               {etapa ? <ArrowLeft size={15} /> : null}
               {etapa ? "Voltar" : parcial ? "Concluir depois" : "Cancelar"}
             </button>
-            <small>Etapa {etapa + 1} de 4</small>
+            <small>
+              Etapa {etapa + 1} de {etapas.length}
+            </small>
             <button
               type="submit"
               disabled={salvando || descartar}
@@ -861,19 +1072,19 @@ export function FormularioColaborador({
             >
               {salvando ? (
                 <Loader2 size={16} className="rh-spin" />
-              ) : etapa === 3 ? (
+              ) : etapa === etapas.length - 1 ? (
                 <UserPlus size={16} />
               ) : null}
               {salvando
                 ? "Salvando..."
-                : etapa === 3
+                : etapa === etapas.length - 1
                   ? parcial
                     ? "Concluir envio"
                     : inicial
                       ? "Salvar alterações"
                       : "Criar colaborador"
                   : "Continuar"}
-              {etapa < 3 && <ArrowRight size={15} />}
+              {etapa < etapas.length - 1 && <ArrowRight size={15} />}
             </button>
           </footer>
         </form>

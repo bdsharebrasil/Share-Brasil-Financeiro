@@ -10,7 +10,7 @@ async function modulo(path, substituir = {}) {
   return 'data:text/javascript;base64,' + Buffer.from(outputText).toString('base64');
 }
 const format = await modulo('src/lib/format.ts');
-const { localizarAgendamento, horarioFpl, lerRascunho, guardarRascunho } = await import(await modulo('src/lib/plano-voo.ts', {'"./format"': JSON.stringify(format)}));
+const { codigoAerodromoValido, ordenarPernas, pernaInicial, formularioDaPerna, localizarAgendamento, horarioFpl, lerRascunho, guardarRascunho } = await import(await modulo('src/lib/plano-voo.ts', {'"./format"': JSON.stringify(format)}));
 const { distanciaNM, proaVerdadeira, arcoCirculoMaximo, interpretarCoordenadas } = await import(await modulo('src/lib/navegacao.ts'));
 const { provedorContingencia, aeronauticoDisponivel } = await import(await modulo('src/components/plano/provedor.ts', { 'import.meta.env': '{}' }));
 
@@ -61,4 +61,31 @@ test('mapa, terreno e satélite usam bases distintas mesmo sem chave; não simul
   assert.ok(tiles[2].includes('World_Imagery'));
   assert.equal(aeronauticoDisponivel, false);
   assert.throws(() => provedorContingencia.estilo('aeronautico'), /indisponíveis/);
+});
+
+const trecho = (id, numero, extra = {}) => ({ id, jornada_id: 'j1', numero_jornada: 1, data: '2026-11-18', numero, origem: 'SBGR', destino: 'SN9T', numero_passageiros: 3, status: 'programada', horario_ac: null, horario_dep: null, horario_pouso: null, horario_corte: null, ...extra });
+test('designativos de aeródromo aceitam quatro letras ou números, sem pontuação', () => {
+  for (const codigo of ['SN9T', ' sn9t ', 'SBGR', 'SS9A']) assert.equal(codigoAerodromoValido(codigo), true);
+  for (const codigo of ['', 'SN9', 'SN9TT', 'SN-T', 'S N9T', 'SN/T']) assert.equal(codigoAerodromoValido(codigo), false);
+});
+test('ordena pernas de todas as jornadas, elimina ID repetido e preserva trechos iguais distintos', () => {
+  const primeira = trecho('a', 1), retorno = trecho('b', 2), outraJornada = trecho('c', 1, { data: '2026-11-19', numero_jornada: 2 });
+  assert.deepEqual(ordenarPernas([outraJornada, retorno, primeira, primeira]).map(p => p.id), ['a', 'b', 'c']);
+});
+test('carrega a perna em operação ou a próxima, sem escolher uma cancelada', () => {
+  const finalizada = trecho('a', 1, { horario_corte: '2026-11-18T14:00Z', status: 'cortado' });
+  const proxima = trecho('b', 2), futura = trecho('c', 3);
+  assert.equal(pernaInicial([finalizada, proxima, futura]).id, 'b');
+  assert.equal(pernaInicial([finalizada, proxima, trecho('c', 3, { horario_ac: '2026-11-18T17:00Z' })]).id, 'c');
+  assert.equal(pernaInicial([trecho('a', 1, { status: 'cancelada' })]), undefined);
+  assert.equal(pernaInicial([finalizada]).id, 'a');
+});
+test('campos da perna substituem os da solicitação, sem inventar horário nem reutilizar rota anterior', () => {
+  const base = { adep: 'SBGR', ades: 'SBRJ', dataVoo: '2026-11-18', eobt: '12:00', pessoasABordo: '8', rota: 'ROTA ANTIGA', alternado1: 'SBCF', alternado2: 'SBSP', eet: '0100', equipamento: 'SDFG/LB1', piloto: 'Piloto', nivel: 'F250' };
+  const nova = formularioDaPerna(base, trecho('b', 2, { origem: 'SN9T', destino: 'SBCY', numero_passageiros: 0, data: '2026-11-19' }));
+  assert.equal(nova.adep, 'SN9T'); assert.equal(nova.ades, 'SBCY'); assert.equal(nova.dataVoo, '2026-11-19');
+  assert.equal(nova.eobt, ''); assert.equal(nova.pessoasABordo, '0'); assert.equal(nova.rota, ''); assert.equal(nova.alternado1, '');
+  assert.equal(nova.equipamento, base.equipamento); assert.equal(nova.piloto, base.piloto);
+  const comHorario = formularioDaPerna(base, trecho('b', 2, { horario_dep: '2026-11-18T23:30:00-03:00' }));
+  assert.equal(comHorario.dataVoo, '2026-11-19'); assert.equal(comHorario.eobt, '02:30');
 });

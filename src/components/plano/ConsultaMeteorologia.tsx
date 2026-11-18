@@ -1,3 +1,4 @@
+import { codigoAerodromoValido } from "@/lib/plano-voo";
 import { useState } from "react";
 import { CloudSun, LoaderCircle } from "lucide-react";
 
@@ -23,8 +24,8 @@ export default function ConsultaMeteorologia() {
   async function consultar(event: React.FormEvent) {
     event.preventDefault();
     const codigo = icao.trim().toUpperCase();
-    if (!/^[A-Z]{4}$/.test(codigo)) {
-      setErro("Informe um código ICAO de quatro letras, por exemplo SBGR.");
+    if (!codigoAerodromoValido(codigo)) {
+      setErro("Informe um código de aeródromo com quatro letras ou números, por exemplo SN9T.");
       setDados(null);
       return;
     }

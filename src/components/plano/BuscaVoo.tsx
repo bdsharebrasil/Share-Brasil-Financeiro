@@ -14,6 +14,7 @@ interface Props {
 }
 
 export function BuscaVoo({ carregando, erro, resumo, sugestoes, selecionado, aoBuscar, aoRecarregar }: Props) {
+  const vooSelecionado = sugestoes.find(voo => voo.id === selecionado);
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <label htmlFor="numero-voo" className="mb-2 block text-xs font-semibold text-muted-foreground">Número do voo</label>
@@ -21,6 +22,7 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, selecionado, aoB
         id="numero-voo"
         icon={<Plane size={16} />}
         value={selecionado ?? ""}
+        selectedLabel={vooSelecionado ? [vooSelecionado.numero_voo, vooSelecionado.cliente, resumo].filter(Boolean).join(" · ") : undefined}
         items={sugestoes.map(voo => ({
           id: voo.id,
           label: [voo.numero_voo, voo.cliente, `${voo.origem} → ${voo.destino}`, formatarData(voo.data_agendada), voo.matricula_registro].filter(Boolean).join(" · "),

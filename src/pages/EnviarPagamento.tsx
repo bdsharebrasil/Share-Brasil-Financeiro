@@ -1190,7 +1190,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           { id: "revisao", titulo: "Revisão e envio" },
         ]} />
 
-        <div className="envio-fluxo-conteudo flex flex-col gap-1 px-4 py-3 md:px-5 lg:py-2.5">
+        <div className="envio-fluxo-conteudo flex flex-col gap-1 bg-[rgba(8,15,22,0.74)] px-4 py-3 md:px-5 lg:py-2.5">
           <AnimatedStepPanel etapa={etapa} titulo={etapa === 0 ? undefined : tituloEtapa}>
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
@@ -1338,7 +1338,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
             <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
           </div>
           {etapa < totalEtapas ? (
-            <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
+            <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm bg-[rgba(16,128,161,0.78)] px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : !envioRecemCriado || envioRecemCriado.tipo === "share" ? (
             <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Enviar e-mail" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
           ) : null}

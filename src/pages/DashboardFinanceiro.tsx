@@ -242,7 +242,7 @@ export default function DashboardFinanceiro({
     ),
   );
   const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
-  const operacoesDoDashboard = operacoesVisiveis.slice(0, 5);
+  const operacoesDoDashboard = operacoesVisiveis.slice(0, 3);
 
   if (abastecimentoEmEdicao) {
     return (
@@ -277,7 +277,7 @@ export default function DashboardFinanceiro({
         </div>
       )}
 
-      <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="mx-auto mb-4 grid w-full max-w-[1180px] min-w-0 grid-cols-1 gap-2 text-center min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <AcaoRapida
           icon={<Receipt size={16} />}
           label="RECIBOS"
@@ -308,11 +308,11 @@ export default function DashboardFinanceiro({
       </section>
 
 
-      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-[rgba(7,25,39,1)] shadow-sm">
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
-          className="bg-[rgba(105,168,168,0.2)]"
+          className="bg-[rgba(8,15,22,0.77)]"
           detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">

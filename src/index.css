@@ -433,6 +433,9 @@ html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-200, .text-amber-3
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-200, .text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-200, .text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
 html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-200, .text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-slate-100, .text-slate-200, .text-\[\#dde2e9\]) { color: hsl(var(--foreground)); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-slate-300, .text-slate-400) { color: hsl(var(--muted-foreground)); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.font-thin, .font-extralight, .font-light) { font-weight: 400; }
 
 /* Planilhas do financeiro (Cotista e Share): cabeçalho escuro, bordas firmes e total em destaque. */
 html:not(.dark) .erp-financeiro .erp-tabela-container { background: #eff4f7; border-color: #9eafbc; }

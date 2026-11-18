@@ -4,6 +4,7 @@ import {
   Clock3,
   Folder,
   GraduationCap,
+  Grid2X2,
   KeyRound,
   ListTodo,
   Plane,
@@ -109,5 +110,12 @@ export const ATALHOS_POR_ABA: Record<
       icon: GraduationCap,
       tone: "border-sky-500/50 bg-sky-500/20 text-sky-900 dark:text-sky-300",
     },
+    {
+      menu: "apps-share-brasil",
+      label: "APPs SHARE BRASIL",
+      icon: Grid2X2,
+      tone: "border-violet-500/50 bg-violet-500/20 text-violet-900 dark:text-violet-300",
+    },
   ],
 };
+

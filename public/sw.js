@@ -1,4 +1,4 @@
-const CACHE_NAME = "share-brasil-v2";
+const CACHE_NAME = "share-brasil-v3";
 const APP_SHELL = ["/", "/login", "/manifest.json", "/favicon.ico", "/logo.share.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -19,14 +19,22 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const requestUrl = new URL(event.request.url);
   if (requestUrl.pathname === "/api/financeiro" || requestUrl.pathname.startsWith("/api/financeiro/")) return;
+  if (requestUrl.pathname.startsWith("/assets/")) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        const copy = response.clone();
-        void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        if (response.ok) {
+          const copy = response.clone();
+          void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return response;
       })
-      .catch(() => caches.match(event.request).then((response) => response || caches.match("/"))),
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === "navigate") return caches.match("/");
+        return Response.error();
+      }),
   );
 });

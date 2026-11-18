@@ -16,7 +16,7 @@ const SERVICOS = [
 const SEM_SERVICOS_HANGAR = { gpu: "", transfer: "", custo_gpu: "", custo_transfer: "", valor_gpu: "", valor_transfer: "", ar_condicionado: "", pernoite: "" };
 
 export type FormularioContato = {
-  nome: string; telefone: string; email: string; empresa: string; razao_social: string;
+  codigo_icao: string; nome: string; telefone: string; email: string; empresa: string; razao_social: string;
   cnpj: string; categoria: string; categoria_tipo: string; categoria_personalizada: string;
   gpu: string; transfer: string; custo_gpu: string; custo_transfer: string;
   valor_gpu: string; valor_transfer: string; ar_condicionado: string; pernoite: string;
@@ -25,7 +25,7 @@ export type FormularioContato = {
 };
 
 function vazio(): FormularioContato {
-  return { nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "",
+  return { codigo_icao: "", nome: "", telefone: "", email: "", empresa: "", razao_social: "", cnpj: "", categoria: "",
     categoria_tipo: "", categoria_personalizada: "", gpu: "", transfer: "", custo_gpu: "",
     custo_transfer: "", valor_gpu: "", valor_transfer: "", ar_condicionado: "", pernoite: "",
     atendimento_pista: "", endereco: "", cidade: "", uf: "", observacoes: "" };
@@ -73,6 +73,8 @@ export function prepararContato(form: FormularioContato): FormularioContato {
   if (["combustivel", "combustiveis", "abastecimento"].includes(normalizar(payload.categoria))) throw new Error("Esse fornecedor deve ser salvo em Operações → Abastecimento → Fornecedores.");
   if (payload.categoria_tipo !== "OUTRO") payload.categoria_personalizada = "";
   payload.uf = payload.uf.toUpperCase();
+  payload.codigo_icao = payload.codigo_icao.toUpperCase();
+  if(payload.codigo_icao && !/^[A-Z0-9]{4}$/.test(payload.codigo_icao)) throw new Error("Informe quatro letras ou números para o código ICAO.");
   if (payload.categoria_tipo !== "HANGAR") payload.atendimento_pista = "";
   else if (!["SIM", "NAO"].includes(payload.atendimento_pista)) throw new Error("Informe se o hangar possui atendimento de pista.");
   if (payload.categoria_tipo !== "HANGAR" || payload.atendimento_pista !== "SIM") {
@@ -152,6 +154,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
           <div className="ac-form-grid">
             {campo("nome", "Nome do contato", { required: true, autoComplete: "name", autoFocus: true, placeholder: "Nome completo" })}
             {campo("telefone", "Telefone", { type: "tel", autoComplete: "tel", placeholder: "(00) 00000-0000" })}
+            {campo("codigo_icao", "Aeroporto (ICAO)", { maxLength: 4, placeholder: "Ex.: SBCY" })}
             {campo("email", "E-mail", { type: "email", autoComplete: "email", placeholder: "contato@empresa.com.br" })}
             <label className="ac-field" htmlFor="contato-categoria">
               <span>Categoria *</span>
@@ -259,7 +262,7 @@ function descricaoServico(item: ContatoAgenda, servico: typeof SERVICOS[number])
 
 function Detalhes({ contato }: { contato: ContatoAgenda }) {
   const dados = [
-    ["Nome", contato.nome], ["Categoria", contato.categoria], ["Telefone", contato.telefone], ["E-mail", contato.email],
+    ["Aeroporto (ICAO)", contato.codigo_icao], ["Nome", contato.nome], ["Categoria", contato.categoria], ["Telefone", contato.telefone], ["E-mail", contato.email],
     ["Empresa", contato.empresa], ["Razão social", contato.razao_social], ["CNPJ", contato.cnpj],
     ["Endereço", contato.endereco], ["Cidade / UF", [contato.cidade, contato.uf].filter(Boolean).join(" / ")],
   ];
@@ -389,3 +392,4 @@ export function AgendaContatos() {
 }
 
 export default AgendaContatos;
+

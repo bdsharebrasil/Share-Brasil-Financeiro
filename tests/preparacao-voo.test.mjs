@@ -1,0 +1,10 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
+async function carregar(path){const source=await readFile(new URL(path,import.meta.url),'utf8');const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2021}});return import('data:text/javascript;base64,'+Buffer.from(outputText).toString('base64'));}
+const {mesclar}=await carregar('../src/components/preparacao/mesclar.ts');
+const {interpretarCafe}=await carregar('../src/lib/cafe-manha.ts');
+test('combina campos distintos sem perder ordem e identifica conflito no mesmo campo',()=>{const b={escalas:[{id:'e1',icao:'SBCY',estado:'PENDENTE'}]};const l=structuredClone(b),r=structuredClone(b);l.escalas[0].icao='SBIL';r.escalas[0].estado='CONCLUIDO';let m=mesclar(b,l,r);assert.equal(m.conflitos,0);assert.deepEqual(m.dados.escalas[0],{id:'e1',icao:'SBIL',estado:'CONCLUIDO'});r.escalas[0].icao='SBBR';m=mesclar(b,l,r);assert.equal(m.conflitos,1);assert.equal(m.dados.escalas[0].icao,'SBIL');assert.equal(mesclar(b,l,r,'remoto').dados.escalas[0].icao,'SBBR');});
+test('exclusão concorrente não apaga silenciosamente alteração da equipe',()=>{const b={escalas:[{id:'a',nome:'Original'}]},l={escalas:[]},r={escalas:[{id:'a',nome:'Atualizado'}]};const m=mesclar(b,l,r,'remoto');assert.equal(m.conflitos,1);assert.equal(m.dados.escalas[0].nome,'Atualizado');});
+test('café diferencia inclusão, cobrança, ausência e informação ainda não confirmada',()=>{assert.equal(interpretarCafe('SIM').tipo,'A_CONFIRMAR');assert.match(interpretarCafe('SIM').rotulo,/inclusão a confirmar/);assert.equal(interpretarCafe('INCLUIDO').tipo,'INCLUIDO');assert.equal(interpretarCafe('NÃO').tipo,'NAO_OFERECE');assert.equal(interpretarCafe('NAO_OFERECE').tipo,'NAO_OFERECE');assert.equal(interpretarCafe('25,50').valor,'25.50');assert.equal(interpretarCafe('A_PARTE').tipo,'A_PARTE');assert.equal(interpretarCafe(null).tipo,'A_CONFIRMAR');});

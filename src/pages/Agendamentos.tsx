@@ -789,13 +789,13 @@ function AcoesCartao({ item, aoAbrir, aoConfirmar, aoChecklist, aoJornada, aoFin
         <button type="button" onClick={() => aoAbrir(item)} className={cn(e.base, e.abrir)}>ABRIR</button>
         {pendente && <button type="button" onClick={() => aoConfirmar(item)} title="Confirmar agendamento" className={cn(e.base, e.confirmar)}>CONFIRMAR</button>}
         {!pendente && acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
-        {!pendente && acoes.mostrarChecklist && !acoes.mostrarJornada && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
+        {!pendente && acoes.mostrarChecklist && !acoes.mostrarJornada && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? acoes.preparacaoPendencias ? "border-amber-400/60 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:bg-amber-950/50 dark:text-amber-100" : e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
         {temMenu && <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" aria-label="Ações do voo" title="Ações do voo" className={e.menu}><MoreVertical size={16} /></button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {acoes.mostrarChecklist && <DropdownMenuItem onSelect={() => aoChecklist(item)}>Ver checklist</DropdownMenuItem>}
+            {acoes.mostrarChecklist && <DropdownMenuItem onSelect={() => aoChecklist(item)}>Ver preparação / briefing</DropdownMenuItem>}
             {acoes.checklistConcluido && <DropdownMenuItem onSelect={() => setPesoAberto(true)}>Gerar peso e balanceamento</DropdownMenuItem>}
             {acoes.podeFinalizar && <DropdownMenuItem onSelect={() => aoFinalizar(item)}>Concluir operação</DropdownMenuItem>}
           </DropdownMenuContent>
@@ -823,7 +823,7 @@ function AcoesDetalhe({ item, aoChecklist, aoJornada, aoFinalizar, progressoChec
 
   return (
     <div className="mt-3 flex flex-wrap items-stretch gap-3">
-      {acoes.mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
+      {acoes.mostrarChecklist && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, acoes.checklistConcluido ? acoes.preparacaoPendencias ? "border-amber-400/60 bg-amber-100 text-amber-950 hover:bg-amber-200 dark:bg-amber-950/50 dark:text-amber-100" : e.concluido : checklistInicial ? e.checklistIniciar : e.checklistAndamento)}>{acoes.checklistLabel}</button>}
       {acoes.mostrarJornada && <button type="button" onClick={() => aoJornada(item)} className={cn(e.base, jornadaConcluida ? e.concluido : e.jornada)}>{acoes.jornadaLabel}</button>}
       {acoes.historico && acoes.checklistConcluido && <button type="button" onClick={() => aoChecklist(item)} className={cn(e.base, e.verChecklist)}>Ver checklist</button>}
       {acoes.checklistConcluido && <div className={e.pesoWrapper}><PesoBalanceamentoFicha item={item} /></div>}

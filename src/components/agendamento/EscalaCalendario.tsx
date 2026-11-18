@@ -10,7 +10,7 @@ type OrigemTripulacao = "todos" | TripulanteAgendamento["origem"];
 type Fuso = "UTC" | "BRT";
 type Coluna = { chave: string; titulo: string; subtitulo: string; hoje: boolean; inicio: number; blocos: BlocoEscala[] };
 
-const HORA_PX = 48;
+const HORA_PX = 32;
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const DIAS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -111,8 +111,8 @@ export default function EscalaCalendario({ tripulacao, escala, disponibilidades,
 
   const btnSeg = (ativo: boolean) => `rounded px-2.5 py-1 text-[10px] font-bold ${ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`;
 
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/75">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
+  return <section className="agenda-escala overflow-hidden rounded-xl border border-border bg-card/75">
+    <div className="agenda-escala-toolbar flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
       <div className="flex items-center gap-2">
         <button type="button" aria-label="Anterior" onClick={() => navegar(-1)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary"><ChevronLeft size={14} /></button>
         <button type="button" aria-label="Próximo" onClick={() => navegar(1)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary"><ChevronRight size={14} /></button>
@@ -150,7 +150,7 @@ function GradeHoraria({ colunas, agora, fuso, mostrarNome, aoClicar }: { colunas
   useEffect(() => { if (scroll.current) scroll.current.scrollTop = 6 * HORA_PX; }, []);
   const template = { gridTemplateColumns: `56px repeat(${colunas.length}, minmax(${colunas.length > 7 ? 150 : 110}px, 1fr))` };
 
-  return <div ref={scroll} className="max-h-[680px] overflow-auto">
+  return <div ref={scroll} className="agenda-escala-horarios overflow-auto">
     <div style={{ minWidth: 56 + colunas.length * (colunas.length > 7 ? 150 : 110) }}>
       <div className="sticky top-0 z-30 bg-card">
         <div className="grid border-b border-border" style={template}>
@@ -176,7 +176,7 @@ function GradeHoraria({ colunas, agora, fuso, mostrarNome, aoClicar }: { colunas
             {itens.map(({ b, inicio, fim, lane, lanes }) => <button
               key={b.id} type="button" onClick={() => aoClicar(b)}
               title={`${b.tripulanteNome} · ${b.titulo} · ${b.detalhe} · ${hhmm(b.inicio)}–${hhmm(b.fim)} ${fuso}`}
-              className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-left text-[9px] leading-tight transition hover:brightness-125 ${corBloco(b)} ${b.estimado ? "border-dashed" : ""}`}
+              className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-left text-[9px] leading-tight transition hover:opacity-90 ${corBloco(b)} ${b.estimado ? "border-dashed" : ""}`}
               style={{ top: ((inicio - c.inicio) / HORA) * HORA_PX, height: Math.max(((fim - inicio) / HORA) * HORA_PX - 1, 18), left: `calc(${(lane / lanes) * 100}% + 1px)`, width: `calc(${100 / lanes}% - 2px)` }}>
               <p className="truncate font-bold">{hhmm(b.inicio)}–{hhmm(b.fim)}{b.estimado ? " ~" : ""}</p>
               <p className="truncate">{b.titulo}</p>
@@ -192,20 +192,21 @@ function GradeHoraria({ colunas, agora, fuso, mostrarNome, aoClicar }: { colunas
 }
 
 function VisaoMes({ inicio, nDias, mesRef, blocos, hojeMs, mostrarNome, aoAbrirDia }: { inicio: number; nDias: number; mesRef: number; blocos: BlocoEscala[]; hojeMs: number; mostrarNome: boolean; aoAbrirDia: (dia: number) => void }) {
-  return <div>
+  return <div className="agenda-escala-mes">
     <div className="grid grid-cols-7 border-b border-border bg-secondary/20">{DIAS.map((d) => <div key={d} className="px-2 py-2 text-center text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground">{d}</div>)}</div>
-    <div className="grid grid-cols-7">
+    <div className="agenda-escala-dias grid grid-cols-7" style={{gridTemplateRows:`repeat(${Math.ceil(nDias/7)},minmax(0,1fr))`}}>
       {Array.from({ length: nDias }, (_, i) => {
         const dia = inicio + i * DIA;
         const d = new Date(dia);
         const evs = blocos.filter((b) => b.inicio < dia + DIA && b.fim > dia).sort((a, b) => a.inicio - b.inicio);
-        return <div key={dia} className={`min-h-[120px] border-b border-r border-border/60 p-1.5 ${d.getUTCMonth() === mesRef ? "" : "bg-background/30 opacity-60"}`}>
+        return <div key={dia} className={`agenda-escala-dia border-b border-r border-border/60 p-1.5 ${d.getUTCMonth() === mesRef ? "" : "bg-background/30 opacity-60"}`}>
           <button type="button" onClick={() => aoAbrirDia(dia)} className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] hover:bg-secondary ${dia === hojeMs ? "bg-primary text-primary-foreground hover:bg-primary" : ""}`}>{d.getUTCDate()}</button>
           <div className="space-y-1">
-            {evs.slice(0, 3).map((b) => <button key={b.id} type="button" onClick={() => aoAbrirDia(dia)} className={`block w-full truncate rounded border px-1 py-0.5 text-left text-[9px] font-semibold ${corBloco(b)}`}>
+            {evs.slice(0, 1).map((b) => <button key={b.id} type="button" onClick={() => aoAbrirDia(dia)} className={`block w-full truncate rounded border px-1 py-0.5 text-left text-[9px] font-semibold ${corBloco(b)}`}>
               {!b.diaInteiro && `${hhmm(Math.max(b.inicio, dia))} `}{mostrarNome ? `${primeiroNome(b.tripulanteNome)} · ` : ""}{b.titulo}
             </button>)}
-            {evs.length > 3 && <button type="button" onClick={() => aoAbrirDia(dia)} className="text-[9px] text-muted-foreground hover:underline">+{evs.length - 3} mais</button>}
+            {evs.length>0&&<button type="button" onClick={()=>aoAbrirDia(dia)} className="agenda-escala-contagem text-[9px] text-primary">{evs.length} compromisso(s)</button>}
+            {evs.length > 1 && <button type="button" onClick={() => aoAbrirDia(dia)} className="text-[9px] text-muted-foreground hover:underline">+{evs.length - 1} mais</button>}
           </div>
         </div>;
       })}
@@ -219,7 +220,7 @@ function VisaoLista({ inicio, ref, blocos, mostrarNome, aoMudarData, aoClicar }:
     .map((dia) => ({ dia, evs: blocos.filter((b) => b.inicio < dia + DIA && b.fim > dia).sort((a, b) => a.inicio - b.inicio) }))
     .filter((x) => x.evs.length);
 
-  return <div className="grid gap-4 p-3 lg:grid-cols-[260px_minmax(0,1fr)]">
+  return <div className="agenda-escala-lista grid gap-3 p-3 lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="hidden lg:block">
       <DateCalendar value={new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())} onChange={(data) => aoMudarData(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()))} />
     </aside>

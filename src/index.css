@@ -690,27 +690,44 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 
 /* Acabamento corporativo: superfícies sólidas, sem neon, blur ou aparência promocional. */
 .agendamentos-page {
-  background: hsl(var(--background));
+  background: transparent !important;
   --agenda-shadow: 0 2px 8px hsl(var(--foreground) / .07);
   --agenda-radius: 11px;
 }
-.agendamentos-page .agendamento-heading::after { width: 120px; height: 2px; background: hsl(var(--primary)); }
+.agendamentos-page > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
+.agendamentos-page .agendamento-heading { padding-bottom: .65rem; gap: .75rem; }
+.agendamentos-page .agendamento-heading::after { display: none; }
+.agendamentos-page .agendamento-heading h1 { font-size: clamp(1.35rem, 2.4vw, 1.8rem); }
+.agendamentos-page .agendamento-heading p { margin-top: .25rem; font-size: 11px; }
+.agendamentos-page .agendamento-primary-action { min-height: 38px; padding-inline: 14px; font-size: 10px; }
 .agendamentos-page .agendamento-primary-action { box-shadow: none; transition: background-color .15s ease, border-color .15s ease; }
 .agendamentos-page .agendamento-primary-action:hover { transform: none; box-shadow: none; filter: none; }
 .agendamentos-page .agendamento-kpis > *,
 .agendamentos-page .agendamento-cronograma,
 .agendamentos-page .agenda-hoje-card { background: hsl(var(--card)) !important; box-shadow: var(--agenda-shadow) !important; }
-.agendamentos-page .agendamento-kpis > * { min-height: 116px; border-radius: 11px !important; }
+.agendamentos-page .agendamento-kpis { gap: .6rem; }
+.agendamentos-page .agendamento-kpis > * { min-height: 96px; border-radius: 10px !important; padding: 12px !important; }
+.agendamentos-page .agendamento-kpis strong { font-size: 22px; }
+.agendamentos-page .agendamento-kpis span.rounded-lg { padding: 7px; }
 .agendamentos-page .agendamento-tabs { background: hsl(var(--card)); box-shadow: none; }
+.agendamentos-page .agendamento-tabs { padding: 3px; }
+.agendamentos-page .agendamento-tabs button { min-height: 36px; padding-inline: 12px; font-size: 9px; }
 .agendamentos-page .agendamento-tabs button.bg-primary { box-shadow: none; }
 .agendamentos-page .agendamento-cronograma > [class*="border-b"] { background: hsl(var(--card)); }
-.agendamentos-page .agendamento-card { background: hsl(var(--card)); box-shadow: 0 2px 8px hsl(var(--foreground) / .06); }
+.agendamentos-page .agendamento-workspace { gap: 12px; }
+.agendamentos-page .agendamento-cronograma { border-radius: 12px; }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] { padding: 12px 14px; }
+.agendamentos-page .agendamento-cronograma > div:not([class*="border-b"]) { padding: 12px; }
+.agendamentos-page .agendamento-card { min-height: 260px; background: hsl(var(--card)); box-shadow: 0 2px 8px hsl(var(--foreground) / .06); }
+.agendamentos-page .agendamento-card > div:first-child { padding-bottom: 10px; }
+.agendamentos-page .agendamento-card .font-mono.text-sm { font-size: 14px; }
+.agendamentos-page .agendamento-card .font-mono.text-xs { font-size: 11px; }
 .agendamentos-page .agendamento-card:hover { transform: none; box-shadow: 0 2px 8px hsl(var(--foreground) / .1); }
-.agendamentos-page .agendamento-card [class*="bg-background\/25"] { background: hsl(var(--muted)); }
+.agendamentos-page .agendamento-card [class*="bg-background\/25"] { min-height: 58px; padding: 9px; background: hsl(var(--muted)); }
 .agendamentos-page .agenda-hoje-flight { background: hsl(var(--background)); }
 .agendamentos-page .agenda-hoje-flight:hover { transform: none; background: hsl(var(--muted)); }
 .agendamentos-page .agenda-hoje-alert { background: hsl(var(--accent) / .12); color: hsl(var(--foreground)); }
-.dark .agendamentos-page { background: hsl(var(--background)); }
+.dark .agendamentos-page { background: transparent !important; }
 .dark .agendamentos-page .agendamento-kpis > *,
 .dark .agendamentos-page .agendamento-cronograma,
 .dark .agendamentos-page .agenda-hoje-card,

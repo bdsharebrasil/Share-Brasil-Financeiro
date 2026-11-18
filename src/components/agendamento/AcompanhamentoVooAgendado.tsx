@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Plane, Radio } from 'lucide-react';
 import { buscarHistoricoRastreio, type SolicitacaoVooInterna, type VooEmOperacao } from '@/lib/colaborador-api';
-import { horarioRastreio, vooComSinalNoAr } from '@/lib/rastreio';
+import { vooComSinalNoAr } from '@/lib/rastreio';
 import HistoricoRastreioVoo from '@/components/dashboard/operacoes/HistoricoRastreioVoo';
 
 const MapaVoo = lazy(() => import('@/components/dashboard/operacoes/VooEmOperacaoMapa'));
@@ -37,10 +37,8 @@ export default function AcompanhamentoVooAgendado({ item, voosEmOperacao = [] }:
     <div className="grid items-start gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(240px,340px)]">
       <div className="min-w-0 space-y-3">
         <div className="grid grid-cols-2 gap-3 text-[10px]">
-          <div><p className="text-muted-foreground">Rota agendada</p><p className="mt-1 font-mono font-semibold">{item.origem} → {item.destino}</p></div>
           <div><p className="text-muted-foreground">Aeronave</p><p className="mt-1 font-semibold">{item.matricula_registro || 'A definir'} · {item.modelo || '—'}</p></div>
           <div><p className="text-muted-foreground">Data</p><p className="mt-1 font-semibold">{item.data_agendada.slice(0, 10).split('-').reverse().join('/')}</p></div>
-          <div><p className="text-muted-foreground">Decolagem programada</p><p className="mt-1 font-mono font-semibold">{horarioRastreio(item.horario_previsto_agendamento)}</p></div>
         </div>
         {carregando && !voo ? <p role="status" className="text-[10px] text-muted-foreground">Carregando histórico…</p> : voo ? <HistoricoRastreioVoo voo={voo} /> : <p role={erro ? 'alert' : 'status'} className="text-[10px] text-muted-foreground">{erro || 'Nenhum percurso ADS-B registrado para este agendamento.'}</p>}
       </div>

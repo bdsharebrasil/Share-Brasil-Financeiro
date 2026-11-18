@@ -308,7 +308,7 @@ export default function DashboardFinanceiro({
       </section>
 
 
-      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-[rgba(7,25,39,1)] shadow-sm">
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"

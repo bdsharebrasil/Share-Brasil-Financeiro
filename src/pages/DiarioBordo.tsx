@@ -234,9 +234,8 @@ export default function DiarioBordo({ aoVoltar, aoAbrirAerodromos }: { aoVoltar?
       } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível atualizar a célula."); }
       finally { setSaving(false); }
     };
-    const theme = { "--background": "222 25% 9%", "--foreground": "220 20% 96%", "--card": "222 23% 10%", "--card-foreground": "220 20% 96%", "--border": "220 23% 15%", "--input": "220 23% 21%", "--muted": "220 23% 13%", "--muted-foreground": "218 14% 65%", "--primary": "188 95% 47%", "--secondary": "220 23% 13%" } as CSSProperties;
     return (
-      <div className="diario-bordo db-month route-enter" style={theme} aria-busy={detailsLoading}>
+      <div className="diario-bordo db-month route-enter" aria-busy={detailsLoading}>
         <style>{diarioStyles}</style>
         <header className="db-topbar">
           <div className="db-heading">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Mail, UserRound } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
@@ -74,8 +74,8 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
             : "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left",
           "text-[11px] font-semibold transition-all",
           selecionado
-            ? "border-[rgba(21,73,97,1)] bg-[rgba(7,24,54,1)] text-white shadow-md"
-            : "border-transparent text-sidebar-foreground/70 hover:-translate-y-0.5 hover:border-sidebar-border hover:bg-[hsl(198,100%,18%)] hover:text-white",
+            ? "border-sidebar-primary/35 bg-sidebar-accent text-sidebar-accent-foreground"
+            : "border-transparent text-sidebar-foreground/70 hover:-translate-y-0.5 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
       >
         <Icon size={item.id === "financeiro-cotista" ? (compacto ? 16 : 14) : (compacto ? 18 : 16)} strokeWidth={selecionado ? 2.3 : 1.8} />
@@ -89,7 +89,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
     <nav className="space-y-4">
       {mostrarPerfil && <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/35 p-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary"><img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} /></div>
-        <div className="min-w-0"><p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p><p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p><p className="mt-0.5 truncate text-[9px] text-sidebar-foreground/40">Dados sincronizados pelo D1</p></div>
+        <div className="min-w-0"><p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p><p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p></div>
       </div>}
       {grupos.map((grupo) => (
         <Collapsible
@@ -112,7 +112,7 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-[rgba(26,34,34,0.87)] bg-sidebar py-4 md:flex">
+      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-sidebar-border bg-sidebar py-4 md:flex">
         {recolhida ? (
           <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
             <ChevronRight size={18} />
@@ -128,15 +128,14 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
       </div>
 
       <Sheet open={aberta} onOpenChange={(open) => !open && aoFechar()}>
-        <SheetContent side="left" className="w-[min(20rem,calc(100vw-1rem))] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent side="left" className="app-sidebar-drawer w-[min(20rem,calc(100vw-1rem))] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
           <div className="safe-area-header flex items-center border-b border-sidebar-border px-6">
-            <LogoShare />
+            <LogoShare inversa />
             <span className="ml-auto rounded-md border border-sidebar-border px-2 py-1 font-mono text-[9px] text-sidebar-foreground/40">{nomesAmbiente[ambiente]}</span>
           </div>
           <ScrollArea className="h-[calc(100dvh-var(--app-header-height))]"><div className="p-4 pb-[calc(1rem+var(--safe-area-bottom))]">{renderMenuCompleto(false)}</div></ScrollArea>
         </SheetContent>
       </Sheet>
-      <span className="sr-only"><Mail aria-hidden="true" />Dados do menu carregados do D1</span>
     </>
   );
 }

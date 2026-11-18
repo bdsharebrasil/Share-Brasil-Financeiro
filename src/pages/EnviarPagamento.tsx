@@ -1163,7 +1163,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
   return (
     <div className={`despesas-theme envio-pagamento route-enter mx-auto min-h-[113px] min-w-0 w-full max-w-full ${historico ? "" : "space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3 xl:max-w-[1280px]"}`}>
       {!historico && <>
-      <header className="envio-pagina-header relative overflow-hidden rounded-2xl border border-border dark:border-[#1b2a3f] bg-card dark:bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "var(--light-surface, rgb(16, 20, 39))" }}>
+      <header className="envio-pagina-header relative overflow-hidden rounded-2xl border border-border dark:border-border bg-card dark:bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,.13),_transparent_48%),linear-gradient(135deg,#0b1422,#080d16_62%,#0b1523)] px-4 py-3 shadow-[0_18px_45px_rgba(0,0,0,.22)] sm:px-6 sm:py-4" style={{ backgroundColor: "var(--light-surface, rgb(16, 20, 39))" }}>
         <div className="relative z-10 max-w-3xl">
           <IndicadorPagina>Financeiro / Pagamentos</IndicadorPagina>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Programar pagamento</h1>
@@ -1175,8 +1175,8 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
         <Button type="button" onClick={() => { if (todosEmailsConfirmados) { void concluirEnvioCotista(); return; } setModalEmail(true); if (!contatos.length) void carregarContatosEmail(); }} disabled={rascunhoConcluido || enviandoEmail} className="gap-2"><Mail size={15} /> {rascunhoConcluido ? "Envio concluído" : enviandoEmail ? "Concluindo registro…" : todosEmailsConfirmados ? "Concluir registro do envio" : "SEGUIR PARA ENVIAR EMAIL PARA ESSE CLIENTE"}</Button>
       </section>}
 
-      <section className="envio-fluxo !mt-[18px] mb-[20px] py-px overflow-hidden rounded-2xl border border-border dark:border-[#1a2638] bg-card dark:bg-[#060b14] shadow-[0_24px_60px_rgba(0,0,0,.42)]">
-        <div className="envio-fluxo-header flex items-center gap-3 border-b border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:gap-5 md:px-5">
+      <section className="envio-fluxo !mt-[18px] mb-[20px] py-px overflow-hidden rounded-2xl border border-border dark:border-border bg-card dark:bg-background shadow-[0_24px_60px_rgba(0,0,0,.42)]">
+        <div className="envio-fluxo-header flex items-center gap-3 border-b border-border dark:border-border bg-card dark:bg-background px-4 py-2.5 md:gap-5 md:px-5">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[.16em] text-foreground">Fluxo de envio</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">{etapa === 0 ? "Etapa 1 · Seleção do modo" : `Etapa ${etapa + 1} de ${totalEtapas + 1} · ${tituloEtapa}`}{statusSalvamento === "salvando" ? " · Salvando…" : statusSalvamento === "salvo" && salvoEm ? ` · Salvo às ${new Date(salvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : statusSalvamento === "erro" ? " · Falha ao salvar" : ""}</p>
@@ -1190,7 +1190,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           { id: "revisao", titulo: "Revisão e envio" },
         ]} />
 
-        <div className="envio-fluxo-conteudo flex flex-col gap-1 bg-[rgba(8,15,22,0.74)] px-4 py-3 md:px-5 lg:py-2.5">
+        <div className="envio-fluxo-conteudo flex flex-col gap-1 bg-card px-4 py-3 md:px-5 lg:py-2.5">
           <AnimatedStepPanel etapa={etapa} titulo={etapa === 0 ? undefined : tituloEtapa}>
           {etapa === 0 && (
             <div className="flex flex-col gap-[12px]">
@@ -1208,7 +1208,7 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
                       key={opcao.tipo}
                       onClick={() => marcarModo(opcao.tipo)}
                       aria-pressed={ativo}
-                      className={`envio-modo relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? `${opcao.corBorda} bg-card dark:bg-[#0d1a2d] shadow-[0_0_0_1px_hsl(var(--primary)/.12)]` : "border-border dark:border-[#182336] bg-card dark:bg-[#070c15] hover:border-primary/35 hover:bg-secondary dark:hover:bg-[#0b1422]"}`}
+                      className={`envio-modo relative flex h-full w-full items-start gap-2 rounded-[10px] border px-3 py-2.5 pr-10 text-left transition-[background-color,border-color,box-shadow] xl:py-3 ${ativo ? `${opcao.corBorda} bg-card dark:bg-secondary shadow-[0_0_0_1px_hsl(var(--primary)/.12)]` : "border-border dark:border-border bg-card dark:bg-background hover:border-primary/35 hover:bg-secondary dark:hover:bg-secondary"}`}
                     >
                       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${ativo ? "border-primary" : "border-muted-foreground/50"}`}>
                         {ativo && <span className="h-2 w-2 rounded-full bg-primary" />}
@@ -1332,13 +1332,13 @@ export default function EnviarPagamento({ apenasCaixaShare = false }: { apenasCa
           {mensagem && !erro && <div role="status" className="mt-4 rounded-sm border border-emerald-400/30 bg-emerald-400/10 p-3 text-[11px] text-emerald-700 dark:text-emerald-200">{mensagem}</div>}
         </div>
 
-        <div className="envio-fluxo-footer -my-[5px] flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-[#172235] bg-card dark:bg-[#080e19] px-4 py-2.5 md:px-5">
+        <div className="envio-fluxo-footer -my-[5px] flex flex-wrap items-center justify-between gap-2 border-t border-border dark:border-border bg-card dark:bg-background px-4 py-2.5 md:px-5">
           <div className="flex items-center gap-2">
             {etapa > 0 && <Button type="button" variant="ghost" onClick={anterior} disabled={salvando} className="h-9 gap-2 rounded-sm text-[11px]"><ArrowLeft size={14} /> Voltar</Button>}
             <Button type="button" variant="ghost" onClick={() => void abrirPaginaHistorico()} disabled={abrindoHistorico || salvando || enviandoEmail} className="h-9 gap-2 rounded-sm text-[11px] text-muted-foreground hover:bg-white/[.04] hover:text-foreground"><History size={14} /> Histórico</Button>
           </div>
           {etapa < totalEtapas ? (
-            <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm bg-[rgba(16,128,161,0.78)] px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
+            <Button type="button" onClick={proxima} disabled={salvando || (etapa === 0 && !tipo)} className="h-9 gap-2 rounded-sm bg-primary text-primary-foreground px-5 text-[11px]">Continuar <ArrowRight size={14} /></Button>
           ) : !envioRecemCriado || envioRecemCriado.tipo === "share" ? (
             <Button type="button" onClick={enviar} disabled={salvando || uploadsPendentes || envioRecemCriado?.tipo === "share"} className="h-10 gap-2 rounded-lg px-5 text-xs font-semibold">{salvando || uploadsPendentes ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {uploadsPendentes ? "Enviando anexos…" : envioRecemCriado?.tipo === "share" ? "Aguardando aprovação" : envioRecemCriado ? "Enviar e-mail" : tipo === "share" ? "Criar lançamento" : "Programar pagamento"}</Button>
           ) : null}

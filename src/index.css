@@ -28,34 +28,34 @@
   --app-header-height: calc(68px + var(--safe-area-top));
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --background: 205 31.58% 92.55%;
-  --foreground: 205.71 43.21% 15.88%;
-  --border: 206.09 25.84% 82.55%;
-  --card: 202.5 33.33% 95.29%;
-  --card-foreground: 205.71 43.21% 15.88%;
-  --card-border: 202.5 30.77% 89.8%;
+  --background: 204.00 26.32% 96.27%;
+  --foreground: 203.08 32.50% 15.69%;
+  --border: 204.71 24.64% 86.47%;
+  --card: 0.00 0.00% 100.00%;
+  --card-foreground: 203.08 32.50% 15.69%;
+  --card-border: 204.71 24.64% 86.47%;
   --sidebar: 208.57 56.76% 14.51%;
-  --sidebar-foreground: 205 30% 88%;
-  --sidebar-border: 205.45 30.28% 21.37%;
-  --sidebar-primary: 42.35 84.16% 60.39%;
+  --sidebar-foreground: 210.00 38.89% 92.94%;
+  --sidebar-border: 207.06 38.93% 25.69%;
+  --sidebar-primary: 202.91 79.71% 72.94%;
   --sidebar-primary-foreground: 208.57 56.76% 14.51%;
-  --sidebar-accent: 207 48% 23%;
-  --sidebar-accent-foreground: 205 30% 92%;
-  --sidebar-ring: 42.35 84.16% 60.39%;
-  --popover: 202.5 33.33% 95.29%;
-  --popover-foreground: 205.71 43.21% 15.88%;
-  --popover-border: 206.09 25.84% 82.55%;
+  --sidebar-accent: 205.31 58.18% 21.57%;
+  --sidebar-accent-foreground: 205.00 66.67% 96.47%;
+  --sidebar-ring: 202.91 79.71% 72.94%;
+  --popover: 0.00 0.00% 100.00%;
+  --popover-foreground: 203.08 32.50% 15.69%;
+  --popover-border: 204.71 24.64% 86.47%;
   --primary: 203.77 89.83% 34.71%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 202.5 30.77% 89.8%;
-  --secondary-foreground: 205.71 43.21% 15.88%;
-  --muted: 202.5 30.77% 89.8%;
-  --muted-foreground: 205 21% 40%;
-  --accent: 42.35 84.16% 60.39%;
-  --accent-foreground: 208.57 56.76% 14.51%;
+  --primary-foreground: 0.00 0.00% 100.00%;
+  --secondary: 202.50 28.57% 94.51%;
+  --secondary-foreground: 203.08 32.50% 15.69%;
+  --muted: 202.50 28.57% 94.51%;
+  --muted-foreground: 204.00 15.00% 39.22%;
+  --accent: 204.00 66.67% 94.12%;
+  --accent-foreground: 203.77 89.83% 34.71%;
   --destructive: 0 42% 50%;
   --destructive-foreground: 0 0% 100%;
-  --input: 206.09 25.84% 82.55%;
+  --input: 203.57 23.73% 76.86%;
   --ring: 203.77 89.83% 34.71%;
   --chart-1: 203.77 89.83% 34.71%;
   --chart-2: 104.76 33.69% 36.67%;
@@ -78,39 +78,66 @@
   --muted-border: hsl(var(--muted));
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
+  color-scheme: light;
+  --app-elevation: 0 1px 3px rgb(27 43 53 / .04), 0 6px 18px rgb(27 43 53 / .03);
+  --app-canvas: hsl(var(--background));
+  --app-surface: hsl(var(--card));
+  --app-raised: hsl(var(--popover));
+  --app-soft: hsl(var(--secondary));
+  --app-selected: hsl(var(--primary) / .12);
+  --app-line: hsl(var(--border));
+  --app-text: hsl(var(--foreground));
+  --app-muted: hsl(var(--muted-foreground));
+  --app-info: hsl(var(--primary));
+  --app-primary-text: hsl(var(--primary-foreground));
+  --app-info-soft: hsl(var(--primary) / .1);
+  --app-info-line: hsl(var(--primary) / .3);
+  --app-success: #18724d;
+  --app-success-soft: #e7f4ed;
+  --app-success-line: #b0d7c1;
+  --app-warning: #8a641b;
+  --app-warning-soft: #fff5dc;
+  --app-warning-line: #e0c88d;
+  --app-danger: #b73c48;
+  --app-danger-soft: #fcecef;
+  --app-danger-line: #e8bac1;
+  --app-violet: #7045a1;
+  --app-violet-soft: #f1eafa;
+  --app-violet-line: #ccb7e0;
 }
 
+
 .dark {
-  --background: 207 45.45% 8.63%;
-  --foreground: 220 12% 92%;
-  --border: 220 8% 24%;
-  --card: 220 9% 13%;
-  --card-foreground: 220 12% 92%;
-  --card-border: 220 8% 24%;
+  --background: 205.71 41.18% 3.33%;
+  --foreground: 100.00 13.04% 95.49%;
+  --border: 202.50 20.00% 15.69%;
+  --card: 204.00 27.78% 7.06%;
+  --card-foreground: 100.00 13.04% 95.49%;
+  --card-border: 202.50 20.00% 15.69%;
   --sidebar: 208.57 56.76% 14.51%;
-  --sidebar-foreground: 205 30% 88%;
-  --sidebar-border: 205.45 30.28% 21.37%;
-  --sidebar-primary: 42.35 84.16% 60.39%;
+  --sidebar-foreground: 210.00 38.89% 92.94%;
+  --sidebar-border: 207.06 38.93% 25.69%;
+  --sidebar-primary: 202.91 79.71% 72.94%;
   --sidebar-primary-foreground: 208.57 56.76% 14.51%;
-  --sidebar-accent: 207 48% 23%;
-  --sidebar-accent-foreground: 205 30% 92%;
-  --sidebar-ring: 42.35 84.16% 60.39%;
-  --popover: 220 9% 15%;
-  --popover-foreground: 220 12% 92%;
-  --popover-border: 220 8% 26%;
-  --primary: 205 65% 65%;
-  --primary-foreground: 220 10% 9%;
-  --secondary: 220 8% 18%;
-  --secondary-foreground: 220 12% 92%;
-  --muted: 220 8% 17%;
-  --muted-foreground: 220 9% 68%;
-  --accent: 42 65% 60%;
-  --accent-foreground: 220 10% 9%;
+  --sidebar-accent: 205.31 58.18% 21.57%;
+  --sidebar-accent-foreground: 205.00 66.67% 96.47%;
+  --sidebar-ring: 202.91 79.71% 72.94%;
+  --popover: 203.08 26.53% 9.61%;
+  --popover-foreground: 100.00 13.04% 95.49%;
+  --popover-border: 202.86 18.58% 22.16%;
+  --primary: 203.28 74.69% 48.04%;
+  --primary-foreground: 205.71 41.18% 3.33%;
+  --secondary: 203.08 26.53% 9.61%;
+  --secondary-foreground: 100.00 13.04% 95.49%;
+  --muted: 203.08 26.53% 9.61%;
+  --muted-foreground: 197.65 7.00% 52.35%;
+  --accent: 202.29 45.45% 15.10%;
+  --accent-foreground: 202.91 79.71% 72.94%;
   --destructive: 0 84.24% 60.2%;
   --destructive-foreground: 0 0% 100%;
-  --input: 220 8% 28%;
-  --ring: 205 65% 65%;
-  --chart-1: 205 65% 65%;
+  --input: 203.08 20.00% 25.49%;
+  --ring: 203.28 74.69% 48.04%;
+  --chart-1: 203.28 74.69% 48.04%;
   --chart-2: 155.29 77.27% 43.14%;
   --chart-3: 45.87 89.64% 50.78%;
   --chart-4: 271 65% 70%;
@@ -118,38 +145,35 @@
   --button-outline: rgba(190, 225, 240, .13);
   --elevate-1: rgba(190, 225, 240, .04);
   --elevate-2: rgba(190, 225, 240, .09);
-  --brand-blue: #6baedb;
+  --brand-blue: #1f8fd6;
   --brand-green: #19c37d;
   --brand-gold: #f2bd11;
-  --brand-navy: #191b20;
+  --brand-navy: #10263a;
   --app-color-scheme: dark;
-  --light-canvas: #15171a;
-  --light-surface: #1e2024;
-  --light-soft: #282b30;
-  --light-line: #383b42;
-  --light-text: #e8e9ed;
-  --light-muted: #a7abb4;
-  --light-info: #6baedb;
-  --light-info-soft: #26313b;
-  --light-info-line: #435465;
-  --light-success: #19c37d;
-  --light-success-soft: #0e382d;
-  --light-success-line: #14784e;
-  --light-warning: #f2bd11;
-  --light-warning-soft: #3d3518;
-  --light-warning-line: #806a32;
-  --light-danger: #ef4444;
-  --light-danger-soft: #3b2029;
-  --light-danger-line: #76505a;
-  --light-violet: #c5a7ef;
-  --light-violet-soft: #30243e;
-  --light-violet-line: #57426f;
-  --light-elevation: none;
   --primary-border: hsl(var(--primary));
   --secondary-border: hsl(var(--secondary));
   --muted-border: hsl(var(--muted));
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
+  color-scheme: dark;
+  --app-elevation: none;
+}
+
+.dark {
+  --app-success: #63c59c; --app-success-soft: #10291f; --app-success-line: #28533f;
+  --app-warning: #e5bb64; --app-warning-soft: #2b2415; --app-warning-line: #5f4c28;
+  --app-danger: #f08d96; --app-danger-soft: #301b21; --app-danger-line: #64333f;
+  --app-violet: #bea3e6; --app-violet-soft: #241e30; --app-violet-line: #4f3b69;
+}
+:root {
+  --light-canvas: var(--app-canvas); --light-surface: var(--app-surface); --light-soft: var(--app-soft);
+  --light-line: var(--app-line); --light-text: var(--app-text); --light-muted: var(--app-muted);
+  --light-info: var(--app-info); --light-info-soft: var(--app-info-soft); --light-info-line: var(--app-info-line);
+  --light-success: var(--app-success); --light-success-soft: var(--app-success-soft); --light-success-line: var(--app-success-line);
+  --light-warning: var(--app-warning); --light-warning-soft: var(--app-warning-soft); --light-warning-line: var(--app-warning-line);
+  --light-danger: var(--app-danger); --light-danger-soft: var(--app-danger-soft); --light-danger-line: var(--app-danger-line);
+  --light-violet: var(--app-violet); --light-violet-soft: var(--app-violet-soft); --light-violet-line: var(--app-violet-line);
+  --light-elevation: var(--app-elevation);
 }
 
 
@@ -177,29 +201,9 @@
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: var(--app-header-height); padding-top: var(--safe-area-top); }
   .app-topbar {
-    --background: 208.89 81.82% 6.47%;
-    --foreground: 205 33.33% 92.94%;
-    --border: 198.26 61.06% 22.16%;
-    --card: 204.88 69.49% 11.57%;
-    --card-foreground: 205 33.33% 92.94%;
-    --card-border: 198.26 61.06% 22.16%;
-    --popover: 204.88 69.49% 11.57%;
-    --popover-foreground: 205 33.33% 92.94%;
-    --secondary: 202.04 69.01% 13.92%;
-    --secondary-foreground: 205 33.33% 92.94%;
-    --muted: 202.04 69.01% 13.92%;
-    --muted-foreground: 202.7 20.67% 64.9%;
-    --input: 198.26 61.06% 22.16%;
-    --primary: 194.01 79.76% 51.57%;
-    --primary-foreground: 208.89 81.82% 6.47%;
-    --accent: 45.87 89.64% 50.78%;
-    --accent-foreground: 208.89 81.82% 6.47%;
-    background: linear-gradient(180deg, #0b3145 0%, #092132 58%, #03111e 100%) !important;
-    border-bottom-color: hsl(var(--border)) !important;
+    background: hsl(var(--card));
+    border-bottom-color: hsl(var(--border));
     color: hsl(var(--foreground));
-  }
-  .app-topbar [style*="rgb(255, 255, 255)"] {
-    background-color: hsl(var(--card)) !important;
   }
   [aria-label="Notifications (F8)"] { margin-block: -20px; }
   @media (max-width: 767px) {
@@ -383,46 +387,8 @@ select.campo option { background-color: hsl(var(--card)); color: hsl(var(--foreg
 }
 
 
-/* Aliases compartilhados por módulos com paletas locais, em ambos os temas. */
-html:not(.dark) {
-  color-scheme: light;
-  --app-color-scheme: light;
-  --light-canvas: #e6edf2;
-  --light-surface: #eff4f7;
-  --light-soft: #dde7ed;
-  --light-line: #c7d4de;
-  --light-text: #172b3a;
-  --light-muted: #536b7a;
-  --light-info: #0969a8;
-  --light-info-soft: #e5f1f7;
-  --light-info-line: #91bcd3;
-  --light-success: #4e7d3e;
-  --light-success-soft: #eaf5ed;
-  --light-success-line: #4e7d3e;
-  --light-warning: #8a681c;
-  --light-warning-soft: #fff6df;
-  --light-warning-line: #dfc785;
-  --light-danger: #b54c4c;
-  --light-danger-soft: #fff0ef;
-  --light-danger-line: #e1acb2;
-  --light-violet: #6f42aa;
-  --light-violet-soft: #f2ecfa;
-  --light-violet-line: #c5b2df;
-  --light-elevation: 0 1px 2px rgb(27 41 59 / .06), 0 5px 16px rgb(27 41 59 / .05);
-}
-
 /* Módulos que ainda declaram uma paleta HSL própria, inclusive em portais. */
-html:not(.dark) :is(.financeiro-profissional, .despesas-theme, .company-cash, .cash-dialog, .cash-popover) {
-  --background: 205 31.58% 92.55%; --foreground: 205.71 43.21% 15.88%;
-  --card: 202.5 33.33% 95.29%; --card-foreground: 205.71 43.21% 15.88%;
-  --popover: 202.5 33.33% 95.29%; --popover-foreground: 205.71 43.21% 15.88%;
-  --muted: 202.5 30.77% 89.8%; --muted-foreground: 205 21% 40%;
-  --border: 206.09 25.84% 82.55%; --input: 206.09 25.84% 82.55%;
-  --primary: 203.77 89.83% 34.71%; --primary-foreground: 0 0% 100%;
-  --accent: 42.35 84.16% 60.39%; --accent-foreground: 208.57 56.76% 14.51%;
-  --ring: 203.77 89.83% 34.71%; --destructive: 0 42% 50%;
-  color-scheme: light;
-}
+
 
 html:not(.dark) :is(.app-card, .financeiro-panel, .financeiro-kpi, .financeiro-header,
   .despesa-ledger, .cash-ledger-panel, .ac-card, .sb-panel, .sb-kpi, .fb-card, .fb-kpi) {
@@ -458,30 +424,30 @@ html:not(.dark) .task-compose { background: hsl(var(--card)); border-color: hsl(
 html:not(.dark) .task-compose .bg-background\/50 { background-color: hsl(var(--muted)); border-color: hsl(var(--input)); }
 html:not(.dark) .task-compose .text-muted-foreground { color: hsl(var(--muted-foreground)); }
 html:not(.dark) .task-compose select { color-scheme: light; }
-html:not(.dark) .bcp { --bcp-accent: #0969a8; --bcp-heading: #607281; }
-html:not(.dark) .fb { --fb-border: #c7d4de; }
-html:not(.dark) .sb { --line: #c7d4de; }
+
+
+
 
 /* Status discretos, com contraste sobre superfícies claras. */
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-emerald-300, .text-emerald-400, .text-green-400) { color: var(--light-success); }
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400) { color: var(--light-warning); }
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
-html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-emerald-200, .text-emerald-300, .text-emerald-400, .text-green-400) { color: var(--light-success); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400) { color: var(--light-warning); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-red-200, .text-red-300, .text-red-400, .text-rose-400) { color: var(--light-danger); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-sky-200, .text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400, .text-blue-400) { color: var(--light-info); }
+html:not(.dark) :where(main, [role="dialog"]) :is(.text-violet-200, .text-violet-300, .text-violet-400, .text-purple-400) { color: var(--light-violet); }
 
 /* Planilhas do financeiro (Cotista e Share): cabeçalho escuro, bordas firmes e total em destaque. */
 html:not(.dark) .erp-financeiro .erp-tabela-container { background: #eff4f7; border-color: #9eafbc; }
-html:not(.dark) .erp-financeiro .erp-tabela thead { background: linear-gradient(#2d4156, #223446); }
-html:not(.dark) .erp-financeiro .erp-tabela th { color: #ffffff; border-bottom-color: #13212f; border-right-color: rgb(255 255 255 / .16); }
-html:not(.dark) .erp-financeiro .erp-tabela th .erp-ordenar { color: #ffffff; }
+html:not(.dark) .erp-financeiro .erp-tabela thead { background: hsl(var(--secondary)); }
+html:not(.dark) .erp-financeiro .erp-tabela th { color: hsl(var(--foreground)); border-bottom-color: hsl(var(--border)); border-right-color: hsl(var(--border)); }
+html:not(.dark) .erp-financeiro .erp-tabela th .erp-ordenar { color: hsl(var(--foreground)); }
 html:not(.dark) .erp-financeiro .erp-tabela td { color: #172b3a; border-bottom-color: #b5c5cf; border-right-color: #c7d4de; }
 html:not(.dark) .erp-financeiro .erp-tabela td.erp-valor { font-weight: 600; }
 html:not(.dark) .erp-financeiro .erp-linha { background: #eff4f7; }
 html:not(.dark) .erp-financeiro .erp-linha:nth-child(even) { background: #e6edf2; }
 html:not(.dark) .erp-financeiro .erp-linha:hover { background: #d6e5ee; }
-html:not(.dark) .erp-financeiro .erp-tabela tfoot { background: #2d4156; }
-html:not(.dark) .erp-financeiro .erp-tabela tfoot td { color: #ffffff; border-top-color: #13212f; }
-html:not(.dark) .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: #ffffff; background: #176846; }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot { background: hsl(var(--secondary)); }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot td { color: hsl(var(--foreground)); border-top-color: hsl(var(--border)); }
+html:not(.dark) .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: hsl(var(--primary)); background: hsl(var(--accent)); }
 
 @media print {
   html:not(.dark) :is(.app-card, .app-table-frame, .financeiro-panel, .financeiro-kpi, .sb-panel, .sb-kpi, .fb-card, .fb-kpi) { box-shadow: none; }
@@ -496,11 +462,8 @@ html:not(.dark) .ac-btn--primary { color: #fff; }
 html:not(.dark) .nf-btn.primary:hover { background: hsl(var(--primary)); color: #fff; }
 html:not(.dark) .nf-btn.destructive { background: hsl(var(--destructive)); color: #fff; }
 html:not(.dark) .nf-icon:hover { color: hsl(var(--foreground)); }
-html:not(.dark) :is(.company-cash, .cash-dialog, .cash-popover) {
-  --cash-soft: #dde7ed; --cash-accent-soft: #e5f1f7;
-  --cash-expense-soft: #f5dddd; --cash-warning-soft: #f7ebc7;
-}
-html:not(.dark) .despesas-theme { --bg-hover: #dde7ed; }
+
+html:not(.dark) .despesas-theme { --bg-hover: var(--app-soft); }
 
 
 /* A moldura não participa da rolagem: apenas o viewport de conteúdo se move. */
@@ -516,7 +479,7 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   padding: 0;
   overscroll-behavior: contain;
 }
-.app-topbar { --borda-controle-cabecalho: rgb(60 70 75 / .61); }
+.app-topbar { --borda-controle-cabecalho: hsl(var(--border)); }
 .app-topbar .tophead-control { border-color: var(--borda-controle-cabecalho); }
 
 /* Apenas ações de navegação recebem deslocamento; indicadores ficam estáticos. */
@@ -534,9 +497,9 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   --menu-hover-border: #308db8;
 }
 .app-topbar .menu-cabecalho {
-  --menu-hover-bg: #094266;
-  --menu-hover-fg: #b7c6cfd7;
-  --menu-hover-border: #0f78a8dc;
+  --menu-hover-bg: hsl(var(--accent));
+  --menu-hover-fg: hsl(var(--accent-foreground));
+  --menu-hover-border: hsl(var(--primary) / .3);
 }
 .menu-dashboard:focus-visible, .menu-cabecalho:focus-visible {
   background-color: var(--menu-hover-bg);
@@ -594,8 +557,18 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 .agenda-jornada-modal [class*="bg-emerald-400\/"],
 .agenda-jornada-modal [class*="bg-orange-400\/"],
 .agenda-jornada-modal [class*="bg-red-400\/" ] { background-color: hsl(var(--muted)) !important; }
-.agenda-jornada-modal [class*="bg-amber-400\/" ] { background-color: #3a2d12 !important; color: #f3cf75 !important; }
+.agenda-jornada-modal [class*="bg-amber-400\/" ] { background-color: var(--app-warning-soft) !important; color: var(--app-warning) !important; }
 
 /* Cabeçalho neutro no tema escuro; azul reservado para ações e foco. */
 .dark .app-topbar .tophead-control { background-color: hsl(var(--card)); }
 .dark .app-topbar .menu-cabecalho[aria-pressed="true"] { background-color: hsl(var(--secondary)); color: hsl(var(--primary)); box-shadow: none; }
+
+/* Superfícies do portal: camadas discretas, sem halo luminoso no tema escuro. */
+.dark :is(.financeiro-kpi, .financeiro-kpi--primary, .financeiro-panel, .financeiro-title-icon, .financeiro-primary-action) { background-image: none; box-shadow: none; }
+.dark .financeiro-kpi:hover { box-shadow: none; }
+.app-topbar .menu-cabecalho[aria-pressed="true"] { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); box-shadow: none; }
+.app-topbar .tophead-control { background-color: hsl(var(--secondary) / .5); }
+.app-sidebar { border-color: hsl(var(--sidebar-border)); }
+html:not(.dark) .app-topbar :is(.text-emerald-200, .text-emerald-300) { color: var(--app-success); }
+html:not(.dark) .app-topbar :is(.text-rose-200, .text-rose-300) { color: var(--app-danger); }
+::selection { background: hsl(var(--primary) / .24); }

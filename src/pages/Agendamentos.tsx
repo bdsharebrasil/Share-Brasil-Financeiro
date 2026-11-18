@@ -682,7 +682,7 @@ function Escala({ tripulacao, escala, disponibilidades, aoMarcar, aoAbrirVoo }: 
   return <>
     <EscalaCalendario tripulacao={tripulacao} escala={escala} disponibilidades={disponibilidades} aoCriarEscala={aoMarcar} aoAbrirVoo={aoAbrirVoo} aoAbrirExtrato={abrirExtrato} />
     <Dialog open={Boolean(extratoTripulante)} onOpenChange={(aberto) => { if (!aberto && !carregandoExtrato) setExtratoTripulante(null); }}>
-      <DialogContent className="max-h-[85vh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl border-cyan-300/20 bg-card dark:bg-[#0d1521] sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl border-cyan-300/20 bg-card dark:bg-card sm:max-w-2xl">
         <DialogHeader><DialogTitle className="text-base text-white">Extrato de jornada</DialogTitle><DialogDescription className="text-xs text-muted-foreground dark:text-slate-400">{extratoTripulante?.nome_completo} · {extratoTripulante?.canac} · {extratoPeriodo}</DialogDescription></DialogHeader>
         {carregandoExtrato && <div className="flex items-center gap-2 py-8 text-xs text-muted-foreground dark:text-slate-400"><RefreshCw size={14} className="animate-spin" /> Carregando jornadas do tripulante...</div>}
         {!carregandoExtrato && erroExtrato && <div className="rounded-lg border border-red-300/20 bg-red-300/10 p-3 text-xs text-red-200">{erroExtrato}</div>}

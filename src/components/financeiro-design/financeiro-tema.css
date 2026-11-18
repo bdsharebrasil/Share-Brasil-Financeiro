@@ -1,113 +1,36 @@
-/* Tokens locais: não alteram o tema das demais áreas do sistema. */
+/* A paleta é herdada da raiz: páginas e portais acompanham a troca de tema. */
 :is(.financeiro-profissional, .despesas-theme, .nf-workspace, .nf-modal) {
-  --fin-canvas: #03111e;
-  --fin-surface: #092132;
-  --fin-soft: #0b2a3c;
-  --fin-header: #0c2f43;
-  --fin-hover: #0d3448;
-  --fin-selected: #16465b;
-  --fin-border: #16465b;
-  --fin-grid: #0c2f43;
-  --fin-text: #e7eef3;
-  --fin-muted: #93aab8;
-  --fin-accent: #21b8e6;
-  --fin-accent-soft: #0c2f43;
-  --fin-primary: #21b8e6;
-  --fin-primary-hover: #168dc5;
-  --fin-success: #19c37d;
-  --fin-success-soft: #0e382d;
-  --fin-warning: #f2bd11;
-  --fin-warning-soft: #3d3518;
-  --fin-danger: #ef4444;
-  --fin-danger-soft: #3b2029;
-  --background: 208.89 81.82% 6.47%;
-  --foreground: 205 33.33% 92.94%;
-  --card: 204.88 69.49% 11.57%;
-  --card-foreground: 205 33.33% 92.94%;
-  --popover: 204.88 69.49% 11.57%;
-  --popover-foreground: 205 33.33% 92.94%;
-  --muted: 202.04 69.01% 13.92%;
-  --muted-foreground: 202.7 20.67% 64.9%;
-  --secondary: 202.04 69.01% 13.92%;
-  --secondary-foreground: 205 33.33% 92.94%;
-  --border: 198.26 61.06% 22.16%;
-  --input: 198.26 61.06% 22.16%;
-  --app-color-scheme: dark;
-  color-scheme: dark;
-}
-html:not(.dark) body :is(.financeiro-profissional, .despesas-theme, .nf-workspace, .nf-modal) {
-  --fin-canvas: #e6edf2;
-  --fin-surface: #eff4f7;
-  --fin-soft: #dde7ed;
-  --fin-header: #d8e3e9;
-  --fin-hover: #e2ebf0;
-  --fin-selected: #d6e5ee;
-  --fin-border: #c7d4de;
-  --fin-grid: #d4e0e7;
-  --fin-text: #172b3a;
-  --fin-muted: #607281;
-  --fin-accent: #0969a8;
-  --fin-accent-soft: #e5f1f7;
-  --fin-primary: #0969a8;
-  --fin-primary-hover: #075786;
-  --fin-success: #34733e;
-  --fin-success-soft: #dcecdf;
-  --fin-warning: #8a681c;
-  --fin-warning-soft: #f7ebc7;
-  --fin-danger: #b54c4c;
-  --fin-danger-soft: #f5dddd;
-  --background: 205 31.58% 92.55%;
-  --foreground: 205.71 43.21% 15.88%;
-  --primary: 203.77 89.83% 34.71%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 203.77 89.83% 34.71%;
-  --card: 202.5 33.33% 95.29%;
-  --card-foreground: 205.71 43.21% 15.88%;
-  --popover: 202.5 33.33% 95.29%;
-  --popover-foreground: 205.71 43.21% 15.88%;
-  --muted: 202.5 30.77% 89.8%;
-  --muted-foreground: 205 21% 40%;
-  --secondary: 202.5 30.77% 89.8%;
-  --secondary-foreground: 205.71 43.21% 15.88%;
-  --border: 206.09 25.84% 82.55%;
-  --input: 206.09 25.84% 82.55%;
-  --app-color-scheme: light;
-  color-scheme: light;
-}
-/* Compatibilidade com os estilos existentes e janelas renderizadas em portais. */
-html :is(.financeiro-profissional, .despesas-theme, .nf-workspace, .nf-modal) {
-  --light-canvas: var(--fin-canvas);
-  --light-surface: var(--fin-surface);
-  --light-soft: var(--fin-soft);
-  --light-line: var(--fin-border);
-  --light-text: var(--fin-text);
-  --light-muted: var(--fin-muted);
-  --light-info: var(--fin-accent);
-  --light-info-soft: var(--fin-accent-soft);
-  --light-success: var(--fin-success);
-  --light-success-soft: var(--fin-success-soft);
-  --light-warning: var(--fin-warning);
-  --light-warning-soft: var(--fin-warning-soft);
-  --light-danger: var(--fin-danger);
-  --light-danger-soft: var(--fin-danger-soft);
-  --primary: 194.01 79.76% 51.57%;
-  --primary-foreground: 0 0% 100%;
-  --ring: 194.01 79.76% 51.57%;
-  --accent: 45.87 89.64% 50.78%;
-  --accent-foreground: 208.89 81.82% 6.47%;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --fin-canvas: var(--app-canvas);
+  --fin-surface: var(--app-surface);
+  --fin-soft: var(--app-soft);
+  --fin-header: var(--app-soft);
+  --fin-hover: var(--app-soft);
+  --fin-selected: var(--app-selected);
+  --fin-border: var(--app-line);
+  --fin-grid: var(--app-line);
+  --fin-text: var(--app-text);
+  --fin-muted: var(--app-muted);
+  --fin-accent: var(--app-info);
+  --fin-accent-soft: var(--app-info-soft);
+  --fin-primary: var(--app-info);
+  --fin-success: var(--app-success);
+  --fin-success-soft: var(--app-success-soft);
+  --fin-warning: var(--app-warning);
+  --fin-warning-soft: var(--app-warning-soft);
+  --fin-danger: var(--app-danger);
+  --fin-danger-soft: var(--app-danger-soft);
+  --fin-primary-hover: color-mix(in srgb, var(--app-info) 88%, var(--app-text));
   color: var(--fin-text);
+  color-scheme: var(--app-color-scheme);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
 :is(.financeiro-profissional, .despesas-theme, .nf-workspace, .nf-modal) :is(button, input, select, textarea):focus-visible {
-  outline: 2px solid var(--fin-accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--fin-accent); outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.financeiro-profissional, .despesas-theme, .nf-workspace, .nf-modal) * {
-    scroll-behavior: auto;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+    scroll-behavior: auto; transition-duration: .01ms !important; animation-duration: .01ms !important;
   }
 }

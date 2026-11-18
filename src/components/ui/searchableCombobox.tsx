@@ -92,8 +92,8 @@ export function SearchableCombobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full justify-between h-11 px-3 bg-card dark:bg-[#101722] text-foreground dark:text-slate-100 hover:bg-secondary dark:hover:bg-[#172231] transition-colors touch-manipulation",
-            "border-border dark:border-white/[.12] shadow-sm rounded-lg lg:h-10",
+            "w-full justify-between h-11 px-3 bg-card text-foreground hover:bg-secondary dark:hover:bg-[#172231] transition-colors touch-manipulation",
+            "border-border shadow-sm rounded-lg lg:h-10",
             className,
             // Tipografia mais elegante dependendo do estado
             !value ? "text-muted-foreground font-normal" : "text-foreground font-medium"
@@ -108,19 +108,19 @@ export function SearchableCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border dark:border-white/[.12] bg-card dark:bg-[#101722] p-0 text-foreground dark:text-slate-100 shadow-lg", popoverClassName)} align="start" side="bottom">
-        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-card dark:bg-[#101722] text-foreground dark:text-slate-100" shouldFilter={false}>
-          <div className="border-b border-border dark:border-white/[.1]">
+      <PopoverContent className={cn("z-[10000] max-h-[calc(100dvh-1rem)] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border-border bg-card p-0 text-foreground shadow-lg", popoverClassName)} align="start" side="bottom">
+        <Command className="max-h-[calc(100dvh-1rem)] overflow-hidden rounded-xl bg-card text-foreground" shouldFilter={false}>
+          <div className="border-b border-border">
             <CommandInput
               placeholder={searchPlaceholder}
               value={searchValue}
               onValueChange={setSearchValue}
-              className="flex h-12 w-full rounded-md bg-transparent py-3 text-base text-foreground dark:text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
+              className="flex h-12 w-full rounded-md bg-transparent py-3 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0 lg:h-11 lg:text-sm"
             />
           </div>
           <CommandList className="mx-[-5px] max-h-[min(50dvh,320px)] overflow-y-auto px-0 py-[3px] [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:flex-col [&>[cmdk-list-sizer]]:gap-0 [&>[cmdk-list-sizer]]:mx-[-24px] [&>[cmdk-list-sizer]]:p-0 scrollbar-thin scrollbar-thumb-muted-foreground/20 lg:max-h-[min(220px,calc(100dvh-9rem))]">
             {filteredItems.length === 0 && !allowFreeText && (
-              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground dark:text-slate-400">
+              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </CommandEmpty>
             )}
@@ -136,7 +136,7 @@ export function SearchableCombobox({
                     setSearchValue("")
                     setOpen(false)
                   }}
-                  className="flex min-h-[2.75rem] items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground dark:text-slate-400 transition-colors hover:bg-white/[.06] hover:text-white"
+                  className="flex min-h-[2.75rem] items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   Limpar seleção
                 </CommandItem>
@@ -162,7 +162,7 @@ export function SearchableCombobox({
                     "min-w-0",
                     !wrapItemLabels && "truncate",
                     wrapItemLabels && "whitespace-normal break-words text-left",
-                    (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "font-semibold" : "font-medium text-foreground dark:text-slate-200"
+                    (selectedValues ? selectedValues.includes(item.id) : value === item.id) ? "font-semibold" : "font-medium text-foreground"
                   )}>
                     {item.label}
                   </span>

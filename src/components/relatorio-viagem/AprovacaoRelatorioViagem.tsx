@@ -190,7 +190,7 @@ function Cartao({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] shadow-[0_18px_60px_rgba(0,0,0,0.24)] ${className}`}
+      className={`overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-card shadow-[0_18px_60px_rgba(0,0,0,0.24)] ${className}`}
     >
       {children}
     </section>
@@ -756,7 +756,7 @@ export default function AprovacaoRelatorioViagem() {
     return (
       <main className="dark fixed inset-0 overflow-y-auto bg-[#060b14] text-white">
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-10">
-          <div className="w-full max-w-md rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+          <div className="w-full max-w-md rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-card p-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
             <img
               src="/logoshare.branco.png"
               alt="Share Brasil"
@@ -943,7 +943,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "total"
                     ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
-                    : "bg-card dark:bg-[#0b111c]"
+                    : "bg-card dark:bg-card"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -963,7 +963,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "tripulante"
                     ? "bg-emerald-400/[0.10] ring-1 ring-inset ring-emerald-300/25"
-                    : "bg-card dark:bg-[#0b111c]"
+                    : "bg-card dark:bg-card"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -983,7 +983,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "cliente"
                     ? "bg-sky-400/[0.10] ring-1 ring-inset ring-sky-300/25"
-                    : "bg-card dark:bg-[#0b111c]"
+                    : "bg-card dark:bg-card"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -1003,7 +1003,7 @@ export default function AprovacaoRelatorioViagem() {
                 className={`text-left p-4 transition hover:bg-white/[0.045] ${
                   filtroDespesas === "sharebrasil"
                     ? "bg-white/[0.08] ring-1 ring-inset ring-white/15"
-                    : "bg-card dark:bg-[#0b111c]"
+                    : "bg-card dark:bg-card"
                 }`}
               >
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -1115,7 +1115,7 @@ export default function AprovacaoRelatorioViagem() {
       </main>
 
       {!decisaoRegistrada || podeReprocessarFinanceiro ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/[.96] shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] font-extrabold uppercase tracking-wider">
               <span
@@ -1192,7 +1192,7 @@ export default function AprovacaoRelatorioViagem() {
           </div>
         </div>
       ) : foiAprovado ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-[#07101c]/96 shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border dark:border-white/10 bg-card dark:bg-popover/[.96] shadow-[0_-18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-4xl px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
             <button
               type="button"
@@ -1208,7 +1208,7 @@ export default function AprovacaoRelatorioViagem() {
 
       {acao ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full max-w-lg rounded-t-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
+          <div className="w-full max-w-lg rounded-t-3xl border border-border dark:border-white/10 bg-card dark:bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
@@ -1328,7 +1328,7 @@ export default function AprovacaoRelatorioViagem() {
 
       {comprovanteSelecionado ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-6">
-          <div className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-[#0b111c] shadow-2xl">
+          <div className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card dark:bg-card shadow-2xl">
             <div className="flex items-center gap-3 border-b border-border dark:border-white/10 px-4 py-3 sm:px-5">
               <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.06] text-muted-foreground dark:text-slate-300">
                 {isImagem(comprovanteSelecionado) ? (
@@ -1358,7 +1358,7 @@ export default function AprovacaoRelatorioViagem() {
             </div>
 
             <div
-              className="min-h-0 flex-1 overflow-auto bg-card dark:bg-[#050a12] p-2 sm:p-4"
+              className="min-h-0 flex-1 overflow-auto bg-card dark:bg-background p-2 sm:p-4"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               {isImagem(comprovanteSelecionado) ? (

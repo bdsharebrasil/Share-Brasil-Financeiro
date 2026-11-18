@@ -129,14 +129,14 @@ import {
 const DESPESAS_ESTILOS = `
 /* Escopo local: superfícies opacas e uma única definição do grid. */
 .financeiro-profissional, .despesas-theme {
-  --background: 228 38% 5%; --foreground: 214 25% 92%;
-  --card: 222 51% 9%; --card-foreground: 214 25% 92%;
-  --popover: 222 45% 11%; --popover-foreground: 214 25% 92%;
-  --muted: 222 40% 12%; --muted-foreground: 215 17% 66%;
-  --border: 218 22% 18%; --input: 218 22% 26%;
-  --primary: 200 80% 62%; --primary-foreground: 0 0% 100%;
-  --accent: 217 35% 15%; --accent-foreground: 214 25% 92%;
-  --ring: 200 80% 62%; --destructive: 0 75% 70%;
+   
+   
+   
+   
+   
+   
+   
+   
   color: hsl(var(--foreground)); color-scheme: var(--app-color-scheme, dark);
   font-family: inherit; font-size: 13px; line-height: 1.5;
   --tab-abrir-duracao: 320ms; --tab-fechar-duracao: 380ms;

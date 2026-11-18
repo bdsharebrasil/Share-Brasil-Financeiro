@@ -1,20 +1,20 @@
 /* Isolado ao RH. Tempos e curva de entrada adaptados do UI Motion Kit. */
 .rh,
 .rh-dialog {
-  --rh-fundo: #e6edf2;
-  --rh-superficie: #eff4f7;
-  --rh-suave: #dde7ed;
-  --rh-linha: #c7d4de;
-  --rh-tinta: #172b3a;
-  --rh-muted: #536b7a;
-  --rh-acento: #0969a8;
-  --rh-acento-suave: #e5f1f7;
-  --rh-verde: #34733e;
-  --rh-verde-bg: #dcecdf;
-  --rh-ambar: #8a681c;
-  --rh-ambar-bg: #f7ebc7;
-  --rh-vermelho: #b54c4c;
-  --rh-vermelho-bg: #f5dddd;
+  --rh-fundo: var(--app-canvas);
+  --rh-superficie: var(--app-surface);
+  --rh-suave: var(--app-soft);
+  --rh-linha: var(--app-line);
+  --rh-tinta: var(--app-text);
+  --rh-muted: var(--app-muted);
+  --rh-acento: var(--app-info);
+  --rh-acento-suave: var(--app-info-soft);
+  --rh-verde: var(--app-success);
+  --rh-verde-bg: var(--app-success-soft);
+  --rh-ambar: var(--app-warning);
+  --rh-ambar-bg: var(--app-warning-soft);
+  --rh-vermelho: var(--app-danger);
+  --rh-vermelho-bg: var(--app-danger-soft);
   --rh-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color: var(--rh-tinta);
   font-size: 14px;
@@ -22,20 +22,20 @@
 }
 .dark .rh,
 .dark .rh-dialog {
-  --rh-fundo: #03111e;
-  --rh-superficie: #092132;
-  --rh-suave: #0b2a3c;
-  --rh-linha: #16465b;
-  --rh-tinta: #e7eef3;
-  --rh-muted: #93aab8;
-  --rh-acento: #21b8e6;
-  --rh-acento-suave: #0c2f43;
-  --rh-verde: #19c37d;
-  --rh-verde-bg: #0e382d;
-  --rh-ambar: #f2bd11;
-  --rh-ambar-bg: #3d3518;
-  --rh-vermelho: #ef4444;
-  --rh-vermelho-bg: #3b2029;
+  --rh-fundo: var(--app-canvas);
+  --rh-superficie: var(--app-surface);
+  --rh-suave: var(--app-soft);
+  --rh-linha: var(--app-line);
+  --rh-tinta: var(--app-text);
+  --rh-muted: var(--app-muted);
+  --rh-acento: var(--app-info);
+  --rh-acento-suave: var(--app-info-soft);
+  --rh-verde: var(--app-success);
+  --rh-verde-bg: var(--app-success-soft);
+  --rh-ambar: var(--app-warning);
+  --rh-ambar-bg: var(--app-warning-soft);
+  --rh-vermelho: var(--app-danger);
+  --rh-vermelho-bg: var(--app-danger-soft);
 }
 .rh {
   max-width: 1600px;
@@ -119,22 +119,22 @@
   transform: translateY(1px);
 }
 .rh-btn-primary {
-  background: #0969a8;
-  color: white;
-  border-color: #0969a8;
+  background: var(--rh-acento);
+  color: var(--app-primary-text);
+  border-color: var(--rh-acento);
 }
 .rh-btn-primary:hover {
-  background: #075786;
-  border-color: #075786;
+  background: color-mix(in srgb, var(--rh-acento) 88%, var(--app-text));
+  border-color: var(--rh-acento);
 }
 .dark .rh-btn-primary {
-  background: #21b8e6;
-  border-color: #21b8e6;
-  color: #03111e;
+  background: var(--rh-acento);
+  color: var(--app-primary-text);
+  border-color: var(--rh-acento);
 }
 .dark .rh-btn-primary:hover {
-  background: #168dc5;
-  border-color: #168dc5;
+  background: color-mix(in srgb, var(--rh-acento) 88%, var(--app-text));
+  border-color: var(--rh-acento);
 }
 .rh-btn-danger {
   color: var(--rh-vermelho);

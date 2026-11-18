@@ -6,7 +6,7 @@ html .envio-pagamento {
   padding: 35px 28px; margin: 18px 5px; background: var(--fin-canvas); border-radius: 12px;
   font-size: 13px; line-height: 1.5;
 }
-html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; background: rgba(8, 15, 22, 1); }
+html.dark .envio-pagamento { --envio-sombra: 0 4px 20px #0003; background: var(--fin-canvas); }
 html .envio-pagamento .envio-pagina-header {
   margin: -9px 0; padding: 18px 24px; border: 1px solid var(--fin-border); border-radius: 10px;
   background: var(--fin-surface); background-image: none; box-shadow: var(--envio-sombra);

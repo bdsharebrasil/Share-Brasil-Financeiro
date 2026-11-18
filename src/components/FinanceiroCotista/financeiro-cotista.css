@@ -79,10 +79,10 @@ html .financeiro-profissional .erp-financeiro .erp-toolbar button:not(.erp-btn-p
 html .financeiro-profissional .erp-financeiro .erp-toolbar button:hover { color: var(--fin-text); }
 html .financeiro-profissional .erp-financeiro .erp-toolbar .erp-btn-primario,
 html .financeiro-profissional .erp-financeiro .erp-toolbar .despesa-primary {
-  background: var(--fin-primary); color: white; border: 1px solid var(--fin-primary); border-radius: 5px;
+  background: var(--fin-primary); color: var(--app-primary-text); border: 1px solid var(--fin-primary); border-radius: 5px;
 }
 html .financeiro-profissional .erp-financeiro .erp-toolbar .erp-btn-primario:hover,
-html .financeiro-profissional .erp-financeiro .erp-toolbar .despesa-primary:hover { background: var(--fin-primary-hover); color: white; }
+html .financeiro-profissional .erp-financeiro .erp-toolbar .despesa-primary:hover { background: var(--fin-primary-hover); color: var(--app-primary-text); }
 html .financeiro-profissional :is(.despesa-period, .despesa-month-switcher) { gap: 8px; margin: 0; }
 html .financeiro-profissional .despesa-control {
   min-height: 34px; padding: 6px 10px; border-color: var(--fin-border); border-radius: 5px;
@@ -261,7 +261,7 @@ html .financeiro-profissional .erp-financeiro .erp-rotulo-periodo { min-width: 1
 html .financeiro-profissional .despesa-period-label { font-size: 12px; line-height: 1.5; font-weight: 500; text-decoration: none; color: var(--fin-text); }
 html .financeiro-profissional .erp-financeiro .erp-colunas-lista { min-width: 220px; max-width: min(280px, calc(100vw - 48px)); border-color: var(--fin-border); background: var(--fin-surface); box-shadow: 0 8px 24px #0002; }
 html .financeiro-profissional .erp-financeiro .erp-colunas-lista button { min-height: 32px; font-size: 12px; }
-html .financeiro-profissional .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: var(--fin-primary-hover); color: white; }
+html .financeiro-profissional .erp-financeiro .erp-btn-primario:hover:not(:disabled) { background: var(--fin-primary-hover); color: var(--app-primary-text); }
 html .financeiro-profissional .erp-financeiro .erp-status-sucesso { color: var(--fin-success); background: var(--fin-success-soft); border-color: color-mix(in srgb, var(--fin-success) 24%, transparent); }
 html .financeiro-profissional .erp-financeiro .erp-status-aguardando { color: var(--fin-accent); background: var(--fin-accent-soft); border-color: color-mix(in srgb, var(--fin-accent) 24%, transparent); }
 html .financeiro-profissional .fb .fb-ledger tbody tr { height: 52px; }

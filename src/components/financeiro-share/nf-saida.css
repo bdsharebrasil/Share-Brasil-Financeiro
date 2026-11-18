@@ -50,8 +50,8 @@ html .nf-workspace .nf-dates .nf-late { color: var(--fin-danger); }
 html .nf-workspace .nf-pagination { padding: 14px 16px; border-color: var(--fin-border); color: var(--fin-muted); font-size: 11px; background: var(--fin-soft); }
 html .nf-workspace .nf-row-actions .nf-email-action { width: auto; padding: 0 10px; gap: 6px; font-size: 12px; font-weight: 500; }
 html :is(.nf-workspace, .nf-modal) .nf-btn { min-height: 36px; padding: 8px 12px; border-color: var(--fin-border); border-radius: 5px; background: var(--fin-surface); color: var(--fin-text); font-size: 12px; line-height: 1.4; }
-html :is(.nf-workspace, .nf-modal) .nf-btn.primary { background: var(--fin-primary); border-color: var(--fin-primary); color: white; }
-html :is(.nf-workspace, .nf-modal) .nf-btn.primary:hover { background: var(--fin-primary-hover); color: white; }
+html :is(.nf-workspace, .nf-modal) .nf-btn.primary { background: var(--fin-primary); border-color: var(--fin-primary); color: var(--app-primary-text); }
+html :is(.nf-workspace, .nf-modal) .nf-btn.primary:hover { background: var(--fin-primary-hover); color: var(--app-primary-text); }
 html :is(.nf-workspace, .nf-modal) .nf-btn:not(.primary):hover,
 html :is(.nf-workspace, .nf-modal) .nf-icon:hover { background: var(--fin-hover); color: var(--fin-accent); }
 html .nf-modal { border: 1px solid var(--fin-border); border-radius: 10px; }

@@ -12,6 +12,7 @@ import {
   EyeOff,
   Loader2,
   Plus,
+  Save,
   ShieldCheck,
   UserPlus,
   X,
@@ -123,6 +124,7 @@ export function FormularioColaborador({
   const formRef = useRef<HTMLFormElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const dirtyRef = useRef(false);
+  const valoresIniciais = useRef<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
@@ -133,6 +135,38 @@ export function FormularioColaborador({
     else onCancel();
   };
   const dados = () => new FormData(formRef.current!);
+  function valores(formData: FormData): Record<string, unknown> {
+    const values: Record<string, unknown> = Object.fromEntries(
+      [...formData.entries()].filter(
+        ([key, value]) =>
+          !(value instanceof File) && !key.startsWith("documento_"),
+      ),
+    );
+    values.exame_admissional_realizado = realizado;
+    values.departamento = departamento;
+    values.departamentos_email = departamento;
+    if (!inicial)
+      values.email = `${String(values.email).trim().toLowerCase()}@share-brasil.com`;
+    if (typeof values.uf === "string") values.uf = values.uf.toUpperCase();
+    for (const campo of [
+      "endereco",
+      "nome_banco",
+      "agencia_numero",
+      "conta_numero",
+      "pix",
+    ]) {
+      if (typeof values[campo] === "string")
+        values[campo] = values[campo].trim();
+    }
+    return values;
+  }
+  function alterados(formData: FormData) {
+    return Object.fromEntries(
+      Object.entries(valores(formData)).filter(
+        ([key, value]) => value !== valoresIniciais.current?.[key],
+      ),
+    );
+  }
   function validar(target: number, formData: FormData): Record<string, string> {
     const errors: Record<string, string> = {};
     const value = (key: string) => String(formData.get(key) || "").trim();
@@ -196,7 +230,7 @@ export function FormularioColaborador({
           !parcial
         )
           errors.exame_admissional_arquivo =
-            "Anexe o comprovante do exame em PDF.";
+            "Anexe o comprovante do exame em PDF, JPG, PNG ou WEBP.";
       } else
         required(
           "exame_admissional_prazo",
@@ -204,19 +238,33 @@ export function FormularioColaborador({
         );
       for (const [key, file] of formData.entries())
         if (file instanceof File && file.name) {
-          const issue = validarArquivo(
-            file,
-            key === "exame_admissional_arquivo",
-          );
+          const issue = validarArquivo(file);
           if (issue) errors[key] = issue;
         }
     }
-    return errors;
+    if (!inicial) return errors;
+    const changes = alterados(formData);
+    const mudou = (key: string) => key in changes;
+    // Pendências do cadastro existente não impedem alterações em outras seções.
+    return Object.fromEntries(
+      Object.entries(errors).filter(([key]) => {
+        if (formData.get(key) instanceof File)
+          return Boolean((formData.get(key) as File).name) ||
+            (key === "exame_admissional_arquivo" &&
+              mudou("exame_admissional_realizado"));
+        if (key === "pix" || key === "tipo_chave_pix")
+          return mudou("pix") || mudou("tipo_chave_pix");
+        if (key === "canac") return mudou(key) || mudou("departamento");
+        if (key.startsWith("exame_admissional_"))
+          return mudou(key) || mudou("exame_admissional_realizado");
+        return mudou(key);
+      }),
+    );
   }
   function ir(next: number) {
     if (salvando) return;
     const formData = dados();
-    if (next > etapa) {
+    if (!inicial && next > etapa) {
       const errors = validar(etapa, formData);
       if (Object.keys(errors).length) {
         setErros(errors);
@@ -235,7 +283,7 @@ export function FormularioColaborador({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (salvando) return;
-    if (etapa < etapas.length - 1) {
+    if (!inicial && etapa < etapas.length - 1) {
       ir(etapa + 1);
       return;
     }
@@ -253,27 +301,18 @@ export function FormularioColaborador({
         return;
       }
     }
-    const values: Record<string, unknown> = Object.fromEntries(
-      [...formData.entries()].filter(
-        ([key, value]) =>
-          !(value instanceof File) && !key.startsWith("documento_"),
-      ),
-    );
-    values.exame_admissional_realizado = realizado;
-    values.departamento = departamento;
-    values.departamentos_email = departamento;
-    if (!inicial)
-      values.email = `${String(values.email).trim().toLowerCase()}@share-brasil.com`;
-    if (typeof values.uf === "string") values.uf = values.uf.toUpperCase();
-    for (const campo of [
-      "endereco",
-      "nome_banco",
-      "agencia_numero",
-      "conta_numero",
-      "pix",
-    ]) {
-      if (typeof values[campo] === "string")
-        values[campo] = values[campo].trim();
+    const values = inicial ? alterados(formData) : valores(formData);
+    if (inicial && "exame_admissional_realizado" in values) {
+      // A mudança de situação valida e envia os dados do exame em conjunto.
+      const atuais = valores(formData);
+      const camposExame = realizado
+        ? [
+            "exame_admissional_data",
+            "exame_admissional_local",
+            "exame_admissional_empresa",
+          ]
+        : ["exame_admissional_prazo"];
+      for (const campo of camposExame) values[campo] = atuais[campo];
     }
     const exame = formData.get("exame_admissional_arquivo");
     await onSave({
@@ -363,7 +402,12 @@ export function FormularioColaborador({
         aria-describedby="rh-form-desc"
       >
         <form
-          ref={formRef}
+          ref={(form) => {
+            formRef.current = form;
+            // O diálogo monta o formulário no portal depois do componente pai.
+            if (form && !valoresIniciais.current)
+              valoresIniciais.current = valores(new FormData(form));
+          }}
           onSubmit={submit}
           noValidate
           onChange={(e) => {
@@ -401,11 +445,27 @@ export function FormularioColaborador({
             </button>
           </header>
           <div className="rh-form-body" ref={bodyRef}>
-            <AnimatedStepper
-              atual={etapa}
-              etapas={etapas.map((titulo, i) => ({ id: String(i), titulo }))}
-              ariaLabel="Etapas do cadastro do colaborador"
-            />
+            {inicial ? (
+              <nav className="rh-tabs" aria-label="Seções do cadastro">
+                {etapas.map((titulo, i) => (
+                  <button
+                    key={titulo}
+                    type="button"
+                    aria-pressed={etapa === i}
+                    disabled={salvando || descartar}
+                    onClick={() => ir(i)}
+                  >
+                    {titulo}
+                  </button>
+                ))}
+              </nav>
+            ) : (
+              <AnimatedStepper
+                atual={etapa}
+                etapas={etapas.map((titulo, i) => ({ id: String(i), titulo }))}
+                ariaLabel="Etapas do cadastro do colaborador"
+              />
+            )}
             <div className="rh-form-content">
               {descartar ? (
                 <div className="rh-review-block" role="alert">
@@ -770,7 +830,7 @@ export function FormularioColaborador({
                       >
                         <div className="rh-upload">
                           <span className="rh-inline-meta">
-                            PDF · até 10 MB
+                            PDF, JPG, PNG ou WEBP · até 10 MB
                             {inicial?.exame_admissional_documento_id
                               ? " · Já existe um comprovante anexado"
                               : ""}
@@ -779,7 +839,7 @@ export function FormularioColaborador({
                             id="rh-exame_admissional_arquivo"
                             name="exame_admissional_arquivo"
                             type="file"
-                            accept="application/pdf"
+                            accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
                             aria-invalid={Boolean(
                               erros.exame_admissional_arquivo,
                             )}
@@ -1057,14 +1117,14 @@ export function FormularioColaborador({
               type="button"
               className="rh-btn"
               disabled={salvando}
-              onClick={() => (etapa ? ir(etapa - 1) : fechar())}
+              onClick={() => (!inicial && etapa ? ir(etapa - 1) : fechar())}
             >
-              {etapa ? <ArrowLeft size={15} /> : null}
-              {etapa ? "Voltar" : parcial ? "Concluir depois" : "Cancelar"}
+              {!inicial && etapa ? <ArrowLeft size={15} /> : null}
+              {!inicial && etapa
+                ? "Voltar"
+                : parcial ? "Concluir depois" : "Cancelar"}
             </button>
-            <small>
-              Etapa {etapa + 1} de {etapas.length}
-            </small>
+            {!inicial && <small>Etapa {etapa + 1} de {etapas.length}</small>}
             <button
               type="submit"
               disabled={salvando || descartar}
@@ -1072,19 +1132,21 @@ export function FormularioColaborador({
             >
               {salvando ? (
                 <Loader2 size={16} className="rh-spin" />
+              ) : inicial ? (
+                <Save size={16} />
               ) : etapa === etapas.length - 1 ? (
                 <UserPlus size={16} />
               ) : null}
               {salvando
                 ? "Salvando..."
-                : etapa === etapas.length - 1
+                : inicial
+                  ? "Salvar alterações"
+                  : etapa === etapas.length - 1
                   ? parcial
                     ? "Concluir envio"
-                    : inicial
-                      ? "Salvar alterações"
-                      : "Criar colaborador"
+                    : "Criar colaborador"
                   : "Continuar"}
-              {etapa < etapas.length - 1 && <ArrowRight size={15} />}
+              {!inicial && etapa < etapas.length - 1 && <ArrowRight size={15} />}
             </button>
           </footer>
         </form>

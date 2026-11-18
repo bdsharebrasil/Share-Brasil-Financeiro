@@ -68,3 +68,10 @@ test("datas de calendário são exibidas sem deslocamento de fuso", () => {
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
   );
 });
+
+test("comprovantes aceitam PDF e imagens JPG, PNG e WEBP", () => {
+  for (const tipo of ["application/pdf", "image/jpeg", "image/png", "image/webp"]) {
+    assert.equal(validarArquivo(new File(["comprovante"], "exame", { type: tipo })), null);
+  }
+  assert.match(validarArquivo(new File(["codigo"], "exame.svg", { type: "image/svg+xml" })), /PDF, JPG, PNG ou WEBP/);
+});

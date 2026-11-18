@@ -81,20 +81,20 @@
 }
 
 .dark {
-  --background: 220 10% 9%;
+  --background: 207 45.45% 8.63%;
   --foreground: 220 12% 92%;
   --border: 220 8% 24%;
   --card: 220 9% 13%;
   --card-foreground: 220 12% 92%;
   --card-border: 220 8% 24%;
-  --sidebar: 220 10% 11%;
-  --sidebar-foreground: 220 10% 84%;
-  --sidebar-border: 220 8% 24%;
-  --sidebar-primary: 205 65% 65%;
-  --sidebar-primary-foreground: 220 10% 9%;
-  --sidebar-accent: 220 8% 18%;
-  --sidebar-accent-foreground: 220 12% 92%;
-  --sidebar-ring: 205 65% 65%;
+  --sidebar: 208.57 56.76% 14.51%;
+  --sidebar-foreground: 205 30% 88%;
+  --sidebar-border: 205.45 30.28% 21.37%;
+  --sidebar-primary: 42.35 84.16% 60.39%;
+  --sidebar-primary-foreground: 208.57 56.76% 14.51%;
+  --sidebar-accent: 207 48% 23%;
+  --sidebar-accent-foreground: 205 30% 92%;
+  --sidebar-ring: 42.35 84.16% 60.39%;
   --popover: 220 9% 15%;
   --popover-foreground: 220 12% 92%;
   --popover-border: 220 8% 26%;
@@ -176,7 +176,7 @@
   .text-balance { text-wrap: balance; }
   .font-mono { font-family: var(--app-font-mono); }
   .safe-area-header { min-height: var(--app-header-height); padding-top: var(--safe-area-top); }
-  html:not(.dark) .app-topbar {
+  .app-topbar {
     --background: 208.89 81.82% 6.47%;
     --foreground: 205 33.33% 92.94%;
     --border: 198.26 61.06% 22.16%;
@@ -198,11 +198,7 @@
     border-bottom-color: hsl(var(--border)) !important;
     color: hsl(var(--foreground));
   }
-  .dark .app-topbar {
-    background: #1b1d21 !important;
-    border-bottom-color: hsl(var(--border)) !important;
-  }
-  html:not(.dark) .app-topbar [style*="rgb(255, 255, 255)"] {
+  .app-topbar [style*="rgb(255, 255, 255)"] {
     background-color: hsl(var(--card)) !important;
   }
   [aria-label="Notifications (F8)"] { margin-block: -20px; }

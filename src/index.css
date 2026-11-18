@@ -635,3 +635,55 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   .agendamentos-page .agendamento-tabs { margin-inline: -2px; }
   [data-radix-toast-viewport] { right: 0; left: 0; width: 100%; padding: 10px; }
 }
+
+/* Composição Figma — agendamento operacional */
+.agendamentos-page {
+  --agenda-radius: 16px;
+  --agenda-shadow: 0 12px 32px hsl(var(--foreground) / .055);
+  background: linear-gradient(180deg, hsl(var(--primary) / .045), transparent 260px);
+}
+.agendamentos-page .agendamento-heading {
+  padding: 6px 2px 16px;
+  border-bottom: 1px solid hsl(var(--border) / .72);
+}
+.agendamentos-page .agendamento-heading::after { bottom: 0; width: 34%; height: 2px; border-radius: 999px; background: linear-gradient(90deg, hsl(var(--primary)), transparent); }
+.agendamentos-page .agendamento-heading h1 { font-size: clamp(1.65rem, 3vw, 2.25rem); letter-spacing: -.055em; }
+.agendamentos-page .agendamento-heading p { max-width: 720px; font-size: 12px; }
+.agendamentos-page .agendamento-primary-action { min-height: 44px; padding-inline: 18px; border-radius: 11px; font-size: 11px; font-weight: 800; box-shadow: 0 12px 25px hsl(var(--primary) / .23); }
+.agendamentos-page .agendamento-kpis > * { min-height: 132px; border-radius: 16px !important; padding: 18px !important; background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--secondary) / .3)) !important; box-shadow: var(--agenda-shadow) !important; }
+.agendamentos-page .agendamento-kpis strong { font-size: 28px; font-weight: 800; }
+.agendamentos-page .agendamento-kpis span.rounded-lg { border-radius: 11px; padding: 10px; }
+.agendamentos-page .agendamento-tabs { gap: 4px; padding: 5px; border-radius: 13px; background: hsl(var(--card) / .8); box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agendamento-tabs button { min-height: 44px; padding-inline: 16px; border-radius: 10px; font-size: 10px; }
+.agendamentos-page .agendamento-tabs button.bg-primary { box-shadow: 0 7px 16px hsl(var(--primary) / .2); }
+.agendamentos-page .agendamento-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 290px); gap: 16px; align-items: start; }
+.agendamentos-page .agendamento-workspace > .agendamento-cronograma { min-width: 0; }
+.agendamentos-page .agendamento-cronograma { border-radius: 16px; background: hsl(var(--card) / .82); box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] { padding: 16px 18px; background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--secondary) / .2)); }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] h2 { font-size: 13px; }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] p { font-size: 10px; }
+.agendamentos-page .agendamento-cronograma > div:not([class*="border-b"]) { padding: 18px; }
+.agendamentos-page .agendamento-card { min-height: 315px; border-radius: 15px; border-width: 1px; background: linear-gradient(155deg, hsl(var(--card)), hsl(var(--secondary) / .18)); box-shadow: 0 6px 18px hsl(var(--foreground) / .05); }
+.agendamentos-page .agendamento-card:hover { transform: translateY(-3px); box-shadow: 0 16px 30px hsl(var(--primary) / .11); }
+.agendamentos-page .agendamento-card > div:first-child { padding-bottom: 14px; }
+.agendamentos-page .agendamento-card .font-mono.text-sm { font-size: 16px; }
+.agendamentos-page .agendamento-card .font-mono.text-xs { font-size: 12px; }
+.agendamentos-page .agendamento-card [class*="bg-background\/25"] { min-height: 72px; padding: 12px; border-radius: 11px; background: hsl(var(--background) / .42); }
+.agendamentos-page .agenda-hoje-card { position: sticky; top: 18px; box-shadow: var(--agenda-shadow); }
+.agendamentos-page .agenda-hoje-empty { display: flex; min-height: 112px; flex-direction: column; align-items: center; justify-content: center; gap: 9px; border: 1px dashed hsl(var(--border)); border-radius: 12px; padding: 18px; text-align: center; font-size: 10px; color: hsl(var(--muted-foreground)); }
+.agendamentos-page .agenda-hoje-flight { display: flex; width: 100%; align-items: center; gap: 10px; border: 1px solid hsl(var(--border) / .72); border-radius: 11px; padding: 10px; text-align: left; background: hsl(var(--background) / .36); transition: border-color .18s ease, transform .18s ease, background-color .18s ease; }
+.agendamentos-page .agenda-hoje-flight:hover { transform: translateX(2px); border-color: hsl(var(--primary) / .5); background: hsl(var(--primary) / .07); }
+.agendamentos-page .agenda-hoje-time { min-width: 36px; font-family: var(--app-font-mono); font-size: 11px; font-weight: 800; color: hsl(var(--primary)); }
+.agendamentos-page .agenda-hoje-flight strong, .agendamentos-page .agenda-hoje-flight small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agendamentos-page .agenda-hoje-flight strong { font-size: 11px; }
+.agendamentos-page .agenda-hoje-flight strong span { color: hsl(var(--primary)); }
+.agendamentos-page .agenda-hoje-flight small { margin-top: 3px; font-size: 9px; color: hsl(var(--muted-foreground)); }
+.agendamentos-page .agenda-hoje-alert { display: flex; align-items: center; gap: 9px; margin-top: 16px; border: 1px solid hsl(var(--accent) / .35); border-radius: 12px; padding: 11px; background: hsl(var(--accent) / .1); color: hsl(var(--accent-foreground)); }
+.agendamentos-page .agenda-hoje-alert > span { min-width: 0; flex: 1; }
+.agendamentos-page .agenda-hoje-alert strong, .agendamentos-page .agenda-hoje-alert small { display: block; font-size: 10px; }
+.agendamentos-page .agenda-hoje-alert small { margin-top: 2px; opacity: .72; }
+.dark .agendamentos-page { background: linear-gradient(180deg, hsl(var(--primary) / .075), transparent 300px); }
+.dark .agendamentos-page .agendamento-kpis > * { background: linear-gradient(145deg, hsl(var(--card) / .96), hsl(var(--secondary) / .5)) !important; }
+.dark .agendamentos-page .agendamento-card { background: linear-gradient(155deg, hsl(var(--card)), hsl(var(--secondary) / .34)); }
+@media (max-width: 1100px) { .agendamentos-page .agendamento-workspace { grid-template-columns: minmax(0, 1fr); } .agendamentos-page .agenda-hoje-card { position: static; } }
+@media (max-width: 640px) { .agendamentos-page .agendamento-kpis > * { min-height: 112px; padding: 14px !important; } .agendamentos-page .agendamento-kpis strong { font-size: 24px; } .agendamentos-page .agendamento-workspace { gap: 12px; } .agendamentos-page .agendamento-cronograma > [class*="border-b"] { padding: 13px; } .agendamentos-page .agendamento-cronograma > div:not([class*="border-b"]) { padding: 12px; } }

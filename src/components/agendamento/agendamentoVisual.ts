@@ -9,9 +9,9 @@ const VERDE = {
   icone: "text-emerald-800 dark:text-emerald-300",
 };
 const AMARELO = {
-  borda: "border-amber-500 dark:border-amber-400",
-  evento: "border-amber-500 bg-amber-50 hover:bg-amber-100 dark:border-amber-400 dark:bg-amber-950/50 dark:hover:bg-amber-900/60",
-  icone: "text-amber-800 dark:text-amber-300",
+  borda: "border-amber-600 dark:border-[#b8893c]",
+  evento: "border-amber-600 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-[#b8893c] dark:bg-[#332a18] dark:text-[#f6d38a] dark:hover:bg-[#40331d]",
+  icone: "text-amber-800 dark:text-[#f6d38a]",
 };
 const AZUL = {
   borda: "border-sky-600 dark:border-sky-400",

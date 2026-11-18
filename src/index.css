@@ -687,3 +687,35 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 .dark .agendamentos-page .agendamento-card { background: linear-gradient(155deg, hsl(var(--card)), hsl(var(--secondary) / .34)); }
 @media (max-width: 1100px) { .agendamentos-page .agendamento-workspace { grid-template-columns: minmax(0, 1fr); } .agendamentos-page .agenda-hoje-card { position: static; } }
 @media (max-width: 640px) { .agendamentos-page .agendamento-kpis > * { min-height: 112px; padding: 14px !important; } .agendamentos-page .agendamento-kpis strong { font-size: 24px; } .agendamentos-page .agendamento-workspace { gap: 12px; } .agendamentos-page .agendamento-cronograma > [class*="border-b"] { padding: 13px; } .agendamentos-page .agendamento-cronograma > div:not([class*="border-b"]) { padding: 12px; } }
+
+/* Acabamento corporativo: superfícies sólidas, sem neon, blur ou aparência promocional. */
+.agendamentos-page {
+  background: hsl(var(--background));
+  --agenda-shadow: 0 2px 8px hsl(var(--foreground) / .07);
+  --agenda-radius: 11px;
+}
+.agendamentos-page .agendamento-heading::after { width: 120px; height: 2px; background: hsl(var(--primary)); }
+.agendamentos-page .agendamento-primary-action { box-shadow: none; transition: background-color .15s ease, border-color .15s ease; }
+.agendamentos-page .agendamento-primary-action:hover { transform: none; box-shadow: none; filter: none; }
+.agendamentos-page .agendamento-kpis > *,
+.agendamentos-page .agendamento-cronograma,
+.agendamentos-page .agenda-hoje-card { background: hsl(var(--card)) !important; box-shadow: var(--agenda-shadow) !important; }
+.agendamentos-page .agendamento-kpis > * { min-height: 116px; border-radius: 11px !important; }
+.agendamentos-page .agendamento-tabs { background: hsl(var(--card)); box-shadow: none; }
+.agendamentos-page .agendamento-tabs button.bg-primary { box-shadow: none; }
+.agendamentos-page .agendamento-cronograma > [class*="border-b"] { background: hsl(var(--card)); }
+.agendamentos-page .agendamento-card { background: hsl(var(--card)); box-shadow: 0 2px 8px hsl(var(--foreground) / .06); }
+.agendamentos-page .agendamento-card:hover { transform: none; box-shadow: 0 2px 8px hsl(var(--foreground) / .1); }
+.agendamentos-page .agendamento-card [class*="bg-background\/25"] { background: hsl(var(--muted)); }
+.agendamentos-page .agenda-hoje-flight { background: hsl(var(--background)); }
+.agendamentos-page .agenda-hoje-flight:hover { transform: none; background: hsl(var(--muted)); }
+.agendamentos-page .agenda-hoje-alert { background: hsl(var(--accent) / .12); color: hsl(var(--foreground)); }
+.dark .agendamentos-page { background: hsl(var(--background)); }
+.dark .agendamentos-page .agendamento-kpis > *,
+.dark .agendamentos-page .agendamento-cronograma,
+.dark .agendamentos-page .agenda-hoje-card,
+.dark .agendamentos-page .agendamento-card { background: hsl(var(--card)) !important; }
+.dark .agendamentos-page .agendamento-kpis > * { border-color: hsl(var(--border)); }
+.dark .agendamentos-page .agendamento-card [class*="bg-background\/25"] { background: hsl(var(--muted)); }
+[data-radix-toast] { background: hsl(var(--card)); box-shadow: 0 4px 14px hsl(var(--foreground) / .14); }
+.dark [data-radix-toast] { background: hsl(var(--card)); box-shadow: 0 4px 14px rgb(0 0 0 / .28); }

@@ -24,6 +24,7 @@ html .envio-pagamento .envio-fluxo-footer { padding: 24px 20px; background: var(
 html.dark .envio-pagamento .envio-fluxo-header,
 html.dark .envio-pagamento .envio-fluxo-footer { background: rgba(14, 21, 31, 1); }
 html .envio-pagamento .envio-fluxo-conteudo { padding: 20px; gap: 16px; }
+html .envio-pagamento .envio-stepper { background: rgba(8, 15, 22, 0.79); }
 html .envio-pagamento .envio-modo {
   padding: 18px 40px 18px 16px; border: 1px solid var(--fin-border); border-radius: 8px;
   background: var(--fin-soft); box-shadow: 0 1px 3px #13223a08; color: var(--fin-text);

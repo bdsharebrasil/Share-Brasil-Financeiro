@@ -29,8 +29,8 @@
 .agendamentos-page .agendamento-card .font-mono.text-xs{font-size:11px}
 .agendamentos-page .agendamento-card>div:nth-child(2){margin-top:8px;gap:6px}
 .agendamentos-page .agendamento-card>div:nth-child(2)>div{min-height:28px;padding:0 2px;border-radius:0;background:transparent;border:0}
-.agendamentos-page .agendamento-card>div:nth-child(2) strong{font-size:11px;line-height:1.25}
-.agendamentos-page .agendamento-card>div:nth-child(2)>div>span{font-size:9px;letter-spacing:.02em;text-transform:none}
+.agendamentos-page .agendamento-card>div:nth-child(2) strong{font-size:11px;line-height:1.25;margin-top:2px}
+.agendamentos-page .agendamento-card>div:nth-child(2)>div>span{font-size:9px;line-height:1.2;letter-spacing:.02em;text-transform:none}
 .agendamentos-page .agendamento-card>div:last-child{padding-top:8px}
 .agendamentos-page .agendamento-card>div:last-child>div>button{min-height:30px;border-radius:5px;font-size:10px;line-height:1.2;padding:5px}
 .agendamentos-page .agenda-voos-lista{display:grid;gap:7px;align-content:start}
@@ -94,3 +94,5 @@
 .agenda-calendario-numero{width:auto;min-width:20px;gap:5px;padding-inline:4px}.agenda-calendario-contagem{border-radius:3px;padding:0 3px;font-size:9px;line-height:14px;color:hsl(var(--primary));background:hsl(var(--primary) / .1)}
 .agenda-escala-contagem{display:none}.agenda-escala-dia>button:first-child{height:20px;width:20px;margin-bottom:2px}
 @media(min-width:1100px) and (min-height:650px) and (max-height:749px){.agenda-calendario-dias[data-modo=mensal] .agenda-calendario-mais{display:none}.agenda-escala-dia>div>button{display:none}.agenda-escala-dia>div>button.agenda-escala-contagem{display:block}}
+
+.agendamentos-page .agendamento-card>div:first-child p{line-height:1.25}

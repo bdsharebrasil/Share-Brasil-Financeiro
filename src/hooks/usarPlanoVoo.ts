@@ -170,7 +170,7 @@ export function usePlanoVoo() {
         const agendamento = painel.agendamentos.find(item => item.id === atual?.solicitacao.id);
         return atual && agendamento ? { ...atual, ...vinculosDoAgendamento(agendamento) } : atual;
       });
-      setSugestoes(painel.agendamentos.filter((item) => item.numero_voo).map((item) => ({
+      setSugestoes(painel.agendamentos.filter((item) => item.numero_voo).sort((a, b) => a.numero_voo!.localeCompare(b.numero_voo!, "pt-BR", { numeric: true, sensitivity: "base" })).map((item) => ({
         id: item.id,
         cliente: item.cliente_razao_social || item.socio_nome,
         numero_voo: item.numero_voo!,

@@ -10,7 +10,7 @@ import ResumoJornadaOperacaoCard from "@/components/agendamento/ResumoJornadaOpe
 import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
 
 const input = "h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:bg-secondary/30 disabled:opacity-50";
-const box = "rounded-2xl border border-border dark:border-[rgba(34,44,57,0.96)] bg-card/80 p-5 shadow-sm";
+const box = "rounded-2xl border border-border dark:border-[rgba(34,44,57,0.96)] bg-card p-5 shadow-sm";
 const hoje = () => new Date().toISOString().slice(0, 10);
 // Horários operacionais são sempre informados e transmitidos em UTC/Zulu.
 const iso = (data: string, hora: string) => `${data}T${hora}:00Z`;
@@ -34,7 +34,7 @@ function pernaUtc(data: string, valor: PernaForm, referencia?: string | null) {
   const cor = utcDepois(data, valor.horario_corte, pou || dep || ac);
   return { ...valor, horario_ac: ac, horario_dep: dep, horario_pouso: pou, horario_corte: cor };
 }
-const tomAlerta: Record<NivelAlertaJornada, string> = { normal: "border-emerald-400/30 bg-[rgba(33,102,79,0)] text-emerald-200", atencao: "border-amber-400/30 bg-amber-400/5 text-amber-200", critico: "border-orange-400/40 bg-orange-400/10 text-orange-200", excedido: "border-red-400/40 bg-red-400/10 text-red-200" };
+const tomAlerta: Record<NivelAlertaJornada, string> = { normal: "border-emerald-400/35 bg-emerald-950/35 text-emerald-200", atencao: "border-amber-300/55 bg-[#3a2d12] text-[#f3cf75]", critico: "border-orange-300/50 bg-[#3b2414] text-orange-200", excedido: "border-red-300/50 bg-[#3b1d24] text-red-200" };
 function hora(valor?: string | null) { if (!valor) return ""; const match = valor.match(/T(\d{2}:\d{2})/); return match?.[1] || valor.slice(0, 5); }
 function dataBr(valor?: string | null) { if (!valor) return "—"; const [ano, mes, dia] = valor.slice(0, 10).split("-"); return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor; }
 function fasePerna(perna?: Jornada["pernas"][number] | null) {

@@ -719,3 +719,18 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 .dark .agendamentos-page .agendamento-card [class*="bg-background\/25"] { background: hsl(var(--muted)); }
 [data-radix-toast] { background: hsl(var(--card)); box-shadow: 0 4px 14px hsl(var(--foreground) / .14); }
 .dark [data-radix-toast] { background: hsl(var(--card)); box-shadow: 0 4px 14px rgb(0 0 0 / .28); }
+.agendamentos-page .agendamento-card,
+.agendamentos-page .agendamento-kpis > *,
+.agendamentos-page .agenda-hoje-card { box-shadow: 0 4px 14px rgb(15 23 42 / .09), 0 1px 2px rgb(15 23 42 / .08) !important; }
+.dark .agendamentos-page .agendamento-card,
+.dark .agendamentos-page .agendamento-kpis > *,
+.dark .agendamentos-page .agenda-hoje-card { box-shadow: 0 8px 20px rgb(0 0 0 / .24), 0 1px 2px rgb(255 255 255 / .025) !important; }
+.agenda-jornada-modal [class*="backdrop-blur"] { backdrop-filter: none !important; }
+.agenda-jornada-modal [class*="bg-background\/"],
+.agenda-jornada-modal [class*="bg-secondary\/"],
+.agenda-jornada-modal [class*="bg-primary\/"],
+.agenda-jornada-modal [class*="bg-sky-400\/"],
+.agenda-jornada-modal [class*="bg-emerald-400\/"],
+.agenda-jornada-modal [class*="bg-orange-400\/"],
+.agenda-jornada-modal [class*="bg-red-400\/" ] { background-color: hsl(var(--muted)) !important; }
+.agenda-jornada-modal [class*="bg-amber-400\/" ] { background-color: #3a2d12 !important; color: #f3cf75 !important; }

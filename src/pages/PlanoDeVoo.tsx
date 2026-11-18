@@ -86,6 +86,13 @@ export default function PlanoDeVoo() {
         eobt: plano.formulario.eobt || null,
         form: plano.formulario,
         contexto: plano.contexto,
+        coordenadas: plano.coordenadas,
+        minutosReserva: plano.minutosReserva,
+        minutosTaxi: plano.minutosTaxi,
+        ventoKt: plano.ventoKt,
+        combustivelABordo: plano.combustivelABordo,
+        consultaAerodromo: plano.consultaAerodromo,
+        aerodromoAtivo: plano.aerodromoAtivo,
         segmentos: plano.segmentos,
         rota: plano.rotaAisweb,
         combustivel: plano.combustivel,
@@ -102,16 +109,18 @@ export default function PlanoDeVoo() {
     }
   };
 
+  if (!plano.pronto) return <p role="status" className="p-4 text-sm text-muted-foreground">Carregando plano de voo…</p>;
+
   return (
     <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px] shadow-[0_18px_55px_rgba(0,0,0,.2)] md:px-8">
+      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px]  md:px-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-white md:text-4xl">Plano de voo</h1>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-foreground md:text-4xl">Plano de voo</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground dark:text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
           </div>
-          <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border dark:border-white/15 bg-white/[.06] px-4 text-xs font-bold text-white transition-colors hover:bg-white/[.12]">
+          <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border dark:border-white/15 bg-white/[.06] px-4 text-xs font-bold text-foreground transition-colors hover:bg-muted">
             <FilePlus2 size={15} /> Novo plano
           </button>
         </div>
@@ -149,7 +158,9 @@ export default function PlanoDeVoo() {
               {plano.erro && <Aviso erro>{plano.erro}</Aviso>}
               {mensagem && <Aviso sucesso={salvo}>{mensagem}</Aviso>}
               <BuscaVoo
-                carregando={plano.carregando}
+                carregando={plano.carregando || plano.carregandoSugestoes}
+                selecionado={plano.contexto?.solicitacao.id}
+                aoRecarregar={plano.recarregarVoos}
                 erro={plano.erro}
                 resumo={plano.contexto ? `${plano.contexto.solicitacao.origem} → ${plano.contexto.solicitacao.destino}` : null}
                 sugestoes={plano.sugestoes}
@@ -175,16 +186,16 @@ export default function PlanoDeVoo() {
         </section>
       )}
 
-      {aba === "aerodromo" && <ConsultaAerodromo />}
+      {aba === "aerodromo" && <ConsultaAerodromo plano={plano} icaos={icaos} />}
       {aba === "meteorologia" && <ConsultaMeteorologia />}
-      {aba === "salvos" && <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} onRecarregar={() => void carregarPlanosSalvos()} />}
+      {aba === "salvos" && <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} aoAbrir={(salvo) => { plano.abrirSalvo(salvo.payload); setAba("completo"); setAbaCompleto("formulario"); setSalvo(false); setMensagem(null); }} onRecarregar={() => void carregarPlanosSalvos()} />}
     </div>
   );
 }
 
 function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; icaos: string[] }) {
-  const [origem, setOrigem] = useState(plano.formulario.adep);
-  const [destino, setDestino] = useState(plano.formulario.ades);
+  const origem = plano.formulario.adep;
+  const destino = plano.formulario.ades;
   const [validacao, setValidacao] = useState("");
 
   const consultar = async (event: React.FormEvent) => {
@@ -206,11 +217,11 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
       <Secao titulo="Pontos A e B" descricao="Consulte a rota publicada e veja o trecho no mapa">
         <form onSubmit={consultar} className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
           <label className="text-xs font-semibold text-muted-foreground">Ponto A · ADEP
-            <input value={origem} onChange={(e) => setOrigem(e.target.value.toUpperCase())} maxLength={4} placeholder="SBGR" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+            <input value={origem} onChange={(e) => plano.atualizar("adep", e.target.value.toUpperCase())} maxLength={4} placeholder="SBGR" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
           </label>
           <Route className="hidden h-5 w-5 text-primary sm:block" />
           <label className="text-xs font-semibold text-muted-foreground">Ponto B · ADES
-            <input value={destino} onChange={(e) => setDestino(e.target.value.toUpperCase())} maxLength={4} placeholder="SBRJ" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+            <input value={destino} onChange={(e) => plano.atualizar("ades", e.target.value.toUpperCase())} maxLength={4} placeholder="SBRJ" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
           </label>
           <button type="submit" disabled={plano.carregando} className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">{plano.carregando ? "Consultando..." : "Consultar rota"}</button>
         </form>
@@ -231,19 +242,20 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
         </div>
       )}
       <Secao titulo="Mapa, régua e coordenadas" descricao="Altere o estilo do mapa, meça um trecho e consulte as coordenadas dos pontos">
+        <p className="mb-3 text-xs text-muted-foreground">Traçado direto entre os aeródromos. Aerovias e procedimentos devem ser consultados nas cartas publicadas.</p>
         {plano.pontos.length ? <MapaRota pontos={plano.pontos} velocidadeKt={plano.velocidadeKt} /> : <p className="text-sm text-muted-foreground">Consulte uma rota com ADEP e ADES válidos para carregar as coordenadas e o mapa.</p>}
       </Secao>
       {plano.segmentos.length > 0 && <Secao titulo="Cálculo do trecho" descricao="Distância, proa e tempo calculados a partir das coordenadas disponíveis"><TabelaSegmentos segmentos={plano.segmentos} /></Secao>}
       <Secao titulo="Informações AISWEB/DECEA da rota" descricao="Ficha dos aeródromos, METAR/TAF, NOTAM e cartas publicadas">
-        <PainelAerodromos icaos={icaos} />
+        <PainelAerodromos icaos={icaos} selecionado={plano.aerodromoAtivo} aoSelecionar={plano.setAerodromoAtivo} />
       </Secao>
     </div>
   );
 }
 
-function ConsultaAerodromo() {
-  const [icao, setIcao] = useState("");
-  const [consultado, setConsultado] = useState("");
+function ConsultaAerodromo({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; icaos: string[] }) {
+  const [icao, setIcao] = useState(plano.consultaAerodromo);
+  const consultado = plano.consultaAerodromo;
   const [erro, setErro] = useState("");
 
   const buscar = (event: React.FormEvent) => {
@@ -251,11 +263,11 @@ function ConsultaAerodromo() {
     const codigo = icao.trim().toUpperCase();
     if (!/^[A-Z]{4}$/.test(codigo)) {
       setErro("Informe um código ICAO de quatro letras, por exemplo SBGR.");
-      setConsultado("");
       return;
     }
     setErro("");
-    setConsultado(codigo);
+    plano.setConsultaAerodromo(codigo);
+    plano.setAerodromoAtivo(codigo);
   };
 
   return (
@@ -269,7 +281,7 @@ function ConsultaAerodromo() {
         <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Consultar</button>
       </form>
       {erro && <Aviso erro>{erro}</Aviso>}
-      {consultado && <PainelAerodromos icaos={[consultado]} />}
+      <PainelAerodromos icaos={[...icaos, consultado]} selecionado={plano.aerodromoAtivo} aoSelecionar={plano.setAerodromoAtivo} />
     </section>
   );
 }
@@ -279,7 +291,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function Aviso({ children, erro = false, sucesso = false }: { children: React.ReactNode; erro?: boolean; sucesso?: boolean }) {
-  return <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${erro ? "border-destructive/35 bg-destructive/10 text-destructive" : sucesso ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
+  return <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${erro ? "border-destructive/35 bg-destructive/10 text-destructive" : sucesso ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
     {sucesso ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}{children}
   </div>;
 }

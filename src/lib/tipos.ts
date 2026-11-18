@@ -48,6 +48,8 @@ export interface ContextoVoo {
 }
 
 export interface SugestaoVoo {
+  id: string;
+  cliente?: string | null;
   numero_voo: string;
   origem: string;
   destino: string;

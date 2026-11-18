@@ -12,7 +12,7 @@ import {
   type Coordenada,
 } from "@/lib/navegacao";
 import { formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/format";
-import { provedorAtivo, provedorContingencia, type EstiloMapa } from "./provedor";
+import { aeronauticoDisponivel, provedorAtivo, provedorContingencia, type EstiloMapa } from "./provedor";
 import type { PontoRota } from "@/lib/tipos";
 
 const ESTILOS: { id: EstiloMapa; rotulo: string }[] = [
@@ -60,6 +60,18 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
   const [urlRadar, setUrlRadar] = useState<string | null>(null);
   const [medidas, setMedidas] = useState<Coordenada[]>([]);
   const [contingencia, setContingencia] = useState(false);
+  const [revisaoEstilo, setRevisaoEstilo] = useState(0);
+  const [erroBase, setErroBase] = useState(false);
+  const [erroRadar, setErroRadar] = useState(false);
+  const estiloPronto = useRef(false);
+  const enquadramento = useRef("");
+  const estiloAplicado = useRef(`${provedorAtivo().id}:padrao`);
+  const acoes = useRef({ reguaAtiva, modoPonto, aoAdicionarPonto });
+  acoes.current = { reguaAtiva, modoPonto, aoAdicionarPonto };
+  const medir = (ponto: Coordenada) => {
+    if (acoes.current.modoPonto && acoes.current.aoAdicionarPonto) acoes.current.aoAdicionarPonto(ponto);
+    else if (acoes.current.reguaAtiva) setMedidas(atuais => atuais.length >= 2 ? [ponto] : [...atuais, ponto]);
+  };
   const [erroMapa, setErroMapa] = useState<string | null>(null);
   const provedor = useMemo(
     () => (contingencia ? provedorContingencia : provedorAtivo()),
@@ -90,12 +102,15 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     instancia.addControl(new maplibregl.FullscreenControl(), "bottom-right");
     instancia.addControl(new maplibregl.ScaleControl({ unit: "nautical" }), "bottom-left");
     instancia.touchZoomRotate.enable();
-    instancia.on("error", (evento: { error?: { message?: string; status?: number } }) => {
-      const mensagem = evento?.error?.message ?? "";
-      const status = evento?.error?.status ?? 0;
-      if (status >= 400 || /style|tile|source|403|401|Forbidden|Failed to fetch|AJAXError/i.test(mensagem)) {
-        setContingencia(true);
-      }
+    instancia.on("style.load", () => {
+      estiloPronto.current = true;
+      setRevisaoEstilo(atual => atual + 1);
+    });
+    instancia.on("error", (evento: { sourceId?: string; error?: { message?: string; status?: number } }) => {
+      if (evento.sourceId === "radar") { setErroRadar(true); return; }
+      if (evento.sourceId && evento.sourceId !== "base" && !/maptiler/i.test(evento.error?.message ?? "")) return;
+      setErroBase(true);
+      if (estiloAplicado.current.startsWith("maptiler:") && estiloRef.current !== "aeronautico") setContingencia(true);
     });
     mapa.current = instancia;
 
@@ -105,6 +120,10 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
     return () => {
       observador.disconnect();
+      marcadores.current.forEach(m => m.remove());
+      marcadores.current = [];
+      estiloPronto.current = false;
+      enquadramento.current = "";
       instancia.remove();
       mapa.current = null;
     };
@@ -113,15 +132,21 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
   // Troca de estilo / provedor
   useEffect(() => {
     if (!mapa.current) return;
-    mapa.current.setStyle(provedor.estilo(estilo));
+    const chave = `${provedor.id}:${estilo}`;
+    if (estiloAplicado.current === chave) return;
+    estiloAplicado.current = chave;
+    estiloPronto.current = false;
+    setErroBase(false);
+    mapa.current.setStyle(provedor.estilo(estilo), { diff: false });
   }, [estilo, provedor]);
 
   // Camada de meteorologia (radar de precipitação)
   useEffect(() => {
     if (!meteoAtiva || urlRadar) return;
+    setErroRadar(false);
     let vivo = true;
     caminhoRadar().then((url) => {
-      if (vivo) setUrlRadar(url);
+      if (vivo) { setUrlRadar(url); setErroRadar(!url); }
     });
     return () => {
       vivo = false;
@@ -134,7 +159,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     if (!instancia) return;
 
     const desenhar = () => {
-      if (!instancia.isStyleLoaded()) return;
+      if (!estiloPronto.current) return;
       marcadores.current.forEach((m) => m.remove());
       marcadores.current = [];
 
@@ -219,6 +244,8 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
         const el = document.createElement("div");
         el.className = `marcador marcador--${ponto.tipo}`;
         el.textContent = ponto.nome;
+        el.style.pointerEvents = "auto";
+        el.addEventListener("click", event => { if (acoes.current.reguaAtiva || acoes.current.modoPonto) { event.stopPropagation(); medir(ponto); } });
         const marcador = new maplibregl.Marker({ element: el })
           .setLngLat([ponto.lon, ponto.lat])
           .addTo(instancia);
@@ -228,27 +255,30 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
       medidas.forEach((ponto) => {
         const el = document.createElement("div");
         el.className = "marcador marcador--regua";
-        el.textContent = "✕";
+        el.textContent = medidas.indexOf(ponto) === 0 ? "A" : "B";
+        el.style.pointerEvents = "none";
         marcadores.current.push(
           new maplibregl.Marker({ element: el }).setLngLat([ponto.lon, ponto.lat]).addTo(instancia),
         );
       });
 
-      if (pontos.length >= 2) {
-        const limites = new maplibregl.LngLatBounds();
-        pontos.forEach((p) => limites.extend([p.lon, p.lat]));
-        instancia.fitBounds(limites, { padding: 70, maxZoom: 8, duration: 600 });
-      } else if (pontos.length === 1) {
-        instancia.easeTo({ center: [pontos[0]!.lon, pontos[0]!.lat], zoom: 9 });
-      }
     };
+    desenhar();
+  }, [pontos, medidas, meteoAtiva, urlRadar, revisaoEstilo]);
 
-    if (instancia.isStyleLoaded()) desenhar();
-    instancia.on("styledata", desenhar);
-    return () => {
-      instancia.off("styledata", desenhar);
-    };
-  }, [pontos, medidas, meteoAtiva, urlRadar]);
+  // A câmera acompanha mudanças da rota, nunca cliques da régua ou troca de estilo.
+  useEffect(() => {
+    const instancia = mapa.current;
+    if (!instancia || !estiloPronto.current) return;
+    const chave = pontos.map(p => `${p.nome}:${p.lat}:${p.lon}`).join("|");
+    if (enquadramento.current === chave) return;
+    enquadramento.current = chave;
+    if (pontos.length >= 2) {
+      const limites = new maplibregl.LngLatBounds();
+      pontos.forEach(p => limites.extend([p.lon, p.lat]));
+      instancia.fitBounds(limites, { padding: 70, maxZoom: 8, duration: 600 });
+    } else if (pontos.length === 1) instancia.easeTo({ center: [pontos[0]!.lon, pontos[0]!.lat], zoom: 9 });
+  }, [pontos, revisaoEstilo]);
 
   // Régua de navegação
   useEffect(() => {
@@ -256,14 +286,11 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     if (!instancia) return;
     const aoClicar = (evento: maplibregl.MapMouseEvent) => {
       const ponto = { lat: evento.lngLat.lat, lon: evento.lngLat.lng };
-      if (modoPonto && aoAdicionarPonto) {
-        aoAdicionarPonto(ponto);
-        return;
-      }
-      if (!reguaAtiva) return;
-      setMedidas((atuais) => (atuais.length >= 2 ? [ponto] : [...atuais, ponto]));
+      medir(ponto);
     };
     instancia.on("click", aoClicar);
+    if (reguaAtiva || modoPonto) instancia.doubleClickZoom.disable();
+    else instancia.doubleClickZoom.enable();
     instancia.getCanvas().style.cursor = reguaAtiva || modoPonto ? "crosshair" : "";
     return () => {
       instancia.off("click", aoClicar);
@@ -291,10 +318,11 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
         <div className="pointer-events-auto flex flex-wrap gap-1 rounded-lg bg-card/90 p-1 backdrop-blur">
-          {ESTILOS.map((item) => (
+          {ESTILOS.filter(item => item.id !== "aeronautico" || aeronauticoDisponivel).map((item) => (
             <button
               key={item.id}
               type="button"
+              aria-pressed={estilo === item.id}
               onClick={() => setEstilo(item.id)}
               className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 estilo === item.id
@@ -305,6 +333,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
               {item.rotulo}
             </button>
           ))}
+          {!aeronauticoDisponivel && <a href="https://geoaisweb.decea.mil.br/" target="_blank" rel="noopener noreferrer" className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent" title="Abrir cartas aeronáuticas no GeoAISWEB">Cartas AISWEB ↗</a>}
         </div>
 
         <div className="pointer-events-auto flex gap-1 rounded-lg bg-card/90 p-1 backdrop-blur">
@@ -324,6 +353,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
           )}
           <button
             type="button"
+            aria-pressed={meteoAtiva}
             onClick={() => setMeteoAtiva((v) => !v)}
             className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
               meteoAtiva ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
@@ -333,6 +363,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
           </button>
           <button
             type="button"
+            aria-pressed={reguaAtiva}
             onClick={() => {
               setReguaAtiva((v) => !v);
               setModoPonto(false);
@@ -355,7 +386,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
       {meteoAtiva && (
         <p className="pointer-events-none absolute right-3 top-16 rounded-md bg-card/90 px-2.5 py-1.5 text-[11px] text-muted-foreground backdrop-blur">
-          {urlRadar ? "Radar de precipitação (imagem meteorológica pública)" : "Carregando imagem de radar…"}
+          {erroRadar ? "Radar indisponível no momento. Desative e tente novamente." : urlRadar ? "Radar de precipitação (imagem meteorológica pública)" : "Carregando imagem de radar…"}
         </p>
       )}
 
@@ -370,7 +401,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
       {reguaAtiva && medidas.length < 2 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-16 flex justify-center px-3">
           <p className="rounded-full bg-card/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
-            Toque em dois pontos do mapa para medir
+            {medidas.length ? "Selecione o segundo ponto para medir" : "Selecione dois pontos no mapa para medir"}
           </p>
         </div>
       )}
@@ -388,9 +419,9 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
         </div>
       )}
 
-      {(contingencia || !provedorAtivo().disponivel) && !erroMapa && (
-        <p className="absolute left-3 top-16 max-w-[18rem] rounded-md bg-card/90 px-2.5 py-1.5 text-[11px] text-muted-foreground backdrop-blur">
-          Base de contingência em uso (OpenStreetMap). Verifique a chave do MapTiler para os mapas definitivos.
+      {erroBase && !erroMapa && (
+        <p role="status" className="absolute left-3 top-24 max-w-[18rem] rounded-md bg-card/95 px-3 py-2 text-xs text-foreground">
+          Não foi possível carregar esta base do mapa. Selecione outra visualização.
         </p>
       )}
 

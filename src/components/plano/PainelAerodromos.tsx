@@ -47,8 +47,8 @@ async function carregar(icao: string): Promise<DadosAerodromo> {
   const tentar = async <T,>(rotulo: string, fn: () => Promise<T>): Promise<T | undefined> => {
     try {
       return await fn();
-    } catch (e) {
-      erros.push(`${rotulo}: ${e instanceof Error ? e.message : "indisponível"}`);
+    } catch {
+      erros.push(`${rotulo} indisponível no momento. Tente atualizar as informações.`);
       return undefined;
     }
   };
@@ -105,28 +105,43 @@ function textoDetalhe(valor: unknown): string {
   }
 }
 
-export function PainelAerodromos({ icaos }: { icaos: string[] }) {
-  const lista = useMemo(() => Array.from(new Set(icaos.filter((i) => /^[A-Z]{4}$/.test(i)))), [icaos]);
-  const [ativo, setAtivo] = useState<string>("");
-  const [cache, setCache] = useState<Record<string, DadosAerodromo>>({});
+// Dados públicos, com prazo curto e consultas simultâneas compartilhadas entre as abas.
+const consultas = new Map<string, { atualizadoEm: number; dados: DadosAerodromo }>();
+const pendentes = new Map<string, Promise<DadosAerodromo>>();
+async function consultar(icao: string, forcar: boolean) {
+  const salvo = consultas.get(icao);
+  if (!forcar && salvo && Date.now() - salvo.atualizadoEm < 120_000) return salvo.dados;
+  const emCurso = pendentes.get(icao);
+  if (emCurso) return emCurso;
+  const promessa = carregar(icao).then(dados => {
+    consultas.delete(icao);
+    consultas.set(icao, { atualizadoEm: Date.now(), dados });
+    if (consultas.size > 40) consultas.delete(consultas.keys().next().value!);
+    return dados;
+  }).finally(() => pendentes.delete(icao));
+  pendentes.set(icao, promessa);
+  return promessa;
+}
+
+export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: string[]; selecionado?: string; aoSelecionar?: (icao: string) => void }) {
+  const lista = useMemo(() => Array.from(new Set(icaos.map(i => i.trim().toUpperCase()).filter(i => /^[A-Z]{4}$/.test(i)))), [icaos]);
+  const [codigo, setCodigo] = useState("");
+  const preferido = selecionado ?? codigo;
+  const ativo = lista.includes(preferido) ? preferido : lista[0] ?? "";
+  const [resultado, setResultado] = useState<{ icao: string; dados: DadosAerodromo } | null>(null);
+  const [revisao, setRevisao] = useState(0);
   const [categoria, setCategoria] = useState<Categoria>("Todas");
   const [buscaCarta, setBuscaCarta] = useState("");
 
   useEffect(() => {
-    if (lista.length && !lista.includes(ativo)) setAtivo(lista[0] ?? "");
-  }, [lista, ativo]);
-
-  useEffect(() => {
-    if (!ativo || cache[ativo]) return;
+    if (!ativo) return;
     let vivo = true;
-    setCache((a) => ({ ...a, [ativo]: VAZIO }));
-    carregar(ativo).then((dados) => {
-      if (vivo) setCache((a) => ({ ...a, [ativo]: dados }));
+    setResultado({ icao: ativo, dados: VAZIO });
+    void consultar(ativo, revisao > 0).then(dados => {
+      if (vivo) setResultado({ icao: ativo, dados });
     });
-    return () => {
-      vivo = false;
-    };
-  }, [ativo, cache]);
+    return () => { vivo = false; };
+  }, [ativo, revisao]);
 
   if (!lista.length) {
     return (
@@ -136,7 +151,7 @@ export function PainelAerodromos({ icaos }: { icaos: string[] }) {
     );
   }
 
-  const dados = cache[ativo];
+  const dados = resultado?.icao === ativo ? resultado.dados : VAZIO;
   const ficha = dados?.ficha;
   const pistas: any[] = Array.isArray(ficha?.['runways']) ? ficha!['runways'] : [];
   const freqs: any[] = Array.isArray(ficha?.['frequencies']) ? ficha!['frequencies'] : [];
@@ -169,7 +184,8 @@ export function PainelAerodromos({ icaos }: { icaos: string[] }) {
           <button
             key={icao}
             type="button"
-            onClick={() => setAtivo(icao)}
+            aria-pressed={icao === ativo}
+            onClick={() => { setCodigo(icao); aoSelecionar?.(icao); setCategoria("Todas"); setBuscaCarta(""); }}
             className={`rounded-lg px-3 py-2 font-mono text-xs font-semibold transition-colors ${
               icao === ativo
                 ? "bg-primary text-primary-foreground"
@@ -179,6 +195,7 @@ export function PainelAerodromos({ icaos }: { icaos: string[] }) {
             {icao}
           </button>
         ))}
+        <button type="button" disabled={dados?.carregando} onClick={() => setRevisao(r => r + 1)} className="ml-auto rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50">Atualizar informações</button>
       </div>
 
       {dados?.carregando && <p className="text-sm text-muted-foreground">Consultando AISWEB/DECEA…</p>}

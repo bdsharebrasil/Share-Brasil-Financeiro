@@ -1,7 +1,7 @@
 import { createContext, useContext, useId, useState, type ReactNode } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { DURATION, EASING_POINTS } from "@/engine/tokens";
-import { Tabs } from "@/primitives/tabs";
+import { DURATION, EASING_POINTS } from "../../engine/tokens";
+import { Tabs } from "../../primitives/tabs";
 
 export type TabsValue = Tabs.Tab.Value;
 

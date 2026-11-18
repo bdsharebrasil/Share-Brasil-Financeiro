@@ -200,7 +200,9 @@ export default function GestaoColaborador() {
       const anterior = progresso.current.perfil;
       const perfil =
         editando || anterior
-          ? await atualizarGestaoColaborador((editando || anterior)!.id, values)
+          ? Object.keys(values).length
+            ? await atualizarGestaoColaborador((editando || anterior)!.id, values)
+            : (editando || anterior)!
           : await criarUsuarioColaborador(values);
       progresso.current.perfil = perfil;
       setParcial(true);

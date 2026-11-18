@@ -1,3 +1,4 @@
+import { erroDeRecurso, recuperarRecursos } from '@/lib/recuperar-recursos';
 import {
   Component,
   type ComponentType,
@@ -36,15 +37,15 @@ function toError(value: unknown): Error {
 }
 
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
+  const recurso=erroDeRecurso(error);
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-6">
       <div className="max-w-lg w-full text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Something went wrong
+        <h1 className="text-xl font-semibold text-foreground">
+          {recurso?'Não foi possível carregar esta versão':'Não foi possível abrir esta página'}
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          This part of the app hit an error. The rest of the app is still
-          running.
+        <p className="mt-2 text-sm text-muted-foreground">
+          {recurso?'Confira sua conexão e atualize o aplicativo para tentar novamente.':'Tente novamente. Se o problema continuar, entre em contato com a equipe.'}
         </p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
@@ -54,10 +55,10 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
         ) : null}
         <button
           type="button"
-          onClick={resetError}
-          className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          onClick={()=>{if(recurso){if(!recuperarRecursos(true))window.location.reload();}else resetError();}}
+          className="mt-4 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
         >
-          Try again
+          {recurso?'Atualizar aplicativo':'Tentar novamente'}
         </button>
       </div>
     </div>
@@ -75,6 +76,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
+    if(erroDeRecurso(error))recuperarRecursos();
     console.error(
       'ErrorBoundary caught an error:',
       toError(error),

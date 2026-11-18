@@ -1,3 +1,4 @@
+import { instalarRecuperacaoRecursos } from "@/lib/recuperar-recursos";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -5,11 +6,12 @@ import App from "./App";
 import { ErrorBoundary } from "@/components/error-boundary";
 import "./index.css";
 
+instalarRecuperacaoRecursos();
 const queryClient = new QueryClient();
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register("/sw.js");
+    void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(r=>r.update()).catch(error=>console.warn("Não foi possível atualizar o aplicativo.",error));
   });
 }
 

@@ -171,18 +171,13 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               </div>
             </>
           ) : (
-            /* Aba 2: cards com o mesmo tamanho da aba 1, centralizados */
+            /* Quatro atalhos da central, mantendo os cartões alinhados. */
             <div
               style={VARIAVEIS_GRID}
-              className="mx-auto flex w-full min-w-0 max-w-[600px] flex-wrap items-stretch justify-center gap-[var(--gap)] px-[7px] py-2"
+              className="mx-auto grid w-full min-w-0 max-w-[800px] grid-cols-2 items-stretch gap-[var(--gap)] px-[7px] py-2 md:grid-cols-4"
             >
               {ATALHOS_POR_ABA[item.id].map((atalho) => (
-                <div
-                  key={atalho.menu}
-                  className="flex w-[calc((100%_-_2*var(--gap))/3)] min-w-0"
-                >
-                  <CardAtalho item={atalho} aoNavegar={aoNavegar} />
-                </div>
+                <CardAtalho key={atalho.menu} item={atalho} aoNavegar={aoNavegar} />
               ))}
             </div>
           )}
@@ -197,3 +192,4 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
     </div>
   );
 }
+

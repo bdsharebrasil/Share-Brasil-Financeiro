@@ -20,6 +20,7 @@ const CentroTreinamento = lazy(() => import("@/pages/CentroTreinamento"));
 const CentroMateriais = lazy(() => import("@/pages/CentroMateriais"));
 const SalaReuniao = lazy(() => import("@/pages/SalaReuniao"));
 const HoteisShareBrasil = lazy(() => import("@/pages/HoteisShareBrasil"));
+const AppsShareBrasil = lazy(() => import("@/pages/AppsShareBrasil"));
 const GestaoColaborador = lazy(() => import("@/components/financeiro-share/GestaoColaborador"));
 const EnviarPagamento = lazy(() => import("@/pages/EnviarPagamento"));
 const ConfiguracoesGestor = lazy(() => import("@/components/dashboard/gestor/ConfiguracoesGestor"));
@@ -153,6 +154,7 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "cotistas") return <ContatosClientesShareBrasil somenteCotistas aoVoltar={() => setMenuAtivo("overview")} />;
     if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
+    if (ambiente === "share-brasil" && menuAtivo === "apps-share-brasil") return <AppsShareBrasil aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "share-brasil" && menuAtivo === "aeronaves") return <AeronavesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;
     if (ambiente === "share-brasil" && menuAtivo === "sala-reuniao") return <SalaReuniao />;
@@ -167,3 +169,4 @@ export default function LayoutInterno() {
 
   return <div className="app-shell app-noise fixed inset-0 flex min-w-0 max-w-[100vw] overflow-hidden bg-[rgba(224,225,233,1)] dark:bg-background"><Sidebar ambiente={ambiente} menuAtivo={menuAtivo} aberta={menuAberto} recolhida={sidebarRecolhida} podeAcessarMenuGestor={podeAcessarMenuGestor} aoFechar={() => setMenuAberto(false)} aoAlternarRecolhimento={() => setSidebarRecolhida((atual) => !atual)} aoSelecionar={selecionarMenu} /><div className="conteudo-principal flex min-h-0 min-w-0 flex-1 flex-col bg-[rgba(209,217,218,0.93)] dark:bg-[rgba(8,15,22,1)] md:pl-[76px]"><BarraSuperior ambiente={ambiente} podeAcessarGestor={podeAcessarGestor} tema={tema} aoTrocarAmbiente={trocarAmbiente} aoAlternarTema={() => setTema(tema === "dark" ? "light" : "dark")} aoAbrirMenu={() => setMenuAberto(true)} aoAbrirPerfil={abrirPerfil} aoAbrirRelatorio={abrirRelatorioNotificado} aoSair={sair} /><ScrollArea ref={scrollAreaRef} className="app-main-scroll min-h-0 min-w-0 flex-1"><main className="mx-auto min-w-0 w-full max-w-[1540px] dark:bg-[rgba(8,15,22,1)] px-4 py-6 md:px-8 md:py-8"><Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground" role="status">Carregando módulo…</div>}>{renderConteudo()}</Suspense></main></ScrollArea></div>{usuarioPontoId && <Suspense fallback={null}><AvisoEntradaPonto key={usuarioPontoId} usuarioId={usuarioPontoId} /></Suspense>}{exibirBoasVindas && nomeColaborador && <WelcomeToast name={nomeColaborador} onClose={() => setExibirBoasVindas(false)} />}</div>;
 }
+

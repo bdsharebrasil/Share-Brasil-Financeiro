@@ -5,6 +5,7 @@ import {
   Clock3,
   CreditCard,
   GraduationCap,
+  Grid2X2,
   Building2,
   FileBarChart,
   FileCheck2,
@@ -102,6 +103,7 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
     { id: "aniversarios", label: "Aniversários", icon: Cake },
     { id: "aeronaves", label: "Aeronaves", icon: Plane },
     { id: "centro-treinamento", label: "CENTRO TREINAMENTO", icon: GraduationCap },
+    { id: "apps-share-brasil", label: "APPs SHARE BRASIL", icon: Grid2X2 },
     { id: "ponto", label: "Ponto e jornada", icon: Clock3 },
     { id: "documentos", label: "Documentos", icon: Folder },
     { id: "senhas", label: "Senhas", icon: KeyRound },
@@ -131,4 +133,5 @@ export const menusPorAmbiente: Record<Ambiente, ItemMenu[]> = {
 export function menuInicial(ambiente: Ambiente): string {
   return menusPorAmbiente[ambiente][0]?.id ?? "overview";
 }
+
 

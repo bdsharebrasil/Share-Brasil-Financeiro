@@ -242,7 +242,7 @@ export default function DashboardFinanceiro({
     ),
   );
   const operacoesVisiveis = mostrarPendencias ? operacoesNaoEnviadas : operacoes;
-  const operacoesDoDashboard = operacoesVisiveis.slice(0, 5);
+  const operacoesDoDashboard = operacoesVisiveis.slice(0, 3);
 
   if (abastecimentoEmEdicao) {
     return (

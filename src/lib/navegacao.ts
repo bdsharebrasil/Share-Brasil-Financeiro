@@ -161,17 +161,19 @@ export function interpretarCoordenadas(bruto: string | null | undefined): Coorde
   }
 
   const gms = texto.match(
-    /(\d{1,3})[°\s:]+(\d{1,2})(?:[.'\s:]+(\d{1,2}(?:\.\d+)?))?\s*([NSns])[^\d]+(\d{1,3})[°\s:]+(\d{1,2})(?:[.'\s:]+(\d{1,2}(?:\.\d+)?))?\s*([EWew])/,
+    /(\d{1,3})[°\s:]+(\d{1,2})(?:[.'\s:]+(\d{1,2}(?:\.\d+)?))?["'\s]*([NSns])[^\d]+(\d{1,3})[°\s:]+(\d{1,2})(?:[.'\s:]+(\d{1,2}(?:\.\d+)?))?["'\s]*([EWew])/,
   );
   if (gms) {
     const val = (g: string, m: string, s: string | undefined, hemi: string) => {
       const v = Number(g) + Number(m) / 60 + (s ? Number(s) / 3600 : 0);
       return /[SWsw]/.test(hemi) ? -v : v;
     };
-    return {
+    if (Number(gms[2]) >= 60 || Number(gms[3] ?? 0) >= 60 || Number(gms[6]) >= 60 || Number(gms[7] ?? 0) >= 60) return null;
+    const coordenada = {
       lat: val(gms[1]!, gms[2]!, gms[3], gms[4]!),
       lon: val(gms[5]!, gms[6]!, gms[7], gms[8]!),
     };
+    return Math.abs(coordenada.lat) <= 90 && Math.abs(coordenada.lon) <= 180 ? coordenada : null;
   }
   return null;
 }

@@ -48,6 +48,11 @@ test('régua mede também pontos no mesmo meridiano e mantém os extremos do tra
   assert.ok(Math.abs(arco.at(-1)[1] - 1) < 1e-10);
   assert.equal(distanciaNM(a, a), 0);
   assert.deepEqual(interpretarCoordenadas('-23.4356, -46.4731'), { lat: -23.4356, lon: -46.4731 });
+  const gms = interpretarCoordenadas(`23°26'12"S / 046°28'24"W`);
+  assert.ok(gms.lat < 0 && gms.lon < 0);
+  assert.ok(Math.abs(gms.lat + (23 + 26 / 60 + 12 / 3600)) < 1e-10);
+  assert.equal(interpretarCoordenadas('91 00 S / 046 28 W'), null);
+  assert.equal(interpretarCoordenadas('23 99 S / 046 28 W'), null);
 });
 test('mapa, terreno e satélite usam bases distintas mesmo sem chave; não simula carta aeronáutica', () => {
   const tiles = ['padrao', 'terreno', 'satelite'].map(estilo => provedorContingencia.estilo(estilo).sources.base.tiles[0]);

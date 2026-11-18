@@ -519,7 +519,6 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   margin: 0;
   padding: 0;
   overscroll-behavior: contain;
-  background-color: rgba(8, 15, 22, 1);
 }
 .app-topbar { --borda-controle-cabecalho: rgb(60 70 75 / .61); }
 .app-topbar .tophead-control { border-color: var(--borda-controle-cabecalho); }

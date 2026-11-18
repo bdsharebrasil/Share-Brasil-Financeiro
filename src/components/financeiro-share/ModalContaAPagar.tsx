@@ -176,7 +176,7 @@ export function ModalContaAPagar({
               <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1">
                   <Label htmlFor="data-pagamento" className="text-xs text-muted-foreground dark:text-slate-300">Data do pagamento</Label>
-                  <Input id="data-pagamento" type="date" value={dataPagamento} onChange={(evento) => setDataPagamento(evento.target.value)} className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100" />
+                  <Input id="data-pagamento" type="date" value={dataPagamento} onChange={(evento) => setDataPagamento(evento.target.value)} className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-secondary text-foreground dark:text-slate-100" />
                 </div>
                 <div className="min-w-0 space-y-1">
                   <Label className="text-xs text-muted-foreground dark:text-slate-300">Conta bancária</Label>
@@ -188,7 +188,7 @@ export function ModalContaAPagar({
                     searchPlaceholder="Buscar banco ou conta…"
                     emptyMessage="Nenhuma conta bancária ativa encontrada."
                     wrapSelectedLabel
-                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100"
+                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-secondary text-foreground dark:text-slate-100"
                   />
                 </div>
                 <div className="min-w-0 space-y-1 sm:col-span-2">
@@ -200,7 +200,7 @@ export function ModalContaAPagar({
                     placeholder="Selecione a forma"
                     searchPlaceholder="Buscar forma…"
                     emptyMessage="Nenhuma forma encontrada."
-                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-[#131c29] text-foreground dark:text-slate-100"
+                    className="h-9 min-w-0 border-border dark:border-white/[.08] bg-card dark:bg-secondary text-foreground dark:text-slate-100"
                   />
                 </div>
               </div>

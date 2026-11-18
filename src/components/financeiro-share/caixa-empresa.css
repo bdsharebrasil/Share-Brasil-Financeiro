@@ -1,19 +1,19 @@
 /* Estilos locais do caixa. Não altera outras telas do financeiro. */
 .company-cash, .cash-dialog, .cash-popover {
-  --cash-bg: var(--light-surface, #0b1322); --cash-card: var(--light-surface, #111b2d); --cash-soft: var(--light-surface, #162237);
-  --cash-fg: var(--light-text, #e6edf7); --cash-muted: var(--light-muted, #8592a9); --cash-border: var(--light-line, #203049);
-  --cash-accent: var(--light-info, #78c8e3); --cash-accent-soft: var(--light-surface, #15293a);
-  --cash-income: var(--light-success, #34d399); --cash-income-soft: var(--light-success-soft, #113028);
-  --cash-expense: var(--light-danger, #f87171); --cash-expense-soft: var(--light-surface, #3a2029);
-  --cash-warning: var(--light-warning, #e7c587); --cash-warning-soft: var(--light-surface, #352f23);
-  --background: 218 46% 7%; --foreground: 215 44% 92%;
-  --card: 218 40% 10%; --card-foreground: 215 44% 92%;
-  --popover: 218 40% 12%; --popover-foreground: 215 44% 92%;
-  --muted: 218 33% 14%; --muted-foreground: 215 25% 66%;
-  --border: 216 37% 19%; --input: 216 37% 27%;
-  --primary: 195 66% 68%; --primary-foreground: 218 46% 7%;
-  --accent: 201 43% 16%; --accent-foreground: 215 44% 92%;
-  --ring: 195 66% 68%; --destructive: 353 73% 78%;
+  --cash-bg: var(--app-canvas); --cash-card: var(--app-surface); --cash-soft: var(--app-soft);
+  --cash-fg: var(--app-text); --cash-muted: var(--app-muted); --cash-border: var(--app-line);
+  --cash-accent: var(--app-info); --cash-accent-soft: var(--app-info-soft);
+  --cash-income: var(--app-success); --cash-income-soft: var(--app-success-soft);
+  --cash-expense: var(--app-danger); --cash-expense-soft: var(--app-danger-soft);
+  --cash-warning: var(--app-warning); --cash-warning-soft: var(--app-warning-soft);
+   
+   
+   
+   
+   
+   
+   
+   
   color: var(--cash-fg); color-scheme: var(--app-color-scheme, dark); font-family: inherit;
   font-size: 13px; line-height: 1.5; text-shadow: none;
 }

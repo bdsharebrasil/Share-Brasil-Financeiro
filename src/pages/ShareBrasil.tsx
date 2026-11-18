@@ -857,7 +857,7 @@ export function DocumentosShareBrasil() {
               </div>
             )}
           </section>
-          <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] p-4 md:p-5">
+          <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card p-4 md:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Input
                 value={folder}
@@ -1599,7 +1599,7 @@ export function ContatosClientesShareBrasil({
                 onChange={(event) => setContactSearch(event.target.value)}
                 placeholder="Nome, setor, ramal..."
                 aria-label="Buscar contatos por nome, setor, telefone ou e-mail"
-                className="h-10 rounded-lg border-border dark:border-white/10 bg-card dark:bg-[#0b1730] pl-9 text-sm text-foreground dark:text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
+                className="h-10 rounded-lg border-border dark:border-white/10 bg-card dark:bg-secondary pl-9 text-sm text-foreground dark:text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
             <Button
@@ -1619,11 +1619,11 @@ export function ContatosClientesShareBrasil({
           <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-[#071226] p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
+                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
                   <div className="flex min-w-0 items-start gap-3">
                     <span
                       aria-hidden="true"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-[#102447] text-sm font-semibold text-sky-200"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-sm font-semibold text-sky-700 dark:text-sky-200"
                     >
                       {item.nome
                         .trim()
@@ -1702,7 +1702,7 @@ export function ContatosClientesShareBrasil({
                       type="button"
                       variant="outline"
                       onClick={() => setSelectedContact(item)}
-                      className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-200 hover:bg-sky-500/20 hover:text-sky-100"
+                      className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-700 dark:text-sky-200 hover:bg-sky-500/20 hover:text-sky-100"
                     >
                       <Eye size={14} aria-hidden="true" /> Ver
                     </Button>
@@ -1748,10 +1748,10 @@ export function ContatosClientesShareBrasil({
           if (!open) setSelectedContact(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-border dark:border-white/10 bg-card dark:bg-[#071226] text-foreground dark:text-slate-100 sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-border dark:border-white/10 bg-card dark:bg-background text-foreground dark:text-slate-100 sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4 pr-6">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-[#102447] text-lg font-semibold text-sky-200">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-lg font-semibold text-sky-700 dark:text-sky-200">
                 {selectedContact?.nome
                   .trim()
                   .split(/\s+/)
@@ -1902,7 +1902,7 @@ export function ContatosClientesShareBrasil({
 
   const clientListContent = (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
+      <section className="rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card p-4 shadow-[0_18px_55px_rgba(0,0,0,.18)] md:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-2xl font-extrabold tracking-[-.04em] text-foreground dark:text-white">
@@ -2179,7 +2179,7 @@ export function ContatosClientesShareBrasil({
                   type="button"
                   key={item.id}
                   onClick={() => openClient(item.id)}
-                  className={`group w-full rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#0d1520] text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_14px_35px_rgba(0,0,0,.2)] ${clientView === "lista" ? "flex flex-wrap items-center gap-4 p-4" : "flex min-h-[220px] flex-col justify-between p-4 md:p-5"}`}
+                  className={`group w-full rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_14px_35px_rgba(0,0,0,.2)] ${clientView === "lista" ? "flex flex-wrap items-center gap-4 p-4" : "flex min-h-[220px] flex-col justify-between p-4 md:p-5"}`}
                 >
                   <span className="flex min-w-0 items-start gap-3">
                     <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-br from-cyan-400 to-blue-500 text-base font-black text-white shadow-lg shadow-cyan-500/10">
@@ -2274,14 +2274,14 @@ export function ContatosClientesShareBrasil({
         <ChevronLeft size={16} /> Voltar para clientes
       </Button>
       <section
-        className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101a28] shadow-[0_20px_60px_rgba(0,0,0,.2)]"
+        className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card shadow-[0_20px_60px_rgba(0,0,0,.2)]"
         style={{
           borderColor: "var(--light-line, rgba(255, 255, 255, 0.02))",
           backgroundColor: "var(--light-surface, rgba(6, 14, 25, 1))",
         }}
       >
         <div
-          className="relative overflow-hidden bg-card dark:bg-gradient-to-br dark:from-[#142437] dark:via-[#101a28] dark:to-[#0d1420] p-5 md:p-8"
+          className="relative overflow-hidden bg-card dark:bg-gradient-to-br dark:from-secondary dark:via-card dark:to-card p-5 md:p-8"
           style={{ backgroundColor: "var(--light-surface, rgba(1, 5, 17, 1))" }}
         >
           <div className="absolute -right-16 -top-20 h-60 w-60 rounded-full bg-primary/10 blur-3xl" />
@@ -2381,7 +2381,7 @@ export function ContatosClientesShareBrasil({
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1 border-t border-border dark:border-white/[.08] bg-card dark:bg-[#0e1724] px-4 pt-3 md:px-7">
+        <div className="flex flex-wrap gap-1 border-t border-border dark:border-white/[.08] bg-card dark:bg-card px-4 pt-3 md:px-7">
           <button
             type="button"
             onClick={() => setProfileTab("visao-geral")}
@@ -2919,7 +2919,7 @@ export function ContatosClientesShareBrasil({
     >
       <Feedback error={error} ok={ok} />
       {!somenteCotistas && (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-[#101b2a] dark:to-[#0b131f] p-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-secondary dark:to-card p-2">
         <div className="flex flex-wrap gap-1">
           <Button
             type="button"

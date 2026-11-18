@@ -32,13 +32,13 @@ export function CabecalhoSecao({ icon, title, detail, action, tituloClassName, c
 export function HeroDashboard({ ambiente, title, subtitle, children }: { ambiente: Ambiente; title: string; subtitle?: string; children?: ReactNode }) {
   const heroImage = ambiente === "operacoes" ? aviationHeroOperacoes : aviationHero;
   return (
-    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-[rgba(233,245,242,1)] dark:bg-[#111b29] shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
+    <section className="hero-panel relative mb-4 overflow-hidden rounded-xl border border-border dark:border-white/10 bg-[rgba(233,245,242,1)] dark:bg-card shadow-[0_12px_36px_rgba(0,0,0,.18)] sm:rounded-2xl">
       <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,12,22,.94)_0%,rgba(5,12,22,.68)_45%,rgba(5,12,22,.28)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,12,22,.45)_0%,transparent_60%)]" />
       <div className="relative flex min-h-[84px] items-center justify-between gap-3 px-4 py-3 sm:min-h-[96px] sm:gap-6 sm:px-6 sm:py-4 md:px-8">
         <div className="min-w-0">
-          <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-primary">
+          <p className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-[hsl(var(--sidebar-primary))]">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
             <span className="truncate">Dashboard {nomesAmbiente[ambiente]}</span>
           </p>
@@ -75,11 +75,11 @@ export function CartaoKpi({ label, value, detail, tone = "blue", icon, trend, cl
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-[rgba(213,224,226,1)] p-3.5 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
+    <button type="button" onClick={onClick} className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4", className)}>
       {content}
     </button>
   ) : (
-    <div className={cn("group min-w-0 rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-[rgba(213,224,226,1)] p-3.5 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none sm:p-4", className)}>{content}</div>
+    <div className={cn("group min-w-0 rounded-xl border border-border dark:border-border bg-card p-3.5 text-card-foreground shadow-sm dark:border-border dark:bg-card/80 dark:text-card-foreground dark:shadow-none sm:p-4", className)}>{content}</div>
   );
 }
 
@@ -89,7 +89,7 @@ export function AcaoRapida({ icon, label, detail, color = "blue", onClick, icone
     <button
       type="button"
       onClick={onClick}
-      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-[rgba(3,6,8,0.48)] bg-card/75 p-3 text-[rgba(17,20,25,1)] shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] text-left sm:min-h-[100px] sm:p-3.5"
+      className="menu-dashboard group flex min-h-[92px] min-w-0 w-full flex-col justify-between rounded-xl border border-border dark:border-border bg-card/75 p-3 text-card-foreground shadow-sm dark:border-border dark:bg-card/65 dark:text-card-foreground dark:shadow-none dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] text-left sm:min-h-[100px] sm:p-3.5"
     >
       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-secondary/70 shadow-sm sm:h-8 sm:w-8", colors[color], iconeClassName)}>
         <span className={cn("[&>svg]:h-3.5 [&>svg]:w-3.5 sm:[&>svg]:h-4 sm:[&>svg]:w-4", iconeInternoClassName)}>{icon}</span>

@@ -78,7 +78,7 @@ export default function LayoutInterno() {
     });
   }, []);
 
-  useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); document.querySelector('meta[name="theme-color"]')?.setAttribute("content", tema === "dark" ? "#15171a" : "#ecf0f3"); }, [tema]);
+  useEffect(() => { document.documentElement.classList.toggle("dark", tema === "dark"); localStorage.setItem("share-brasil-theme", tema); document.querySelector('meta[name="theme-color"]')?.setAttribute("content", tema === "dark" ? "#05090c" : "#f3f6f8"); }, [tema]);
   useEffect(() => { if (rotaRecibo) { setAmbiente("financeiro"); setMenuAtivo("recibos"); } else if (menuAtivo === "recibos") { setMenuAtivo("overview"); } }, [rotaRecibo, menuAtivo]);
   useEffect(() => {
     if (rotaUrlFinanceiraLegada) { setAmbiente("gestor"); setMenuAtivo("overview"); navegar(`/?modulo=${moduloLegado || "entrada"}`, { replace: true }); }

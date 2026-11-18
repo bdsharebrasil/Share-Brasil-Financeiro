@@ -308,11 +308,11 @@ export default function DashboardFinanceiro({
       </section>
 
 
-      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-[rgba(7,25,39,1)] shadow-sm">
+      <section className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <CabecalhoSecao
           icon={<CreditCard size={15} />}
           title="Movimentações financeiras"
-          className="bg-[rgba(8,15,22,0.77)]"
+          className="bg-secondary/50"
           detail={abaMovimentacoes === "abastecimentos_pendentes" ? "Registros do checklist pré-voo que aguardam dados fiscais." : mostrarPendencias ? "Despesas sem e-mail enviado." : "Últimos registros lançados."}
           action={
             <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">

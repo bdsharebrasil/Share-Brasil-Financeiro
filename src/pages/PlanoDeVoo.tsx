@@ -113,7 +113,7 @@ export default function PlanoDeVoo() {
 
   return (
     <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-[#091019] px-6 py-[23px] text-[11px] font-light leading-[15px]  md:px-8">
+      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-card px-6 py-[23px] text-[11px] font-light leading-[15px]  md:px-8">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
         <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>

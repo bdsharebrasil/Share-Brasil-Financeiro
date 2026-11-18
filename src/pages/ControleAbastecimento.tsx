@@ -356,10 +356,10 @@ export default function ControleAbastecimento({ aoVoltar, initialRecordId }: { a
 
       {!clienteSelecionado && (
       <div className="ml-[-12px] flex flex-wrap gap-[29px] border-b border-border bg-transparent px-3 pt-2 rounded-t-xl">
-        <button type="button" onClick={() => setTab("registros")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "registros" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-[rgba(95,128,160,1)] bg-[rgba(11,15,24,1)] font-normal leading-[21px] text-[rgba(187,227,255,1)]" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
+        <button type="button" onClick={() => setTab("registros")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "registros" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-primary/30 bg-accent font-normal leading-[21px] text-accent-foreground" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
           <Fuel size={13} className="mr-1.5 inline" /> Histórico de abastecimentos
         </button>
-        <button type="button" onClick={() => setTab("fornecedores")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "fornecedores" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-[rgba(95,128,160,1)] bg-[rgba(11,15,24,1)] font-normal leading-[21px] text-[rgba(187,227,255,1)]" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
+        <button type="button" onClick={() => setTab("fornecedores")} className={`px-4 py-2.5 text-xs transition-colors ${tab === "fornecedores" ? "mx-[2px] overflow-hidden rounded-[10px] border [border-style:inset] border-primary/30 bg-accent font-normal leading-[21px] text-accent-foreground" : "rounded-t-lg border-b-2 border-transparent font-bold text-muted-foreground hover:text-foreground"}`}>
           <Building2 size={13} className="mr-1.5 inline" /> Fornecedores
         </button>
       </div>

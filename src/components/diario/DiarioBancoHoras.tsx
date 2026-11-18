@@ -33,7 +33,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
+      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card shadow-[0_18px_55px_rgba(0,0,0,.14)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-amber-300/10 p-2 text-amber-300"><History size={16} /></span>
@@ -69,7 +69,7 @@ export default function DiarioBancoHoras({ lancamentos, horasCotistas = [], hora
         )}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-[#101722] shadow-[0_18px_55px_rgba(0,0,0,.14)]">
+      <div className="overflow-hidden rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-card shadow-[0_18px_55px_rgba(0,0,0,.14)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-white/[.08] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex items-center gap-2.5">
             <span className="rounded-xl bg-cyan-400/10 p-2 text-cyan-300"><Users size={16} /></span>

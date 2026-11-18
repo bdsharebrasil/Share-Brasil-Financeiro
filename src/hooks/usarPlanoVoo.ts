@@ -10,7 +10,7 @@ import {
   proaVerdadeira,
   tempoMinutos,
 } from "@/lib/navegacao";
-import { horaMinutoParaMinutos } from "@/lib/format";
+import { chaveNumeroVoo, horaMinutoParaMinutos } from "@/lib/format";
 import type {
   ContextoVoo,
   FormularioIcao,
@@ -110,7 +110,7 @@ export function usePlanoVoo() {
     setErro(null);
     try {
       const painel = await buscarPainelAgendamento("2000-01-01", "2099-12-31");
-      const solicitacao = painel.agendamentos.find((item) => item.numero_voo?.toUpperCase() === numeroVoo.trim().toUpperCase());
+      const solicitacao = painel.agendamentos.find((item) => item.numero_voo && chaveNumeroVoo(item.numero_voo) === chaveNumeroVoo(numeroVoo));
       if (!solicitacao) throw new Error("Voo não encontrado nas solicitações de reserva.");
       const aeronave = painel.aeronaves.find((item) => item.id === solicitacao.aeronave_id) ?? null;
       const piloto = painel.tripulacao.find((item) => item.id === solicitacao.piloto_id) ?? null;
@@ -141,7 +141,7 @@ export function usePlanoVoo() {
           base: aeronave.base,
           ano: aeronave.ano,
         } : null,
-        cliente: null,
+        cliente: solicitacao.cliente_id ? { id: solicitacao.cliente_id, nome: solicitacao.cliente_razao_social, codigo_cliente: solicitacao.codigo_cliente } : null,
         cotista: null,
         tripulacao: {
           piloto: piloto ? { id: piloto.id, canac: piloto.canac, nome_completo: piloto.nome_completo, tipo_licenca: piloto.tipo_licenca } : null,

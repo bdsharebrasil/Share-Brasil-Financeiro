@@ -7,15 +7,12 @@ import {
 } from "react";
 import {
   Activity,
+  Download,
+  CheckCircle2,
   Bell,
-  Check,
   CalendarDays,
-  Coffee,
   FileText,
   History,
-  LogIn,
-  LogOut,
-  Undo2,
   Wallet,
   Clock3,
   FileCheck2,
@@ -33,6 +30,7 @@ import {
   CabecalhoSecao,
   IndicadorPagina,
 } from "@/components/dashboard/ComponentesDashboard";
+import AcoesRegistroPonto from "@/components/ponto/AcoesRegistroPonto";
 import EspelhoPonto, { EtiquetaPonto } from "@/components/ponto/EspelhoPonto";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CalendarioPonto from "@/components/ponto/CalendarioPonto";
@@ -81,6 +79,7 @@ export default function PontoProfissional({
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [marcando, setMarcando] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [comprovante, setComprovante] = useState<ComprovantePonto | null>(null);
   const [pedido, setPedido] = useState<{
@@ -187,10 +186,15 @@ export default function PontoProfissional({
   const espelhoDoMes = espelho?.competencia === mes ? espelho : null;
   const marcar = (acao: string) =>
     executar(async () => {
-      const geo = await capturarLocalizacaoPonto();
-      const r = await registrarPonto(acao, geo);
-      setComprovante(r.comprovante);
-    }, "Marcação registrada com horário do servidor.");
+      setMarcando(acao);
+      try {
+        const geo = await capturarLocalizacaoPonto();
+        const r = await registrarPonto(acao, geo);
+        setComprovante(r.comprovante);
+      } finally {
+        setMarcando(null);
+      }
+    }, "Ponto registrado com sucesso.");
   const abas: Array<{ id: Aba; nome: string; icon: typeof Clock3 }> = [
     { id: "meu", nome: "Meu ponto", icon: Clock3 },
     ...(contexto?.permissoes.gestor
@@ -206,46 +210,6 @@ export default function PontoProfissional({
         ]
       : []),
   ];
-  const etapasPonto = [
-    {
-      acao: "entrada",
-      nome: "Entrada",
-      icone: LogIn,
-      horario: linhaAtual?.entrada_hora,
-      desabilitado: Boolean(linhaAtual?.entrada_hora),
-    },
-    {
-      acao: "inicio_almoco",
-      nome: "Iniciar intervalo",
-      icone: Coffee,
-      horario: linhaAtual?.inicio_almoco,
-      desabilitado:
-        !linhaAtual?.entrada_hora ||
-        Boolean(linhaAtual?.inicio_almoco) ||
-        Boolean(linhaAtual?.saida_hora),
-    },
-    {
-      acao: "fim_almoco",
-      nome: "Retornar do intervalo",
-      icone: Undo2,
-      horario: linhaAtual?.fim_almoco,
-      desabilitado:
-        !linhaAtual?.inicio_almoco ||
-        Boolean(linhaAtual?.fim_almoco) ||
-        Boolean(linhaAtual?.saida_hora),
-    },
-    {
-      acao: "saida",
-      nome: "Saída",
-      icone: LogOut,
-      horario: linhaAtual?.saida_hora,
-      desabilitado:
-        !linhaAtual?.entrada_hora || Boolean(linhaAtual?.saida_hora),
-    },
-  ];
-  const proximaAcao = etapasPonto.find(
-    (etapa) => !etapa.horario && !etapa.desabilitado,
-  )?.acao;
 
   return (
     <div className="space-y-5">
@@ -369,77 +333,17 @@ export default function PontoProfissional({
                     title="Registrar ponto"
                     detail={`${dataPonto(contexto.hoje)} · ${contexto.fuso_horario}`}
                   />
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {etapasPonto.map((etapa) => {
-                      const Icone = etapa.icone;
-                      const concluida = Boolean(etapa.horario);
-                      const proxima = etapa.acao === proximaAcao;
-                      const situacao = concluida
-                        ? "Registrada"
-                        : proxima
-                          ? "Próxima"
-                          : etapa.desabilitado
-                            ? "Aguardando"
-                            : "Disponível";
-                      return (
-                        <button
-                          key={etapa.acao}
-                          type="button"
-                          disabled={ocupado || etapa.desabilitado}
-                          aria-label={`${etapa.nome}, ${situacao.toLowerCase()}${concluida ? ` às ${etapa.horario}` : ""}`}
-                          onClick={() => void marcar(etapa.acao)}
-                          className={`flex min-h-28 flex-col justify-between rounded-xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 ${
-                            concluida
-                              ? "border-emerald-500/30 bg-emerald-500/5"
-                              : proxima
-                                ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/15 hover:bg-primary/10"
-                                : "border-border bg-background hover:border-primary/40 hover:bg-secondary/40"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                                concluida
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : proxima
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-secondary text-muted-foreground"
-                              }`}
-                            >
-                              {concluida ? <Check size={16} /> : <Icone size={16} />}
-                            </span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                concluida
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : proxima
-                                    ? "bg-primary/15 text-primary"
-                                    : "bg-secondary text-muted-foreground"
-                              }`}
-                            >
-                              {situacao}
-                            </span>
-                          </div>
-                          <div className="mt-4">
-                            <p className="text-sm font-medium">{etapa.nome}</p>
-                            <p
-                              className={`mt-1 font-mono text-lg font-semibold ${
-                                concluida
-                                  ? "text-emerald-700 dark:text-emerald-300"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {etapa.horario || "--:--"}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <AcoesRegistroPonto
+                    linha={linhaAtual}
+                    ocupado={ocupado}
+                    marcando={marcando}
+                    onMarcar={(acao) => void marcar(acao)}
+                  />
                   {comprovante && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
-                      <span>
-                        {rotulosPonto[comprovante.tipo]} ·{" "}
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 size={16} className="shrink-0 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />
+                        <span>{rotulosPonto[comprovante.tipo] || "Ponto"} ·{" "}
                         {new Date(comprovante.registrado_em).toLocaleTimeString(
                           "pt-BR",
                           { timeZone: comprovante.fuso_horario },
@@ -455,13 +359,15 @@ export default function PontoProfissional({
                         ) : (
                           "Sem localização disponível"
                         )}
+                        </span>
                       </span>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => baixarComprovantePonto(comprovante)}
                       >
-                        Baixar registro
+                        <Download size={14} aria-hidden="true" />
+                        Baixar comprovante
                       </Button>
                     </div>
                   )}
@@ -1158,3 +1064,4 @@ function DecisaoSolicitacao({
     </Dialog>
   );
 }
+

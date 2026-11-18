@@ -32,6 +32,10 @@ export function formatarData(iso: string | null | undefined): string {
   return `${data[2]}/${data[1]}/${data[0]}`;
 }
 
+export function chaveNumeroVoo(valor: string): string {
+  return valor.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 export function formatarCoordenada(lat: number, lon: number): string {
   const grau = (v: number, pos: string, neg: string) => {
     const hemi = v >= 0 ? pos : neg;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { formatarData } from "@/lib/format";
+import { chaveNumeroVoo, formatarData } from "@/lib/format";
 import type { SugestaoVoo } from "@/lib/tipos";
 
 interface Props {
@@ -15,6 +15,7 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Prop
   const [valor, setValor] = useState("");
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
+  const sugestoesFiltradas = sugestoes.filter((s) => chaveNumeroVoo(s.numero_voo).includes(chaveNumeroVoo(valor)));
 
   useEffect(() => {
     const fora = (e: MouseEvent) => {
@@ -67,9 +68,9 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, aoBuscar }: Prop
           {carregando ? "Buscando..." : "Buscar"}
         </button>
 
-        {aberto && sugestoes.length > 0 && (
+        {aberto && sugestoesFiltradas.length > 0 && (
           <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
-            {sugestoes.map((s) => (
+            {sugestoesFiltradas.map((s) => (
               <li key={s.numero_voo}>
                 <button
                   type="button"

@@ -32,7 +32,8 @@ export type FormularioAgendamentoProps = {
 };
 
 export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aerodromosCarregando, tripulacao, atualizando, atualizar, aoCancelar, aoEnviar }: FormularioAgendamentoProps) {
-  const aeronaveSelecionada = opcoes.aeronaves.find((aeronave) => aeronave.id === novo.aeronave_id);
+  const aeronavesAtivas = opcoes.aeronaves.filter((aeronave) => ["ativa", "ativo", "active"].includes(String(aeronave.status || "").trim().toLowerCase()));
+  const aeronaveSelecionada = aeronavesAtivas.find((aeronave) => aeronave.id === novo.aeronave_id);
   const titularSelecionado = novo.cliente_id ? `cliente:${novo.cliente_id}` : novo.socio_id ? `socio:${novo.socio_id}` : "";
   const clienteTitularId = novo.cliente_id || opcoes.socios.find((socio) => socio.id === novo.socio_id)?.cliente_id;
   const aeronaveDoTitular = Boolean(novo.aeronave_id && (novo.cliente_id || novo.socio_id) && opcoes.vinculos.some((vinculo) => vinculo.aeronave_id === novo.aeronave_id && ((clienteTitularId && vinculo.cliente_id === clienteTitularId) || (novo.socio_id && vinculo.socio_id === novo.socio_id))));
@@ -84,7 +85,7 @@ export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aer
     atualizar("voo_emprestimo_confirmado", true);
   };
   const aerodromoItems = aerodromos.map((item) => ({ id: item.id, label: item.label }));
-  const aeronaveItems = opcoes.aeronaves.map((item) => ({ id: item.id, label: `${item.matricula_registro} · ${[item.fabricante, item.modelo].filter(Boolean).join(" ")}${item.status && item.status.toLowerCase() !== "ativa" ? ` · ${item.status}` : ""}` }));
+  const aeronaveItems = aeronavesAtivas.map((item) => ({ id: item.id, label: `${item.matricula_registro} · ${[item.fabricante, item.modelo].filter(Boolean).join(" ")}` }));
 
   return (
     <section className="agendamento-form overflow-visible rounded-2xl border border-primary/25 bg-card shadow-xl shadow-black/5">
@@ -96,7 +97,7 @@ export function FormularioAgendamento({ novo, opcoes, titulares, aerodromos, aer
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <Label className="text-[10px]">Aeronave</Label>
-          <SearchableCombobox items={aeronaveItems} value={novo.aeronave_id} onChange={selecionarAeronave} placeholder="Selecione a aeronave" searchPlaceholder="Digite matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave cadastrada encontrada." icon={<Plane size={14} />} disabled={!titularSelecionado} />
+          <SearchableCombobox items={aeronaveItems} value={novo.aeronave_id} onChange={selecionarAeronave} placeholder="Selecione a aeronave" searchPlaceholder="Digite matrícula, fabricante ou modelo" emptyMessage="Nenhuma aeronave ativa encontrada." icon={<Plane size={14} />} disabled={!titularSelecionado} />
         </div>
         {aeronaveEmprestada && <div className="space-y-3 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 sm:col-span-2 xl:col-span-4">
           <div><p className="text-[10px] font-bold">Essa aeronave não está vinculada ao titular selecionado. Esse voo é emprestado?</p><p className="mt-1 text-[9px] text-muted-foreground">Confirme para registrar quem está cedendo a aeronave neste agendamento.</p></div>

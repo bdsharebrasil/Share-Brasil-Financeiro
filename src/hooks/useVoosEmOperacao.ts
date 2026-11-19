@@ -31,7 +31,12 @@ export function useVoosEmOperacao(): Estado {
     try {
       const resposta = import.meta.env.VITE_RASTREIO_MOCK === "1" ? { atualizado_em: new Date().toISOString(), voos: [mockVoo(tickMock.current++)] } : await buscarVoosEmOperacao();
       if (id !== carregamentoAtual.current) return;
-      const voos = Array.isArray(resposta.voos) ? resposta.voos : [];
+      // Oculta também quando o frontend for publicado antes do backend atualizado.
+      // O histórico do voo continua acessível pelo agendamento.
+      const voos = Array.isArray(resposta.voos) ? resposta.voos.filter((voo) => {
+        const ultimaPerna = voo.pernas?.[voo.pernas.length - 1];
+        return !ultimaPerna || (!ultimaPerna.horario_corte && String(ultimaPerna.status || '').toLowerCase() !== 'cortado');
+      }) : [];
       await Promise.all(voos.map(async (voo) => {
         if (voo.destino_coord || !voo.destino || destinos.current.has(voo.destino)) return;
         try { const resultado = await buscarRotaerOperacao(voo.destino); const coordenadas = resultado.airport?.coordinates; if (coordenadas && Number.isFinite(coordenadas.lat) && Number.isFinite(coordenadas.lng)) destinos.current.set(voo.destino, { lat: coordenadas.lat!, lon: coordenadas.lng! }); } catch { /* aeródromo sem ficha ROTAER */ }

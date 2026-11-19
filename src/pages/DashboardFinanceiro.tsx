@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ChevronLeft,
   CircleDollarSign,
   Clock3,
   CreditCard,
@@ -33,6 +34,8 @@ import {
   type PainelFinanceiroResponse,
 } from "@/lib/colaborador-api";
 import ControleAbastecimento from "@/pages/ControleAbastecimento";
+
+const FinanceiroCotista = lazy(() => import("@/components/FinanceiroCotista/FinanceiroCotista"));
 
 function dataBruta(valor: string | null | undefined) {
   if (!valor) return "—";
@@ -193,6 +196,7 @@ export default function DashboardFinanceiro({
   const [carregandoAbastecimentos, setCarregandoAbastecimentos] = useState(true);
   const [erroAbastecimentos, setErroAbastecimentos] = useState<string | null>(null);
   const [abastecimentoEmEdicao, setAbastecimentoEmEdicao] = useState<string | null>(null);
+  const [balancoCotistaAberto, setBalancoCotistaAberto] = useState(false);
   const [despesaDestino, setDespesaDestino] = useState<MovimentacaoFinanceira | null>(null);
 
   const carregar = useCallback(async (silencioso = false) => {
@@ -257,6 +261,21 @@ export default function DashboardFinanceiro({
     );
   }
 
+  if (balancoCotistaAberto) {
+    return (
+      <div className="route-enter mx-auto w-full max-w-[1320px] min-w-0">
+        <div className="mb-3 flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={() => setBalancoCotistaAberto(false)}>
+            <ChevronLeft size={15} aria-hidden /> Dashboard financeiro
+          </Button>
+        </div>
+        <Suspense fallback={<div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Carregando balanço cotista…</div>}>
+          <FinanceiroCotista modoFechamento />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div className="route-enter mx-auto w-full max-w-[1320px] min-w-0">
       <HeroDashboard
@@ -304,6 +323,13 @@ export default function DashboardFinanceiro({
           iconeClassName="text-[rgba(124,34,143,1)] border-[rgba(148,4,177,1)] dark:border-[rgba(138,12,165,0.59)] dark:bg-[rgba(55,14,233,0.15)]"
           iconeInternoClassName="border border-[rgba(148,4,177,0.09)] text-[rgba(148,4,177,1)]"
           onClick={() => aoNavegar("email")}
+        />
+        <AcaoRapida
+          icon={<CircleDollarSign size={16} />}
+          label="BALANÇO COTISTA"
+          detail="Fechamento por cotista"
+          color="blue"
+          onClick={() => setBalancoCotistaAberto(true)}
         />
       </section>
 

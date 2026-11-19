@@ -25,15 +25,37 @@ test("aba Fechamento Balanço usa dados do dashboard e transmite cotista e compe
   assert.doesNotMatch(financeiro, /<FechamentoBalancoCotista\s*\/>/);
 });
 
-test("fechamento segue as quatro seções da referência com valores derivados do dashboard", () => {
-  for (const aba of ["Balanço", "Lançamentos", "Custo por hora", "Diário de bordo"]) {
-    assert.ok(referencia.includes(`nome: "${aba}"`), `aba ausente: ${aba}`);
-  }
+test("fechamento segue as cinco abas solicitadas com valores derivados do dashboard", () => {
+  const blocoAbas = /const ABAS:[\s\S]*?;\n/.exec(referencia)?.[0];
+  assert.ok(blocoAbas, "lista principal de abas não encontrada");
+  assert.deepEqual(
+    [...blocoAbas.matchAll(/nome: "([^"]+)"/g)].map(([, nome]) => nome),
+    ["Balanço", "Lançamentos", "Custo por hora", "Diário de bordo", "Seu período em voo"],
+  );
   assert.match(referencia, /montarBalanco\(d, cotistas, mesesSelecionados\)/);
   assert.match(referencia, /projetarCustos\(total, totalHoras, b\.meses\.length/);
   assert.match(referencia, /d\?\.lancamentos/);
   assert.match(referencia, /participante\?\.voos \?\? b\?\.voos/);
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
+});
+
+test("BALANÇO COTISTA abre direto o fechamento, sem navegação de módulos externos", async () => {
+  const dashboardFinanceiro = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx", import.meta.url), "utf8");
+  assert.match(dashboardFinanceiro, /label="BALANÇO COTISTA"/);
+  assert.match(dashboardFinanceiro, /<FinanceiroCotista modoFechamento\s*\/>/);
+  assert.match(financeiro, /export default function FinanceiroCotista\(\{ modoFechamento = false \}/);
+  assert.match(financeiro, /setPaginaAberta\(modoFechamento\)/);
+  assert.match(financeiro, /aeronaveSelecionada && paginaAberta && !modoFechamento/);
+  assert.match(financeiro, /modoFechamento \? \[\{[\s\S]*?id: "fechamento-balanco"/);
+  assert.doesNotMatch(financeiro, /rotulo: "Voos empréstimo"/);
+});
+
+test("voos empréstimo são uma subaba do Diário de bordo e respeitam cotista e meses selecionados", () => {
+  assert.match(referencia, /aria-label="Diário de bordo e voos empréstimo"/);
+  assert.match(referencia, /id="fb-subtab-emprestimos"[\s\S]*?>Voos empréstimo/);
+  assert.match(referencia, /dashboard\?\.emprestimos_aeronave/);
+  assert.match(referencia, /b\?\.meses\.includes\(String\(voo\.data/);
+  assert.match(referencia, /Filtrar voos empréstimo por cotista/);
 });
 
 test("Gráficos e Fechamento usam o mesmo resumo de acerto baseado no ledger detalhado", () => {
@@ -175,4 +197,3 @@ test("lançamentos prioriza demonstrativo e mostra números de recibo e NF na ex
   assert.match(financeiro, /\["Número do recibo", lancamento\.numeroRecibo \|\|/);
   assert.match(financeiro, /\["Número da NF", lancamento\.numeroNf \|\|/);
 });
-

@@ -18,8 +18,8 @@ import {
   YAxis,
 } from "recharts";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
-import type { DashboardCotista } from "@/lib/financeiro-share-api";
+import { formatarCentavos, formatarData, formatarMoeda } from "@/lib/financeiro-share-api";
+import type { DashboardCotista, EmprestimoAeronave } from "@/lib/financeiro-share-api";
 import {
   documentoDoLancamento,
   nomeFornecedorLancamento,
@@ -40,7 +40,7 @@ import {
   projetarCustos,
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
-import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { agruparPorMes, rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
@@ -81,6 +81,8 @@ export function FechamentoBalancoReferencia({
   const [fatorFixo, setFatorFixo] = useState(1);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
+  const [subAbaDiario, setSubAbaDiario] = useState<"diario" | "emprestimos">("diario");
+  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
   const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -132,6 +134,17 @@ export function FechamentoBalancoReferencia({
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
   const voosParaCuriosidades = participante ? voosDoParticipante : voos;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
+  const gruposEmprestimos = useMemo(() => {
+    const [tipo, id] = cotistaEmprestimo.split(":");
+    const lista = (dashboard?.emprestimos_aeronave ?? []).filter((voo) => {
+      if (!b?.meses.includes(String(voo.data ?? "").slice(0, 7))) return false;
+      if (!id) return true;
+      return tipo === "socio"
+        ? voo.emprestador_socio_id === id
+        : voo.emprestador_cliente_id === id;
+    });
+    return agruparPorMes<EmprestimoAeronave>(lista);
+  }, [dashboard?.emprestimos_aeronave, b?.meses, cotistaEmprestimo]);
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
   if (carregando) return <div className="fb" role="status"><style>{CSS}</style><div className="fb-empty">Carregando fechamento…</div></div>;
@@ -381,23 +394,51 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
-        <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
-          {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
-            <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
-            <tbody>{voos.map((voo, index) => <tr key={voo.id}>
-              <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
-              <td>{formatarData(voo.data)}</td>
-              <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
-              <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
-              <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
-              <td>{horas(voo.horas)}</td>
-              {participante && <td>{horas(horasAtribuidas(voo))}</td>}
-              <td>{destinoVoo(voo, cotistas)}</td>
-            </tr>)}</tbody>
-          </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
-            : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
-        </section>
-        <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
+        <nav className="mb-3 flex flex-wrap gap-2 border-b border-border pb-2" role="tablist" aria-label="Diário de bordo e voos empréstimo">
+          <button type="button" role="tab" id="fb-subtab-diario" aria-selected={subAbaDiario === "diario"} aria-controls="fb-subpanel-diario" onClick={() => setSubAbaDiario("diario")} className={`rounded-md border px-3 py-2 text-xs font-semibold transition-colors ${subAbaDiario === "diario" ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>Diário de bordo</button>
+          <button type="button" role="tab" id="fb-subtab-emprestimos" aria-selected={subAbaDiario === "emprestimos"} aria-controls="fb-subpanel-emprestimos" onClick={() => setSubAbaDiario("emprestimos")} className={`rounded-md border px-3 py-2 text-xs font-semibold transition-colors ${subAbaDiario === "emprestimos" ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>Voos empréstimo</button>
+        </nav>
+        {subAbaDiario === "diario" ? <section id="fb-subpanel-diario" role="tabpanel" aria-labelledby="fb-subtab-diario">
+          <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
+            {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
+              <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
+              <tbody>{voos.map((voo, index) => <tr key={voo.id}>
+                <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
+                <td>{formatarData(voo.data)}</td>
+                <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
+                <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
+                <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
+                <td>{horas(voo.horas)}</td>
+                {participante && <td>{horas(horasAtribuidas(voo))}</td>}
+                <td>{destinoVoo(voo, cotistas)}</td>
+              </tr>)}</tbody>
+            </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
+              : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
+          </section>
+          <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
+        </section> : <section id="fb-subpanel-emprestimos" role="tabpanel" aria-labelledby="fb-subtab-emprestimos" className="fb-card">
+          <div className="fb-flight-heading flex-wrap">
+            <div><h2>Voos de empréstimo nesta aeronave</h2><p className="fb-note">Custo do tomador, fora do rateio. Escolha um cotista para ver os voos emprestados em nome dele.</p></div>
+            <label className="fb-ledger-tools">Cotista
+              <select value={cotistaEmprestimo} onChange={(event) => setCotistaEmprestimo(event.target.value)} aria-label="Filtrar voos empréstimo por cotista">
+                <option value="todos">Todos os cotistas</option>
+                {cotistas.filter((cotista) => cotista.cliente_id || cotista.socio_id).map((cotista) => <option key={cotista.id} value={`${cotista.socio_id ? "socio" : "cliente"}:${cotista.socio_id || cotista.cliente_id}`}>{cotista.nome}</option>)}
+              </select>
+            </label>
+          </div>
+          {gruposEmprestimos.length ? <div className="divide-y divide-border">
+            {gruposEmprestimos.map(({ mes, itens }) => <section key={mes}>
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-primary/[.045] px-4 py-2.5">
+                <span className="text-[10px] font-bold capitalize">{rotuloMesCotista(mes)}</span>
+                <span className="font-mono text-[9px] text-muted-foreground">{itens.length} voo(s) · {itens.reduce((total, voo) => total + Number(voo.litros || 0), 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L · {formatarMoeda(itens.reduce((total, voo) => total + Number(voo.valor_total || 0), 0))}</span>
+              </div>
+              {itens.map((voo) => <div key={voo.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-4 py-3 text-xs">
+                <div className="min-w-0"><p className="font-semibold">{voo.numero_voo || "Voo sem número"} · {voo.matricula_registro || "Aeronave não informada"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{formatarData(voo.data)} · {voo.trecho || "Trecho não informado"} · Local: {voo.local_icao || voo.local || "—"}</p></div>
+                <div className="text-right"><p className="font-mono font-bold text-amber-400">{Number(voo.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</p><p className="font-mono text-[10px] text-muted-foreground">{formatarMoeda(Number(voo.valor_total || 0))}</p></div>
+              </div>)}
+            </section>)}
+          </div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum abastecimento de voo empréstimo encontrado nos meses selecionados.</div>}
+        </section>}
       </section>}
 
       {aba === "curiosidades" && <section id="fb-panel-curiosidades" role="tabpanel" aria-labelledby="fb-tab-curiosidades">
@@ -572,4 +613,3 @@ const CSS = `
   .fb-ledger-count{width:100%;margin:0}
 }
 `;
-

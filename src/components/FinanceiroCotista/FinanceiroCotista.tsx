@@ -116,7 +116,6 @@ import {
 import { PortalClienteTab } from "./PortalClienteTab";
 import { FechamentoBalancoReferencia } from "./FechamentoBalancoReferencia";
 import {
-  agruparPorMes,
   mesAtualLocal,
   periodoDoMes,
   rotuloMesCotista,
@@ -3396,7 +3395,7 @@ function LancamentosDespesa({
   );
 }
 
-export default function FinanceiroCotista() {
+export default function FinanceiroCotista({ modoFechamento = false }: { modoFechamento?: boolean }) {
   const { data: fontesFornecedores = [], refetch: recarregarFornecedores } = useFornecedores({ includeFavorites: true, includeHotels: true });
   const fornecedoresEdicao = useMemo(
     () => fontesFornecedores.map((fornecedor) => ({ id: fornecedor.id, label: fornecedor.nome })),
@@ -3427,7 +3426,6 @@ export default function FinanceiroCotista() {
   const [percentualEditado, setPercentualEditado] = useState("");
   const [aeronaveEditada, setAeronaveEditada] = useState("");
   const [salvandoParticipacao, setSalvandoParticipacao] = useState(false);
-  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const mesAtual = mesAtualLocal();
   const [mesesAplicados, setMesesAplicados] = useState<string[]>([mesAtual]);
   const [periodoAplicado, setPeriodoAplicado] = useState<PeriodoCotista>(
@@ -3611,7 +3609,6 @@ export default function FinanceiroCotista() {
     | "fechamento-balanco"
     | "lancamentos"
     | "ranking"
-    | "emprestimos"
     | "extrato"
     | "portal-cliente"
   >("lancamentos");
@@ -3621,7 +3618,12 @@ export default function FinanceiroCotista() {
     rotulo: string;
     Icon: typeof ReceiptText;
     corIcone: string;
-  }> = [
+  }> = modoFechamento ? [{
+    id: "fechamento-balanco",
+    rotulo: "Fechamento Balanço",
+    Icon: PieChart,
+    corIcone: "bg-cyan-400/10 text-cyan-400",
+  }] : [
     {
       id: "lancamentos",
       rotulo: "Lançamentos mensais",
@@ -3633,12 +3635,6 @@ export default function FinanceiroCotista() {
       rotulo: "Fechamento Balanço",
       Icon: PieChart,
       corIcone: "bg-cyan-400/10 text-cyan-400",
-    },
-    {
-      id: "emprestimos",
-      rotulo: "Voos empréstimo",
-      Icon: Plane,
-      corIcone: "bg-amber-400/10 text-amber-400",
     },
     {
       id: "portal-cliente",
@@ -3722,18 +3718,6 @@ export default function FinanceiroCotista() {
           .sort((a, b) => b.valor - a.valor),
       }));
   }, [despesas]);
-  const gruposEmprestimos = useMemo(() => {
-    const [tipo, id] = cotistaEmprestimo.split(":");
-    const lista = (dashboard?.emprestimos_aeronave ?? []).filter((v) => {
-      if (!mesesAplicados.includes(String(v.data ?? "").slice(0, 7)))
-        return false;
-      if (!id) return true;
-      return tipo === "socio"
-        ? v.emprestador_socio_id === id
-        : v.emprestador_cliente_id === id;
-    });
-    return agruparPorMes(lista);
-  }, [dashboard, mesesAplicados, cotistaEmprestimo]);
   const cotistasParaDialog: CotistaAeronave[] = useMemo(
     () => (aeronaveSelecionada ? cotistasAeronave : []),
     [aeronaveSelecionada, cotistasAeronave],
@@ -3784,7 +3768,7 @@ export default function FinanceiroCotista() {
         <div className="cotista-contexto flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Financeiro Cotista
+              {modoFechamento ? "Fechamento Balanço" : "Financeiro Cotista"}
             </p>
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="font-mono text-lg font-semibold tracking-wide text-foreground">
@@ -3797,7 +3781,7 @@ export default function FinanceiroCotista() {
               )}
             </div>
           </div>
-          {!paginaAberta && (
+          {(modoFechamento || !paginaAberta) && (
             <Button
               type="button"
               variant="outline"
@@ -3806,6 +3790,7 @@ export default function FinanceiroCotista() {
               onClick={() => {
                 setAeronaveSelecionada("");
                 setPaginaAberta(false);
+                setAbaAtiva(modoFechamento ? "fechamento-balanco" : "lancamentos");
               }}
             >
               <ChevronLeft size={14} aria-hidden /> Todas as aeronaves
@@ -3813,7 +3798,7 @@ export default function FinanceiroCotista() {
           )}
         </div>
       )}
-      {aeronaveSelecionada && paginaAberta && (
+      {aeronaveSelecionada && paginaAberta && !modoFechamento && (
         <div className="cotista-navegacao flex items-center gap-2">
           <Button
             type="button"
@@ -3852,7 +3837,7 @@ export default function FinanceiroCotista() {
         <section className="space-y-4 py-4">
           <header className="space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Financeiro Cotista
+              {modoFechamento ? "Balanço Cotista" : "Financeiro Cotista"}
             </p>
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Selecione uma aeronave
@@ -3888,7 +3873,8 @@ export default function FinanceiroCotista() {
                   type="button"
                   onClick={() => {
                     setAeronaveSelecionada(a.id);
-                    setPaginaAberta(false);
+                    setAbaAtiva(modoFechamento ? "fechamento-balanco" : "lancamentos");
+                    setPaginaAberta(modoFechamento);
                   }}
                   className="group flex h-[68px] w-full items-center gap-3 rounded-md border border-border bg-card px-3 text-left transition-colors hover:border-muted-foreground/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
@@ -3950,7 +3936,7 @@ export default function FinanceiroCotista() {
               </section>
             )}
 
-          {!paginaAberta ? (
+          {!paginaAberta && !modoFechamento ? (
             <div className="space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Módulos
@@ -4127,113 +4113,6 @@ export default function FinanceiroCotista() {
                 </div>
               )}
 
-              {abaAtiva === "emprestimos" && (
-                <div className="financeiro-panel overflow-hidden">
-                  <div className="financeiro-panel-header">
-                    <div>
-                      <p className="text-sm font-bold">
-                        Voos de empréstimo nesta aeronave
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Custo do tomador, fora do rateio. Escolha um cotista
-                        para ver os voos emprestados em nome dele.
-                      </p>
-                    </div>
-                    <Select
-                      value={cotistaEmprestimo}
-                      onValueChange={setCotistaEmprestimo}
-                    >
-                      <SelectTrigger className="h-8 w-full text-[10px] sm:w-[240px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos os cotistas</SelectItem>
-                        {cotistasAeronave
-                          .filter(
-                            (cotista) => cotista.cliente_id || cotista.socio_id,
-                          )
-                          .map((cotista) => (
-                            <SelectItem
-                              key={cotista.id}
-                              value={`${cotista.socio_id ? "socio" : "cliente"}:${cotista.socio_id || cotista.cliente_id}`}
-                            >
-                              {cotista.nome}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {gruposEmprestimos.length ? (
-                    <div className="divide-y divide-border">
-                      {gruposEmprestimos.map(({ mes, itens }) => (
-                        <section key={mes}>
-                          <div className="flex flex-wrap items-center justify-between gap-2 bg-primary/[.045] px-4 py-2.5">
-                            <span className="text-[10px] font-bold capitalize">
-                              {rotuloMesCotista(mes)}
-                            </span>
-                            <span className="font-mono text-[9px] text-muted-foreground">
-                              {itens.length} voo(s) ·{" "}
-                              {itens
-                                .reduce(
-                                  (total, voo) =>
-                                    total + Number(voo.litros || 0),
-                                  0,
-                                )
-                                .toLocaleString("pt-BR", {
-                                  maximumFractionDigits: 2,
-                                })}{" "}
-                              L ·{" "}
-                              {formatarMoeda(
-                                itens.reduce(
-                                  (total, voo) =>
-                                    total + Number(voo.valor_total || 0),
-                                  0,
-                                ),
-                              )}
-                            </span>
-                          </div>
-                          {itens.map((voo) => (
-                            <div
-                              key={voo.id}
-                              className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-4 py-3 text-xs"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-semibold">
-                                  {voo.numero_voo || "Voo sem número"} ·{" "}
-                                  {voo.matricula_registro ||
-                                    "Aeronave não informada"}
-                                </p>
-                                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                  {formatarData(voo.data)} ·{" "}
-                                  {voo.trecho || "Trecho não informado"} ·
-                                  Local: {voo.local_icao || voo.local || "—"}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-mono font-bold text-amber-400">
-                                  {Number(voo.litros || 0).toLocaleString(
-                                    "pt-BR",
-                                    { minimumFractionDigits: 2 },
-                                  )}{" "}
-                                  L
-                                </p>
-                                <p className="font-mono text-[10px] text-muted-foreground">
-                                  {formatarMoeda(Number(voo.valor_total || 0))}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </section>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-4 py-12 text-center text-xs text-muted-foreground">
-                      Nenhum abastecimento de voo empréstimo encontrado no
-                      período selecionado.
-                    </div>
-                  )}
-                </div>
-              )}
               {abaAtiva === "ranking" && (
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="financeiro-panel overflow-hidden">

@@ -107,7 +107,8 @@ export interface BaixaDocumentoSaidaPayload {
 	conta_bancaria: string | null;
 	forma_pagamento: string | null;
 	comprovante_url: string | null;
-	pagamentos?: Array<{
+	pagamentos: Array<{
+		idempotency_key: string;
 		tipo_pagador: "COTISTA" | "SHARE" | "HOLDING";
 		pagador_cotista_id?: string | null;
 		pagador_holding_id?: string | null;
@@ -137,5 +138,10 @@ export function atualizarNotaSaida(id: string, payload: AtualizarNotaSaidaPayloa
 export function criarReciboSaida(payload: ReciboSaidaPayload) { return request<{ recibo: NotaOuReciboSaidaRow }>("/api/financeiro/recibos-saida", { method: "POST", body: JSON.stringify(payload) }); }
 export function atualizarReciboSaida(id: string, payload: AtualizarReciboSaidaPayload) { return request<{ recibo: NotaOuReciboSaidaRow }>(`/api/financeiro/recibos-saida/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }); }
 export function excluirNotaOuReciboSaida(id: string, origem: DocumentoSaidaOrigem) { return request<{ ok: boolean }>(`/api/financeiro/${origem === "nf_saida" ? "notas-saida" : "recibos-saida"}/${encodeURIComponent(id)}`, { method: "DELETE" }); }
-export function darBaixaNotaOuReciboSaida(id: string, payload: BaixaDocumentoSaidaPayload) { return request<{ ok: boolean }>(`/api/financeiro/${payload.origem === "nf_saida" ? "notas-saida" : "recibos-saida"}/${encodeURIComponent(id)}/dar-baixa`, { method: "POST", body: JSON.stringify(payload) }); }
+export function darBaixaNotaOuReciboSaida(id: string, payload: BaixaDocumentoSaidaPayload) {
+	if (!payload.pagamentos.length || payload.pagamentos.some((pagamento) => !pagamento.idempotency_key?.trim())) {
+		throw new Error("Não foi possível identificar a operação de recebimento. Reabra o formulário e tente novamente.");
+	}
+	return request<{ ok: boolean }>(`/api/financeiro/${payload.origem === "nf_saida" ? "notas-saida" : "recibos-saida"}/${encodeURIComponent(id)}/dar-baixa`, { method: "POST", body: JSON.stringify(payload) });
+}
 export function enviarAnexoDocumentoSaida(arquivo: Blob, nome = "anexo", options: { origem?: "nota_fiscal_saida" | "recibo_saida"; documentoId?: string } = {}) { const body = new FormData(); body.append("arquivo", arquivo, nome); body.append("origem", options.origem || "nota_fiscal_saida"); if (options.documentoId) body.append("documento_id", options.documentoId); return request<{ id: string | null; url: string }>("/api/financeiro/notas-saida/anexos", { method: "POST", body }); }

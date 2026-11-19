@@ -256,6 +256,9 @@ export default function NFSaidaTab() {
   // dar baixa
   const [baixaTarget, setBaixaTarget] = useState<NFSaida | null>(null);
   const [baixaForm, setBaixaForm] = useState<BaixaFormState>(emptyBaixaForm);
+  // Uma chave por operação de recebimento; reutilizada ao tentar novamente após erro
+  // ou timeout. Uma nova abertura do modal inicia uma operação independente.
+  const baixaIdempotencyKey = useRef<string | null>(null);
   const [baixaSaving, setBaixaSaving] = useState(false);
   const [baixaUploading, setBaixaUploading] = useState(false);
   const [emailTarget, setEmailTarget] = useState<NFSaida | null>(null);
@@ -642,8 +645,18 @@ export default function NFSaidaTab() {
   /* ─────────────── dar baixa (registrar recebimento) ─────────────── */
 
 
-  const openBaixa = (n: NFSaida) => { setBaixaTarget(n); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
-  const closeBaixa = () => { setBaixaTarget(null); setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() }); };
+  const openBaixa = (n: NFSaida) => {
+    if (mutationLock.current) return;
+    baixaIdempotencyKey.current = crypto.randomUUID();
+    setBaixaTarget(n);
+    setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() });
+  };
+  const closeBaixa = () => {
+    if (baixaSaving || baixaUploading) return;
+    baixaIdempotencyKey.current = null;
+    setBaixaTarget(null);
+    setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() });
+  };
 
   const uploadComprovante = async (file: File) => {
     setBaixaUploading(true); setToast(null);
@@ -658,10 +671,13 @@ export default function NFSaidaTab() {
   const confirmBaixa = async () => {
     if (!baixaTarget?.contas_areceber_id) return;
     if (!baixaForm.data_pagamento) { setToast({ type: "err", text: "Informe a data do pagamento." }); return; }
+    if (!baixaForm.conta_bancaria) { setToast({ type: "err", text: "Selecione a conta bancária que recebeu o pagamento." }); return; }
     if (mutationLock.current) return;
     mutationLock.current = true;
     setBaixaSaving(true); setToast(null);
     try {
+      const chavePagamento = baixaIdempotencyKey.current ?? crypto.randomUUID();
+      baixaIdempotencyKey.current = chavePagamento;
       await nfSaidaApi.darBaixaNotaOuReciboSaida(baixaTarget.id, {
         origem: baixaTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida",
         data_pagamento: baixaForm.data_pagamento,
@@ -669,6 +685,7 @@ export default function NFSaidaTab() {
         forma_pagamento: baixaForm.forma_pagamento || null,
         comprovante_url: baixaForm.comprovante_url || null,
         pagamentos: [{
+          idempotency_key: chavePagamento,
           tipo_pagador: baixaTarget.socio_id ? "HOLDING" : "COTISTA",
           pagador_cotista_id: baixaTarget.socio_id ? null : baixaTarget.cotista_aeronave_id,
           pagador_holding_id: baixaTarget.socio_id ? baixaTarget.holding_id ?? null : null,
@@ -681,7 +698,9 @@ export default function NFSaidaTab() {
       });
 
       setToast({ type: "ok", text: "Baixa registrada: receita da Share recebida e espelho financeiro atualizado." });
-      closeBaixa();
+      baixaIdempotencyKey.current = null;
+      setBaixaTarget(null);
+      setBaixaForm({ ...emptyBaixaForm, data_pagamento: todayLocal() });
       fetchNotas();
     } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao dar baixa." });
     } finally { mutationLock.current = false; setBaixaSaving(false); }

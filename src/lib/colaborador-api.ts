@@ -455,6 +455,7 @@ export type SolicitacaoVooInterna = { preparacao_pendencias?: number | null;
   perna_atual_horario_dep?: string | null;
   perna_atual_horario_pouso?: string | null;
   perna_atual_horario_corte?: string | null;
+  horario_corte?: string | null;
   perna_atual_status?: string | null;
   jornadas_encerradas?: number | string;
   jornadas_abertas?: number | string;

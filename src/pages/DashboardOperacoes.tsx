@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, CalendarDays, FileText, Fuel, NotebookPen, Plane, RefreshCw, Users, Wrench } from "lucide-react";
+import { Activity, CalendarDays, FileText, Fuel, NotebookPen, RefreshCw, Users, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import VooEmOperacaoCard from "@/components/dashboard/operacoes/VooEmOperacaoCard";
-import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
+import { AcaoRapida, CabecalhoSecao, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
 
@@ -57,7 +57,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
     setErro(null);
     try {
       const resposta = await buscarPainelOperacoes();
-      setDados({ ...resposta, solicitacoes: Array.isArray(resposta?.solicitacoes) ? resposta.solicitacoes : [] });
+      const solicitacoes = Array.isArray(resposta?.solicitacoes) ? resposta.solicitacoes : [];
+      setDados({ ...resposta, solicitacoes: solicitacoes.filter((item) => !item.perna_atual_horario_corte) });
     } catch {
       setErro("Não foi possível carregar os dados reais da operação.");
     } finally {
@@ -97,13 +98,7 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
 
       {erro && <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
 
-      <div className="mx-auto mb-6 grid max-w-[770px] gap-3 sm:grid-cols-3">
-        <CartaoKpi label="Voos hoje" value={carregando ? "—" : String(resumo?.voos_hoje ?? 0)} detail="Operações previstas para hoje" icon={<Plane size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
-        <CartaoKpi label="Agendamentos" value={carregando ? "—" : String(resumo?.reservas_abertas ?? 0)} detail="Reservas a partir de hoje" tone="blue" icon={<CalendarDays size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
-        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="!p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
-      </div>
-
-      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="mt-[51px] mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <AcaoRapida icon={<CalendarDays size={17} />} label="AGENDAMENTOS" detail={`${resumo?.pendencias ?? 0} pendentes`} onClick={() => aoNavegar("agendamentos")} color="blue" />
         <AcaoRapida icon={<FileText size={17} />} label="PLANO DE VOO" detail="Abrir módulo" onClick={() => aoNavegar("plano-de-voo")} color="violet" />
         <AcaoRapida icon={<NotebookPen size={17} />} label="DIÁRIO DE BORDO" detail="Abrir módulo" onClick={() => aoNavegar("diario-de-bordo")} color="green" />

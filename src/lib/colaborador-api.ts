@@ -104,6 +104,23 @@ export type MensagensNaoLidasResponse = {
   unread: number;
 };
 
+async function fetchColaborador(url: string, init: RequestInit): Promise<Response> {
+  const podeRetentar = (init.method ?? "GET") === "GET";
+  try {
+    return await fetch(url, init);
+  } catch {
+    if (podeRetentar) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      try {
+        return await fetch(url, init);
+      } catch {
+        /* cai no erro de conexão abaixo */
+      }
+    }
+    throw new Error("Sem conexão com o servidor. Tente novamente.");
+  }
+}
+
 export async function colaboradorRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) { await supabase.auth.signOut({ scope: "local" }).catch(() => undefined); throw new Error("sessao_expirada"); }
@@ -112,7 +129,7 @@ export async function colaboradorRequest<T>(path: string, init: RequestInit = {}
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.access_token}`);
   if (supabasePublishableKey) headers.set("apikey", supabasePublishableKey);
-  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: "omit", cache: "no-store" });
+  const response = await fetchColaborador(`${API_BASE}${path}`, { ...init, headers, credentials: "omit", cache: "no-store" });
   const data = await response.json().catch(() => null) as T & { error?: string; message?: string; detail?: string; rateios?: Array<Record<string, unknown>>; solicitacao_id?: string; numero_voo?: string | null; tripulante_id?: string | null; tripulante_nome?: string | null; cliente_id?: string | null; socio_id?: string | null; aeronave_id?: string | null } | null;
   if (!response.ok) {
     const diagnostico = [data?.message, data?.detail, data?.numero_voo ? `voo=${data.numero_voo}` : data?.solicitacao_id && `solicitacao=${data.solicitacao_id}`, data?.tripulante_nome ? `tripulante=${data.tripulante_nome}` : data?.tripulante_id && `tripulante_id=${data.tripulante_id}`, data?.cliente_id && `cliente=${data.cliente_id}`, data?.socio_id && `socio=${data.socio_id}`, data?.aeronave_id && `aeronave=${data.aeronave_id}`].filter(Boolean).join(" | ");

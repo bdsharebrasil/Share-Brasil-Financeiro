@@ -8,6 +8,31 @@ import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 type Lancamento = NonNullable<DashboardCotista["lancamentos"]>[number];
 type CotistaOperacional = { id: string; nome: string; clienteId: string | null; socioId: string | null; holdingId: string | null; percentualSociedade: number | null };
 export type VooBalanco = { id: string; data: string; numero: string | null; numeroSequencial: number | null; trecho: string | null; tempoDep: string | null; tempoPou: string | null; clienteId: string | null; socioId: string | null; horas: number | null; horasVoo: number | null; pousos: number | null; origem: string | null; destino: string | null; consumoEstimadoLitros: number | null; emprestado: boolean; clienteTomadorId: string | null; socioTomadorId: string | null; natureza: string | null; holdingId?: string | null; tempoAc?: string | null; tempoCor?: string | null; distanciaNm?: number | null; comandante?: string | null; copiloto?: string | null };
+export function voosDoCotistaComFallback(
+  voosDoParticipante: readonly VooBalanco[],
+  voosDaAeronave: readonly VooBalanco[],
+  idsCotista: { clienteId: string | null; socioId: string | null },
+  mesesSelecionados: readonly string[],
+): VooBalanco[] {
+  const meses = new Set(mesesSelecionados);
+  const voosFonte = voosDoParticipante.length
+    ? voosDoParticipante
+    : voosDaAeronave.filter((voo) => {
+        const clienteCorrespondente = Boolean(idsCotista.clienteId) && (
+          voo.emprestado
+            ? voo.clienteTomadorId === idsCotista.clienteId
+            : voo.clienteId === idsCotista.clienteId
+        );
+        const socioCorrespondente = Boolean(idsCotista.socioId) && (
+          voo.emprestado
+            ? voo.socioTomadorId === idsCotista.socioId
+            : voo.socioId === idsCotista.socioId
+        );
+        return clienteCorrespondente || socioCorrespondente;
+      });
+
+  return voosFonte.filter((voo) => meses.has(String(voo.data ?? "").slice(0, 7)));
+}
 type Voo = VooBalanco & { percentualAtribuido?: number; compartilhado?: boolean; minutosTotal?: number | null; minutosVoo?: number | null };
 type Viagem = { id: string; data: string; numero: string | null; rota: string | null; clienteId: string | null; socioId: string | null; valorCentavos: number | null };
 export type BalancoOperacional = {
@@ -349,4 +374,3 @@ export function destaques(b: Balanco, p: ParticipanteBalanco): string[] {
   if (a && c) out.push(`Na aeronave, a hora voada custa ${money(a.custoHora)} voando 5 h/mês e ${money(c.custoHora)} voando 20 h/mês.`);
   return out;
 }
-

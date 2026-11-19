@@ -38,6 +38,7 @@ import {
   norm,
   participanteDoCotista,
   projetarCustos,
+  voosDoCotistaComFallback,
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
 import { agruparPorMes, rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
@@ -45,6 +46,7 @@ import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 import { CuriosidadesVooCotista } from "./CuriosidadesVooCotista";
+import { CabecalhoRateioCotista, CelulaRateioCotista } from "./RateioCotistaTableCells";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -126,13 +128,23 @@ export function FechamentoBalancoReferencia({
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item) => item !== null)
     : [];
-  const voosOperacionais = (participante?.voos ?? b?.voos ?? [])
-    .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
-  const voosDoParticipante = participante?.voos ?? [];
+  const voosDoParticipante = participante ? participante.voos ?? [] : b?.voos ?? [];
+  const voosOperacionais = voosDoCotistaComFallback(
+    voosDoParticipante,
+    b?.voos ?? [],
+    {
+      clienteId: participante ? cadastroCotista?.cliente_id ?? null : null,
+      socioId: participante ? cadastroCotista?.socio_id ?? null : null,
+    },
+    b?.meses ?? mesesSelecionados,
+  );
   const voos = voosOperacionais
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
-  const voosParaCuriosidades = participante ? voosDoParticipante : voos;
+  const voosParaCuriosidades = voos;
+  const horasCuriosidades = participante && voosDoParticipante.length === 0 && voos.length
+    ? voos.reduce((soma, voo) => soma + (horasAtribuidas(voo) ?? 0), 0)
+    : totalHoras;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
   const gruposEmprestimos = useMemo(() => {
     const [tipo, id] = cotistaEmprestimo.split(":");
@@ -323,7 +335,7 @@ export function FechamentoBalancoReferencia({
             <thead><tr>
               <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
               <th className="fb-num">Valor pago</th><th>PAGO POR</th>
-              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
+              {cotistas.map((cotista, i) => <CabecalhoRateioCotista cotista={cotista} indice={i} key={cotista.id} />)}
             </tr></thead>
             <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
               <td>
@@ -340,14 +352,13 @@ export function FechamentoBalancoReferencia({
               <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
               <td className="fb-num fb-money">{formatarCentavos(valorPagoLancamento(origem))}</td>
               <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-              {cotistas.map((cotista, i) => {
-                const rateio = rateioDoCotista(origem, cotista, cotistas);
-                return <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
-                  {rateio
-                    ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div>
-                    : <span className="fb-muted-dash">—</span>}
-                </td>;
-              })}
+              {cotistas.map((cotista, i) => <CelulaRateioCotista
+                lancamento={origem}
+                cotista={cotista}
+                cotistas={cotistas}
+                indice={i}
+                key={cotista.id}
+              />)}
             </tr>)}</tbody>
             <tfoot><tr>
               <td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>
@@ -442,9 +453,9 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "curiosidades" && <section id="fb-panel-curiosidades" role="tabpanel" aria-labelledby="fb-tab-curiosidades">
-        {voosParaCuriosidades.length || (totalHoras ?? 0) > 0 ? (
+        {voosParaCuriosidades.length || (horasCuriosidades ?? 0) > 0 ? (
           <div className="bcp">
-            <CuriosidadesVooCotista voos={voosParaCuriosidades} horas={totalHoras} periodo={periodo} />
+            <CuriosidadesVooCotista voos={voosParaCuriosidades} horas={horasCuriosidades} periodo={periodo} />
           </div>
         ) : <Vazio>Não há dados de voo detalhados para os meses selecionados.</Vazio>}
       </section>}

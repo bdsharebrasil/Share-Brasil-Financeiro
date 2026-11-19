@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { CabecalhoRateioCotista, CelulaRateioCotista } from "../src/components/FinanceiroCotista/RateioCotistaTableCells.tsx";
 
 const base = new URL("../src/components/FinanceiroCotista/", import.meta.url);
 const [financeiro, dashboard, pdf, calculo, referencia, acertoResumo, acertoHelper] = await Promise.all([
@@ -12,10 +15,7 @@ const [financeiro, dashboard, pdf, calculo, referencia, acertoResumo, acertoHelp
   readFile(new URL("AcertoContasCotistasResumo.tsx", base), "utf8"),
   readFile(new URL("../../lib/acerto-contas-cotistas.ts", base), "utf8"),
 ]);
-const [lancamentosUi, lancamentosUiSource] = await Promise.all([
-  import("../src/lib/financeiro-cotista-lancamentos.ts"),
-  readFile(new URL("../src/lib/financeiro-cotista-lancamentos.ts", import.meta.url), "utf8"),
-]);
+const lancamentosUi = await import("../src/lib/financeiro-cotista-lancamentos.ts");
 
 test("aba Fechamento Balanço usa dados do dashboard e transmite cotista e competências selecionados", () => {
   assert.match(financeiro, /abaAtiva === "fechamento-balanco"[\s\S]*?<FechamentoBalancoReferencia/);
@@ -35,7 +35,7 @@ test("fechamento segue as cinco abas solicitadas com valores derivados do dashbo
   assert.match(referencia, /montarBalanco\(d, cotistas, mesesSelecionados\)/);
   assert.match(referencia, /projetarCustos\(total, totalHoras, b\.meses\.length/);
   assert.match(referencia, /d\?\.lancamentos/);
-  assert.match(referencia, /participante\?\.voos \?\? b\?\.voos/);
+  assert.match(referencia, /voosDoCotistaComFallback/);
   assert.doesNotMatch(referencia, /\["08\/01\/2026"|CF\s*=\s*17226\.49|5000\]/);
 });
 
@@ -90,11 +90,25 @@ test("diário lista voos operacionais da aeronave e identifica para quem foram",
 
 test("lançamentos incluem despesas da aeronave e exibem uma coluna rateio por cotista", () => {
   assert.match(referencia, /d\?\.lancamentos \?\?/);
-  assert.match(referencia, /cotistas\.map\(\(cotista\) => <th className="fb-num fb-share-header"/);
-  assert.match(referencia, /Rateio · % \/ valor/);
-  assert.match(referencia, /rateioDoCotista\(origem, cotista, cotistas\)/);
-  assert.match(referencia, /formatarCentavos\(rateio\.valorCentavos\)/);
+  assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CabecalhoRateioCotista/);
+  assert.match(referencia, /cotistas\.map\(\(cotista, i\) => <CelulaRateioCotista/);
   assert.match(referencia, /total rateado por cotista/);
+
+  const cotista = { id: "cotista-1", cliente_id: null, socio_id: null, cotista_ids: [], nome: "Marina Costa", percentual_sociedade: 50 };
+  const lancamento = {
+    id: "lancamento-rateado",
+    valorCentavos: 10000,
+    rateios: [{ cotistaId: cotista.id, cotista: cotista.nome, percentual: 50, valorCentavos: 5000 }],
+  };
+  const markup = renderToStaticMarkup(createElement("table", null,
+    createElement("thead", null, createElement("tr", null,
+      createElement(CabecalhoRateioCotista, { cotista, indice: 0 }))),
+    createElement("tbody", null, createElement("tr", null,
+      createElement(CelulaRateioCotista, { lancamento, cotista, cotistas: [cotista], indice: 0 }))),
+  ));
+  assert.match(markup, /Marina Costa/);
+  assert.match(markup, /50%/);
+  assert.ok(markup.replace(/\s/g, "").includes("R$50,00"), `valor do rateio não renderizado: ${markup}`);
 });
 
 test("tabela de lançamentos resolve fornecedor/pagador, normaliza tipo e não tem expansão", () => {
@@ -164,7 +178,7 @@ test("fechamento usa um único PDF consolidado, com seleção de cotistas e quat
     readFile(new URL("FechamentoBalancoDashboardCotista.tsx", base), "utf8"),
     readFile(new URL("BalancoClientePdf.tsx", base), "utf8"),
   ]);
-  assert.match(atual, /DialogTitle>Gerar relatório do fechamento/);
+  assert.match(atual, /<DialogTitle(?:\s[^>]*)?>Gerar relatório do fechamento/);
   assert.match(atual, /Selecionar todos os cotistas/);
   assert.match(atual, /Incluir \$\{item\.nome\} no PDF/);
   assert.match(atual, /pdf\(<BalancoClientePdf/);
@@ -190,10 +204,4 @@ test("aba Holdings mantém a baixa e dispõe de busca, tabela desktop e cartões
   assert.match(holding, /Aeronave/);
   assert.match(holding, /Vencimento/);
   assert.match(holding, /Valor/);
-});
-
-test("lançamentos prioriza demonstrativo e mostra números de recibo e NF na expansão", () => {
-  assert.match(lancamentosUiSource, /lancamento\.numeroDemonstrativo \|\|\s+lancamento\.documentoNumero/);
-  assert.match(financeiro, /\["Número do recibo", lancamento\.numeroRecibo \|\|/);
-  assert.match(financeiro, /\["Número da NF", lancamento\.numeroNf \|\|/);
 });

@@ -1,4 +1,4 @@
-import { CalendarDays, Clock3, History, LayoutDashboard, Radio, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, History, LayoutDashboard, Radio, Users, type LucideIcon } from "lucide-react";
 import type { KeyboardEvent } from "react";
 
 type AbaAgendamento = "cronograma" | "pendentes" | "aprovados" | "calendario" | "escala" | "voos-hoje" | "historico";
@@ -11,13 +11,11 @@ type ItemAba = {
   live?: boolean;
 };
 
+// Conforme alinhado, as abas iniciam com Visão geral (voos em solo), Agenda de voos, Escala e Histórico
 const itens: Omit<ItemAba, "count">[] = [
   { id: "cronograma", label: "Visão geral", icon: LayoutDashboard },
-  { id: "pendentes", label: "Pendentes", icon: Clock3 },
-  { id: "aprovados", label: "Aprovados", icon: ShieldCheck },
   { id: "calendario", label: "Agenda de voos", icon: CalendarDays },
   { id: "escala", label: "Escala da tripulação", icon: Users },
-  { id: "voos-hoje", label: "Ao vivo", icon: Radio, live: true },
   { id: "historico", label: "Histórico", icon: History },
 ];
 
@@ -46,7 +44,7 @@ function navegarPorTeclado(event: KeyboardEvent<HTMLButtonElement>, atual: AbaAg
 
 export default function AgendamentoNavigation({ abaAtiva, contagens, aoSelecionar }: Props) {
   return (
-    <nav className="agendamento-tabs" role="tablist" aria-label="Seções do agendamento">
+    <nav className="agendamento-segmented-nav flex items-center gap-1.5 rounded-xl border border-[#e4e8ef] bg-white p-1.5 shadow-sm" role="tablist" aria-label="Seções do agendamento">
       {itens.map(({ id, label, icon: Icon, live }) => {
         const ativo = abaAtiva === id;
         const contagem = contagens[id];
@@ -61,13 +59,21 @@ export default function AgendamentoNavigation({ abaAtiva, contagens, aoSeleciona
             tabIndex={ativo ? 0 : -1}
             onClick={() => aoSelecionar(id)}
             onKeyDown={(event) => navegarPorTeclado(event, id, aoSelecionar)}
-            className={`agendamento-tab${ativo ? " is-active" : ""}`}
+            className={`flex min-h-[38px] items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all ${
+              ativo
+                ? "bg-[#3867ed] text-white shadow-sm"
+                : "text-[#778195] hover:bg-[#f3f5f8] hover:text-[#172033]"
+            }`}
           >
-            <Icon size={16} aria-hidden="true" />
-            <span className="agendamento-tab-label">{label}</span>
-            {live && contagem ? <span className="agendamento-live-indicator" aria-label={`${contagem} voos em operação`} /> : null}
-            {!live && typeof contagem === "number" && (id === "pendentes" || id === "aprovados" || id === "historico") ? (
-              <span className="agendamento-tab-count" aria-label={`${contagem} registros`}>{contagem}</span>
+            <Icon size={16} aria-hidden="true" className={ativo ? "text-white" : "text-[#778195]"} />
+            <span>{label}</span>
+            {live && contagem ? <span className="h-2 w-2 rounded-full bg-[#17885f] shadow-[0_0_0_2px_rgba(23,136,95,0.2)]" /> : null}
+            {!live && typeof contagem === "number" && id === "historico" && contagem > 0 ? (
+              <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                ativo ? "bg-white/20 text-white" : "bg-[#f3f5f8] text-[#172033]"
+              }`}>
+                {contagem}
+              </span>
             ) : null}
           </button>
         );

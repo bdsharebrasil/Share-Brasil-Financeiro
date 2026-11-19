@@ -11,9 +11,9 @@ type ItemAba = {
   live?: boolean;
 };
 
-// Conforme alinhado, as abas iniciam com Visão geral (voos em solo), Agenda de voos, Escala e Histórico
+// A visão inicial mostra somente as operações do dia; os KPIs concentram os filtros de status.
 const itens: Omit<ItemAba, "count">[] = [
-  { id: "cronograma", label: "Visão geral", icon: LayoutDashboard },
+  { id: "cronograma", label: "Voos de hoje", icon: LayoutDashboard },
   { id: "calendario", label: "Agenda de voos", icon: CalendarDays },
   { id: "escala", label: "Escala da tripulação", icon: Users },
   { id: "historico", label: "Histórico", icon: History },

@@ -246,13 +246,12 @@ export default function Agendamentos() {
     ? "—"
     : formatarHorasVoadas(resumoHorasVoadas.totalMes.minutos);
 
-  const voosDeHoje = useMemo(() => agendamentos.filter((item) => {
-    const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
-    const confirmado = status === "aprovada";
-    const encerrado = ["encerrada", "concluida"].includes(status);
-    const checklistConcluido = String(item.checklist_status || "").trim().toLowerCase() === "concluido";
-    return item.data_agendada === hojeUtc() && (encerrado || (confirmado && checklistConcluido));
-  }), [agendamentos]);
+  // Voos em operação devem aparecer no monitoramento mesmo que o checklist
+  // já não esteja sendo consultado ou que a operação tenha sido iniciada ontem.
+  const voosDeHoje = useMemo(
+    () => agendamentos.filter((item) => operacaoNaData(item, hojeBrasilia())),
+    [agendamentos],
+  );
 
   const vooHojeSelecionado = voosDeHoje.find((item) => item.id === vooHojeSelecionadoId) || voosDeHoje[0] || null;
   const dias = useMemo(() => diasCalendario(mes), [mes]);

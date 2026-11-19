@@ -1,12 +1,13 @@
-import { useMemo, useRef } from "react";
-import Map, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
+import { useEffect, useMemo, useRef, useState } from "react";
+import MapLibre, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl";
-import type { Feature, FeatureCollection, LineString } from "geojson";
+import type { FeatureCollection, LineString } from "geojson";
 import { Plane } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { segmentosTrilha, horarioRastreio, vooComSinalNoAr } from '@/lib/rastreio';
+import { segmentosTrilha, horarioRastreio, vooComSinalNoAr } from "@/lib/rastreio";
+import { coordenadaRastreioValida, pontosParaEnquadrar, trechosPlanejados } from "@/lib/rastreio-mapa";
 import type { VooEmOperacao, PontoRastreio } from "@/lib/colaborador-api";
 
 interface MapaVooProps {
@@ -17,221 +18,212 @@ interface MapaVooProps {
 
 type Coord = { lat: number; lon: number };
 
-// Esri World Topo: mapa com relevo, estradas e cidades (parecido com o FlightRadar24), sem chave de API.
-const ESTILO_TERRENO: StyleSpecification = {
+// Satélite real e rótulos sobrepostos, no estilo de monitoramento aeronáutico.
+const ESTILO_SATELITE: StyleSpecification = {
   version: 8,
   sources: {
-    esri: {
+    imagem: {
       type: "raster",
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-      ],
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
-      maxzoom: 18,
-      attribution: "Tiles © Esri",
+      maxzoom: 19,
+      attribution: "Imagens © Esri",
+    },
+    rotulos: {
+      type: "raster",
+      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "Rótulos © Esri",
     },
   },
-  layers: [{ id: "esri-topo", type: "raster", source: "esri" }],
+  layers: [
+    { id: "satelite", type: "raster", source: "imagem" },
+    { id: "nomes", type: "raster", source: "rotulos" },
+  ],
 };
 
-// Rastro colorido pela altitude (alt_ft, em pés).
 const COR_POR_ALTITUDE: ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["get", "alt"],
-  0, "#f5a623",
-  6500, "#d4e157",
-  16500, "#43d17a",
-  30000, "#1ea7d6",
-  40000, "#7c4dff",
+  "interpolate", ["linear"], ["get", "alt"],
+  0, "#f5a623", 6500, "#f97316", 16500, "#fb7185",
+  30000, "#f43f5e", 40000, "#a855f7",
 ];
 
-function linhaGeoJSON(coordenadas: [number, number][]): Feature<LineString> | null {
-  if (coordenadas.length < 2) return null;
-  return {
-    type: "Feature",
-    properties: {},
-    geometry: { type: "LineString", coordinates: coordenadas },
-  };
-}
+const par = (c: Coord): [number, number] => [c.lon, c.lat];
 
-export default function VooEmOperacaoMapa({ voo, historico = !vooComSinalNoAr(voo), compacto = false }: MapaVooProps) {
-  const mapRef = useRef<MapRef>(null);
+export default function VooEmOperacaoMapa({
+  voo, historico = !vooComSinalNoAr(voo), compacto = false,
+}: MapaVooProps) {
+  const mapaRef = useRef<MapRef>(null);
+  const [mapaCarregado, setMapaCarregado] = useState(false);
+  const assinaturaEnquadrada = useRef<string>("");
 
-  const pernas = voo.pernas ?? [];
-  // Somente uma posição recente no ar representa o avião ao vivo.
-  const posicaoAviao: Coord | null = !historico && voo.rastreio
+  const pernas = voo.pernas || [];
+  const planejados = useMemo(() => trechosPlanejados(voo), [voo]);
+  const rotaPlanejada = useMemo((): FeatureCollection<LineString> => ({
+    type: "FeatureCollection",
+    features: planejados.map((trecho) => ({
+      type: "Feature" as const,
+      properties: { origem: trecho.origem, destino: trecho.destino },
+      geometry: { type: "LineString" as const, coordinates: trecho.coordenadas },
+    })),
+  }), [planejados]);
+
+  const posicaoAoVivo: Coord | null = !historico && vooComSinalNoAr(voo) && voo.rastreio
+    && coordenadaRastreioValida(voo.rastreio)
     ? { lat: voo.rastreio.lat, lon: voo.rastreio.lon } : null;
 
-  const rumoAviao = voo.rastreio?.rumo_graus ?? 0;
-
-  // Aeródromos de todas as pernas (sem repetir), para os marcadores
-  const aerodromos = useMemo(() => {
-    const mapa: Record<string, Coord> = {};
+  // Cada ponto do mapa é de uma fonte conhecida: aeródromo, trilha ou ADS-B atual.
+  const marcadores = useMemo(() => {
+    const mapa = new Map<string, Coord>();
     const adicionar = (icao: string | null | undefined, coord: Coord | null | undefined) => {
-      if (icao && coord) mapa[icao] = coord;
+      if (icao && coordenadaRastreioValida(coord)) mapa.set(icao, coord);
     };
-    pernas.forEach((perna) => {
+    for (const perna of pernas) {
       adicionar(perna.origem, perna.origem_coord);
       adicionar(perna.destino, perna.destino_coord);
-    });
+    }
     adicionar(voo.origem, voo.origem_coord);
     adicionar(voo.destino, voo.destino_coord);
-    return Object.entries(mapa);
-  }, [pernas, voo.origem, voo.destino, voo.origem_coord, voo.destino_coord]);
+    return [...mapa.entries()];
+  }, [pernas, voo.origem, voo.origem_coord, voo.destino, voo.destino_coord]);
 
-  const initialViewState = useMemo(
-    () => ({
-      latitude: posicaoAviao?.lat ?? voo.trilha?.[0]?.lat ?? -23.55,
-      longitude: posicaoAviao?.lon ?? voo.trilha?.[0]?.lon ?? -46.63,
-      zoom: 7,
-    }),
-    // só na montagem: depois disso o usuário controla o mapa
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
-  // Enquadra todas as pernas e o avião quando o mapa carrega
-  const enquadrarRota = () => {
-    const pontos: [number, number][] = historico ? [] : aerodromos.map(([, c]) => [c.lon, c.lat]);
-    (voo.trilha || []).forEach((ponto) => pontos.push([ponto.lon, ponto.lat]));
-    if (posicaoAviao) pontos.push([posicaoAviao.lon, posicaoAviao.lat]);
-    if (pontos.length === 1) {
-      mapRef.current?.jumpTo({ center: pontos[0], zoom: 9 });
-      return;
-    }
-    if (!pontos.length) return;
-    const lons = pontos.map(([lon]) => lon);
-    const lats = pontos.map(([, lat]) => lat);
-    mapRef.current?.fitBounds(
-      [
-        [Math.min(...lons), Math.min(...lats)],
-        [Math.max(...lons), Math.max(...lats)],
-      ],
-      { padding: compacto ? 35 : 60, maxZoom: 9, duration: 0 },
-    );
-  };
-
-  // Perna atual: tracejada
-  const rotaAtualGeoJSON = useMemo(() => {
-    if (historico || !voo.origem_coord || !voo.destino_coord) return null;
-    return linhaGeoJSON([
-      [voo.origem_coord.lon, voo.origem_coord.lat],
-      [voo.destino_coord.lon, voo.destino_coord.lat],
-    ]);
-  }, [historico, voo.origem_coord, voo.destino_coord]);
-
-  // Trilha real do agendamento: um segmento por par de pontos, com a altitude para colorir
-  const trilhaGeoJSON = useMemo((): FeatureCollection<LineString, { alt: number }> | null => {
-    const pontos: PontoRastreio[] = [...(voo.trilha ?? [])];
-    const atual = voo.rastreio;
-    if (!historico && atual && atual.lat != null && atual.lon != null) {
-      const ultimo = pontos[pontos.length - 1];
-      if (!ultimo || ultimo.lat !== atual.lat || ultimo.lon !== atual.lon) {
-        pontos.push({ lat: atual.lat, lon: atual.lon, alt_ft: atual.no_solo ? 0 : atual.alt_ft ?? 0 });
+  const trilha = useMemo((): FeatureCollection<LineString> => {
+    const pontos: PontoRastreio[] = [...(voo.trilha || [])];
+    if (posicaoAoVivo && voo.rastreio) {
+      const anterior = pontos[pontos.length - 1];
+      if (!anterior || anterior.lat !== posicaoAoVivo.lat || anterior.lon !== posicaoAoVivo.lon) {
+        pontos.push({
+          lat: posicaoAoVivo.lat, lon: posicaoAoVivo.lon,
+          alt_ft: voo.rastreio.alt_ft, registrado_em: new Date().toISOString(),
+          trilha_id: anterior?.trilha_id || voo.perna_atual?.id || voo.id,
+        });
       }
     }
-    if (pontos.length < 2) return null;
     return {
       type: "FeatureCollection",
       features: segmentosTrilha(pontos).map(({ anterior, ponto }) => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: { alt: ponto.alt_ft ?? 0 },
         geometry: {
-          type: "LineString",
-          coordinates: [
-            [anterior.lon, anterior.lat],
-            [ponto.lon, ponto.lat],
-          ],
+          type: "LineString" as const,
+          coordinates: [[anterior.lon, anterior.lat], [ponto.lon, ponto.lat]],
         },
       })),
     };
-  }, [historico, voo.trilha, voo.rastreio]);
+  }, [voo.trilha, voo.rastreio, voo.id, voo.perna_atual?.id, posicaoAoVivo?.lat, posicaoAoVivo?.lon]);
+
+  const pontos = useMemo(() => pontosParaEnquadrar(voo), [voo]);
+  // O centro é baseado na rota/posição. Nunca começa em São Paulo por padrão.
+  const primeiroPonto = pontos[0] || [-51.9253, -14.2350];
+  const initialViewState = {
+    latitude: primeiroPonto[1],
+    longitude: primeiroPonto[0],
+    zoom: 5,
+  };
+
+  // O ROTAER pode resolver coordenadas após a primeira montagem. Enquadrar novamente
+  // quando chegam dados novos, mas sem reposicionar a cada render igual.
+  const assinatura = pontos.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join("|");
+  useEffect(() => {
+    if (!mapaCarregado || !pontos.length || assinaturaEnquadrada.current === assinatura) return;
+    assinaturaEnquadrada.current = assinatura;
+    if (pontos.length === 1) {
+      mapaRef.current?.jumpTo({ center: pontos[0], zoom: 10 });
+      return;
+    }
+    const longitudes = pontos.map(([longitude]) => longitude);
+    const latitudes = pontos.map(([, latitude]) => latitude);
+    mapaRef.current?.fitBounds(
+      [[Math.min(...longitudes), Math.min(...latitudes)], [Math.max(...longitudes), Math.max(...latitudes)]],
+      { padding: compacto ? 26 : 42, maxZoom: 11, duration: 350 },
+    );
+  }, [mapaCarregado, assinatura, compacto]);
+
+  const temTrilha = (voo.trilha?.length || 0) > 0;
+  const temRota = rotaPlanejada.features.length > 0;
+  const semGeometria = !pontos.length;
 
   return (
     <div
-      className={`${compacto || historico ? "h-[220px]" : "h-[320px]"} w-full overflow-hidden rounded-xl bg-slate-200`}
-      aria-label={historico ? "Histórico do percurso captado por ADS-B" : "Percurso e posição da aeronave ao vivo"}
+      className={`${compacto ? "h-[250px]" : "h-[340px]"} relative w-full overflow-hidden rounded-xl bg-slate-900`}
+      aria-label={posicaoAoVivo ? "Posição real e percurso ADS-B da aeronave" : "Mapa satélite da rota planejada e sinais captados"}
     >
-      <Map
-        ref={mapRef}
+      <MapLibre
+        ref={mapaRef}
         initialViewState={initialViewState}
-        mapStyle={ESTILO_TERRENO}
+        mapStyle={ESTILO_SATELITE}
         attributionControl={{ compact: true }}
         style={{ width: "100%", height: "100%" }}
-        onLoad={enquadrarRota}
+        onLoad={() => setMapaCarregado(true)}
       >
         <NavigationControl position="top-right" showCompass={false} />
 
-        {rotaAtualGeoJSON && (
-          <Source id="rota-planejada" type="geojson" data={rotaAtualGeoJSON}>
-            <Layer
-              id="rota-planejada-contorno"
-              type="line"
-              paint={{ "line-color": "#ffffff", "line-width": 4, "line-opacity": 0.6 }}
-            />
-            <Layer
-              id="linha-da-rota"
-              type="line"
-              paint={{ "line-color": "#1a8ec0", "line-width": 2.5, "line-opacity": 0.9, "line-dasharray": [2, 2] }}
-            />
+        {temRota && (
+          <Source id="rota-planejada" type="geojson" data={rotaPlanejada}>
+            <Layer id="rota-contorno" type="line"
+              layout={{ "line-cap": "round", "line-join": "round" }}
+              paint={{ "line-color": "#111827", "line-width": 5, "line-opacity": 0.75 }} />
+            <Layer id="rota-prevista" type="line"
+              layout={{ "line-cap": "round", "line-join": "round" }}
+              paint={{ "line-color": "#fbbf24", "line-width": 2.5, "line-dasharray": [3, 2] }} />
           </Source>
         )}
 
-        {trilhaGeoJSON && (
-          <Source id="trilha-adsb" type="geojson" data={trilhaGeoJSON}>
-            <Layer
-              id="trilha-adsb-contorno"
-              type="line"
+        {trilha.features.length > 0 && (
+          <Source id="trilha-adsb" type="geojson" data={trilha}>
+            <Layer id="trilha-contorno" type="line"
               layout={{ "line-cap": "round", "line-join": "round" }}
-              paint={{ "line-color": "#000000", "line-width": 6, "line-opacity": 0.25 }}
-            />
-            <Layer
-              id="linha-trilha-adsb"
-              type="line"
+              paint={{ "line-color": "#111827", "line-width": 6, "line-opacity": 0.85 }} />
+            <Layer id="trilha-real" type="line"
               layout={{ "line-cap": "round", "line-join": "round" }}
-              paint={{ "line-color": COR_POR_ALTITUDE, "line-width": 3.5 }}
-            />
+              paint={{ "line-color": COR_POR_ALTITUDE, "line-width": 3.5 }} />
           </Source>
         )}
 
-        {!historico && aerodromos.map(([icao, coord]) => (
-          <Marker key={icao} longitude={coord.lon} latitude={coord.lat} anchor="bottom">
-            <span className="rounded bg-slate-900/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white shadow">
+        {marcadores.map(([icao, coordenadas]) => (
+          <Marker key={icao} longitude={coordenadas.lon} latitude={coordenadas.lat} anchor="bottom">
+            <span className="rounded-md border border-white/20 bg-slate-950/90 px-2 py-1 font-mono text-[10px] font-bold text-white shadow-lg">
               {icao}
             </span>
           </Marker>
         ))}
 
-        {historico && [voo.trilha?.[0], voo.trilha?.slice(-1)[0]].map((ponto, indice) => ponto && (
-          <Marker key={`sinal-${indice}`} longitude={ponto.lon} latitude={ponto.lat} anchor={indice ? 'top' : 'bottom'}>
-            <span className="rounded bg-slate-900/90 px-2 py-1 text-[9px] font-semibold text-white shadow">{indice ? 'Último sinal' : 'Primeiro sinal'} · {horarioRastreio(ponto.registrado_em)}</span>
-          </Marker>
-        ))}
+        {!posicaoAoVivo && temTrilha && (() => {
+          const ultimo = voo.trilha?.[voo.trilha.length - 1];
+          return ultimo && coordenadaRastreioValida(ultimo) ? (
+            <Marker longitude={ultimo.lon} latitude={ultimo.lat} anchor="center">
+              <span className="rounded-md border border-orange-300/60 bg-slate-950/90 px-2 py-1 text-[10px] font-bold text-white shadow-lg">
+                Última posição · {horarioRastreio(ultimo.registrado_em)}
+              </span>
+            </Marker>
+          ) : null;
+        })()}
 
-        {posicaoAviao && (
-          <Marker longitude={posicaoAviao.lon} latitude={posicaoAviao.lat} anchor="center">
-            <div className="relative flex flex-col items-center">
-              {voo.matricula_registro && (
-                <span className="absolute -top-7 whitespace-nowrap rounded bg-white px-2 py-0.5 text-[11px] font-bold text-slate-900 shadow-md">
-                  {voo.matricula_registro.replace("-", "")}
-                </span>
-              )}
-              {/* O ícone Plane do Lucide aponta para 45° (nordeste), por isso o -45 */}
-              <div
-                className="transition-transform duration-1000 ease-out"
-                style={{ transform: `rotate(${rumoAviao - 45}deg)` }}
-              >
-                <Plane
-                  size={26}
-                  fill="#e11d48"
-                  className="text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                />
+        {posicaoAoVivo && (
+          <Marker longitude={posicaoAoVivo.lon} latitude={posicaoAoVivo.lat} anchor="center">
+            <div className="relative flex items-center justify-center" title="Posição ADS-B atual">
+              <span className="absolute -top-9 whitespace-nowrap rounded-md bg-slate-950/90 px-2 py-1 font-mono text-[10px] font-bold text-white shadow-lg">
+                {voo.matricula_registro || "Aeronave"}
+              </span>
+              <div style={{ transform: `rotate(${(voo.rastreio?.rumo_graus ?? 0) - 45}deg)` }}>
+                <Plane size={29} fill="#f97316" className="text-white drop-shadow-[0_1px_4px_rgba(0,0,0,.8)]" />
               </div>
             </div>
           </Marker>
         )}
-      </Map>
+      </MapLibre>
+
+      <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-2">
+        <span className="rounded-md border border-white/20 bg-slate-950/85 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow">
+          {posicaoAoVivo ? "● Posição ADS-B ao vivo" : temTrilha ? "Histórico ADS-B · sem posição ao vivo"
+            : temRota ? "Rota prevista · sem posição ADS-B" : "Aguardando coordenadas dos aeródromos"}
+        </span>
+        {temRota && <span className="rounded-md bg-slate-950/80 px-2 py-1.5 text-[10px] font-semibold text-amber-300">
+          Linha tracejada: rota prevista
+        </span>}
+      </div>
+      {semGeometria && <span className="sr-only">Não existem coordenadas disponíveis para enquadrar esta operação.</span>}
     </div>
   );
 }

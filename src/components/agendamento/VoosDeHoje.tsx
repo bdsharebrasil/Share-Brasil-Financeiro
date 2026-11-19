@@ -1,4 +1,5 @@
-import { Plane } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock3, MapPin, Plane, Radio, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/ComponentesDashboard";
 import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
@@ -10,6 +11,10 @@ type Props = {
   nomesTripulantes: Map<string, string>;
   voosEmOperacao: VooEmOperacao[];
   carregando: boolean;
+  carregandoAoVivo: boolean;
+  erroAoVivo: string | null;
+  atualizadoAoVivo: string | null;
+  visaoInicial?: "ao-vivo" | "prontos";
   aoSelecionar: (id: string) => void;
   aoIniciar: (item: SolicitacaoVooInterna) => void;
 };
@@ -21,36 +26,80 @@ function horarioCurto(valor: string | null | undefined) {
   return `${horario} UTC`;
 }
 
-function DetalheVoo({ label, valor }: { label: string; valor: string }) {
-  return <div className="flex min-w-0 flex-col justify-center rounded-lg border border-border/70 bg-secondary/25 p-3"><p className="text-[10px] text-muted-foreground">{label}</p><p className="mt-1 line-clamp-2 text-xs font-semibold text-foreground">{valor}</p></div>;
+function detalhe(label: string, valor: string, Icon: typeof Plane = Plane) {
+  return <div className="agendamento-live-detail"><span><Icon size={13} aria-hidden="true" />{label}</span><strong>{valor}</strong></div>;
 }
 
-export default function VoosDeHoje({ voos, vooSelecionado, nomesTripulantes, voosEmOperacao, carregando, aoSelecionar, aoIniciar }: Props) {
-  return <section className="overflow-hidden rounded-xl border border-border bg-card/75">
-    <CabecalhoSecao icon={<Plane size={15} />} title={`Voos de hoje · ${voos.length}`} action={<span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-bold text-emerald-300">CHECKLIST CONCLUÍDO</span>} />
-    {carregando ? <div className="m-4 h-[340px] animate-pulse rounded-lg bg-secondary/40" /> : voos.length === 0 ? <EstadoVazio label="Nenhum voo aprovado com checklist concluído para hoje" /> : <div className="grid gap-4 p-3 lg:grid-cols-[minmax(230px,310px)_minmax(0,1fr)] lg:p-4">
-      <aside className="space-y-2" aria-label="Lista de voos elegíveis para iniciar">
-        {voos.map((voo) => {
-          const ativo = vooSelecionado?.id === voo.id;
-          return <button key={voo.id} type="button" aria-pressed={ativo} onClick={() => aoSelecionar(voo.id)} className={`w-full rounded-xl border p-3 text-left transition-colors ${ativo ? "border-primary/60 bg-primary/10" : "border-border bg-background/35 hover:bg-secondary/40"}`}>
-            <div className="flex items-start justify-between gap-2"><strong className="text-xs">{voo.numero_voo || "Voo confirmado"}</strong><span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-300">Pronto</span></div>
-            <p className="mt-2 font-mono text-[11px]">{voo.origem} → {voo.destino}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">{voo.matricula_registro || "Aeronave a definir"} · {horarioCurto(voo.horario_previsto_agendamento)}</p>
-          </button>;
-        })}
-      </aside>
-      {vooSelecionado && <div className="min-w-0 space-y-3">
-        <AcompanhamentoVooAgendado key={vooSelecionado.id} item={vooSelecionado} voosEmOperacao={voosEmOperacao} />
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <DetalheVoo label="Cotista" valor={vooSelecionado.socio_nome || vooSelecionado.cliente_razao_social || "—"} />
-          <DetalheVoo label="Piloto" valor={vooSelecionado.piloto_nome || nomesTripulantes.get(vooSelecionado.piloto_id || "") || "—"} />
-          <DetalheVoo label="Copiloto" valor={vooSelecionado.copiloto_nome || nomesTripulantes.get(vooSelecionado.copiloto_id || "") || "—"} />
-          <DetalheVoo label="Passageiros" valor={String(vooSelecionado.numero_passageiros ?? "—")} />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[.04] p-3">
-          <p className="text-[10px] text-muted-foreground">Checklist pré-voo concluído. Confira o mapa e inicie a jornada quando a tripulação estiver pronta.</p>
-          <Button type="button" onClick={() => aoIniciar(vooSelecionado)} className="gap-2"><Plane size={14} /> Iniciar voo</Button>
-        </div>
+function statusRastreio(voo: VooEmOperacao) {
+  if (voo.rastreio_status === "ao_vivo") return "Rastreio ao vivo";
+  if (voo.rastreio_status === "atrasado") return "Sinal atrasado";
+  if (voo.rastreio_status === "sem_sinal") return "Sem sinal";
+  return "Rastreio indisponível";
+}
+
+export default function VoosDeHoje({ voos, vooSelecionado, nomesTripulantes, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo, atualizadoAoVivo, visaoInicial = "ao-vivo", aoSelecionar, aoIniciar }: Props) {
+  const [visao, setVisao] = useState<"ao-vivo" | "prontos">(visaoInicial);
+  const [vooAoVivoId, setVooAoVivoId] = useState("");
+  const vooAoVivo = voosEmOperacao.find((item) => item.id === vooAoVivoId) || voosEmOperacao[0] || null;
+  const agendamentoAoVivo = vooAoVivo ? voos.find((item) => item.id === vooAoVivo.id) : null;
+
+  useEffect(() => {
+    if (!voosEmOperacao.some((item) => item.id === vooAoVivoId)) setVooAoVivoId(voosEmOperacao[0]?.id || "");
+  }, [voosEmOperacao, vooAoVivoId]);
+
+  const horarioAtualizacao = atualizadoAoVivo ? new Date(atualizadoAoVivo).toISOString().slice(11, 16) : null;
+
+  return <section className="agendamento-live-board" aria-label="Monitoramento operacional de voos">
+    <CabecalhoSecao icon={<Radio size={16} />} title="Monitoramento operacional" detail="Rastreio de voos ativos e partidas liberadas" action={<span className={`agendamento-live-status ${voosEmOperacao.length ? "is-live" : ""}`} role="status"><span className="agendamento-live-status-dot" />{carregandoAoVivo ? "Atualizando" : `${voosEmOperacao.length} em operação`}</span>} />
+
+    <div className="agendamento-live-switch" role="tablist" aria-label="Visualização operacional">
+      <button id="agendamento-live-tab-operacao" type="button" role="tab" aria-selected={visao === "ao-vivo"} aria-controls="agendamento-live-panel-operacao" onClick={() => setVisao("ao-vivo")} className={visao === "ao-vivo" ? "is-active" : ""}><Radio size={15} /> Em operação <span>{voosEmOperacao.length}</span></button>
+      <button id="agendamento-live-tab-prontos" type="button" role="tab" aria-selected={visao === "prontos"} aria-controls="agendamento-live-panel-prontos" onClick={() => setVisao("prontos")} className={visao === "prontos" ? "is-active" : ""}><Plane size={15} /> Prontos para iniciar <span>{voos.length}</span></button>
+    </div>
+
+    {visao === "ao-vivo" ? <div id="agendamento-live-panel-operacao" role="tabpanel" aria-labelledby="agendamento-live-tab-operacao" className="agendamento-live-content">
+      {erroAoVivo && <div className="agendamento-error" role="alert">Não foi possível atualizar o rastreio: {erroAoVivo}</div>}
+      {carregandoAoVivo && voosEmOperacao.length === 0 ? <div className="agendamento-live-skeleton" role="status"><RefreshCw size={17} className="animate-spin" /> Carregando voos em operação…</div> : voosEmOperacao.length === 0 ? <EstadoVazio label="Não há voos com rastreio ativo neste momento" /> : <div className="agendamento-live-layout">
+        <aside className="agendamento-live-list" aria-label="Voos com rastreio ativo">
+          {voosEmOperacao.map((voo) => <button key={voo.id} type="button" aria-pressed={vooAoVivo?.id === voo.id} onClick={() => setVooAoVivoId(voo.id)} className={`agendamento-live-flight${vooAoVivo?.id === voo.id ? " is-selected" : ""}`}>
+            <span className="agendamento-live-flight-icon"><Plane size={16} /></span>
+            <span className="agendamento-live-flight-info"><strong>{voo.numero_voo || "Voo em operação"}</strong><small>{voo.matricula_registro || voo.modelo || "Aeronave não informada"}</small><span>{voo.origem || "—"} → {voo.destino || "—"}</span></span>
+            <span className={`agendamento-live-flight-badge${voo.rastreio_status === "ao_vivo" ? " is-live" : ""}`}><i />{statusRastreio(voo)}</span>
+          </button>)}
+        </aside>
+        {vooAoVivo && <div className="agendamento-live-detail-panel">
+          <div className="agendamento-live-flight-heading"><div><p className="agendamento-eyebrow">Acompanhamento de voo</p><h3>{vooAoVivo.numero_voo || "Voo em operação"}</h3><p>{vooAoVivo.origem || "—"} <span>→</span> {vooAoVivo.destino || "—"}</p></div><span className={`agendamento-live-flight-badge${vooAoVivo.rastreio_status === "ao_vivo" ? " is-live" : ""}`}><i />{statusRastreio(vooAoVivo)}</span></div>
+          <div className="agendamento-live-details">
+            {detalhe("Aeronave", [vooAoVivo.matricula_registro, vooAoVivo.modelo].filter(Boolean).join(" · ") || "—", Plane)}
+            {detalhe("Tripulação", [vooAoVivo.piloto_nome, vooAoVivo.copiloto_nome].filter(Boolean).join(" · ") || "A definir", Users)}
+            {detalhe("Última posição", vooAoVivo.rastreio ? `${vooAoVivo.rastreio.lat.toFixed(3)}, ${vooAoVivo.rastreio.lon.toFixed(3)}` : "Aguardando posição ADS-B", MapPin)}
+            {detalhe("Atualização", horarioAtualizacao ? `${horarioAtualizacao} UTC` : "Aguardando atualização", Clock3)}
+          </div>
+          {agendamentoAoVivo ? <AcompanhamentoVooAgendado key={agendamentoAoVivo.id} item={agendamentoAoVivo} voosEmOperacao={voosEmOperacao} secao="mapa" /> : <div className="agendamento-live-map-empty">O registro do agendamento não está disponível para mostrar o mapa deste voo.</div>}
+        </div>}
+      </div>}
+    </div> : <div id="agendamento-live-panel-prontos" role="tabpanel" aria-labelledby="agendamento-live-tab-prontos" className="agendamento-ready-panel">
+      {carregando ? <div className="m-4 h-[300px] animate-pulse rounded-lg bg-secondary/40" /> : voos.length === 0 ? <EstadoVazio label="Nenhum voo aprovado com checklist concluído para hoje" /> : <div className="agendamento-ready-layout">
+        <aside className="agendamento-ready-list" aria-label="Lista de voos elegíveis para iniciar">
+          {voos.map((voo) => {
+            const ativo = vooSelecionado?.id === voo.id;
+            return <button key={voo.id} type="button" aria-pressed={ativo} onClick={() => aoSelecionar(voo.id)} className={`agendamento-ready-flight${ativo ? " is-selected" : ""}`}>
+              <div><strong>{voo.numero_voo || "Voo confirmado"}</strong><span>Pronto</span></div>
+              <p>{voo.origem} → {voo.destino}</p>
+              <small>{voo.matricula_registro || "Aeronave a definir"} · {horarioCurto(voo.horario_previsto_agendamento)}</small>
+            </button>;
+          })}
+        </aside>
+        {vooSelecionado && <div className="agendamento-ready-detail">
+          <AcompanhamentoVooAgendado key={vooSelecionado.id} item={vooSelecionado} voosEmOperacao={voosEmOperacao} />
+          <div className="agendamento-ready-facts">
+            <div><span>Cotista</span><strong>{vooSelecionado.socio_nome || vooSelecionado.cliente_razao_social || "—"}</strong></div>
+            <div><span>Comandante</span><strong>{vooSelecionado.piloto_nome || nomesTripulantes.get(vooSelecionado.piloto_id || "") || "—"}</strong></div>
+            <div><span>Copiloto</span><strong>{vooSelecionado.copiloto_nome || nomesTripulantes.get(vooSelecionado.copiloto_id || "") || "—"}</strong></div>
+            <div><span>Passageiros</span><strong>{String(vooSelecionado.numero_passageiros ?? "—")}</strong></div>
+          </div>
+          <div className="agendamento-ready-action"><p>Checklist pré-voo concluído. Confira a rota e inicie a jornada quando a tripulação estiver pronta.</p><Button type="button" onClick={() => aoIniciar(vooSelecionado)} className="gap-2"><Plane size={14} /> Iniciar voo</Button></div>
+        </div>}
       </div>}
     </div>}
   </section>;

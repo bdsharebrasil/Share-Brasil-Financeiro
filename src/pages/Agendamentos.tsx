@@ -220,9 +220,16 @@ export default function Agendamentos() {
         String(v.status || "").trim().toLowerCase()
       ) && String(v.data_agendada || "").startsWith(mesAtualKey)
     );
-    const minutos = (voosDoMes.length ? voosDoMes : agendamentos.slice(0, 6)).reduce((acc) => acc + 75, 0);
+    const minutos = voosDoMes.reduce((total, voo) => {
+      const inicio = voo.perna_atual_horario_dep || voo.perna_atual_horario_ac;
+      const fim = voo.perna_atual_horario_pouso;
+      if (!inicio || !fim) return total;
+      const duracao = (Date.parse(fim) - Date.parse(inicio)) / 60_000;
+      return Number.isFinite(duracao) && duracao > 0 ? total + duracao : total;
+    }, 0);
+    if (!minutos) return "—";
     const h = Math.floor(minutos / 60);
-    const m = minutos % 60;
+    const m = Math.round(minutos % 60);
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }, [agendamentos]);
 

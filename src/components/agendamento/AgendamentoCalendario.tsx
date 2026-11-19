@@ -246,7 +246,7 @@ export function CalendarioAgendamento({
                     </div>
                     <div>
                       <strong className="block text-sm font-bold text-foreground">
-                        {flight.numero_voo || "AX-2201"}
+                        {flight.numero_voo || "Voo"} · {formatarData(flight.data_agendada)}
                       </strong>
                       <span className="font-mono text-xs text-muted-foreground">
                         {flight.matricula_registro || "PR-AEX"}
@@ -367,7 +367,7 @@ export function CalendarioAgendamento({
                         onClick={() => aoAbrir(item)}
                         className="w-full truncate rounded bg-secondary px-1.5 py-0.5 text-left font-mono text-[10px] text-foreground hover:bg-[#3867ed]/15"
                       >
-                        {item.numero_voo || item.origem} → {item.destino}
+                        {item.numero_voo || item.origem} · {formatarData(item.data_agendada)} → {item.destino}
                       </button>
                     ))}
                     {eventos.length > 2 && (
@@ -412,7 +412,7 @@ export function CalendarioAgendamento({
                 >
                   <div>
                     <strong className="block text-xs font-bold text-foreground">
-                      {v.numero_voo || "Voo a gerar"} · {v.origem} → {v.destino}
+                      {v.numero_voo || "Voo a gerar"} · {formatarData(v.data_agendada)} · {v.origem} → {v.destino}
                     </strong>
                     <span className="text-[11px] text-muted-foreground">
                       {v.socio_nome || v.cliente_razao_social || "Cotista"} · {formatarHora(v.horario_previsto_agendamento)} UTC
@@ -460,51 +460,23 @@ export function Escala({
 
   const periodoRotulo = `${diasSemana[0].getDate()} – ${diasSemana[6].getDate()} ${nomesMeses[diasSemana[6].getMonth()].slice(0, 3)}`;
 
-  // Simulação/cálculo de horas mensais acumuladas por tripulante e verificação de limites RBAC 117 (~85h mensais)
-  const tripulantesComEscala = useMemo(() => {
-    return tripulacao.map((t, idx) => {
-      // Busca horas e turnos
-      const voosDoTripulante = escala.filter((e) => e.piloto_id === t.id || e.copiloto_id === t.id);
-      const horasTotais = 34 + (idx * 6) % 52; // Valores realistas com base na atividade (ex: 36h, 40h, 72h, 82h)
-      const limiteMensal = 85; // Limite regulamentar padrão RBAC 117
-      const percentual = Math.min(100, Math.round((horasTotais / limiteMensal) * 100));
-
-      // Regra de Cores Solicitada pelo Usuário:
-      // Se estiver próximo de extrapolar (>75%), amarelo; mais próximo ou extrapolou (>90%), vermelho.
-      const statusAlerta: "normal" | "amarelo" | "vermelho" =
-        percentual >= 90 ? "vermelho" : percentual >= 75 ? "amarelo" : "normal";
-
-      // Turnos para os 7 dias da semana
-      const turnos = diasSemana.map((dia, dIdx) => {
-        const chaveDia = dataIso(dia);
-        const vooNoDia = voosDoTripulante.find((v) => v.data_agendada === chaveDia);
-        const disp = disponibilidades.find((d) => d.tripulante_id === t.id && chaveDia >= d.data_inicio && chaveDia <= d.data_fim);
-
-        if (vooNoDia) {
-          const hora = formatarHora(vooNoDia.horario_previsto_agendamento);
-          return { tipo: "voo", label: hora !== "--:--" ? `${hora}–${Number(hora.slice(0, 2)) + 3}:00` : "08:00–16:00", vooId: vooNoDia.id };
-        }
-        if (disp) {
-          if (disp.status === "folga") return { tipo: "folga", label: "Folga" };
-          if (disp.status === "aviso") return { tipo: "sobreaviso", label: "Sobreaviso" };
-          if (disp.status === "treinamento") return { tipo: "treinamento", label: "Simulador" };
-        }
-        // Padrão amigável de escala
-        if (dIdx === 2 || dIdx === 5 || dIdx === 6) return { tipo: "folga", label: "Folga" };
-        if (dIdx === 4) return { tipo: "sobreaviso", label: "Sobreaviso" };
-        if (dIdx === 3 && idx === 2) return { tipo: "treinamento", label: "Simulador" };
-        return { tipo: "voo", label: "07:00–15:00" };
-      });
-
-      return {
-        ...t,
-        horasTotais,
-        percentual,
-        statusAlerta,
-        turnos,
-      };
+  // Exibe somente voos e disponibilidades registrados na API. Ausência de registro permanece vazia.
+  const tripulantesComEscala = useMemo(() => tripulacao.map((t) => {
+    const voosDoTripulante = escala.filter((e) => e.piloto_id === t.id || e.copiloto_id === t.id);
+    const turnos = diasSemana.map((dia) => {
+      const chaveDia = dataIso(dia);
+      const vooNoDia = voosDoTripulante.find((v) => chaveDia >= v.data_agendada && chaveDia <= v.data_fim);
+      const disp = disponibilidades.find((d) => d.tripulante_id === t.id && chaveDia >= d.data_inicio && chaveDia <= d.data_fim);
+      if (vooNoDia) {
+        const hora = formatarHora(vooNoDia.horario_previsto_agendamento);
+        return { tipo: "voo", label: `${vooNoDia.numero_voo || "Voo"}${hora !== "--:--" ? ` · ${hora}` : ""}`, vooId: vooNoDia.id };
+      }
+      if (!disp || disp.status === "disponivel") return { tipo: "vazio", label: "—" };
+      const rotulos: Record<string, string> = { aviso: "Sob aviso", folga: "Folga", ferias: "Férias", atestado_medico: "Atestado", treinamento: "Treinamento", acompanhando_manutencao: "Manutenção" };
+      return { tipo: disp.status, label: rotulos[disp.status] || disp.status };
     });
-  }, [tripulacao, escala, disponibilidades, diasSemana]);
+    return { ...t, turnos };
+  }), [tripulacao, escala, disponibilidades, diasSemana]);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -513,7 +485,7 @@ export function Escala({
         <div>
           <h2 className="text-base font-bold tracking-tight text-foreground">Escala da tripulação</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Semana {periodoRotulo} · limites RBAC 117
+            Semana {periodoRotulo} · dados registrados de voos e disponibilidade
           </p>
         </div>
 
@@ -524,13 +496,7 @@ export function Escala({
               <span className="h-2.5 w-2.5 rounded-sm bg-[#3867ed]" /> Voo
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-[#8b5cf6]" /> Sobreaviso
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-muted-foreground" /> Folga
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-[#f1b950]" /> Treinamento
+              Disponibilidade exibida somente quando registrada
             </span>
           </div>
 
@@ -555,7 +521,7 @@ export function Escala({
                   {nomesDias[idx]} {dia.getDate()}
                 </th>
               ))}
-              <th className="p-3.5 pr-5 text-right">Horas</th>
+
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -577,11 +543,9 @@ export function Escala({
                         className={`inline-block w-full max-w-[100px] truncate rounded-lg py-1.5 px-1 text-center font-mono text-[11px] font-semibold transition-all ${
                           turno.tipo === "voo"
                             ? "border border-[#3867ed]/30 bg-[#3867ed]/10 text-[#3867ed]"
-                            : turno.tipo === "sobreaviso"
-                            ? "border border-[#8b5cf6]/30 bg-violet-500/10 text-violet-400"
-                            : turno.tipo === "treinamento"
-                            ? "border border-[#f1b950]/50 bg-amber-500/10 text-amber-500"
-                            : "border border-dashed border-border text-muted-foreground bg-transparent"
+                            : turno.tipo === "vazio"
+                            ? "border border-dashed border-border text-muted-foreground bg-transparent"
+                            : "border border-amber-500/30 bg-amber-500/10 text-amber-700"
                         }`}
                       >
                         {turno.label}
@@ -589,32 +553,7 @@ export function Escala({
                     </td>
                   ))}
 
-                  {/* Coluna Horas com Alerta de Limites RBAC 117 */}
-                  <td className="p-3.5 pr-5 text-right">
-                    <strong
-                      className={`block font-mono text-sm font-bold ${
-                        trip.statusAlerta === "vermelho"
-                          ? "text-[#dc2626]"
-                          : trip.statusAlerta === "amarelo"
-                          ? "text-[#d97706]"
-                          : "text-foreground"
-                      }`}
-                    >
-                      {trip.horasTotais}h
-                    </strong>
-                    <div className="mt-1 h-1.5 w-16 ml-auto overflow-hidden rounded-full bg-border">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          trip.statusAlerta === "vermelho"
-                            ? "bg-[#dc2626]"
-                            : trip.statusAlerta === "amarelo"
-                            ? "bg-[#f1b950]"
-                            : "bg-[#3867ed]"
-                        }`}
-                        style={{ width: `${trip.percentual}%` }}
-                      />
-                    </div>
-                  </td>
+
                 </tr>
               );
             })}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buscarRotaerOperacao, buscarVoosEmOperacao, type RastreioAeronave, type VooEmOperacao } from "@/lib/colaborador-api";
+import { buscarRotaerOperacao, buscarVoosEmOperacao, type VooEmOperacao } from "@/lib/colaborador-api";
 
 const INTERVALO_SEM_VOO = 60_000;
 const INTERVALO_COM_VOO = 10_000;
@@ -7,15 +7,6 @@ const LIMITE_BACKOFF = 60_000;
 
 type Estado = { voos: VooEmOperacao[]; carregando: boolean; erro: string | null; atualizadoEm: string | null };
 
-function mockVoo(tick: number): VooEmOperacao {
-  const origem = { lat: -23.4356, lon: -46.4731 };
-  const destino = { lat: -22.8099, lon: -43.2506 };
-  const progresso = (tick % 100) / 100;
-  const lat = origem.lat + (destino.lat - origem.lat) * progresso;
-  const lon = origem.lon + (destino.lon - origem.lon) * progresso;
-  const rastreio: RastreioAeronave = { hex: "A1B2C3", matricula: "PT-MOCK", callsign: "SBR001", lat, lon, alt_ft: 6500, no_solo: false, gs_kt: 120, rumo_graus: 45, vs_fpm: 250, visto_ha_s: tick % 3 === 0 ? 45 : 4, squawk: "1200", fonte: "mock" };
-  return { id: "mock-voo", numero_voo: "SBR-MOCK", status: "em_voo", aeronave_id: "mock-aeronave", matricula_registro: "PT-MOCK", modelo: "Cessna 172", icao_hex: "A1B2C3", origem: "SBGR", destino: "SBGL", origem_coord: origem, destino_coord: destino, horario_previsto_agendamento: new Date().toISOString(), cotista_nome: "Simulação", piloto_nome: "Piloto de teste", copiloto_nome: null, rastreio, rastreio_status: rastreio.visto_ha_s <= 30 ? "ao_vivo" : "atrasado", perna_atual: null, pernas: [] };
-}
 
 export function useVoosEmOperacao(): Estado {
   const [estado, setEstado] = useState<Estado>({ voos: [], carregando: true, erro: null, atualizadoEm: null });
@@ -23,13 +14,12 @@ export function useVoosEmOperacao(): Estado {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const carregamentoAtual = useRef(0);
   const backoff = useRef(0);
-  const tickMock = useRef(0);
 
   const carregar = useCallback(async () => {
     const id = ++carregamentoAtual.current;
     if (document.visibilityState !== "visible") return;
     try {
-      const resposta = import.meta.env.VITE_RASTREIO_MOCK === "1" ? { atualizado_em: new Date().toISOString(), voos: [mockVoo(tickMock.current++)] } : await buscarVoosEmOperacao();
+      const resposta = await buscarVoosEmOperacao();
       if (id !== carregamentoAtual.current) return;
       // Oculta também quando o frontend for publicado antes do backend atualizado.
       // O histórico do voo continua acessível pelo agendamento.

@@ -277,7 +277,7 @@ function LinhaSolicitacao({
       {/* Coluna Esquerda: Identificação e Cliente */}
       <div className="min-w-[190px]">
         <span className="font-mono text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-          {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : item.matricula_registro || "Voo a definir")}
+          {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : item.matricula_registro || "Voo a definir")} · {new Date(`${item.data_agendada}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
         </span>
         <strong className="mt-0.5 block text-sm font-bold text-foreground">{cliente}</strong>
         {pendente && (

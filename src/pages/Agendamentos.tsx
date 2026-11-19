@@ -10,6 +10,7 @@ import {
   atualizarAgendamento,
   buscarOpcoesAgendamento,
   buscarPainelAgendamento,
+  buscarHorasVoadasOperacionais,
   criarAgendamento,
   definirDisponibilidadeTripulacao,
   reprovarSolicitacaoVoo,
@@ -22,6 +23,7 @@ import {
   type OpcoesAgendamentoResponse,
   type PainelAgendamentoResponse,
   type SolicitacaoVooInterna,
+  type HorasVoadasOperacionaisResponse,
 } from "@/lib/colaborador-api";
 import { buscarAerodromos, type AerodromoOption } from "@/lib/flightplan-api";
 import ChecklistPreVoo from "@/components/agendamento/ChecklistPreVoo";
@@ -36,6 +38,7 @@ import {
 } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
 import { hojeBrasilia, operacaoNaData } from "@/lib/agendamentos-hoje";
+import { consolidarHorasVoadas, formatarHorasVoadas } from "@/lib/horas-voadas-operacionais";
 import VoosDeHoje from "@/components/agendamento/VoosDeHoje";
 import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 import AgendamentoNavigation, { type AbaAgendamento } from "@/components/agendamento/AgendamentoNavigation";
@@ -130,6 +133,9 @@ export default function Agendamentos() {
   const [mostrarNovo, setMostrarNovo] = useState(false);
   const [mostrarDisponibilidade, setMostrarDisponibilidade] = useState(false);
   const [modalHorasAberto, setModalHorasAberto] = useState(false);
+  const [dadosHoras, setDadosHoras] = useState<HorasVoadasOperacionaisResponse | null>(null);
+  const [carregandoHoras, setCarregandoHoras] = useState(true);
+  const [erroHoras, setErroHoras] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [processando, setProcessando] = useState(false);
@@ -212,27 +218,33 @@ export default function Agendamentos() {
   const encerrados = useMemo(() => agendamentos.filter((item) => ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())), [agendamentos]);
   const pendentes = useMemo(() => agendamentos.filter((item) => item.status === "pendente"), [agendamentos]);
 
-  // Horas voadas totais do mês de todas as aeronaves
-  const horasVoadasMes = useMemo(() => {
-    const agora = new Date();
-    const mesAtualKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
-    const voosDoMes = agendamentos.filter((v) =>
-      ["aprovada", "decolado", "em_rota", "em_voo", "em_solo", "encerrada", "concluida"].includes(
-        String(v.status || "").trim().toLowerCase()
-      ) && String(v.data_agendada || "").startsWith(mesAtualKey)
-    );
-    const minutos = voosDoMes.reduce((total, voo) => {
-      const inicio = voo.perna_atual_horario_dep || voo.perna_atual_horario_ac;
-      const fim = voo.perna_atual_horario_pouso;
-      if (!inicio || !fim) return total;
-      const duracao = (Date.parse(fim) - Date.parse(inicio)) / 60_000;
-      return Number.isFinite(duracao) && duracao > 0 ? total + duracao : total;
-    }, 0);
-    if (!minutos) return "—";
-    const h = Math.floor(minutos / 60);
-    const m = Math.round(minutos % 60);
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }, [agendamentos]);
+  // Card e modal consomem o MESMO consolidado dos lançamentos reais do diário.
+  const referenciaHoras = hojeBrasilia();
+  const anoHoras = Number(referenciaHoras.slice(0, 4));
+  const mesHoras = Number(referenciaHoras.slice(5, 7));
+  const carregarHorasOperacionais = useCallback(async () => {
+    setCarregandoHoras(true);
+    setErroHoras(null);
+    try {
+      const resposta = await buscarHorasVoadasOperacionais(anoHoras);
+      setDadosHoras(resposta);
+    } catch (erro) {
+      setDadosHoras(null);
+      setErroHoras(erro instanceof Error ? erro.message : "Falha ao carregar horas voadas.");
+    } finally {
+      setCarregandoHoras(false);
+    }
+  }, [anoHoras]);
+
+  useEffect(() => { void carregarHorasOperacionais(); }, [carregarHorasOperacionais]);
+
+  const resumoHorasVoadas = useMemo(
+    () => consolidarHorasVoadas(dadosHoras, anoHoras, mesHoras),
+    [dadosHoras, anoHoras, mesHoras],
+  );
+  const horasVoadasMes = carregandoHoras || erroHoras
+    ? "—"
+    : formatarHorasVoadas(resumoHorasVoadas.totalMes.minutos);
 
   const voosDeHoje = useMemo(() => agendamentos.filter((item) => {
     const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -679,7 +691,7 @@ export default function Agendamentos() {
         {/* KPI 4: Horas Voadas (Abre Modal Detalhado) */}
         <button
           type="button"
-          onClick={() => setModalHorasAberto(true)}
+          onClick={() => { setModalHorasAberto(true); void carregarHorasOperacionais(); }}
           className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-border"
         >
           <div className="flex items-center justify-between">
@@ -953,8 +965,11 @@ export default function Agendamentos() {
       <ModalHorasVoadas
         aberto={modalHorasAberto}
         aoFechar={() => setModalHorasAberto(false)}
-        agendamentos={agendamentos}
-        aeronaves={painel?.aeronaves || []}
+        dados={dadosHoras}
+        carregando={carregandoHoras}
+        erro={erroHoras}
+        ano={anoHoras}
+        mes={mesHoras}
       />
     </div>
   );

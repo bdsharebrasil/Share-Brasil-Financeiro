@@ -1,329 +1,174 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plane, Calendar, Clock, Gauge, BarChart3, TrendingUp, X } from "lucide-react";
-import type { AeronaveAgendamento, SolicitacaoVooInterna } from "@/lib/colaborador-api";
+import { Plane, Calendar, Gauge, BarChart3 } from "lucide-react";
+import type { HorasVoadasOperacionaisResponse } from "@/lib/colaborador-api";
+import { consolidarHorasVoadas, formatarHorasVoadas } from "@/lib/horas-voadas-operacionais";
 
 type Props = {
   aberto: boolean;
   aoFechar: () => void;
-  agendamentos: SolicitacaoVooInterna[];
-  aeronaves: AeronaveAgendamento[];
+  dados: HorasVoadasOperacionaisResponse | null;
+  carregando: boolean;
+  erro: string | null;
+  ano: number;
+  mes: number;
 };
 
 type AbaDetalhamento = "aeronave" | "mes" | "dia" | "ano";
 
-function extrairMinutosVoo(voo: SolicitacaoVooInterna): number {
-  if (voo.perna_atual_horario_dep && voo.perna_atual_horario_pouso) {
-    const dep = new Date(`1970-01-01T${voo.perna_atual_horario_dep.slice(11, 16)}:00Z`).getTime();
-    const pou = new Date(`1970-01-01T${voo.perna_atual_horario_pouso.slice(11, 16)}:00Z`).getTime();
-    if (!Number.isNaN(dep) && !Number.isNaN(pou)) {
-      const diffMin = Math.round((pou >= dep ? pou - dep : pou + 86400000 - dep) / 60000);
-      if (diffMin > 0 && diffMin < 1440) return diffMin;
-    }
-  }
-  // Estimativa baseada em trecho ou padrão de voo executivo (~75 minutos)
-  return 75;
-}
-
-function formatarHorasMinutos(totalMinutos: number): string {
-  const h = Math.floor(totalMinutos / 60);
-  const m = totalMinutos % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeronaves }: Props) {
+export default function ModalHorasVoadas({ aberto, aoFechar, dados, carregando, erro, ano, mes }: Props) {
   const [aba, setAba] = useState<AbaDetalhamento>("aeronave");
-
-  // Voos com status confirmado/concluído
-  const voosElegiveis = useMemo(() => {
-    return agendamentos.filter((item) =>
-      ["aprovada", "decolado", "em_rota", "em_voo", "em_solo", "encerrada", "concluida"].includes(
-        String(item.status || "").trim().toLowerCase()
-      )
-    );
-  }, [agendamentos]);
-
-  const agora = new Date();
-  const mesAtualKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
-  const anoAtual = agora.getFullYear();
-
-  // 1. Total do mês atual
-  const { totalMinutosMes, horasFormatadasMes } = useMemo(() => {
-    const voosMes = voosElegiveis.filter((v) => String(v.data_agendada || "").startsWith(mesAtualKey));
-    // Se a base estiver iniciando o mês ou vazia, garantimos um volume proporcional de voos registrados
-    const baseVoos = voosMes.length ? voosMes : voosElegiveis.slice(0, 8);
-    const minutos = baseVoos.reduce((acum, v) => acum + extrairMinutosVoo(v), 0);
-    return {
-      totalMinutosMes: minutos,
-      horasFormatadasMes: formatarHorasMinutos(minutos || 2480), // ~41h 20m de fallback proporcional
-    };
-  }, [voosElegiveis, mesAtualKey]);
-
-  // 2. Dados por Aeronave
-  const dadosPorAeronave = useMemo(() => {
-    const mapa = new Map<string, { matricula: string; modelo: string; minutos: number; voos: number }>();
-    
-    // Inicializa com aeronaves cadastradas
-    aeronaves.forEach((a) => {
-      mapa.set(a.id, {
-        matricula: a.matricula_registro,
-        modelo: [a.fabricante, a.modelo].filter(Boolean).join(" ") || "Aeronave",
-        minutos: 0,
-        voos: 0,
-      });
-    });
-
-    voosElegiveis.forEach((v) => {
-      const id = v.aeronave_id || v.matricula_registro || "outras";
-      const atual = mapa.get(id) || {
-        matricula: v.matricula_registro || "Aeronave",
-        modelo: v.modelo || "Executiva",
-        minutos: 0,
-        voos: 0,
-      };
-      atual.minutos += extrairMinutosVoo(v);
-      atual.voos += 1;
-      mapa.set(id, atual);
-    });
-
-    const lista = Array.from(mapa.values());
-    const maxMinutos = Math.max(1, ...lista.map((item) => item.minutos));
-    return lista.map((item) => ({
-      ...item,
-      horas: formatarHorasMinutos(item.minutos || 60),
-      percentual: Math.round((item.minutos / maxMinutos) * 100),
-    }));
-  }, [aeronaves, voosElegiveis]);
-
-  // 3. Dados por Mês (Ano Atual)
-  const dadosPorMes = useMemo(() => {
-    const mesesNomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    return mesesNomes.map((nome, index) => {
-      const mesKey = `${anoAtual}-${String(index + 1).padStart(2, "0")}`;
-      const voosDoMes = voosElegiveis.filter((v) => String(v.data_agendada || "").startsWith(mesKey));
-      const minutos = voosDoMes.reduce((acum, v) => acum + extrairMinutosVoo(v), 0);
-      return {
-        mes: nome,
-        voos: voosDoMes.length,
-        minutos,
-        horas: formatarHorasMinutos(minutos),
-      };
-    });
-  }, [voosElegiveis, anoAtual]);
-
-  // 4. Dados por Dia (Mês Atual)
-  const dadosPorDia = useMemo(() => {
-    const mapa = new Map<string, { data: string; voos: number; minutos: number }>();
-    voosElegiveis
-      .filter((v) => String(v.data_agendada || "").startsWith(mesAtualKey))
-      .forEach((v) => {
-        const dia = v.data_agendada;
-        const atual = mapa.get(dia) || { data: dia, voos: 0, minutos: 0 };
-        atual.voos += 1;
-        atual.minutos += extrairMinutosVoo(v);
-        mapa.set(dia, atual);
-      });
-    return Array.from(mapa.values())
-      .sort((a, b) => b.data.localeCompare(a.data))
-      .map((item) => ({
-        ...item,
-        dataFormatada: new Date(`${item.data}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
-        horas: formatarHorasMinutos(item.minutos),
-      }));
-  }, [voosElegiveis, mesAtualKey]);
-
-  // 5. Dados por Ano
-  const dadosPorAno = useMemo(() => {
-    const anos = [anoAtual - 1, anoAtual];
-    return anos.map((ano) => {
-      const voosAno = voosElegiveis.filter((v) => String(v.data_agendada || "").startsWith(String(ano)));
-      const minutos = voosAno.reduce((acum, v) => acum + extrairMinutosVoo(v), 0);
-      return {
-        ano,
-        voos: voosAno.length,
-        minutos,
-        horas: formatarHorasMinutos(minutos),
-      };
-    });
-  }, [voosElegiveis, anoAtual]);
+  const resumo = useMemo(() => consolidarHorasVoadas(dados, ano, mes), [dados, ano, mes]);
+  const pronto = Boolean(dados) && !carregando && !erro;
+  const mesNome = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" })
+    .format(new Date(ano, mes - 1, 1));
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && aoFechar()}>
       <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl">
         <DialogHeader className="border-b border-border p-6 pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#6366f1]/10 text-[#6366f1]">
-                <Gauge size={22} />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
-                  Horas Voadas · Detalhamento Operacional
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
-                  Consolidado das operações e voos executados por aeronave, mês, dia e ano
-                </DialogDescription>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#6366f1]/10 text-[#6366f1]">
+              <Gauge size={22} />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
+                Horas Voadas · Detalhamento Operacional
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Tempo de voo registrado no diário de bordo · somente aeronaves ativas
+              </DialogDescription>
             </div>
           </div>
 
-          {/* Destaque do Mês Atual */}
           <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3.5">
             <div>
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Total Acumulado no Mês Atual
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Total acumulado · {mesNome}
               </span>
               <p className="font-mono text-2xl font-bold tracking-tight text-foreground">
-                {horasFormatadasMes}
+                {pronto ? formatarHorasVoadas(resumo.totalMes.minutos) : "—"}
               </p>
             </div>
             <div className="text-right">
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#17885f]/10 px-2.5 py-1 text-[11px] font-bold text-[#17885f]">
-                <TrendingUp size={13} /> Todas as aeronaves
+              <span className="inline-flex items-center rounded-full bg-[#17885f]/10 px-2.5 py-1 text-[11px] font-bold text-[#17885f]">
+                Aeronaves ativas
               </span>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {voosElegiveis.length} voos registrados
+                {pronto ? `${resumo.totalMes.trechos} trechos registrados no mês` : "Consultando diário de bordo"}
               </p>
             </div>
           </div>
 
-          {/* Abas de Navegação */}
           <div className="mt-4 flex gap-1.5 rounded-lg border border-border bg-secondary p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setAba("aeronave")}
-              className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "aeronave" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Por Aeronave
-            </button>
-            <button
-              type="button"
-              onClick={() => setAba("mes")}
-              className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "mes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Por Mês
-            </button>
-            <button
-              type="button"
-              onClick={() => setAba("dia")}
-              className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "dia" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Por Dia
-            </button>
-            <button
-              type="button"
-              onClick={() => setAba("ano")}
-              className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "ano" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Por Ano
-            </button>
+            {([
+              ["aeronave", "Por Aeronave"],
+              ["mes", "Por Mês"],
+              ["dia", "Por Dia"],
+              ["ano", "Por Ano"],
+            ] as const).map(([id, rotulo]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setAba(id)}
+                aria-pressed={aba === id}
+                className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
+                  aba === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {rotulo}
+              </button>
+            ))}
           </div>
         </DialogHeader>
 
         <div className="max-h-[380px] overflow-y-auto p-6 pt-3">
-          {/* Aba: Por Aeronave */}
-          {aba === "aeronave" && (
-            <div className="space-y-3">
-              {dadosPorAeronave.length ? (
-                dadosPorAeronave.map((item) => (
-                  <div
-                    key={item.matricula}
-                    className="flex items-center justify-between rounded-xl border border-border p-3 transition-colors hover:bg-secondary/40"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#3867ed]/10 text-[#3867ed]">
-                        <Plane size={17} />
+          {carregando ? (
+            <p className="py-10 text-center text-xs text-muted-foreground">Carregando horas reais do diário de bordo...</p>
+          ) : erro || !dados ? (
+            <p role="alert" className="py-10 text-center text-xs text-destructive">
+              {erro || "Não foi possível consultar os dados do diário de bordo."}
+            </p>
+          ) : (
+            <>
+              {aba === "aeronave" && (
+                <div className="space-y-3">
+                  {resumo.porAeronave.length ? resumo.porAeronave.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-secondary/40"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#3867ed]/10 text-[#3867ed]">
+                          <Plane size={17} />
+                        </div>
+                        <div className="min-w-0">
+                          <strong className="block truncate text-sm font-bold text-foreground">{item.matricula_registro}</strong>
+                          <span className="block truncate text-[11px] text-muted-foreground">{item.modeloExibicao}</span>
+                        </div>
                       </div>
-                      <div>
-                        <strong className="block text-sm font-bold text-foreground">{item.matricula}</strong>
-                        <span className="text-[11px] text-muted-foreground">{item.modelo}</span>
+                      <div className="shrink-0 text-right">
+                        <strong className="block font-mono text-sm font-bold text-foreground">
+                          {formatarHorasVoadas(item.minutos)}
+                        </strong>
+                        <span className="text-[11px] text-muted-foreground">{item.trechos} trechos no mês</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <strong className="block font-mono text-sm font-bold text-foreground">{item.horas}</strong>
-                      <span className="text-[11px] text-muted-foreground">{item.voos} voos</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma aeronave com horas computadas.</p>
-              )}
-            </div>
-          )}
-
-          {/* Aba: Por Mês */}
-          {aba === "mes" && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 border-b border-border pb-2 text-[11px] font-bold text-muted-foreground uppercase">
-                <span>Mês ({anoAtual})</span>
-                <span className="text-center">Voos</span>
-                <span className="text-right">Horas Voadas</span>
-              </div>
-              {dadosPorMes.map((item) => (
-                <div
-                  key={item.mes}
-                  className="grid grid-cols-3 items-center rounded-lg py-2.5 text-xs transition-colors hover:bg-secondary/40"
-                >
-                  <span className="font-semibold text-foreground">{item.mes}</span>
-                  <span className="text-center text-muted-foreground">{item.voos}</span>
-                  <span className="text-right font-mono font-bold text-foreground">{item.horas}</span>
+                  )) : <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma aeronave ativa cadastrada.</p>}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Aba: Por Dia */}
-          {aba === "dia" && (
-            <div className="space-y-2">
-              {dadosPorDia.length ? (
-                dadosPorDia.map((item) => (
-                  <div
-                    key={item.data}
-                    className="flex items-center justify-between rounded-lg border border-border p-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-muted-foreground" />
-                      <span className="text-xs font-semibold text-foreground">{item.dataFormatada}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-xs font-bold text-foreground">{item.horas}</span>
-                      <span className="ml-2 text-[11px] text-muted-foreground">({item.voos} voos)</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-8 text-center text-xs text-muted-foreground">Nenhum voo registrado nos últimos dias.</p>
               )}
-            </div>
-          )}
 
-          {/* Aba: Por Ano */}
-          {aba === "ano" && (
-            <div className="space-y-3">
-              {dadosPorAno.map((item) => (
-                <div
-                  key={item.ano}
-                  className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <BarChart3 size={18} className="text-[#3867ed]" />
-                    <div>
-                      <strong className="block text-sm font-bold text-foreground">{item.ano}</strong>
-                      <span className="text-[11px] text-muted-foreground">{item.voos} voos realizados</span>
-                    </div>
+              {aba === "mes" && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 border-b border-border pb-2 text-[11px] font-bold uppercase text-muted-foreground">
+                    <span>Mês ({ano})</span><span className="text-center">Trechos</span><span className="text-right">Horas voadas</span>
                   </div>
-                  <strong className="font-mono text-base font-bold text-foreground">{item.horas}</strong>
+                  {resumo.porMes.map((item) => (
+                    <div key={item.mes} className="grid grid-cols-3 items-center rounded-lg py-2.5 text-xs hover:bg-secondary/40">
+                      <span className="font-semibold text-foreground">{item.mes}</span>
+                      <span className="text-center text-muted-foreground">{item.trechos}</span>
+                      <span className="text-right font-mono font-bold text-foreground">{formatarHorasVoadas(item.minutos)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+
+              {aba === "dia" && (
+                <div className="space-y-2">
+                  {resumo.porDia.length ? resumo.porDia.map((item) => (
+                    <div key={item.data} className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} className="text-muted-foreground" />
+                        <span className="text-xs font-semibold text-foreground">
+                          {new Date(`${item.data}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono text-xs font-bold text-foreground">{formatarHorasVoadas(item.minutos)}</span>
+                        <span className="ml-2 text-[11px] text-muted-foreground">({item.trechos} trechos)</span>
+                      </div>
+                    </div>
+                  )) : <p className="py-8 text-center text-xs text-muted-foreground">Nenhum lançamento de voo neste mês.</p>}
+                </div>
+              )}
+
+              {aba === "ano" && (
+                <div className="space-y-3">
+                  {resumo.porAno.map((item) => (
+                    <div key={item.ano} className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
+                      <div className="flex items-center gap-3">
+                        <BarChart3 size={18} className="text-[#3867ed]" />
+                        <div>
+                          <strong className="block text-sm font-bold text-foreground">{item.ano}</strong>
+                          <span className="text-[11px] text-muted-foreground">{item.trechos} trechos registrados</span>
+                        </div>
+                      </div>
+                      <strong className="font-mono text-base font-bold text-foreground">{formatarHorasVoadas(item.minutos)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </DialogContent>

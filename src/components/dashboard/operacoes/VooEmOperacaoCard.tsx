@@ -58,7 +58,7 @@ function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) 
       <div className="flex shrink-0 items-center gap-1"><EtiquetaStatus tone={tomStatus(voo.status)}>{textoStatus(voo.status)}</EtiquetaStatus><EtiquetaStatus tone={tons[sinal]}>{rotulos[sinal]}</EtiquetaStatus><button type="button" aria-label={aberto ? "Recolher voo" : "Expandir voo"} onClick={() => setAberto((valorAtual) => !valorAtual)} className="rounded p-1 text-muted-foreground hover:bg-secondary">{aberto ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>
     </header>
     {aberto && <>
-      <div className="grid items-start gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,400px)]">
+      <div className="grid items-start gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(330px,480px)]">
         <div className="min-w-0 space-y-3">
           <p className="text-[10px] text-muted-foreground">Programado: {planejado.utc} UTC · {planejado.brasilia} Brasília</p>
           <HistoricoRastreioVoo voo={voo} />
@@ -66,8 +66,12 @@ function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) 
           {aoVivo && <Telemetria voo={voo} />}
         </div>
         <aside className="min-w-0 overflow-hidden rounded-xl border border-border">
-          <p className="border-b border-border px-3 py-2 text-[10px] font-semibold">{aoVivo ? "Rastreio ao vivo" : "Histórico · trajeto percorrido"}</p>
-          {aoVivo || Boolean(voo.trilha?.length) ? <Suspense fallback={<div className="h-[220px] animate-pulse bg-secondary/40" />}><MapaRastreio key={`${voo.id}-${aoVivo}`} voo={voo} historico={!aoVivo} compacto={!aoVivo} /></Suspense> : <p className="p-4 text-[10px] text-muted-foreground">Nenhum percurso ADS-B registrado para este agendamento.</p>}
+          <p className="border-b border-border px-3 py-2 text-[10px] font-semibold">{aoVivo ? "Rastreio ao vivo" : voo.trilha?.length ? "Mapa satélite · percurso captado" : "Mapa satélite · rota prevista"}</p>
+          {/* O mapa deve existir também sem sinal: exibe aeródromos e rota planejada,
+              sem fingir que há posição real ou percurso já percorrido. */}
+          <Suspense fallback={<div className="h-[340px] animate-pulse bg-secondary/40" />}>
+            <MapaRastreio key={voo.id} voo={voo} historico={!aoVivo} compacto={false} />
+          </Suspense>
         </aside>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2.5 text-[10px] text-muted-foreground"><span><Radio size={11} className="mr-1 inline" />{voo.cotista_nome || "Cotista não informado"} · {voo.piloto_nome || "Piloto não informado"}{voo.copiloto_nome ? ` / ${voo.copiloto_nome}` : ""}</span><span>{voo.fonte_rastreio ? `Fonte: ${voo.fonte_rastreio === "airplanes_live" ? "airplanes.live" : voo.fonte_rastreio === "adsb_lol" ? "adsb.lol" : voo.fonte_rastreio} · ` : ""}Idade da posição: {desde(voo.rastreio?.visto_ha_s)} <button type="button" onClick={aoAbrir} className="ml-2 inline-flex items-center gap-1 font-bold text-primary hover:underline">Abrir agendamento <ExternalLink size={11} /></button></span></div>

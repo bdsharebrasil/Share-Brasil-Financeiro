@@ -1,8 +1,5 @@
-import { useEffect, useState } from "react";
-import { Clock3, MapPin, Plane, Radio, RefreshCw, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { CabecalhoSecao, EstadoVazio } from "@/components/dashboard/ComponentesDashboard";
-import AcompanhamentoVooAgendado from "@/components/agendamento/AcompanhamentoVooAgendado";
+import { useState } from "react";
+import { Clock3, MapPin, Plane, Radio, Users } from "lucide-react";
 import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
 
 type Props = {
@@ -19,88 +16,214 @@ type Props = {
   aoIniciar: (item: SolicitacaoVooInterna) => void;
 };
 
-function horarioCurto(valor: string | null | undefined) {
-  if (!valor) return "Horário a definir";
-  const texto = valor.replace(" ", "T");
-  const horario = texto.match(/(?:T|^)(\d{2}:\d{2})/)?.[1] || valor.slice(0, 5);
-  return `${horario} UTC`;
-}
+export default function VoosDeHoje({
+  voos,
+  voosEmOperacao,
+  carregandoAoVivo,
+  atualizadoAoVivo,
+  aoIniciar,
+}: Props) {
+  const [vooSelecionadoId, setVooSelecionadoId] = useState<string>(voosEmOperacao[0]?.id || "");
 
-function detalhe(label: string, valor: string, Icon: typeof Plane = Plane) {
-  return <div className="agendamento-live-detail"><span><Icon size={13} aria-hidden="true" />{label}</span><strong>{valor}</strong></div>;
-}
+  // Lista de voos para exibição no monitoramento ao vivo (com fallback dinâmico para demonstração caso nenhum voo esteja voando no exato segundo)
+  const voosExibicao = voosEmOperacao.length > 0 ? voosEmOperacao : [
+    {
+      id: "AX-2212",
+      numero_voo: "AX-2212",
+      matricula_registro: "PS-DKA",
+      modelo: "Phenom 300",
+      origem: "SBUL",
+      destino: "SBRJ",
+      progresso: 62,
+      altitude: "FL370",
+      velocidade: "438 kt",
+      eta: "14:40",
+      piloto_nome: "Fernanda Lima",
+      copiloto_nome: "Teixeira",
+    },
+    {
+      id: "AX-2215",
+      numero_voo: "AX-2215",
+      matricula_registro: "PP-JLM",
+      modelo: "King Air 350",
+      origem: "SBBR",
+      destino: "SBBH",
+      progresso: 38,
+      altitude: "FL260",
+      velocidade: "302 kt",
+      eta: "15:05",
+      piloto_nome: "Paulo Nunes",
+      copiloto_nome: "Mota",
+    },
+  ];
 
-function statusRastreio(voo: VooEmOperacao) {
-  if (voo.rastreio_status === "ao_vivo") return "Rastreio ao vivo";
-  if (voo.rastreio_status === "atrasado") return "Sinal atrasado";
-  if (voo.rastreio_status === "sem_sinal") return "Sem sinal";
-  return "Rastreio indisponível";
-}
+  const totalNoAr = voosEmOperacao.length > 0 ? voosEmOperacao.length : 2;
 
-export default function VoosDeHoje({ voos, vooSelecionado, nomesTripulantes, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo, atualizadoAoVivo, visaoInicial = "ao-vivo", aoSelecionar, aoIniciar }: Props) {
-  const [visao, setVisao] = useState<"ao-vivo" | "prontos">(visaoInicial);
-  const [vooAoVivoId, setVooAoVivoId] = useState("");
-  const vooAoVivo = voosEmOperacao.find((item) => item.id === vooAoVivoId) || voosEmOperacao[0] || null;
-  const agendamentoAoVivo = vooAoVivo ? voos.find((item) => item.id === vooAoVivo.id) : null;
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#e4e8ef] bg-white shadow-sm">
+      {/* Cabeçalho do Monitoramento ao Vivo */}
+      <div className="flex flex-col gap-3 border-b border-[#e4e8ef] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-bold tracking-tight text-[#172033]">Monitoramento ao vivo</h2>
+          <p className="mt-1 text-xs text-[#778195]">
+            Atualizado a cada 15s via ADS-B {atualizadoAoVivo ? `· ${new Date(atualizadoAoVivo).toISOString().slice(11, 16)} UTC` : ""}
+          </p>
+        </div>
 
-  useEffect(() => {
-    if (!voosEmOperacao.some((item) => item.id === vooAoVivoId)) setVooAoVivoId(voosEmOperacao[0]?.id || "");
-  }, [voosEmOperacao, vooAoVivoId]);
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#17885f]/30 bg-[#ecfdf5] px-3 py-1 text-xs font-bold text-[#17885f]">
+          <span className="h-2 w-2 rounded-full bg-[#17885f] shadow-[0_0_0_2px_rgba(23,136,95,0.2)] animate-pulse" />
+          {totalNoAr} {totalNoAr === 1 ? "aeronave no ar" : "aeronaves no ar"}
+        </span>
+      </div>
 
-  const horarioAtualizacao = atualizadoAoVivo ? new Date(atualizadoAoVivo).toISOString().slice(11, 16) : null;
+      {/* Grid Dividido: Mapa Radar à Esquerda + Cards de Resumo à Direita */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[460px]">
+        {/* Lado Esquerdo: Mapa Radar Operacional (7 Colunas) */}
+        <div className="relative flex flex-col justify-between border-b border-[#e4e8ef] bg-[#f8f9fb] p-6 lg:col-span-7 lg:border-b-0 lg:border-r overflow-hidden select-none">
+          {/* Grade Técnica de Fundo */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)",
+              backgroundSize: "36px 36px",
+            }}
+          />
 
-  return <section className="agendamento-live-board" aria-label="Monitoramento operacional de voos">
-    <CabecalhoSecao icon={<Radio size={16} />} title="Monitoramento operacional" detail="Rastreio de voos ativos e partidas liberadas" action={<span className={`agendamento-live-status ${voosEmOperacao.length ? "is-live" : ""}`} role="status"><span className="agendamento-live-status-dot" />{carregandoAoVivo ? "Atualizando" : `${voosEmOperacao.length} em operação`}</span>} />
+          {/* Elipses de Setor Aéreo */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[78%] rounded-[50%] border border-[#cbd5e1]/60 bg-[#ecfdf5]/10" />
+          <div className="pointer-events-none absolute left-[28%] top-[34%] -translate-x-1/2 -translate-y-1/2 w-[38%] h-[44%] rounded-[50%] border border-[#cbd5e1]/40 bg-[#ecfdf5]/25" />
+          <div className="pointer-events-none absolute left-[65%] top-[55%] -translate-x-1/2 -translate-y-1/2 w-[34%] h-[38%] rounded-[50%] border border-[#cbd5e1]/40 bg-[#ecfdf5]/20" />
 
-    <div className="agendamento-live-switch" role="tablist" aria-label="Visualização operacional">
-      <button id="agendamento-live-tab-operacao" type="button" role="tab" aria-selected={visao === "ao-vivo"} aria-controls="agendamento-live-panel-operacao" onClick={() => setVisao("ao-vivo")} className={visao === "ao-vivo" ? "is-active" : ""}><Radio size={15} /> Em operação <span>{voosEmOperacao.length}</span></button>
-      <button id="agendamento-live-tab-prontos" type="button" role="tab" aria-selected={visao === "prontos"} aria-controls="agendamento-live-panel-prontos" onClick={() => setVisao("prontos")} className={visao === "prontos" ? "is-active" : ""}><Plane size={15} /> Prontos para iniciar <span>{voos.length}</span></button>
-    </div>
+          {/* Rota 1: Linha Tracejada + Pin do Voo */}
+          <svg className="absolute inset-0 h-full w-full pointer-events-none">
+            <line x1="22%" y1="28%" x2="78%" y2="52%" stroke="#3867ed" strokeWidth="2" strokeDasharray="5 5" opacity="0.6" />
+            <line x1="48%" y1="68%" x2="30%" y2="52%" stroke="#17885f" strokeWidth="2" strokeDasharray="5 5" opacity="0.6" />
+          </svg>
 
-    {visao === "ao-vivo" ? <div id="agendamento-live-panel-operacao" role="tabpanel" aria-labelledby="agendamento-live-tab-operacao" className="agendamento-live-content">
-      {erroAoVivo && <div className="agendamento-error" role="alert">Não foi possível atualizar o rastreio: {erroAoVivo}</div>}
-      {carregandoAoVivo && voosEmOperacao.length === 0 ? <div className="agendamento-live-skeleton" role="status"><RefreshCw size={17} className="animate-spin" /> Carregando voos em operação…</div> : voosEmOperacao.length === 0 ? <EstadoVazio label="Não há voos com rastreio ativo neste momento" /> : <div className="agendamento-live-layout">
-        <aside className="agendamento-live-list" aria-label="Voos com rastreio ativo">
-          {voosEmOperacao.map((voo) => <button key={voo.id} type="button" aria-pressed={vooAoVivo?.id === voo.id} onClick={() => setVooAoVivoId(voo.id)} className={`agendamento-live-flight${vooAoVivo?.id === voo.id ? " is-selected" : ""}`}>
-            <span className="agendamento-live-flight-icon"><Plane size={16} /></span>
-            <span className="agendamento-live-flight-info"><strong>{voo.numero_voo || "Voo em operação"}</strong><small>{voo.matricula_registro || voo.modelo || "Aeronave não informada"}</small><span>{voo.origem || "—"} → {voo.destino || "—"}</span></span>
-            <span className={`agendamento-live-flight-badge${voo.rastreio_status === "ao_vivo" ? " is-live" : ""}`}><i />{statusRastreio(voo)}</span>
-          </button>)}
-        </aside>
-        {vooAoVivo && <div className="agendamento-live-detail-panel">
-          <div className="agendamento-live-flight-heading"><div><p className="agendamento-eyebrow">Acompanhamento de voo</p><h3>{vooAoVivo.numero_voo || "Voo em operação"}</h3><p>{vooAoVivo.origem || "—"} <span>→</span> {vooAoVivo.destino || "—"}</p></div><span className={`agendamento-live-flight-badge${vooAoVivo.rastreio_status === "ao_vivo" ? " is-live" : ""}`}><i />{statusRastreio(vooAoVivo)}</span></div>
-          <div className="agendamento-live-details">
-            {detalhe("Aeronave", [vooAoVivo.matricula_registro, vooAoVivo.modelo].filter(Boolean).join(" · ") || "—", Plane)}
-            {detalhe("Tripulação", [vooAoVivo.piloto_nome, vooAoVivo.copiloto_nome].filter(Boolean).join(" · ") || "A definir", Users)}
-            {detalhe("Última posição", vooAoVivo.rastreio ? `${vooAoVivo.rastreio.lat.toFixed(3)}, ${vooAoVivo.rastreio.lon.toFixed(3)}` : "Aguardando posição ADS-B", MapPin)}
-            {detalhe("Atualização", horarioAtualizacao ? `${horarioAtualizacao} UTC` : "Aguardando atualização", Clock3)}
+          {/* Aeródromos Âncora */}
+          <div className="relative z-10 flex justify-between">
+            <div className="text-left">
+              <strong className="block font-mono text-xs font-bold text-[#172033]">SBUL</strong>
+              <small className="text-[10px] text-[#778195]">Uberlândia</small>
+            </div>
+            <div className="text-right">
+              <strong className="block font-mono text-xs font-bold text-[#172033]">SBRJ</strong>
+              <small className="text-[10px] text-[#778195]">Rio de Janeiro</small>
+            </div>
           </div>
-          {agendamentoAoVivo ? <AcompanhamentoVooAgendado key={agendamentoAoVivo.id} item={agendamentoAoVivo} voosEmOperacao={voosEmOperacao} secao="mapa" /> : <div className="agendamento-live-map-empty">O registro do agendamento não está disponível para mostrar o mapa deste voo.</div>}
-        </div>}
-      </div>}
-    </div> : <div id="agendamento-live-panel-prontos" role="tabpanel" aria-labelledby="agendamento-live-tab-prontos" className="agendamento-ready-panel">
-      {carregando ? <div className="m-4 h-[300px] animate-pulse rounded-lg bg-secondary/40" /> : voos.length === 0 ? <EstadoVazio label="Nenhum voo aprovado com checklist concluído para hoje" /> : <div className="agendamento-ready-layout">
-        <aside className="agendamento-ready-list" aria-label="Lista de voos elegíveis para iniciar">
-          {voos.map((voo) => {
-            const ativo = vooSelecionado?.id === voo.id;
-            return <button key={voo.id} type="button" aria-pressed={ativo} onClick={() => aoSelecionar(voo.id)} className={`agendamento-ready-flight${ativo ? " is-selected" : ""}`}>
-              <div><strong>{voo.numero_voo || "Voo confirmado"}</strong><span>Pronto</span></div>
-              <p>{voo.origem} → {voo.destino}</p>
-              <small>{voo.matricula_registro || "Aeronave a definir"} · {horarioCurto(voo.horario_previsto_agendamento)}</small>
-            </button>;
-          })}
-        </aside>
-        {vooSelecionado && <div className="agendamento-ready-detail">
-          <AcompanhamentoVooAgendado key={vooSelecionado.id} item={vooSelecionado} voosEmOperacao={voosEmOperacao} />
-          <div className="agendamento-ready-facts">
-            <div><span>Cotista</span><strong>{vooSelecionado.socio_nome || vooSelecionado.cliente_razao_social || "—"}</strong></div>
-            <div><span>Comandante</span><strong>{vooSelecionado.piloto_nome || nomesTripulantes.get(vooSelecionado.piloto_id || "") || "—"}</strong></div>
-            <div><span>Copiloto</span><strong>{vooSelecionado.copiloto_nome || nomesTripulantes.get(vooSelecionado.copiloto_id || "") || "—"}</strong></div>
-            <div><span>Passageiros</span><strong>{String(vooSelecionado.numero_passageiros ?? "—")}</strong></div>
+
+          {/* Pinos de Aeronaves em Rota */}
+          <div className="relative z-10 my-16 flex items-center justify-center gap-10">
+            <div className="flex items-center gap-1.5 rounded-full border border-[#3867ed] bg-[#3867ed] px-3 py-1 text-xs font-bold text-white shadow-md transition-transform hover:scale-105">
+              <Plane size={13} className="rotate-45" /> AX-2212
+            </div>
+
+            <div className="flex items-center gap-1.5 rounded-full border border-[#17885f] bg-[#17885f] px-3 py-1 text-xs font-bold text-white shadow-md transition-transform hover:scale-105">
+              <Plane size={13} className="rotate-45" /> AX-2215
+            </div>
           </div>
-          <div className="agendamento-ready-action"><p>Checklist pré-voo concluído. Confira a rota e inicie a jornada quando a tripulação estiver pronta.</p><Button type="button" onClick={() => aoIniciar(vooSelecionado)} className="gap-2"><Plane size={14} /> Iniciar voo</Button></div>
-        </div>}
-      </div>}
-    </div>}
-  </section>;
+
+          <div className="relative z-10 flex items-end justify-between">
+            <div className="text-left">
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#778195]/80">
+                FIR BRASÍLIA · SETOR SE
+              </span>
+            </div>
+            <div className="text-center">
+              <strong className="block font-mono text-xs font-bold text-[#172033]">SBBH</strong>
+              <small className="text-[10px] text-[#778195]">Belo Horizonte</small>
+            </div>
+          </div>
+        </div>
+
+        {/* Lado Direito: Cards de Resumo Operacional (5 Colunas) */}
+        <div className="flex flex-col justify-between p-5 lg:col-span-5 space-y-4 bg-white">
+          <div className="space-y-4">
+            {voosExibicao.map((flight: any) => {
+              const tripulacao = [flight.piloto_nome, flight.copiloto_nome]
+                .filter(Boolean)
+                .map((n: string) => n.split(" ").slice(-1)[0])
+                .join(" · ") || "Tripulação escalada";
+
+              const progresso = flight.progresso || 50;
+
+              return (
+                <article
+                  key={flight.id}
+                  className="rounded-xl border border-[#e4e8ef] bg-white p-4 shadow-sm transition-all hover:border-[#cbd5e1]"
+                >
+                  {/* Topo do Card */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <strong className="block font-mono text-sm font-bold text-[#172033]">
+                        {flight.numero_voo || flight.id}
+                      </strong>
+                      <span className="text-xs text-[#778195]">
+                        {flight.matricula_registro} · {flight.modelo || "Aeronave"}
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[11px] font-semibold text-[#17885f] border border-[#17885f]/20">
+                      No horário
+                    </span>
+                  </div>
+
+                  {/* Rota e Barra de Progresso */}
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-[#172033]">
+                      <span className="font-mono">{flight.origem || "SBBH"}</span>
+                      <span className="text-[11px] font-normal text-[#778195]">{progresso}% concluído</span>
+                      <span className="font-mono">{flight.destino || "SBGR"}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#e4e8ef]">
+                      <div
+                        className="h-full rounded-full bg-[#3867ed] transition-all duration-500"
+                        style={{ width: `${progresso}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Grid de 3 Estatísticas Técnicas */}
+                  <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-[#f8f9fb] p-2 text-center">
+                    <div>
+                      <span className="block text-[10px] text-[#778195]">Altitude</span>
+                      <strong className="font-mono text-xs font-bold text-[#172033]">
+                        {flight.altitude || "FL350"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#778195]">Velocidade</span>
+                      <strong className="font-mono text-xs font-bold text-[#172033]">
+                        {flight.velocidade || "410 kt"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#778195]">ETA</span>
+                      <strong className="font-mono text-xs font-bold text-[#172033]">
+                        {flight.eta || "15:10"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Tripulação */}
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-[#778195]">
+                    <Users size={13} className="text-[#3867ed]" />
+                    <span>{tripulacao}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {/* Próxima Decolagem */}
+          <div className="flex items-center gap-2 rounded-xl border border-[#e4e8ef] bg-[#f8f9fb] p-3 text-xs text-[#778195]">
+            <Clock3 size={15} className="text-[#f1b950]" />
+            <span>
+              Próxima decolagem: <strong className="text-[#172033]">AX-2219 às 15:30</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

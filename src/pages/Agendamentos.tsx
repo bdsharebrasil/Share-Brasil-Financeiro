@@ -35,6 +35,7 @@ import {
   statusPermiteChecklist,
 } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
+import { hojeBrasilia, operacaoNaData } from "@/lib/agendamentos-hoje";
 import VoosDeHoje from "@/components/agendamento/VoosDeHoje";
 import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 import AgendamentoNavigation, { type AbaAgendamento } from "@/components/agendamento/AgendamentoNavigation";
@@ -66,22 +67,6 @@ function hojeUtc() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Data de referência do painel de operações, no fuso de Brasília. */
-function hojeBrasilia() {
-  const partes = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const valor = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value || "";
-  return `${valor("year")}-${valor("month")}-${valor("day")}`;
-}
-
-function operacaoNaData(item: SolicitacaoVooInterna, data: string) {
-  const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (!["aprovada", "acionado", "decolado", "em_rota", "em_voo", "em_solo", "encerrada", "concluida"].includes(status)) return false;
-  const inicio = String(item.data_agendada || "").slice(0, 10);
-  const fim = String(item.data_fim || item.data_agendada || "").slice(0, 10);
-  return Boolean(inicio && inicio <= data && fim >= data);
-}
 function horarioUtc(data: string, hora?: string) {
   if (!hora) return undefined;
   const instante = new Date(`${data}T${hora}:00Z`);

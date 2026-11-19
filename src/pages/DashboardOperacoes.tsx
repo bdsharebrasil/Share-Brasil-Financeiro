@@ -3,7 +3,7 @@ import { Activity, CalendarDays, FileText, Fuel, NotebookPen, RefreshCw, Users, 
 import { Button } from "@/components/ui/button";
 import { RecadosPanel } from "@/components/dashboard/Recados";
 import VooEmOperacaoCard from "@/components/dashboard/operacoes/VooEmOperacaoCard";
-import { AcaoRapida, CabecalhoSecao, CartaoKpi, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
+import { AcaoRapida, CabecalhoSecao, EtiquetaStatus, EstadoVazio, HeroDashboard } from "@/components/dashboard/ComponentesDashboard";
 import { buscarPainelOperacoes, buscarPerfilColaborador, type PainelOperacoesResponse, type SolicitacaoVooInterna } from "@/lib/colaborador-api";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
 
@@ -97,11 +97,7 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
 
       {erro && <div className="mb-5 rounded-xl border border-[#e77b80]/30 bg-[#e77b80]/10 p-4 text-xs text-[#ed8c90]">{erro}<button type="button" onClick={() => void carregar()} className="ml-2 font-bold underline">Tentar novamente</button></div>}
 
-      <div className="mx-auto mb-6 flex max-w-[534px] justify-center">
-        <CartaoKpi label="Pendências" value={carregando ? "—" : String(resumo?.pendencias ?? 0)} detail="Aguardando decisão operacional" tone="amber" icon={<Activity size={16} />} className="flex flex-wrap items-center justify-center !px-5 mx-3 !p-2.5 sm:!p-3 bg-[rgba(227,239,243,1)]" />
-      </div>
-
-      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="mt-[51px] mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <AcaoRapida icon={<CalendarDays size={17} />} label="AGENDAMENTOS" detail={`${resumo?.pendencias ?? 0} pendentes`} onClick={() => aoNavegar("agendamentos")} color="blue" />
         <AcaoRapida icon={<FileText size={17} />} label="PLANO DE VOO" detail="Abrir módulo" onClick={() => aoNavegar("plano-de-voo")} color="violet" />
         <AcaoRapida icon={<NotebookPen size={17} />} label="DIÁRIO DE BORDO" detail="Abrir módulo" onClick={() => aoNavegar("diario-de-bordo")} color="green" />

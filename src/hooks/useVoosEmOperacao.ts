@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buscarRotaerOperacao, buscarVoosEmOperacao, type VooEmOperacao } from "@/lib/colaborador-api";
 import { coordenadaRastreioValida, type CoordenadaRastreio } from "@/lib/rastreio-mapa";
+import { coordenadaReferenciaAerodromo } from "@/lib/aerodromos-referencia";
 
 const INTERVALO_SEM_VOO = 60_000;
 const INTERVALO_COM_VOO = 10_000;
@@ -38,6 +39,8 @@ export function useVoosEmOperacao(): Estado {
       } catch {
         // Aeródromos privados podem não ter ficha ROTAER; não interromper o painel.
       } finally {
+        // Último recurso documentado para SIAQ/SWJN, sem simular posição real.
+        if (!coordenada) coordenada = coordenadaReferenciaAerodromo(codigo);
         aerodromos.current.set(codigo, {
           coordenada, expiraEm: Date.now() + CACHE_AERODROMO_MS,
         });

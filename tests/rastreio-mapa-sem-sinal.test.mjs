@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { trechosPlanejados, pontosParaEnquadrar } from '../src/lib/rastreio-mapa.ts'
+import { coordenadaReferenciaAerodromo } from '../src/lib/aerodromos-referencia.ts'
 
 const trecho = (id, origem, destino, a, b) => ({
   id, numero: 1, jornada_numero: 1, origem, destino, status: 'em_voo',
@@ -68,4 +69,17 @@ test('card sempre monta mapa, monitor mostra AC/DEP e o hook resolve origem e de
   assert.match(monitor, /Horários registrados pela tripulação/)
   assert.match(hook, /voo\.origem, voo\.destino/)
   assert.match(hook, /resolverAerodromo\(icao\)/)
+})
+
+test('coordenadas AISWEB SIAQ e SWJN garantem o traçado planejado se D1/ROTAER não resolverem', () => {
+  const origem = coordenadaReferenciaAerodromo('SIAQ')
+  const destino = coordenadaReferenciaAerodromo('swjn')
+  assert.ok(origem && destino, 'dois aeródromos possuem referência oficial')
+  assert.ok(origem.lat < -15 && origem.lat > -16)
+  assert.ok(destino.lat < -11 && destino.lat > -12)
+  const voo = { id: 'voo', origem: 'SIAQ', destino: 'SWJN',
+    origem_coord: origem, destino_coord: destino, pernas: [], trilha: [], rastreio: null }
+  assert.equal(trechosPlanejados(voo).length, 1)
+  assert.equal(pontosParaEnquadrar(voo).length >= 2, true)
+  assert.equal(coordenadaReferenciaAerodromo('SXXX'), null, 'não inventa aeródromos sem coordenadas')
 })

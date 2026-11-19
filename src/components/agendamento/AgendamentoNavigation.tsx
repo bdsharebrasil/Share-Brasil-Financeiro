@@ -44,7 +44,7 @@ function navegarPorTeclado(event: KeyboardEvent<HTMLButtonElement>, atual: AbaAg
 
 export default function AgendamentoNavigation({ abaAtiva, contagens, aoSelecionar }: Props) {
   return (
-    <nav className="agendamento-segmented-nav flex items-center gap-1.5 rounded-xl border border-[#e4e8ef] bg-white p-1.5 shadow-sm" role="tablist" aria-label="Seções do agendamento">
+    <nav className="agendamento-segmented-nav flex items-center gap-1.5 rounded-xl border border-border bg-card p-1.5 shadow-sm" role="tablist" aria-label="Seções do agendamento">
       {itens.map(({ id, label, icon: Icon, live }) => {
         const ativo = abaAtiva === id;
         const contagem = contagens[id];
@@ -62,15 +62,15 @@ export default function AgendamentoNavigation({ abaAtiva, contagens, aoSeleciona
             className={`flex min-h-[38px] items-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all ${
               ativo
                 ? "bg-[#3867ed] text-white shadow-sm"
-                : "text-[#778195] hover:bg-[#f3f5f8] hover:text-[#172033]"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Icon size={16} aria-hidden="true" className={ativo ? "text-white" : "text-[#778195]"} />
+            <Icon size={16} aria-hidden="true" className={ativo ? "text-white" : "text-muted-foreground"} />
             <span>{label}</span>
             {live && contagem ? <span className="h-2 w-2 rounded-full bg-[#17885f] shadow-[0_0_0_2px_rgba(23,136,95,0.2)]" /> : null}
             {!live && typeof contagem === "number" && id === "historico" && contagem > 0 ? (
               <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                ativo ? "bg-white/20 text-white" : "bg-[#f3f5f8] text-[#172033]"
+                ativo ? "bg-white/20 text-white" : "bg-secondary text-foreground"
               }`}>
                 {contagem}
               </span>

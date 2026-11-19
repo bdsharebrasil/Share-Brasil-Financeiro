@@ -1,4 +1,5 @@
 import { visualStatusAgendamento } from "@/components/agendamento/agendamentoVisual";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -266,7 +267,7 @@ export function CalendarioAgendamento({
 
                     <div className="relative flex w-32 items-center justify-center border-t-2 border-dashed border-[#cbd5e1] sm:w-44">
                       <div className="rounded-full bg-white px-2 text-[#778195]">
-                        <Plane size={15} className="rotate-90 text-[#778195]" />
+                        <Plane size={15} className="rotate-45 text-[#778195]" />
                       </div>
                     </div>
 

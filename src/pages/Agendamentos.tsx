@@ -551,17 +551,17 @@ export default function Agendamentos() {
   return (
     <div className="space-y-6">
       {/* 1. TOPO DA PÁGINA (HEADING) */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e4e8ef] pb-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
         <div>
           <span className="font-mono text-[11px] font-bold tracking-wider text-[#3867ed] uppercase">
             OPERAÇÕES / AGENDAMENTO DE VOO
           </span>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#172033]">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
             {selecionada
               ? `${selecionada.numero_voo || "Voo a gerar"} · ${selecionada.matricula_registro || "Aeronave a definir"}`
               : tituloAba[aba]}
           </h1>
-          <p className="mt-1 text-xs text-[#778195]">
+          <p className="mt-1 text-xs text-muted-foreground">
             {selecionada
               ? `${selecionada.origem || "—"} → ${selecionada.destino || "—"} · ${
                   selecionada.socio_nome || selecionada.cliente_razao_social || "Titular não informado"
@@ -572,7 +572,7 @@ export default function Agendamentos() {
 
         <div className="flex items-center gap-3">
           {aba === "voos-hoje" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#17885f]/30 bg-[#ecfdf5] px-3 py-1.5 text-xs font-bold text-[#17885f]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#17885f]/30 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-[#17885f]">
               <span className="h-2 w-2 rounded-full bg-[#17885f] shadow-[0_0_0_2px_rgba(23,136,95,0.2)] animate-pulse" />
               {carregandoAoVivo ? "Atualizando rastreio" : `${voosAoVivo.length} aeronaves no ar`}
             </span>
@@ -596,20 +596,20 @@ export default function Agendamentos() {
           onClick={() => selecionarAba("pendentes")}
           className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
             aba === "pendentes"
-              ? "border-[#f1b950] bg-[#fff9eb] shadow-md shadow-[#f1b950]/10"
-              : "border-[#e4e8ef] bg-white shadow-sm hover:border-[#cbd5e1]"
+              ? "border-[#f1b950] bg-amber-400/10 shadow-md shadow-[#f1b950]/10"
+              : "border-border bg-card shadow-sm hover:border-border"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#778195]">Pendentes</span>
+            <span className="text-xs font-semibold text-muted-foreground">Pendentes</span>
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#f1b950]/15 text-[#b47b1c]">
               <Clock3 size={17} />
             </div>
           </div>
-          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-[#172033]">
+          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-foreground">
             {carregando ? "—" : pendentes.length}
           </strong>
-          <span className="mt-1 text-[11px] text-[#778195]">pedidos aguardando aprovação</span>
+          <span className="mt-1 text-[11px] text-muted-foreground">pedidos aguardando aprovação</span>
         </button>
 
         {/* KPI 2: Confirmados */}
@@ -618,20 +618,20 @@ export default function Agendamentos() {
           onClick={() => selecionarAba("aprovados")}
           className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
             aba === "aprovados"
-              ? "border-[#17885f] bg-[#ecfdf5] shadow-md shadow-[#17885f]/10"
-              : "border-[#e4e8ef] bg-white shadow-sm hover:border-[#cbd5e1]"
+              ? "border-[#17885f] bg-emerald-400/10 shadow-md shadow-[#17885f]/10"
+              : "border-border bg-card shadow-sm hover:border-border"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#778195]">Confirmados</span>
+            <span className="text-xs font-semibold text-muted-foreground">Confirmados</span>
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#17885f]/15 text-[#17885f]">
               <Plane size={17} />
             </div>
           </div>
-          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-[#172033]">
+          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-foreground">
             {carregando ? "—" : confirmados.length}
           </strong>
-          <span className="mt-1 text-[11px] text-[#778195]">voos aprovados e escalados</span>
+          <span className="mt-1 text-[11px] text-muted-foreground">voos aprovados e escalados</span>
         </button>
 
         {/* KPI 3: Monitoramento ao vivo */}
@@ -640,36 +640,36 @@ export default function Agendamentos() {
           onClick={() => selecionarAba("voos-hoje")}
           className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
             aba === "voos-hoje"
-              ? "border-[#3867ed] bg-[#eff6ff] shadow-md shadow-[#3867ed]/10"
-              : "border-[#e4e8ef] bg-white shadow-sm hover:border-[#cbd5e1]"
+              ? "border-[#3867ed] bg-sky-400/10 shadow-md shadow-[#3867ed]/10"
+              : "border-border bg-card shadow-sm hover:border-border"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#778195]">Monitoramento ao vivo</span>
+            <span className="text-xs font-semibold text-muted-foreground">Monitoramento ao vivo</span>
             <div className="relative grid h-8 w-8 place-items-center rounded-lg bg-[#3867ed]/15 text-[#3867ed]">
               <Radio size={17} />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#17885f] animate-pulse" />
             </div>
           </div>
-          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-[#172033]">
+          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-foreground">
             {carregandoAoVivo ? "—" : voosAoVivo.length}
           </strong>
-          <span className="mt-1 text-[11px] text-[#778195]">aeronaves em voo / rota ativa</span>
+          <span className="mt-1 text-[11px] text-muted-foreground">aeronaves em voo / rota ativa</span>
         </button>
 
         {/* KPI 4: Horas Voadas (Abre Modal Detalhado) */}
         <button
           type="button"
           onClick={() => setModalHorasAberto(true)}
-          className="flex flex-col justify-between rounded-2xl border border-[#e4e8ef] bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#cbd5e1]"
+          className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-border"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#778195]">Horas voadas</span>
+            <span className="text-xs font-semibold text-muted-foreground">Horas voadas</span>
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#6366f1]/15 text-[#6366f1]">
               <Gauge size={17} />
             </div>
           </div>
-          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-[#172033]">
+          <strong className="mt-3 font-mono text-2xl font-bold tracking-tight text-foreground">
             {horasVoadasMes}
           </strong>
           <span className="mt-1 text-[11px] text-[#3867ed] font-medium">Total do mês · Ver detalhes</span>
@@ -791,7 +791,7 @@ export default function Agendamentos() {
             type="button"
             variant="outline"
             onClick={() => setChecklistAberto(false)}
-            className="gap-2 rounded-xl border-[#e4e8ef] text-xs font-semibold"
+            className="gap-2 rounded-xl border-border text-xs font-semibold"
           >
             <ChevronLeft size={14} /> Voltar aos detalhes do voo
           </Button>
@@ -901,10 +901,10 @@ export default function Agendamentos() {
           if (!aberto && !excluindo) setAgendamentoParaExcluir(null);
         }}
       >
-        <DialogContent className="w-[calc(100%-2rem)] rounded-2xl border-[#e4e8ef] bg-white sm:max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] rounded-2xl border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-[#172033]">Remover solicitação da lista?</DialogTitle>
-            <DialogDescription className="text-xs text-[#778195]">
+            <DialogTitle className="text-base font-bold text-foreground">Remover solicitação da lista?</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
               Os registros operacionais vinculados serão preservados. A solicitação deixará de aparecer no agendamento.
             </DialogDescription>
           </DialogHeader>
@@ -914,7 +914,7 @@ export default function Agendamentos() {
               variant="outline"
               onClick={() => setAgendamentoParaExcluir(null)}
               disabled={excluindo}
-              className="w-full rounded-xl border-[#e4e8ef] text-xs font-semibold sm:w-auto"
+              className="w-full rounded-xl border-border text-xs font-semibold sm:w-auto"
             >
               Cancelar
             </Button>

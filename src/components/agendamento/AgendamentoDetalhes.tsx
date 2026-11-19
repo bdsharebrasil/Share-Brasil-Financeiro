@@ -258,21 +258,21 @@ export function DetalhesSolicitacao({
       {/* GRID DE 2 COLUNAS DO WIREFRAME PRANCHA 02 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
         {/* COLUNA ESQUERDA: Dados da solicitação (#detalhes-solicitacao - 7 Colunas) */}
-        <section className="rounded-2xl border border-[#e4e8ef] bg-white p-6 shadow-sm lg:col-span-7">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-7">
           {/* Cabeçalho do Bloco Esquerdo */}
-          <div className="flex items-center justify-between border-b border-[#e4e8ef] pb-4">
+          <div className="flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={aoFechar}
-                className="h-8 gap-1.5 rounded-lg border-[#e4e8ef] bg-white px-2.5 text-xs font-semibold text-[#172033] hover:bg-[#f8f9fb]"
+                className="h-8 gap-1.5 rounded-lg border-border bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-secondary/40"
               >
                 <ChevronLeft size={14} /> Voltar
               </Button>
               <div>
-                <h3 className="text-base font-bold text-[#172033]">Dados da solicitação</h3>
-                <p className="text-xs text-[#778195]">Revise e ajuste antes de confirmar</p>
+                <h3 className="text-base font-bold text-foreground">Dados da solicitação</h3>
+                <p className="text-xs text-muted-foreground">Revise e ajuste antes de confirmar</p>
               </div>
             </div>
 
@@ -289,7 +289,7 @@ export function DetalhesSolicitacao({
               <button
                 type="button"
                 onClick={aoExcluir}
-                className="rounded-lg border border-[#bf5260]/30 px-3 py-1.5 text-xs font-semibold text-[#bf5260] transition-colors hover:bg-[#fff1f2]"
+                className="rounded-lg border border-[#bf5260]/30 px-3 py-1.5 text-xs font-semibold text-[#bf5260] transition-colors hover:bg-red-400/10"
               >
                 Excluir
               </button>
@@ -300,17 +300,17 @@ export function DetalhesSolicitacao({
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Titular */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Titular</Label>
+              <Label className="text-xs font-semibold text-foreground">Titular</Label>
               <Input
                 readOnly
                 value={`${titularNome}${selecionada.codigo_cliente ? ` · ${selecionada.codigo_cliente}` : ""}`}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] bg-[#f8f9fb] text-xs font-semibold text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 text-xs font-semibold text-foreground"
               />
             </div>
 
             {/* Aeronave */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Aeronave</Label>
+              <Label className="text-xs font-semibold text-foreground">Aeronave</Label>
               <div className="mt-1.5">
                 <SearchableCombobox
                   items={aeronaves}
@@ -326,58 +326,58 @@ export function DetalhesSolicitacao({
 
             {/* Origem */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Origem</Label>
+              <Label className="text-xs font-semibold text-foreground">Origem</Label>
               <Input
                 readOnly
                 value={selecionada.origem || "SBBH"}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] bg-[#f8f9fb] font-mono text-xs font-bold text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 font-mono text-xs font-bold text-foreground"
               />
             </div>
 
             {/* Destino */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Destino</Label>
+              <Label className="text-xs font-semibold text-foreground">Destino</Label>
               <Input
                 readOnly
                 value={selecionada.destino || "SBGR"}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] bg-[#f8f9fb] font-mono text-xs font-bold text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 font-mono text-xs font-bold text-foreground"
               />
             </div>
 
             {/* Data de saída */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Data de saída</Label>
+              <Label className="text-xs font-semibold text-foreground">Data de saída</Label>
               <Input
                 type="date"
                 value={edicao.data_agendada}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, data_agendada: e.target.value }))}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border text-xs text-foreground"
               />
             </div>
 
             {/* Data final */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Data final</Label>
+              <Label className="text-xs font-semibold text-foreground">Data final</Label>
               <Input
                 type="date"
                 min={edicao.data_agendada}
                 value={edicao.data_fim}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, data_fim: e.target.value }))}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border text-xs text-foreground"
               />
             </div>
 
             {/* Horário previsto (UTC) */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Horário previsto (UTC)</Label>
+              <Label className="text-xs font-semibold text-foreground">Horário previsto (UTC)</Label>
               <div className="relative mt-1.5 flex items-center">
                 <Input
                   type="time"
                   value={edicao.horario}
                   onChange={(e) => setEdicao((atual) => ({ ...atual, horario: e.target.value }))}
-                  className="h-10 rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+                  className="h-10 rounded-lg border-border text-xs text-foreground"
                 />
-                <span className="absolute right-3 text-[10px] font-semibold text-[#778195]">
+                <span className="absolute right-3 text-[10px] font-semibold text-muted-foreground">
                   Brasília {horarioFormatado.brasilia}
                 </span>
               </div>
@@ -385,25 +385,25 @@ export function DetalhesSolicitacao({
 
             {/* Passageiros */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Passageiros</Label>
+              <Label className="text-xs font-semibold text-foreground">Passageiros</Label>
               <Input
                 type="number"
                 min={1}
                 value={edicao.numero_passageiros}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, numero_passageiros: Number(e.target.value) }))}
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+                className="mt-1.5 h-10 rounded-lg border-border text-xs text-foreground"
               />
             </div>
           </div>
 
           {/* Empréstimo da Aeronave */}
           <div className="mt-4">
-            <Label className="text-xs font-semibold text-[#172033]">Empréstimo da aeronave</Label>
+            <Label className="text-xs font-semibold text-foreground">Empréstimo da aeronave</Label>
             {aeronaveDoTitular && !edicao.emprestimo ? (
               <Input
                 readOnly
                 value="Voo próprio do titular · sem cedente"
-                className="mt-1.5 h-10 rounded-lg border-[#e4e8ef] bg-[#f8f9fb] text-xs text-[#778195]"
+                className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 text-xs text-muted-foreground"
               />
             ) : (
               <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
@@ -417,7 +417,7 @@ export function DetalhesSolicitacao({
                       socio_emprestimo_id: "",
                     }))
                   }
-                  className="h-10 rounded-lg border border-[#e4e8ef] bg-white px-3 text-xs"
+                  className="h-10 rounded-lg border border-border bg-card px-3 text-xs"
                 >
                   <option value="nao" disabled={!aeronaveDoTitular}>NÃO</option>
                   <option value="sim">SIM (Voo emprestado)</option>
@@ -440,27 +440,27 @@ export function DetalhesSolicitacao({
 
           {/* Observações */}
           <div className="mt-4">
-            <Label className="text-xs font-semibold text-[#172033]">Observações</Label>
+            <Label className="text-xs font-semibold text-foreground">Observações</Label>
             <Textarea
               readOnly={!statusPendente}
               value={selecionada.observacoes || "Sem observações registradas."}
               placeholder="Observações operacionais..."
-              className="mt-1.5 min-h-[72px] rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+              className="mt-1.5 min-h-[72px] rounded-lg border-border text-xs text-foreground"
             />
           </div>
         </section>
 
         {/* COLUNA DIREITA: Confirmação do Voo (#confirmacao-voo - 5 Colunas) */}
-        <section id="confirmacao-voo" className="rounded-2xl border border-[#e4e8ef] bg-white p-6 shadow-sm lg:col-span-5">
-          <div className="border-b border-[#e4e8ef] pb-4">
-            <h3 className="text-base font-bold text-[#172033]">Confirmação do voo</h3>
-            <p className="text-xs text-[#778195]">O número do voo é gerado ao aprovar</p>
+        <section id="confirmacao-voo" className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-5">
+          <div className="border-b border-border pb-4">
+            <h3 className="text-base font-bold text-foreground">Confirmação do voo</h3>
+            <p className="text-xs text-muted-foreground">O número do voo é gerado ao aprovar</p>
           </div>
 
           <div className="mt-5 space-y-4">
             {/* Piloto Comandante */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Piloto comandante *</Label>
+              <Label className="text-xs font-semibold text-foreground">Piloto comandante *</Label>
               <div className="mt-1.5">
                 <SearchableCombobox
                   items={tripulacao.map((item) => ({
@@ -479,7 +479,7 @@ export function DetalhesSolicitacao({
 
             {/* Copiloto */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Copiloto</Label>
+              <Label className="text-xs font-semibold text-foreground">Copiloto</Label>
               <div className="mt-1.5">
                 <SearchableCombobox
                   items={tripulacao
@@ -493,13 +493,13 @@ export function DetalhesSolicitacao({
                   placeholder="Selecionar copiloto ▾"
                   searchPlaceholder="Digite nome ou CANAC..."
                   emptyMessage="Nenhum tripulante encontrado."
-                  icon={<Users size={14} className="text-[#778195]" />}
+                  icon={<Users size={14} className="text-muted-foreground" />}
                 />
               </div>
             </div>
 
             {/* Alerta de Conflito de Escala (Box Âmbar do Wireframe) */}
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#f1b950]/40 bg-[#fff9eb] p-3 text-xs text-[#935a0d]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[#f1b950]/40 bg-amber-400/10 p-3 text-xs text-[#935a0d]">
               <AlertTriangle size={16} className="shrink-0 text-[#d97706] mt-0.5" />
               <span>
                 Possível conflito de escala — {comandanteNome} já tem 1 compromisso sobreposto neste horário (aviso por toast, não bloqueia).
@@ -508,12 +508,12 @@ export function DetalhesSolicitacao({
 
             {/* Motivo da Reprovação */}
             <div>
-              <Label className="text-xs font-semibold text-[#172033]">Motivo da reprovação</Label>
+              <Label className="text-xs font-semibold text-foreground">Motivo da reprovação</Label>
               <Textarea
                 value={motivo}
                 onChange={(e) => aoMotivo(e.target.value)}
                 placeholder="Obrigatório apenas ao reprovar..."
-                className="mt-1.5 min-h-[64px] rounded-lg border-[#e4e8ef] text-xs text-[#172033]"
+                className="mt-1.5 min-h-[64px] rounded-lg border-border text-xs text-foreground"
               />
             </div>
 
@@ -523,7 +523,7 @@ export function DetalhesSolicitacao({
                 type="button"
                 onClick={confirmar}
                 disabled={processando || !pilotoId || !formularioValido}
-                className="w-full flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ecfdf5] border border-[#17885f]/40 font-bold text-xs text-[#17885f] shadow-sm transition-all hover:bg-[#d1fae5] disabled:opacity-50"
+                className="w-full flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400/10 border border-[#17885f]/40 font-bold text-xs text-[#17885f] shadow-sm transition-all hover:bg-[#d1fae5] disabled:opacity-50"
               >
                 <Check size={16} /> Aprovar e gerar número do voo
               </button>
@@ -532,7 +532,7 @@ export function DetalhesSolicitacao({
                 type="button"
                 onClick={aoReprovar}
                 disabled={processando}
-                className="w-full flex h-10 items-center justify-center gap-2 rounded-xl border border-[#bf5260]/40 bg-white font-semibold text-xs text-[#bf5260] transition-colors hover:bg-[#fff1f2] disabled:opacity-50"
+                className="w-full flex h-10 items-center justify-center gap-2 rounded-xl border border-[#bf5260]/40 bg-card font-semibold text-xs text-[#bf5260] transition-colors hover:bg-red-400/10 disabled:opacity-50"
               >
                 <X size={15} /> Reprovar solicitação
               </button>
@@ -542,17 +542,17 @@ export function DetalhesSolicitacao({
       </div>
 
       {/* BLOCO INFERIOR: Ações do Voo e Acompanhamento */}
-      <section className="rounded-2xl border border-[#e4e8ef] bg-white p-6 shadow-sm">
-        <div className="border-b border-[#e4e8ef] pb-3">
-          <h3 className="text-base font-bold text-[#172033]">Ações do voo</h3>
-          <p className="text-xs text-[#778195]">Disponíveis conforme status, checklist e jornada</p>
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="border-b border-border pb-3">
+          <h3 className="text-base font-bold text-foreground">Ações do voo</h3>
+          <p className="text-xs text-muted-foreground">Disponíveis conforme status, checklist e jornada</p>
         </div>
 
         {acoes}
 
         {/* Mensagens de Notificação WhatsApp */}
         {!statusPendente && (
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2 pt-4 border-t border-[#e4e8ef]">
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2 pt-4 border-t border-border">
             <CardMensagem
               titulo="Mensagem para o cliente"
               mensagem={`Olá ${titularNome}, seu voo ${selecionada.numero_voo || ""} foi confirmado para o dia ${formatarData(
@@ -570,7 +570,7 @@ export function DetalhesSolicitacao({
         )}
 
         {/* Rastreio Operacional */}
-        <div className="mt-6 pt-4 border-t border-[#e4e8ef]">
+        <div className="mt-6 pt-4 border-t border-border">
           <AcompanhamentoVooAgendado item={selecionada} voosEmOperacao={voosEmOperacao} />
         </div>
       </section>
@@ -602,19 +602,19 @@ function CardMensagem({
   };
 
   return (
-    <div className="rounded-xl border border-[#e4e8ef] bg-[#f8f9fb] p-4">
+    <div className="rounded-xl border border-border bg-secondary/40 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#778195]">{titulo}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{titulo}</span>
         <button
           type="button"
           onClick={copiar}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e4e8ef] bg-white px-2.5 text-xs font-semibold text-[#172033] hover:bg-[#f3f5f8]"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-secondary"
         >
           {copiado ? <Check size={13} className="text-[#17885f]" /> : <Copy size={13} />}
           {copiado ? "Copiado!" : "Copiar"}
         </button>
       </div>
-      <p className="mt-2.5 rounded-lg border border-[#e4e8ef] bg-white p-3 text-xs text-[#172033] leading-relaxed select-all">
+      <p className="mt-2.5 rounded-lg border border-border bg-card p-3 text-xs text-foreground leading-relaxed select-all">
         {mensagem}
       </p>
     </div>

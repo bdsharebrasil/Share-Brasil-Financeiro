@@ -149,18 +149,18 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && aoFechar()}>
-      <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-[#e4e8ef] bg-white p-0 shadow-2xl">
-        <DialogHeader className="border-b border-[#e4e8ef] p-6 pb-4">
+      <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl">
+        <DialogHeader className="border-b border-border p-6 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#6366f1]/10 text-[#6366f1]">
                 <Gauge size={22} />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold tracking-tight text-[#172033]">
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
                   Horas Voadas · Detalhamento Operacional
                 </DialogTitle>
-                <DialogDescription className="text-xs text-[#778195]">
+                <DialogDescription className="text-xs text-muted-foreground">
                   Consolidado das operações e voos executados por aeronave, mês, dia e ano
                 </DialogDescription>
               </div>
@@ -168,12 +168,12 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
           </div>
 
           {/* Destaque do Mês Atual */}
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-[#e4e8ef] bg-[#f8f9fb] p-3.5">
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-3.5">
             <div>
-              <span className="text-[11px] font-semibold text-[#778195] uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Total Acumulado no Mês Atual
               </span>
-              <p className="font-mono text-2xl font-bold tracking-tight text-[#172033]">
+              <p className="font-mono text-2xl font-bold tracking-tight text-foreground">
                 {horasFormatadasMes}
               </p>
             </div>
@@ -181,19 +181,19 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               <span className="inline-flex items-center gap-1 rounded-full bg-[#17885f]/10 px-2.5 py-1 text-[11px] font-bold text-[#17885f]">
                 <TrendingUp size={13} /> Todas as aeronaves
               </span>
-              <p className="mt-1 text-[11px] text-[#778195]">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 {voosElegiveis.length} voos registrados
               </p>
             </div>
           </div>
 
           {/* Abas de Navegação */}
-          <div className="mt-4 flex gap-1.5 rounded-lg border border-[#e4e8ef] bg-[#f3f5f8] p-1 text-xs">
+          <div className="mt-4 flex gap-1.5 rounded-lg border border-border bg-secondary p-1 text-xs">
             <button
               type="button"
               onClick={() => setAba("aeronave")}
               className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "aeronave" ? "bg-white text-[#172033] shadow-sm" : "text-[#778195] hover:text-[#172033]"
+                aba === "aeronave" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Por Aeronave
@@ -202,7 +202,7 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               type="button"
               onClick={() => setAba("mes")}
               className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "mes" ? "bg-white text-[#172033] shadow-sm" : "text-[#778195] hover:text-[#172033]"
+                aba === "mes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Por Mês
@@ -211,7 +211,7 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               type="button"
               onClick={() => setAba("dia")}
               className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "dia" ? "bg-white text-[#172033] shadow-sm" : "text-[#778195] hover:text-[#172033]"
+                aba === "dia" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Por Dia
@@ -220,7 +220,7 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               type="button"
               onClick={() => setAba("ano")}
               className={`flex-1 rounded-md py-1.5 text-center font-semibold transition-all ${
-                aba === "ano" ? "bg-white text-[#172033] shadow-sm" : "text-[#778195] hover:text-[#172033]"
+                aba === "ano" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Por Ano
@@ -236,25 +236,25 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
                 dadosPorAeronave.map((item) => (
                   <div
                     key={item.matricula}
-                    className="flex items-center justify-between rounded-xl border border-[#e4e8ef] p-3 transition-colors hover:bg-[#f8f9fb]"
+                    className="flex items-center justify-between rounded-xl border border-border p-3 transition-colors hover:bg-secondary/40"
                   >
                     <div className="flex items-center gap-3">
                       <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#3867ed]/10 text-[#3867ed]">
                         <Plane size={17} />
                       </div>
                       <div>
-                        <strong className="block text-sm font-bold text-[#172033]">{item.matricula}</strong>
-                        <span className="text-[11px] text-[#778195]">{item.modelo}</span>
+                        <strong className="block text-sm font-bold text-foreground">{item.matricula}</strong>
+                        <span className="text-[11px] text-muted-foreground">{item.modelo}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <strong className="block font-mono text-sm font-bold text-[#172033]">{item.horas}</strong>
-                      <span className="text-[11px] text-[#778195]">{item.voos} voos</span>
+                      <strong className="block font-mono text-sm font-bold text-foreground">{item.horas}</strong>
+                      <span className="text-[11px] text-muted-foreground">{item.voos} voos</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="py-8 text-center text-xs text-[#778195]">Nenhuma aeronave com horas computadas.</p>
+                <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma aeronave com horas computadas.</p>
               )}
             </div>
           )}
@@ -262,7 +262,7 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
           {/* Aba: Por Mês */}
           {aba === "mes" && (
             <div className="space-y-2">
-              <div className="grid grid-cols-3 border-b border-[#e4e8ef] pb-2 text-[11px] font-bold text-[#778195] uppercase">
+              <div className="grid grid-cols-3 border-b border-border pb-2 text-[11px] font-bold text-muted-foreground uppercase">
                 <span>Mês ({anoAtual})</span>
                 <span className="text-center">Voos</span>
                 <span className="text-right">Horas Voadas</span>
@@ -270,11 +270,11 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               {dadosPorMes.map((item) => (
                 <div
                   key={item.mes}
-                  className="grid grid-cols-3 items-center rounded-lg py-2.5 text-xs transition-colors hover:bg-[#f8f9fb]"
+                  className="grid grid-cols-3 items-center rounded-lg py-2.5 text-xs transition-colors hover:bg-secondary/40"
                 >
-                  <span className="font-semibold text-[#172033]">{item.mes}</span>
-                  <span className="text-center text-[#778195]">{item.voos}</span>
-                  <span className="text-right font-mono font-bold text-[#172033]">{item.horas}</span>
+                  <span className="font-semibold text-foreground">{item.mes}</span>
+                  <span className="text-center text-muted-foreground">{item.voos}</span>
+                  <span className="text-right font-mono font-bold text-foreground">{item.horas}</span>
                 </div>
               ))}
             </div>
@@ -287,20 +287,20 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
                 dadosPorDia.map((item) => (
                   <div
                     key={item.data}
-                    className="flex items-center justify-between rounded-lg border border-[#e4e8ef] p-3"
+                    className="flex items-center justify-between rounded-lg border border-border p-3"
                   >
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-[#778195]" />
-                      <span className="text-xs font-semibold text-[#172033]">{item.dataFormatada}</span>
+                      <Calendar size={14} className="text-muted-foreground" />
+                      <span className="text-xs font-semibold text-foreground">{item.dataFormatada}</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono text-xs font-bold text-[#172033]">{item.horas}</span>
-                      <span className="ml-2 text-[11px] text-[#778195]">({item.voos} voos)</span>
+                      <span className="font-mono text-xs font-bold text-foreground">{item.horas}</span>
+                      <span className="ml-2 text-[11px] text-muted-foreground">({item.voos} voos)</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="py-8 text-center text-xs text-[#778195]">Nenhum voo registrado nos últimos dias.</p>
+                <p className="py-8 text-center text-xs text-muted-foreground">Nenhum voo registrado nos últimos dias.</p>
               )}
             </div>
           )}
@@ -311,16 +311,16 @@ export default function ModalHorasVoadas({ aberto, aoFechar, agendamentos, aeron
               {dadosPorAno.map((item) => (
                 <div
                   key={item.ano}
-                  className="flex items-center justify-between rounded-xl border border-[#e4e8ef] bg-[#f8f9fb] p-4"
+                  className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4"
                 >
                   <div className="flex items-center gap-3">
                     <BarChart3 size={18} className="text-[#3867ed]" />
                     <div>
-                      <strong className="block text-sm font-bold text-[#172033]">{item.ano}</strong>
-                      <span className="text-[11px] text-[#778195]">{item.voos} voos realizados</span>
+                      <strong className="block text-sm font-bold text-foreground">{item.ano}</strong>
+                      <span className="text-[11px] text-muted-foreground">{item.voos} voos realizados</span>
                     </div>
                   </div>
-                  <strong className="font-mono text-base font-bold text-[#172033]">{item.horas}</strong>
+                  <strong className="font-mono text-base font-bold text-foreground">{item.horas}</strong>
                 </div>
               ))}
             </div>

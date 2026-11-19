@@ -622,6 +622,19 @@ export function buscarOpcoesAgendamento() {
   return colaboradorRequest<OpcoesAgendamentoResponse>("/api/interno/agendamento/opcoes");
 }
 
+/** Horas reais do diário de bordo, sem estimativas e apenas para aeronaves ativas. */
+export type HorasVoadasOperacionaisResponse = {
+  ano: number;
+  aeronaves: Array<{ id: string; matricula_registro: string; fabricante: string | null; modelo: string | null }>;
+  dias: Array<{ aeronave_id: string; data: string; minutos: number; trechos: number }>;
+};
+
+export function buscarHorasVoadasOperacionais(ano: number) {
+  return colaboradorRequest<HorasVoadasOperacionaisResponse>(
+    `/api/interno/diario-bordo/horas-voadas?ano=${encodeURIComponent(String(ano))}`
+  );
+}
+
 export function buscarPainelAgendamento(inicio?: string, fim?: string) {
   const params = new URLSearchParams();
   if (inicio) params.set("inicio", inicio);

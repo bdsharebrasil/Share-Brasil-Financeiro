@@ -57,7 +57,8 @@ export default function DashboardOperacoes({ aoNavegar }: { aoNavegar: (menu: st
     setErro(null);
     try {
       const resposta = await buscarPainelOperacoes();
-      setDados({ ...resposta, solicitacoes: Array.isArray(resposta?.solicitacoes) ? resposta.solicitacoes : [] });
+      const solicitacoes = Array.isArray(resposta?.solicitacoes) ? resposta.solicitacoes : [];
+      setDados({ ...resposta, solicitacoes: solicitacoes.filter((item) => !item.perna_atual_horario_corte) });
     } catch {
       setErro("Não foi possível carregar os dados reais da operação.");
     } finally {

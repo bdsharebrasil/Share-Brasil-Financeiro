@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { FichaColaboradorAbas } from "@/components/GestaoColaboradorAbas";
+import { EditorFichaColaborador } from "@/components/colaboradores/EditorFichaColaborador";
 import {
   atualizarGestaoColaborador,
   buscarFichaColaborador,
@@ -56,8 +57,8 @@ export default function GestaoColaborador() {
   const [abrindo, setAbrindo] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [formAberto, setFormAberto] = useState(false);
-  const [editando, setEditando] = useState<ColaboradorGestao | null>(null);
   const [ficha, setFicha] = useState<FichaColaborador | null>(null);
+  const [editorFicha, setEditorFicha] = useState<"pessoal" | "profissional" | null>(null);
   const [erro, setErro] = useState("");
   const [erroForm, setErroForm] = useState("");
   const [aviso, setAviso] = useState("");
@@ -172,8 +173,7 @@ export default function GestaoColaborador() {
       travaFicha.current = false;
     }
   };
-  const abrirFormulario = (item: ColaboradorGestao | null = null) => {
-    setEditando(item);
+  const abrirFormulario = () => {
     setErroForm("");
     setParcial(false);
     progresso.current = { perfil: null, arquivos: new Map() };
@@ -182,7 +182,6 @@ export default function GestaoColaborador() {
   const fecharFormulario = () => {
     if (salvando) return;
     setFormAberto(false);
-    setEditando(null);
     if (parcial) {
       setAviso(
         "Cadastro salvo. Os documentos pendentes podem ser enviados na ficha do colaborador.",
@@ -198,12 +197,11 @@ export default function GestaoColaborador() {
     setErroForm("");
     try {
       const anterior = progresso.current.perfil;
-      const perfil =
-        editando || anterior
-          ? Object.keys(values).length
-            ? await atualizarGestaoColaborador((editando || anterior)!.id, values)
-            : (editando || anterior)!
-          : await criarUsuarioColaborador(values);
+      const perfil = anterior
+        ? Object.keys(values).length
+          ? await atualizarGestaoColaborador(anterior.id, values)
+          : anterior
+        : await criarUsuarioColaborador(values);
       progresso.current.perfil = perfil;
       setParcial(true);
       const enviar = async (
@@ -240,13 +238,8 @@ export default function GestaoColaborador() {
       for (const anexo of anexos)
         await enviar(anexo.arquivo, "documentos", anexo.nome, anexo.chave);
       setFormAberto(false);
-      setEditando(null);
       setParcial(false);
-      setAviso(
-        editando
-          ? "Cadastro atualizado com sucesso."
-          : "Colaborador cadastrado. O acesso já está disponível.",
-      );
+      setAviso("Colaborador cadastrado. O acesso já está disponível.");
       // Recarrega a fonte oficial para refletir funções, exame e documentos.
       if (ficha?.perfil.id === perfil.id) {
         try {
@@ -268,6 +261,19 @@ export default function GestaoColaborador() {
       setSalvando(false);
       travaSalvar.current = false;
     }
+  };
+  const salvarEdicaoFicha = async (alteracoes: Record<string, unknown>) => {
+    if (!ficha) return;
+    const colaboradorId = ficha.perfil.id;
+    await atualizarGestaoColaborador(colaboradorId, alteracoes);
+    await carregar();
+    try {
+      setFicha(await buscarFichaColaborador(colaboradorId));
+      setAviso("Alterações salvas com sucesso.");
+    } catch {
+      setAviso("Alterações salvas. Reabra a ficha para consultar os dados atualizados.");
+    }
+    carregarResumo();
   };
   const status = (item: ColaboradorGestao) => (
     <StatusColaborador
@@ -316,7 +322,7 @@ export default function GestaoColaborador() {
   ];
   const formulario = formAberto && (
     <FormularioColaborador
-      inicial={editando}
+      inicial={null}
       salvando={salvando}
       erro={erroForm}
       parcial={parcial}
@@ -335,6 +341,7 @@ export default function GestaoColaborador() {
           ficha={ficha}
           onClose={() => {
             setFicha(null);
+            setEditorFicha(null);
             requestAnimationFrame(() =>
               document
                 .querySelector<HTMLElement>(
@@ -343,13 +350,17 @@ export default function GestaoColaborador() {
                 ?.focus(),
             );
           }}
-          onEdit={() =>
-            abrirFormulario({
-              ...ficha.perfil,
-              funcoes: ficha.funcoes.map((f) => f.funcao),
-            })
-          }
+          onEditPessoal={() => setEditorFicha("pessoal")}
+          onEditProfissional={() => setEditorFicha("profissional")}
         />
+        {editorFicha && (
+          <EditorFichaColaborador
+            perfil={ficha.perfil}
+            escopo={editorFicha}
+            onClose={() => setEditorFicha(null)}
+            onSave={salvarEdicaoFicha}
+          />
+        )}
         {formulario}
       </div>
     );

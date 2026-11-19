@@ -38,11 +38,13 @@ import "@/components/colaboradores/colaboradores.css";
 export function FichaColaboradorAbas({
   ficha,
   onClose,
-  onEdit,
+  onEditPessoal,
+  onEditProfissional,
 }: {
   ficha: FichaColaborador;
   onClose: () => void;
-  onEdit: () => void;
+  onEditPessoal: () => void;
+  onEditProfissional: () => void;
 }) {
   const { perfil } = ficha;
   const hoje = hojeLocal();
@@ -118,7 +120,7 @@ export function FichaColaboradorAbas({
                 </dl>
               </div>
             </div>
-            <button type="button" className="rh-btn" onClick={onEdit}>
+            <button type="button" className="rh-btn" onClick={onEditPessoal}>
               <Pencil size={15} /> Editar cadastro
             </button>
           </div>
@@ -169,7 +171,6 @@ export function FichaColaboradorAbas({
                     valor={formatarCpf(perfil.cpf || "")}
                   />
                   <DadoFicha titulo="RG" valor={perfil.rg} />
-                  <DadoFicha titulo="CANAC" valor={perfil.canac} />
                 </dl>
               </section>
               <section className="rh-panel rh-profile-section">
@@ -233,6 +234,31 @@ export function FichaColaboradorAbas({
         >
           <div className="rh-profile-layout">
             <div>
+              <section className="rh-panel rh-profile-section">
+                <header className="rh-panel-head">
+                  <div>
+                    <h2>Vínculo profissional</h2>
+                    <p>Lotação, admissão e registro profissional.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rh-btn"
+                    onClick={onEditProfissional}
+                  >
+                    <Pencil size={15} /> Editar profissional
+                  </button>
+                </header>
+                <dl className="rh-details-grid">
+                  <DadoFicha titulo="Departamento" valor={perfil.departamento} />
+                  <DadoFicha titulo="Admissão" valor={dataBr(perfil.data_admissao)} />
+                  <DadoFicha titulo="Situação" valor={perfil.status} />
+                  <DadoFicha titulo="CANAC" valor={perfil.canac} />
+                  <DadoFicha
+                    titulo="Funções"
+                    valor={ficha.funcoes.map((funcao) => formatarFuncao(funcao.funcao)).join(", ")}
+                  />
+                </dl>
+              </section>
               <section className="rh-panel rh-profile-section">
                 <header className="rh-panel-head">
                   <h2>Exame admissional</h2>

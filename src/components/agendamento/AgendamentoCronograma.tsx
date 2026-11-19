@@ -385,6 +385,12 @@ export function AcoesDetalhe({
 }) {
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const jornadaConcluida = Number(item.jornadas_encerradas || 0) > 0 && Number(item.jornadas_abertas || 0) === 0;
+  const status = String(item.status || "").trim().toLowerCase();
+  const rotuloJornada = status === "em_solo" && !jornadaConcluida
+    ? "ADICIONAR NOVA PERNA / ENCERRAR OPERAÇÃO"
+    : ["decolado", "em_rota", "em_voo"].includes(status)
+      ? "ATUALIZAR HORÁRIOS · REGISTRAR POUSO"
+      : acoes.jornadaLabel;
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -404,7 +410,7 @@ export function AcoesDetalhe({
           onClick={() => (jornadaConcluida ? aoFinalizar(item) : aoJornada(item))}
           className="h-10 gap-2 rounded-lg border border-[#f1b950] bg-[#f1b950]/15 text-xs font-bold text-[#935a0d] hover:bg-[#f1b950]/25"
         >
-          {acoes.jornadaLabel}
+          {rotuloJornada}
         </Button>
       )}
 

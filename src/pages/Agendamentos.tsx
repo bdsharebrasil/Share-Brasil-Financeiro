@@ -142,6 +142,7 @@ export default function Agendamentos() {
   const [jornadaAberta, setJornadaAberta] = useState(false);
   const [jornadaModo, setJornadaModo] = useState<"historico" | "atualizar">("atualizar");
   const [agendamentoParaExcluir, setAgendamentoParaExcluir] = useState<SolicitacaoVooInterna | null>(null);
+  const [mensagensConfirmacaoId, setMensagensConfirmacaoId] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
   const [novaDisponibilidade, setNovaDisponibilidade] = useState({ tripulante_id: "", data_inicio: dataIso(new Date()), data_fim: dataIso(new Date()), status: "aviso" as "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel", observacoes: "" });
@@ -236,8 +237,9 @@ export default function Agendamentos() {
   const voosDeHoje = useMemo(() => agendamentos.filter((item) => {
     const status = String(item.status || "").trim().toLowerCase().replace(/\s+/g, "_");
     const confirmado = status === "aprovada";
+    const encerrado = ["encerrada", "concluida"].includes(status);
     const checklistConcluido = String(item.checklist_status || "").trim().toLowerCase() === "concluido";
-    return item.data_agendada === hojeUtc() && confirmado && checklistConcluido;
+    return item.data_agendada === hojeUtc() && (encerrado || (confirmado && checklistConcluido));
   }), [agendamentos]);
 
   const vooHojeSelecionado = voosDeHoje.find((item) => item.id === vooHojeSelecionadoId) || voosDeHoje[0] || null;
@@ -263,6 +265,7 @@ export default function Agendamentos() {
   }, [agendamentos, aba, busca, filtroCronograma]);
 
   const selecionarAba = (proxima: AbaAgendamento) => {
+    setMensagensConfirmacaoId(null);
     setAba(proxima);
     setSelecionada(null);
     setChecklistAberto(false);
@@ -275,6 +278,7 @@ export default function Agendamentos() {
   };
 
   const abrirSolicitacao = useCallback((item: SolicitacaoVooInterna) => {
+    setMensagensConfirmacaoId(null);
     if (!["cronograma", "pendentes", "aprovados", "historico"].includes(aba)) {
       setAba("cronograma");
       setFiltroStatus("todos");
@@ -358,7 +362,8 @@ export default function Agendamentos() {
     try {
       const resposta = await aprovarSolicitacaoVoo(selecionada.id, pilotoId, copilotoId || undefined, alteracoes);
       toast({ title: "Solicitação aprovada", description: `Número de voo gerado: ${resposta.numero_voo}.` });
-      setSelecionada(null);
+      setMensagensConfirmacaoId(selecionada.id);
+      setSelecionada((atual) => atual ? { ...atual, status: "aprovada", numero_voo: resposta.numero_voo } : atual);
       await carregar(true);
     } catch (error) {
       toast({ title: "Não foi possível aprovar", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
@@ -762,6 +767,7 @@ export default function Agendamentos() {
         <section id={`agendamento-panel-${aba}`} role="tabpanel" tabIndex={0}>
           <DetalhesSolicitacao
             voosEmOperacao={voosAoVivo}
+            mostrarMensagensConfirmacao={mensagensConfirmacaoId === selecionada.id}
             acoes={
               <AcoesDetalhe
                 item={selecionada}
@@ -776,7 +782,6 @@ export default function Agendamentos() {
                 checklistAberto={checklistAberto}
               />
             }
-            aoExcluir={() => void excluir(selecionada)}
             selecionada={selecionada}
             opcoes={opcoes}
             tripulacao={painel?.tripulacao || []}

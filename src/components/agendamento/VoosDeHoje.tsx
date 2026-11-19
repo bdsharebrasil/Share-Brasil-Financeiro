@@ -33,7 +33,7 @@ export default function VoosDeHoje({
   const voosReais = voosEmOperacao;
   const vooSelecionado = voosReais.find((v) => v.id === vooSelecionadoId) || voosReais[0] || null;
   const porId = new Map(voosReais.map((v) => [v.id, v]));
-  const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrada" }[status] || status);
+  const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrado", concluida: "Encerrado" }[status] || status);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -63,7 +63,7 @@ export default function VoosDeHoje({
             <button key={flight.id} type="button" onClick={() => setVooSelecionadoId(flight.id)} className={`w-full rounded-xl border p-3 text-left ${vooSelecionado?.id === flight.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}>
               <span className="flex items-center justify-between gap-2"><strong className="font-mono text-sm">{flight.numero_voo || "Voo sem número"}</strong><span className="text-[10px] text-emerald-700">{statusVoo(flight.status)}</span></span>
               <span className="mt-1 block text-xs text-muted-foreground">{flight.matricula_registro || "Matrícula indisponível"} · {flight.modelo || "Aeronave"} · {dataBR(flight.horario_previsto_agendamento)}</span>
-              <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : flight.rastreio_status.replaceAll("_", " ")}</span></span>
+              <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : flight.rastreio_status.replace(/_/g, " ")}</span></span>
             </button>
           )) : <p className="rounded-lg bg-secondary/40 p-4 text-xs text-muted-foreground">Nenhum voo com rastreio ou histórico disponível neste momento.</p>}
           <div className="border-t border-border pt-4">
@@ -71,7 +71,7 @@ export default function VoosDeHoje({
             {carregando ? <p className="text-xs text-muted-foreground">Carregando agendamentos…</p> : agendamentosHoje.length ? agendamentosHoje.map((item) => {
               const monitorado = porId.get(item.id);
               return <article key={item.id} className="mb-2 rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{item.numero_voo || "Solicitação sem número"}</strong><span className="text-[10px] text-muted-foreground">{statusVoo(monitorado?.status || item.status)}</span></div>
+                <div className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{item.numero_voo || "Solicitação sem número"}</strong><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${["encerrada", "concluida"].includes(String(monitorado?.status || item.status).toLowerCase()) ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-secondary/30 text-muted-foreground"}`}>{statusVoo(monitorado?.status || item.status)}</span></div>
                 <p className="mt-1 text-xs text-muted-foreground">{dataBR(item.data_agendada)} · {item.origem} → {item.destino} · {item.matricula_registro || "Aeronave a definir"}</p>
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11}/>{item.piloto_nome || "Piloto não definido"}{item.copiloto_nome ? ` · ${item.copiloto_nome}` : ""}</p>
                 {item.status === "aprovada" && item.checklist_status === "concluido" && <button type="button" onClick={() => aoIniciar(item)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 size={12}/>Abrir operação</button>}

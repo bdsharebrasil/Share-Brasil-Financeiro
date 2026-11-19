@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronLeft, Copy, Pencil, Plane, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, Copy, Pencil, Plane, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +81,7 @@ function criarEdicaoConfirmacao(selecionada: SolicitacaoVooInterna): EdicaoConfi
 export function DetalhesSolicitacao({
   voosEmOperacao,
   acoes,
-  aoExcluir,
+  mostrarMensagensConfirmacao,
   selecionada,
   opcoes,
   tripulacao,
@@ -99,7 +99,7 @@ export function DetalhesSolicitacao({
 }: {
   voosEmOperacao: VooEmOperacao[];
   acoes: ReactNode;
-  aoExcluir: () => void;
+  mostrarMensagensConfirmacao: boolean;
   selecionada: SolicitacaoVooInterna;
   opcoes: OpcoesAgendamentoResponse;
   tripulacao: TripulanteAgendamento[];
@@ -295,13 +295,6 @@ export function DetalhesSolicitacao({
               >
                 {podeConfirmar ? "Pendente" : rotuloStatus[statusOperacional] || selecionada.status || "Registrado"}
               </span>
-              <button
-                type="button"
-                onClick={aoExcluir}
-                className="rounded-lg border border-[#bf5260]/30 px-3 py-1.5 text-xs font-semibold text-[#bf5260] transition-colors hover:bg-red-400/10"
-              >
-                Excluir
-              </button>
             </div>
           </div>
 
@@ -590,22 +583,17 @@ export function DetalhesSolicitacao({
                   <p className="mt-1 font-mono text-sm font-bold text-foreground">{horaParaCampo(selecionada.perna_atual_horario_corte || selecionada.horario_corte)}</p>
                 </div>
               )}
+              <div className="border-t border-border pt-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Próxima ação</p>
+                {acoes}
+              </div>
             </div>
           </section>
         )}
       </div>
 
-      {/* BLOCO INFERIOR: Ações do Voo e Acompanhamento */}
-      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="border-b border-border pb-3">
-          <h3 className="text-base font-bold text-foreground">Ações do voo</h3>
-          <p className="text-xs text-muted-foreground">Disponíveis conforme status, checklist e jornada</p>
-        </div>
-
-        {acoes}
-
-        {/* Mensagens de Notificação WhatsApp */}
-        {!statusPendente && (
+      {/* Mensagens de WhatsApp são exibidas somente no retorno imediato de uma aprovação pendente. */}
+      {mostrarMensagensConfirmacao && (
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2 pt-4 border-t border-border">
             <CardMensagem
               titulo="Mensagem para o cliente"
@@ -621,13 +609,14 @@ export function DetalhesSolicitacao({
               )} na aeronave ${selecionada.matricula_registro || "a definir"} às ${horarioFormatado.utc} UTC.`}
             />
           </div>
-        )}
+      )}
 
-        {/* Rastreio Operacional */}
-        <div className="mt-6 pt-4 border-t border-border">
+      {/* Rastreio/histórico não existe para um voo apenas confirmado sem jornada aberta ou encerrada. */}
+      {(statusOperacional !== "aprovada" || Number(selecionada.jornadas_abertas || 0) > 0 || Number(selecionada.jornadas_encerradas || 0) > 0) && (
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <AcompanhamentoVooAgendado item={selecionada} voosEmOperacao={voosEmOperacao} />
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

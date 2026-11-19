@@ -64,7 +64,9 @@ function contatoParaFormulario(item?: ContatoAgenda): FormularioContato {
 
 export function prepararContato(form: FormularioContato): FormularioContato {
   const payload = { ...form };
-  for (const key of Object.keys(payload) as (keyof FormularioContato)[]) payload[key] = payload[key].trim();
+  for (const key of Object.keys(payload) as (keyof FormularioContato)[]) {
+    payload[key] = payload[key].trim().toLocaleUpperCase("pt-BR");
+  }
   if (!payload.nome) throw new Error("Informe o nome do contato.");
   if (!["FORNECEDOR", "HANGAR", "OUTRO"].includes(payload.categoria_tipo)) throw new Error("Selecione uma categoria válida.");
   if (payload.categoria_tipo === "OUTRO" && !payload.categoria_personalizada) throw new Error("Informe a categoria para a opção Outro.");
@@ -114,6 +116,7 @@ function Campo({ label, id, ...props }: CampoProps) {
 
 type CadastroProps = {
   contato?: ContatoAgenda;
+  categoriaInicial?: "FORNECEDOR" | "HANGAR" | "OUTRO";
   salvando: boolean;
   erro: string | null;
   aoSalvar: (form: FormularioContato) => Promise<void>;
@@ -121,14 +124,20 @@ type CadastroProps = {
 };
 
 /** Formulário completo. Pode ser reutilizado em outros Dialogs. */
-export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, aoCancelar }: CadastroProps) {
-  const [form, setForm] = useState(() => contatoParaFormulario(contato));
+export function FormularioCadastroContato({ contato, categoriaInicial, salvando, erro, aoSalvar, aoCancelar }: CadastroProps) {
+  const [form, setForm] = useState(() => {
+    const inicial = contatoParaFormulario(contato);
+    return categoriaInicial ? { ...inicial, categoria_tipo: categoriaInicial, categoria: categoriaInicial } : inicial;
+  });
   const [erroLocal, setErroLocal] = useState<string | null>(null);
   const resumoRef = useRef<HTMLDivElement>(null);
   const mensagem = erroLocal || erro;
   useEffect(() => { if (mensagem) resumoRef.current?.focus(); }, [mensagem]);
   function alterar<K extends keyof FormularioContato>(key: K, value: FormularioContato[K]) {
-    setForm((atual) => ({ ...atual, [key]: value }));
+    const valorNormalizado = typeof value === "string"
+      ? value.toLocaleUpperCase("pt-BR")
+      : value;
+    setForm((atual) => ({ ...atual, [key]: valorNormalizado }));
     setErroLocal(null);
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -140,7 +149,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
     await aoSalvar(payload);
   }
   const campo = (key: keyof FormularioContato, label: string, props: InputHTMLAttributes<HTMLInputElement> = {}) => (
-    <Campo key={key} id={`contato-${key}`} label={label} value={form[key]} disabled={salvando}
+    <Campo key={key} id={`contato-${key}`} label={label} value={form[key].toLocaleUpperCase("pt-BR")} disabled={salvando}
       onChange={(e) => alterar(key, e.target.value)} {...props} />
   );
 
@@ -158,7 +167,7 @@ export function FormularioCadastroContato({ contato, salvando, erro, aoSalvar, a
             {campo("email", "E-mail", { type: "email", autoComplete: "email", placeholder: "contato@empresa.com.br" })}
             <label className="ac-field" htmlFor="contato-categoria">
               <span>Categoria *</span>
-              <select id="contato-categoria" className="ac-control" value={form.categoria_tipo} required disabled={salvando}
+              <select id="contato-categoria" className="ac-control" value={form.categoria_tipo} required disabled={salvando || Boolean(categoriaInicial)}
                 onChange={(e) => { const tipo = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual,
                   categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? { ...SEM_SERVICOS_HANGAR, atendimento_pista: "" } : {}),
                 })); }}>

@@ -12,7 +12,6 @@ import {
   Clock3,
   Columns3,
   Copy,
-  Eye,
   FilePlus2,
   FileText,
   Folder,
@@ -75,6 +74,10 @@ import {
   excluirSenha,
   buscarClientesShare,
   buscarContatosShare,
+  buscarAbastecimentoOpcoes,
+  criarFornecedorAbastecimento,
+  atualizarFornecedorAbastecimento,
+  type FornecedorCombustivel,
   criarContatoShare,
   atualizarContatoShare,
   excluirContatoShare,
@@ -105,6 +108,7 @@ import {
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
+import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import {
   FormularioCadastroContato,
   type FormularioContato,
@@ -145,6 +149,10 @@ function emailsCadastrados(registro?: Record<string, any> | null) {
         .filter(Boolean),
     ),
   ];
+}
+
+function textoMaiusculo(value: unknown) {
+  return String(value ?? "").toLocaleUpperCase("pt-BR");
 }
 
 function emailsParaSalvar(value: unknown) {
@@ -1043,9 +1051,21 @@ export function ContatosClientesShareBrasil({
   somenteCotistas?: boolean;
   aoVoltar?: () => void;
 }) {
-  const [tab, setTab] = useState<"contatos" | "clientes">(
-    somenteCotistas ? "clientes" : "contatos",
+  const [tab, setTab] = useState<"contatos" | "abastecimentos" | "hangar" | "hoteis">(
+    "contatos",
   );
+  const [fuelSuppliers, setFuelSuppliers] = useState<FornecedorCombustivel[]>([]);
+  const [fuelSearch, setFuelSearch] = useState("");
+  const [fuelLoading, setFuelLoading] = useState(false);
+  const [supplierEditor, setSupplierEditor] = useState<FornecedorCombustivel | null | false>(false);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierForm, setSupplierForm] = useState({
+    nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "",
+  });
+  const [hangarEditor, setHangarEditor] = useState<ContatoAgenda | null | false>(false);
+  const [hangarSearch, setHangarSearch] = useState("");
+  const [hangarSaving, setHangarSaving] = useState(false);
+  const [hangarError, setHangarError] = useState<string | null>(null);
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
     "ativos",
   );
@@ -1137,6 +1157,14 @@ export function ContatosClientesShareBrasil({
       .catch((e) => setError(e.message));
   };
   useEffect(refresh, []);
+  useEffect(() => {
+    if (tab !== "abastecimentos") return;
+    setFuelLoading(true);
+    void buscarAbastecimentoOpcoes()
+      .then((data) => setFuelSuppliers(data.fornecedores || []))
+      .catch((e) => setError(e.message))
+      .finally(() => setFuelLoading(false));
+  }, [tab]);
 
   const selected = clients.find((item) => item.id === selectedClient);
   const selectedClientSocios = socios.filter(
@@ -1167,7 +1195,45 @@ export function ContatosClientesShareBrasil({
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const hangarContacts = contacts.filter(
+    (contact) =>
+      (contact.categoria_tipo || contact.categoria || "").toUpperCase() === "HANGAR",
+  );
+  const visibleHangarContacts = hangarContacts.filter((contact) =>
+    [
+      contact.nome,
+      contact.empresa,
+      contact.telefone,
+      contact.email,
+      contact.cidade,
+      contact.uf,
+      contact.razao_social,
+      contact.cnpj,
+    ].some((value) =>
+      value
+        ?.toLocaleLowerCase("pt-BR")
+        .includes(hangarSearch.trim().toLocaleLowerCase("pt-BR")),
+    ),
+  );
+  const visibleFuelSuppliers = fuelSuppliers.filter((supplier) =>
+    [
+      supplier.nome_cidade,
+      supplier.codigo_icao,
+      supplier.nome_fornecedor,
+      supplier.pessoa_contato,
+      supplier.telefone,
+    ].some((value) =>
+      value
+        ?.toLocaleLowerCase("pt-BR")
+        .includes(fuelSearch.trim().toLocaleLowerCase("pt-BR")),
+    ),
+  );
   const visibleContacts = contacts
+    .filter((item) => {
+      const categoria = (item.categoria_tipo || item.categoria || "")
+        .toLocaleUpperCase("pt-BR");
+      return categoria !== "HANGAR";
+    })
     .filter((item) =>
       [
         item.nome,
@@ -1263,6 +1329,69 @@ export function ContatosClientesShareBrasil({
       );
     }
   };
+  const openSupplierEditor = (supplier?: FornecedorCombustivel) => {
+    setSupplierEditor(supplier || null);
+    setSupplierForm(supplier ? {
+      nome_cidade: supplier.nome_cidade || "",
+      codigo_icao: supplier.codigo_icao || "",
+      nome_fornecedor: supplier.nome_fornecedor || "",
+      pessoa_contato: supplier.pessoa_contato || "",
+      telefone: supplier.telefone || "",
+      preco_avgas: supplier.preco_avgas == null ? "" : String(supplier.preco_avgas),
+      preco_jet: supplier.preco_jet == null ? "" : String(supplier.preco_jet),
+    } : { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "" });
+  };
+  const saveSupplier = async () => {
+    if (!supplierForm.nome_cidade.trim() || !supplierForm.nome_fornecedor.trim()) {
+      setError("Informe a cidade e o nome do fornecedor.");
+      return;
+    }
+    const precoAvgas = supplierForm.preco_avgas.trim() ? Number(supplierForm.preco_avgas) : null;
+    const precoJet = supplierForm.preco_jet.trim() ? Number(supplierForm.preco_jet) : null;
+    if ([precoAvgas, precoJet].some((preco) => preco != null && (!Number.isFinite(preco) || preco < 0))) {
+      setError("Informe preços válidos e não negativos.");
+      return;
+    }
+    setSupplierSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        nome_cidade: textoMaiusculo(supplierForm.nome_cidade.trim()),
+        codigo_icao: textoMaiusculo(supplierForm.codigo_icao.trim()) || null,
+        nome_fornecedor: textoMaiusculo(supplierForm.nome_fornecedor.trim()),
+        pessoa_contato: textoMaiusculo(supplierForm.pessoa_contato.trim()) || null,
+        telefone: textoMaiusculo(supplierForm.telefone.trim()) || null,
+        preco_avgas: precoAvgas,
+        preco_jet: precoJet,
+      };
+      if (supplierEditor) await atualizarFornecedorAbastecimento(supplierEditor.id, payload);
+      else await criarFornecedorAbastecimento(payload);
+      setSupplierEditor(false);
+      setOk(supplierEditor ? "Fornecedor atualizado." : "Fornecedor criado.");
+      const data = await buscarAbastecimentoOpcoes();
+      setFuelSuppliers(data.fornecedores || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar o fornecedor.");
+    } finally {
+      setSupplierSaving(false);
+    }
+  };
+  const salvarHangar = async (payload: FormularioContato) => {
+    setHangarSaving(true);
+    setHangarError(null);
+    try {
+      const dados: Partial<ContatoAgenda> = { ...payload, categoria_tipo: "HANGAR", categoria: "HANGAR", categoria_personalizada: "" };
+      if (hangarEditor) await atualizarContatoShare(hangarEditor.id, dados);
+      else await criarContatoShare(dados);
+      setHangarEditor(false);
+      setOk(hangarEditor ? "Hangar atualizado." : "Hangar criado.");
+      refresh();
+    } catch (e) {
+      setHangarError(e instanceof Error ? e.message : "Não foi possível salvar o hangar.");
+    } finally {
+      setHangarSaving(false);
+    }
+  };
   const emptyClientForm = () => {
     setClientForm({
       razao_social: "",
@@ -1296,7 +1425,7 @@ export function ContatosClientesShareBrasil({
     if (!clientForm.razao_social) return;
     try {
       if (clientForm.holding) {
-        const holding = await criarHoldingShare({
+        const holding = await criarHoldingShare(Object.fromEntries(Object.entries({
           nome: clientForm.razao_social,
           conta_bancaria:
             clientForm.conta_bancaria || clientForm.codigo_cliente,
@@ -1307,10 +1436,10 @@ export function ContatosClientesShareBrasil({
           cidade: clientForm.cidade,
           uf: clientForm.uf,
           emails: emailsParaSalvar(clientForm.emails),
-        });
+        }).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])));
         if (!holdingSocioForm.nome || !holdingSocioForm.cpf)
           throw new Error("Informe nome e CPF do primeiro sócio da holding.");
-        await criarSocioHoldingShare(holding.id, holdingSocioForm);
+        await criarSocioHoldingShare(holding.id, Object.fromEntries(Object.entries(holdingSocioForm).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])));
         setShowNewCotista(false);
         setOk(
           "Holding e sócio criados. Agora vincule o sócio às aeronaves no perfil.",
@@ -1323,13 +1452,13 @@ export function ContatosClientesShareBrasil({
         ) {
           throw new Error("Informe um percentual entre 0 e 100.");
         }
-        const result = await criarClienteShare({
+        const result = await criarClienteShare(Object.fromEntries(Object.entries({
           ...clientForm,
           emails: emailsParaSalvar(clientForm.emails),
           holding: 0,
           aeronave_id: newCotistaAircraftId || null,
           percentual_sociedade: newCotistaAircraftId ? percentual : null,
-        });
+        }).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])));
         setSelectedClient(result.id);
         setShowNewCotista(false);
         setProfileTab("visao-geral");
@@ -1354,8 +1483,8 @@ export function ContatosClientesShareBrasil({
         emails: emailsParaSalvar(clientForm.emails),
       };
       if (selected.holding)
-        await atualizarHoldingShare(selectedClient, payload);
-      else await atualizarClienteShare(selectedClient, payload);
+        await atualizarHoldingShare(selectedClient, Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])));
+      else await atualizarClienteShare(selectedClient, Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])));
       setEditingClient(false);
       setOk("Cadastro atualizado.");
       refresh();
@@ -1393,8 +1522,8 @@ export function ContatosClientesShareBrasil({
     if (!selectedSocio) return;
     try {
       await atualizarSocioShare(selectedSocio, {
-        ...socioForm,
-        emails: emailsParaSalvar(socioForm.emails),
+        ...Object.fromEntries(Object.entries(socioForm).map(([key, value]) => [key, typeof value === "string" ? textoMaiusculo(value) : value])),
+        emails: emailsParaSalvar(socioForm.emails).map((email) => textoMaiusculo(email)),
       });
       setEditingSocio(false);
       setOk("Perfil do sócio atualizado.");
@@ -1455,7 +1584,7 @@ export function ContatosClientesShareBrasil({
     <Input
       placeholder={placeholder}
       value={String(clientForm[name] ?? "")}
-      onChange={(e) => setClientForm({ ...clientForm, [name]: e.target.value })}
+      onChange={(e) => setClientForm({ ...clientForm, [name]: textoMaiusculo(e.target.value) })}
       className={`${field} ${wide ? "sm:col-span-2" : ""}`}
     />
   );
@@ -1463,7 +1592,7 @@ export function ContatosClientesShareBrasil({
     <Input
       placeholder={placeholder}
       value={String(socioForm[name] ?? "")}
-      onChange={(e) => setSocioForm({ ...socioForm, [name]: e.target.value })}
+      onChange={(e) => setSocioForm({ ...socioForm, [name]: textoMaiusculo(e.target.value) })}
       className={field}
     />
   );
@@ -1582,8 +1711,8 @@ export function ContatosClientesShareBrasil({
               Agenda de contatos
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
-              {contacts.length}{" "}
-              {contacts.length === 1 ? "contato interno" : "contatos internos"}
+              {visibleContacts.length}{" "}
+              {visibleContacts.length === 1 ? "contato interno" : "contatos internos"}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -1619,8 +1748,31 @@ export function ContatosClientesShareBrasil({
           <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
-                  <div className="flex min-w-0 items-start gap-3">
+                <article className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => editContact(item)}
+                      aria-label={`Editar contato ${item.nome}`}
+                      className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void removeContact(item.id)}
+                      aria-label={`Remover contato ${item.nome}`}
+                      title="Remover contato"
+                      className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                  <div className="flex min-w-0 items-start gap-3 pr-16">
                     <span
                       aria-hidden="true"
                       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-sm font-semibold text-sky-700 dark:text-sky-200"
@@ -1643,7 +1795,7 @@ export function ContatosClientesShareBrasil({
                       </p>
                       {(item.categoria || item.empresa) && (
                         <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
-                          {item.categoria || item.empresa}
+                          {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
                         </span>
                       )}
                     </div>
@@ -1696,38 +1848,6 @@ export function ContatosClientesShareBrasil({
                         </div>
                       )}
                   </dl>
-
-                  <div className="mt-4 flex min-w-0 items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setSelectedContact(item)}
-                      className="h-9 min-w-0 flex-1 gap-2 border-sky-400/25 bg-sky-500/10 text-xs font-medium text-sky-700 dark:text-sky-200 hover:bg-sky-500/20 hover:text-sky-100"
-                    >
-                      <Eye size={14} aria-hidden="true" /> Ver
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => editContact(item)}
-                      aria-label={`Editar contato ${item.nome}`}
-                      className="h-9 w-9 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void removeContact(item.id)}
-                      aria-label={`Remover contato ${item.nome}`}
-                      title="Remover contato"
-                      className="ml-auto h-9 w-9 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
                 </article>
               </li>
             ))}
@@ -1770,7 +1890,7 @@ export function ContatosClientesShareBrasil({
                 </DialogDescription>
                 {(selectedContact?.categoria || selectedContact?.empresa) && (
                   <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] text-sky-300">
-                    {selectedContact.categoria || selectedContact.empresa}
+                    {(selectedContact.categoria || selectedContact.empresa)?.toLocaleUpperCase("pt-BR")}
                   </span>
                 )}
               </div>
@@ -2898,11 +3018,11 @@ export function ContatosClientesShareBrasil({
 
   return (
     <Shell
-      title={somenteCotistas ? "COTISTAS" : "AGENDA"}
+      title={somenteCotistas ? "COTISTAS" : "CONTATOS"}
       detail={
         somenteCotistas
           ? "Cadastros dos cotistas, perfis e criação de cotistas."
-          : "Agenda de contatos, perfis e criação de cotistas."
+          : "Contatos, fornecedores de combustível, hangares e hotéis."
       }
       action={
         aoVoltar && (
@@ -2921,34 +3041,131 @@ export function ContatosClientesShareBrasil({
       {!somenteCotistas && (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border dark:border-white/[.08] bg-card dark:bg-gradient-to-r dark:from-secondary dark:to-card p-2">
         <div className="flex flex-wrap gap-1">
-          <Button
-            type="button"
-            variant={tab === "contatos" ? "default" : "ghost"}
-            onClick={() => {
-              closeClient();
-              setTab("contatos");
-            }}
-            className="gap-2 text-xs"
-          >
-            <UserRound size={14} /> AGENDA
+          <Button type="button" variant={tab === "contatos" ? "default" : "ghost"} onClick={() => { closeClient(); setTab("contatos"); }} className="gap-2 text-xs">
+            <UserRound size={14} /> CONTATOS
           </Button>
-          <Button
-            type="button"
-            variant={tab === "clientes" ? "default" : "ghost"}
-            onClick={() => setTab("clientes")}
-            className="gap-2 text-xs"
-          >
-            <Users size={14} /> COTISTAS
+          <Button type="button" variant={tab === "abastecimentos" ? "default" : "ghost"} onClick={() => setTab("abastecimentos")} className="gap-2 text-xs">
+            <Plane size={14} /> ABASTECIMENTOS
+          </Button>
+          <Button type="button" variant={tab === "hangar" ? "default" : "ghost"} onClick={() => setTab("hangar")} className="gap-2 text-xs">
+            <Building2 size={14} /> HANGAR
+          </Button>
+          <Button type="button" variant={tab === "hoteis" ? "default" : "ghost"} onClick={() => setTab("hoteis")} className="gap-2 text-xs">
+            <Building2 size={14} /> HOTEIS
           </Button>
         </div>
-        {null}
       </div>
       )}
-      {tab === "contatos"
-        ? contactsContent
-        : selected
-          ? profileContent
-          : clientListContent}
+      {tab === "contatos" && contactsContent}
+      {tab === "abastecimentos" && (
+        <section className="space-y-4">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Fornecedores de combustível</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {visibleFuelSuppliers.length} {visibleFuelSuppliers.length === 1 ? "fornecedor" : "fornecedores"}
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="relative w-full sm:w-60">
+                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Input
+                  type="search"
+                  value={fuelSearch}
+                  onChange={(event) => setFuelSearch(event.target.value)}
+                  placeholder="Buscar fornecedor..."
+                  aria-label="Buscar fornecedores de combustível"
+                  className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
+                />
+              </div>
+              <Button type="button" onClick={() => openSupplierEditor()} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo fornecedor</Button>
+            </div>
+          </header>
+          {supplierEditor !== false && (
+            <section className={`${card} p-4`}>
+              <div className="flex items-center justify-between"><h3 className="text-sm font-bold">{supplierEditor ? "Editar fornecedor" : "Novo fornecedor"}</h3><Button type="button" variant="ghost" size="icon" onClick={() => setSupplierEditor(false)} className="h-8 w-8"><X size={14} /></Button></div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Input value={supplierForm.nome_cidade} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Cidade *" className={field} />
+                <Input value={supplierForm.codigo_icao} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="ICAO" className={field} />
+                <Input value={supplierForm.nome_fornecedor} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Fornecedor *" className={field} />
+                <Input value={supplierForm.pessoa_contato} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Pessoa de contato" className={field} />
+                <Input value={supplierForm.telefone} onChange={(e) => setSupplierForm((value) => ({ ...value, telefone: e.target.value }))} placeholder="Telefone" className={field} />
+                <Input type="number" min="0" step="0.01" value={supplierForm.preco_avgas} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: e.target.value }))} placeholder="Preço AVGAS" className={field} />
+                <Input type="number" min="0" step="0.01" value={supplierForm.preco_jet} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: e.target.value }))} placeholder="Preço JET" className={field} />
+              </div>
+              <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setSupplierEditor(false)} className="h-9 text-xs">Cancelar</Button><Button type="button" disabled={supplierSaving} onClick={() => void saveSupplier()} className="h-9 text-xs">{supplierSaving ? "Salvando..." : "Salvar fornecedor"}</Button></div>
+            </section>
+          )}
+          {fuelLoading ? (
+            <div className="rounded-xl border border-border p-8 text-center text-sm text-muted-foreground">Carregando fornecedores...</div>
+          ) : fuelSuppliers.length === 0 ? (
+            <EstadoVazio label="Nenhum fornecedor cadastrado. Cadastre o primeiro fornecedor de combustível." />
+          ) : visibleFuelSuppliers.length === 0 ? (
+            <EstadoVazio label="Nenhum fornecedor encontrado" />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleFuelSuppliers.map((supplier) => (
+                <article key={supplier.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
+                    <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
+                    <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                    <div><dt className="text-muted-foreground">Jet</dt><dd>{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {tab === "hangar" && (
+        <section className="space-y-4">
+          <Dialog open={hangarEditor !== false} onOpenChange={(open) => { if (!open && !hangarSaving) setHangarEditor(false); }}>
+            <DialogContent className="ac-dialog">
+              <DialogHeader className="ac-dialog-header"><DialogTitle>{hangarEditor ? "Editar hangar" : "Novo hangar"}</DialogTitle><DialogDescription>O cadastro será salvo automaticamente na categoria Hangar.</DialogDescription></DialogHeader>
+              <FormularioCadastroContato contato={hangarEditor || undefined} categoriaInicial="HANGAR" salvando={hangarSaving} erro={hangarError} aoSalvar={salvarHangar} aoCancelar={() => setHangarEditor(false)} />
+            </DialogContent>
+          </Dialog>
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Hangar</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {visibleHangarContacts.length} {visibleHangarContacts.length === 1 ? "contato" : "contatos"}
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="relative w-full sm:w-60">
+                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Input
+                  type="search"
+                  value={hangarSearch}
+                  onChange={(event) => setHangarSearch(event.target.value)}
+                  placeholder="Buscar hangar..."
+                  aria-label="Buscar hangares"
+                  className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
+                />
+              </div>
+              <Button type="button" onClick={() => { setHangarError(null); setHangarEditor(null); }} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo hangar</Button>
+            </div>
+          </header>
+          {hangarContacts.length === 0 ? (
+            <EstadoVazio label="Nenhum hangar encontrado. Cadastre o primeiro hangar." />
+          ) : visibleHangarContacts.length === 0 ? (
+            <EstadoVazio label="Nenhum hangar encontrado" />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleHangarContacts.map((contact) => (
+                <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {tab === "hoteis" && <HoteisShareBrasil />}
     </Shell>
   );
 }

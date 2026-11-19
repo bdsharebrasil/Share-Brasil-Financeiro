@@ -1,5 +1,4 @@
 import {
-  Building2,
   Cake,
   Clock3,
   Folder,
@@ -77,12 +76,6 @@ export const ATALHOS_POR_ABA: Record<
       icon: KeyRound,
       tone: "border-violet-500/50 bg-violet-500/20 text-violet-900 dark:text-violet-300",
       fundo: "bg-[rgba(234,240,240,1)] dark:bg-card/65",
-    },
-    {
-      menu: "hoteis",
-      label: "HOTÉIS",
-      icon: Building2,
-      tone: "border-amber-500/50 bg-amber-500/20 text-amber-900 dark:text-amber-300",
     },
     {
       menu: "aniversarios",

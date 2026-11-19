@@ -574,6 +574,7 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
 .app-topbar .tophead-control { background-color: hsl(var(--secondary) / .5); }
 .app-sidebar { border-color: hsl(var(--sidebar-border)); }
 html:not(.dark) .app-topbar { --foreground: 203.00 30.00% 94.00%; --muted-foreground: 200.00 15.00% 66.00%; --border: 205.00 30.00% 22.00%; }
+html:not(.dark) .app-topbar .tophead-control { background-color: hsl(204 27.78% 7.06%); border-color: hsl(202.50 20.00% 15.69%); }
 html:not(.dark) .app-topbar :is(.text-emerald-200, .text-emerald-300) { color: var(--app-success); }
 html:not(.dark) .app-topbar :is(.text-rose-200, .text-rose-300) { color: var(--app-danger); }
 ::selection { background: hsl(var(--primary) / .24); }

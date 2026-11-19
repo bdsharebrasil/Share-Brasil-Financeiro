@@ -19,7 +19,6 @@ const ControleAbastecimento = lazy(() => import("@/pages/ControleAbastecimento")
 const CentroTreinamento = lazy(() => import("@/pages/CentroTreinamento"));
 const CentroMateriais = lazy(() => import("@/pages/CentroMateriais"));
 const SalaReuniao = lazy(() => import("@/pages/SalaReuniao"));
-const HoteisShareBrasil = lazy(() => import("@/pages/HoteisShareBrasil"));
 const AppsShareBrasil = lazy(() => import("@/pages/AppsShareBrasil"));
 const GestaoColaborador = lazy(() => import("@/components/financeiro-share/GestaoColaborador"));
 const EnviarPagamento = lazy(() => import("@/pages/EnviarPagamento"));
@@ -153,7 +152,6 @@ export default function LayoutInterno() {
     if (ambiente === "share-brasil" && menuAtivo === "tarefas") return <TarefasShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "contatos-clientes") return <ContatosClientesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "cotistas") return <ContatosClientesShareBrasil somenteCotistas aoVoltar={() => setMenuAtivo("overview")} />;
-    if (ambiente === "share-brasil" && menuAtivo === "hoteis") return <HoteisShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "apps-share-brasil") return <AppsShareBrasil aoVoltar={() => selecionarMenu("overview")} />;
     if (ambiente === "share-brasil" && menuAtivo === "aeronaves") return <AeronavesShareBrasil />;
     if (ambiente === "share-brasil" && menuAtivo === "centro-treinamento") return <CentroTreinamento aoNavegar={selecionarMenu} />;

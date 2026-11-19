@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Map, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
+import MapLibre, { Layer, Marker, NavigationControl, Source } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl";
 import type { FeatureCollection, LineString } from "geojson";
@@ -149,7 +149,7 @@ export default function VooEmOperacaoMapa({
       className={`${compacto ? "h-[250px]" : "h-[340px]"} relative w-full overflow-hidden rounded-xl bg-slate-900`}
       aria-label={posicaoAoVivo ? "Posição real e percurso ADS-B da aeronave" : "Mapa satélite da rota planejada e sinais captados"}
     >
-      <Map
+      <MapLibre
         ref={mapaRef}
         initialViewState={initialViewState}
         mapStyle={ESTILO_SATELITE}
@@ -212,7 +212,7 @@ export default function VooEmOperacaoMapa({
             </div>
           </Marker>
         )}
-      </Map>
+      </MapLibre>
 
       <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-2">
         <span className="rounded-md border border-white/20 bg-slate-950/85 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow">

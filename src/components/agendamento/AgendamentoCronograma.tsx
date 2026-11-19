@@ -281,14 +281,10 @@ function LinhaSolicitacao({
           {item.numero_voo || (pendente ? `SOL-${item.id.slice(0, 4).toUpperCase()}` : item.matricula_registro || "Voo a definir")}
         </span>
         <strong className="mt-0.5 block text-sm font-bold text-foreground">{cliente}</strong>
-        {pendente ? (
+        {pendente && (
           <p className="mt-0.5 text-xs text-muted-foreground">
             {formatarData(item.data_agendada)} · {item.numero_passageiros || 1} pax · {item.matricula_registro || "Aeronave a definir"}
           </p>
-        ) : (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#17885f]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#17885f]">
-            <Check size={11} /> Tripulação escalada
-          </span>
         )}
       </div>
 

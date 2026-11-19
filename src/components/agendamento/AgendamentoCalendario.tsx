@@ -278,6 +278,11 @@ export function CalendarioAgendamento({
                       <span className="font-mono text-[11px] font-semibold text-[#778195] uppercase">
                         {flight.destino}
                       </span>
+                      {flight.perna_atual_horario_corte && (
+                        <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">
+                          COR {formatarHora(flight.perna_atual_horario_corte)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -522,7 +527,7 @@ export function Escala({
               <span className="h-2.5 w-2.5 rounded-sm bg-[#8b5cf6]" /> Sobreaviso
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-[#778195]" /> Folga
+              <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-muted-foreground" /> Folga
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-[#f1b950]" /> Treinamento

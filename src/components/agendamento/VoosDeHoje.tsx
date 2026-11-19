@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Clock3, MapPin, Plane, Radio, Users } from "lucide-react";
 import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
 import VooEmOperacaoMapa from "@/components/dashboard/operacoes/VooEmOperacaoMapa";
+import { horarioRastreio } from "@/lib/rastreio";
+import { hojeBrasilia } from "@/lib/agendamentos-hoje";
 
 type Props = {
   voos: SolicitacaoVooInterna[];
@@ -28,8 +30,12 @@ export default function VoosDeHoje({
   atualizadoAoVivo, aoIniciar,
 }: Props) {
   const [vooSelecionadoId, setVooSelecionadoId] = useState("");
-  const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-  const agendamentosHoje = useMemo(() => voos.filter((v) => v.data_agendada === hoje), [voos, hoje]);
+  const hoje = hojeBrasilia();
+  const agendamentosHoje = useMemo(() => voos.filter((v) => {
+    const inicio = String(v.data_agendada || "").slice(0, 10);
+    const fim = String(v.data_fim || v.data_agendada || "").slice(0, 10);
+    return inicio <= hoje && fim >= hoje;
+  }), [voos, hoje]);
   const voosReais = voosEmOperacao;
   const vooSelecionado = voosReais.find((v) => v.id === vooSelecionadoId) || voosReais[0] || null;
   const porId = new Map(voosReais.map((v) => [v.id, v]));
@@ -53,7 +59,7 @@ export default function VoosDeHoje({
             <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               <MapPin size={24} />
               <strong className="text-foreground">Sem posição de voo real disponível</strong>
-              <span>O mapa será exibido quando houver posição ADS-B ou trilha registrada. Nenhuma aeronave é simulada.</span>
+              <span>O mapa aparecerá quando houver voo monitorado. A rota prevista pode ser exibida mesmo sem posição ADS-B.</span>
             </div>
           )}
         </div>
@@ -63,9 +69,38 @@ export default function VoosDeHoje({
             <button key={flight.id} type="button" onClick={() => setVooSelecionadoId(flight.id)} className={`w-full rounded-xl border p-3 text-left ${vooSelecionado?.id === flight.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}>
               <span className="flex items-center justify-between gap-2"><strong className="font-mono text-sm">{flight.numero_voo || "Voo sem número"}</strong><span className="text-[10px] text-emerald-700">{statusVoo(flight.status)}</span></span>
               <span className="mt-1 block text-xs text-muted-foreground">{flight.matricula_registro || "Matrícula indisponível"} · {flight.modelo || "Aeronave"} · {dataBR(flight.horario_previsto_agendamento)}</span>
-              <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : flight.rastreio_status.replace(/_/g, " ")}</span></span>
+              <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : flight.pernas.some((perna) => perna.horario_dep && !perna.horario_pouso) ? "Em voo · ADS-B indisponível" : flight.rastreio_status.replace(/_/g, " ")}</span></span>
             </button>
           )) : <p className="rounded-lg bg-secondary/40 p-4 text-xs text-muted-foreground">Nenhum voo com rastreio ou histórico disponível neste momento.</p>}
+          {vooSelecionado && vooSelecionado.pernas.length > 0 && (
+            <div className="rounded-xl border border-border bg-secondary/20 p-3">
+              <h3 className="mb-2 text-xs font-bold text-foreground">Horários registrados pela tripulação · UTC</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[360px] text-left text-[10px]">
+                  <thead className="text-muted-foreground"><tr>
+                    {["Trecho", "AC", "DEP", "POU", "COR"].map((titulo) => (
+                      <th key={titulo} className="px-1 py-1 font-semibold">{titulo}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {vooSelecionado.pernas.map((perna) => (
+                      <tr key={perna.id} className="border-t border-border/70">
+                        <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold">{perna.origem} → {perna.destino}</td>
+                        {[perna.horario_ac, perna.horario_dep, perna.horario_pouso, perna.horario_corte].map((horario, indice) => (
+                          <td key={indice} className="whitespace-nowrap px-1 py-2 font-mono">{horarioRastreio(horario).replace(" UTC", "")}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!vooSelecionado.rastreio && (
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Os horários acima foram informados pela tripulação. A rota tracejada no mapa é prevista, não um percurso ADS-B confirmado.
+                </p>
+              )}
+            </div>
+          )}
           <div className="border-t border-border pt-4">
             <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Agendamentos de hoje</h3><span className="text-xs text-muted-foreground">{agendamentosHoje.length}</span></div>
             {carregando ? <p className="text-xs text-muted-foreground">Carregando agendamentos…</p> : agendamentosHoje.length ? agendamentosHoje.map((item) => {

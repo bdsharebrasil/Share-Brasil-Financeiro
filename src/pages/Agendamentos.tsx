@@ -35,6 +35,7 @@ import {
   statusPermiteChecklist,
 } from "@/components/agendamento/agendamentoCardFlow";
 import { AGENDAMENTO_ABRIR_SESSAO_KEY } from "@/lib/agendamento-navigation";
+import { hojeBrasilia, operacaoNaData } from "@/lib/agendamentos-hoje";
 import VoosDeHoje from "@/components/agendamento/VoosDeHoje";
 import { useVoosEmOperacao } from "@/hooks/useVoosEmOperacao";
 import AgendamentoNavigation, { type AbaAgendamento } from "@/components/agendamento/AgendamentoNavigation";
@@ -65,6 +66,7 @@ function dataIso(data: Date) {
 function hojeUtc() {
   return new Date().toISOString().slice(0, 10);
 }
+
 function horarioUtc(data: string, hora?: string) {
   if (!hora) return undefined;
   const instante = new Date(`${data}T${hora}:00Z`);
@@ -239,14 +241,19 @@ export default function Agendamentos() {
 
   const solicitacoesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const ativos = agendamentos.filter((item) => filtroCronograma === "encerrada"
-      ? ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())
-      : correspondeFiltroStatusAgendamento(item.status, filtroCronograma));
+    // A visão inicial não duplica os filtros dos KPIs: mostra somente operações
+    // programadas/realizadas hoje, incluindo voos de múltiplos dias.
+    const hoje = hojeBrasilia();
+    const ativos = agendamentos.filter((item) => aba === "cronograma"
+      ? operacaoNaData(item, hoje)
+      : filtroCronograma === "encerrada"
+        ? ["encerrada", "concluida"].includes(String(item.status || "").trim().toLowerCase())
+        : correspondeFiltroStatusAgendamento(item.status, filtroCronograma));
     const encontrados = termo
       ? ativos.filter((item) => [item.id, item.data_agendada, item.cliente_razao_social, item.socio_nome, item.codigo_cliente, item.origem, item.destino, item.matricula_registro, item.numero_voo].filter(Boolean).join(" ").toLowerCase().includes(termo))
       : ativos;
     return ordenarPorAeronave(encontrados);
-  }, [agendamentos, busca, filtroCronograma]);
+  }, [agendamentos, aba, busca, filtroCronograma]);
 
   const selecionarAba = (proxima: AbaAgendamento) => {
     setAba(proxima);
@@ -530,7 +537,7 @@ export default function Agendamentos() {
 
   const abaLista = abaExibeLista(aba);
   const tituloAba: Record<AbaAgendamento, string> = {
-    cronograma: "Visão geral",
+    cronograma: "Voos de hoje",
     pendentes: "Solicitações pendentes",
     aprovados: "Aprovados e escalados",
     calendario: "Agenda de voos",
@@ -539,7 +546,7 @@ export default function Agendamentos() {
     historico: "Histórico operacional",
   };
   const descricaoAba: Record<AbaAgendamento, string> = {
-    cronograma: "Voos em solo, solicitações e operações gerais da frota.",
+    cronograma: "Operações previstas ou realizadas no dia de hoje, no horário de Brasília.",
     pendentes: "Pedidos de clientes aguardando análise e confirmação de escala.",
     aprovados: "Voos confirmados com tripulação definida e plano de voo.",
     calendario: "Visualização por período (hoje, amanhã, semana) e calendário mensal.",
@@ -714,8 +721,8 @@ export default function Agendamentos() {
         <section id={`agendamento-panel-${aba}`} role="tabpanel" tabIndex={0}>
           <Cronograma
             titulo={tituloAba[aba]}
-            detalhe={aba === "cronograma" ? "Solicitações, voos confirmados e operações em andamento" : descricaoAba[aba]}
-            mostrarFiltros={aba === "cronograma"}
+            detalhe={descricaoAba[aba]}
+            mostrarFiltros={false}
             selecionada={null}
             progressoChecklistPorId={progressoChecklistPorId}
             checklistAberto={checklistAberto}

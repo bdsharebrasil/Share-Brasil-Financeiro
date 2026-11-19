@@ -271,7 +271,6 @@ function LinhaSolicitacao({
   const acoes = obterAcoesAgendamento(item, progressoChecklist, checklistAberto);
   const pilotoNome = item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null);
   const copilotoNome = item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null);
-  const tripulacaoFormatada = [pilotoNome, copilotoNome].filter(Boolean).join(" · ") || "Tripulação a definir";
 
   return (
     <article className="flex flex-col gap-4 p-5 transition-colors hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between">
@@ -294,7 +293,7 @@ function LinhaSolicitacao({
           <strong className="block font-mono text-sm font-bold text-foreground">
             {formatarHora(item.horario_previsto_agendamento)}
           </strong>
-          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.origem}</span>
+          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.perna_atual_origem || item.origem}</span>
         </div>
 
         <div className="relative flex w-28 items-center justify-center border-t-2 border-dashed border-border sm:w-36">
@@ -307,9 +306,9 @@ function LinhaSolicitacao({
           <strong className="block font-mono text-sm font-bold text-foreground">
             {item.perna_atual_horario_pouso ? formatarHora(item.perna_atual_horario_pouso) : "--:--"}
           </strong>
-          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.destino}</span>
-          {item.perna_atual_horario_corte && (
-            <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">COR {formatarHora(item.perna_atual_horario_corte)}</span>
+          <span className="font-mono text-[11px] font-semibold text-muted-foreground uppercase">{item.perna_atual_destino || item.destino}</span>
+          {(item.perna_atual_horario_corte || item.horario_corte) && (
+            <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">COR {formatarHora(item.perna_atual_horario_corte || item.horario_corte)}</span>
           )}
         </div>
       </div>
@@ -346,9 +345,10 @@ function LinhaSolicitacao({
               onClick={() => aoAbrir(item)}
               className="flex items-center gap-1.5 text-left text-xs transition-colors hover:text-[#3867ed]"
             >
-              <div>
+              <div className="min-w-0 max-w-[270px] text-left">
                 <span className="block text-[10px] text-muted-foreground">Tripulação</span>
-                <strong className="block font-bold text-foreground">{tripulacaoFormatada}</strong>
+                <span className="block truncate text-[11px] font-bold text-foreground" title={pilotoNome || "Comandante a definir"}>CMTE · {pilotoNome || "A definir"}</span>
+                <span className="mt-1 block truncate text-[11px] font-semibold text-muted-foreground" title={copilotoNome || "Copiloto não escalado"}>COPI · {copilotoNome || "Não escalado"}</span>
               </div>
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>

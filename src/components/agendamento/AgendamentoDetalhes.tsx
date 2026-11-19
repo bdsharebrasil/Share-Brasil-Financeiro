@@ -252,6 +252,15 @@ export function DetalhesSolicitacao({
     selecionada.piloto_nome || tripulacao.find((t) => t.id === pilotoId)?.nome_completo || "Comandante";
 
   const statusPendente = String(selecionada.status || "").trim().toLowerCase() === "pendente";
+  // Detalhes de um voo já numerado não podem oferecer uma segunda confirmação.
+  const podeConfirmar = statusPendente && !selecionada.numero_voo;
+  const statusOperacional = String(selecionada.status || "").trim().toLowerCase();
+  const rotuloStatus: Record<string, string> = {
+    aprovada: "Confirmado", acionado: "Acionado", decolado: "Decolado",
+    em_rota: "Em rota", em_voo: "Em voo", em_solo: "Em solo",
+    encerrada: "Encerrado", concluida: "Concluído", cancelada: "Cancelado",
+    reprovada: "Reprovado",
+  };
 
   return (
     <div id="detalhes-solicitacao" className="space-y-6">
@@ -271,20 +280,20 @@ export function DetalhesSolicitacao({
                 <ChevronLeft size={14} /> Voltar
               </Button>
               <div>
-                <h3 className="text-base font-bold text-foreground">Dados da solicitação</h3>
-                <p className="text-xs text-muted-foreground">Revise e ajuste antes de confirmar</p>
+                <h3 className="text-base font-bold text-foreground">{podeConfirmar ? "Dados da solicitação" : "Dados do voo"}</h3>
+                <p className="text-xs text-muted-foreground">{podeConfirmar ? "Revise e ajuste antes de confirmar" : "Informações do agendamento já confirmado"}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  statusPendente
+                  podeConfirmar
                     ? "bg-[#f1b950]/15 text-[#b47b1c]"
                     : "bg-[#17885f]/15 text-[#17885f]"
                 }`}
               >
-                {statusPendente ? "Pendente" : "Confirmado"}
+                {podeConfirmar ? "Pendente" : rotuloStatus[statusOperacional] || selecionada.status || "Registrado"}
               </span>
               <button
                 type="button"
@@ -312,15 +321,19 @@ export function DetalhesSolicitacao({
             <div>
               <Label className="text-xs font-semibold text-foreground">Aeronave</Label>
               <div className="mt-1.5">
-                <SearchableCombobox
-                  items={aeronaves}
-                  value={edicao.aeronave_id}
-                  onChange={editarAeronave}
-                  placeholder="Selecionar aeronave ▾"
-                  searchPlaceholder="Buscar aeronave..."
-                  emptyMessage="Nenhuma aeronave encontrada."
-                  icon={<Plane size={14} className="text-[#3867ed]" />}
-                />
+                {podeConfirmar ? (
+                  <SearchableCombobox
+                    items={aeronaves}
+                    value={edicao.aeronave_id}
+                    onChange={editarAeronave}
+                    placeholder="Selecionar aeronave ▾"
+                    searchPlaceholder="Buscar aeronave..."
+                    emptyMessage="Nenhuma aeronave encontrada."
+                    icon={<Plane size={14} className="text-[#3867ed]" />}
+                  />
+                ) : (
+                  <Input readOnly value={aeronaves.find((aeronave) => aeronave.id === selecionada.aeronave_id)?.label || [selecionada.matricula_registro, selecionada.modelo].filter(Boolean).join(" · ") || "Aeronave não informada"} className="h-10 rounded-lg border-border bg-secondary/40 text-xs font-semibold text-foreground" />
+                )}
               </div>
             </div>
 
@@ -349,6 +362,7 @@ export function DetalhesSolicitacao({
               <Label className="text-xs font-semibold text-foreground">Data de saída</Label>
               <Input
                 type="date"
+                readOnly={!podeConfirmar}
                 value={edicao.data_agendada}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, data_agendada: e.target.value }))}
                 className="mt-1.5 h-10 rounded-lg border-border text-xs text-foreground"
@@ -360,6 +374,7 @@ export function DetalhesSolicitacao({
               <Label className="text-xs font-semibold text-foreground">Data final</Label>
               <Input
                 type="date"
+                readOnly={!podeConfirmar}
                 min={edicao.data_agendada}
                 value={edicao.data_fim}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, data_fim: e.target.value }))}
@@ -373,6 +388,7 @@ export function DetalhesSolicitacao({
               <div className="relative mt-1.5 flex items-center">
                 <Input
                   type="time"
+                  readOnly={!podeConfirmar}
                   value={edicao.horario}
                   onChange={(e) => setEdicao((atual) => ({ ...atual, horario: e.target.value }))}
                   className="h-10 rounded-lg border-border text-xs text-foreground"
@@ -388,6 +404,7 @@ export function DetalhesSolicitacao({
               <Label className="text-xs font-semibold text-foreground">Passageiros</Label>
               <Input
                 type="number"
+                readOnly={!podeConfirmar}
                 min={1}
                 value={edicao.numero_passageiros}
                 onChange={(e) => setEdicao((atual) => ({ ...atual, numero_passageiros: Number(e.target.value) }))}
@@ -399,7 +416,12 @@ export function DetalhesSolicitacao({
           {/* Empréstimo da Aeronave */}
           <div className="mt-4">
             <Label className="text-xs font-semibold text-foreground">Empréstimo da aeronave</Label>
-            {aeronaveDoTitular && !edicao.emprestimo ? (
+            {!podeConfirmar ? (
+              <Input readOnly value={edicao.emprestimo
+                ? `Sim · ${selecionada.socio_emprestimo_nome || selecionada.cliente_emprestimo_nome || "Cedente registrado"}`
+                : "Voo próprio do titular · sem cedente"}
+                className="mt-1.5 h-10 rounded-lg border-border bg-secondary/40 text-xs text-foreground" />
+            ) : aeronaveDoTitular && !edicao.emprestimo ? (
               <Input
                 readOnly
                 value="Voo próprio do titular · sem cedente"
@@ -442,7 +464,7 @@ export function DetalhesSolicitacao({
           <div className="mt-4">
             <Label className="text-xs font-semibold text-foreground">Observações</Label>
             <Textarea
-              readOnly={!statusPendente}
+              readOnly={!podeConfirmar}
               value={selecionada.observacoes || "Sem observações registradas."}
               placeholder="Observações operacionais..."
               className="mt-1.5 min-h-[72px] rounded-lg border-border text-xs text-foreground"
@@ -450,7 +472,8 @@ export function DetalhesSolicitacao({
           </div>
         </section>
 
-        {/* COLUNA DIREITA: Confirmação do Voo (#confirmacao-voo - 5 Colunas) */}
+        {/* A confirmação pertence exclusivamente a uma solicitação ainda pendente e sem número. */}
+        {podeConfirmar ? (
         <section id="confirmacao-voo" className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-5">
           <div className="border-b border-border pb-4">
             <h3 className="text-base font-bold text-foreground">Confirmação do voo</h3>
@@ -539,6 +562,37 @@ export function DetalhesSolicitacao({
             </div>
           </div>
         </section>
+        ) : (
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm lg:col-span-5">
+            <div className="border-b border-border pb-4">
+              <h3 className="text-base font-bold text-foreground">Resumo da operação</h3>
+              <p className="text-xs text-muted-foreground">Voo já confirmado · informações registradas</p>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="rounded-xl border border-border bg-secondary/30 p-4">
+                <span className="text-[10px] font-semibold text-muted-foreground">Número do voo</span>
+                <p className="mt-1 font-mono text-base font-bold text-foreground">{selecionada.numero_voo || "Não informado"}</p>
+                <span className="mt-2 inline-flex rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+                  {rotuloStatus[statusOperacional] || selecionada.status || "Registrado"}
+                </span>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Comandante</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{comandanteNome === "Comandante" ? "Não informado" : comandanteNome}</p>
+              </div>
+              <div className="border-t border-border pt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Copiloto</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{selecionada.copiloto_nome || tripulacao.find((t) => t.id === (selecionada.copiloto_id || copilotoId))?.nome_completo || "Não escalado"}</p>
+              </div>
+              {(selecionada.perna_atual_horario_corte || selecionada.horario_corte) && (
+                <div className="border-t border-border pt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Último corte registrado · UTC</p>
+                  <p className="mt-1 font-mono text-sm font-bold text-foreground">{horaParaCampo(selecionada.perna_atual_horario_corte || selecionada.horario_corte)}</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* BLOCO INFERIOR: Ações do Voo e Acompanhamento */}

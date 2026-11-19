@@ -62,7 +62,7 @@ function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) 
         <div className="min-w-0 space-y-3">
           <p className="text-[10px] text-muted-foreground">Programado: {planejado.utc} UTC · {planejado.brasilia} Brasília</p>
           <HistoricoRastreioVoo voo={voo} />
-          {decolou && !aoVivo && <p className="text-[10px] text-muted-foreground">Sem posição recente no ar. Consulte o percurso salvo e os eventos de sinal.</p>}
+          {decolou && !aoVivo && <p className="text-[10px] text-muted-foreground">Sem posição recente nas fontes ADS-B consultadas. A cobertura pode ser diferente da exibida no Flightradar24; consulte o histórico de sinais.</p>}
           {aoVivo && <Telemetria voo={voo} />}
         </div>
         <aside className="min-w-0 overflow-hidden rounded-xl border border-border">
@@ -70,7 +70,7 @@ function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) 
           {aoVivo || Boolean(voo.trilha?.length) ? <Suspense fallback={<div className="h-[220px] animate-pulse bg-secondary/40" />}><MapaRastreio key={`${voo.id}-${aoVivo}`} voo={voo} historico={!aoVivo} compacto={!aoVivo} /></Suspense> : <p className="p-4 text-[10px] text-muted-foreground">Nenhum percurso ADS-B registrado para este agendamento.</p>}
         </aside>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2.5 text-[10px] text-muted-foreground"><span><Radio size={11} className="mr-1 inline" />{voo.cotista_nome || "Cotista não informado"} · {voo.piloto_nome || "Piloto não informado"}{voo.copiloto_nome ? ` / ${voo.copiloto_nome}` : ""}</span><span>Última consulta: {desde(voo.rastreio?.visto_ha_s)} <button type="button" onClick={aoAbrir} className="ml-2 inline-flex items-center gap-1 font-bold text-primary hover:underline">Abrir agendamento <ExternalLink size={11} /></button></span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-3 py-2.5 text-[10px] text-muted-foreground"><span><Radio size={11} className="mr-1 inline" />{voo.cotista_nome || "Cotista não informado"} · {voo.piloto_nome || "Piloto não informado"}{voo.copiloto_nome ? ` / ${voo.copiloto_nome}` : ""}</span><span>{voo.fonte_rastreio ? `Fonte: ${voo.fonte_rastreio === "airplanes_live" ? "airplanes.live" : voo.fonte_rastreio === "adsb_lol" ? "adsb.lol" : voo.fonte_rastreio} · ` : ""}Idade da posição: {desde(voo.rastreio?.visto_ha_s)} <button type="button" onClick={aoAbrir} className="ml-2 inline-flex items-center gap-1 font-bold text-primary hover:underline">Abrir agendamento <ExternalLink size={11} /></button></span></div>
     </>}
   </article>;
 }

@@ -83,6 +83,8 @@ export type PernaOperacao = {
   horario_pouso: string | null; horario_corte: string | null;
   horario_ac_user_id?: string | null; horario_dep_user_id?: string | null;
   horario_pouso_user_id?: string | null; horario_corte_user_id?: string | null;
+  horario_ac_usuario_nome?: string | null; horario_dep_usuario_nome?: string | null;
+  horario_pouso_usuario_nome?: string | null; horario_corte_usuario_nome?: string | null;
   origem_coord: { lat: number; lon: number } | null;
   destino_coord: { lat: number; lon: number } | null;
 };

@@ -28,6 +28,30 @@ export function formatarTelefone(value: string) {
   const prefixo = n.length > 10 ? 5 : 4;
   return `(${n.slice(0, 2)})${numero.slice(0, prefixo)}${numero.length > prefixo ? "-" + numero.slice(prefixo) : ""}`;
 }
+export function formatarNumeroTelefone(value: string) {
+  const n = value.replace(/\D/g, "").slice(0, 9);
+  const prefixo = n.length > 8 ? 5 : 4;
+  return `${n.slice(0, prefixo)}${n.length > prefixo ? "-" + n.slice(prefixo) : ""}`;
+}
+export function separarTelefone(telefone: string) {
+  let n = telefone.replace(/\D/g, "");
+  if (n.length > 11 && n.startsWith("55")) n = n.slice(2);
+  if (n.length < 10 || n.length > 11) return { ddd: "", numero: telefone };
+  return { ddd: n.slice(0, 2), numero: formatarNumeroTelefone(n.slice(2)) };
+}
+export function montarTelefone(ddd: string, numero: string) {
+  const dddDigitos = ddd.replace(/\D/g, "");
+  if (!dddDigitos) return numero.trim();
+  return formatarTelefone(dddDigitos + numero.replace(/\D/g, ""));
+}
+export function validarTelefone(ddd: string, numero: string) {
+  const dddDigitos = ddd.replace(/\D/g, "");
+  const numeroDigitos = numero.replace(/\D/g, "");
+  if (!dddDigitos && !numeroDigitos) return null;
+  if (dddDigitos.length !== 2) return "Informe o DDD com dois dígitos.";
+  if (numeroDigitos.length < 8) return "Informe o número do telefone com 8 ou 9 dígitos.";
+  return null;
+}
 /** Mantém a posição de edição em relação aos dígitos ao inserir os separadores. */
 export function aplicarMascara(
   input: HTMLInputElement,

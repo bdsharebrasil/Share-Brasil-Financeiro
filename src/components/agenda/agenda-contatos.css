@@ -93,6 +93,7 @@ textarea.ac-control { min-height: 100px; resize: vertical; }
 .ac-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); min-width: 0; }
 .ac-field { display: grid; align-content: start; gap: 6px; min-width: 0; font-size: 13px; color: var(--light-muted, #bac6d6); }
 .ac-full { grid-column: 1 / -1; min-width: 0; }
+.ac-phone-row { display: grid; grid-template-columns: minmax(0, 90px) minmax(0, 1fr); gap: 8px; min-width: 0; }
 .ac-service-list { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--light-canvas, rgba(4, 10, 15, 1)); }
 .ac-service-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px); align-items: center; gap: 12px; min-width: 0; }
 .ac-service-check { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--light-text, #d9e4f0); cursor: pointer; }

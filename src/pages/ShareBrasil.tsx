@@ -33,6 +33,7 @@ import {
   Plane,
   Play,
   Plus,
+  Save,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -109,8 +110,10 @@ import {
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
+import { montarTelefone, separarTelefone, validarTelefone } from "@/lib/cadastro-colaborador";
 import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import {
+  CampoTelefone,
   FormularioCadastroContato,
   type FormularioContato,
 } from "@/components/agenda/AgendaContatos";
@@ -125,6 +128,16 @@ const card =
   "min-w-0 max-w-full rounded-xl border border-border bg-card/75 shadow-sm";
 const field =
   "h-10 min-w-0 max-w-full rounded-lg border-border/70 bg-background/70 text-sm";
+const formatarDigitosMoeda = (digitos: string) =>
+  digitos
+    ? (Number(digitos) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "";
+const moedaParaCampo = (valor?: number | null) =>
+  valor == null ? "" : formatarDigitosMoeda(String(Math.round(valor * 100)));
+const lerMoeda = (texto: string) => {
+  const digitos = texto.replace(/\D/g, "");
+  return digitos ? Number(digitos) / 100 : null;
+};
 function emailsCadastrados(registro?: Record<string, any> | null) {
   if (!registro) return [];
   const adicionais = Array.isArray(registro.emails)
@@ -1061,8 +1074,9 @@ export function ContatosClientesShareBrasil({
   const [fuelLoading, setFuelLoading] = useState(false);
   const [supplierEditor, setSupplierEditor] = useState<FornecedorCombustivel | null | false>(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierError, setSupplierError] = useState<string | null>(null);
   const [supplierForm, setSupplierForm] = useState({
-    nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "",
+    nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: { ddd: "", numero: "" }, preco_avgas: "", preco_jet: "",
   });
   const [hangarEditor, setHangarEditor] = useState<ContatoAgenda | null | false>(false);
   const [hangarSearch, setHangarSearch] = useState("");
@@ -1359,37 +1373,39 @@ export function ContatosClientesShareBrasil({
     }
   };
   const openSupplierEditor = (supplier?: FornecedorCombustivel) => {
+    setSupplierError(null);
     setSupplierEditor(supplier || null);
     setSupplierForm(supplier ? {
       nome_cidade: supplier.nome_cidade || "",
       codigo_icao: supplier.codigo_icao || "",
       nome_fornecedor: supplier.nome_fornecedor || "",
       pessoa_contato: supplier.pessoa_contato || "",
-      telefone: supplier.telefone || "",
-      preco_avgas: supplier.preco_avgas == null ? "" : String(supplier.preco_avgas),
-      preco_jet: supplier.preco_jet == null ? "" : String(supplier.preco_jet),
-    } : { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "" });
+      telefone: separarTelefone(supplier.telefone || ""),
+      preco_avgas: moedaParaCampo(supplier.preco_avgas),
+      preco_jet: moedaParaCampo(supplier.preco_jet),
+    } : { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: { ddd: "", numero: "" }, preco_avgas: "", preco_jet: "" });
   };
   const saveSupplier = async () => {
     if (!supplierForm.nome_cidade.trim() || !supplierForm.nome_fornecedor.trim()) {
-      setError("Informe a cidade e o nome do fornecedor.");
+      setSupplierError("Informe a cidade e o nome do fornecedor.");
       return;
     }
-    const precoAvgas = supplierForm.preco_avgas.trim() ? Number(supplierForm.preco_avgas) : null;
-    const precoJet = supplierForm.preco_jet.trim() ? Number(supplierForm.preco_jet) : null;
-    if ([precoAvgas, precoJet].some((preco) => preco != null && (!Number.isFinite(preco) || preco < 0))) {
-      setError("Informe preços válidos e não negativos.");
+    const erroTelefone = validarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero);
+    if (erroTelefone) {
+      setSupplierError(erroTelefone);
       return;
     }
+    const precoAvgas = lerMoeda(supplierForm.preco_avgas);
+    const precoJet = lerMoeda(supplierForm.preco_jet);
     setSupplierSaving(true);
-    setError(null);
+    setSupplierError(null);
     try {
       const payload = {
         nome_cidade: textoMaiusculo(supplierForm.nome_cidade.trim()),
         codigo_icao: textoMaiusculo(supplierForm.codigo_icao.trim()) || null,
         nome_fornecedor: textoMaiusculo(supplierForm.nome_fornecedor.trim()),
         pessoa_contato: textoMaiusculo(supplierForm.pessoa_contato.trim()) || null,
-        telefone: textoMaiusculo(supplierForm.telefone.trim()) || null,
+        telefone: textoMaiusculo(montarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero)) || null,
         preco_avgas: precoAvgas,
         preco_jet: precoJet,
       };
@@ -1400,7 +1416,7 @@ export function ContatosClientesShareBrasil({
       const data = await buscarAbastecimentoOpcoes();
       setFuelSuppliers(data.fornecedores || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar o fornecedor.");
+      setSupplierError(e instanceof Error ? e.message : "Não foi possível salvar o fornecedor.");
     } finally {
       setSupplierSaving(false);
     }
@@ -3200,21 +3216,30 @@ export function ContatosClientesShareBrasil({
               {viewToggle(fuelView, setFuelView, "dos fornecedores")}
             </div>
           </header>
-          {supplierEditor !== false && (
-            <section className={`${card} p-4`}>
-              <div className="flex items-center justify-between"><h3 className="text-sm font-bold">{supplierEditor ? "Editar fornecedor" : "Novo fornecedor"}</h3><Button type="button" variant="ghost" size="icon" onClick={() => setSupplierEditor(false)} className="h-8 w-8"><X size={14} /></Button></div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input value={supplierForm.nome_cidade} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Cidade *" className={field} />
-                <Input value={supplierForm.codigo_icao} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="ICAO" className={field} />
-                <Input value={supplierForm.nome_fornecedor} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Fornecedor *" className={field} />
-                <Input value={supplierForm.pessoa_contato} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Pessoa de contato" className={field} />
-                <Input value={supplierForm.telefone} onChange={(e) => setSupplierForm((value) => ({ ...value, telefone: e.target.value }))} placeholder="Telefone" className={field} />
-                <Input type="number" min="0" step="0.01" value={supplierForm.preco_avgas} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: e.target.value }))} placeholder="Preço AVGAS" className={field} />
-                <Input type="number" min="0" step="0.01" value={supplierForm.preco_jet} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: e.target.value }))} placeholder="Preço JET" className={field} />
-              </div>
-              <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setSupplierEditor(false)} className="h-9 text-xs">Cancelar</Button><Button type="button" disabled={supplierSaving} onClick={() => void saveSupplier()} className="h-9 text-xs">{supplierSaving ? "Salvando..." : "Salvar fornecedor"}</Button></div>
-            </section>
-          )}
+          <Dialog open={supplierEditor !== false} onOpenChange={(open) => { if (!open && !supplierSaving) setSupplierEditor(false); }}>
+            <DialogContent className="ac-dialog">
+              <DialogHeader className="ac-dialog-header"><DialogTitle>{supplierEditor ? "Editar fornecedor" : "Novo fornecedor"}</DialogTitle><DialogDescription>Preencha os dados do fornecedor de combustível.</DialogDescription></DialogHeader>
+              <form className="ac-dialog-form" onSubmit={(e) => { e.preventDefault(); void saveSupplier(); }} aria-busy={supplierSaving}>
+                <div className="ac-form-body bg-card dark:bg-background">
+                  <p className="ac-muted">Os campos com * são obrigatórios.</p>
+                  {supplierError && <div role="alert" className="ac-notice ac-notice--error">{supplierError}</div>}
+                  <div className="ac-form-grid">
+                    <label className="ac-field"><span>Cidade *</span><input className="ac-control" value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" /></label>
+                    <label className="ac-field"><span>ICAO</span><input className="ac-control" value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" /></label>
+                    <label className="ac-field"><span>Fornecedor *</span><input className="ac-control" value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" /></label>
+                    <label className="ac-field"><span>Pessoa de contato</span><input className="ac-control" value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" /></label>
+                    <CampoTelefone valor={supplierForm.telefone} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone }))} />
+                    <label className="ac-field"><span>Preço AVGAS</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
+                    <label className="ac-field"><span>Preço JET</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_jet} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
+                  </div>
+                </div>
+                <div className="ac-footer">
+                  <button type="button" className="ac-btn" disabled={supplierSaving} onClick={() => setSupplierEditor(false)}><X size={16} aria-hidden="true" />Cancelar</button>
+                  <button type="submit" className="ac-btn ac-btn--primary" disabled={supplierSaving}><Save size={16} aria-hidden="true" />{supplierSaving ? "Salvando…" : "Salvar fornecedor"}</button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
           {fuelLoading ? (
             <div className="rounded-xl border border-border p-8 text-center text-sm text-muted-foreground">Carregando fornecedores...</div>
           ) : fuelSuppliers.length === 0 ? (

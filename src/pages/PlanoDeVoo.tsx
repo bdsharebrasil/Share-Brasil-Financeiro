@@ -114,21 +114,21 @@ export default function PlanoDeVoo() {
   if (!plano.pronto) return <p role="status" className="p-4 text-sm text-muted-foreground">Carregando plano de voo…</p>;
 
   return (
-    <div className="route-enter space-y-5">
-      <header className="relative overflow-hidden rounded-[10px] border border-border dark:border-white/10 bg-card dark:bg-card px-6 py-[23px] text-[11px] font-light leading-[15px]  md:px-8">
+    <div className="route-enter flex min-h-screen flex-col gap-2 pb-6">
+      <header className="relative shrink-0 overflow-hidden rounded-lg border border-border bg-card px-3 py-2 text-[11px] leading-4 dark:border-white/10">
         <div className="absolute right-[-8%] top-[-75%] h-[260%] w-[45%] rotate-[18deg] bg-primary/[.08]" />
-        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-[-.055em] text-foreground md:text-4xl">Plano de voo</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground dark:text-slate-300">Preencha o formulário ICAO, consulte informações operacionais e acesse rapidamente os planos salvos.</p>
+        <div className="relative flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-extrabold tracking-tight text-foreground">Plano de voo</h1>
+            <p className="truncate text-xs text-muted-foreground dark:text-slate-300" title="Preencha o formulário ICAO, consulte informações operacionais e acesse os planos salvos">Preencha o formulário ICAO, consulte informações operacionais e acesse os planos salvos.</p>
           </div>
-          <button type="button" onClick={iniciarNovo} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border dark:border-white/15 bg-white/[.06] px-4 text-xs font-bold text-foreground transition-colors hover:bg-muted">
+          <button type="button" onClick={iniciarNovo} className="inline-flex h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-md border border-border bg-white/[.06] px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted dark:border-white/15">
             <FilePlus2 size={15} /> Novo plano
           </button>
         </div>
       </header>
 
-      <nav className="grid grid-cols-2 gap-2 border-b border-border pb-3 lg:grid-cols-4" role="tablist" aria-label="Menu do plano de voo">
+      <nav className="grid shrink-0 grid-cols-2 gap-1 border-b border-border pb-1 lg:grid-cols-4" role="tablist" aria-label="Menu do plano de voo">
         {MENU_PLANO.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -136,7 +136,7 @@ export default function PlanoDeVoo() {
             role="tab"
             aria-selected={aba === id}
             onClick={() => setAba(id)}
-            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-center text-xs font-bold transition-colors ${aba === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex h-[30px] items-center justify-center gap-1.5 rounded-md border px-2 text-center text-xs font-bold transition-colors ${aba === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}
           >
             <Icon size={15} /> {label}
             {id === "salvos" && <span className="rounded-full bg-background/20 px-1.5 py-0.5 text-[10px]">{planosSalvos.length}</span>}
@@ -145,18 +145,18 @@ export default function PlanoDeVoo() {
       </nav>
 
       {aba === "completo" && (
-        <section className="space-y-5">
-          <div className="flex items-center gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Plano de voo completo">
-            <button type="button" role="tab" aria-selected={abaCompleto === "formulario"} onClick={() => setAbaCompleto("formulario")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold ${abaCompleto === "formulario" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+        <section className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Plano de voo completo">
+            <button type="button" role="tab" aria-selected={abaCompleto === "formulario"} onClick={() => setAbaCompleto("formulario")} className={`inline-flex h-[30px] shrink-0 items-center gap-1.5 border-b-2 px-3 text-xs font-bold ${abaCompleto === "formulario" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <FilePlus2 size={15} /> Formulário ICAO
             </button>
-            <button type="button" role="tab" aria-selected={abaCompleto === "rotas"} onClick={() => setAbaCompleto("rotas")} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold ${abaCompleto === "rotas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            <button type="button" role="tab" aria-selected={abaCompleto === "rotas"} onClick={() => setAbaCompleto("rotas")} className={`inline-flex h-[30px] shrink-0 items-center gap-1.5 border-b-2 px-3 text-xs font-bold ${abaCompleto === "rotas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               <Route size={15} /> Criar rotas
             </button>
           </div>
 
           {abaCompleto === "formulario" ? (
-            <div className="space-y-5">
+            <div className="min-h-0 flex-1 pr-1">
               {plano.erro && <Aviso erro>{plano.erro}</Aviso>}
               {mensagem && <Aviso sucesso={salvo}>{mensagem}</Aviso>}
               <BuscaVoo
@@ -184,14 +184,14 @@ export default function PlanoDeVoo() {
               </div>
             </div>
           ) : (
-            <CriarRotas plano={plano} icaos={icaos} />
+            <div className="min-h-0 flex-1 pr-1"><CriarRotas plano={plano} icaos={icaos} /></div>
           )}
         </section>
       )}
 
-      {aba === "aerodromo" && <ConsultaAerodromo plano={plano} icaos={icaos} />}
-      {aba === "meteorologia" && <ConsultaMeteorologia />}
-      {aba === "salvos" && <PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} aoAbrir={(salvo) => { plano.abrirSalvo(salvo.payload); setAba("completo"); setAbaCompleto("formulario"); setSalvo(false); setMensagem(null); }} onRecarregar={() => void carregarPlanosSalvos()} />}
+      {aba === "aerodromo" && <div className="min-h-0 flex-1 pr-1"><ConsultaAerodromo plano={plano} icaos={icaos} /></div>}
+      {aba === "meteorologia" && <div className="min-h-0 flex-1 pr-1"><ConsultaMeteorologia /></div>}
+      {aba === "salvos" && <div className="min-h-0 flex-1 pr-1"><PlanosVooSalvos planos={planosSalvos} carregando={carregandoPlanos} erro={erroPlanos} aoAbrir={(salvo) => { plano.abrirSalvo(salvo.payload); setAba("completo"); setAbaCompleto("formulario"); setSalvo(false); setMensagem(null); }} onRecarregar={() => void carregarPlanosSalvos()} /></div>}
     </div>
   );
 }
@@ -216,18 +216,18 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <TrechosDoVoo pernas={plano.pernas} selecionada={plano.pernaSelecionadaId} aoSelecionar={plano.selecionarPerna} />
       <Secao titulo="Pontos A e B" descricao="Consulte a rota publicada e veja o trecho no mapa">
-        <form onSubmit={consultar} className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
+        <form onSubmit={consultar} className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
           <label className="text-xs font-semibold text-muted-foreground">Ponto A · ADEP
-            <input value={origem} onChange={(e) => plano.atualizar("adep", e.target.value.toUpperCase())} maxLength={4} placeholder="SBGR" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+            <input value={origem} onChange={(e) => plano.atualizar("adep", e.target.value.toUpperCase())} maxLength={4} placeholder="SBGR" className="mt-1 h-[30px] w-full rounded-md border border-input bg-background px-2.5 font-mono text-xs tracking-widest text-foreground" />
           </label>
           <Route className="hidden h-5 w-5 text-primary sm:block" />
           <label className="text-xs font-semibold text-muted-foreground">Ponto B · ADES
-            <input value={destino} onChange={(e) => plano.atualizar("ades", e.target.value.toUpperCase())} maxLength={4} placeholder="SBRJ" className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm tracking-widest text-foreground" />
+            <input value={destino} onChange={(e) => plano.atualizar("ades", e.target.value.toUpperCase())} maxLength={4} placeholder="SBRJ" className="mt-1 h-[30px] w-full rounded-md border border-input bg-background px-2.5 font-mono text-xs tracking-widest text-foreground" />
           </label>
-          <button type="submit" disabled={plano.carregando} className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground disabled:opacity-50">{plano.carregando ? "Consultando..." : "Consultar rota"}</button>
+          <button type="submit" disabled={plano.carregando} className="h-[30px] rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50">{plano.carregando ? "Consultando..." : "Consultar rota"}</button>
         </form>
         {(validacao || plano.erro) && <Aviso erro>{validacao || plano.erro}</Aviso>}
         {plano.rotaAisweb?.routes[0] && (
@@ -247,7 +247,7 @@ function CriarRotas({ plano, icaos }: { plano: ReturnType<typeof usePlanoVoo>; i
       )}
       <Secao titulo="Mapa, régua e coordenadas" descricao="Altere o estilo do mapa, meça um trecho e consulte as coordenadas dos pontos">
         <p className="mb-3 text-xs text-muted-foreground">Traçado direto entre os aeródromos. Aerovias e procedimentos devem ser consultados nas cartas publicadas.</p>
-        {plano.pontos.length ? <MapaRota pontos={plano.pontos} velocidadeKt={plano.velocidadeKt} /> : <p className="text-sm text-muted-foreground">Consulte uma rota com ADEP e ADES válidos para carregar as coordenadas e o mapa.</p>}
+        {plano.pontos.length ? <MapaRota pontos={plano.pontos} velocidadeKt={plano.velocidadeKt} icaos={icaos} /> : <p className="text-sm text-muted-foreground">Consulte uma rota com ADEP e ADES válidos para carregar as coordenadas e o mapa.</p>}
       </Secao>
       {plano.segmentos.length > 0 && <Secao titulo="Cálculo do trecho" descricao="Distância, proa e tempo calculados a partir das coordenadas disponíveis"><TabelaSegmentos segmentos={plano.segmentos} /></Secao>}
       <Secao titulo="Informações AISWEB/DECEA da rota" descricao="Ficha dos aeródromos, METAR/TAF, NOTAM e cartas publicadas">
@@ -275,14 +275,14 @@ function ConsultaAerodromo({ plano, icaos }: { plano: ReturnType<typeof usePlano
   };
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-2">
       <div>
-        <h2 className="text-xl font-extrabold text-foreground">Informações do aeródromo</h2>
+        <h2 className="text-base font-extrabold text-foreground">Informações do aeródromo</h2>
         <p className="mt-1 text-sm text-muted-foreground">Consulte dados publicados no AISWEB/DECEA, incluindo ficha, pistas, frequências, meteorologia, NOTAM e cartas.</p>
       </div>
-      <form onSubmit={buscar} className="flex gap-[27px] px-2">
-        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="mx-[-4px] h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-[35px] font-mono text-sm tracking-widest text-foreground" />
-        <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Consultar</button>
+      <form onSubmit={buscar} className="flex gap-2">
+        <input value={icao} onChange={(event) => setIcao(event.target.value.toUpperCase())} maxLength={4} placeholder="Código ICAO · ex.: SBGR" aria-label="Código ICAO do aeródromo" className="h-[30px] min-w-0 flex-1 rounded-md border border-input bg-background px-2.5 font-mono text-xs tracking-widest text-foreground" />
+        <button type="submit" className="h-[30px] rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground">Consultar</button>
       </form>
       {erro && <Aviso erro>{erro}</Aviso>}
       <PainelAerodromos icaos={[...icaos, consultado]} selecionado={plano.aerodromoAtivo} aoSelecionar={plano.setAerodromoAtivo} />
@@ -291,11 +291,11 @@ function ConsultaAerodromo({ plano, icaos }: { plano: ReturnType<typeof usePlano
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-border bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 font-mono text-lg font-bold text-primary">{value}</p></div>;
+  return <div className="rounded-lg border border-border bg-card px-3 py-1.5"><p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="font-mono text-base font-bold text-primary">{value}</p></div>;
 }
 
 function Aviso({ children, erro = false, sucesso = false }: { children: React.ReactNode; erro?: boolean; sucesso?: boolean }) {
-  return <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${erro ? "border-destructive/35 bg-destructive/10 text-destructive" : sucesso ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
+  return <div className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs ${erro ? "border-destructive/35 bg-destructive/10 text-destructive" : sucesso ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300" : "border-primary/30 bg-primary/10 text-primary"}`}>
     {sucesso ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}{children}
   </div>;
 }

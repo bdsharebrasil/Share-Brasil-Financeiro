@@ -348,7 +348,7 @@ function LinhaSolicitacao({
               <div className="min-w-0 max-w-[270px] text-left">
                 <span className="block text-[10px] text-muted-foreground">Tripulação</span>
                 <span className="block truncate text-[11px] font-bold text-foreground" title={pilotoNome || "Comandante a definir"}>CMTE · {pilotoNome || "A definir"}</span>
-                <span className="mt-1 block truncate text-[11px] font-semibold text-muted-foreground" title={copilotoNome || "Copiloto não escalado"}>COPI · {copilotoNome || "Não escalado"}</span>
+                <span className="mt-1 block truncate text-[11px] font-semibold text-muted-foreground" title={copilotoNome || "Copiloto não escalado"}>COP· {copilotoNome || "Não escalado"}</span>
               </div>
               <ChevronRight size={16} className="text-muted-foreground" />
             </button>

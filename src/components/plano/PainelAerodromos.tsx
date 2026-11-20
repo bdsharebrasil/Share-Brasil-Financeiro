@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { codigoAerodromoValido } from "@/lib/plano-voo";
-import { API_ORIGIN } from "@/lib/api";
 import {
   buscarAerodromos,
   buscarCartas,
@@ -39,8 +38,14 @@ interface DadosAerodromo {
 
 const VAZIO: DadosAerodromo = { erros: [], carregando: true };
 
-function urlCarta(url: string, baixar = false) {
-  return `${API_ORIGIN}/api/charts/preview?url=${encodeURIComponent(url)}${baixar ? "&download=1" : ""}`;
+function urlCarta(url: string) {
+  try {
+    const absoluta = new URL(url, window.location.origin);
+    if (absoluta.protocol === "http:" || absoluta.protocol === "https:") return absoluta.toString();
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 async function carregar(icao: string): Promise<DadosAerodromo> {
@@ -96,14 +101,82 @@ function categoriaCarta(c: Carta): Categoria {
   return "Outras";
 }
 
+const ROTULOS_DETALHE: Record<string, string> = {
+  text: "Descrição",
+  descr: "Descrição",
+  title: "Título",
+  type: "Tipo",
+  freq: "Frequência",
+  frequency: "Frequência",
+  tora: "TORA",
+  toda: "TODA",
+  asda: "ASDA",
+  lda: "LDA",
+  alt: "Altitude",
+  lng: "Longitude",
+  rwy: "Pista",
+  runway: "Pista",
+  compls: "Comprimento",
+};
+
+function nomeDetalhe(chave: string): string {
+  const limpa = chave.replace(/^[@#$]+/, "").replace(/[_-]+/g, " ").trim();
+  const normalizada = limpa.toLowerCase();
+  if (ROTULOS_DETALHE[normalizada]) return ROTULOS_DETALHE[normalizada];
+  const conhecidos: Record<string, string> = {
+    "rwy dist": "Distância da pista",
+    "rmk dist": "Observações da pista",
+    "rmk text": "Observação",
+    "rmk": "Observações",
+    "lights": "Iluminação",
+    "services": "Serviços",
+  };
+  return conhecidos[normalizada] ?? limpa.replace(/\b\w/g, (letra) => letra.toUpperCase());
+}
+
 function textoDetalhe(valor: unknown): string {
   if (valor == null || valor === "") return "";
-  if (typeof valor === "string" || typeof valor === "number" || typeof valor === "boolean") return String(valor);
-  try {
-    return JSON.stringify(valor);
-  } catch {
-    return String(valor);
+  if (typeof valor === "string" || typeof valor === "number" || typeof valor === "boolean") {
+    return String(valor).replace(/^[@#$]+/, "").trim();
   }
+  if (Array.isArray(valor)) {
+    return valor.map((item) => textoDetalhe(item)).filter(Boolean).map((item) => `• ${item}`).join("\n");
+  }
+  if (typeof valor === "object") {
+    const registro = valor as Record<string, unknown>;
+    const apenasTextos = Object.entries(registro)
+      .filter(([chave]) => /^@?(text|descr)$/i.test(chave));
+
+    if (apenasTextos.length) {
+      return apenasTextos.map(([, conteudo]) => textoDetalhe(conteudo)).filter(Boolean).join("\n");
+    }
+
+    return Object.entries(registro)
+      .map(([chave, conteudo]) => {
+        const texto = textoDetalhe(conteudo);
+        if (!texto) return "";
+        if (/^@?(text|descr)$/i.test(chave)) return texto;
+        return `${nomeDetalhe(chave)}: ${texto.replace(/^•\s*/, "")}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+function formatarPista(pista: any, indice: number): string {
+  const identificacao = pista?.ident ?? pista?.designacao ?? pista?.rwy ?? pista?.name ?? `Pista ${indice + 1}`;
+  const comprimento = pista?.length ?? pista?.comprimento ?? pista?.length_m;
+  const largura = pista?.width ?? pista?.largura ?? pista?.width_m;
+  const piso = pista?.surface ?? pista?.piso ?? pista?.surfaceType;
+  const dimensoes = [comprimento ? `${comprimento} m` : "", largura ? `${largura} m` : ""].filter(Boolean).join(" × ");
+  return [identificacao, dimensoes, piso].filter(Boolean).join(" · ");
+}
+
+function formatarFrequencia(frequencia: any): string {
+  const tipo = frequencia?.type ?? frequencia?.tipo ?? frequencia?.servico ?? "Frequência";
+  const valor = frequencia?.frequency ?? frequencia?.freq ?? frequencia?.frequencia;
+  return [tipo, valor ? `${valor} MHz` : ""].filter(Boolean).join(" · ");
 }
 
 // Dados públicos, com prazo curto e consultas simultâneas compartilhadas entre as abas.
@@ -169,7 +242,7 @@ export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: 
       !["icao", "icaoCode", "AeroCode", "name", "nome", "city", "cidade", "state", "uf", "elevation", "altitude", "coordinates", "coordenadas", "runways", "pistas", "frequencies", "frequencias"].includes(chave)
       && valor != null && valor !== "",
     ).map(([chave, valor]) => [chave, valor] as [string, unknown]),
-  ].map(([rotulo, valor]) => [String(rotulo), textoDetalhe(valor)] as const).filter(([, valor]) => valor);
+  ].map(([rotulo, valor]) => [nomeDetalhe(String(rotulo)), textoDetalhe(valor)] as const).filter(([, valor]) => valor);
   const sol = dados?.solar?.[0];
   const termoCarta = buscaCarta.trim().toUpperCase();
   const cartasFiltradas = (dados?.cartas ?? []).filter((c) => {
@@ -257,18 +330,14 @@ export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: 
                 <p className="text-xs text-muted-foreground">Sem dados de pista publicados na consulta.</p>
               )}
               <ul className="space-y-1 font-mono text-xs text-foreground">
-                {pistas.map((p, i) => (
-                  <li key={i} className="truncate">
-                    {[p?.ident ?? p?.designacao ?? p?.rwy, p?.length ?? p?.comprimento, p?.width ?? p?.largura, p?.surface ?? p?.piso]
-                      .filter(Boolean)
-                      .join(" · ") || JSON.stringify(p).slice(0, 80)}
+                {pistas.map((pista, i) => (
+                  <li key={i} className="break-words">
+                    {formatarPista(pista, i)}
                   </li>
                 ))}
-                {freqs.map((f, i) => (
-                  <li key={`f${i}`} className="truncate text-muted-foreground">
-                    {[f?.type ?? f?.tipo ?? f?.servico, f?.frequency ?? f?.freq ?? f?.frequencia]
-                      .filter(Boolean)
-                      .join(" ") || JSON.stringify(f).slice(0, 80)}
+                {freqs.map((frequencia, i) => (
+                  <li key={`f${i}`} className="break-words text-muted-foreground">
+                    {formatarFrequencia(frequencia)}
                   </li>
                 ))}
               </ul>
@@ -282,7 +351,7 @@ export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: 
                 {detalhesFicha.map(([rotulo, valor], i) => (
                   <div key={`${rotulo}-${i}`} className="min-w-0 rounded-md border border-border/70 p-2">
                     <dt className="text-[10px] font-semibold uppercase text-muted-foreground">{rotulo}</dt>
-                    <dd className="mt-1 break-words whitespace-pre-wrap font-mono text-xs text-foreground">{valor}</dd>
+                    <dd className="mt-1 break-words whitespace-pre-wrap text-xs leading-relaxed text-foreground">{valor}</dd>
                   </div>
                 ))}
               </dl>
@@ -360,7 +429,10 @@ export function PainelAerodromos({ icaos, selecionado, aoSelecionar }: { icaos: 
                           Ver
                         </a>
                         <a
-                          href={urlCarta(c.url, true)}
+                          href={urlCarta(c.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
                           className="rounded border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground"
                         >
                           Baixar

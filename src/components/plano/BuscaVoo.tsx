@@ -16,7 +16,7 @@ interface Props {
 export function BuscaVoo({ carregando, erro, resumo, sugestoes, selecionado, aoBuscar, aoRecarregar }: Props) {
   const vooSelecionado = sugestoes.find(voo => voo.id === selecionado);
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-2.5">
       <label htmlFor="numero-voo" className="mb-2 block text-xs font-semibold text-muted-foreground">Número do voo</label>
       <SearchableCombobox
         id="numero-voo"
@@ -35,7 +35,7 @@ export function BuscaVoo({ carregando, erro, resumo, sugestoes, selecionado, aoB
         disabled={carregando}
         wrapItemLabels
         wrapSelectedLabel
-        className="h-auto min-h-11 py-2 text-left"
+        className="h-[30px] min-h-[30px] py-1 text-left"
       />
       {erro && <p role="alert" className="mt-3 text-sm text-destructive">{erro}</p>}
       {erro && !sugestoes.length && aoRecarregar && <button type="button" disabled={carregando} onClick={aoRecarregar} className="mt-2 text-sm font-semibold text-primary">Tentar carregar voos</button>}

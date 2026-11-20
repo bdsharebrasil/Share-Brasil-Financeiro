@@ -12,8 +12,22 @@ import {
   type Coordenada,
 } from "@/lib/navegacao";
 import { formatarNumero, formatarProa, minutosParaHoraMinuto } from "@/lib/format";
-import { aeronauticoDisponivel, provedorAtivo, provedorContingencia, type EstiloMapa } from "./provedor";
+import { aeronauticoDisponivel, provedorContingencia, type EstiloMapa } from "./provedor";
 import type { PontoRota } from "@/lib/tipos";
+import { CardExpand } from "@/components/ui/card-expand/Component";
+import { Checkbox } from "@/components/ui/checkbox";
+import { buscarCartas, type ChartResponse } from "@/lib/flightplan-api";
+
+type CamadaMeteorologica = "temperatura" | "nuvens" | "vento" | "chuva" | "pressao" | "visibilidade";
+
+const CAMADAS_METEOROLOGICAS: { id: CamadaMeteorologica; rotulo: string }[] = [
+  { id: "temperatura", rotulo: "Temperatura" },
+  { id: "nuvens", rotulo: "Nuvens" },
+  { id: "vento", rotulo: "Vento" },
+  { id: "chuva", rotulo: "Chuva" },
+  { id: "pressao", rotulo: "Pressão" },
+  { id: "visibilidade", rotulo: "Visibilidade" },
+];
 
 const ESTILOS: { id: EstiloMapa; rotulo: string }[] = [
   { id: "padrao", rotulo: "Mapa" },
@@ -25,6 +39,7 @@ const ESTILOS: { id: EstiloMapa; rotulo: string }[] = [
 interface Props {
   pontos: PontoRota[];
   velocidadeKt: number;
+  icaos?: string[];
   /** Classe de altura do mapa (permite mapa maior na consulta rápida). */
   altura?: string;
   /** Quando informado, exibe o botão de incluir pontos clicando no mapa. */
@@ -49,7 +64,7 @@ async function caminhoRadar(): Promise<string | null> {
   }
 }
 
-export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPonto }: Props) {
+export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPonto, icaos = [] }: Props) {
   const [modoPonto, setModoPonto] = useState(false);
   const container = useRef<HTMLDivElement | null>(null);
   const mapa = useRef<MapaLibre | null>(null);
@@ -57,15 +72,17 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
   const [estilo, setEstilo] = useState<EstiloMapa>("padrao");
   const [reguaAtiva, setReguaAtiva] = useState(false);
   const [meteoAtiva, setMeteoAtiva] = useState(false);
+  const [camadasMeteorologicas, setCamadasMeteorologicas] = useState<Set<CamadaMeteorologica>>(new Set(["chuva"]));
+  const [cartas, setCartas] = useState<ChartResponse[]>([]);
+  const [painelAeronautico, setPainelAeronautico] = useState(false);
   const [urlRadar, setUrlRadar] = useState<string | null>(null);
   const [medidas, setMedidas] = useState<Coordenada[]>([]);
-  const [contingencia, setContingencia] = useState(false);
   const [revisaoEstilo, setRevisaoEstilo] = useState(0);
   const [erroBase, setErroBase] = useState(false);
   const [erroRadar, setErroRadar] = useState(false);
   const estiloPronto = useRef(false);
   const enquadramento = useRef("");
-  const estiloAplicado = useRef(`${provedorAtivo().id}:padrao`);
+  const estiloAplicado = useRef(`${provedorContingencia.id}:padrao`);
   const acoes = useRef({ reguaAtiva, modoPonto, aoAdicionarPonto });
   acoes.current = { reguaAtiva, modoPonto, aoAdicionarPonto };
   const medir = (ponto: Coordenada) => {
@@ -73,13 +90,31 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     else if (acoes.current.reguaAtiva) setMedidas(atuais => atuais.length >= 2 ? [ponto] : [...atuais, ponto]);
   };
   const [erroMapa, setErroMapa] = useState<string | null>(null);
-  const provedor = useMemo(
-    () => (contingencia ? provedorContingencia : provedorAtivo()),
-    [contingencia],
-  );
+  const provedor = useMemo(() => provedorContingencia, []);
   const estiloRef = useRef(estilo);
   estiloRef.current = estilo;
-  const classeAltura = altura ?? "h-[60vh] min-h-[360px] sm:h-[520px]";
+  const classeAltura = altura ?? "h-[360px] min-h-[280px] sm:h-[390px]";
+  const ultimaCamada = useMemo(() => {
+    for (const ordem of ["temperatura", "nuvens", "vento", "chuva", "pressao", "visibilidade"] as CamadaMeteorologica[]) {
+      if (camadasMeteorologicas.has(ordem)) return ordem;
+    }
+    return null;
+  }, [camadasMeteorologicas]);
+  const centroMeteorologico = useMemo(() => {
+    if (!pontos.length) return null;
+    return {
+      lat: pontos.reduce((soma, ponto) => soma + ponto.lat, 0) / pontos.length,
+      lon: pontos.reduce((soma, ponto) => soma + ponto.lon, 0) / pontos.length,
+    };
+  }, [pontos]);
+  const overlayWindy: Record<CamadaMeteorologica, string> = {
+    temperatura: "temp",
+    nuvens: "clouds",
+    vento: "wind",
+    chuva: "rain",
+    pressao: "pressure",
+    visibilidade: "visibility",
+  };
 
   // Criação do mapa (uma única vez; o estilo é trocado sem recriar o mapa)
   useEffect(() => {
@@ -89,7 +124,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     try {
       instancia = new maplibregl.Map({
         container: alvo,
-        style: provedorAtivo().estilo(estiloRef.current),
+        style: provedorContingencia.estilo(estiloRef.current),
         center: [-47.9, -15.8],
         zoom: 3.4,
         attributionControl: { compact: true },
@@ -110,7 +145,6 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
       if (evento.sourceId === "radar") { setErroRadar(true); return; }
       if (evento.sourceId && evento.sourceId !== "base" && !/maptiler/i.test(evento.error?.message ?? "")) return;
       setErroBase(true);
-      if (estiloAplicado.current.startsWith("maptiler:") && estiloRef.current !== "aeronautico") setContingencia(true);
     });
     mapa.current = instancia;
 
@@ -131,6 +165,21 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
   // Troca de estilo / provedor
   useEffect(() => {
+    if (!icaos.length) { setCartas([]); return; }
+    let ativo = true;
+    void Promise.all(icaos.slice(0, 3).map((icao) => buscarCartas(icao).catch(() => ({ charts: [] }))))
+      .then((respostas) => {
+        if (!ativo) return;
+        const unicas = new Map<string, ChartResponse>();
+        respostas.forEach((resposta) => (resposta.charts || []).forEach((carta) => {
+          if (carta.url) unicas.set(carta.url, carta);
+        }));
+        setCartas([...unicas.values()]);
+      });
+    return () => { ativo = false; };
+  }, [icaos.join("|")]);
+
+  useEffect(() => {
     if (!mapa.current) return;
     const chave = `${provedor.id}:${estilo}`;
     if (estiloAplicado.current === chave) return;
@@ -142,7 +191,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
   // Camada de meteorologia (radar de precipitação)
   useEffect(() => {
-    if (!meteoAtiva || urlRadar) return;
+    if (!meteoAtiva || !camadasMeteorologicas.has("chuva") || urlRadar) return;
     setErroRadar(false);
     let vivo = true;
     caminhoRadar().then((url) => {
@@ -151,7 +200,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
     return () => {
       vivo = false;
     };
-  }, [meteoAtiva, urlRadar]);
+  }, [meteoAtiva, camadasMeteorologicas, urlRadar]);
 
   // Rota, pontos, camadas e medições
   useEffect(() => {
@@ -164,7 +213,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
       marcadores.current = [];
 
       // Radar de precipitação
-      if (meteoAtiva && urlRadar) {
+      if (meteoAtiva && camadasMeteorologicas.has("chuva") && urlRadar) {
         if (!instancia.getSource("radar")) {
           instancia.addSource("radar", {
             type: "raster",
@@ -177,7 +226,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
             type: "raster",
             source: "radar",
             paint: { "raster-opacity": 0.6 },
-          });
+          }, instancia.getLayer("rota-linha") ? "rota-linha" : undefined);
         }
       } else if (instancia.getLayer("radar-camada")) {
         instancia.removeLayer("radar-camada");
@@ -264,7 +313,7 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
 
     };
     desenhar();
-  }, [pontos, medidas, meteoAtiva, urlRadar, revisaoEstilo]);
+  }, [pontos, medidas, meteoAtiva, camadasMeteorologicas, urlRadar, revisaoEstilo]);
 
   // A câmera acompanha mudanças da rota, nunca cliques da régua ou troca de estilo.
   useEffect(() => {
@@ -296,6 +345,10 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
       instancia.off("click", aoClicar);
     };
   }, [reguaAtiva, modoPonto, aoAdicionarPonto]);
+
+  const cartaAeronautica = useMemo(() => {
+    return cartas.find((carta) => /WAC|WORLD|MUNDIAL|REA|ACFT/.test(`${carta.tipo || ""} ${carta.title || ""}`.toUpperCase())) || cartas[0] || null;
+  }, [cartas]);
 
   const medicao =
     medidas.length === 2
@@ -333,7 +386,11 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
               {item.rotulo}
             </button>
           ))}
-          {!aeronauticoDisponivel && <a href="https://geoaisweb.decea.mil.br/" target="_blank" rel="noopener noreferrer" className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent" title="Abrir cartas aeronáuticas no GeoAISWEB">Cartas AISWEB ↗</a>}
+          {!aeronauticoDisponivel && (
+            cartaAeronautica?.url
+              ? <button type="button" onClick={() => setPainelAeronautico((ativo) => !ativo)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${painelAeronautico ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}>Cartas aeronáuticas</button>
+              : <a href="https://geoaisweb.decea.mil.br/" target="_blank" rel="noopener noreferrer" className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent" title="Abrir cartas aeronáuticas no GeoAISWEB">Cartas AISWEB ↗</a>
+          )}
         </div>
 
         <div className="pointer-events-auto flex gap-1 rounded-lg bg-card/90 p-1 backdrop-blur">
@@ -351,16 +408,38 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
               Incluir ponto
             </button>
           )}
-          <button
-            type="button"
-            aria-pressed={meteoAtiva}
-            onClick={() => setMeteoAtiva((v) => !v)}
-            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-              meteoAtiva ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            Meteorologia
-          </button>
+          <CardExpand
+            label="Camadas meteorológicas"
+            className="w-[100px] grid-cols-1 gap-0"
+            items={[{
+              id: "meteorologia",
+              title: "Meteorologia",
+              summary: <span className={`block text-[10px] ${meteoAtiva ? "text-primary" : "text-muted-foreground"}`}>{meteoAtiva ? `${camadasMeteorologicas.size} camada(s)` : "Desativada"}</span>,
+              description: "Escolha quais informações meteorológicas serão exibidas sobre a rota.",
+              detail: (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {CAMADAS_METEOROLOGICAS.map((camada) => (
+                    <label key={camada.id} className="flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground">
+                      <Checkbox
+                        checked={camadasMeteorologicas.has(camada.id)}
+                        onCheckedChange={(marcada) => {
+                          setCamadasMeteorologicas((atuais) => {
+                            const proximas = new Set(atuais);
+                            if (marcada === true) { proximas.add(camada.id); setMeteoAtiva(true); }
+                            else proximas.delete(camada.id);
+                            if (proximas.size === 0) setMeteoAtiva(false);
+                            return proximas;
+                          });
+                        }}
+                        aria-label={camada.rotulo}
+                      />
+                      {camada.rotulo}
+                    </label>
+                  ))}
+                </div>
+              ),
+            }]}
+          />
           <button
             type="button"
             aria-pressed={reguaAtiva}
@@ -383,12 +462,6 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
           </button>
         </div>
       </div>
-
-      {meteoAtiva && (
-        <p className="pointer-events-none absolute right-3 top-16 rounded-md bg-card/90 px-2.5 py-1.5 text-[11px] text-muted-foreground backdrop-blur">
-          {erroRadar ? "Radar indisponível no momento. Desative e tente novamente." : urlRadar ? "Radar de precipitação (imagem meteorológica pública)" : "Carregando imagem de radar…"}
-        </p>
-      )}
 
       {modoPonto && (
         <div className="pointer-events-none absolute inset-x-0 bottom-16 flex justify-center px-3">
@@ -423,6 +496,31 @@ export default function MapaRota({ pontos, velocidadeKt, altura, aoAdicionarPont
         <p role="status" className="absolute left-3 top-24 max-w-[18rem] rounded-md bg-card/95 px-3 py-2 text-xs text-foreground">
           Não foi possível carregar esta base do mapa. Selecione outra visualização.
         </p>
+      )}
+
+      {meteoAtiva && ultimaCamada && centroMeteorologico && (
+        <div className="absolute bottom-3 right-3 z-[5] hidden w-[min(360px,42vw)] overflow-hidden rounded-lg border border-border bg-card shadow-lg lg:block">
+          <iframe
+            key={`${ultimaCamada}-${centroMeteorologico.lat}-${centroMeteorologico.lon}`}
+            src={`https://embed.windy.com/embed.html?${new URLSearchParams({
+              type: "map", location: "coordinates", metricRain: "mm", metricTemp: "°C", metricWind: "kt",
+              zoom: "6", overlay: overlayWindy[ultimaCamada], product: "ecmwf", level: "surface",
+              lat: String(centroMeteorologico.lat), lon: String(centroMeteorologico.lon),
+              detailLat: String(centroMeteorologico.lat), detailLon: String(centroMeteorologico.lon), marker: "true",
+            }).toString()}`}
+            title={`Camada meteorológica: ${ultimaCamada}`}
+            loading="lazy"
+            className="h-52 w-full border-0"
+          />
+        </div>
+      )}
+
+      {painelAeronautico && cartaAeronautica?.url && (
+        <div className="absolute bottom-3 left-3 right-3 z-[5] max-w-xl rounded-lg border border-border bg-card p-3 shadow-lg sm:right-auto">
+          <p className="text-xs font-bold text-foreground">Carta aeronáutica · AISWEB/DECEA</p>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground">{cartaAeronautica.title || cartaAeronautica.tipo || "Carta publicada"}</p>
+          <a href={cartaAeronautica.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">Abrir carta oficial</a>
+        </div>
       )}
 
       {erroMapa && (

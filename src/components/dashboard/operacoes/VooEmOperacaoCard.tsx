@@ -62,7 +62,6 @@ function VooCard({ voo, aoAbrir }: { voo: VooEmOperacao; aoAbrir: () => void }) 
         <div className="min-w-0 space-y-3">
           <p className="text-[10px] text-muted-foreground">Programado: {planejado.utc} UTC · {planejado.brasilia} Brasília</p>
           <HistoricoRastreioVoo voo={voo} />
-          {decolou && !aoVivo && <p className="text-[10px] text-muted-foreground">Sem posição recente nas fontes ADS-B consultadas. A cobertura pode ser diferente da exibida no Flightradar24; consulte o histórico de sinais.</p>}
           {aoVivo && <Telemetria voo={voo} />}
         </div>
         <aside className="min-w-0 overflow-hidden rounded-xl border border-border">

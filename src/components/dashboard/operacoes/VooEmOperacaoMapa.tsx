@@ -9,6 +9,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { segmentosTrilha, horarioRastreio, vooComSinalNoAr } from "@/lib/rastreio";
 import { coordenadaRastreioValida, pontosParaEnquadrar, trechosPlanejados } from "@/lib/rastreio-mapa";
 import type { VooEmOperacao, PontoRastreio } from "@/lib/colaborador-api";
+import { buscarCartas, type ChartResponse } from "@/lib/flightplan-api";
 
 interface MapaVooProps {
   voo: VooEmOperacao;
@@ -57,6 +58,7 @@ export default function VooEmOperacaoMapa({
 }: MapaVooProps) {
   const mapaRef = useRef<MapRef>(null);
   const [mapaCarregado, setMapaCarregado] = useState(false);
+  const [cartasAeronáuticas, setCartasAeronáuticas] = useState<ChartResponse[]>([]);
   const assinaturaEnquadrada = useRef<string>("");
 
   const pernas = useMemo(() => {
@@ -139,6 +141,23 @@ export default function VooEmOperacaoMapa({
 
   // O ROTAER pode resolver coordenadas após a primeira montagem. Enquadrar novamente
   // quando chegam dados novos, mas sem reposicionar a cada render igual.
+  useEffect(() => {
+    const icaos = [...new Set([voo.origem, ...pernas.map((perna) => perna.origem), voo.destino, ...pernas.map((perna) => perna.destino)].filter((icao): icao is string => Boolean(icao)))]
+      .slice(0, 4);
+    if (!icaos.length) return;
+    let ativo = true;
+    void Promise.all(icaos.map((icao) => buscarCartas(icao).catch(() => ({ charts: [] }))))
+      .then((respostas) => {
+        if (!ativo) return;
+        const unicas = new Map<string, ChartResponse>();
+        respostas.forEach((resposta) => (resposta.charts || []).forEach((carta) => {
+          if (carta.url) unicas.set(carta.url, carta);
+        }));
+        setCartasAeronáuticas([...unicas.values()]);
+      });
+    return () => { ativo = false; };
+  }, [voo.origem, voo.destino, pernas]);
+
   const assinatura = pontos.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join("|");
   useEffect(() => {
     if (!mapaCarregado || !pontos.length || assinaturaEnquadrada.current === assinatura) return;
@@ -231,6 +250,23 @@ export default function VooEmOperacaoMapa({
           </Marker>
         )}
       </MapLibre>
+
+      {cartasAeronáuticas.length > 0 && (
+        <div className="absolute left-3 top-3 z-[2] flex max-w-[70%] gap-1 rounded-lg border border-white/20 bg-slate-950/85 p-1 shadow-lg">
+          {[...cartasAeronáuticas].slice(0, 4).map((carta, indice) => (
+            <a
+              key={carta.url || indice}
+              href={carta.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={carta.title || carta.tipo || "Carta aeronáutica"}
+              className="max-w-32 truncate rounded-md px-2 py-1 text-[10px] font-bold text-cyan-100 hover:bg-white/10"
+            >
+              {carta.title || carta.tipo || "Carta"}
+            </a>
+          ))}
+        </div>
+      )}
 
       <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-2">
         <span className="rounded-md border border-white/20 bg-slate-950/85 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow">

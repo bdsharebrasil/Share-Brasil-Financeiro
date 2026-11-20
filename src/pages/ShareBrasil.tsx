@@ -3666,27 +3666,20 @@ export function TarefasShareBrasil() {
       detail="Organize suas prioridades, acompanhe o andamento e mantenha os compromissos em um único lugar."
     >
       <Feedback error={error} ok={ok} />
-      <section
-        className={`${card} task-compose task-compose--${showTaskForm ? "open" : "closed"} overflow-hidden p-4`}
-      >
+      <section className={`${card} overflow-hidden p-3`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <button
+          <div className="flex items-center gap-3">
+            <Button
               type="button"
-              onClick={() => setShowTaskForm((open) => !open)}
-              aria-expanded={showTaskForm}
-              className="flex items-center gap-2 text-xs font-bold text-foreground transition-colors hover:text-primary"
+              onClick={() => setShowTaskForm(true)}
+              className="h-10 gap-2 px-4 text-xs font-bold shadow-md shadow-primary/20"
             >
-              <Plus
-                size={14}
-                className={`transition-transform ${showTaskForm ? "rotate-45" : ""}`}
-              />{" "}
-              {showTaskForm ? "Fechar criação" : "Nova tarefa"}
-            </button>
-            <p className="mt-1 text-[10px] text-muted-foreground">
+              <Plus size={16} /> Nova tarefa
+            </Button>
+            <p className="hidden text-[10px] text-muted-foreground sm:block">
               {manager
-                ? "Você pode criar e atribuir tarefas para outros usuários."
-                : "Você pode criar tarefas individuais que somente você verá."}
+                ? "Crie e atribua tarefas para a equipe."
+                : "Crie tarefas individuais para você."}
             </p>
           </div>
           <div className="flex items-center gap-1 rounded-lg border border-border bg-background/50 p-1">
@@ -3713,84 +3706,101 @@ export function TarefasShareBrasil() {
             </button>
           </div>
         </div>
-        <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
-          <Input
-            placeholder="Título da tarefa"
-            value={taskForm.titulo}
-            onChange={(e) =>
-              setTaskForm({ ...taskForm, titulo: e.target.value })
-            }
-            className={field}
-          />
-          <Input
-            placeholder="Prazo"
-            type="date"
-            value={taskForm.prazo}
-            onChange={(e) =>
-              setTaskForm({ ...taskForm, prazo: e.target.value })
-            }
-            className={field}
-          />
-          <select
-            value={taskForm.prioridade}
-            onChange={(e) =>
-              setTaskForm({ ...taskForm, prioridade: e.target.value })
-            }
-            className={field}
-          >
-            <option value="BAIXA">Prioridade baixa</option>
-            <option value="MEDIA">Prioridade média</option>
-            <option value="ALTA">Prioridade alta</option>
-          </select>
-          {manager ? (
-            <select
-              value={taskForm.atribuido_para}
-              onChange={(e) =>
-                setTaskForm({ ...taskForm, atribuido_para: e.target.value })
-              }
-              className={field}
-            >
-              <option value="">Tarefa pessoal</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.nome_exibicao || user.nome_completo}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-border/70 px-3 text-[11px] text-muted-foreground">
-              <LockIcon /> Tarefa privada
-            </label>
-          )}
-          <Button
-            type="button"
-            disabled={busy}
-            onClick={() => void createTask()}
-            className="h-10 gap-2 text-xs"
-          >
-            <Plus size={14} /> Criar tarefa
-          </Button>
-        </div>
-        <Textarea
-          value={taskForm.descricao}
-          onChange={(e) =>
-            setTaskForm({ ...taskForm, descricao: e.target.value })
-          }
-          placeholder="Descrição opcional"
-          className="mt-2 min-h-[68px] bg-background/70 text-sm"
-        />
-        {manager && (
-          <label className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={taskForm.publico}
-              onChange={(e) =>
-                setTaskForm({ ...taskForm, publico: e.target.checked })
-              }
-            />{" "}
-            Tornar visível para todos
-          </label>
-        )}
+
+        <Dialog open={showTaskForm} onOpenChange={setShowTaskForm}>
+          <DialogContent className="max-w-xl rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Nova tarefa</DialogTitle>
+              <DialogDescription>
+                {manager
+                  ? "Informe os dados e atribua a tarefa a uma pessoa da equipe."
+                  : "Informe os dados da tarefa privada."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold text-foreground">Título *</span>
+                <Input
+                  value={taskForm.titulo}
+                  onChange={(e) => setTaskForm({ ...taskForm, titulo: e.target.value })}
+                  placeholder="Ex.: Revisar checklist da aeronave"
+                  className={field}
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-foreground">Prazo</span>
+                <Input
+                  type="date"
+                  value={taskForm.prazo}
+                  onChange={(e) => setTaskForm({ ...taskForm, prazo: e.target.value })}
+                  className={field}
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-foreground">Prioridade</span>
+                <select
+                  value={taskForm.prioridade}
+                  onChange={(e) => setTaskForm({ ...taskForm, prioridade: e.target.value })}
+                  className={field}
+                >
+                  <option value="BAIXA">Baixa</option>
+                  <option value="MEDIA">Média</option>
+                  <option value="ALTA">Alta</option>
+                </select>
+              </label>
+              {manager ? (
+                <label className="space-y-1.5 sm:col-span-2">
+                  <span className="text-xs font-semibold text-foreground">Responsável</span>
+                  <select
+                    value={taskForm.atribuido_para}
+                    onChange={(e) => setTaskForm({ ...taskForm, atribuido_para: e.target.value })}
+                    className={field}
+                  >
+                    <option value="">Tarefa pessoal</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.nome_exibicao || user.nome_completo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-border/70 px-3 text-[11px] text-muted-foreground sm:col-span-2">
+                  <LockIcon /> Esta tarefa será privada
+                </div>
+              )}
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-xs font-semibold text-foreground">Descrição</span>
+                <Textarea
+                  value={taskForm.descricao}
+                  onChange={(e) => setTaskForm({ ...taskForm, descricao: e.target.value })}
+                  placeholder="Adicione detalhes ou instruções"
+                  className="min-h-[88px] bg-background/70 text-sm"
+                />
+              </label>
+              {manager && (
+                <label className="flex items-center gap-2 text-[11px] text-muted-foreground sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={taskForm.publico}
+                    onChange={(e) => setTaskForm({ ...taskForm, publico: e.target.checked })}
+                    className="size-4 accent-primary"
+                  /> Tornar visível para todos
+                </label>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowTaskForm(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" disabled={busy} onClick={() => void createTask()} className="gap-2">
+                <Plus size={14} /> {busy ? "Criando..." : "Criar tarefa"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </section>
       {view !== "calendario" && (
         <section className={`${card} p-4`}>

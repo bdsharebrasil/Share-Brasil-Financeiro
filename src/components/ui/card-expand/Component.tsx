@@ -1,8 +1,11 @@
-import { useId, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { DialogBackdrop, DialogClose, DialogDescription, DialogPopup, DialogPortal, DialogRoot, DialogTitle } from "@/primitives/dialog";
-import { DURATION, EASING_POINTS } from "@/engine/tokens";
-import { Button } from "@/ui/Button";
+import { useState, type ReactNode } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * Card expand: a grid of cards where pressing one grows its surface into a modal detail view, and
@@ -21,10 +24,6 @@ import { Button } from "@/ui/Button";
  * - Reduced motion: the dialog appears and disappears in its final layout in 0 ms, with no
  *   geometry interpolation and no crossfade.
  */
-
-const EASE_OUT: [number, number, number, number] = [...EASING_POINTS.out];
-const EASE_IN: [number, number, number, number] = [...EASING_POINTS.in];
-const RADIUS = { card: 12, dialog: 16 };
 
 export interface ExpandableCardItem {
   id: string;
@@ -49,127 +48,41 @@ export interface CardExpandProps {
 
 export function CardExpand({ items, label, className = "", footer }: CardExpandProps) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const reduced = useReducedMotion() ?? false;
-  const cards = useRef(new Map<string, HTMLButtonElement>());
-  const source = useRef<string | null>(null);
-  const group = useId();
-  const open = items.find((i) => i.id === openId) ?? null;
-
-  const grow = { duration: reduced ? 0 : DURATION.enter / 1000, ease: EASE_OUT };
-  const shrink = { duration: reduced ? 0 : DURATION.exit / 1000, ease: EASE_IN };
-  const contentIn = reduced ? { duration: 0 } : { duration: DURATION.fast / 1000, delay: (DURATION.enter - DURATION.fast) / 1000, ease: EASE_OUT };
-  const contentOut = { duration: 0 };
-  // Reduced motion drops the shared layout altogether: even at 0 ms, a layoutId projects one frame
-  // at the card's bounds before snapping. Without it the dialog simply appears in its final layout.
-  const sharedId = (id: string) => (reduced ? undefined : `${id}-surface`);
+  const open = items.find((item) => item.id === openId) ?? null;
 
   return (
-    <LayoutGroup id={group}>
-      <ul aria-label={label} className={`m-0 grid list-none grid-cols-1 gap-3 p-0 min-[480px]:grid-cols-3 ${className}`} data-card-expand-list>
-        {items.map((item) => {
-          const isOpen = item.id === openId;
-          return (
-            <li key={item.id} className="min-w-0">
-              <button
-                type="button"
-                ref={(el) => {
-                  if (el) cards.current.set(item.id, el);
-                  else cards.current.delete(item.id);
-                }}
-                aria-haspopup="dialog"
-                aria-expanded={isOpen}
-                onClick={() => {
-                  source.current = item.id;
-                  setOpenId(item.id);
-                }}
-                className="group relative block w-full rounded-panel p-4 text-left text-ink"
-                data-card-expand-card={item.id}
-              >
-                {isOpen ? (
-                  <span aria-hidden="true" className="absolute inset-0 rounded-panel border border-dashed border-line" />
-                ) : (
-                  <motion.span
-                    aria-hidden="true"
-                    layoutId={sharedId(item.id)}
-                    transition={{ layout: shrink }}
-                    style={{ borderRadius: RADIUS.card }}
-                    className="absolute inset-0 border border-line bg-surface transition-shadow duration-120 group-hover:shadow-[0_0_0_1.5px_var(--mk-control-border)]"
-                    data-card-expand-surface
-                  />
-                )}
-                <span
-                  className={`relative block ${isOpen ? "opacity-0" : "opacity-100 transition-opacity duration-[var(--mk-dur-fast)] delay-[var(--mk-dur-exit)] motion-reduce:transition-none motion-reduce:delay-0"}`}
-                >
-                  <span className="block text-[14px] font-medium text-muted">{item.title}</span>
-                  {item.summary}
-                </span>
-              </button>
-            </li>
-          );
-        })}
+    <>
+      <ul aria-label={label} className={`m-0 grid list-none grid-cols-1 gap-1 p-0 ${className}`} data-card-expand-list>
+        {items.map((item) => (
+          <li key={item.id} className="min-w-0">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={item.id === openId}
+              onClick={() => setOpenId(item.id)}
+              className="group relative block w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-left text-foreground transition-colors hover:bg-accent"
+              data-card-expand-card={item.id}
+            >
+              <span className="block text-xs font-semibold">{item.title}</span>
+              {item.summary}
+            </button>
+          </li>
+        ))}
       </ul>
 
-      <DialogRoot open={open !== null} onOpenChange={(next) => !next && setOpenId(null)}>
-        <AnimatePresence>
-          {open ? (
-            <DialogPortal keepMounted>
-              <DialogBackdrop
-                render={
-                  <motion.div
-                    data-card-expand-overlay
-                    className="fixed inset-0 z-50 bg-[var(--mk-scrim)]"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, transition: grow }}
-                    exit={{ opacity: 0, transition: shrink }}
-                  />
-                }
-              />
-              <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-4">
-                <DialogPopup
-                  aria-modal="true"
-                  finalFocus={() => (source.current ? (cards.current.get(source.current) ?? true) : true)}
-                  render={
-                    <motion.div
-                      layoutId={sharedId(open.id)}
-                      transition={{ layout: grow }}
-                      exit={{ opacity: reduced ? 0 : 1, transition: shrink }}
-                      style={{ borderRadius: RADIUS.dialog }}
-                      className="pointer-events-auto max-h-[calc(100dvh-32px)] w-full max-w-[min(480px,calc(100vw-32px))] overflow-hidden bg-surface text-ink shadow-[var(--mk-shadow-overlay)] outline-none"
-                      data-card-expand-dialog
-                    />
-                  }
-                >
-                  <motion.div
-                    layout={!reduced}
-                    initial={{ opacity: reduced ? 1 : 0 }}
-                    animate={{ opacity: 1, transition: contentIn }}
-                    exit={{ opacity: 0, transition: contentOut }}
-                    className="max-h-[calc(100dvh-32px)] overflow-y-auto p-5 sm:p-6"
-                    data-card-expand-content
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <DialogTitle className="m-0 text-lg leading-snug font-semibold tracking-[-0.01em]">{open.title}</DialogTitle>
-                        <DialogDescription className="mt-1 mb-0 text-[15px] leading-relaxed text-muted">{open.description}</DialogDescription>
-                      </div>
-                      <DialogClose
-                        render={
-                          <Button variant="ghost" size="icon" aria-label="Close" className="-mt-1.5 -mr-2 shrink-0 text-muted" data-card-expand-close>
-                            <CloseIcon />
-                          </Button>
-                        }
-                      />
-                    </div>
-                    <div className="mt-5">{open.detail}</div>
-                    {footer ? <div className="mt-5 flex flex-wrap items-center gap-2">{footer(open)}</div> : null}
-                  </motion.div>
-                </DialogPopup>
-              </div>
-            </DialogPortal>
-          ) : null}
-        </AnimatePresence>
-      </DialogRoot>
-    </LayoutGroup>
+      <Dialog open={open !== null} onOpenChange={(next) => !next && setOpenId(null)}>
+        {open && (
+          <DialogContent className="max-w-md rounded-lg">
+            <DialogHeader>
+              <DialogTitle>{open.title}</DialogTitle>
+              <DialogDescription>{open.description}</DialogDescription>
+            </DialogHeader>
+            <div className="mt-1">{open.detail}</div>
+            {footer && <div className="mt-4 flex flex-wrap items-center gap-2">{footer(open)}</div>}
+          </DialogContent>
+        )}
+      </Dialog>
+    </>
   );
 }
 

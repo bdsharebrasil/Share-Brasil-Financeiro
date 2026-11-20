@@ -39,7 +39,7 @@ function diaCurto(data: string) {
 }
 
 export default function VoosDeHoje({
-  voos, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo,
+  voos, nomesTripulantes, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo,
   atualizadoAoVivo, aoIniciar,
 }: Props) {
   const [vooSelecionadoId, setVooSelecionadoId] = useState("");
@@ -125,10 +125,10 @@ export default function VoosDeHoje({
         <div className="space-y-3 p-4 lg:col-span-5">
           <div className="flex items-center justify-between"><h3 className="text-sm font-bold">Voos monitorados</h3><span className="text-xs text-muted-foreground">{voosReais.length}</span></div>
           {voosReais.length ? voosReais.map((flight) => (
-            <button key={flight.id} type="button" onClick={() => { setVooSelecionadoId(flight.id); setPernaSelecionadaId("todas"); }} className={`w-full rounded-xl border p-3 text-left ${vooSelecionado?.id === flight.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}>
-              <span className="flex items-center justify-between gap-2"><strong className="font-mono text-sm">{flight.numero_voo || "Voo sem número"}</strong><span className="text-[10px] text-emerald-700">{statusVoo(flight.status)}</span></span>
-              <span className="mt-1 block text-xs text-muted-foreground">{flight.matricula_registro || "Matrícula indisponível"} · {flight.modelo || "Aeronave"} · {dataBR(flight.horario_previsto_agendamento)}</span>
-              <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : "Em voo"}</span></span>
+            <button key={flight.id} type="button" onClick={() => { setVooSelecionadoId(flight.id); setPernaSelecionadaId("todas"); }} className={`w-full rounded-lg border px-2.5 py-2 text-left ${vooSelecionado?.id === flight.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"}`}>
+              <span className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{flight.numero_voo || "Voo sem número"}</strong><span className="text-[9px] text-emerald-700">{statusVoo(flight.status)}</span></span>
+              <span className="mt-0.5 block text-[11px] leading-tight text-muted-foreground">{flight.matricula_registro || "Matrícula indisponível"} · {flight.modelo || "Aeronave"} · {dataBR(flight.horario_previsto_agendamento)}</span>
+              <span className="mt-1 flex items-center gap-1.5 text-[11px] leading-tight"><Plane size={11} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : "Em voo"}</span></span>
             </button>
           )) : <p className="rounded-lg bg-secondary/40 p-4 text-xs text-muted-foreground">Nenhum voo com rastreio ou histórico disponível neste momento.</p>}
           {vooSelecionado && (pernasSelecionadas.length > 0 || trechosSistema.length > 0) && (
@@ -154,7 +154,7 @@ export default function VoosDeHoje({
                       <tr key={`sistema-${trecho.dia}`} className="border-t border-primary/20 bg-primary/[.04]">
                         <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold text-primary">{diaCurto(trecho.dia)} · Trecho detectado pelo sistema</td>
                         <td colSpan={4} className="px-1 py-2 text-[9px] text-muted-foreground">
-                          {horarioRastreio(trecho.inicio)} – {horarioRastreio(trecho.fim)} · Sinais ADS-B; pouso não confirmado
+                          {horarioRastreio(trecho.inicio)} – {horarioRastreio(trecho.fim)} ·
                         </td>
                       </tr>
                     ))}
@@ -176,10 +176,12 @@ export default function VoosDeHoje({
             <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Voos em voo hoje</h3><span className="text-xs text-muted-foreground">{agendamentosEmVoo.length}</span></div>
             {carregando ? <p className="text-xs text-muted-foreground">Carregando voos…</p> : agendamentosEmVoo.length ? agendamentosEmVoo.map((item) => {
               const monitorado = porId.get(item.id);
+              const pilotoNome = item.piloto_nome || (item.piloto_id ? nomesTripulantes.get(item.piloto_id) : null);
+              const copilotoNome = item.copiloto_nome || (item.copiloto_id ? nomesTripulantes.get(item.copiloto_id) : null);
               return <article key={item.id} className="mb-2 rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{item.numero_voo || "Solicitação sem número"}</strong><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${["encerrada", "concluida"].includes(String(monitorado?.status || item.status).toLowerCase()) ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-secondary/30 text-muted-foreground"}`}>{statusVoo(monitorado?.status || item.status)}</span></div>
                 <p className="mt-1 text-xs text-muted-foreground">{dataBR(item.data_agendada)} · {item.origem} → {item.destino} · {item.matricula_registro || "Aeronave a definir"}</p>
-                <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11}/>{item.piloto_nome || "Piloto não definido"}{item.copiloto_nome ? ` · ${item.copiloto_nome}` : ""}</p>
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11}/><span><strong className="font-semibold text-foreground">Cmte.</strong> {pilotoNome || "Não definido"}{copilotoNome && <> · <strong className="font-semibold text-foreground">Cop.</strong> {copilotoNome}</>}</span></p>
                 {item.status === "aprovada" && item.checklist_status === "concluido" && <button type="button" onClick={() => aoIniciar(item)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 size={12}/>Abrir operação</button>}
               </article>;
             }) : <p className="text-xs text-muted-foreground">Nenhum voo com status “Em voo” hoje.</p>}

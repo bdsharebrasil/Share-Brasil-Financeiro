@@ -14,10 +14,10 @@ export function TabelaSegmentos({ segmentos }: { segmentos: Segmento[] }) {
     <>
       {/* Tabela — telas médias e grandes */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[720px] text-xs">
           <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="py-2 pr-3">Seq</th>
+            <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+              <th className="py-1.5 pr-2">Seq</th>
               <th className="py-2 pr-3">Ponto</th>
               <th className="py-2 pr-3">Coordenadas</th>
               <th className="py-2 pr-3 text-right">Dist. NM</th>
@@ -29,7 +29,7 @@ export function TabelaSegmentos({ segmentos }: { segmentos: Segmento[] }) {
           <tbody className="font-mono">
             {segmentos.map((s) => (
               <tr key={s.seq} className="border-b border-border/60">
-                <td className="py-2 pr-3 text-muted-foreground">{s.seq}</td>
+                <td className="py-1.5 pr-2 text-muted-foreground">{s.seq}</td>
                 <td className="py-2 pr-3 font-semibold text-foreground">{s.para}</td>
                 <td className="py-2 pr-3 text-muted-foreground">{formatarCoordenada(s.lat, s.lon)}</td>
                 <td className="py-2 pr-3 text-right">{formatarNumero(s.distanciaNM)}</td>

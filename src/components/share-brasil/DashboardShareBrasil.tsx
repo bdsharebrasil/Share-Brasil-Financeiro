@@ -131,7 +131,7 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-[9px] px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
                   ? "border border-[rgba(5,93,151,1)] bg-[rgba(33,70,112,1)] text-[rgba(154,198,231,1)] dark:bg-card dark:text-[rgba(154,198,231,1)]"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icone size={16} className="shrink-0" aria-hidden="true" />

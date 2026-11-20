@@ -227,7 +227,7 @@ export function BarraSuperior({ ambiente, podeAcessarGestor, tema, aoTrocarAmbie
   });
 
   return (
-    <header className="app-topbar safe-area-header relative z-40 flex h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 border-b border-border bg-[rgb(7,17,25)] px-3 [html:not(.dark)_&]:border-b-[rgb(8,15,25)] md:-ml-[var(--sidebar-w,76px)] md:w-[calc(100%+var(--sidebar-w,76px))] md:grid md:grid-cols-[1fr_auto_1fr] md:pr-7 md:pl-[104px]">
+    <header className="app-topbar safe-area-header relative z-40 flex h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 border-b border-border bg-[rgb(7,17,25)] px-3 [html:not(.dark)_&]:border-b-[rgb(39,59,73)] md:-ml-[var(--sidebar-w,76px)] md:w-[calc(100%+var(--sidebar-w,76px))] md:grid md:grid-cols-[1fr_auto_1fr] md:pr-7 md:pl-[104px]">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <button
           type="button"

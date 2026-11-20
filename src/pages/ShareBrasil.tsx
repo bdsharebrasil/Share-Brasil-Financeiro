@@ -14,6 +14,7 @@ import {
   Copy,
   FilePlus2,
   FileText,
+  Eye,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -2104,28 +2105,22 @@ export function ContatosClientesShareBrasil({
                 </dd>
               </div>
             )}
-            {selectedContact?.categoria_tipo === "HANGAR" && (
-              <div className="rounded-lg border border-border dark:border-white/5 p-3 sm:col-span-2">
-                <dt className="text-xs text-slate-500">Serviços do hangar</dt>
-                <dd className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <span className="rounded-md bg-white/[.04] p-2 text-sm">
-                    GPU:{" "}
-                    {selectedContact.gpu === "SIM"
-                      ? selectedContact.valor_gpu === "GRATUITO"
-                        ? "Disponível · gratuito"
-                        : `Disponível · R$ ${selectedContact.valor_gpu}`
-                      : "Não disponível"}
-                  </span>
-                  <span className="rounded-md bg-white/[.04] p-2 text-sm">
-                    Transfer:{" "}
-                    {selectedContact.transfer === "SIM"
-                      ? selectedContact.valor_transfer === "GRATUITO"
-                        ? "Disponível · gratuito"
-                        : `Disponível · R$ ${selectedContact.valor_transfer}`
-                      : "Não disponível"}
-                  </span>
-                </dd>
-              </div>
+            {selectedContact?.nome_contato_responsavel && <div className="rounded-lg border border-border p-3"><dt className="text-xs text-slate-500">Responsável</dt><dd className="mt-1.5 break-words text-sm font-medium">{selectedContact.nome_contato_responsavel}</dd></div>}
+            {selectedContact?.cargo && <div className="rounded-lg border border-border p-3"><dt className="text-xs text-slate-500">Cargo</dt><dd className="mt-1.5 break-words text-sm font-medium">{selectedContact.cargo}</dd></div>}
+            {(selectedContact?.categoria_tipo === "HANGAR" || selectedContact?.categoria?.toUpperCase() === "HANGAR") && (
+              <>
+                {selectedContact.codigo_icao && <div className="rounded-lg border border-border p-3"><dt className="text-xs text-slate-500">Aeroporto (ICAO)</dt><dd className="mt-1.5 text-sm font-medium">{selectedContact.codigo_icao}</dd></div>}
+                <div className="rounded-lg border border-border p-3 sm:col-span-2">
+                  <dt className="text-xs text-slate-500">Serviços do hangar</dt>
+                  <dd className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <span className="rounded-md bg-white/[.04] p-2 text-sm">Atendimento de pista: {selectedContact.atendimento_pista === "SIM" ? "Sim" : selectedContact.atendimento_pista === "NAO" ? "Não" : "Não informado"}</span>
+                    <span className="rounded-md bg-white/[.04] p-2 text-sm">GPU: {selectedContact.gpu === "SIM" ? selectedContact.valor_gpu === "GRATUITO" ? "Disponível · gratuito" : selectedContact.valor_gpu ? `Disponível · R$ ${selectedContact.valor_gpu}` : "Disponível · valor não informado" : selectedContact.gpu === "NAO" ? "Não disponível" : "Não informado"}</span>
+                    <span className="rounded-md bg-white/[.04] p-2 text-sm">Transfer: {selectedContact.transfer === "SIM" ? selectedContact.valor_transfer === "GRATUITO" ? "Disponível · gratuito" : selectedContact.valor_transfer ? `Disponível · R$ ${selectedContact.valor_transfer}` : "Disponível · valor não informado" : selectedContact.transfer === "NAO" ? "Não disponível" : "Não informado"}</span>
+                    <span className="rounded-md bg-white/[.04] p-2 text-sm">Ar condicionado: {selectedContact.ar_condicionado ? selectedContact.ar_condicionado === "SIM" ? "Disponível · valor não informado" : `Disponível · R$ ${selectedContact.ar_condicionado}` : "Não informado"}</span>
+                    <span className="rounded-md bg-white/[.04] p-2 text-sm">Pernoite: {selectedContact.pernoite ? selectedContact.pernoite === "SIM" ? "Disponível · valor não informado" : `Disponível · R$ ${selectedContact.pernoite}` : "Não informado"}</span>
+                  </dd>
+                </div>
+              </>
             )}
             {(selectedContact?.cidade ||
               selectedContact?.uf ||
@@ -2142,6 +2137,7 @@ export function ContatosClientesShareBrasil({
                 </dd>
               </div>
             )}
+            {selectedContact?.endereco && <div className="rounded-lg border border-border p-3 sm:col-span-2"><dt className="text-xs text-slate-500">Endereço</dt><dd className="mt-1.5 break-words text-sm font-medium">{selectedContact.endereco}</dd></div>}
             {selectedContact?.observacoes && (
               <div className="rounded-lg border border-border dark:border-white/5 p-3 sm:col-span-2">
                 <dt className="text-xs text-slate-500">Observações</dt>
@@ -2165,7 +2161,12 @@ export function ContatosClientesShareBrasil({
                 onClick={() => {
                   const contact = selectedContact;
                   setSelectedContact(null);
-                  editContact(contact);
+                  if (contact.categoria_tipo === "HANGAR" || contact.categoria?.toUpperCase() === "HANGAR") {
+                    setHangarError(null);
+                    setHangarEditor(contact);
+                  } else {
+                    editContact(contact);
+                  }
                 }}
               >
                 <Pencil size={14} className="mr-2" />
@@ -3377,8 +3378,9 @@ export function ContatosClientesShareBrasil({
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {visibleHangarContacts.map((contact) => (
                   <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
-                    <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 break-words text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
+                    <div className="mt-3 space-y-1 break-words text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p><p>{[contact.cidade, contact.uf].filter(Boolean).join(" / ") || "Localização não informada"}</p></div>
+                    <Button type="button" variant="outline" size="sm" className="mt-3 w-full gap-2" onClick={() => setSelectedContact(contact)}><Eye size={14} />Ver detalhes</Button>
                   </article>
                 ))}
               </div>
@@ -3407,6 +3409,7 @@ export function ContatosClientesShareBrasil({
                         <td className="px-4 py-3 text-muted-foreground">{contact.email || "E-mail não informado"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
+                            <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setSelectedContact(contact)}><Eye size={14} />Ver detalhes</Button>
                             <Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button>
                             <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
                           </div>

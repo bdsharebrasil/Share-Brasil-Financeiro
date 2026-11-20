@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { ErrorBoundary } from "@/components/error-boundary";
 import "./index.css";
+import "./styles/erp-system.css";
 
 instalarRecuperacaoRecursos();
 const queryClient = new QueryClient();

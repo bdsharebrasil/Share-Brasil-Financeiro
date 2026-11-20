@@ -7,6 +7,7 @@ import { buscarPerfilColaborador, type PerfilColaboradorResponse } from "@/lib/c
 import { menusPorAmbiente, nomesAmbiente, type Ambiente, type ItemMenu } from "@/types/navegacao";
 import { LogoShare } from "@/components/layout/TopBar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import "./sidebar-aba.css";
 
 const gruposFixos = ["Navegação principal", "Rotinas do departamento"];
 
@@ -85,6 +86,25 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
     );
   };
 
+  const renderItemDesktop = (item: ItemMenu) => {
+    const Icon = item.icon;
+    const selecionado = menuAtivo === item.id;
+    const tamanho = item.id === "financeiro-cotista" ? (recolhida ? 16 : 14) : (recolhida ? 18 : 16);
+    return (
+      <button
+        type="button"
+        key={item.id}
+        onClick={() => selecionar(item.id)}
+        aria-current={selecionado ? "page" : undefined}
+        aria-label={recolhida ? item.label : undefined}
+        className={cn("sb-tab", recolhida && "sb-tab--rail")}
+      >
+        <Icon size={tamanho} strokeWidth={selecionado ? 2.3 : 1.8} />
+        {recolhida ? <span className="sb-tab-tip">{item.label}</span> : <span className="sb-tab-label">{item.label}</span>}
+      </button>
+    );
+  };
+
   const renderMenuCompleto = (mostrarPerfil = true) => (
     <nav className="space-y-4">
       {mostrarPerfil && <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/35 p-3">
@@ -112,19 +132,17 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
 
   return (
     <>
-      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[76px] flex-col items-center border-r border-sidebar-border bg-[rgb(7,17,25)] py-4 md:flex">
-        {recolhida ? (
-          <button type="button" aria-label="Expandir menu" onClick={aoAlternarRecolhimento} className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent">
-            <ChevronRight size={18} />
+      <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[var(--sidebar-w,76px)] flex-col bg-[rgb(7,17,25)] py-4 md:flex">
+        <div className={cn("flex items-center gap-3 px-3", !recolhida && "pl-4")} title={recolhida ? nome : undefined}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary"><img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} /></div>
+          {!recolhida && <div className="min-w-0"><p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p><p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p></div>}
+        </div>
+        <nav aria-label="Menu principal" className={cn("sb-nav flex-1", !recolhida && "sb-nav--scroll")}>{itens.map(renderItemDesktop)}</nav>
+        <div className="sb-footer">
+          <button type="button" aria-label={recolhida ? "Expandir menu" : "Recolher menu"} title={recolhida ? "Expandir menu" : undefined} onClick={aoAlternarRecolhimento} className={cn("sb-toggle", recolhida && "sb-toggle--rail")}>
+            {recolhida ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /><span>Recolher menu</span></>}
           </button>
-        ) : (
-          <>
-            <button type="button" aria-label="Recolher menu" onClick={aoAlternarRecolhimento} className="mb-4 flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/60 text-sidebar-foreground hover:bg-sidebar-accent">
-              <ChevronLeft size={16} />
-            </button>
-            <nav className="flex w-full flex-col items-center gap-3 px-2">{itens.map((item) => renderItem(item, true))}</nav>
-          </>
-        )}
+        </div>
       </div>
 
       <Sheet open={aberta} onOpenChange={(open) => !open && aoFechar()}>

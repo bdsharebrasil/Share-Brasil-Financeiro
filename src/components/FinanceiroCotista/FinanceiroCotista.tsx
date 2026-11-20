@@ -1,4 +1,5 @@
 import "./financeiro-cotista.css";
+import "./fechamento-compacto.css";
 import { DarBaixaCotistaDialog } from "./DarBaixaCotistaDialog";
 import {
   Fragment,
@@ -3395,7 +3396,7 @@ function LancamentosDespesa({
   );
 }
 
-export default function FinanceiroCotista({ modoFechamento = false }: { modoFechamento?: boolean }) {
+export default function FinanceiroCotista({ modoFechamento = false, aoVoltarDashboard }: { modoFechamento?: boolean; aoVoltarDashboard?: () => void }) {
   const { data: fontesFornecedores = [], refetch: recarregarFornecedores } = useFornecedores({ includeFavorites: true, includeHotels: true });
   const fornecedoresEdicao = useMemo(
     () => fontesFornecedores.map((fornecedor) => ({ id: fornecedor.id, label: fornecedor.nome })),
@@ -3727,7 +3728,7 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
   const aeronaveAtual = aeronaves.find((a) => a.id === aeronaveSelecionada);
 
   const controlesMesesCotista = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={`cotista-meses flex flex-wrap items-center ${modoFechamento ? "gap-1.5" : "gap-2"}`}>
       <SeletorMesesCotista
         mesesSelecionados={mesesAplicados}
         aoAlternar={alternarMesSelecionado}
@@ -3737,13 +3738,13 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 px-3"
+        className={modoFechamento ? "h-8 px-2" : "h-10 px-3"}
         aria-label="Mês anterior"
         onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, -1))}
       >
         ‹
       </Button>
-      <span className="min-w-32 text-center text-xs text-muted-foreground" aria-live="polite">
+      <span className={modoFechamento ? "min-w-28 text-center text-[11px] text-muted-foreground" : "min-w-32 text-center text-xs text-muted-foreground"} aria-live="polite">
         {mesesAplicados.length === 1
           ? rotuloMesCotista(mesReferencia)
           : `${mesesAplicados.length} meses selecionados`}
@@ -3752,7 +3753,7 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 px-3"
+        className={modoFechamento ? "h-8 px-2" : "h-10 px-3"}
         aria-label="Próximo mês"
         onClick={() => selecionarMesUnico(deslocarMes(mesReferencia, 1))}
       >
@@ -3762,7 +3763,7 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
   );
 
   return (
-    <div className="financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full space-y-3">
+    <div className={`financeiro-shell financeiro-profissional -mt-2 min-w-0 max-w-full ${modoFechamento ? "financeiro-fechamento-compacto space-y-2" : "space-y-3"}`}>
       <style>{DESPESAS_ESTILOS}</style>
       {aeronaveSelecionada && (
         <div className="cotista-contexto flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3781,21 +3782,28 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
               )}
             </div>
           </div>
-          {(modoFechamento || !paginaAberta) && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0 gap-2 self-start sm:self-auto"
-              onClick={() => {
-                setAeronaveSelecionada("");
-                setPaginaAberta(false);
-                setAbaAtiva(modoFechamento ? "fechamento-balanco" : "lancamentos");
-              }}
-            >
-              <ChevronLeft size={14} aria-hidden /> Todas as aeronaves
-            </Button>
-          )}
+          <div className="cotista-contexto-acoes flex flex-wrap items-center gap-2">
+            {modoFechamento && aoVoltarDashboard && (
+              <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5" onClick={aoVoltarDashboard}>
+                <ChevronLeft size={14} aria-hidden /> Dashboard financeiro
+              </Button>
+            )}
+            {(modoFechamento || !paginaAberta) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={modoFechamento ? "h-8 gap-1.5 px-2.5" : "h-9 shrink-0 gap-2 self-start sm:self-auto"}
+                onClick={() => {
+                  setAeronaveSelecionada("");
+                  setPaginaAberta(false);
+                  setAbaAtiva(modoFechamento ? "fechamento-balanco" : "lancamentos");
+                }}
+              >
+                <ChevronLeft size={14} aria-hidden /> Todas as aeronaves
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {aeronaveSelecionada && paginaAberta && !modoFechamento && (
@@ -3835,13 +3843,16 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
 
       {!aeronaveSelecionada ? (
         <section className="space-y-4 py-4">
-          <header className="space-y-1">
+          <header className="flex flex-wrap items-start justify-between gap-2">
+            <div className="space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {modoFechamento ? "Balanço Cotista" : "Financeiro Cotista"}
             </p>
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Selecione uma aeronave
             </h2>
+            </div>
+            {modoFechamento && aoVoltarDashboard && <Button type="button" variant="outline" size="sm" onClick={aoVoltarDashboard}><ChevronLeft size={14} /> Dashboard financeiro</Button>}
           </header>
           <div className="relative w-full max-w-md">
             <Search
@@ -3968,8 +3979,8 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
           ) : abaAtiva === "portal-cliente" ? (
             <PortalClienteTab aeronaveId={aeronaveSelecionada} />
           ) : abaAtiva === "fechamento-balanco" ? (
-            <div className="space-y-4">
-              <div className="financeiro-panel cotista-fechamento-filtros grid grid-cols-1 items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)_auto]">
+            <div className={modoFechamento ? "space-y-2" : "space-y-4"}>
+              <div className="financeiro-panel cotista-fechamento-filtros grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,17rem)_auto]">
                 <div className="min-w-0">
                   <p className="text-sm font-bold">Fechamento por cotista</p>
                   <p className="mt-1 text-[10px] text-muted-foreground">
@@ -3989,7 +4000,7 @@ export default function FinanceiroCotista({ modoFechamento = false }: { modoFech
                   emptyMessage="Nenhum cotista encontrado."
                   icon={<User size={15} />}
                   disabled={!cotistasAeronave.length}
-                  className="w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"
+                  className={modoFechamento ? "h-8 lg:h-8 w-full rounded-md border-border bg-background text-foreground hover:bg-muted" : "w-full border-border bg-background text-foreground hover:bg-muted sm:max-w-sm"}
                   popoverClassName="border-border bg-popover text-popover-foreground"
                 />
                 {controlesMesesCotista}

@@ -1,0 +1,432 @@
+/*
+ * Fechamento Balanço — densidade ERP
+ * Escopo exclusivo do fechamento; não comprime o Financeiro Cotista normal.
+ * A largura é fluida e o ledger usa a rolagem principal da página, sem
+ * altura fixa e sem barra vertical aninhada.
+ */
+@media screen {
+  .app-main-scroll main:has(.balanco-cotista-workspace) {
+    width: 100%;
+    max-width: none;
+    padding: 8px 12px 18px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto {
+    width: 100%;
+    margin-top: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .cotista-contexto {
+    margin: 0 0 8px;
+    padding: 0 0 8px;
+    gap: 8px;
+  }
+  .financeiro-fechamento-compacto .cotista-contexto p:first-child {
+    font-size: 10px;
+    letter-spacing: .09em;
+  }
+  .financeiro-fechamento-compacto .cotista-contexto h2 {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  .financeiro-fechamento-compacto .cotista-contexto-acoes {
+    gap: 6px;
+  }
+  .financeiro-fechamento-compacto .cotista-contexto-acoes button {
+    height: 30px;
+    min-height: 30px;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
+    padding: 8px 10px;
+    gap: 10px;
+    border-radius: 6px;
+  }
+  .financeiro-fechamento-compacto .cotista-fechamento-filtros p:first-child {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .financeiro-fechamento-compacto .cotista-fechamento-filtros p + p {
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  .financeiro-fechamento-compacto .cotista-fechamento-filtros button[role="combobox"] {
+    height: 32px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+  .financeiro-fechamento-compacto .cotista-meses {
+    gap: 6px;
+  }
+  .financeiro-fechamento-compacto .cotista-meses .despesa-control {
+    height: 30px;
+    min-height: 30px;
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  .financeiro-fechamento-compacto .cotista-meses > button {
+    height: 30px;
+    min-height: 30px;
+    padding-inline: 9px;
+  }
+  .financeiro-fechamento-compacto .cotista-meses > span {
+    min-width: 104px;
+    font-size: 11px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--fin-border);
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar .fb-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-width: 0;
+    gap: 3px;
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+    overflow-x: auto;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar .fb-tabs button {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+    border-radius: 0;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar .fb-export {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 9px;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 7px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-head {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .financeiro-fechamento-compacto .fb-ledger-head h2 {
+    margin: 1px 0 0;
+    font-size: 12px;
+  }
+  .financeiro-fechamento-compacto .fb-ledger-head .fb-kicker {
+    font-size: 9px;
+    line-height: 1.1;
+    letter-spacing: .10em;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-total {
+    padding-left: 11px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-total strong {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-tools {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 9px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-tools select {
+    flex: 0 1 200px;
+    min-width: 120px;
+    width: 200px;
+    height: 30px;
+    padding: 0 24px 0 8px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-search {
+    flex: 1 1 220px;
+    min-width: 130px;
+    max-width: none;
+    height: 30px;
+    padding-inline: 9px;
+    border-radius: 5px;
+  }
+  .financeiro-fechamento-compacto .fb-search input {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent !important;
+    font-size: 11px;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-count {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0 0 0 auto;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    height: 29px;
+    overflow: hidden;
+    border: 1px solid var(--fin-border);
+    border-radius: 5px;
+    background: var(--fin-surface);
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    width: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: var(--fin-text);
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control button:not(:disabled):hover {
+    background: var(--fin-hover);
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control button:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control output {
+    min-width: 38px;
+    padding: 0 3px;
+    color: var(--fin-text);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .financeiro-fechamento-compacto .fb-zoom-control .fb-zoom-reset {
+    border-left: 1px solid var(--fin-border);
+  }
+
+  /* Todas as colunas permanecem presentes. Largura fluida em desktop,
+     rolagem horizontal apenas em telas estreitas ou muitos cotistas. */
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior-x: contain;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger table.fb-ledger-table {
+    width: 100%;
+    min-width: var(--fb-table-min-width, 930px);
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: clamp(10px, calc(11.5px * var(--fb-zoom, .9)), 14px);
+    line-height: 1.22;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger thead th {
+    position: static;
+    height: auto;
+    min-height: 27px;
+    padding: 6px calc(5px * var(--fb-zoom, .9));
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: .01em;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html:not(.dark) .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger thead th {
+    background: var(--erp-section-head, #29485f);
+    color: var(--erp-section-text, #fff);
+    border-right-color: rgb(255 255 255 / .14);
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger tbody tr {
+    height: auto;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger tbody td {
+    height: auto;
+    padding: calc(4px * var(--fb-zoom, .9)) calc(5px * var(--fb-zoom, .9));
+    vertical-align: middle;
+    font-size: clamp(10px, calc(11.5px * var(--fb-zoom, .9)), 14px);
+    line-height: 1.24;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-desc {
+    min-width: 0;
+    max-width: none;
+    padding-right: calc(6px * var(--fb-zoom, .9));
+    white-space: normal;
+    font-weight: 600;
+  }
+  .financeiro-fechamento-compacto .fb-desc-content {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-date-stack {
+    display: grid;
+    gap: 2px;
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+    line-height: 1.12;
+  }
+  .financeiro-fechamento-compacto .fb-ledger .fb-date-stack span { white-space: nowrap; }
+  .financeiro-fechamento-compacto .fb-ledger .fb-date-stack b {
+    font-size: inherit;
+    font-weight: 600;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-doc {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-status {
+    max-width: 100%;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: clamp(9px, calc(9.6px * var(--fb-zoom, .9)), 12px);
+    line-height: 1.16;
+    white-space: normal;
+  }
+  .financeiro-fechamento-compacto .fb-ledger .fb-tag {
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+    line-height: 1.18;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-num {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-money {
+    font-size: clamp(10px, calc(11px * var(--fb-zoom, .9)), 14px);
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-share-header {
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-share-header strong {
+    display: block;
+    max-width: 100%;
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .financeiro-fechamento-compacto .fb-ledger .fb-share-header > span {
+    display: block;
+    margin-top: 3px;
+    font-size: clamp(9px, calc(9.5px * var(--fb-zoom, .9)), 11px);
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-share-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    padding: 0;
+    background: transparent;
+    white-space: normal;
+  }
+  .financeiro-fechamento-compacto .fb-ledger .fb-share-cell span {
+    font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
+    line-height: 1.1;
+  }
+  .financeiro-fechamento-compacto .fb-ledger .fb-share-cell strong {
+    margin: 0;
+    font-size: clamp(10px, calc(11px * var(--fb-zoom, .9)), 14px);
+    line-height: 1.13;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger tfoot td {
+    position: static;
+    padding: 5px 7px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  @media (max-width: 1050px) {
+    html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .financeiro-fechamento-compacto .cotista-fechamento-filtros > :last-child {
+      grid-column: 1 / -1;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-tools {
+      flex-wrap: wrap;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-count {
+      margin-left: auto;
+    }
+  }
+  @media (max-width: 640px) {
+    .app-main-scroll main:has(.balanco-cotista-workspace) { padding: 8px 8px 16px; }
+    html .financeiro-profissional.financeiro-fechamento-compacto .cotista-contexto {
+      align-items: flex-start;
+    }
+    .financeiro-fechamento-compacto .cotista-contexto-acoes { width: 100%; }
+    html .financeiro-profissional.financeiro-fechamento-compacto .cotista-fechamento-filtros {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .financeiro-fechamento-compacto .cotista-fechamento-filtros > :last-child {
+      grid-column: auto;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar {
+      flex-wrap: wrap;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar .fb-tabs {
+      flex-basis: 100%;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-commandbar .fb-export {
+      margin: 0 0 5px auto;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-ledger-tools select {
+      flex: 1 1 130px;
+      width: auto;
+    }
+    html .financeiro-profissional.financeiro-fechamento-compacto .fb-search {
+      flex: 1 1 140px;
+    }
+  }
+}

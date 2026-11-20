@@ -687,6 +687,10 @@ export function DocumentosShareBrasil() {
       .catch((e) => setError(e.message));
   };
   useEffect(refresh, [selectedFolderId]);
+  const visibleFolders = folders.filter(
+    (item) => (item.pasta_pai_id || null) === (selectedFolderId || null),
+  );
+  const subfolders = folders.filter((item) => item.pasta_pai_id === selectedFolderId);
   const openFolder = (id: string) => {
     setSelectedFolderId(id);
     setError(null);
@@ -776,9 +780,9 @@ export function DocumentosShareBrasil() {
                 </Button>
               </div>
             </div>
-            {folders.length ? (
+            {visibleFolders.length ? (
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {folders.map((item) => (
+                {visibleFolders.map((item) => (
                   <FolderCard
                     key={item.id}
                     name={item.nome}
@@ -842,6 +846,27 @@ export function DocumentosShareBrasil() {
                 </div>
               </div>
             </div>
+            {subfolders.length > 0 && (
+              <div className="border-b border-border dark:border-white/[.08] p-5 md:p-7">
+                <div className="mb-4">
+                  <p className="text-sm font-bold text-foreground dark:text-white">Pastas nesta pasta</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
+                    Abra uma subpasta para continuar navegando pelos documentos.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {subfolders.map((item) => (
+                    <FolderCard
+                      key={item.id}
+                      name={item.nome}
+                      description={folderDescription(item.nome)}
+                      count={docs.filter((doc) => doc.pasta_id === item.id).length}
+                      onClick={() => openFolder(item.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             {docs.length ? (
               <div className="divide-y divide-white/[.06]">
                 {docs.map((item) => (
@@ -1752,6 +1777,7 @@ export function ContatosClientesShareBrasil({
             </DialogDescription>
           </DialogHeader>
           <FormularioCadastroContato
+            key={editingContact?.id || "novo-contato"}
             contato={editingContact}
             salvando={savingContact}
             erro={contactError}
@@ -3230,7 +3256,7 @@ export function ContatosClientesShareBrasil({
                   <div className="ac-form-grid ac-form-grid--3">
                     <label className="ac-field"><span>Cidade *</span><input className="ac-control" value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" /></label>
                     <label className="ac-field"><span>ICAO</span><input className="ac-control" value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" /></label>
-                    <CampoTelefone valor={supplierForm.telefone} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone }))} />
+                    <CampoTelefone value={montarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero)} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone: separarTelefone(telefone) }))} />
                   </div>
                   <div className="ac-form-grid ac-form-grid--2">
                     <label className="ac-field"><span>Preço AVGAS</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
@@ -3314,7 +3340,7 @@ export function ContatosClientesShareBrasil({
           <Dialog open={hangarEditor !== false} onOpenChange={(open) => { if (!open && !hangarSaving) setHangarEditor(false); }}>
             <DialogContent className="ac-dialog">
               <DialogHeader className="ac-dialog-header"><DialogTitle>{hangarEditor ? "Editar hangar" : "Novo hangar"}</DialogTitle><DialogDescription>O cadastro será salvo automaticamente na categoria Hangar.</DialogDescription></DialogHeader>
-              <FormularioCadastroContato contato={hangarEditor || undefined} categoriaInicial="HANGAR" salvando={hangarSaving} erro={hangarError} aoSalvar={salvarHangar} aoCancelar={() => setHangarEditor(false)} />
+              <FormularioCadastroContato key={hangarEditor ? hangarEditor.id : "novo-hangar"} contato={hangarEditor || undefined} categoriaInicial="HANGAR" salvando={hangarSaving} erro={hangarError} aoSalvar={salvarHangar} aoCancelar={() => setHangarEditor(false)} />
             </DialogContent>
           </Dialog>
           <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">

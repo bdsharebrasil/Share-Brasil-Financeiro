@@ -5,9 +5,6 @@ import {
   atualizarContatoShare, buscarContatosShare, criarContatoShare, excluirContatoShare,
   type ContatoAgenda,
 } from "@/lib/colaborador-api";
-import {
-  formatarNumeroTelefone, montarTelefone, separarTelefone, validarTelefone,
-} from "@/lib/cadastro-colaborador";
 import "./agenda-contatos.css";
 
 const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
@@ -117,22 +114,6 @@ function Campo({ label, id, ...props }: CampoProps) {
   return <label className="ac-field" htmlFor={id}><span>{label}{props.required && " *"}</span><input {...props} id={id} className="ac-control" /></label>;
 }
 
-export type Telefone = { ddd: string; numero: string };
-
-export function CampoTelefone({ valor, disabled, onChange }: { valor: Telefone; disabled?: boolean; onChange: (valor: Telefone) => void }) {
-  return (
-    <div className="ac-field">
-      <span>Telefone</span>
-      <div className="ac-phone-row">
-        <input className="ac-control" aria-label="DDD" inputMode="numeric" autoComplete="tel-area-code" placeholder="DDD" value={valor.ddd} disabled={disabled}
-          onChange={(e) => onChange({ ...valor, ddd: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
-        <input className="ac-control" aria-label="Número do telefone" inputMode="tel" autoComplete="tel-local" placeholder="98765-4321" value={valor.numero} disabled={disabled}
-          onChange={(e) => onChange({ ...valor, numero: formatarNumeroTelefone(e.target.value) })} />
-      </div>
-    </div>
-  );
-}
-
 type CadastroProps = {
   contato?: ContatoAgenda;
   categoriaInicial?: "FORNECEDOR" | "FORNECEDOR PEÇAS" | "MANUTENÇÃO"| "OUTRO";
@@ -148,7 +129,6 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
     const inicial = contatoParaFormulario(contato);
     return categoriaInicial ? { ...inicial, categoria_tipo: categoriaInicial, categoria: categoriaInicial } : inicial;
   });
-  const [telefone, setTelefone] = useState<Telefone>(() => separarTelefone(contato?.telefone || ""));
   const [erroLocal, setErroLocal] = useState<string | null>(null);
   const resumoRef = useRef<HTMLDivElement>(null);
   const mensagem = erroLocal || erro;
@@ -163,10 +143,8 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (salvando) return;
-    const erroTelefone = validarTelefone(telefone.ddd, telefone.numero);
-    if (erroTelefone) { setErroLocal(erroTelefone); return; }
     let payload: FormularioContato;
-    try { payload = prepararContato({ ...form, telefone: montarTelefone(telefone.ddd, telefone.numero) }); }
+    try { payload = prepararContato(form); }
     catch (e) { setErroLocal(e instanceof Error ? e.message : "Revise os dados do formulário."); return; }
     await aoSalvar(payload);
   }
@@ -184,7 +162,7 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
           <h3 id="ac-identificacao" className="ac-section-heading">Identificação do contato</h3>
           <div className="ac-form-grid">
             {campo("nome", "Nome do contato", { required: true, autoComplete: "name", autoFocus: true, placeholder: "Nome completo" })}
-            <CampoTelefone valor={telefone} disabled={salvando} onChange={(valor) => { setErroLocal(null); setTelefone(valor); }} />
+            {campo("telefone", "Telefone", { type: "tel", autoComplete: "tel", placeholder: "(00) 00000-0000" })}
             {campo("codigo_icao", "Aeroporto (ICAO)", { maxLength: 4, placeholder: "Ex.: SBCY" })}
             {campo("email", "E-mail", { type: "email", autoComplete: "email", placeholder: "contato@empresa.com.br" })}
             <label className="ac-field" htmlFor="contato-categoria">
@@ -275,7 +253,7 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
       </div>
       <div className="ac-footer">
         <button type="button" className="ac-btn" disabled={salvando} onClick={aoCancelar}><X size={16} aria-hidden="true" />Cancelar</button>
-        <button type="submit" className="ac-btn ac-btn--primary" disabled={salvando}><Save size={16} aria-hidden="true" />{salvando ? "Salvando…" : contato ? "Salvar alterações" : "Salvar contato"}</button>
+        <button type="submit" className="ac-btn ac-btn--primary" disabled={salvando}><Save size={16} aria-hidden="true" />{salvando ? "Salvando…" : contato ? "Salvar alterações" : "Salvar"}</button>
       </div>
     </form>
   );
@@ -423,3 +401,4 @@ export function AgendaContatos() {
 }
 
 export default AgendaContatos;
+

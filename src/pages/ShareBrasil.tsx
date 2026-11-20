@@ -1082,6 +1082,9 @@ export function ContatosClientesShareBrasil({
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
+  const [contactView, setContactView] = useState<"lista" | "grade">("grade");
+  const [fuelView, setFuelView] = useState<"lista" | "grade">("grade");
+  const [hangarView, setHangarView] = useState<"lista" | "grade">("grade");
   const [clients, setClients] = useState<ClienteShare[]>([]);
   const [socios, setSocios] = useState<ClienteShare[]>([]);
   const [links, setLinks] = useState<ClienteShare[]>([]);
@@ -1701,15 +1704,9 @@ export function ContatosClientesShareBrasil({
           />
         </DialogContent>
       </Dialog>
-      <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
+      <section className="space-y-3">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2
-              id="titulo-agenda-contatos"
-              className="text-lg font-semibold tracking-tight text-foreground dark:text-white"
-            >
-              Agenda de contatos
-            </h2>
             <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
               {visibleContacts.length}{" "}
               {visibleContacts.length === 1 ? "contato interno" : "contatos internos"}
@@ -1741,14 +1738,15 @@ export function ContatosClientesShareBrasil({
             >
               <Plus size={14} /> Novo contato
             </Button>
+            {viewToggle(contactView, setContactView, "dos contatos")}
           </div>
         </header>
 
         {visibleContacts.length ? (
-          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className={contactView === "grade" ? "grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "grid min-w-0 grid-cols-1 gap-2"}>
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
+                <article className={contactView === "grade" ? "relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30" : "relative flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 pr-24 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30"}>
                   <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
                     <Button
                       type="button"
@@ -1772,7 +1770,7 @@ export function ContatosClientesShareBrasil({
                       <Trash2 size={14} />
                     </Button>
                   </div>
-                  <div className="flex min-w-0 items-start gap-3 pr-16">
+                  <div className={contactView === "grade" ? "flex min-w-0 items-start gap-3 pr-16" : "flex min-w-[12rem] flex-1 items-start gap-3"}>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
                         {item.nome}
@@ -1790,7 +1788,7 @@ export function ContatosClientesShareBrasil({
                     </div>
                   </div>
 
-                  <dl className="mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3 text-xs text-muted-foreground dark:text-slate-300">
+                  <dl className={`text-xs text-muted-foreground dark:text-slate-300 ${contactView === "grade" ? "mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3" : "flex flex-1 flex-wrap gap-x-5 gap-y-1"}`}>
                     {item.telefone && (
                       <div className="flex min-w-0 items-center gap-2">
                         <Phone
@@ -3042,7 +3040,6 @@ export function ContatosClientesShareBrasil({
         <section className="space-y-4">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Fornecedores de combustível</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleFuelSuppliers.length} {visibleFuelSuppliers.length === 1 ? "fornecedor" : "fornecedores"}
               </p>
@@ -3060,6 +3057,7 @@ export function ContatosClientesShareBrasil({
                 />
               </div>
               <Button type="button" onClick={() => openSupplierEditor()} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo fornecedor</Button>
+              {viewToggle(fuelView, setFuelView, "dos fornecedores")}
             </div>
           </header>
           {supplierEditor !== false && (
@@ -3084,11 +3082,11 @@ export function ContatosClientesShareBrasil({
           ) : visibleFuelSuppliers.length === 0 ? (
             <EstadoVazio label="Nenhum fornecedor encontrado" />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className={fuelView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
               {visibleFuelSuppliers.map((supplier) => (
-                <article key={supplier.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <article key={supplier.id} className={fuelView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
+                  <div className={fuelView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <dl className={fuelView === "grade" ? "mt-3 grid grid-cols-2 gap-2 text-xs" : "grid grid-cols-4 gap-x-6 text-xs"}>
                     <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
                     <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
                     <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
@@ -3110,7 +3108,6 @@ export function ContatosClientesShareBrasil({
           </Dialog>
           <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Hangar</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleHangarContacts.length} {visibleHangarContacts.length === 1 ? "contato" : "contatos"}
               </p>
@@ -3128,6 +3125,7 @@ export function ContatosClientesShareBrasil({
                 />
               </div>
               <Button type="button" onClick={() => { setHangarError(null); setHangarEditor(null); }} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo hangar</Button>
+              {viewToggle(hangarView, setHangarView, "dos hangares")}
             </div>
           </header>
           {hangarContacts.length === 0 ? (
@@ -3135,11 +3133,11 @@ export function ContatosClientesShareBrasil({
           ) : visibleHangarContacts.length === 0 ? (
             <EstadoVazio label="Nenhum hangar encontrado" />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className={hangarView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
               {visibleHangarContacts.map((contact) => (
-                <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
-                  <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
+                <article key={contact.id} className={hangarView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
+                  <div className={hangarView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <div className={hangarView === "grade" ? "mt-3 space-y-1 text-xs" : "flex flex-wrap items-center gap-x-6 gap-y-1 text-xs"}><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
                 </article>
               ))}
             </div>

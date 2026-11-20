@@ -263,14 +263,9 @@ export default function DashboardFinanceiro({
 
   if (balancoCotistaAberto) {
     return (
-      <div className="route-enter mx-auto w-full max-w-[1320px] min-w-0">
-        <div className="mb-3 flex justify-end">
-          <Button type="button" variant="outline" size="sm" onClick={() => setBalancoCotistaAberto(false)}>
-            <ChevronLeft size={15} aria-hidden /> Dashboard financeiro
-          </Button>
-        </div>
+      <div className="route-enter balanco-cotista-workspace mx-auto w-full min-w-0">
         <Suspense fallback={<div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Carregando balanço cotista…</div>}>
-          <FinanceiroCotista modoFechamento />
+          <FinanceiroCotista modoFechamento aoVoltarDashboard={() => setBalancoCotistaAberto(false)} />
         </Suspense>
       </div>
     );

@@ -17,7 +17,7 @@ import {
   Mail,
   ArrowLeft,
   ArrowUpRight, LayoutList, LayoutGrid, ChevronRight,
-  Wallet, TriangleAlert, Plane, CalendarDays, MoreVertical,
+  TriangleAlert, Plane, CalendarDays, MoreVertical,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
 import {
@@ -703,11 +703,6 @@ export default function NFSaidaTab() {
   const scopedRows = useMemo(() => {
     return mesSelecionado ? filteredNotas.filter(n => getMonthKey(n.data_criacao) === mesSelecionado) : filteredNotas;
   }, [filteredNotas, mesSelecionado]);
-  const totals = useMemo(() => scopedRows.reduce((acc, n) => {
-    const value = num(n.valor);
-    if (pending(n.status)) { acc.open += value; if (n.data_vencimento && n.data_vencimento.slice(0,10) < todayLocal()) { acc.overdue += value; acc.lateCount++; } }
-    return acc;
-  }, {open: 0, overdue: 0, lateCount: 0}), [scopedRows]);
   const groups = useMemo(() => {
     const map = new Map<string, NFSaida[]>();
     filteredNotas.forEach((nota) => {
@@ -757,15 +752,9 @@ export default function NFSaidaTab() {
 
     <header className="nf-header">
       <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div><h1>Documentos de saída</h1></div>
-      <div className="nf-header-actions"><button className="nf-btn" disabled={loading} onClick={() => void fetchNotas()}><RefreshCw className={loading ? "nf-spin" : ""} /> Atualizar</button><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
+      <div className="nf-header-actions"><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
     </header>
     {!showForm && !baixaTarget && !deleteId && feedback}
-    <section className="nf-stats" aria-label="Resumo dos documentos filtrados" aria-busy={loading}>
-      {[
-        {label: "Em aberto", value: totals.open, note: "Inclui valores vencidos", icon: Wallet, color: "cyan"},
-        {label: "Vencido", value: totals.overdue, note: `${totals.lateCount} documentos aguardando baixa`, icon: TriangleAlert, color: "amber"},
-      ].map(({label, value, note, icon: Icon, color}) => <article className={`nf-stat ${color}`} key={label}><div className="nf-stat-top"><span>{label}</span><Icon /></div><strong>{loading || loadError ? "—" : formatBRL(value)}</strong><small>{loading ? "Atualizando documentos…" : loadError ? "Dados indisponíveis" : note}</small></article>)}
-    </section>
     <section className="nf-panel" aria-label="Documentos">
       <div className="nf-panel-top"><div className="nf-segment" aria-label="Tipo de documento">{([['recibo', 'Recibos', totalRecibos], ['nota', 'Notas fiscais', totalNotas]] as const).map(([value, label, count]) => <button key={value} aria-pressed={documentTab === value} className={documentTab === value ? "active" : ""} onClick={() => {setDocumentTab(value); setMesSelecionado(null);}}>{label}<span>{count}</span></button>)}</div>
       <div className="nf-toolbar"><label className="nf-search"><Search /><span className="nf-sr">Buscar documentos</span><input type="search" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar cotista, número, aeronave…" /></label><select aria-label="Filtrar por status" value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}><option value="">Todos os status</option>{STATUS_OPCOES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select><select aria-label="Ordenar documentos" value={`${sortBy}:${sortDir}`} onChange={e => {const [by, dir] = e.target.value.split(':') as [SortBy, SortDir]; setSortBy(by); setSortDir(dir);}}><option value="data:desc">Mais recentes</option><option value="data:asc">Mais antigos</option><option value="nome:asc">Cotista: A–Z</option><option value="nome:desc">Cotista: Z–A</option></select><button className={`nf-btn ${showFilterPanel ? "selected" : ""}`} aria-expanded={showFilterPanel} aria-controls="nf-period" onClick={() => setShowFilterPanel(!showFilterPanel)}><CalendarDays /> Período{(dateFrom || dateTo) && <span className="nf-dot" />}</button></div></div>
@@ -842,9 +831,10 @@ export const STYLES = `
 .nf-mobile-docs{display:none}
 @container(max-width:760px){.nf-mobile-docs{display:grid}}
 .nf-list-heading,.nf-back,.nf-mobile-docs{background:var(--light-surface, #070a12)}
-.nf-header-actions{display:flex;flex-direction:column;gap:9px}
+.nf-workspace{padding-left:18px;padding-right:18px;margin-left:-16px;margin-right:-16px}
+.nf-header-actions{display:flex;flex-direction:column;justify-content:flex-start;gap:30px;margin-left:297px;margin-right:297px;padding-left:141px;padding-right:141px}
 .nf-header-actions .nf-btn{margin-left:37px;margin-right:37px;padding-left:16px;padding-right:16px;min-height:20px}
-.nf-header-actions .nf-btn.primary{margin-left:19px;margin-right:19px;background-color:rgba(10,95,221,.87);box-shadow:0 1px 0 0 rgba(18,101,237,.125);font-weight:500;line-height:10px;padding-left:7px;padding-right:7px;gap:4px;min-height:27px}
+.nf-header-actions .nf-btn.primary{margin-left:110px;margin-right:110px;background-color:rgba(10,95,221,.87);box-shadow:0 1px 0 0 rgba(18,101,237,.125);font-weight:500;line-height:10px;padding-left:7px;padding-right:7px;gap:4px;min-height:27px}
 .nf-panel-top .nf-segment[aria-label="Tipo de documento"]{gap:27px;margin-left:6px;margin-right:6px;padding-left:21px;padding-right:21px}
 .nf-panel-top .nf-segment button.active{background-color:rgba(10,95,221,1);line-height:17px;font-weight:500;box-shadow:0 3px 0 0 rgba(0,0,0,.133);border:1px solid var(--light-line, rgba(6,36,44,1))}
 `;

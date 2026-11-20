@@ -436,7 +436,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
       {modulo ? (
         /* ------------------------------ Módulo aberto ------------------------------ */
         <section className="min-w-0 space-y-2" aria-label={moduloAtual?.rotulo}>
-          <div className="flex justify-start -my-[9px] py-0 text-[11px] leading-[11px] font-light">
+          <div className="flex justify-start -my-[16px] py-[7px] text-[11px] leading-[11px] font-light">
             <Button
               type="button"
               variant="ghost"
@@ -450,7 +450,7 @@ export default function DashboardGestorResumo({ aoNavegar }: { aoNavegar: (menu:
             </Button>
           </div>
 
-          <div className="-ml-[11px] -mr-[44px] min-w-0 pl-0 pr-0">
+          <div className="-ml-[3px] -mr-[37px] min-w-0 pl-0 pr-0">
             {modulo === "entrada" && <LancamentosUnificados key={location.search} fluxo="ENTRADA" filtroInicial={filtroInicial} />}
             {modulo === "saida" && <LancamentosUnificados key={location.search} fluxo="SAIDA" filtroInicial={filtroInicial} />}
             {modulo === "baixas" && (

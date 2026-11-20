@@ -100,7 +100,7 @@ export function AcertoContasCotistasResumo({ fontes, erroFonte, mesesSelecionado
           <ul>{calculo.balanco.avisos.map((aviso) => <li key={aviso}>{aviso}</li>)}</ul>
         </div>
       )}
-      <p className="acc-footnote">O cálculo usa parcelas ajustadas e pagamentos pessoais confirmados, considera caixa SHARE/HOLDING separado e não registra transferências bancárias entre cotistas. Saldos positivos são créditos na apuração; negativos são débitos.</p>
+      <details className="fb-more"><summary>Como o cálculo funciona</summary><p className="acc-footnote">O cálculo usa parcelas ajustadas e pagamentos pessoais confirmados, considera caixa SHARE/HOLDING separado e não registra transferências bancárias entre cotistas. Saldos positivos são créditos na apuração; negativos são débitos.</p></details>
     </section>
   );
 }

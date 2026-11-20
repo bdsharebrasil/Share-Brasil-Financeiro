@@ -41,6 +41,7 @@ import {
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { calcularIndicadoresViagemCombustivel } from "@/lib/indicadores-despesas-cotista";
 import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
@@ -165,6 +166,9 @@ export function FechamentoBalancoReferencia({
   if (!d || !b || !total || !b.meses.length) return <div className="fb"><style>{CSS}</style><div className="fb-empty">Selecione a aeronave e os meses do fechamento.</div></div>;
   if (d.balanco_escopo && d.balanco_escopo !== "aeronave") return <div className="fb"><style>{CSS}</style><div className="fb-empty">O fechamento precisa dos dados consolidados da aeronave.</div></div>;
 
+  const indicadoresDespesas = calcularIndicadoresViagemCombustivel(
+    participante ? participante.lancamentos : b.participantes.flatMap((item) => item.lancamentos),
+  );
   const custoPorCategoria = b.categorias
     .map((item) => ({ nome: item.nome, valor: participante ? (item.cotistas.get(participante.id) ?? 0) : item.total }))
     .filter((item) => item.valor > 0)
@@ -264,6 +268,22 @@ export function FechamentoBalancoReferencia({
           <Kpi titulo="Média mensal" valor={money(custoMensalMedio)} detalhe={`${b.meses.length} ${b.meses.length === 1 ? "mês" : "meses"} selecionados`} />
           <Kpi titulo="Horas voadas" valor={horas(totalHoras)} detalhe={`${quantidadeVoos} voos · ${fmt(participante ? pousos : b.totalPousos ?? pousos, 0)} pousos`} />
           <Kpi titulo="Lançamentos" valor={fmt(lancamentos.length, 0)} detalhe="Despesas atribuídas ao cotista no período" />
+        </div>
+        <div className="fb-grid fb-g2 fb-expense-metrics" aria-label="Custos e tickets médios operacionais">
+          <section className="fb-card fb-expense-metric">
+            <div className="fb-expense-heading"><h2>Despesas de viagem</h2><span>{indicadoresDespesas.viagens.quantidade} lançamento(s)</span></div>
+            <div className="fb-expense-values">
+              <div><small>Custo rateado no período</small><strong>{money(indicadoresDespesas.viagens.totalCentavos)}</strong></div>
+              <div><small>Ticket médio por lançamento</small><strong>{money(indicadoresDespesas.viagens.ticketMedioCentavos)}</strong></div>
+            </div>
+          </section>
+          <section className="fb-card fb-expense-metric">
+            <div className="fb-expense-heading"><h2>Combustível</h2><span>{indicadoresDespesas.combustivel.quantidade} abastecimento(s)</span></div>
+            <div className="fb-expense-values">
+              <div><small>Custo rateado no período</small><strong>{money(indicadoresDespesas.combustivel.totalCentavos)}</strong></div>
+              <div><small>Ticket médio por abastecimento</small><strong>{money(indicadoresDespesas.combustivel.ticketMedioCentavos)}</strong></div>
+            </div>
+          </section>
         </div>
         <div className="fb-grid fb-g2">
           <section className="fb-card"><h2>Gastos por categoria</h2>
@@ -665,6 +685,17 @@ const CSS = `
 .fb .acc-transfer-section{margin-top:8px}.fb .acc-transfer-section h3{margin:0 0 4px;font-size:12px}
 .fb .acc-transfers{gap:4px;max-height:110px;overflow:auto}.fb .acc-transfer{padding:4px 10px;gap:8px}
 .fb .acc-empty{padding:6px 10px;font-size:11px}.fb .acc-warnings{margin-top:6px;padding:6px 10px}.fb .acc-footnote{margin:4px 0 0}
+/* Viagem e combustível: indicadores compactos e específicos do balanço. */
+.fb .fb-expense-metrics{margin-top:8px;gap:8px}
+.fb .fb-expense-metric{padding:10px 13px}
+.fb .fb-expense-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.fb .fb-expense-heading h2{font-size:12px;margin:0}
+.fb .fb-expense-heading span{font-size:10px;color:var(--fb-muted);white-space:nowrap}
+.fb .fb-expense-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fb .fb-expense-values>div+div{padding-left:12px;border-left:1px solid var(--fb-border)}
+.fb .fb-expense-values small{display:block;color:var(--fb-muted);font-size:10px}
+.fb .fb-expense-values strong{display:block;margin-top:2px;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.fb .fb-expense-metrics{grid-template-columns:1fr}}
 /* Lançamentos: linha de 28px, altura acompanha a tela */
 .fb-ledger-head{padding:6px 12px}.fb-ledger-tools{padding:4px 10px}
 .fb .fb-ledger{max-height:calc(100dvh - var(--fb-offset));min-height:260px}

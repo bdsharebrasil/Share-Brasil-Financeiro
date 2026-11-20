@@ -1767,7 +1767,7 @@ export function ContatosClientesShareBrasil({
             <div
               role="group"
               aria-label="Filtrar contatos por categoria"
-              className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1 sm:w-auto"
+              className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-card dark:bg-white/[.04] p-1 sm:w-auto"
             >
               {[
                 { label: "TODOS", value: "" },

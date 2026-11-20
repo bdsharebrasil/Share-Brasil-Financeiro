@@ -573,9 +573,7 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   }
   .aba-dashboard:hover { transform: translateY(-2px); }
   .aba-dashboard[aria-selected="false"]:hover { background-color: transparent; }
-  .aba-dashboard[aria-selected="true"]:hover { background-color: #d6eaf8; color: #123954; }
   .dark .aba-dashboard[aria-selected="false"]:hover { background-color: transparent; }
-  .dark .aba-dashboard[aria-selected="true"]:hover { background-color: #315775; color: #f0f9ff; }
 }
 @media (prefers-reduced-motion: reduce) {
   .menu-dashboard, .menu-cabecalho, .aba-dashboard { transition: none; }

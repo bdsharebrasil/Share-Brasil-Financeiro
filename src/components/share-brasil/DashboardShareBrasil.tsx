@@ -40,12 +40,12 @@ function CardAtalho({
       className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
     >
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${item.tone}`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border sm:h-9 sm:w-9 ${item.tone}`}
       >
         <Icone size={18} strokeWidth={1.8} aria-hidden="true" />
       </span>
       <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:break-word]">
-        <span className="block text-xs font-bold leading-snug text-foreground sm:text-sm">
+        <span className="block max-w-full text-[10px] font-bold leading-snug text-foreground [overflow-wrap:anywhere] sm:text-sm">
           {item.label}
         </span>
       </span>
@@ -192,4 +192,3 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
     </div>
   );
 }
-

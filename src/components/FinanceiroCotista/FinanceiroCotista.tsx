@@ -1,4 +1,5 @@
 import "./financeiro-cotista.css";
+import "./fechamento-compacto.css";
 import { DarBaixaCotistaDialog } from "./DarBaixaCotistaDialog";
 import {
   Fragment,

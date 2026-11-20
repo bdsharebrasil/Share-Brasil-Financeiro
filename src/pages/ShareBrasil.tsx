@@ -1079,6 +1079,7 @@ export function ContatosClientesShareBrasil({
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [contactSort, setContactSort] = useState<"nome" | "cidade">("nome");
+  const [contactCategory, setContactCategory] = useState("");
   const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(
     null,
   );
@@ -1247,7 +1248,7 @@ export function ContatosClientesShareBrasil({
     .filter((item) => {
       const categoria = (item.categoria_tipo || item.categoria || "")
         .toLocaleUpperCase("pt-BR");
-      return categoria !== "HANGAR";
+      return categoria !== "HANGAR" && (!contactCategory || categoria === contactCategory);
     })
     .filter((item) =>
       [
@@ -1745,13 +1746,25 @@ export function ContatosClientesShareBrasil({
       </Dialog>
       <section className="space-y-3">
         <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-          <div>
-            <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
-              {visibleContacts.length}{" "}
-              {visibleContacts.length === 1 ? "contato interno" : "contatos internos"}
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
+          <div className="hidden lg:block" />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center lg:w-auto">
+            <div
+              role="group"
+              aria-label="Filtrar contatos por categoria"
+              className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1 sm:w-auto"
+            >
+              {["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO"].map((categoria) => (
+                <button
+                  key={categoria}
+                  type="button"
+                  onClick={() => setContactCategory(contactCategory === categoria ? "" : categoria)}
+                  aria-pressed={contactCategory === categoria}
+                  className={`h-8 shrink-0 whitespace-nowrap rounded-md px-3 text-[11px] font-bold ${contactCategory === categoria ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/[.06]"}`}
+                >
+                  {categoria}
+                </button>
+              ))}
+            </div>
             <div className="relative w-full sm:w-60">
               <Search
                 size={16}

@@ -4,10 +4,11 @@ import type { LancamentoEconomico } from "@/lib/financeiro-share-api";
 import { documentoDoLancamento, nomeFornecedorLancamento, nomePagadoresDoLancamento, rateioDoCotista, tipoRateioLancamento, valorPagoLancamento, type OpcaoFornecedorLancamento } from "@/lib/financeiro-cotista-lancamentos";
 import { fmt, horas, horasAtribuidas, money, norm, projetarCustos, type Balanco, type DashboardBalanco, type LinhaLancamento, type ParticipanteBalanco } from "@/lib/balanco-cotista";
 import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { calcularIndicadoresViagemCombustivel } from "@/lib/indicadores-despesas-cotista";
 
 const C = { navy: "#12365a", navy2: "#1c4b77", gold: "#d9ad59", ink: "#192b3d", muted: "#627386", line: "#dce4ec", soft: "#f2f6fa", blue: "#3475ae", green: "#4e8761", amber: "#d7a848", slate: "#8392a2", white: "#ffffff" };
 const STYLE = StyleSheet.create({
-  page: { padding: 34, paddingBottom: 55, fontFamily: "Helvetica", fontSize: 9, color: C.ink, backgroundColor: C.white },
+  page: { padding: 28, paddingBottom: 43, fontFamily: "Helvetica", fontSize: 9, color: C.ink, backgroundColor: C.white },
   cover: { padding: 42, paddingBottom: 50, backgroundColor: C.navy, color: C.white, justifyContent: "space-between" },
   brand: { fontSize: 10, letterSpacing: 2.2, color: "#c4d7e8", fontFamily: "Helvetica-Bold" },
   coverBrandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -40,7 +41,7 @@ const STYLE = StyleSheet.create({
   cell: { fontSize: 7.2, color: C.ink, paddingHorizontal: 3, lineHeight: 1.25 },
   headCell: { fontSize: 7, color: C.muted, fontFamily: "Helvetica-Bold", paddingHorizontal: 3, lineHeight: 1.25 },
   totalRow: { flexDirection: "row", backgroundColor: C.soft, paddingVertical: 6, marginTop: 2 },
-  foot: { position: "absolute", left: 34, right: 34, bottom: 22, borderTopWidth: 0.6, borderTopColor: C.line, paddingTop: 6, flexDirection: "row", justifyContent: "space-between", color: C.muted, fontSize: 7 },
+  foot: { position: "absolute", left: 28, right: 28, bottom: 18, borderTopWidth: 0.6, borderTopColor: C.line, paddingTop: 6, flexDirection: "row", justifyContent: "space-between", color: C.muted, fontSize: 7 },
   note: { backgroundColor: C.soft, borderLeftWidth: 3, borderLeftColor: C.gold, padding: 9, marginTop: 8, color: C.muted, fontSize: 8, lineHeight: 1.45 },
   legend: { flexDirection: "row", gap: 12, flexWrap: "wrap", marginTop: 7, marginBottom: 5 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4, fontSize: 7, color: C.muted },
@@ -223,7 +224,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
   const lancamentosDoPeriodo = dashboardLancamentos.filter((item) => balanco.meses.includes((item.dataEmissao || item.data || "").slice(0, 7)) && norm(item.fluxo) === "SAIDA" && !["CANCELADO", "CANCELADA"].includes(norm(item.status)));
 
   return <Document title={`Fechamento financeiro · ${aeronave} · ${periodo}`} author="Share Brasil" subject="Relatório completo do fechamento financeiro por cotista">
-    <Page size="A4" style={STYLE.cover}>
+    <Page size="A4" orientation="landscape" style={STYLE.cover}>
       <View><View style={STYLE.coverBrandRow}><Image src="/icon.png" style={STYLE.coverLogo} /><Text style={STYLE.brand}>SHARE BRASIL</Text></View><View style={{ height: 1, backgroundColor: "#49647f", marginTop: 14 }} /></View>
       <View>
         <Text style={STYLE.coverLabel}>Relatório financeiro · fechamento completo</Text>
@@ -239,6 +240,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
     </Page>
 
     {participantesDoPdf.map((participante) => {
+      const indicadoresOperacionais = calcularIndicadoresViagemCombustivel(participante.lancamentos);
       const launchReport = participantLaunchRows(participante, balanco, dashboard, cotistas, fornecedores, lancamentos);
       const launchRows = launchReport.rows;
       const totalParte = launchReport.totalParte;
@@ -269,7 +271,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
       const todosMesesCotista = mesesCotista.reduce((sum, month) => sum + month.total, 0);
 
       return [
-        <Page key={`${participante.id}-balanco`} size="A4" style={STYLE.page}>
+        <Page key={`${participante.id}-balanco`} size="A4" orientation="landscape" style={STYLE.page}>
           <SectionHeading section="01 · Balanço" period={periodoCurto} />
           <Text style={STYLE.title}>{participante.nome}</Text>
           <Text style={STYLE.subtitle}>{participante.holding ? "Sócio de holding" : "Cotista"} · {aeronave} · Cota contratual {participante.quota == null ? "não informada" : `${fmt(participante.quota, 1)}%`}</Text>
@@ -278,6 +280,27 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
             <Kpi label="Média mensal" value={money(balanco.meses.length ? participante.custo.total / balanco.meses.length : 0)} detail={`${balanco.meses.length} mês(es)`} />
             <Kpi label="Horas atribuídas" value={horas(participante.horas)} detail={`${participante.voos.length} etapa(s) · ${horas(participante.horasCompartilhadas)} compartilhadas`} />
             <Kpi label="Custo por hora" value={money(participante.custoHora)} detail="Com base nas horas registradas" />
+          </View>
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }} wrap={false}>
+            {[
+              { titulo: "Despesas de viagem", indicador: indicadoresOperacionais.viagens, unidade: "lançamento(s)" },
+              { titulo: "Combustível", indicador: indicadoresOperacionais.combustivel, unidade: "abastecimento(s)" },
+            ].map((item) => <View key={item.titulo} style={[STYLE.card, { flex: 1, marginBottom: 0, padding: 9 }]}>
+              <Text style={STYLE.cardTitle}>{item.titulo}</Text>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={STYLE.kpiLabel}>Custo atribuído no período</Text>
+                  <Text style={STYLE.kpiValue}>{money(item.indicador.totalCentavos)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={STYLE.kpiLabel}>Ticket médio por lançamento</Text>
+                  <Text style={STYLE.kpiValue}>{money(item.indicador.ticketMedioCentavos)}</Text>
+                </View>
+              </View>
+              <Text style={[STYLE.paragraph, { marginTop: 4, marginBottom: 0 }]}>
+                {item.indicador.quantidade} {item.unidade} · valores atribuídos ao cotista
+              </Text>
+            </View>)}
           </View>
           <Text style={STYLE.sectionTitle}>Composição do custo</Text>
           <View style={STYLE.card}><CategoryBars participante={participante} /><Table headers={["Grupo", "Valor", "% do total"]} widths={[2, 1, 1]} rows={custoCategorias} total={["Total atribuído", money(participante.custo.total), "100%"]} /><Text style={[STYLE.paragraph, { marginTop: 6 }]}>Natureza: informação cadastrada ou regra da categoria e descrição. A forma de rateio permanece independente.</Text></View>
@@ -305,7 +328,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>,
 
-        <Page key={`${participante.id}-custo-hora`} size="A4" style={STYLE.page}>
+        <Page key={`${participante.id}-custo-hora`} size="A4" orientation="landscape" style={STYLE.page}>
           <SectionHeading section="03 · Custo por hora" period={periodoCurto} />
           <Text style={STYLE.title}>Utilização e projeção</Text>
           <Text style={STYLE.subtitle}>{participante.nome} · valores calculados para o período selecionado</Text>
@@ -332,12 +355,12 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>,
 
-        ...(projecaoRows.length ? [0, 23].map((inicio) => <Page key={`${participante.id}-projecao-${inicio}`} size="A4" style={STYLE.page}>
+        ...(projecaoRows.length ? [0, 15, 30].map((inicio) => <Page key={`${participante.id}-projecao-${inicio}`} size="A4" orientation="landscape" style={STYLE.page}>
           <SectionHeading section="03 · Custo por hora" period={periodoCurto} />
-          <Text style={STYLE.title}>Tabela de projeção · {inicio + 1} a {Math.min(inicio + 23, 45)} h/mês</Text>
+          <Text style={STYLE.title}>Tabela de projeção · {inicio + 1} a {Math.min(inicio + 15, 45)} h/mês</Text>
           <Text style={STYLE.subtitle}>{participante.nome} · {periodo}</Text>
           {participante.custo.naoClassificados === 0 ? <Text style={STYLE.paragraph}>Fixo mensal médio: {money(participante.custo.fixos / balanco.meses.length)} × {fmt(fatorFixo)}. Variáveis e extras usam as {horas(participante.horas)} atribuídas no período.</Text> : <Text style={STYLE.paragraph}>Média histórica: {money(participante.custoHora)}/h × horas simuladas. Parcelas por natureza não informadas; os tipos de rateio permanecem como cadastrados.</Text>}
-          <View style={STYLE.card}><Table headers={participante.custo.naoClassificados === 0 ? ["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"] : ["Horas/mês", "Custo/h histórico", "Custo mensal estimado"]} widths={participante.custo.naoClassificados === 0 ? [.85, 1, 1, 1, 1, 1.15] : [1, 1, 1.3]} rows={projecaoRows.slice(inicio, inicio + 23)} /></View>
+          <View style={STYLE.card}><Table headers={participante.custo.naoClassificados === 0 ? ["Horas/mês", "Fixo/h", "Variável/h", "Extra/h", "Custo/h", "Custo mensal"] : ["Horas/mês", "Custo/h histórico", "Custo mensal estimado"]} widths={participante.custo.naoClassificados === 0 ? [.85, 1, 1, 1, 1, 1.15] : [1, 1, 1.3]} rows={projecaoRows.slice(inicio, inicio + 15)} /></View>
           <PageFooter aeronave={aeronave} participante={participante.nome} />
         </Page>) : []),
 

@@ -42,8 +42,8 @@ test("fechamento segue as cinco abas solicitadas com valores derivados do dashbo
 test("BALANÇO COTISTA abre direto o fechamento, sem navegação de módulos externos", async () => {
   const dashboardFinanceiro = await readFile(new URL("../src/pages/DashboardFinanceiro.tsx", import.meta.url), "utf8");
   assert.match(dashboardFinanceiro, /label="BALANÇO COTISTA"/);
-  assert.match(dashboardFinanceiro, /<FinanceiroCotista modoFechamento\s*\/>/);
-  assert.match(financeiro, /export default function FinanceiroCotista\(\{ modoFechamento = false \}/);
+  assert.match(dashboardFinanceiro, /<FinanceiroCotista modoFechamento aoVoltarDashboard=/);
+  assert.match(financeiro, /export default function FinanceiroCotista\(\{ modoFechamento = false, aoVoltarDashboard \}/);
   assert.match(financeiro, /setPaginaAberta\(modoFechamento\)/);
   assert.match(financeiro, /aeronaveSelecionada && paginaAberta && !modoFechamento/);
   assert.match(financeiro, /modoFechamento \? \[\{[\s\S]*?id: "fechamento-balanco"/);

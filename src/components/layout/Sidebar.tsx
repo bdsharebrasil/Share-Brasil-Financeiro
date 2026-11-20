@@ -133,10 +133,6 @@ export function Sidebar({ ambiente, menuAtivo, aberta, recolhida, podeAcessarMen
   return (
     <>
       <div className="app-sidebar fixed bottom-0 left-[var(--safe-area-left)] top-[var(--app-header-height)] z-30 hidden w-[var(--sidebar-w,76px)] flex-col bg-[rgb(7,17,25)] py-4 md:flex">
-        <div className={cn("flex items-center gap-3 px-3", !recolhida && "pl-4")} title={recolhida ? nome : undefined}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-extrabold text-primary"><img src={avatar} alt={`Foto de ${nome}`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.src = "/icon.pilot.png"; }} /></div>
-          {!recolhida && <div className="min-w-0"><p className="truncate text-xs font-bold text-sidebar-foreground">{nome}</p><p className="mt-0.5 truncate text-[10px] text-sidebar-foreground/55">{funcao}</p></div>}
-        </div>
         <nav aria-label="Menu principal" className={cn("sb-nav flex-1", !recolhida && "sb-nav--scroll")}>{itens.map(renderItemDesktop)}</nav>
         <div className="sb-footer">
           <button type="button" aria-label={recolhida ? "Expandir menu" : "Recolher menu"} title={recolhida ? "Expandir menu" : undefined} onClick={aoAlternarRecolhimento} className={cn("sb-toggle", recolhida && "sb-toggle--rail")}>

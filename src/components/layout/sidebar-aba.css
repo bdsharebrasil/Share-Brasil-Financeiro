@@ -1,0 +1,34 @@
+/* Sidebar com aba integrada à página (item ativo "vaza" para o conteúdo, com cantos côncavos).
+   A cor da aba = cor de fundo da página (--background), então funciona nos temas claro e escuro.
+   Para mudar o tamanho da curva, altere --sb-r. A largura vem de --sidebar-w (definida no LayoutInterno). */
+.app-sidebar{--sb-r:20px;--sb-page:hsl(var(--background));box-shadow:inset -1px 0 0 hsl(var(--sidebar-border));transition:width .2s ease}
+.app-sidebar .sb-nav{display:flex;flex-direction:column;gap:6px;width:100%;min-height:0;padding:var(--sb-r) 0 var(--sb-r) 12px}
+.app-sidebar .sb-nav--scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.app-sidebar .sb-nav--scroll::-webkit-scrollbar{display:none}
+
+.sb-tab{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:8px 14px;border:0;border-radius:22px 0 0 22px;background:transparent;color:hsl(var(--sidebar-foreground) / .7);font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1.25;text-align:left;cursor:pointer;transition:background-color .18s,color .18s}
+.sb-tab:hover{background:hsl(var(--sidebar-accent) / .55);color:hsl(var(--sidebar-foreground))}
+.sb-tab:focus-visible{outline:2px solid hsl(var(--sidebar-ring));outline-offset:-2px}
+.sb-tab svg{flex-shrink:0}
+.sb-tab-label{min-width:0;flex:1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+/* Item ativo: mesma cor da página + dois cantos côncavos (acima e abaixo) */
+.sb-tab[aria-current="page"]{background:var(--sb-page);color:hsl(var(--foreground));z-index:1}
+.sb-tab[aria-current="page"]:hover{background:var(--sb-page)}
+.sb-tab[aria-current="page"] svg{color:hsl(var(--primary))}
+.sb-tab[aria-current="page"]::before,
+.sb-tab[aria-current="page"]::after{content:"";position:absolute;right:0;width:var(--sb-r);height:var(--sb-r);pointer-events:none}
+.sb-tab[aria-current="page"]::before{top:calc(var(--sb-r) * -1);background:radial-gradient(circle at 0 0,transparent var(--sb-r),var(--sb-page) calc(var(--sb-r) + .5px))}
+.sb-tab[aria-current="page"]::after{bottom:calc(var(--sb-r) * -1);background:radial-gradient(circle at 0 100%,transparent var(--sb-r),var(--sb-page) calc(var(--sb-r) + .5px))}
+
+/* Modo recolhido (só ícones) */
+.sb-tab--rail{justify-content:center;gap:0;padding:0}
+.sb-tab-tip{position:absolute;left:100%;margin-left:14px;z-index:60;padding:4px 10px;border:1px solid hsl(var(--sidebar-border));border-radius:6px;background:hsl(var(--sidebar));color:hsl(var(--sidebar-foreground));font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 8px 20px rgb(0 0 0 / .25);opacity:0;pointer-events:none;transition:opacity .15s}
+.sb-tab--rail:hover .sb-tab-tip,.sb-tab--rail:focus-visible .sb-tab-tip{opacity:1}
+
+.sb-footer{padding:8px 12px 0}
+.sb-toggle{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 12px;border:1px solid hsl(var(--sidebar-border));border-radius:999px;background:hsl(var(--sidebar-accent) / .4);color:hsl(var(--sidebar-foreground) / .75);font-size:11px;font-weight:600;cursor:pointer;transition:background-color .18s,color .18s}
+.sb-toggle:hover{background:hsl(var(--sidebar-accent));color:hsl(var(--sidebar-foreground))}
+.sb-toggle--rail{justify-content:center;padding:0}
+
+@media (prefers-reduced-motion:reduce){.app-sidebar,.sb-tab{transition:none}}

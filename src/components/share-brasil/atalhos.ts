@@ -89,7 +89,7 @@ export const ATALHOS_POR_ABA: Record<
       menu: "tarefas",
       label: "TAREFAS",
       icon: ListTodo,
-      tone: "border-[rgba(103,168,32,.81)] bg-[rgba(123,185,27,.6)] text-[rgba(21,32,9,1)] dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-300",
+      tone: "border-[rgba(248,174,28,1)] bg-[rgba(245,166,35,1)] text-[rgba(21,32,9,1)] dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-300",
     },
     {
       menu: "ponto",

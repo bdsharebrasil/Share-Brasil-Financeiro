@@ -89,3 +89,80 @@ html .nf-workspace .nf-mobile-docs { display: none; }
 @container (max-width: 760px) {
   html .nf-workspace .nf-mobile-docs { display: grid; }
 }
+
+/* ═══════════════ MODO COMPACTO — tudo visível na tela, sem scroll da página ═══════════════
+   A página passa a ter altura fixa (viewport − --nf-offset). Só a lista/pastas rolam por dentro.
+   Ajuste --nf-offset se a faixa acima do módulo (topbar + botão voltar) for maior/menor. */
+html .nf-workspace {
+  --nf-offset: 110px;
+  display: flex; flex-direction: column;
+  height: calc(100dvh - var(--nf-offset)); min-height: 440px;
+  padding: 10px 12px; overflow: hidden; border-radius: 10px;
+}
+html .nf-workspace .nf-header { margin: 0 0 8px; gap: 12px; flex-shrink: 0; }
+html .nf-workspace .nf-eyebrow { display: none; }
+html .nf-workspace .nf-header h1 { margin: 0; font-size: 16px; line-height: 1.3; }
+html .nf-workspace .nf-header-actions .nf-btn { min-height: 30px; height: 30px; padding: 4px 10px; }
+html .nf-workspace .nf-notice { margin: 0 0 8px; padding: 6px 10px; flex-shrink: 0; }
+
+/* KPIs numa faixa fina */
+html .nf-workspace .nf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 8px; padding: 0; flex-shrink: 0; }
+html .nf-workspace .nf-stat { padding: 6px 12px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 10px; border-radius: 6px; }
+html .nf-workspace .nf-stat::before { top: 8px; bottom: 8px; }
+html .nf-workspace .nf-stat-top { margin: 0; order: 0; gap: 6px; }
+html .nf-workspace .nf-stat-top span { font-size: 11px; }
+html .nf-workspace .nf-stat-top svg { width: 14px; height: 14px; }
+html .nf-workspace .nf-stat strong { font-size: 16px; line-height: 1.2; text-align: right; }
+html .nf-workspace .nf-stat small { margin: 0; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+
+/* Painel ocupa o resto da altura */
+html .nf-workspace .nf-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+html .nf-workspace .nf-panel-top { padding: 8px 12px; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+html .nf-workspace .nf-panel-top .nf-segment[aria-label="Tipo de documento"] { gap: 4px; margin: 0; padding: 3px; }
+html .nf-workspace .nf-segment button { min-height: 28px; padding: 4px 10px; }
+html .nf-workspace .nf-panel-top > .nf-toolbar { flex: 1; min-width: 280px; padding: 0; background: transparent; border: 0; gap: 8px; }
+html .nf-workspace .nf-toolbar :is(select, .nf-search, .nf-btn, input) { height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; }
+html .nf-workspace .nf-period { margin: 0 12px 6px; padding: 8px 12px; flex-shrink: 0; }
+html .nf-workspace .nf-period input { min-height: 30px; margin-top: 2px; padding: 4px 8px; }
+html .nf-workspace .nf-list-heading { padding: 6px 12px; flex-shrink: 0; }
+html .nf-workspace .nf-list-heading h2 { font-size: 13px; display: inline; }
+html .nf-workspace .nf-list-heading p { display: inline; margin: 0 0 0 10px; font-size: 11px; }
+html .nf-workspace .nf-view-toggle button { width: 28px; height: 26px; }
+html .nf-workspace .nf-back { padding: 0 12px 4px; flex-shrink: 0; }
+
+/* Lista: só a tabela rola, cabeçalho fixo */
+html .nf-workspace .nf-table-wrap { flex: 1; min-height: 0; overflow: auto; }
+html .nf-workspace .nf-table th { height: 30px; padding: 4px 10px; position: sticky; top: 0; z-index: 1; background: var(--fin-header); }
+html .nf-workspace .nf-table td { padding: 5px 10px; }
+html .nf-workspace .nf-doc-icon { display: none; }
+html .nf-workspace .nf-doc-cell { gap: 0; }
+html .nf-workspace .nf-doc-cell small { display: none; }               /* descrição fica no tooltip (title) */
+html .nf-workspace .nf-doc-cell :is(strong, span:not(.nf-doc-icon)) { display: inline; }
+html .nf-workspace .nf-doc-cell strong { margin-right: 8px; }
+html .nf-workspace .nf-dates { display: flex; align-items: baseline; gap: 8px; }
+html .nf-workspace .nf-category { padding: 2px 8px; }
+html .nf-workspace .nf-badge { padding: 2px 8px; }
+html .nf-workspace .nf-row-actions .nf-icon { width: 28px; height: 28px; }
+html .nf-workspace .nf-row-actions .nf-email-action { width: 28px; padding: 0; }
+html .nf-workspace .nf-row-actions .nf-email-action span { display: none; }
+html .nf-workspace .nf-pagination { padding: 4px 12px; flex-shrink: 0; }
+html .nf-workspace .nf-pagination .nf-icon { width: 26px; height: 26px; }
+
+/* Pastas por mês: mais colunas, menos altura, rola por dentro */
+html .nf-workspace .nf-folders { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; padding: 0 12px 10px; flex: 1; min-height: 0; overflow: auto; align-content: start; }
+html .nf-workspace .nf-folder { padding: 10px 12px; border-radius: 8px; }
+html .nf-workspace .nf-folder-top { margin-bottom: 8px; }
+html .nf-workspace .nf-folder-icon { padding: 5px; }
+html .nf-workspace .nf-folder-icon svg { width: 16px; height: 16px; }
+html .nf-workspace .nf-folder h3 { font-size: 13px; }
+html .nf-workspace .nf-folder p { margin-top: 2px; }
+html .nf-workspace .nf-folder-bottom { margin-top: 8px; padding-top: 6px; }
+html .nf-workspace .nf-folder-bottom strong { font-size: 13px; }
+html .nf-workspace .nf-empty { padding: 24px 16px; flex: 1; justify-content: center; }
+html .nf-workspace .nf-mobile-docs { overflow: auto; flex: 1; min-height: 0; }
+
+/* Telas baixas (notebook 768px): aperta mais */
+@media (max-height: 760px) {
+  html .nf-workspace .nf-stat small { display: none; }
+  html .nf-workspace .nf-table td { padding: 3px 10px; }
+}

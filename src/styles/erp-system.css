@@ -74,6 +74,19 @@ html:not(.dark) :is(.financeiro-panel-header, .sb-panel-header, .fb-card-header)
   border-bottom-color: hsl(var(--border) / .72);
 }
 
+/* Botões: hierarquia por função, sem halos e sem alterar cores semânticas. */
+[data-erp-button] {
+  border-radius: 6px;
+  font-size: .8125rem;
+  font-weight: 600;
+  box-shadow: none;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
+}
+[data-erp-button]:focus-visible {
+  outline: 2px solid hsl(var(--primary) / .35);
+  outline-offset: 2px;
+}
+
 /* Campos de shadcn e inputs manuais .campo. Sem alterar checkbox, radio ou file. */
 [data-erp-field], .campo {
   border-radius: 6px;

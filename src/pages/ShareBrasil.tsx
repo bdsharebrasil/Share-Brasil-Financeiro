@@ -3223,12 +3223,16 @@ export function ContatosClientesShareBrasil({
                 <div className="ac-form-body bg-card dark:bg-background">
                   <p className="ac-muted">Os campos com * são obrigatórios.</p>
                   {supplierError && <div role="alert" className="ac-notice ac-notice--error">{supplierError}</div>}
-                  <div className="ac-form-grid">
+                  <div className="ac-form-grid ac-form-grid--2">
+                    <label className="ac-field"><span>Fornecedor *</span><input className="ac-control" value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" /></label>
+                    <label className="ac-field"><span>Nome de contato</span><input className="ac-control" value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" /></label>
+                  </div>
+                  <div className="ac-form-grid ac-form-grid--3">
                     <label className="ac-field"><span>Cidade *</span><input className="ac-control" value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" /></label>
                     <label className="ac-field"><span>ICAO</span><input className="ac-control" value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" /></label>
-                    <label className="ac-field"><span>Fornecedor *</span><input className="ac-control" value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" /></label>
-                    <label className="ac-field"><span>Pessoa de contato</span><input className="ac-control" value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" /></label>
                     <CampoTelefone valor={supplierForm.telefone} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone }))} />
+                  </div>
+                  <div className="ac-form-grid ac-form-grid--2">
                     <label className="ac-field"><span>Preço AVGAS</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
                     <label className="ac-field"><span>Preço JET</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_jet} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
                   </div>

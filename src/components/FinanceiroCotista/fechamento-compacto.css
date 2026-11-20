@@ -343,8 +343,9 @@
     max-width: 100%;
     font-size: clamp(9px, calc(10px * var(--fb-zoom, .9)), 12px);
     line-height: 1.15;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .financeiro-fechamento-compacto .fb-ledger .fb-share-header > span {
     display: block;
@@ -352,6 +353,9 @@
     font-size: clamp(9px, calc(9.5px * var(--fb-zoom, .9)), 11px);
     letter-spacing: 0;
     text-transform: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   html .financeiro-profissional.financeiro-fechamento-compacto .fb .fb-ledger .fb-share-cell {
     display: flex;

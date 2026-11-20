@@ -33,6 +33,7 @@ import {
   Plane,
   Play,
   Plus,
+  Save,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -77,6 +78,7 @@ import {
   buscarAbastecimentoOpcoes,
   criarFornecedorAbastecimento,
   atualizarFornecedorAbastecimento,
+  excluirFornecedorAbastecimento,
   type FornecedorCombustivel,
   criarContatoShare,
   atualizarContatoShare,
@@ -108,8 +110,10 @@ import {
 } from "@/lib/colaborador-api";
 import { PONTO_ATIVO_EVENTO, PONTO_ATIVO_STORAGE } from "@/types/navegacao";
 import { copyText } from "@/lib/utils";
+import { montarTelefone, separarTelefone, validarTelefone } from "@/lib/cadastro-colaborador";
 import HoteisShareBrasil from "@/pages/HoteisShareBrasil";
 import {
+  CampoTelefone,
   FormularioCadastroContato,
   type FormularioContato,
 } from "@/components/agenda/AgendaContatos";
@@ -124,6 +128,16 @@ const card =
   "min-w-0 max-w-full rounded-xl border border-border bg-card/75 shadow-sm";
 const field =
   "h-10 min-w-0 max-w-full rounded-lg border-border/70 bg-background/70 text-sm";
+const formatarDigitosMoeda = (digitos: string) =>
+  digitos
+    ? (Number(digitos) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "";
+const moedaParaCampo = (valor?: number | null) =>
+  valor == null ? "" : formatarDigitosMoeda(String(Math.round(valor * 100)));
+const lerMoeda = (texto: string) => {
+  const digitos = texto.replace(/\D/g, "");
+  return digitos ? Number(digitos) / 100 : null;
+};
 function emailsCadastrados(registro?: Record<string, any> | null) {
   if (!registro) return [];
   const adicionais = Array.isArray(registro.emails)
@@ -1056,14 +1070,17 @@ export function ContatosClientesShareBrasil({
   );
   const [fuelSuppliers, setFuelSuppliers] = useState<FornecedorCombustivel[]>([]);
   const [fuelSearch, setFuelSearch] = useState("");
+  const [fuelSort, setFuelSort] = useState<"nome" | "cidade">("nome");
   const [fuelLoading, setFuelLoading] = useState(false);
   const [supplierEditor, setSupplierEditor] = useState<FornecedorCombustivel | null | false>(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierError, setSupplierError] = useState<string | null>(null);
   const [supplierForm, setSupplierForm] = useState({
-    nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "",
+    nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: { ddd: "", numero: "" }, preco_avgas: "", preco_jet: "",
   });
   const [hangarEditor, setHangarEditor] = useState<ContatoAgenda | null | false>(false);
   const [hangarSearch, setHangarSearch] = useState("");
+  const [hangarSort, setHangarSort] = useState<"nome" | "cidade">("nome");
   const [hangarSaving, setHangarSaving] = useState(false);
   const [hangarError, setHangarError] = useState<string | null>(null);
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
@@ -1075,6 +1092,8 @@ export function ContatosClientesShareBrasil({
   const [contactError, setContactError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
   const [contactSearch, setContactSearch] = useState("");
+  const [contactSort, setContactSort] = useState<"nome" | "cidade">("nome");
+  const [contactCategory, setContactCategory] = useState("");
   const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(
     null,
   );
@@ -1082,6 +1101,9 @@ export function ContatosClientesShareBrasil({
   const [editingClient, setEditingClient] = useState(false);
   const [editingSocio, setEditingSocio] = useState(false);
   const [clientView, setClientView] = useState<"lista" | "grade">("grade");
+  const [contactView, setContactView] = useState<"lista" | "grade">("grade");
+  const [fuelView, setFuelView] = useState<"lista" | "grade">("grade");
+  const [hangarView, setHangarView] = useState<"lista" | "grade">("grade");
   const [clients, setClients] = useState<ClienteShare[]>([]);
   const [socios, setSocios] = useState<ClienteShare[]>([]);
   const [links, setLinks] = useState<ClienteShare[]>([]);
@@ -1214,6 +1236,10 @@ export function ContatosClientesShareBrasil({
         ?.toLocaleLowerCase("pt-BR")
         .includes(hangarSearch.trim().toLocaleLowerCase("pt-BR")),
     ),
+  ).sort((a, b) =>
+    hangarSort === "cidade"
+      ? (a.cidade || "").localeCompare(b.cidade || "", "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR")
+      : a.nome.localeCompare(b.nome, "pt-BR"),
   );
   const visibleFuelSuppliers = fuelSuppliers.filter((supplier) =>
     [
@@ -1227,12 +1253,16 @@ export function ContatosClientesShareBrasil({
         ?.toLocaleLowerCase("pt-BR")
         .includes(fuelSearch.trim().toLocaleLowerCase("pt-BR")),
     ),
+  ).sort((a, b) =>
+    fuelSort === "cidade"
+      ? (a.nome_cidade || "").localeCompare(b.nome_cidade || "", "pt-BR") || (a.nome_fornecedor || "").localeCompare(b.nome_fornecedor || "", "pt-BR")
+      : (a.nome_fornecedor || "").localeCompare(b.nome_fornecedor || "", "pt-BR"),
   );
   const visibleContacts = contacts
     .filter((item) => {
       const categoria = (item.categoria_tipo || item.categoria || "")
         .toLocaleUpperCase("pt-BR");
-      return categoria !== "HANGAR";
+      return categoria !== "HANGAR" && (!contactCategory || categoria === contactCategory);
     })
     .filter((item) =>
       [
@@ -1249,7 +1279,11 @@ export function ContatosClientesShareBrasil({
           .includes(contactSearch.trim().toLocaleLowerCase("pt-BR")),
       ),
     )
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    .sort((a, b) =>
+      contactSort === "cidade"
+        ? (a.cidade || "").localeCompare(b.cidade || "", "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR")
+        : a.nome.localeCompare(b.nome, "pt-BR"),
+    );
 
   useEffect(() => {
     if (selected) {
@@ -1329,38 +1363,49 @@ export function ContatosClientesShareBrasil({
       );
     }
   };
+  const removeSupplier = async (id: string) => {
+    try {
+      await excluirFornecedorAbastecimento(id);
+      setFuelSuppliers((current) => current.filter((supplier) => supplier.id !== id));
+      setOk("Fornecedor removido.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover o fornecedor.");
+    }
+  };
   const openSupplierEditor = (supplier?: FornecedorCombustivel) => {
+    setSupplierError(null);
     setSupplierEditor(supplier || null);
     setSupplierForm(supplier ? {
       nome_cidade: supplier.nome_cidade || "",
       codigo_icao: supplier.codigo_icao || "",
       nome_fornecedor: supplier.nome_fornecedor || "",
       pessoa_contato: supplier.pessoa_contato || "",
-      telefone: supplier.telefone || "",
-      preco_avgas: supplier.preco_avgas == null ? "" : String(supplier.preco_avgas),
-      preco_jet: supplier.preco_jet == null ? "" : String(supplier.preco_jet),
-    } : { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: "", preco_avgas: "", preco_jet: "" });
+      telefone: separarTelefone(supplier.telefone || ""),
+      preco_avgas: moedaParaCampo(supplier.preco_avgas),
+      preco_jet: moedaParaCampo(supplier.preco_jet),
+    } : { nome_cidade: "", codigo_icao: "", nome_fornecedor: "", pessoa_contato: "", telefone: { ddd: "", numero: "" }, preco_avgas: "", preco_jet: "" });
   };
   const saveSupplier = async () => {
     if (!supplierForm.nome_cidade.trim() || !supplierForm.nome_fornecedor.trim()) {
-      setError("Informe a cidade e o nome do fornecedor.");
+      setSupplierError("Informe a cidade e o nome do fornecedor.");
       return;
     }
-    const precoAvgas = supplierForm.preco_avgas.trim() ? Number(supplierForm.preco_avgas) : null;
-    const precoJet = supplierForm.preco_jet.trim() ? Number(supplierForm.preco_jet) : null;
-    if ([precoAvgas, precoJet].some((preco) => preco != null && (!Number.isFinite(preco) || preco < 0))) {
-      setError("Informe preços válidos e não negativos.");
+    const erroTelefone = validarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero);
+    if (erroTelefone) {
+      setSupplierError(erroTelefone);
       return;
     }
+    const precoAvgas = lerMoeda(supplierForm.preco_avgas);
+    const precoJet = lerMoeda(supplierForm.preco_jet);
     setSupplierSaving(true);
-    setError(null);
+    setSupplierError(null);
     try {
       const payload = {
         nome_cidade: textoMaiusculo(supplierForm.nome_cidade.trim()),
         codigo_icao: textoMaiusculo(supplierForm.codigo_icao.trim()) || null,
         nome_fornecedor: textoMaiusculo(supplierForm.nome_fornecedor.trim()),
         pessoa_contato: textoMaiusculo(supplierForm.pessoa_contato.trim()) || null,
-        telefone: textoMaiusculo(supplierForm.telefone.trim()) || null,
+        telefone: textoMaiusculo(montarTelefone(supplierForm.telefone.ddd, supplierForm.telefone.numero)) || null,
         preco_avgas: precoAvgas,
         preco_jet: precoJet,
       };
@@ -1371,7 +1416,7 @@ export function ContatosClientesShareBrasil({
       const data = await buscarAbastecimentoOpcoes();
       setFuelSuppliers(data.fornecedores || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar o fornecedor.");
+      setSupplierError(e instanceof Error ? e.message : "Não foi possível salvar o fornecedor.");
     } finally {
       setSupplierSaving(false);
     }
@@ -1624,6 +1669,20 @@ export function ContatosClientesShareBrasil({
       </button>
     </div>
   );
+  const sortSelect = (
+    value: "nome" | "cidade",
+    setValue: (value: "nome" | "cidade") => void,
+  ) => (
+    <select
+      value={value}
+      onChange={(event) => setValue(event.target.value as "nome" | "cidade")}
+      aria-label="Ordenar lista"
+      className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-primary/60 sm:w-auto sm:min-w-[155px]"
+    >
+      <option value="nome">Ordenar por nome</option>
+      <option value="cidade">Ordenar por cidade</option>
+    </select>
+  );
   const profileField = (label: string, value?: any, icon?: React.ReactNode) => (
     <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
@@ -1701,21 +1760,32 @@ export function ContatosClientesShareBrasil({
           />
         </DialogContent>
       </Dialog>
-      <section aria-labelledby="titulo-agenda-contatos" className="space-y-3">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2
-              id="titulo-agenda-contatos"
-              className="text-lg font-semibold tracking-tight text-foreground dark:text-white"
+      <section className="space-y-3">
+        <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+          <div className="hidden lg:block" />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center lg:w-auto">
+            <div
+              role="group"
+              aria-label="Filtrar contatos por categoria"
+              className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1 sm:w-auto"
             >
-              Agenda de contatos
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
-              {visibleContacts.length}{" "}
-              {visibleContacts.length === 1 ? "contato interno" : "contatos internos"}
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              {[
+                { label: "TODOS", value: "" },
+                { label: "FORNECEDOR", value: "FORNECEDOR" },
+                { label: "FORNECEDOR PEÇAS", value: "FORNECEDOR PEÇAS" },
+                { label: "MANUTENÇÃO", value: "MANUTENÇÃO" },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setContactCategory(option.value)}
+                  aria-pressed={contactCategory === option.value}
+                  className={`h-8 shrink-0 whitespace-nowrap rounded-md px-3 text-[11px] font-bold ${contactCategory === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/[.06]"}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <div className="relative w-full sm:w-60">
               <Search
                 size={16}
@@ -1731,6 +1801,7 @@ export function ContatosClientesShareBrasil({
                 className="h-10 rounded-lg border-border dark:border-white/10 bg-card dark:bg-secondary pl-9 text-sm text-foreground dark:text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
+            {sortSelect(contactSort, setContactSort)}
             <Button
               type="button"
               onClick={() => {
@@ -1742,116 +1813,185 @@ export function ContatosClientesShareBrasil({
               <Plus size={14} /> Novo contato
             </Button>
           </div>
+          <div className="flex lg:justify-end">
+            {viewToggle(contactView, setContactView, "dos contatos")}
+          </div>
         </header>
 
         {visibleContacts.length ? (
-          <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleContacts.map((item) => (
-              <li key={item.id}>
-                <article className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
-                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => editContact(item)}
-                      aria-label={`Editar contato ${item.nome}`}
-                      className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void removeContact(item.id)}
-                      aria-label={`Remover contato ${item.nome}`}
-                      title="Remover contato"
-                      className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
-                  <div className="flex min-w-0 items-start gap-3 pr-16">
-                    <span
-                      aria-hidden="true"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-sm font-semibold text-sky-700 dark:text-sky-200"
-                    >
-                      {item.nome
-                        .trim()
-                        .split(/\s+/)
-                        .slice(0, 2)
-                        .map((parte) => parte[0]?.toUpperCase())
-                        .join("") || "?"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
-                        {item.nome}
-                      </h3>
-                      <p className="truncate text-xs text-muted-foreground dark:text-slate-400">
-                        {item.empresa ||
-                          item.razao_social ||
-                          "Contato profissional"}
-                      </p>
-                      {(item.categoria || item.empresa) && (
-                        <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
-                          {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
-                        </span>
-                      )}
+          contactView === "grade" ? (
+            <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleContacts.map((item) => (
+                <li key={item.id}>
+                  <article className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
+                    <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => editContact(item)}
+                        aria-label={`Editar contato ${item.nome}`}
+                        className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void removeContact(item.id)}
+                        aria-label={`Remover contato ${item.nome}`}
+                        title="Remover contato"
+                        className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
                     </div>
-                  </div>
+                    <div className="flex min-w-0 items-start gap-3 pr-16">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
+                          {item.nome}
+                        </h3>
+                        <p className="truncate text-xs text-muted-foreground dark:text-slate-400">
+                          {item.empresa ||
+                            item.razao_social ||
+                            "Contato profissional"}
+                        </p>
+                        {(item.categoria || item.empresa) && (
+                          <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
+                            {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                  <dl className="mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3 text-xs text-muted-foreground dark:text-slate-300">
-                    {item.telefone && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Phone
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">Telefone</dt>
-                        <dd className="truncate">{item.telefone}</dd>
-                      </div>
-                    )}
-                    {item.email && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Mail
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">E-mail</dt>
-                        <dd className="truncate">{item.email}</dd>
-                      </div>
-                    )}
-                    {(item.cidade || item.uf || item.endereco) && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <MapPin
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">Localização</dt>
-                        <dd className="truncate">
-                          {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
-                            item.endereco}
-                        </dd>
-                      </div>
-                    )}
-                    {!item.telefone &&
-                      !item.email &&
-                      !item.cidade &&
-                      !item.uf &&
-                      !item.endereco && (
-                        <div className="text-slate-500">
-                          Sem dados adicionais de contato
+                    <dl className="mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3 text-xs text-muted-foreground dark:text-slate-300">
+                      {item.telefone && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Phone
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">Telefone</dt>
+                          <dd className="truncate">{item.telefone}</dd>
                         </div>
                       )}
-                  </dl>
-                </article>
-              </li>
-            ))}
-          </ul>
+                      {item.email && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Mail
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">E-mail</dt>
+                          <dd className="truncate">{item.email}</dd>
+                        </div>
+                      )}
+                      {(item.cidade || item.uf || item.endereco) && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <MapPin
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">Localização</dt>
+                          <dd className="truncate">
+                            {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
+                              item.endereco}
+                          </dd>
+                        </div>
+                      )}
+                      {!item.telefone &&
+                        !item.email &&
+                        !item.cidade &&
+                        !item.uf &&
+                        !item.endereco && (
+                          <div className="text-slate-500">
+                            Sem dados adicionais de contato
+                          </div>
+                        )}
+                    </dl>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <table className="w-full min-w-[760px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                    <th className="px-4 py-3 font-semibold">Nome</th>
+                    <th className="px-4 py-3 font-semibold">E-mail</th>
+                    <th className="px-4 py-3 font-semibold">Telefone</th>
+                    <th className="px-4 py-3 font-semibold">Endereço</th>
+                    <th className="px-4 py-3 font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleContacts.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-foreground dark:text-white">
+                          {item.nome}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground dark:text-slate-400">
+                          {item.empresa || item.razao_social || "Contato profissional"}
+                        </p>
+                        {(item.categoria || item.empresa) && (
+                          <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-300">
+                            {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        {item.email || "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        {item.telefone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        <p>{[item.cidade, item.uf].filter(Boolean).join(" / ") || "—"}</p>
+                        {item.endereco && (
+                          <p className="mt-1 max-w-[260px] truncate text-[10px]">
+                            {item.endereco}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => editContact(item)}
+                            aria-label={`Editar contato ${item.nome}`}
+                            className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => void removeContact(item.id)}
+                            aria-label={`Remover contato ${item.nome}`}
+                            title="Remover contato"
+                            className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : (
           <EstadoVazio
             label={
@@ -1871,14 +2011,6 @@ export function ContatosClientesShareBrasil({
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-border dark:border-white/10 bg-card dark:bg-background text-foreground dark:text-slate-100 sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4 pr-6">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-lg font-semibold text-sky-700 dark:text-sky-200">
-                {selectedContact?.nome
-                  .trim()
-                  .split(/\s+/)
-                  .slice(0, 2)
-                  .map((parte) => parte[0]?.toUpperCase())
-                  .join("")}
-              </span>
               <div className="min-w-0 text-left">
                 <DialogTitle className="truncate text-lg text-foreground dark:text-white">
                   {selectedContact?.nome}
@@ -3059,14 +3191,13 @@ export function ContatosClientesShareBrasil({
       {tab === "contatos" && contactsContent}
       {tab === "abastecimentos" && (
         <section className="space-y-4">
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Fornecedores de combustível</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleFuelSuppliers.length} {visibleFuelSuppliers.length === 1 ? "fornecedor" : "fornecedores"}
               </p>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
               <div className="relative w-full sm:w-60">
                 <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <Input
@@ -3078,24 +3209,41 @@ export function ContatosClientesShareBrasil({
                   className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
                 />
               </div>
+              {sortSelect(fuelSort, setFuelSort)}
               <Button type="button" onClick={() => openSupplierEditor()} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo fornecedor</Button>
             </div>
+            <div className="flex lg:justify-end">
+              {viewToggle(fuelView, setFuelView, "dos fornecedores")}
+            </div>
           </header>
-          {supplierEditor !== false && (
-            <section className={`${card} p-4`}>
-              <div className="flex items-center justify-between"><h3 className="text-sm font-bold">{supplierEditor ? "Editar fornecedor" : "Novo fornecedor"}</h3><Button type="button" variant="ghost" size="icon" onClick={() => setSupplierEditor(false)} className="h-8 w-8"><X size={14} /></Button></div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Input value={supplierForm.nome_cidade} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Cidade *" className={field} />
-                <Input value={supplierForm.codigo_icao} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="ICAO" className={field} />
-                <Input value={supplierForm.nome_fornecedor} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Fornecedor *" className={field} />
-                <Input value={supplierForm.pessoa_contato} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Pessoa de contato" className={field} />
-                <Input value={supplierForm.telefone} onChange={(e) => setSupplierForm((value) => ({ ...value, telefone: e.target.value }))} placeholder="Telefone" className={field} />
-                <Input type="number" min="0" step="0.01" value={supplierForm.preco_avgas} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: e.target.value }))} placeholder="Preço AVGAS" className={field} />
-                <Input type="number" min="0" step="0.01" value={supplierForm.preco_jet} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: e.target.value }))} placeholder="Preço JET" className={field} />
-              </div>
-              <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setSupplierEditor(false)} className="h-9 text-xs">Cancelar</Button><Button type="button" disabled={supplierSaving} onClick={() => void saveSupplier()} className="h-9 text-xs">{supplierSaving ? "Salvando..." : "Salvar fornecedor"}</Button></div>
-            </section>
-          )}
+          <Dialog open={supplierEditor !== false} onOpenChange={(open) => { if (!open && !supplierSaving) setSupplierEditor(false); }}>
+            <DialogContent className="ac-dialog">
+              <DialogHeader className="ac-dialog-header"><DialogTitle>{supplierEditor ? "Editar fornecedor" : "Novo fornecedor"}</DialogTitle><DialogDescription>Preencha os dados do fornecedor de combustível.</DialogDescription></DialogHeader>
+              <form className="ac-dialog-form" onSubmit={(e) => { e.preventDefault(); void saveSupplier(); }} aria-busy={supplierSaving}>
+                <div className="ac-form-body bg-card dark:bg-background">
+                  <p className="ac-muted">Os campos com * são obrigatórios.</p>
+                  {supplierError && <div role="alert" className="ac-notice ac-notice--error">{supplierError}</div>}
+                  <div className="ac-form-grid ac-form-grid--2">
+                    <label className="ac-field"><span>Fornecedor *</span><input className="ac-control" value={supplierForm.nome_fornecedor} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_fornecedor: e.target.value }))} placeholder="Nome do fornecedor" /></label>
+                    <label className="ac-field"><span>Nome de contato</span><input className="ac-control" value={supplierForm.pessoa_contato} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, pessoa_contato: e.target.value }))} placeholder="Nome do contato" /></label>
+                  </div>
+                  <div className="ac-form-grid ac-form-grid--3">
+                    <label className="ac-field"><span>Cidade *</span><input className="ac-control" value={supplierForm.nome_cidade} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, nome_cidade: e.target.value }))} placeholder="Ex.: São Paulo" /></label>
+                    <label className="ac-field"><span>ICAO</span><input className="ac-control" value={supplierForm.codigo_icao} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, codigo_icao: e.target.value.toUpperCase().slice(0, 4) }))} placeholder="Ex.: SBCY" /></label>
+                    <CampoTelefone valor={supplierForm.telefone} disabled={supplierSaving} onChange={(telefone) => setSupplierForm((value) => ({ ...value, telefone }))} />
+                  </div>
+                  <div className="ac-form-grid ac-form-grid--2">
+                    <label className="ac-field"><span>Preço AVGAS</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_avgas} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_avgas: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
+                    <label className="ac-field"><span>Preço JET</span><input className="ac-control" inputMode="numeric" value={supplierForm.preco_jet} disabled={supplierSaving} onChange={(e) => setSupplierForm((value) => ({ ...value, preco_jet: formatarDigitosMoeda(e.target.value.replace(/\D/g, "").slice(0, 12)) }))} placeholder="R$ 0,00" /></label>
+                  </div>
+                </div>
+                <div className="ac-footer">
+                  <button type="button" className="ac-btn" disabled={supplierSaving} onClick={() => setSupplierEditor(false)}><X size={16} aria-hidden="true" />Cancelar</button>
+                  <button type="submit" className="ac-btn ac-btn--primary" disabled={supplierSaving}><Save size={16} aria-hidden="true" />{supplierSaving ? "Salvando…" : "Salvar fornecedor"}</button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
           {fuelLoading ? (
             <div className="rounded-xl border border-border p-8 text-center text-sm text-muted-foreground">Carregando fornecedores...</div>
           ) : fuelSuppliers.length === 0 ? (
@@ -3103,19 +3251,61 @@ export function ContatosClientesShareBrasil({
           ) : visibleFuelSuppliers.length === 0 ? (
             <EstadoVazio label="Nenhum fornecedor encontrado" />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {visibleFuelSuppliers.map((supplier) => (
-                <article key={supplier.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
-                    <div><dt className="text-muted-foreground">Jet</dt><dd>{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
-                  </dl>
-                </article>
-              ))}
-            </div>
+            fuelView === "grade" ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleFuelSuppliers.map((supplier) => (
+                  <article key={supplier.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
+                      <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
+                      <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                      <div><dt className="text-muted-foreground">Jet</dt><dd>{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full min-w-[860px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                      <th className="px-4 py-3 font-semibold">Fornecedor</th>
+                      <th className="px-4 py-3 font-semibold">Contato</th>
+                      <th className="px-4 py-3 font-semibold">Telefone</th>
+                      <th className="px-4 py-3 font-semibold">Avgas</th>
+                      <th className="px-4 py-3 font-semibold">Jet</th>
+                      <th className="px-4 py-3 font-semibold">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleFuelSuppliers.map((supplier) => (
+                      <tr
+                        key={supplier.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{supplier.nome_fornecedor}</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{supplier.pessoa_contato || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.telefone || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </section>
       )}
@@ -3127,14 +3317,13 @@ export function ContatosClientesShareBrasil({
               <FormularioCadastroContato contato={hangarEditor || undefined} categoriaInicial="HANGAR" salvando={hangarSaving} erro={hangarError} aoSalvar={salvarHangar} aoCancelar={() => setHangarEditor(false)} />
             </DialogContent>
           </Dialog>
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Hangar</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleHangarContacts.length} {visibleHangarContacts.length === 1 ? "contato" : "contatos"}
               </p>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
               <div className="relative w-full sm:w-60">
                 <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <Input
@@ -3146,7 +3335,11 @@ export function ContatosClientesShareBrasil({
                   className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
                 />
               </div>
+              {sortSelect(hangarSort, setHangarSort)}
               <Button type="button" onClick={() => { setHangarError(null); setHangarEditor(null); }} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo hangar</Button>
+            </div>
+            <div className="flex lg:justify-end">
+              {viewToggle(hangarView, setHangarView, "dos hangares")}
             </div>
           </header>
           {hangarContacts.length === 0 ? (
@@ -3154,14 +3347,50 @@ export function ContatosClientesShareBrasil({
           ) : visibleHangarContacts.length === 0 ? (
             <EstadoVazio label="Nenhum hangar encontrado" />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {visibleHangarContacts.map((contact) => (
-                <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
-                  <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
-                </article>
-              ))}
-            </div>
+            hangarView === "grade" ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleHangarContacts.map((contact) => (
+                  <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
+                    <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                      <th className="px-4 py-3 font-semibold">Hangar</th>
+                      <th className="px-4 py-3 font-semibold">Telefone</th>
+                      <th className="px-4 py-3 font-semibold">E-mail</th>
+                      <th className="px-4 py-3 font-semibold">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleHangarContacts.map((contact) => (
+                      <tr
+                        key={contact.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{contact.nome}</p>
+                          {contact.empresa && <p className="mt-1 text-[10px] text-muted-foreground">{contact.empresa}</p>}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{contact.telefone || "Telefone não informado"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{contact.email || "E-mail não informado"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </section>
       )}

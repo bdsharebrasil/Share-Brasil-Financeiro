@@ -48,7 +48,7 @@ export const ATALHOS_POR_ABA: Record<
   "share-brasil": [
     {
       menu: "contatos-clientes",
-      label: "AGENDA",
+      label: "CONTATOS",
       icon: IconeAgenda,
       tone: "border-cyan-500/50 bg-cyan-500/20 text-cyan-900 dark:text-cyan-300",
     },
@@ -111,4 +111,3 @@ export const ATALHOS_POR_ABA: Record<
     },
   ],
 };
-

@@ -15,6 +15,10 @@ const SERVICOS = [
 
 const SEM_SERVICOS_HANGAR = { gpu: "", transfer: "", custo_gpu: "", custo_transfer: "", valor_gpu: "", valor_transfer: "", ar_condicionado: "", pernoite: "" };
 
+const CATEGORIAS = ["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO", "HANGAR", "OUTRO"] as const;
+type CategoriaContato = typeof CATEGORIAS[number];
+const ehCategoria = (valor: string) => (CATEGORIAS as readonly string[]).includes(valor);
+
 export type FormularioContato = {
   codigo_icao: string; nome: string; telefone: string; email: string; empresa: string; razao_social: string;
   cnpj: string; categoria: string; categoria_tipo: string; categoria_personalizada: string;
@@ -41,6 +45,16 @@ export function valorDecimal(value: string): string {
   return limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
 }
 
+/** Formata como (11) 98765-4321 ou (11) 3456-7890. */
+export function formatarTelefone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (!d) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 function contatoParaFormulario(item?: ContatoAgenda): FormularioContato {
   if (!item) return vazio();
   const form = vazio();
@@ -49,11 +63,12 @@ function contatoParaFormulario(item?: ContatoAgenda): FormularioContato {
     if (key in item) form[key] = String(item[key as keyof ContatoAgenda] ?? "");
   }
   const tipo = String(item.categoria_tipo || "").toUpperCase();
-  const categoria = String(item.categoria || "");
-  form.categoria_tipo = ["FORNECEDOR", "HANGAR", "OUTRO"].includes(tipo)
-    ? tipo : ["FORNECEDOR", "HANGAR"].includes(categoria.toUpperCase()) ? categoria.toUpperCase() : "OUTRO";
-  form.categoria_personalizada = item.categoria_personalizada || (form.categoria_tipo === "OUTRO" ? categoria : "");
+  const categoria = String(item.categoria || "").toUpperCase();
+  form.categoria_tipo = ehCategoria(tipo) ? tipo
+    : ehCategoria(categoria) && categoria !== "OUTRO" ? categoria : "OUTRO";
+  form.categoria_personalizada = item.categoria_personalizada || (form.categoria_tipo === "OUTRO" ? String(item.categoria || "") : "");
   form.uf = form.uf.toUpperCase();
+  form.telefone = formatarTelefone(form.telefone);
   for (const servico of SERVICOS) {
     const valor = String(item[servico.valor] ?? "");
     form[servico.custo] = valor === "GRATUITO" ? "GRATUITO" : valor ? "COBRADO" : "";
@@ -68,7 +83,7 @@ export function prepararContato(form: FormularioContato): FormularioContato {
     payload[key] = payload[key].trim().toLocaleUpperCase("pt-BR");
   }
   if (!payload.nome) throw new Error("Informe o nome do contato.");
-  if (!["FORNECEDOR", "HANGAR", "OUTRO"].includes(payload.categoria_tipo)) throw new Error("Selecione uma categoria válida.");
+  if (!ehCategoria(payload.categoria_tipo)) throw new Error("Selecione uma categoria válida.");
   if (payload.categoria_tipo === "OUTRO" && !payload.categoria_personalizada) throw new Error("Informe a categoria para a opção Outro.");
   payload.categoria = payload.categoria_tipo === "OUTRO" ? payload.categoria_personalizada : payload.categoria_tipo;
   if (["hotel", "hoteis"].includes(normalizar(payload.categoria))) throw new Error("Esse fornecedor deverá ser salvo em Share Brasil → Hotéis.");
@@ -76,7 +91,7 @@ export function prepararContato(form: FormularioContato): FormularioContato {
   if (payload.categoria_tipo !== "OUTRO") payload.categoria_personalizada = "";
   payload.uf = payload.uf.toUpperCase();
   payload.codigo_icao = payload.codigo_icao.toUpperCase();
-  if(payload.codigo_icao && !/^[A-Z0-9]{4}$/.test(payload.codigo_icao)) throw new Error("Informe quatro letras ou números para o código ICAO.");
+  if (payload.codigo_icao && !/^[A-Z0-9]{4}$/.test(payload.codigo_icao)) throw new Error("Informe quatro letras ou números para o código ICAO.");
   if (payload.categoria_tipo !== "HANGAR") payload.atendimento_pista = "";
   else if (!["SIM", "NAO"].includes(payload.atendimento_pista)) throw new Error("Informe se o hangar possui atendimento de pista.");
   if (payload.categoria_tipo !== "HANGAR" || payload.atendimento_pista !== "SIM") {
@@ -114,9 +129,35 @@ function Campo({ label, id, ...props }: CampoProps) {
   return <label className="ac-field" htmlFor={id}><span>{label}{props.required && " *"}</span><input {...props} id={id} className="ac-control" /></label>;
 }
 
+type CampoTelefoneProps = Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> & {
+  label?: string;
+  value: string;
+  /** Recebe a string JÁ FORMATADA, não o evento. */
+  onChange: (valor: string) => void;
+};
+
+export function CampoTelefone({ label = "Telefone", id, value, onChange, ...props }: CampoTelefoneProps) {
+  return (
+    <label className="ac-field" htmlFor={id}>
+      <span>{label}{props.required && " *"}</span>
+      <input
+        {...props}
+        id={id}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        placeholder={props.placeholder ?? "(00) 00000-0000"}
+        className="ac-control"
+        value={formatarTelefone(value)}
+        onChange={(e) => onChange(formatarTelefone(e.target.value))}
+      />
+    </label>
+  );
+}
+
 type CadastroProps = {
   contato?: ContatoAgenda;
-  categoriaInicial?: "FORNECEDOR" | "HANGAR" | "OUTRO";
+  categoriaInicial?: CategoriaContato;
   salvando: boolean;
   erro: string | null;
   aoSalvar: (form: FormularioContato) => Promise<void>;
@@ -152,6 +193,7 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
     <Campo key={key} id={`contato-${key}`} label={label} value={form[key].toLocaleUpperCase("pt-BR")} disabled={salvando}
       onChange={(e) => alterar(key, e.target.value)} {...props} />
   );
+  const mostrarHangar = categoriaInicial === "HANGAR" || form.categoria_tipo === "HANGAR";
 
   return (
     <form className="ac-dialog-form" onSubmit={(e) => void submit(e)} aria-busy={salvando}>
@@ -162,7 +204,8 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
           <h3 id="ac-identificacao" className="ac-section-heading">Identificação do contato</h3>
           <div className="ac-form-grid">
             {campo("nome", "Nome do contato", { required: true, autoComplete: "name", autoFocus: true, placeholder: "Nome completo" })}
-            {campo("telefone", "Telefone", { type: "tel", autoComplete: "tel", placeholder: "(00) 00000-0000" })}
+            <CampoTelefone id="contato-telefone" value={form.telefone} disabled={salvando}
+              onChange={(v) => alterar("telefone", v)} />
             {campo("codigo_icao", "Aeroporto (ICAO)", { maxLength: 4, placeholder: "Ex.: SBCY" })}
             {campo("email", "E-mail", { type: "email", autoComplete: "email", placeholder: "contato@empresa.com.br" })}
             <label className="ac-field" htmlFor="contato-categoria">
@@ -171,8 +214,12 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
                 onChange={(e) => { const tipo = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual,
                   categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? { ...SEM_SERVICOS_HANGAR, atendimento_pista: "" } : {}),
                 })); }}>
-                <option value="">Selecione uma categoria</option><option value="FORNECEDOR">Fornecedor</option>
-                <option value="HANGAR">Hangar</option><option value="OUTRO">Outro</option>
+                <option value="">Selecione uma categoria</option>
+                <option value="FORNECEDOR">FORNECEDOR</option>
+                <option value="FORNECEDOR PEÇAS">FORNECEDOR PEÇAS</option>
+                <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+                {mostrarHangar && <option value="HANGAR">HANGAR</option>}
+                <option value="OUTRO">OUTRO</option>
               </select>
             </label>
             {form.categoria_tipo === "OUTRO" && campo("categoria_personalizada", "Qual categoria?", { required: true, placeholder: "Informe a categoria" })}
@@ -253,7 +300,7 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
       </div>
       <div className="ac-footer">
         <button type="button" className="ac-btn" disabled={salvando} onClick={aoCancelar}><X size={16} aria-hidden="true" />Cancelar</button>
-        <button type="submit" className="ac-btn ac-btn--primary" disabled={salvando}><Save size={16} aria-hidden="true" />{salvando ? "Salvando…" : contato ? "Salvar alterações" : "Salvar contato"}</button>
+        <button type="submit" className="ac-btn ac-btn--primary" disabled={salvando}><Save size={16} aria-hidden="true" />{salvando ? "Salvando…" : contato ? "Salvar alterações" : "Salvar"}</button>
       </div>
     </form>
   );
@@ -275,8 +322,9 @@ function Detalhes({ contato }: { contato: ContatoAgenda }) {
     ["Empresa", contato.empresa], ["Razão social", contato.razao_social], ["CNPJ", contato.cnpj],
     ["Endereço", contato.endereco], ["Cidade / UF", [contato.cidade, contato.uf].filter(Boolean).join(" / ")],
   ];
+  const ehHangar = contato.categoria_tipo === "HANGAR" || contato.categoria === "HANGAR";
   return <dl className="ac-details">{dados.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Não informado"}</dd></div>)}
-    {(contato.categoria_tipo === "HANGAR" || contato.categoria === "HANGAR") && <>
+    {ehHangar && <>
       <div><dt>Atendimento de pista</dt><dd>{contato.atendimento_pista === "SIM" ? "Sim" : contato.atendimento_pista === "NAO" ? "Não" : "Não informado"}</dd></div>
       {([ ["ar_condicionado", "Ar condicionado"], ["pernoite", "Pernoite"] ] as const).map(([key, label]) => {
         const valor = String(contato[key] || "");
@@ -285,7 +333,7 @@ function Detalhes({ contato }: { contato: ContatoAgenda }) {
         return <div key={key}><dt>{label}</dt><dd>Disponível · {preco}</dd></div>;
       })}
     </>}
-    {(contato.categoria_tipo === "HANGAR" || contato.categoria === "HANGAR") && SERVICOS.map((servico) => <div key={servico.nome}><dt>{servico.nome}</dt><dd>{descricaoServico(contato, servico)}</dd></div>)}
+    {ehHangar && SERVICOS.map((servico) => <div key={servico.nome}><dt>{servico.nome}</dt><dd>{descricaoServico(contato, servico)}</dd></div>)}
     {contato.observacoes && <div className="ac-full"><dt>Observações</dt><dd>{contato.observacoes}</dd></div>}
   </dl>;
 }
@@ -401,4 +449,3 @@ export function AgendaContatos() {
 }
 
 export default AgendaContatos;
-

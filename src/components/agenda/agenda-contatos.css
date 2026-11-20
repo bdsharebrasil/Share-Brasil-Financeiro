@@ -91,8 +91,11 @@ textarea.ac-control { min-height: 100px; resize: vertical; }
 .ac-section { min-width: 0; }
 .ac-section-heading { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--light-text, #d9e4f0); }
 .ac-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); min-width: 0; }
+.ac-form-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ac-form-grid--3 { grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1.3fr); }
 .ac-field { display: grid; align-content: start; gap: 6px; min-width: 0; font-size: 13px; color: var(--light-muted, #bac6d6); }
 .ac-full { grid-column: 1 / -1; min-width: 0; }
+.ac-phone-row { display: grid; grid-template-columns: minmax(0, 90px) minmax(0, 1fr); gap: 8px; min-width: 0; }
 .ac-service-list { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--light-canvas, rgba(4, 10, 15, 1)); }
 .ac-service-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px); align-items: center; gap: 12px; min-width: 0; }
 .ac-service-check { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--light-text, #d9e4f0); cursor: pointer; }
@@ -131,6 +134,7 @@ textarea.ac-control { min-height: 100px; resize: vertical; }
   .ac-expand, .ac-control, .ac-btn { animation: none; transition: none; }
 }
 @media (max-width: 479px) {
+  .ac-form-grid--2, .ac-form-grid--3 { grid-template-columns: minmax(0, 1fr); }
   .ac-toolbar-actions { flex-basis: 100%; }
   .ac-toolbar-actions > .ac-btn { flex: 1 1 100%; }
   .ac-footer { padding: 16px; }

@@ -1,0 +1,17 @@
+/* Grade de atalhos do Portal do Colaborador.
+   O número de colunas depende da LARGURA REAL disponível para a grade (container query),
+   e não da largura da janela. Assim, com o menu lateral aberto, os cartões nunca ficam
+   estreitos demais e o texto não quebra no meio da palavra ("AGEND/A").
+   Para ajustar: mude os min-width abaixo (largura mínima do espaço da grade). */
+.atalhos-wrap{container-type:inline-size;min-width:0}
+.atalhos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* 6 atalhos: 2 colunas -> 3 colunas -> 6 colunas */
+@container (min-width:380px){.atalhos-grid--6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:860px){.atalhos-grid--6{grid-template-columns:repeat(6,minmax(0,1fr))}}
+
+/* 4 atalhos: 2 colunas -> 4 colunas */
+@container (min-width:580px){.atalhos-grid--4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* Nunca quebrar palavra no meio: só quebra nos espaços (ex.: "CENTRO DE / TREINAMENTO") */
+.atalhos-grid .menu-dashboard span{overflow-wrap:normal;word-break:normal;hyphens:none}

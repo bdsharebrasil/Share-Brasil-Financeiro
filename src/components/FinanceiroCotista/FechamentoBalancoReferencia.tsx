@@ -18,8 +18,8 @@ import {
   YAxis,
 } from "recharts";
 import type { CotistaAeronave } from "@/lib/colaborador-api";
-import { formatarCentavos, formatarData, formatarMoeda } from "@/lib/financeiro-share-api";
-import type { DashboardCotista, EmprestimoAeronave } from "@/lib/financeiro-share-api";
+import { formatarCentavos, formatarData } from "@/lib/financeiro-share-api";
+import type { DashboardCotista } from "@/lib/financeiro-share-api";
 import {
   documentoDoLancamento,
   nomeFornecedorLancamento,
@@ -38,15 +38,13 @@ import {
   norm,
   participanteDoCotista,
   projetarCustos,
-  voosDoCotistaComFallback,
   type DashboardBalanco,
 } from "@/lib/balanco-cotista";
-import { agruparPorMes, rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
+import { rotuloMesCotista } from "@/lib/financeiro-cotista-periodo";
 import { BalancoClientePdf } from "./BalancoClientePdf";
 import { calcularAcertoContasCotistas } from "@/lib/acerto-contas-cotistas";
 import { AcertoContasCotistasResumo } from "./AcertoContasCotistasResumo";
 import { CuriosidadesVooCotista } from "./CuriosidadesVooCotista";
-import { CabecalhoRateioCotista, CelulaRateioCotista } from "./RateioCotistaTableCells";
 
 type Props = {
   dashboard: DashboardCotista | null;
@@ -83,11 +81,10 @@ export function FechamentoBalancoReferencia({
   const [fatorFixo, setFatorFixo] = useState(1);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
-  const [subAbaDiario, setSubAbaDiario] = useState<"diario" | "emprestimos">("diario");
-  const [cotistaEmprestimo, setCotistaEmprestimo] = useState("todos");
   const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
   const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [subMes, setSubMes] = useState<"custos" | "uso">("custos");
 
   const d = dashboard as DashboardBalanco | null;
   const b = useMemo(
@@ -128,35 +125,14 @@ export function FechamentoBalancoReferencia({
         return ponto ? { horas: horasMes, ...ponto } : null;
       }).filter((item) => item !== null)
     : [];
-  const voosDoParticipante = participante ? participante.voos ?? [] : b?.voos ?? [];
-  const voosOperacionais = voosDoCotistaComFallback(
-    voosDoParticipante,
-    b?.voos ?? [],
-    {
-      clienteId: participante ? cadastroCotista?.cliente_id ?? null : null,
-      socioId: participante ? cadastroCotista?.socio_id ?? null : null,
-    },
-    b?.meses ?? mesesSelecionados,
-  );
+  const voosOperacionais = (participante?.voos ?? b?.voos ?? [])
+    .filter((voo) => b?.meses.includes(voo.data.slice(0, 7)));
+  const voosDoParticipante = participante?.voos ?? [];
   const voos = voosOperacionais
     .slice()
     .sort((a, z) => a.data.localeCompare(z.data) || (a.numeroSequencial ?? 0) - (z.numeroSequencial ?? 0));
-  const voosParaCuriosidades = voos;
-  const horasCuriosidades = participante && voosDoParticipante.length === 0 && voos.length
-    ? voos.reduce((soma, voo) => soma + (horasAtribuidas(voo) ?? 0), 0)
-    : totalHoras;
+  const voosParaCuriosidades = participante ? voosDoParticipante : voos;
   const diarioDisponivel = Boolean(b?.fonteVoos || voosOperacionais.length);
-  const gruposEmprestimos = useMemo(() => {
-    const [tipo, id] = cotistaEmprestimo.split(":");
-    const lista = (dashboard?.emprestimos_aeronave ?? []).filter((voo) => {
-      if (!b?.meses.includes(String(voo.data ?? "").slice(0, 7))) return false;
-      if (!id) return true;
-      return tipo === "socio"
-        ? voo.emprestador_socio_id === id
-        : voo.emprestador_cliente_id === id;
-    });
-    return agruparPorMes<EmprestimoAeronave>(lista);
-  }, [dashboard?.emprestimos_aeronave, b?.meses, cotistaEmprestimo]);
   const tooltipEstilo = { background: "var(--fb-card)", color: "var(--fb-text)", border: "1px solid var(--fb-border)", borderRadius: 8, fontSize: 12 };
 
   if (carregando) return <div className="fb" role="status"><style>{CSS}</style><div className="fb-empty">Carregando fechamento…</div></div>;
@@ -273,7 +249,7 @@ export function FechamentoBalancoReferencia({
               <tfoot><tr><td>Total geral</td><td className="fb-num">{money(total.total)}</td><td className="fb-num">100%</td><td /></tr></tfoot>
             </table></div> : <Vazio>Não há despesas classificadas no período.</Vazio>}
           </section>
-          <section className="fb-card"><h2>Custo mensal</h2><p className="fb-note">A natureza cadastrada tem prioridade. Quando ausente, usamos regras da categoria e descrição da despesa. A forma de rateio permanece independente.</p>
+          <section className="fb-card"><h2>Custo mensal</h2><details className="fb-more"><summary>Como é classificado</summary><p className="fb-note">A natureza cadastrada tem prioridade. Quando ausente, usamos regras da categoria e descrição da despesa. A forma de rateio permanece independente.</p></details>
             <div className="fb-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={seriesCusto} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="var(--fb-border)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="nome" tick={{ fontSize: 11, fill: "var(--fb-muted)" }} />
@@ -293,24 +269,37 @@ export function FechamentoBalancoReferencia({
             </div>
           </section>
         </div>
-        <section className="fb-card fb-spaced">
-          <AcertoContasCotistasResumo
+        <div className="fb-grid fb-g2 fb-row-acerto">
+          <section className="fb-card">
+            <AcertoContasCotistasResumo
             fontes={d.balanco_fontes}
             erroFonte={d.balanco_detalhado_erro}
             mesesSelecionados={b.meses}
             resultado={acerto}
           />
-        </section>
-        <section className="fb-card fb-spaced"><h2>Resumo mês a mês</h2><div className="fb-scroll"><table>
+          </section>
+          <section className="fb-card">
+            <div className="fb-card-head">
+              <h2>{subMes === "custos" ? "Resumo mês a mês" : "Utilização e médias do período"}</h2>
+              <div className="fb-subtabs" role="group" aria-label="Tabela mensal">
+                <button type="button" aria-pressed={subMes === "custos"} onClick={() => setSubMes("custos")}>Custos</button>
+                <button type="button" aria-pressed={subMes === "uso"} onClick={() => setSubMes("uso")}>Utilização</button>
+              </div>
+            </div>
+            {subMes === "custos" ? <div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Fixos</th><th className="fb-num">Variáveis</th><th className="fb-num">Extras</th><th className="fb-num">Sem natureza informada</th><th className="fb-num">Total</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{money(mes.fixos)}</td><td className="fb-num">{money(mes.variaveis)}</td><td className="fb-num">{money(mes.extras)}</td><td className="fb-num">{money(mes.naoClassificados)}</td><td className="fb-num"><b>{money(mes.total)}</b></td></tr>)}</tbody>
           <tfoot><tr><td>Total</td><td className="fb-num">{money(total.fixos)}</td><td className="fb-num">{money(total.variaveis)}</td><td className="fb-num">{money(total.extras)}</td><td className="fb-num">{money(total.naoClassificados)}</td><td className="fb-num">{money(total.total)}</td></tr></tfoot>
-        </table></div></section>
-        <section className="fb-card fb-spaced"><h2>Utilização e médias do período</h2><div className="fb-scroll"><table>
+        </table></div> : <div className="fb-scroll"><table>
           <thead><tr><th>Mês</th><th className="fb-num">Etapas</th><th className="fb-num">H. voo</th><th className="fb-num">H. totais atribuídas</th><th className="fb-num">Distância (NM)</th><th className="fb-num">Dias com voo</th><th className="fb-num">Custo/h</th></tr></thead>
           <tbody>{meses.map((mes) => <tr key={mes.mes}><td>{mes.nome}</td><td className="fb-num">{fmt(mes.voos, 0)}</td><td className="fb-num">{horas(mes.horasVoo)}</td><td className="fb-num">{horas(mes.horas)}</td><td className="fb-num">{fmt(mes.distanciaNm)}</td><td className="fb-num">{fmt(mes.diasVoo, 0)}</td><td className="fb-num">{money(mes.custoHora)}</td></tr>)}</tbody>
-        </table></div><p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. O cálculo usa os horários quando disponíveis; na ausência deles, usa o tempo registrado. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p></section>
-        <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
+        </table></div>}
+            <details className="fb-more"><summary>Como ler estes números</summary>
+              {subMes === "uso" && <p className="fb-note">Tempo total: acionamento até corte. H. voo: decolagem até pouso. O cálculo usa os horários quando disponíveis; na ausência deles, usa o tempo registrado. Etapas e dias incluem operações compartilhadas; suas horas e distâncias são atribuídas proporcionalmente ao compartilhamento.</p>}
+              <p className="fb-note">O saldo líquido no cabeçalho usa a mesma apuração detalhada de rateios e pagamentos pessoais confirmados exibida em Acerto de contas; ele não representa uma nova cobrança.</p>
+            </details>
+          </section>
+        </div>
       </section>}
 
       {aba === "lancamentos" && <section id="fb-panel-lancamentos" role="tabpanel" aria-labelledby="fb-tab-lancamentos">
@@ -335,7 +324,7 @@ export function FechamentoBalancoReferencia({
             <thead><tr>
               <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
               <th className="fb-num">Valor pago</th><th>PAGO POR</th>
-              {cotistas.map((cotista, i) => <CabecalhoRateioCotista cotista={cotista} indice={i} key={cotista.id} />)}
+              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
             </tr></thead>
             <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
               <td>
@@ -352,13 +341,14 @@ export function FechamentoBalancoReferencia({
               <td><span className="fb-tag">{tipoRateioLancamento(origem)}</span></td>
               <td className="fb-num fb-money">{formatarCentavos(valorPagoLancamento(origem))}</td>
               <td>{nomePagadoresDoLancamento(origem, cotistas)}</td>
-              {cotistas.map((cotista, i) => <CelulaRateioCotista
-                lancamento={origem}
-                cotista={cotista}
-                cotistas={cotistas}
-                indice={i}
-                key={cotista.id}
-              />)}
+              {cotistas.map((cotista, i) => {
+                const rateio = rateioDoCotista(origem, cotista, cotistas);
+                return <td className={`fb-num fb-tone-${i % 2}`} key={cotista.id}>
+                  {rateio
+                    ? <div className="fb-share-cell"><span>{rateio.percentual == null ? "—" : `${fmt(rateio.percentual)}%`}</span><strong>{formatarCentavos(rateio.valorCentavos)}</strong></div>
+                    : <span className="fb-muted-dash">—</span>}
+                </td>;
+              })}
             </tr>)}</tbody>
             <tfoot><tr>
               <td colSpan={9}>{lancamentosFiltrados.length} lançamentos · total rateado por cotista</td>
@@ -405,57 +395,29 @@ export function FechamentoBalancoReferencia({
       </section>}
 
       {aba === "diario" && <section id="fb-panel-diario" role="tabpanel" aria-labelledby="fb-tab-diario">
-        <nav className="mb-3 flex flex-wrap gap-2 border-b border-border pb-2" role="tablist" aria-label="Diário de bordo e voos empréstimo">
-          <button type="button" role="tab" id="fb-subtab-diario" aria-selected={subAbaDiario === "diario"} aria-controls="fb-subpanel-diario" onClick={() => setSubAbaDiario("diario")} className={`rounded-md border px-3 py-2 text-xs font-semibold transition-colors ${subAbaDiario === "diario" ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>Diário de bordo</button>
-          <button type="button" role="tab" id="fb-subtab-emprestimos" aria-selected={subAbaDiario === "emprestimos"} aria-controls="fb-subpanel-emprestimos" onClick={() => setSubAbaDiario("emprestimos")} className={`rounded-md border px-3 py-2 text-xs font-semibold transition-colors ${subAbaDiario === "emprestimos" ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>Voos empréstimo</button>
-        </nav>
-        {subAbaDiario === "diario" ? <section id="fb-subpanel-diario" role="tabpanel" aria-labelledby="fb-subtab-diario">
-          <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
-            {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
-              <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
-              <tbody>{voos.map((voo, index) => <tr key={voo.id}>
-                <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
-                <td>{formatarData(voo.data)}</td>
-                <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
-                <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
-                <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
-                <td>{horas(voo.horas)}</td>
-                {participante && <td>{horas(horasAtribuidas(voo))}</td>}
-                <td>{destinoVoo(voo, cotistas)}</td>
-              </tr>)}</tbody>
-            </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
-              : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
-          </section>
-          <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
-        </section> : <section id="fb-subpanel-emprestimos" role="tabpanel" aria-labelledby="fb-subtab-emprestimos" className="fb-card">
-          <div className="fb-flight-heading flex-wrap">
-            <div><h2>Voos de empréstimo nesta aeronave</h2><p className="fb-note">Custo do tomador, fora do rateio. Escolha um cotista para ver os voos emprestados em nome dele.</p></div>
-            <label className="fb-ledger-tools">Cotista
-              <select value={cotistaEmprestimo} onChange={(event) => setCotistaEmprestimo(event.target.value)} aria-label="Filtrar voos empréstimo por cotista">
-                <option value="todos">Todos os cotistas</option>
-                {cotistas.filter((cotista) => cotista.cliente_id || cotista.socio_id).map((cotista) => <option key={cotista.id} value={`${cotista.socio_id ? "socio" : "cliente"}:${cotista.socio_id || cotista.cliente_id}`}>{cotista.nome}</option>)}
-              </select>
-            </label>
-          </div>
-          {gruposEmprestimos.length ? <div className="divide-y divide-border">
-            {gruposEmprestimos.map(({ mes, itens }) => <section key={mes}>
-              <div className="flex flex-wrap items-center justify-between gap-2 bg-primary/[.045] px-4 py-2.5">
-                <span className="text-[10px] font-bold capitalize">{rotuloMesCotista(mes)}</span>
-                <span className="font-mono text-[9px] text-muted-foreground">{itens.length} voo(s) · {itens.reduce((total, voo) => total + Number(voo.litros || 0), 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L · {formatarMoeda(itens.reduce((total, voo) => total + Number(voo.valor_total || 0), 0))}</span>
-              </div>
-              {itens.map((voo) => <div key={voo.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-4 py-3 text-xs">
-                <div className="min-w-0"><p className="font-semibold">{voo.numero_voo || "Voo sem número"} · {voo.matricula_registro || "Aeronave não informada"}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{formatarData(voo.data)} · {voo.trecho || "Trecho não informado"} · Local: {voo.local_icao || voo.local || "—"}</p></div>
-                <div className="text-right"><p className="font-mono font-bold text-amber-400">{Number(voo.litros || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} L</p><p className="font-mono text-[10px] text-muted-foreground">{formatarMoeda(Number(voo.valor_total || 0))}</p></div>
-              </div>)}
-            </section>)}
-          </div> : <div className="px-4 py-12 text-center text-xs text-muted-foreground">Nenhum abastecimento de voo empréstimo encontrado nos meses selecionados.</div>}
-        </section>}
+        <section className="fb-card"><div className="fb-flight-heading"><h2>Registros de Voo</h2><span className="fb-tag">{voos.length} {voos.length === 1 ? "voo" : "voos"}</span></div>
+          {diarioDisponivel ? voos.length ? <div className="fb-scroll"><table className="fb-flight-table">
+            <thead><tr><th aria-label="Referência" /><th>DATA</th><th>TRECHO</th><th>DEP</th><th>POU</th><th className="fb-flight-accent">T VOO</th><th>T TOTAL</th>{participante && <th>HORAS ATRIB.</th>}<th>VOO PARA</th></tr></thead>
+            <tbody>{voos.map((voo, index) => <tr key={voo.id}>
+              <td className="fb-flight-ref">#{voo.numeroSequencial ?? index + 1}</td>
+              <td>{formatarData(voo.data)}</td>
+              <td className="fb-flight-route">{voo.trecho || `${voo.origem || "—"} X ${voo.destino || "—"}`}</td>
+              <td>{formatarHorarioDiario(voo.tempoDep)}</td><td>{formatarHorarioDiario(voo.tempoPou)}</td>
+              <td className="fb-flight-accent">{formatarDuracaoDiario(voo.horasVoo)}</td>
+              <td>{horas(voo.horas)}</td>
+              {participante && <td>{horas(horasAtribuidas(voo))}</td>}
+              <td>{destinoVoo(voo, cotistas)}</td>
+            </tr>)}</tbody>
+          </table></div> : <Vazio>Nenhum voo registrado nos meses selecionados.</Vazio>
+            : <Vazio>O diário de bordo não está disponível para esta consulta.</Vazio>}
+        </section>
+        <p className="fb-note">O custo/hora usa o tempo total (acionamento até corte). Traslados e voos de teste são compartilhados igualmente entre cotistas ativos do cadastro atual; a duração da etapa é preservada e as horas atribuídas mostram a parcela de cada cotista. Voos emprestados pertencem ao tomador identificado.</p>
       </section>}
 
       {aba === "curiosidades" && <section id="fb-panel-curiosidades" role="tabpanel" aria-labelledby="fb-tab-curiosidades">
-        {voosParaCuriosidades.length || (horasCuriosidades ?? 0) > 0 ? (
+        {voosParaCuriosidades.length || (totalHoras ?? 0) > 0 ? (
           <div className="bcp">
-            <CuriosidadesVooCotista voos={voosParaCuriosidades} horas={horasCuriosidades} periodo={periodo} />
+            <CuriosidadesVooCotista voos={voosParaCuriosidades} horas={totalHoras} periodo={periodo} />
           </div>
         ) : <Vazio>Não há dados de voo detalhados para os meses selecionados.</Vazio>}
       </section>}
@@ -622,5 +584,62 @@ const CSS = `
   .fb-ledger-head{padding:14px}
   .fb-search{max-width:none}
   .fb-ledger-count{width:100%;margin:0}
+}
+
+@media screen{
+.fb{--fb-offset:300px;padding:8px 0 16px}
+.fb-tabs{margin:0 0 8px}.fb-tabs button{padding:6px 12px;font-size:13px}
+.fb-hero{padding:10px 16px;gap:12px;border-radius:8px;align-items:center;box-shadow:none}
+.fb-hero small{font-size:11px}.fb-big{font-size:clamp(20px,2.6vw,26px);line-height:1.15}
+.fb-hero-stats{gap:20px}.fb-hero-stats strong{font-size:14px}
+.fb-grid{gap:8px;margin-top:8px}
+.fb-kpi{padding:7px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:8px;border-radius:8px}
+.fb-kpi>span{grid-column:1;grid-row:1;font-size:11px}
+.fb-kpi>strong{grid-column:2;grid-row:1/3;margin:0;font-size:16px;text-align:right}
+.fb-kpi>small{grid-column:1;grid-row:2;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fb-card{padding:10px 12px;border-radius:8px}
+.fb-card h2{margin:0 0 6px;font-size:13px}
+.fb-spaced{margin-top:8px}
+.fb table{font-size:12px}
+.fb th,.fb td{padding:4px 8px}.fb th{font-size:10px}
+.fb .fb-bar{height:6px;min-width:60px}
+.fb-chart{height:150px}.fb-chart-tall{height:200px}
+.fb-legend{margin-top:2px;gap:10px}
+.fb-note{margin:6px 0 0;font-size:10.5px;line-height:1.5}
+.fb-g2 .fb-scroll{max-height:230px;overflow:auto}
+.fb-g2 .fb-scroll thead th{position:sticky;top:0;z-index:1;background:var(--fb-card)}
+.fb-g2 .fb-scroll tfoot td{position:sticky;bottom:0}
+.fb-more{margin-top:6px}.fb-more summary{cursor:pointer;color:var(--fb-muted);font-size:11px}
+.fb-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}.fb-card-head h2{margin:0}
+.fb-subtabs{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--fb-border);border-radius:7px;background:var(--fb-soft)}
+.fb-subtabs button{border:0;background:transparent;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:600;color:var(--fb-muted)}
+.fb-subtabs button[aria-pressed=true]{background:var(--fb-card);color:var(--fb-blue)}
+.fb-flight-heading h2{margin:0 0 6px}
+/* Acerto entre cotistas em formato de linhas */
+.fb .acc-header{margin-bottom:6px;gap:8px}.fb .acc-header p{margin:2px 0 0;font-size:11px}
+.fb .acc-metrics{gap:6px;margin-bottom:6px}.fb .acc-metrics article{padding:6px 10px}.fb .acc-metrics strong{margin-top:1px;font-size:14px}
+.fb .acc-people{grid-template-columns:1fr;gap:4px;max-height:150px;overflow:auto}
+.fb .acc-person{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:5px 10px}
+.fb .acc-person-header{align-items:center;gap:8px}
+.fb .acc-person-values{margin:0;grid-template-columns:repeat(3,auto);gap:14px}
+.fb .acc-person-values dt{font-size:9px}.fb .acc-person-values dd{margin:0;font-size:11.5px}
+.fb .acc-transfer-section{margin-top:8px}.fb .acc-transfer-section h3{margin:0 0 4px;font-size:12px}
+.fb .acc-transfers{gap:4px;max-height:110px;overflow:auto}.fb .acc-transfer{padding:4px 10px;gap:8px}
+.fb .acc-empty{padding:6px 10px;font-size:11px}.fb .acc-warnings{margin-top:6px;padding:6px 10px}.fb .acc-footnote{margin:4px 0 0}
+/* Lançamentos: linha de 28px, altura acompanha a tela */
+.fb-ledger-head{padding:6px 12px}.fb-ledger-tools{padding:4px 10px}
+.fb .fb-ledger{max-height:calc(100dvh - var(--fb-offset));min-height:260px}
+.fb .fb-ledger table{min-width:1000px}
+.fb .fb-ledger thead th{height:28px;padding:0 8px}
+.fb .fb-ledger tbody tr{height:28px}
+.fb .fb-ledger tbody td{padding:2px 8px;font-size:11.5px}
+.fb .fb-ledger .fb-desc{min-width:150px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fb .fb-ledger .fb-status{padding:0 6px;font-size:10px}
+.fb .fb-share-header{min-width:130px}.fb .fb-share-header strong{max-width:130px;font-size:11px}
+.fb .fb-date-stack{display:flex;gap:10px}.fb .fb-date-stack small{display:none}
+.fb .fb-date-stack span:first-child b::before{content:"Em. ";font-weight:400;color:var(--fb-muted)}
+.fb .fb-date-stack span:last-child b::before{content:"Venc. ";font-weight:400;color:var(--fb-muted)}
+.fb .fb-share-cell{flex-direction:row;align-items:baseline;justify-content:flex-end;gap:6px}
+.fb .fb-share-cell strong{font-size:12px}
 }
 `;

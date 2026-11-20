@@ -553,6 +553,7 @@ html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !
   outline-offset: 2px;
 }
 .aba-dashboard { transition: transform .18s ease, background-color .18s ease, color .18s ease, border-color .18s ease; }
+.aba-dashboard[aria-selected="true"] { box-shadow: 0 1px 5px 0 rgba(7, 34, 30, 1); }
 .aba-dashboard:focus-visible { background-color: #d6eaf8; color: #123954; }
 .dark .aba-dashboard:focus-visible { background-color: #315775; color: #f0f9ff; }
 .aba-dashboard[aria-selected="false"]:focus-visible { background-color: transparent; }

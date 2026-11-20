@@ -28,12 +28,12 @@
   --app-header-height: calc(68px + var(--safe-area-top));
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --background: 204.00 26.32% 92.50%;
-  --foreground: 203.08 40.00% 10.50%;
-  --border: 204.71 22.00% 76.50%;
+  --background: 210 24% 93.5%;
+  --foreground: 211 32% 16%;
+  --border: 210 17% 82%;
   --card: 0.00 0.00% 100.00%;
   --card-foreground: 203.08 40.00% 10.50%;
-  --card-border: 204.71 22.00% 76.50%;
+  --card-border: 210 17% 82%;
   --sidebar: 208.57 56.76% 14.51%;
   --sidebar-foreground: 210.00 38.89% 92.94%;
   --sidebar-border: 207.06 38.93% 25.69%;
@@ -47,15 +47,15 @@
   --popover-border: 204.71 24.64% 86.47%;
   --primary: 203.77 89.83% 34.71%;
   --primary-foreground: 0.00 0.00% 100.00%;
-  --secondary: 202.50 28.57% 89.50%;
+  --secondary: 210 25% 95%;
   --secondary-foreground: 203.08 40.00% 10.50%;
-  --muted: 202.50 28.57% 90.50%;
-  --muted-foreground: 204.00 22.00% 27.00%;
-  --accent: 204.00 66.67% 94.12%;
+  --muted: 210 20% 92%;
+  --muted-foreground: 210 14% 35%;
+  --accent: 206 52% 92%;
   --accent-foreground: 203.77 89.83% 34.71%;
   --destructive: 0 42% 50%;
   --destructive-foreground: 0 0% 100%;
-  --input: 203.57 25.00% 66.00%;
+  --input: 210 17% 76%;
   --ring: 203.77 89.83% 34.71%;
   --chart-1: 203.77 89.83% 34.71%;
   --chart-2: 104.76 33.69% 36.67%;
@@ -69,7 +69,7 @@
   --brand-gold: #efbd45;
   --brand-navy: #10263a;
   --app-color-scheme: light;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --button-outline: rgba(16, 40, 66, .14);
   --elevate-1: rgba(16, 40, 66, .04);
   --elevate-2: rgba(16, 40, 66, .09);
@@ -453,42 +453,8 @@ html:not(.dark) .erp-financeiro .erp-tabela tfoot { background: hsl(var(--second
 html:not(.dark) .erp-financeiro .erp-tabela tfoot td { color: hsl(var(--foreground)); border-top-color: hsl(var(--border)); }
 html:not(.dark) .erp-financeiro .erp-tabela tfoot .erp-total-rodape { color: hsl(var(--primary)); background: hsl(var(--accent)); }
 
-/* Modo light: cards e tabelas usam #0D1317; os tokens escuros ficam restritos a esses elementos. */
-html:not(.dark) :is(.app-card, .app-table-frame, .erp-tabela-container, .financeiro-panel, .financeiro-kpi,
-  .despesa-ledger, .cash-ledger-panel, .ac-card, .sb-panel, .sb-kpi, .fb-card, .fb-kpi, [class*="bg-card"],
-  .cash-table-scroll, .rh-table-wrap, .nf-table-wrap, .st-scroll, .fb-scroll, .bcp-scroll, .responsive-table,
-  main table, [role="dialog"] table) {
-  --card: 204.00 27.78% 7.06%;
-  --card-foreground: 100.00 13.04% 95.49%;
-  --card-border: 202.50 20.00% 15.69%;
-  --foreground: 100.00 13.04% 95.49%;
-  --background: 205.71 41.18% 3.33%;
-  --border: 202.50 20.00% 15.69%;
-  --input: 203.08 20.00% 25.49%;
-  --popover: 203.08 26.53% 9.61%;
-  --popover-foreground: 100.00 13.04% 95.49%;
-  --primary: 203.28 74.69% 48.04%;
-  --primary-foreground: 205.71 41.18% 3.33%;
-  --secondary: 203.08 26.53% 9.61%;
-  --secondary-foreground: 100.00 13.04% 95.49%;
-  --muted: 203.08 26.53% 9.61%;
-  --muted-foreground: 197.65 7.00% 52.35%;
-  --accent: 202.29 45.45% 15.10%;
-  --accent-foreground: 202.91 79.71% 72.94%;
-  --fin-surface: #0D1317; --fin-soft: #121A1F; --fin-header: #121A1F; --fin-hover: #121A1F;
-  --fin-border: #222D33; --fin-grid: #222D33; --fin-text: #F0F3EF; --fin-muted: #7E8A8F;
-  --cash-card: #0D1317; --cash-soft: #121A1F; --cash-fg: #F0F3EF; --cash-muted: #7E8A8F; --cash-border: #222D33;
-  --rh-superficie: #0D1317; --rh-suave: #121A1F; --rh-linha: #222D33; --rh-tinta: #F0F3EF; --rh-muted: #7E8A8F;
-  background-color: #0D1317;
-  color: hsl(var(--card-foreground));
-  color-scheme: dark;
-}
-html:not(.dark) .erp-financeiro .erp-tabela-container,
-html:not(.dark) .erp-financeiro .erp-linha,
-html:not(.dark) .erp-financeiro .erp-linha:nth-child(even) { background: #0D1317; }
-html:not(.dark) .erp-financeiro .erp-linha:hover { background: #121A1F; }
-html:not(.dark) .erp-financeiro .erp-tabela-container { border-color: #222D33; }
-html:not(.dark) .erp-financeiro .erp-tabela td { color: #F0F3EF; border-bottom-color: #222D33; border-right-color: #222D33; }
+/* O tema claro não injeta mais tokens do modo escuro em cards e tabelas.
+   A linguagem ERP compartilhada fica em styles/erp-system.css. */
 @media (hover: hover) {
   html:not(.dark) .menu-dashboard[class*="bg-card"]:hover { background-color: #123e5a; color: #f0f9ff; border-color: #308db8; }
 }
@@ -513,8 +479,8 @@ html:not(.dark) .despesas-theme { --bg-hover: var(--app-soft); }
 /* A moldura não participa da rolagem: apenas o viewport de conteúdo se move. */
 body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
 .app-shell { padding-inline: var(--safe-area-left) var(--safe-area-right); }
-html:not(.dark) .app-shell { background-color: #DADDDD !important; }
-html:not(.dark) .conteudo-principal { background-color: #DADDDD !important; }
+html:not(.dark) .app-shell { background-color: hsl(var(--background)) !important; }
+html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !important; }
 .app-main-scroll [data-radix-scroll-area-viewport] {
   display: block;
   width: 100%;

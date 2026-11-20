@@ -1753,15 +1753,20 @@ export function ContatosClientesShareBrasil({
               aria-label="Filtrar contatos por categoria"
               className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1 sm:w-auto"
             >
-              {["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO"].map((categoria) => (
+              {[
+                { label: "TODOS", value: "" },
+                { label: "FORNECEDOR", value: "FORNECEDOR" },
+                { label: "FORNECEDOR PEÇAS", value: "FORNECEDOR PEÇAS" },
+                { label: "MANUTENÇÃO", value: "MANUTENÇÃO" },
+              ].map((option) => (
                 <button
-                  key={categoria}
+                  key={option.label}
                   type="button"
-                  onClick={() => setContactCategory(contactCategory === categoria ? "" : categoria)}
-                  aria-pressed={contactCategory === categoria}
-                  className={`h-8 shrink-0 whitespace-nowrap rounded-md px-3 text-[11px] font-bold ${contactCategory === categoria ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/[.06]"}`}
+                  onClick={() => setContactCategory(option.value)}
+                  aria-pressed={contactCategory === option.value}
+                  className={`h-8 shrink-0 whitespace-nowrap rounded-md px-3 text-[11px] font-bold ${contactCategory === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/[.06]"}`}
                 >
-                  {categoria}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -1798,102 +1803,179 @@ export function ContatosClientesShareBrasil({
         </header>
 
         {visibleContacts.length ? (
-          <ul className={contactView === "grade" ? "grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "grid min-w-0 grid-cols-1 gap-2"}>
-            {visibleContacts.map((item) => (
-              <li key={item.id}>
-                <article className={contactView === "grade" ? "relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30" : "relative flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 pr-24 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30"}>
-                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => editContact(item)}
-                      aria-label={`Editar contato ${item.nome}`}
-                      className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void removeContact(item.id)}
-                      aria-label={`Remover contato ${item.nome}`}
-                      title="Remover contato"
-                      className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
-                  <div className={contactView === "grade" ? "flex min-w-0 items-start gap-3 pr-16" : "flex min-w-[12rem] flex-1 items-start gap-3"}>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
-                        {item.nome}
-                      </h3>
-                      <p className="truncate text-xs text-muted-foreground dark:text-slate-400">
-                        {item.empresa ||
-                          item.razao_social ||
-                          "Contato profissional"}
-                      </p>
-                      {(item.categoria || item.empresa) && (
-                        <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
-                          {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
-                        </span>
-                      )}
+          contactView === "grade" ? (
+            <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleContacts.map((item) => (
+                <li key={item.id}>
+                  <article className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30">
+                    <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => editContact(item)}
+                        aria-label={`Editar contato ${item.nome}`}
+                        className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void removeContact(item.id)}
+                        aria-label={`Remover contato ${item.nome}`}
+                        title="Remover contato"
+                        className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
                     </div>
-                  </div>
+                    <div className="flex min-w-0 items-start gap-3 pr-16">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
+                          {item.nome}
+                        </h3>
+                        <p className="truncate text-xs text-muted-foreground dark:text-slate-400">
+                          {item.empresa ||
+                            item.razao_social ||
+                            "Contato profissional"}
+                        </p>
+                        {(item.categoria || item.empresa) && (
+                          <span className="mt-2 inline-flex max-w-full truncate rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300">
+                            {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                  <dl className={`text-xs text-muted-foreground dark:text-slate-300 ${contactView === "grade" ? "mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3" : "flex flex-1 flex-wrap gap-x-5 gap-y-1"}`}>
-                    {item.telefone && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Phone
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">Telefone</dt>
-                        <dd className="truncate">{item.telefone}</dd>
-                      </div>
-                    )}
-                    {item.email && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Mail
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">E-mail</dt>
-                        <dd className="truncate">{item.email}</dd>
-                      </div>
-                    )}
-                    {(item.cidade || item.uf || item.endereco) && (
-                      <div className="flex min-w-0 items-center gap-2">
-                        <MapPin
-                          size={14}
-                          aria-hidden="true"
-                          className="shrink-0 text-slate-500"
-                        />
-                        <dt className="sr-only">Localização</dt>
-                        <dd className="truncate">
-                          {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
-                            item.endereco}
-                        </dd>
-                      </div>
-                    )}
-                    {!item.telefone &&
-                      !item.email &&
-                      !item.cidade &&
-                      !item.uf &&
-                      !item.endereco && (
-                        <div className="text-slate-500">
-                          Sem dados adicionais de contato
+                    <dl className="mt-4 flex-1 space-y-2 border-t border-border dark:border-white/5 pt-3 text-xs text-muted-foreground dark:text-slate-300">
+                      {item.telefone && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Phone
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">Telefone</dt>
+                          <dd className="truncate">{item.telefone}</dd>
                         </div>
                       )}
-                  </dl>
-                </article>
-              </li>
-            ))}
-          </ul>
+                      {item.email && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Mail
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">E-mail</dt>
+                          <dd className="truncate">{item.email}</dd>
+                        </div>
+                      )}
+                      {(item.cidade || item.uf || item.endereco) && (
+                        <div className="flex min-w-0 items-center gap-2">
+                          <MapPin
+                            size={14}
+                            aria-hidden="true"
+                            className="shrink-0 text-slate-500"
+                          />
+                          <dt className="sr-only">Localização</dt>
+                          <dd className="truncate">
+                            {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
+                              item.endereco}
+                          </dd>
+                        </div>
+                      )}
+                      {!item.telefone &&
+                        !item.email &&
+                        !item.cidade &&
+                        !item.uf &&
+                        !item.endereco && (
+                          <div className="text-slate-500">
+                            Sem dados adicionais de contato
+                          </div>
+                        )}
+                    </dl>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <table className="w-full min-w-[760px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                    <th className="px-4 py-3 font-semibold">Nome</th>
+                    <th className="px-4 py-3 font-semibold">E-mail</th>
+                    <th className="px-4 py-3 font-semibold">Telefone</th>
+                    <th className="px-4 py-3 font-semibold">Endereço</th>
+                    <th className="px-4 py-3 font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleContacts.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-foreground dark:text-white">
+                          {item.nome}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground dark:text-slate-400">
+                          {item.empresa || item.razao_social || "Contato profissional"}
+                        </p>
+                        {(item.categoria || item.empresa) && (
+                          <span className="mt-2 inline-flex rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-300">
+                            {(item.categoria || item.empresa)?.toLocaleUpperCase("pt-BR")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        {item.email || "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        {item.telefone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground dark:text-slate-300">
+                        <p>{[item.cidade, item.uf].filter(Boolean).join(" / ") || "—"}</p>
+                        {item.endereco && (
+                          <p className="mt-1 max-w-[260px] truncate text-[10px]">
+                            {item.endereco}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => editContact(item)}
+                            aria-label={`Editar contato ${item.nome}`}
+                            className="h-8 w-8 shrink-0 text-muted-foreground dark:text-slate-400 hover:text-sky-200"
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => void removeContact(item.id)}
+                            aria-label={`Remover contato ${item.nome}`}
+                            title="Remover contato"
+                            className="h-8 w-8 shrink-0 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         ) : (
           <EstadoVazio
             label={
@@ -3140,19 +3222,61 @@ export function ContatosClientesShareBrasil({
           ) : visibleFuelSuppliers.length === 0 ? (
             <EstadoVazio label="Nenhum fornecedor encontrado" />
           ) : (
-            <div className={fuelView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
-              {visibleFuelSuppliers.map((supplier) => (
-                <article key={supplier.id} className={fuelView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
-                  <div className={fuelView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
-                  <dl className={fuelView === "grade" ? "mt-3 grid grid-cols-2 gap-2 text-xs" : "grid grid-cols-4 gap-x-6 text-xs"}>
-                    <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
-                    <div><dt className="text-muted-foreground">Jet</dt><dd>{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
-                  </dl>
-                </article>
-              ))}
-            </div>
+            fuelView === "grade" ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleFuelSuppliers.map((supplier) => (
+                  <article key={supplier.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
+                      <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
+                      <div><dt className="text-muted-foreground">Avgas</dt><dd>{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                      <div><dt className="text-muted-foreground">Jet</dt><dd>{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</dd></div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full min-w-[860px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                      <th className="px-4 py-3 font-semibold">Fornecedor</th>
+                      <th className="px-4 py-3 font-semibold">Contato</th>
+                      <th className="px-4 py-3 font-semibold">Telefone</th>
+                      <th className="px-4 py-3 font-semibold">Avgas</th>
+                      <th className="px-4 py-3 font-semibold">Jet</th>
+                      <th className="px-4 py-3 font-semibold">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleFuelSuppliers.map((supplier) => (
+                      <tr
+                        key={supplier.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{supplier.nome_fornecedor}</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{supplier.pessoa_contato || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.telefone || "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.preco_avgas == null ? "—" : supplier.preco_avgas.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{supplier.preco_jet == null ? "—" : supplier.preco_jet.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </section>
       )}
@@ -3194,14 +3318,50 @@ export function ContatosClientesShareBrasil({
           ) : visibleHangarContacts.length === 0 ? (
             <EstadoVazio label="Nenhum hangar encontrado" />
           ) : (
-            <div className={hangarView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
-              {visibleHangarContacts.map((contact) => (
-                <article key={contact.id} className={hangarView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
-                  <div className={hangarView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
-                  <div className={hangarView === "grade" ? "mt-3 space-y-1 text-xs" : "flex flex-wrap items-center gap-x-6 gap-y-1 text-xs"}><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
-                </article>
-              ))}
-            </div>
+            hangarView === "grade" ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleHangarContacts.map((contact) => (
+                  <article key={contact.id} className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
+                    <div className="mt-3 space-y-1 text-xs"><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-[9px] uppercase tracking-[.12em] text-muted-foreground">
+                      <th className="px-4 py-3 font-semibold">Hangar</th>
+                      <th className="px-4 py-3 font-semibold">Telefone</th>
+                      <th className="px-4 py-3 font-semibold">E-mail</th>
+                      <th className="px-4 py-3 font-semibold">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleHangarContacts.map((contact) => (
+                      <tr
+                        key={contact.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-secondary/20"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{contact.nome}</p>
+                          {contact.empresa && <p className="mt-1 text-[10px] text-muted-foreground">{contact.empresa}</p>}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{contact.telefone || "Telefone não informado"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{contact.email || "E-mail não informado"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </section>
       )}

@@ -363,7 +363,7 @@ export function FechamentoBalancoReferencia({
             <thead><tr>
               <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
               <th className="fb-num">Valor pago</th><th>PAGO POR</th>
-              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id}><strong>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
+              {cotistas.map((cotista, i) => <th className={`fb-num fb-share-header fb-tone-${i % 2}`} key={cotista.id} title={cotista.nome}><strong title={cotista.nome}>{cotista.nome}</strong><span>Rateio · % / valor</span></th>)}
             </tr></thead>
             <tbody>{lancamentosFiltrados.map((origem) => <tr key={origem.id}>
               <td>

@@ -27,6 +27,7 @@
 .sb-tab--rail:hover .sb-tab-tip,.sb-tab--rail:focus-visible .sb-tab-tip{opacity:1}
 
 .sb-footer{margin-top:179px;margin-bottom:179px;padding:4px 12px 1px}
+@media (max-height:900px){.sb-footer{margin-top:0;margin-bottom:0}}
 .sb-toggle{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 12px;border:1px solid hsl(var(--sidebar-border));border-radius:999px;background:hsl(var(--sidebar-accent) / .4);color:hsl(var(--sidebar-foreground) / .75);font-size:11px;font-weight:600;cursor:pointer;transition:background-color .18s,color .18s}
 .sb-toggle:hover{background:hsl(var(--sidebar-accent));color:hsl(var(--sidebar-foreground))}
 .sb-toggle--rail{justify-content:center;padding:0}

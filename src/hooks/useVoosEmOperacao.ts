@@ -72,6 +72,10 @@ export function useVoosEmOperacao(): Estado {
       for (const voo of voos) {
         registrar(voo.origem, voo.origem_coord);
         registrar(voo.destino, voo.destino_coord);
+        if (voo.perna_atual) {
+          registrar(voo.perna_atual.origem, voo.perna_atual.origem_coord);
+          registrar(voo.perna_atual.destino, voo.perna_atual.destino_coord);
+        }
         for (const perna of voo.pernas || []) {
           registrar(perna.origem, perna.origem_coord);
           registrar(perna.destino, perna.destino_coord);
@@ -82,6 +86,7 @@ export function useVoosEmOperacao(): Estado {
       // desenhar/enquadrar a rota SIAQ → SWJN quando o ADS-B estava ausente.
       const codigos = [...new Set(voos.flatMap((voo) => [
         voo.origem, voo.destino,
+        voo.perna_atual?.origem, voo.perna_atual?.destino,
         ...(voo.pernas || []).flatMap((perna) => [perna.origem, perna.destino]),
       ]).filter((codigo): codigo is string => Boolean(codigo)).map((codigo) => codigo.toUpperCase()))];
       await Promise.all(codigos.filter((icao) => !coordenadas.has(icao)).map(async (icao) => {
@@ -98,12 +103,19 @@ export function useVoosEmOperacao(): Estado {
           origem_coord: coord(perna.origem, perna.origem_coord),
           destino_coord: coord(perna.destino, perna.destino_coord),
         }));
+        const pernaAtual = voo.perna_atual
+          ? pernas.find((perna) => perna.id === voo.perna_atual?.id) || {
+              ...voo.perna_atual,
+              origem_coord: coord(voo.perna_atual.origem, voo.perna_atual.origem_coord),
+              destino_coord: coord(voo.perna_atual.destino, voo.perna_atual.destino_coord),
+            }
+          : null;
         return {
           ...voo,
           origem_coord: coord(voo.origem, voo.origem_coord),
           destino_coord: coord(voo.destino, voo.destino_coord),
           pernas,
-          perna_atual: pernas.find((perna) => perna.id === voo.perna_atual?.id) || voo.perna_atual,
+          perna_atual: pernaAtual,
         };
       });
 

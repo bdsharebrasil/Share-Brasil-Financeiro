@@ -80,6 +80,8 @@ test('card sempre monta mapa, monitor mostra AC/DEP e o hook resolve origem e de
   assert.match(historico, /evento\.id === ultimaPerda\?\.id/)
   assert.match(mapa, /pernaId\?: string/)
   assert.match(hook, /voo\.origem, voo\.destino/)
+  assert.match(hook, /voo\.perna_atual\?\.origem, voo\.perna_atual\?\.destino/)
+  assert.match(hook, /origem_coord: coord\(voo\.perna_atual\.origem, voo\.perna_atual\.origem_coord\)/)
   assert.match(hook, /resolverAerodromo\(icao\)/)
 })
 
@@ -105,4 +107,16 @@ test('perna atual detectada pelo sistema também vira rota individual no mapa', 
   assert.deepEqual(trechosPlanejados(voo), [{
     id: 'p-detectada', origem: 'SIAQ', destino: 'SWJN', coordenadas: [[-56.3, -15.6], [-57, -14.8]],
   }])
+})
+
+test('perna atual mantém rota própria mesmo quando já existem pernas anteriores cadastradas', () => {
+  const anterior = trecho('p-anterior', 'SIAQ', 'SWJN', { lat: -15.5, lon: -56.1 }, { lat: -11.4, lon: -58.7 })
+  const atual = trecho('p-atual', 'SWJN', 'SIAQ', { lat: -11.4, lon: -58.7 }, { lat: -15.5, lon: -56.1 })
+  const voo = {
+    id: 'voo-1', origem: 'SIAQ', destino: 'SWJN', origem_coord: atual.origem_coord, destino_coord: atual.destino_coord,
+    pernas: [anterior], perna_atual: atual, trilha: [], rastreio: null,
+  }
+  const rotas = trechosPlanejados(voo)
+  assert.deepEqual(rotas.map(({ id }) => id), ['p-anterior', 'p-atual'])
+  assert.deepEqual(rotas[1].coordenadas, [[-58.7, -11.4], [-56.1, -15.5]])
 })

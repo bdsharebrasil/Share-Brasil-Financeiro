@@ -12,6 +12,7 @@ import type { VooEmOperacao, PontoRastreio } from "@/lib/colaborador-api";
 
 interface MapaVooProps {
   voo: VooEmOperacao;
+  pernaId?: string;
   historico?: boolean;
   compacto?: boolean;
 }
@@ -52,26 +53,33 @@ const COR_POR_ALTITUDE: ExpressionSpecification = [
 const par = (c: Coord): [number, number] => [c.lon, c.lat];
 
 export default function VooEmOperacaoMapa({
-  voo, historico = !vooComSinalNoAr(voo), compacto = false,
+  voo, pernaId, historico = !vooComSinalNoAr(voo), compacto = false,
 }: MapaVooProps) {
   const mapaRef = useRef<MapRef>(null);
   const [mapaCarregado, setMapaCarregado] = useState(false);
   const assinaturaEnquadrada = useRef<string>("");
 
-  const pernas = voo.pernas || [];
-  const planejados = useMemo(() => trechosPlanejados(voo), [voo]);
+  const pernas = useMemo(() => {
+    const lista = [...(voo.pernas || [])];
+    if (voo.perna_atual && !lista.some((perna) => perna.id === voo.perna_atual?.id)) lista.push(voo.perna_atual);
+    return lista;
+  }, [voo.pernas, voo.perna_atual]);
+  const pernasMapa = useMemo(() => pernaId ? pernas.filter((perna) => perna.id === pernaId) : pernas, [pernas, pernaId]);
+  const planejados = useMemo(() => trechosPlanejados(voo).filter((trecho) => !pernaId || trecho.id === pernaId), [voo, pernaId]);
   const rotaPlanejada = useMemo((): FeatureCollection<LineString> => ({
     type: "FeatureCollection",
     features: planejados.map((trecho) => ({
       type: "Feature" as const,
-      properties: { origem: trecho.origem, destino: trecho.destino },
+      properties: { id: trecho.id, origem: trecho.origem, destino: trecho.destino },
       geometry: { type: "LineString" as const, coordinates: trecho.coordenadas },
     })),
   }), [planejados]);
 
-  const posicaoAoVivo: Coord | null = !historico && vooComSinalNoAr(voo) && voo.rastreio
+  const pernaAtualVisivel = !pernaId || voo.perna_atual?.id === pernaId;
+  const posicaoAoVivo: Coord | null = useMemo(() => pernaAtualVisivel && !historico && vooComSinalNoAr(voo) && voo.rastreio
     && coordenadaRastreioValida(voo.rastreio)
-    ? { lat: voo.rastreio.lat, lon: voo.rastreio.lon } : null;
+    ? { lat: voo.rastreio.lat, lon: voo.rastreio.lon } : null, [historico, pernaAtualVisivel, voo]);
+  const trilhaVisivel = useMemo(() => (voo.trilha || []).filter((ponto) => !pernaId || ponto.trilha_id === pernaId), [voo.trilha, pernaId]);
 
   // Cada ponto do mapa é de uma fonte conhecida: aeródromo, trilha ou ADS-B atual.
   const marcadores = useMemo(() => {
@@ -79,17 +87,17 @@ export default function VooEmOperacaoMapa({
     const adicionar = (icao: string | null | undefined, coord: Coord | null | undefined) => {
       if (icao && coordenadaRastreioValida(coord)) mapa.set(icao, coord);
     };
-    for (const perna of pernas) {
+    for (const perna of pernasMapa) {
       adicionar(perna.origem, perna.origem_coord);
       adicionar(perna.destino, perna.destino_coord);
     }
     adicionar(voo.origem, voo.origem_coord);
     adicionar(voo.destino, voo.destino_coord);
     return [...mapa.entries()];
-  }, [pernas, voo.origem, voo.origem_coord, voo.destino, voo.destino_coord]);
+  }, [pernasMapa, voo.origem, voo.origem_coord, voo.destino, voo.destino_coord]);
 
   const trilha = useMemo((): FeatureCollection<LineString> => {
-    const pontos: PontoRastreio[] = [...(voo.trilha || [])];
+    const pontos: PontoRastreio[] = [...trilhaVisivel];
     if (posicaoAoVivo && voo.rastreio) {
       const anterior = pontos[pontos.length - 1];
       if (!anterior || anterior.lat !== posicaoAoVivo.lat || anterior.lon !== posicaoAoVivo.lon) {
@@ -111,9 +119,16 @@ export default function VooEmOperacaoMapa({
         },
       })),
     };
-  }, [voo.trilha, voo.rastreio, voo.id, voo.perna_atual?.id, posicaoAoVivo?.lat, posicaoAoVivo?.lon]);
+  }, [trilhaVisivel, voo.rastreio, voo.id, voo.perna_atual?.id, posicaoAoVivo]);
 
-  const pontos = useMemo(() => pontosParaEnquadrar(voo), [voo]);
+  const pontos = useMemo(() => {
+    if (!pernaId) return pontosParaEnquadrar(voo);
+    const perna = pernas.find((item) => item.id === pernaId) || voo.perna_atual;
+    const coords = [perna?.origem_coord, perna?.destino_coord].filter(coordenadaRastreioValida).map((coord) => par(coord));
+    for (const ponto of trilhaVisivel) if (coordenadaRastreioValida(ponto)) coords.push(par(ponto));
+    if (pernaAtualVisivel && voo.rastreio && coordenadaRastreioValida(voo.rastreio)) coords.push(par(voo.rastreio));
+    return coords;
+  }, [voo, pernaId, pernas, pernaAtualVisivel, trilhaVisivel]);
   // O centro é baseado na rota/posição. Nunca começa em São Paulo por padrão.
   const primeiroPonto = pontos[0] || [-51.9253, -14.2350];
   const initialViewState = {
@@ -138,9 +153,9 @@ export default function VooEmOperacaoMapa({
       [[Math.min(...longitudes), Math.min(...latitudes)], [Math.max(...longitudes), Math.max(...latitudes)]],
       { padding: compacto ? 26 : 42, maxZoom: 11, duration: 350 },
     );
-  }, [mapaCarregado, assinatura, compacto]);
+  }, [mapaCarregado, assinatura, compacto, pontos]);
 
-  const temTrilha = (voo.trilha?.length || 0) > 0;
+  const temTrilha = trilhaVisivel.length > 0;
   const temRota = rotaPlanejada.features.length > 0;
   const semGeometria = !pontos.length;
 
@@ -190,7 +205,7 @@ export default function VooEmOperacaoMapa({
         ))}
 
         {!posicaoAoVivo && temTrilha && (() => {
-          const ultimo = voo.trilha?.[voo.trilha.length - 1];
+          const ultimo = trilhaVisivel[trilhaVisivel.length - 1];
           return ultimo && coordenadaRastreioValida(ultimo) ? (
             <Marker longitude={ultimo.lon} latitude={ultimo.lat} anchor="center">
               <span className="rounded-md border border-orange-300/60 bg-slate-950/90 px-2 py-1 text-[10px] font-bold text-white shadow-lg">
@@ -216,8 +231,8 @@ export default function VooEmOperacaoMapa({
 
       <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-2">
         <span className="rounded-md border border-white/20 bg-slate-950/85 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow">
-          {posicaoAoVivo ? "● Posição ADS-B ao vivo" : temTrilha ? "Histórico ADS-B · sem posição ao vivo"
-            : temRota ? "Rota prevista · sem posição ADS-B" : "Aguardando coordenadas dos aeródromos"}
+          {posicaoAoVivo ? "● Posição ADS-B ao vivo" : temTrilha ? "Histórico ADS-B"
+            : temRota ? "Rota prevista" : "Aguardando coordenadas dos aeródromos"}
         </span>
         {temRota && <span className="rounded-md bg-slate-950/80 px-2 py-1.5 text-[10px] font-semibold text-amber-300">
           Linha tracejada: rota prevista

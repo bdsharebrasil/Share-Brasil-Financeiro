@@ -70,8 +70,12 @@ test('card sempre monta mapa, monitor mostra AC/DEP e o hook resolve origem e de
   assert.match(historico, /Sinal recebido no mapa/)
   assert.match(monitor, /horarioRastreio\(horario\)/)
   assert.match(monitor, /Horários registrados pela tripulação/)
-  assert.match(monitor, /voosEmOperacao\.filter\(\(voo\) => agendamentosHoje\.some\(\(item\) => item\.id === voo\.id\)\)/)
+  assert.match(monitor, /voosEmOperacao\.filter\(\(voo\) => voo\.status === "em_voo" && agendamentosHoje\.some\(\(item\) => item\.id === voo\.id\)\)/)
   assert.match(monitor, /<HistoricoRastreioVoo voo=\{vooSelecionado\} \/>/)
+  assert.match(monitor, /Trecho detectado pelo sistema/)
+  assert.match(historico, /const ultimaPerda = todosEventos\.filter/)
+  assert.match(historico, /evento\.id === ultimaPerda\?\.id/)
+  assert.match(mapa, /pernaId\?: string/)
   assert.match(hook, /voo\.origem, voo\.destino/)
   assert.match(hook, /resolverAerodromo\(icao\)/)
 })
@@ -87,4 +91,15 @@ test('coordenadas AISWEB SIAQ e SWJN garantem o traçado planejado se D1/ROTAER 
   assert.equal(trechosPlanejados(voo).length, 1)
   assert.equal(pontosParaEnquadrar(voo).length >= 2, true)
   assert.equal(coordenadaReferenciaAerodromo('SXXX'), null, 'não inventa aeródromos sem coordenadas')
+})
+
+test('perna atual detectada pelo sistema também vira rota individual no mapa', () => {
+  const detectada = trecho('p-detectada', 'SIAQ', 'SWJN', { lat: -15.6, lon: -56.3 }, { lat: -14.8, lon: -57 })
+  const voo = {
+    id: 'voo-1', origem: 'SIAQ', destino: 'SWJN', origem_coord: null, destino_coord: null,
+    pernas: [], perna_atual: detectada, trilha: [], rastreio: null,
+  }
+  assert.deepEqual(trechosPlanejados(voo), [{
+    id: 'p-detectada', origem: 'SIAQ', destino: 'SWJN', coordenadas: [[-56.3, -15.6], [-57, -14.8]],
+  }])
 })

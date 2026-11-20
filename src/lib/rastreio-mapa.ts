@@ -19,8 +19,10 @@ function par(valor: CoordenadaRastreio): [number, number] {
 
 /** Segmentos planejados, separados por perna: jamais são tratados como trajetória ADS-B real. */
 export function trechosPlanejados(voo: VooEmOperacao): TrechoPlanejado[] {
-  const partes: TrechoPlanejado[] = voo.pernas.length
-    ? voo.pernas.map((perna) => ({
+  const pernas = [...(voo.pernas || [])];
+  if (voo.perna_atual && !pernas.some((perna) => perna.id === voo.perna_atual?.id)) pernas.push(voo.perna_atual);
+  const partes: TrechoPlanejado[] = pernas.length
+    ? pernas.map((perna) => ({
         id: perna.id,
         origem: perna.origem,
         destino: perna.destino,
@@ -38,7 +40,7 @@ export function trechosPlanejados(voo: VooEmOperacao): TrechoPlanejado[] {
   // Pode existir perna sem coordenadas, enquanto a rota principal já foi resolvida no ROTAER.
   if (!partes.some((trecho) => trecho.coordenadas.length >= 2)
     && coordenadaRastreioValida(voo.origem_coord) && coordenadaRastreioValida(voo.destino_coord)) {
-    return [{ id: voo.id, origem: voo.origem, destino: voo.destino,
+    return [{ id: pernas.length === 1 ? pernas[0].id : voo.id, origem: voo.origem, destino: voo.destino,
       coordenadas: [par(voo.origem_coord), par(voo.destino_coord)] }];
   }
   return partes.filter((trecho) => trecho.coordenadas.length >= 2);
@@ -51,7 +53,9 @@ export function pontosParaEnquadrar(voo: VooEmOperacao): [number, number][] {
   };
   aeroporto(voo.origem_coord);
   aeroporto(voo.destino_coord);
-  for (const perna of voo.pernas) {
+  const pernas = [...(voo.pernas || [])];
+  if (voo.perna_atual && !pernas.some((perna) => perna.id === voo.perna_atual?.id)) pernas.push(voo.perna_atual);
+  for (const perna of pernas) {
     aeroporto(perna.origem_coord);
     aeroporto(perna.destino_coord);
   }

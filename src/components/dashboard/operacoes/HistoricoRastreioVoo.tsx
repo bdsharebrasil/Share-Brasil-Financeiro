@@ -17,7 +17,14 @@ function dataHoraRastreio(valor: string | null | undefined): string {
 
 export default function HistoricoRastreioVoo({ voo }: { voo: VooEmOperacao }) {
   const pontos = voo.trilha || [];
-  const eventos = voo.eventos_rastreio || [];
+  const todosEventos = voo.eventos_rastreio || [];
+  const ultimaPerda = todosEventos.filter((evento) => evento.tipo === 'SINAL_PERDIDO')
+    .reduce<(typeof todosEventos)[number] | null>((atual, evento) => {
+      if (!atual || Date.parse(evento.ocorrido_em) > Date.parse(atual.ocorrido_em)) return evento;
+      return atual;
+    }, null);
+  const eventos = todosEventos.filter((evento) => evento.tipo !== 'SINAL_PERDIDO' || evento.id === ultimaPerda?.id)
+    .sort((a, b) => Date.parse(a.ocorrido_em) - Date.parse(b.ocorrido_em));
   return <div className="space-y-3 text-[10px]">
     <div className="grid grid-cols-2 gap-2">
       <div className="rounded-lg border border-border/60 bg-secondary/20 p-2.5"><p className="text-muted-foreground">Primeiro sinal captado</p><p className="mt-1 font-mono font-semibold">{dataHoraRastreio(pontos[0]?.registrado_em || eventos.find((e) => e.tipo === 'SINAL_RECEBIDO')?.ocorrido_em)}</p></div>

@@ -1647,7 +1647,7 @@ export function ContatosClientesShareBrasil({
     label: string,
   ) => (
     <div
-      className="flex items-center gap-1 rounded-lg border border-border dark:border-white/10 bg-white/[.04] p-1"
+      className="flex items-center gap-1 rounded-lg border border-border dark:border-white/10 bg-card dark:bg-white/[.04] p-1"
       role="group"
       aria-label={`Visualização ${label}`}
     >

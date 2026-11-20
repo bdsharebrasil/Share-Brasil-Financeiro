@@ -272,17 +272,17 @@ html:not(.dark) .app-table-frame table tbody tr:hover {
 
 /* Tabelas nativas de módulos legados recebem a mesma hierarquia,
    sem interferir nos grids de calendários do React Day Picker. */
-html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) {
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) {
   font-variant-numeric: tabular-nums;
 }
-html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) thead th {
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) thead th {
   background-color: var(--erp-section-head);
   border-color: rgb(255 255 255 / .14);
   color: var(--erp-section-text);
   font-size: .6875rem;
   font-weight: 700;
 }
-html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) tbody td {
+html:not(.dark) .app-main-scroll table:not([role="grid"]):not([class*="rdp"]) tbody td {
   border-color: var(--erp-stroke);
 }
 .dark :is(.app-table-frame, .erp-tabela-container, .responsive-table) table thead {
@@ -295,7 +295,7 @@ html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"])
 }
 
 /* Inputs legados (não shadcn) ficam claros sem alterar controles especiais. */
-html:not(.dark) .conteudo-principal :is(
+html:not(.dark) .app-main-scroll :is(
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"])
        :not([type="color"]):not([type="file"]):not([type="hidden"]),
   textarea,

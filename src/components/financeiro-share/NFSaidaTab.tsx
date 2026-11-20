@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import FolderCard from "@/components/ui/folder-card";
+import { Button } from "@/components/ui/button";
 import {
   EnviarEmailClienteDialog,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
@@ -218,7 +219,7 @@ export function Modal({ title, children, onClose, busy = false, wide = false, pa
 
 /* ─────────────────────────── main ─────────────────────────── */
 
-export default function NFSaidaTab() {
+export default function NFSaidaTab({ aoVoltar }: { aoVoltar: () => void }) {
   const [notas, setNotas] = useState<NFSaida[]>([]);
   const [view, setView] = useState<"list" | "folders">("folders");
   const [page, setPage] = useState(1);
@@ -751,7 +752,7 @@ export default function NFSaidaTab() {
     <style>{STYLES}</style>
 
     <header className="nf-header">
-      <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div><h1>Documentos de saída</h1></div>
+      <div><div className="nf-eyebrow"><span className="nf-dot" /> FINANCEIRO / DOCUMENTOS DE SAÍDA</div><Button type="button" variant="ghost" size="icon" onClick={aoVoltar} className="m-[7px] size-8 min-h-0 px-0 py-0 text-[10px] leading-[5px] font-light overflow-hidden rounded-[4px] [border-style:outset] border-[rgba(70,133,139,0.93)] text-muted-foreground hover:text-foreground" aria-label="Voltar ao dashboard" title="Voltar ao dashboard"><ArrowLeft size={16} /></Button></div>
       <div className="nf-header-actions"><button className="nf-btn primary" onClick={documentTab === "recibo" ? openNewReceipt : openNew}><Plus />{documentTab === "recibo" ? "Emitir recibo" : "Nova nota fiscal"}</button></div>
     </header>
     {!showForm && !baixaTarget && !deleteId && feedback}

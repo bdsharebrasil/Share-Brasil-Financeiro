@@ -50,8 +50,8 @@ function contatoParaFormulario(item?: ContatoAgenda): FormularioContato {
   }
   const tipo = String(item.categoria_tipo || "").toUpperCase();
   const categoria = String(item.categoria || "");
-  form.categoria_tipo = ["FORNECEDOR", "HANGAR", "OUTRO"].includes(tipo)
-    ? tipo : ["FORNECEDOR", "HANGAR"].includes(categoria.toUpperCase()) ? categoria.toUpperCase() : "OUTRO";
+  form.categoria_tipo = ["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO","OUTRO"].includes(tipo)
+    ? tipo : ["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO"].includes(categoria.toUpperCase()) ? categoria.toUpperCase() : "OUTRO";
   form.categoria_personalizada = item.categoria_personalizada || (form.categoria_tipo === "OUTRO" ? categoria : "");
   form.uf = form.uf.toUpperCase();
   for (const servico of SERVICOS) {
@@ -68,7 +68,7 @@ export function prepararContato(form: FormularioContato): FormularioContato {
     payload[key] = payload[key].trim().toLocaleUpperCase("pt-BR");
   }
   if (!payload.nome) throw new Error("Informe o nome do contato.");
-  if (!["FORNECEDOR", "HANGAR", "OUTRO"].includes(payload.categoria_tipo)) throw new Error("Selecione uma categoria válida.");
+  if (!["FORNECEDOR", "FORNECEDOR PEÇAS", "MANUTENÇÃO", "OUTRO"].includes(payload.categoria_tipo)) throw new Error("Selecione uma categoria válida.");
   if (payload.categoria_tipo === "OUTRO" && !payload.categoria_personalizada) throw new Error("Informe a categoria para a opção Outro.");
   payload.categoria = payload.categoria_tipo === "OUTRO" ? payload.categoria_personalizada : payload.categoria_tipo;
   if (["hotel", "hoteis"].includes(normalizar(payload.categoria))) throw new Error("Esse fornecedor deverá ser salvo em Share Brasil → Hotéis.");
@@ -116,7 +116,7 @@ function Campo({ label, id, ...props }: CampoProps) {
 
 type CadastroProps = {
   contato?: ContatoAgenda;
-  categoriaInicial?: "FORNECEDOR" | "HANGAR" | "OUTRO";
+  categoriaInicial?: "FORNECEDOR" | "FORNECEDOR PEÇAS" | "MANUTENÇÃO"| "OUTRO";
   salvando: boolean;
   erro: string | null;
   aoSalvar: (form: FormularioContato) => Promise<void>;
@@ -171,8 +171,8 @@ export function FormularioCadastroContato({ contato, categoriaInicial, salvando,
                 onChange={(e) => { const tipo = e.target.value; setErroLocal(null); setForm((atual) => ({ ...atual,
                   categoria_tipo: tipo, categoria_personalizada: "", ...(tipo !== "HANGAR" ? { ...SEM_SERVICOS_HANGAR, atendimento_pista: "" } : {}),
                 })); }}>
-                <option value="">Selecione uma categoria</option><option value="FORNECEDOR">Fornecedor</option>
-                <option value="HANGAR">Hangar</option><option value="OUTRO">Outro</option>
+                <option value="">Selecione uma categoria</option><option value="FORNECEDOR">FORNECEDOR</option>
+                <option value="FORNECEDOR PEÇAS">FORNECEDOR PEÇAS</option><option value="MANUTENÇÃO">MANUTENÇÃO</option><option value="OUTRO">OUTRO</option>
               </select>
             </label>
             {form.categoria_tipo === "OUTRO" && campo("categoria_personalizada", "Qual categoria?", { required: true, placeholder: "Informe a categoria" })}

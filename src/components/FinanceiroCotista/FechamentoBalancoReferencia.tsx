@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { FileDown, Search } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { FileDown, Minus, Plus, RotateCcw, Search } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,12 @@ const ABAS: { id: Aba; nome: string }[] = [
   { id: "curiosidades", nome: "Seu período em voo" },
 ];
 const MESES_PROJECAO = Array.from({ length: 45 }, (_, index) => index + 1);
+const ZOOMS_TABELA = [80, 90, 100, 110, 120] as const;
+const ZOOM_PADRAO_TABELA = 90;
+/* Pesos das nove colunas fixas. A largura restante é distribuída entre os cotistas,
+   sem esconder colunas nem reduzir valores reais. */
+const PESOS_COLUNAS_TABELA = [8, 6, 20, 9, 9, 7, 8, 8, 8] as const;
+const PESO_COLUNA_COTISTA = 10;
 const CORES = { fixos: "#2f6db5", variaveis: "#52794a", extras: "#e8b94a", naoClassificados: "#8291a4" };
 
 export function FechamentoBalancoReferencia({
@@ -81,6 +87,25 @@ export function FechamentoBalancoReferencia({
   const [fatorFixo, setFatorFixo] = useState(1);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
+  const [zoomTabela, setZoomTabela] = useState<number>(() => {
+    if (typeof window === "undefined") return ZOOM_PADRAO_TABELA;
+    try {
+      const salvo = Number(window.localStorage.getItem("share:fechamento:zoom-tabela"));
+      return ZOOMS_TABELA.some((valor) => valor === salvo) ? salvo : ZOOM_PADRAO_TABELA;
+    } catch {
+      return ZOOM_PADRAO_TABELA;
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("share:fechamento:zoom-tabela", String(zoomTabela)); }
+    catch { /* Armazenamento desabilitado: o controle continua funcionando na sessão. */ }
+  }, [zoomTabela]);
+  const alterarZoomTabela = (passo: -1 | 1) => {
+    setZoomTabela((atual) => {
+      const indice = ZOOMS_TABELA.findIndex((valor) => valor === atual);
+      return ZOOMS_TABELA[Math.max(0, Math.min(ZOOMS_TABELA.length - 1, indice + passo))];
+    });
+  };
   const [dialogPdfAberto, setDialogPdfAberto] = useState(false);
   const [cotistasPdfSelecionados, setCotistasPdfSelecionados] = useState<string[]>([]);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -157,6 +182,9 @@ export function FechamentoBalancoReferencia({
   const custoExtra = total.extras;
   const custoNaoClassificado = total.naoClassificados;
   const seriesCusto = meses.map((mes) => ({ ...mes, nome: mes.nome }));
+  const pesoTotalColunas = PESOS_COLUNAS_TABELA.reduce<number>((totalPeso, peso) => totalPeso + peso, 0)
+    + cotistas.length * PESO_COLUNA_COTISTA;
+  const larguraMinimaTabela = Math.max(930, 730 + cotistas.length * 130);
   const abrirDialogPdf = () => {
     const selecionado = participante ? [participante.id] : b.participantes.map((item) => item.id);
     setCotistasPdfSelecionados(selecionado);
@@ -207,21 +235,21 @@ export function FechamentoBalancoReferencia({
   return (
     <div className="fb">
       <style>{CSS}</style>
-      <div className="fb-page-actions">
-        <button type="button" className="fb-button" onClick={abrirDialogPdf} disabled={!b.participantes.length}><FileDown size={15} /> Gerar PDF</button>
-      </div>
       {b.voosSemVinculo.length > 0 && <p className="fb-note" role="status">{b.voosSemVinculo.length} voo(s) sem titular identificado: entram no total da aeronave, mas precisam de vínculo no diário para compor as horas individuais.</p>}
-      <nav className="fb-tabs" role="tablist" aria-label="Seções do fechamento">
-        {ABAS.map((item) => <button
-          type="button"
-          role="tab"
-          key={item.id}
-          id={`fb-tab-${item.id}`}
-          aria-selected={aba === item.id}
-          aria-controls={`fb-panel-${item.id}`}
-          onClick={() => setAba(item.id)}
-        >{item.nome}</button>)}
-      </nav>
+      <div className="fb-commandbar">
+        <nav className="fb-tabs" role="tablist" aria-label="Seções do fechamento">
+          {ABAS.map((item) => <button
+            type="button"
+            role="tab"
+            key={item.id}
+            id={`fb-tab-${item.id}`}
+            aria-selected={aba === item.id}
+            aria-controls={`fb-panel-${item.id}`}
+            onClick={() => setAba(item.id)}
+          >{item.nome}</button>)}
+        </nav>
+        <button type="button" className="fb-button fb-export" onClick={abrirDialogPdf} disabled={!b.participantes.length}><FileDown size={14} /> Gerar PDF</button>
+      </div>
 
       {aba === "balanco" && <section id="fb-panel-balanco" role="tabpanel" aria-labelledby="fb-tab-balanco">
         <div className="fb-hero">
@@ -318,9 +346,20 @@ export function FechamentoBalancoReferencia({
               <input type="search" placeholder="Buscar fornecedor ou descrição" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar lançamentos" />
             </label>
             <span className="fb-ledger-count">{lancamentosFiltrados.length} lançamentos</span>
+            <div className="fb-zoom-control" role="group" aria-label="Ajustar tamanho da tabela de lançamentos">
+              <button type="button" onClick={() => alterarZoomTabela(-1)} disabled={zoomTabela === ZOOMS_TABELA[0]} aria-label="Diminuir tabela" title="Diminuir tabela"><Minus size={13} /></button>
+              <output aria-live="polite" aria-label="Tamanho da tabela">{zoomTabela}%</output>
+              <button type="button" onClick={() => alterarZoomTabela(1)} disabled={zoomTabela === ZOOMS_TABELA[ZOOMS_TABELA.length - 1]} aria-label="Aumentar tabela" title="Aumentar tabela"><Plus size={13} /></button>
+              <button type="button" className="fb-zoom-reset" onClick={() => setZoomTabela(ZOOM_PADRAO_TABELA)} disabled={zoomTabela === ZOOM_PADRAO_TABELA} aria-label="Restaurar tamanho padrão da tabela" title="Restaurar tamanho padrão"><RotateCcw size={12} /></button>
+            </div>
           </div>
 
-          <div className="fb-scroll fb-ledger"><table>
+          <div className="fb-scroll fb-ledger" style={{ "--fb-zoom": zoomTabela / 100, "--fb-table-min-width": `${larguraMinimaTabela}px` } as CSSProperties}>
+            <table className="fb-ledger-table">
+            <colgroup>
+              {PESOS_COLUNAS_TABELA.map((peso, indice) => <col key={indice} style={{ width: `${peso * 100 / pesoTotalColunas}%` }} />)}
+              {cotistas.map((cotista) => <col key={cotista.id} style={{ width: `${PESO_COLUNA_COTISTA * 100 / pesoTotalColunas}%` }} />)}
+            </colgroup>
             <thead><tr>
               <th>Data</th><th>Doc</th><th>Descrição</th><th>Favorecido</th><th>Categoria</th><th>Status</th><th>TIPO RATEIO</th>
               <th className="fb-num">Valor pago</th><th>PAGO POR</th>
@@ -334,7 +373,7 @@ export function FechamentoBalancoReferencia({
                 </div>
               </td>
               <td className="fb-doc">{documentoDoLancamento(origem) || "—"}</td>
-              <td className="fb-desc">{origem.descricao || "—"}</td>
+              <td className="fb-desc"><span className="fb-desc-content" title={origem.descricao || undefined}>{origem.descricao || "—"}</span></td>
               <td>{nomeFornecedorLancamento(origem, fornecedores) || "Fornecedor não informado"}</td>
               <td>{origem.categoria || "Sem categoria"}</td>
               <td><span className={`fb-status fb-status-${tomStatus(origem.status)}`}>{String(origem.status || "Não informado").replace(/_/g, " ").toLocaleUpperCase("pt-BR")}</span></td>

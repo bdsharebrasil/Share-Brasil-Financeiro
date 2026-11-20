@@ -6,9 +6,10 @@ const Card = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-erp-card=""
     ref={ref}
     className={cn(
-      'app-card rounded-xl border bg-card text-card-foreground shadow-sm dark:shadow-none',
+      'app-card rounded-lg border bg-card text-card-foreground shadow-sm dark:shadow-none',
       className,
     )}
     {...props}
@@ -21,8 +22,9 @@ const CardHeader = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-erp-card-header=""
     ref={ref}
-    className={cn('flex flex-col space-y-1.5 p-6', className)}
+    className={cn('flex flex-col space-y-1 p-4', className)}
     {...props}
   />
 ));
@@ -33,6 +35,7 @@ const CardTitle = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-erp-card-title=""
     ref={ref}
     className={cn('font-semibold leading-none tracking-tight', className)}
     {...props}
@@ -45,6 +48,7 @@ const CardDescription = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-erp-card-description=""
     ref={ref}
     className={cn('text-sm text-muted-foreground', className)}
     {...props}
@@ -56,7 +60,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+  <div data-erp-card-content="" ref={ref} className={cn('p-4 pt-0', className)} {...props} />
 ));
 CardContent.displayName = 'CardContent';
 
@@ -65,8 +69,9 @@ const CardFooter = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-erp-card-footer=""
     ref={ref}
-    className={cn('flex items-center p-6 pt-0', className)}
+    className={cn('flex items-center p-4 pt-0', className)}
     {...props}
   />
 ));

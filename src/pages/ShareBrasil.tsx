@@ -77,6 +77,7 @@ import {
   buscarAbastecimentoOpcoes,
   criarFornecedorAbastecimento,
   atualizarFornecedorAbastecimento,
+  excluirFornecedorAbastecimento,
   type FornecedorCombustivel,
   criarContatoShare,
   atualizarContatoShare,
@@ -1347,6 +1348,15 @@ export function ContatosClientesShareBrasil({
       );
     }
   };
+  const removeSupplier = async (id: string) => {
+    try {
+      await excluirFornecedorAbastecimento(id);
+      setFuelSuppliers((current) => current.filter((supplier) => supplier.id !== id));
+      setOk("Fornecedor removido.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover o fornecedor.");
+    }
+  };
   const openSupplierEditor = (supplier?: FornecedorCombustivel) => {
     setSupplierEditor(supplier || null);
     setSupplierForm(supplier ? {
@@ -1734,14 +1744,14 @@ export function ContatosClientesShareBrasil({
         </DialogContent>
       </Dialog>
       <section className="space-y-3">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
           <div>
             <p className="mt-0.5 text-sm text-muted-foreground dark:text-slate-400">
               {visibleContacts.length}{" "}
               {visibleContacts.length === 1 ? "contato interno" : "contatos internos"}
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
             <div className="relative w-full sm:w-60">
               <Search
                 size={16}
@@ -1768,6 +1778,8 @@ export function ContatosClientesShareBrasil({
             >
               <Plus size={14} /> Novo contato
             </Button>
+          </div>
+          <div className="flex lg:justify-end">
             {viewToggle(contactView, setContactView, "dos contatos")}
           </div>
         </header>
@@ -1776,7 +1788,7 @@ export function ContatosClientesShareBrasil({
           <ul className={contactView === "grade" ? "grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" : "grid min-w-0 grid-cols-1 gap-2"}>
             {visibleContacts.map((item) => (
               <li key={item.id}>
-                <article className={contactView === "grade" ? "relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30" : "relative flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-background p-4 pr-24 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30"}>
+                <article className={contactView === "grade" ? "relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30" : "relative flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 overflow-hidden rounded-2xl border border-border dark:border-white/10 bg-card p-4 pr-24 text-foreground dark:text-slate-100 transition-colors hover:border-sky-400/30"}>
                   <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
                     <Button
                       type="button"
@@ -3068,13 +3080,13 @@ export function ContatosClientesShareBrasil({
       {tab === "contatos" && contactsContent}
       {tab === "abastecimentos" && (
         <section className="space-y-4">
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleFuelSuppliers.length} {visibleFuelSuppliers.length === 1 ? "fornecedor" : "fornecedores"}
               </p>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
               <div className="relative w-full sm:w-60">
                 <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <Input
@@ -3088,6 +3100,8 @@ export function ContatosClientesShareBrasil({
               </div>
               {sortSelect(fuelSort, setFuelSort)}
               <Button type="button" onClick={() => openSupplierEditor()} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo fornecedor</Button>
+            </div>
+            <div className="flex lg:justify-end">
               {viewToggle(fuelView, setFuelView, "dos fornecedores")}
             </div>
           </header>
@@ -3116,7 +3130,7 @@ export function ContatosClientesShareBrasil({
             <div className={fuelView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
               {visibleFuelSuppliers.map((supplier) => (
                 <article key={supplier.id} className={fuelView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
-                  <div className={fuelView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <div className={fuelView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{supplier.nome_fornecedor}</h3><p className="mt-1 text-xs text-muted-foreground">{[supplier.nome_cidade, supplier.codigo_icao].filter(Boolean).join(" · ") || "Local não informado"}</p></div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => openSupplierEditor(supplier)} aria-label={`Editar fornecedor ${supplier.nome_fornecedor}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeSupplier(supplier.id)} aria-label={`Remover fornecedor ${supplier.nome_fornecedor}`} title="Remover fornecedor" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
                   <dl className={fuelView === "grade" ? "mt-3 grid grid-cols-2 gap-2 text-xs" : "grid grid-cols-4 gap-x-6 text-xs"}>
                     <div><dt className="text-muted-foreground">Contato</dt><dd>{supplier.pessoa_contato || "—"}</dd></div>
                     <div><dt className="text-muted-foreground">Telefone</dt><dd>{supplier.telefone || "—"}</dd></div>
@@ -3137,13 +3151,13 @@ export function ContatosClientesShareBrasil({
               <FormularioCadastroContato contato={hangarEditor || undefined} categoriaInicial="HANGAR" salvando={hangarSaving} erro={hangarError} aoSalvar={salvarHangar} aoCancelar={() => setHangarEditor(false)} />
             </DialogContent>
           </Dialog>
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <header className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {visibleHangarContacts.length} {visibleHangarContacts.length === 1 ? "contato" : "contatos"}
               </p>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-center lg:w-auto">
               <div className="relative w-full sm:w-60">
                 <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <Input
@@ -3157,6 +3171,8 @@ export function ContatosClientesShareBrasil({
               </div>
               {sortSelect(hangarSort, setHangarSort)}
               <Button type="button" onClick={() => { setHangarError(null); setHangarEditor(null); }} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo hangar</Button>
+            </div>
+            <div className="flex lg:justify-end">
               {viewToggle(hangarView, setHangarView, "dos hangares")}
             </div>
           </header>
@@ -3168,7 +3184,7 @@ export function ContatosClientesShareBrasil({
             <div className={hangarView === "grade" ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3" : "grid gap-2"}>
               {visibleHangarContacts.map((contact) => (
                 <article key={contact.id} className={hangarView === "grade" ? "rounded-xl border border-border bg-card p-4" : "flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4"}>
-                  <div className={hangarView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button></div>
+                  <div className={hangarView === "lista" ? "flex min-w-[12rem] flex-1 items-start justify-between gap-3" : "flex items-start justify-between gap-3"}><div><h3 className="font-bold">{contact.nome}</h3>{contact.empresa && <p className="mt-1 text-xs text-muted-foreground">{contact.empresa}</p>}</div><div className="flex shrink-0 items-center gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => { setHangarError(null); setHangarEditor(contact); }} aria-label={`Editar hangar ${contact.nome}`} className="h-8 w-8"><Pencil size={14} /></Button><Button type="button" variant="ghost" size="icon" onClick={() => void removeContact(contact.id)} aria-label={`Remover hangar ${contact.nome}`} title="Remover hangar" className="h-8 w-8 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></Button></div></div>
                   <div className={hangarView === "grade" ? "mt-3 space-y-1 text-xs" : "flex flex-wrap items-center gap-x-6 gap-y-1 text-xs"}><p>{contact.telefone || "Telefone não informado"}</p><p>{contact.email || "E-mail não informado"}</p></div>
                 </article>
               ))}

@@ -834,9 +834,9 @@ export const STYLES = `
 @container(max-width:760px){.nf-mobile-docs{display:grid}}
 .nf-list-heading,.nf-back,.nf-mobile-docs{background:var(--light-surface, #070a12)}
 .nf-workspace{padding-left:1px;padding-right:1px;margin-top:-23px;margin-bottom:-23px;margin-left:-20px;margin-right:-20px}
-.nf-header-actions{display:flex;flex-direction:column;justify-content:flex-start;gap:30px;margin-left:297px;margin-right:297px;padding-left:141px;padding-right:141px}
+.nf-header-actions{display:flex;flex-direction:column;justify-content:center;text-align:left;gap:30px;margin-left:297px;margin-right:297px;padding-left:141px;padding-right:141px}
 .nf-header-actions .nf-btn{margin-left:37px;margin-right:37px;padding-left:16px;padding-right:16px;min-height:20px}
-.nf-header-actions .nf-btn.primary{margin-left:110px;margin-right:110px;background-color:rgba(10,95,221,.87);box-shadow:0 1px 0 0 rgba(18,101,237,.125);font-weight:500;line-height:10px;padding-left:7px;padding-right:7px;gap:4px;min-height:27px}
+.nf-header-actions .nf-btn.primary{margin-left:110px;margin-right:110px;background-color:rgba(32,135,190,.89);box-shadow:none;border-radius:2px;overflow:hidden;color:rgba(0,0,0,1);text-align:left;font-weight:500;line-height:10px;padding-left:7px;padding-right:7px;gap:4px;min-height:27px}
 .nf-panel-top .nf-segment[aria-label="Tipo de documento"]{gap:27px;margin-left:6px;margin-right:6px;padding-left:21px;padding-right:21px}
 .nf-panel-top .nf-segment button.active{background-color:rgba(10,95,221,1);line-height:17px;font-weight:500;box-shadow:0 3px 0 0 rgba(0,0,0,.133);border:1px solid var(--light-line, rgba(6,36,44,1))}
 .nf-toolbar>.nf-btn{margin-left:38px;margin-right:38px;padding-left:38px;padding-right:38px}

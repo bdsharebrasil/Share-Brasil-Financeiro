@@ -1056,6 +1056,7 @@ export function ContatosClientesShareBrasil({
   );
   const [fuelSuppliers, setFuelSuppliers] = useState<FornecedorCombustivel[]>([]);
   const [fuelSearch, setFuelSearch] = useState("");
+  const [fuelSort, setFuelSort] = useState<"nome" | "cidade">("nome");
   const [fuelLoading, setFuelLoading] = useState(false);
   const [supplierEditor, setSupplierEditor] = useState<FornecedorCombustivel | null | false>(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
@@ -1064,6 +1065,7 @@ export function ContatosClientesShareBrasil({
   });
   const [hangarEditor, setHangarEditor] = useState<ContatoAgenda | null | false>(false);
   const [hangarSearch, setHangarSearch] = useState("");
+  const [hangarSort, setHangarSort] = useState<"nome" | "cidade">("nome");
   const [hangarSaving, setHangarSaving] = useState(false);
   const [hangarError, setHangarError] = useState<string | null>(null);
   const [clientStatus, setClientStatus] = useState<"ativos" | "inativos">(
@@ -1075,6 +1077,7 @@ export function ContatosClientesShareBrasil({
   const [contactError, setContactError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContatoAgenda[]>([]);
   const [contactSearch, setContactSearch] = useState("");
+  const [contactSort, setContactSort] = useState<"nome" | "cidade">("nome");
   const [selectedContact, setSelectedContact] = useState<ContatoAgenda | null>(
     null,
   );
@@ -1217,6 +1220,10 @@ export function ContatosClientesShareBrasil({
         ?.toLocaleLowerCase("pt-BR")
         .includes(hangarSearch.trim().toLocaleLowerCase("pt-BR")),
     ),
+  ).sort((a, b) =>
+    hangarSort === "cidade"
+      ? (a.cidade || "").localeCompare(b.cidade || "", "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR")
+      : a.nome.localeCompare(b.nome, "pt-BR"),
   );
   const visibleFuelSuppliers = fuelSuppliers.filter((supplier) =>
     [
@@ -1230,6 +1237,10 @@ export function ContatosClientesShareBrasil({
         ?.toLocaleLowerCase("pt-BR")
         .includes(fuelSearch.trim().toLocaleLowerCase("pt-BR")),
     ),
+  ).sort((a, b) =>
+    fuelSort === "cidade"
+      ? (a.nome_cidade || "").localeCompare(b.nome_cidade || "", "pt-BR") || (a.nome_fornecedor || "").localeCompare(b.nome_fornecedor || "", "pt-BR")
+      : (a.nome_fornecedor || "").localeCompare(b.nome_fornecedor || "", "pt-BR"),
   );
   const visibleContacts = contacts
     .filter((item) => {
@@ -1252,7 +1263,11 @@ export function ContatosClientesShareBrasil({
           .includes(contactSearch.trim().toLocaleLowerCase("pt-BR")),
       ),
     )
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    .sort((a, b) =>
+      contactSort === "cidade"
+        ? (a.cidade || "").localeCompare(b.cidade || "", "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR")
+        : a.nome.localeCompare(b.nome, "pt-BR"),
+    );
 
   useEffect(() => {
     if (selected) {
@@ -1627,6 +1642,20 @@ export function ContatosClientesShareBrasil({
       </button>
     </div>
   );
+  const sortSelect = (
+    value: "nome" | "cidade",
+    setValue: (value: "nome" | "cidade") => void,
+  ) => (
+    <select
+      value={value}
+      onChange={(event) => setValue(event.target.value as "nome" | "cidade")}
+      aria-label="Ordenar lista"
+      className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-primary/60 sm:w-auto sm:min-w-[155px]"
+    >
+      <option value="nome">Ordenar por nome</option>
+      <option value="cidade">Ordenar por cidade</option>
+    </select>
+  );
   const profileField = (label: string, value?: any, icon?: React.ReactNode) => (
     <div className="rounded-xl border border-border dark:border-white/[.07] bg-white/[.025] p-4">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-slate-500">
@@ -1728,6 +1757,7 @@ export function ContatosClientesShareBrasil({
                 className="h-10 rounded-lg border-border dark:border-white/10 bg-card dark:bg-secondary pl-9 text-sm text-foreground dark:text-slate-100 placeholder:text-slate-500 focus-visible:ring-sky-500/50"
               />
             </div>
+            {sortSelect(contactSort, setContactSort)}
             <Button
               type="button"
               onClick={() => {
@@ -3056,6 +3086,7 @@ export function ContatosClientesShareBrasil({
                   className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
                 />
               </div>
+              {sortSelect(fuelSort, setFuelSort)}
               <Button type="button" onClick={() => openSupplierEditor()} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo fornecedor</Button>
               {viewToggle(fuelView, setFuelView, "dos fornecedores")}
             </div>
@@ -3124,6 +3155,7 @@ export function ContatosClientesShareBrasil({
                   className="h-10 rounded-lg border-border bg-card pl-9 text-sm"
                 />
               </div>
+              {sortSelect(hangarSort, setHangarSort)}
               <Button type="button" onClick={() => { setHangarError(null); setHangarEditor(null); }} className="h-10 gap-2 text-xs"><Plus size={14} /> Novo hangar</Button>
               {viewToggle(hangarView, setHangarView, "dos hangares")}
             </div>

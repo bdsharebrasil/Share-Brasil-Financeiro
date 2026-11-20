@@ -37,15 +37,15 @@ function CardAtalho({
     <button
       type="button"
       onClick={() => aoNavegar(item.menu)}
-      className={`menu-dashboard group flex h-full aspect-[6/5] min-h-[112px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] px-2 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
+      className={`menu-dashboard group flex h-full aspect-auto sm:aspect-[6/5] min-h-[88px] sm:min-h-[140px] w-full min-w-0 max-w-full flex-col items-center justify-center gap-2 sm:gap-[14px] overflow-hidden rounded-xl border border-border bg-card/75 text-[rgba(17,20,25,1)] dark:border-border dark:bg-card/65 dark:text-card-foreground dark:hover:!border-[#308db8] dark:hover:!bg-[#123e5a] dark:hover:!text-[#f0f9ff] px-1 py-3 text-center shadow-[0_1px_4px_1px_rgba(0,0,0,0.33)] dark:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-4`}
     >
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border sm:h-9 sm:w-9 ${item.tone}`}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border sm:h-9 sm:w-9 ${item.tone}`}
       >
         <Icone size={18} strokeWidth={1.8} aria-hidden="true" />
       </span>
       <span className="mx-auto flex min-w-0 w-full flex-col items-center justify-center space-y-1 [overflow-wrap:break-word]">
-        <span className="block max-w-full text-[10px] font-bold leading-snug text-foreground [overflow-wrap:anywhere] sm:text-sm">
+        <span className="block max-w-full text-[10px] font-bold leading-tight tracking-tight text-foreground [overflow-wrap:break-word] sm:text-sm">
           {item.label}
         </span>
       </span>
@@ -127,14 +127,14 @@ export function DashboardShareBrasil({ aoNavegar }: DashboardShareBrasilProps) {
               tabIndex={selecionada ? 0 : -1}
               onClick={() => setAbaAtiva(item.id)}
               onKeyDown={(event) => navegarAbas(event, indice)}
-              className={`aba-dashboard flex min-h-9 min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal overflow-hidden rounded-[9px] px-2 py-2 text-center text-xs font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
+              className={`aba-dashboard flex min-h-9 min-w-0 flex-nowrap items-center justify-center gap-1 whitespace-normal overflow-hidden rounded-[9px] px-1.5 py-2 text-center text-[11px] font-semibold leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:gap-2 sm:px-4 sm:text-sm ${
                 selecionada
                   ? "border border-[rgba(5,93,151,1)] bg-[rgba(33,70,112,1)] text-[rgba(154,198,231,1)] dark:bg-card dark:text-[rgba(154,198,231,1)]"
                   : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
               }`}
             >
               <Icone size={16} className="shrink-0" aria-hidden="true" />
-              <span className="min-w-0 [overflow-wrap:anywhere]">
+              <span className="min-w-0">
                 {item.label}
               </span>
             </button>

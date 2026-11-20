@@ -257,6 +257,41 @@ html:not(.dark) .app-table-frame table tbody tr:hover {
   background-color: var(--erp-row-hover);
 }
 
+/* Tabelas nativas de módulos legados recebem a mesma hierarquia,
+   sem interferir nos grids de calendários do React Day Picker. */
+html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) {
+  font-variant-numeric: tabular-nums;
+}
+html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) thead th {
+  background-color: var(--erp-section-head);
+  border-color: rgb(255 255 255 / .14);
+  color: var(--erp-section-text);
+  font-size: .6875rem;
+  font-weight: 700;
+}
+html:not(.dark) .conteudo-principal table:not([role="grid"]):not([class*="rdp"]) tbody td {
+  border-color: var(--erp-stroke);
+}
+.dark :is(.app-table-frame, .erp-tabela-container, .responsive-table) table thead {
+  background-color: var(--erp-section-head);
+}
+.dark :is(.app-table-frame, .erp-tabela-container, .responsive-table) table thead th {
+  background-color: var(--erp-section-head);
+  border-color: hsl(var(--border));
+  font-weight: 650;
+}
+
+/* Inputs legados (não shadcn) ficam claros sem alterar controles especiais. */
+html:not(.dark) .conteudo-principal :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"])
+       :not([type="color"]):not([type="file"]):not([type="hidden"]),
+  textarea,
+  select
+):not([class*="bg-transparent"]) {
+  background-color: var(--erp-control);
+  border-color: var(--erp-stroke);
+}
+
 /* A navegação deve reagir por cor, não saltar como um site promocional. */
 @media (hover: hover) {
   :is(.menu-dashboard, .menu-cabecalho, .aba-dashboard):hover {

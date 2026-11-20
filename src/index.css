@@ -513,8 +513,8 @@ html:not(.dark) .despesas-theme { --bg-hover: var(--app-soft); }
 /* A moldura não participa da rolagem: apenas o viewport de conteúdo se move. */
 body:has(.app-shell) { overflow: hidden; padding-bottom: 0; }
 .app-shell { padding-inline: var(--safe-area-left) var(--safe-area-right); }
-html:not(.dark) .app-shell { background-color: hsl(var(--background)) !important; }
-html:not(.dark) .conteudo-principal { background-color: hsl(var(--background)) !important; }
+html:not(.dark) .app-shell { background-color: #DADDDD !important; }
+html:not(.dark) .conteudo-principal { background-color: #DADDDD !important; }
 .app-main-scroll [data-radix-scroll-area-viewport] {
   display: block;
   width: 100%;

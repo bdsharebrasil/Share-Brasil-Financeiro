@@ -2,6 +2,7 @@
    A cor da aba = cor de fundo da página (--background), então funciona nos temas claro e escuro.
    Para mudar o tamanho da curva, altere --sb-r. A largura vem de --sidebar-w (definida no LayoutInterno). */
 .app-sidebar{--sb-r:20px;--sb-page:hsl(var(--background));box-shadow:inset -1px 0 0 hsl(var(--sidebar-border));transition:width .2s ease}
+html:not(.dark) .app-sidebar{--sb-page:#DADDDD}
 .app-sidebar .sb-nav{display:flex;flex-direction:column;gap:6px;width:100%;min-height:0;padding:var(--sb-r) 0 var(--sb-r) 12px}
 .app-sidebar .sb-nav--scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
 .app-sidebar .sb-nav--scroll::-webkit-scrollbar{display:none}

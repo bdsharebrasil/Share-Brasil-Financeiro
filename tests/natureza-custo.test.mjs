@@ -63,3 +63,52 @@ test("agosto PT-JPK: ADM/hangar fixos; DECEA, peças e pneus variáveis, sem mud
   assert.equal(classificarNaturezaCusto({ ...custos[4], tipoRateio: "EXTRA" }), "variaveis");
   assert.deepEqual(custos, antes);
 });
+
+test("categorias operacionais completas são reconhecidas sem confundir categoria e rateio", () => {
+  const registros = [
+    ["ADM E TRIP SHARE BRASIL", "ADM E PILOT REF SETEMBRO", "fixos"],
+    ["HANGARAREM", "HANGARAGEM MENSAL", "fixos"],
+    ["MANUTENÇÃO AERONAVE", "PEÇAS IMPORTAÇÃO", "variaveis"],
+    ["MANUTENÇÃO AERONAVE", "M.O AR CONDICIONADO", "variaveis"],
+    ["COMBUSTÍVEIS", "ABASTECIMENTO DE AERONAVE", "variaveis"],
+    ["DESPESAS DE VIAGEM", "RELATÓRIO DE VIAGEM", "variaveis"],
+    ["TAXAS AEROPORTUÁRIAS E NAVEGAÇÃO AÉREA", "TARIFA DE POUSO", "variaveis"],
+    ["TAXAS AEROPORTUÁRIAS E NAVEGAÇÃO AÉREA", "TARIFA DECEA", "variaveis"],
+    ["IMPOSTOS", "TAXA DE IMPORTAÇÃO", "variaveis"],
+  ];
+  for (const [categoria, descricao, esperado] of registros) {
+    const registro = { categoria, descricao, tipoRateio: "EXTRA" };
+    assert.equal(classificarNaturezaCusto(registro), esperado, `Categoria: ${categoria}; descrição: ${descricao}`);
+  }
+});
+
+test("natureza desconhecida permanece explícita e não é confundida com categoria preenchida", () => {
+  assert.equal(classificarNaturezaCusto({ categoria: "IMPOSTOS", descricao: "TRIBUTO NÃO ESPECIFICADO" }), "naoClassificados");
+  assert.equal(classificarNaturezaCusto({ categoria: "SERVIÇOS DIVERSOS" }), "naoClassificados");
+  assert.equal(classificarNaturezaCusto({ categoria: "HANGARAGENS & TAXAS" }), "naoClassificados");
+});
+
+test("rateio FIXO não altera natureza variável de combustível e taxas aeroportuárias", () => {
+  const categorias = ["COMBUSTÍVEIS", "TAXAS AEROPORTUÁRIAS E NAVEGAÇÃO AÉREA", "MANUTENÇÃO AERONAVE"];
+  for (const categoria of categorias) {
+    assert.equal(classificarNaturezaCusto({ categoria, tipoRateio: "FIXO" }), "variaveis");
+    assert.equal(classificarNaturezaCusto({ categoria, tipoRateio: "EXTRA" }), "variaveis");
+  }
+});
+
+test("reclassificação mantém valores em centavos sem alterar totais e rateios", () => {
+  const itens = [
+    { categoria: "ADM E TRIP SHARE BRASIL", descricao: "ADMINISTRACAO DO MES", valorCentavos: 1650000 },
+    { categoria: "MANUTENÇÃO AERONAVE", descricao: "PEÇAS IMPORTAÇÃO", valorCentavos: 599740 },
+    { categoria: "IMPOSTOS", descricao: "TAXA DE IMPORTAÇÃO", valorCentavos: 16322 },
+    { categoria: "COMBUSTÍVEIS", descricao: "ABASTECIMENTO", valorCentavos: 581389 },
+    { categoria: "TAXAS AEROPORTUÁRIAS E NAVEGAÇÃO AÉREA", descricao: "TARIFA DE POUSO", valorCentavos: 50721 },
+    { categoria: "DESPESAS DE VIAGEM", descricao: "RELATÓRIO DE VIAGEM", valorCentavos: 159329 },
+  ];
+  const original = structuredClone(itens);
+  const soma = { fixos: 0, variaveis: 0, extras: 0, naoClassificados: 0 };
+  for (const item of itens) soma[classificarNaturezaCusto(item)] += item.valorCentavos;
+  assert.equal(soma.naoClassificados, 0);
+  assert.equal(Object.values(soma).reduce((a, b) => a + b, 0), itens.reduce((a, b) => a + b.valorCentavos, 0));
+  assert.deepEqual(itens, original);
+});

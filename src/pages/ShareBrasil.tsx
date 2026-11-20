@@ -1773,17 +1773,6 @@ export function ContatosClientesShareBrasil({
                     </Button>
                   </div>
                   <div className="flex min-w-0 items-start gap-3 pr-16">
-                    <span
-                      aria-hidden="true"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-sm font-semibold text-sky-700 dark:text-sky-200"
-                    >
-                      {item.nome
-                        .trim()
-                        .split(/\s+/)
-                        .slice(0, 2)
-                        .map((parte) => parte[0]?.toUpperCase())
-                        .join("") || "?"}
-                    </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-semibold text-foreground dark:text-white">
                         {item.nome}
@@ -1871,14 +1860,6 @@ export function ContatosClientesShareBrasil({
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-border dark:border-white/10 bg-card dark:bg-background text-foreground dark:text-slate-100 sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4 pr-6">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border dark:border-white/10 bg-card dark:bg-secondary text-lg font-semibold text-sky-700 dark:text-sky-200">
-                {selectedContact?.nome
-                  .trim()
-                  .split(/\s+/)
-                  .slice(0, 2)
-                  .map((parte) => parte[0]?.toUpperCase())
-                  .join("")}
-              </span>
               <div className="min-w-0 text-left">
                 <DialogTitle className="truncate text-lg text-foreground dark:text-white">
                   {selectedContact?.nome}

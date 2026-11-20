@@ -26,6 +26,18 @@ function dataBR(data?: string | null) {
   return Number.isNaN(d.getTime()) ? data : d.toLocaleDateString("pt-BR");
 }
 
+function diaUTC(valor?: string | null) {
+  if (!valor) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) return valor;
+  const texto = valor.trim().replace(" ", "T");
+  const data = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(texto) ? texto : `${texto}Z`);
+  return Number.isNaN(data.getTime()) ? null : data.toISOString().slice(0, 10);
+}
+
+function diaCurto(data: string) {
+  return `${data.slice(8, 10)}/${data.slice(5, 7)}`;
+}
+
 export default function VoosDeHoje({
   voos, voosEmOperacao, carregando, carregandoAoVivo, erroAoVivo,
   atualizadoAoVivo, aoIniciar,
@@ -55,6 +67,31 @@ export default function VoosDeHoje({
     const sinal = vooSelecionado?.trilha?.filter((ponto) => ponto.trilha_id === perna.id).at(-1)?.registrado_em;
     return dataBR(perna.horario_dep || perna.horario_ac || perna.horario_pouso || sinal || vooSelecionado?.horario_previsto_agendamento);
   };
+  const trechosSistema = useMemo(() => {
+    if (!vooSelecionado) return [];
+    const diasRegistrados = new Set(pernasSelecionadas.map((perna) => diaUTC(perna.horario_dep || perna.horario_ac || perna.horario_pouso || perna.horario_corte)).filter((dia): dia is string => Boolean(dia)));
+    const porDia = new Map<string, { horarios: Set<string>; sinais: number; pontos: number }>();
+    const adicionar = (valor: string | null | undefined, tipo?: string) => {
+      const dia = diaUTC(valor);
+      if (!dia || !valor) return;
+      const atual = porDia.get(dia) || { horarios: new Set<string>(), sinais: 0, pontos: 0 };
+      atual.horarios.add(valor);
+      if (tipo === "SINAL_RECEBIDO") atual.sinais += 1;
+      if (tipo === "PONTO") atual.pontos += 1;
+      porDia.set(dia, atual);
+    };
+    for (const evento of vooSelecionado.eventos_rastreio || []) adicionar(evento.ocorrido_em, evento.tipo);
+    for (const ponto of vooSelecionado.trilha || []) adicionar(ponto.registrado_em, "PONTO");
+    return [...porDia.entries()].filter(([dia, dados]) => !diasRegistrados.has(dia) && (dados.sinais >= 2 || dados.pontos >= 2))
+      .map(([dia, dados]) => {
+        const horarios = [...dados.horarios].map((horario) => {
+          const texto = horario.trim().replace(" ", "T");
+          return new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(texto) ? texto : `${texto}Z`);
+        }).filter((data) => !Number.isNaN(data.getTime())).sort((a, b) => a.getTime() - b.getTime());
+        return { dia, inicio: horarios[0]?.toISOString(), fim: horarios.at(-1)?.toISOString() };
+      }).filter((trecho) => Boolean(trecho.inicio && trecho.fim)).sort((a, b) => a.dia.localeCompare(b.dia));
+  }, [vooSelecionado, pernasSelecionadas]);
+  const agendamentosEmVoo = agendamentosHoje.filter((item) => porId.has(item.id));
   const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrado", concluida: "Encerrado" }[status] || status);
 
   return (
@@ -94,9 +131,9 @@ export default function VoosDeHoje({
               <span className="mt-2 flex items-center gap-1.5 text-xs"><Plane size={12} /> {flight.origem || "—"} → {flight.destino || "—"} <span className="ml-auto text-muted-foreground">{flight.rastreio_status === "ao_vivo" ? "Sinal ao vivo" : "Em voo"}</span></span>
             </button>
           )) : <p className="rounded-lg bg-secondary/40 p-4 text-xs text-muted-foreground">Nenhum voo com rastreio ou histórico disponível neste momento.</p>}
-          {vooSelecionado && pernasSelecionadas.length > 0 && (
+          {vooSelecionado && (pernasSelecionadas.length > 0 || trechosSistema.length > 0) && (
             <div className="rounded-xl border border-border bg-secondary/20 p-3">
-              <h3 className="mb-2 text-xs font-bold text-foreground">Horários registrados pela tripulação · UTC</h3>
+              <h3 className="mb-2 text-xs font-bold text-foreground">Trechos e horários registrados · UTC</h3>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[360px] text-left text-[10px]">
                   <thead className="text-muted-foreground"><tr>
@@ -105,12 +142,20 @@ export default function VoosDeHoje({
                     ))}
                   </tr></thead>
                   <tbody>
-                    {pernasSelecionadas.map((perna, indice) => (
+                    {[...pernasSelecionadas].sort((a, b) => (diaUTC(a.horario_dep || a.horario_ac || a.horario_pouso || a.horario_corte) || "").localeCompare(diaUTC(b.horario_dep || b.horario_ac || b.horario_pouso || b.horario_corte) || "")).map((perna, indice) => (
                       <tr key={perna.id} className="border-t border-border/70">
                         <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold"><span className="mr-1 text-muted-foreground">{dataPerna(perna)}</span>{perna.origem} → {perna.destino}{pernaAtualDetectada && perna.id === vooSelecionado.perna_atual?.id && <span className="mt-1 block font-sans text-[9px] font-normal text-primary">Trecho detectado pelo sistema · {dataPerna(perna)}</span>}</td>
                         {[perna.horario_ac, perna.horario_dep, perna.horario_pouso, perna.horario_corte].map((horario, indice) => (
                           <td key={indice} className="whitespace-nowrap px-1 py-2 font-mono">{horarioRastreio(horario).replace(" UTC", "")}</td>
                         ))}
+                      </tr>
+                    ))}
+                    {trechosSistema.map((trecho) => (
+                      <tr key={`sistema-${trecho.dia}`} className="border-t border-primary/20 bg-primary/[.04]">
+                        <td className="whitespace-nowrap px-1 py-2 font-mono font-semibold text-primary">{diaCurto(trecho.dia)} · Trecho detectado pelo sistema</td>
+                        <td colSpan={4} className="px-1 py-2 text-[9px] text-muted-foreground">
+                          {horarioRastreio(trecho.inicio)} – {horarioRastreio(trecho.fim)} · Sinais ADS-B; pouso não confirmado
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -128,8 +173,8 @@ export default function VoosDeHoje({
             </div>
           )}
           <div className="border-t border-border pt-4">
-            <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Agendamentos de hoje</h3><span className="text-xs text-muted-foreground">{agendamentosHoje.length}</span></div>
-            {carregando ? <p className="text-xs text-muted-foreground">Carregando agendamentos…</p> : agendamentosHoje.length ? agendamentosHoje.map((item) => {
+            <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Voos em voo hoje</h3><span className="text-xs text-muted-foreground">{agendamentosEmVoo.length}</span></div>
+            {carregando ? <p className="text-xs text-muted-foreground">Carregando voos…</p> : agendamentosEmVoo.length ? agendamentosEmVoo.map((item) => {
               const monitorado = porId.get(item.id);
               return <article key={item.id} className="mb-2 rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between gap-2"><strong className="font-mono text-xs">{item.numero_voo || "Solicitação sem número"}</strong><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${["encerrada", "concluida"].includes(String(monitorado?.status || item.status).toLowerCase()) ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-secondary/30 text-muted-foreground"}`}>{statusVoo(monitorado?.status || item.status)}</span></div>
@@ -137,7 +182,7 @@ export default function VoosDeHoje({
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Users size={11}/>{item.piloto_nome || "Piloto não definido"}{item.copiloto_nome ? ` · ${item.copiloto_nome}` : ""}</p>
                 {item.status === "aprovada" && item.checklist_status === "concluido" && <button type="button" onClick={() => aoIniciar(item)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 size={12}/>Abrir operação</button>}
               </article>;
-            }) : <p className="text-xs text-muted-foreground">Nenhum agendamento encontrado para hoje.</p>}
+            }) : <p className="text-xs text-muted-foreground">Nenhum voo com status “Em voo” hoje.</p>}
           </div>
         </div>
       </div>

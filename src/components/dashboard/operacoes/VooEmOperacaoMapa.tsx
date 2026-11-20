@@ -178,10 +178,13 @@ export default function VooEmOperacaoMapa({
           <Source id="rota-planejada" type="geojson" data={rotaPlanejada}>
             <Layer id="rota-contorno" type="line"
               layout={{ "line-cap": "round", "line-join": "round" }}
-              paint={{ "line-color": "#111827", "line-width": 5, "line-opacity": 0.75 }} />
+              paint={{ "line-color": "#020617", "line-width": 10, "line-opacity": 0.9 }} />
+            <Layer id="rota-halo" type="line"
+              layout={{ "line-cap": "round", "line-join": "round" }}
+              paint={{ "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.95 }} />
             <Layer id="rota-prevista" type="line"
               layout={{ "line-cap": "round", "line-join": "round" }}
-              paint={{ "line-color": "#fbbf24", "line-width": 2.5, "line-dasharray": [3, 2] }} />
+              paint={{ "line-color": "#06b6d4", "line-width": 4, "line-opacity": 1, "line-dasharray": [2, 1.5] }} />
           </Source>
         )}
 

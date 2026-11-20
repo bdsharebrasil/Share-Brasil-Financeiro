@@ -9,12 +9,14 @@ export type TrechoPlanejado = {
 };
 
 export function coordenadaRastreioValida(valor: CoordenadaRastreio | null | undefined): valor is CoordenadaRastreio {
-  return Boolean(valor && Number.isFinite(valor.lat) && Number.isFinite(valor.lon)
-    && Math.abs(valor.lat) <= 90 && Math.abs(valor.lon) <= 180);
+  if (!valor || valor.lat == null || valor.lon == null) return false;
+  const lat = Number(valor.lat);
+  const lon = Number(valor.lon);
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }
 
 function par(valor: CoordenadaRastreio): [number, number] {
-  return [valor.lon, valor.lat];
+  return [Number(valor.lon), Number(valor.lat)];
 }
 
 /** Segmentos planejados, separados por perna: jamais são tratados como trajetória ADS-B real. */

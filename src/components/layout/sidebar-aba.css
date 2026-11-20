@@ -1,8 +1,8 @@
 /* Sidebar com aba integrada à página (item ativo "vaza" para o conteúdo, com cantos côncavos).
    A cor da aba = cor de fundo da página (--background), então funciona nos temas claro e escuro.
    Para mudar o tamanho da curva, altere --sb-r. A largura vem de --sidebar-w (definida no LayoutInterno). */
-.app-sidebar{--sb-r:20px;--sb-page:hsl(var(--background));box-shadow:inset -1px 0 0 hsl(var(--sidebar-border));transition:width .2s ease;margin-left:-15px;margin-right:-15px;padding-left:19px;padding-right:19px}
-.app-sidebar .sb-nav{display:flex;flex-direction:column;gap:6px;width:100%;min-height:0;margin-left:-4px;margin-right:-4px;padding:var(--sb-r) 0 var(--sb-r) 6px}
+.app-sidebar{--sb-r:20px;--sb-page:hsl(var(--background));box-shadow:inset -1px 0 0 hsl(var(--sidebar-border));transition:width .2s ease}
+.app-sidebar .sb-nav{display:flex;flex-direction:column;gap:6px;width:100%;min-height:0;padding:var(--sb-r) 0 var(--sb-r) 12px}
 .app-sidebar .sb-nav--scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
 .app-sidebar .sb-nav--scroll::-webkit-scrollbar{display:none}
 
@@ -13,7 +13,7 @@
 .sb-tab-label{min-width:0;flex:1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 
 /* Item ativo: mesma cor da página + dois cantos côncavos (acima e abaixo) */
-.sb-tab[aria-current="page"]{background:var(--sb-page);color:hsl(var(--foreground));z-index:1;margin-left:-7px;margin-right:-7px;padding-left:17px;padding-right:17px}
+.sb-tab[aria-current="page"]{background:var(--sb-page);color:hsl(var(--foreground));z-index:1}
 .sb-tab[aria-current="page"]:hover{background:var(--sb-page)}
 .sb-tab[aria-current="page"] svg{color:hsl(var(--primary))}
 .sb-tab[aria-current="page"]::before,

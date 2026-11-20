@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Clock3, MapPin, Plane, Radio, Users } from "lucide-react";
 import type { SolicitacaoVooInterna, VooEmOperacao } from "@/lib/colaborador-api";
 import VooEmOperacaoMapa from "@/components/dashboard/operacoes/VooEmOperacaoMapa";
+import HistoricoRastreioVoo from "@/components/dashboard/operacoes/HistoricoRastreioVoo";
 import { horarioRastreio } from "@/lib/rastreio";
 import { hojeBrasilia } from "@/lib/agendamentos-hoje";
 
@@ -36,7 +37,10 @@ export default function VoosDeHoje({
     const fim = String(v.data_fim || v.data_agendada || "").slice(0, 10);
     return inicio <= hoje && fim >= hoje;
   }), [voos, hoje]);
-  const voosReais = voosEmOperacao;
+  const voosReais = useMemo(
+    () => voosEmOperacao.filter((voo) => agendamentosHoje.some((item) => item.id === voo.id)),
+    [agendamentosHoje, voosEmOperacao],
+  );
   const vooSelecionado = voosReais.find((v) => v.id === vooSelecionadoId) || voosReais[0] || null;
   const porId = new Map(voosReais.map((v) => [v.id, v]));
   const statusVoo = (status: string) => ({ em_voo: "Em voo", decolado: "Decolado", em_solo: "Em solo", acionado: "Acionado", aguardando: "Aguardando", encerrada: "Encerrado", concluida: "Encerrado" }[status] || status);
@@ -99,6 +103,10 @@ export default function VoosDeHoje({
                   Os horários acima foram informados pela tripulação. A rota tracejada no mapa é prevista, não um percurso ADS-B confirmado.
                 </p>
               )}
+              <div className="mt-3 border-t border-border/70 pt-3">
+                <h3 className="mb-2 text-xs font-bold text-foreground">Histórico de sinais ADS-B</h3>
+                <HistoricoRastreioVoo voo={vooSelecionado} />
+              </div>
             </div>
           )}
           <div className="border-t border-border pt-4">

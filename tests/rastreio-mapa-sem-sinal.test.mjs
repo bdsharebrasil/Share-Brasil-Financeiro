@@ -56,17 +56,22 @@ test('card sempre monta mapa, monitor mostra AC/DEP e o hook resolve origem e de
   const arquivos = await Promise.all([
     readFile(new URL('../src/components/dashboard/operacoes/VooEmOperacaoCard.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/dashboard/operacoes/VooEmOperacaoMapa.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/dashboard/operacoes/HistoricoRastreioVoo.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/agendamento/VoosDeHoje.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/hooks/useVoosEmOperacao.ts', import.meta.url), 'utf8'),
   ])
-  const [card, mapa, monitor, hook] = arquivos
+  const [card, mapa, historico, monitor, hook] = arquivos
   assert.match(card, /<MapaRastreio key=\{voo\.id\}/)
   assert.doesNotMatch(card, /aoVivo \|\| Boolean\(voo\.trilha\?\.length\) \?/)
   assert.match(mapa, /World_Imagery/)
   assert.match(mapa, /rota-prevista/)
   assert.match(mapa, /Linha tracejada: rota prevista/)
+  assert.match(historico, /function dataHoraRastreio/)
+  assert.match(historico, /Sinal recebido no mapa/)
   assert.match(monitor, /horarioRastreio\(horario\)/)
   assert.match(monitor, /Horários registrados pela tripulação/)
+  assert.match(monitor, /voosEmOperacao\.filter\(\(voo\) => agendamentosHoje\.some\(\(item\) => item\.id === voo\.id\)\)/)
+  assert.match(monitor, /<HistoricoRastreioVoo voo=\{vooSelecionado\} \/>/)
   assert.match(hook, /voo\.origem, voo\.destino/)
   assert.match(hook, /resolverAerodromo\(icao\)/)
 })

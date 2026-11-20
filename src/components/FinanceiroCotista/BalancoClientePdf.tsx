@@ -283,8 +283,8 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }} wrap={false}>
             {[
-              { titulo: "Despesas de viagem", indicador: indicadoresOperacionais.viagens, unidade: "lançamento(s)" },
-              { titulo: "Combustível", indicador: indicadoresOperacionais.combustivel, unidade: "abastecimento(s)" },
+              { titulo: "Despesas de viagem", indicador: indicadoresOperacionais.viagens, unidade: "lançamento(s)", ticket: "Ticket médio por lançamento" },
+              { titulo: "Combustível", indicador: indicadoresOperacionais.combustivel, unidade: "abastecimento(s)", ticket: "Ticket médio por abastecimento" },
             ].map((item) => <View key={item.titulo} style={[STYLE.card, { flex: 1, marginBottom: 0, padding: 9 }]}>
               <Text style={STYLE.cardTitle}>{item.titulo}</Text>
               <View style={{ flexDirection: "row", gap: 12 }}>
@@ -293,7 +293,7 @@ export function BalancoClientePdf({ balanco, dashboard, participantes, p, aerona
                   <Text style={STYLE.kpiValue}>{money(item.indicador.totalCentavos)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={STYLE.kpiLabel}>Ticket médio por lançamento</Text>
+                  <Text style={STYLE.kpiLabel}>{item.ticket}</Text>
                   <Text style={STYLE.kpiValue}>{money(item.indicador.ticketMedioCentavos)}</Text>
                 </View>
               </View>

@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.mjs",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
+    "type-check": "pnpm type-check:app && pnpm type-check:kanban",
+    "type-check:app": "tsc --noEmit --project tsconfig.app.json",
+    "type-check:kanban": "tsc --noEmit --project src/components/ui/kanban-board/tsconfig.json",
     "deploy": "wrangler pages deploy app/share-brasil/dist/public"
   },
   "dependencies": {

@@ -47,6 +47,7 @@ import { Cronograma, AcoesDetalhe, type FiltroStatusCronograma, type VisaoCronog
 import { CalendarioAgendamento, Escala, type VisaoEscala } from "@/components/agendamento/AgendamentoCalendario";
 import { DetalhesSolicitacao } from "@/components/agendamento/AgendamentoDetalhes";
 import { FormularioAgendamento, FormularioDisponibilidade } from "@/components/agendamento/AgendamentoFormularios";
+import PesoBalanceamentoFicha from "@/components/agendamento/PesoBalanceamentoFicha";
 import ModalHorasVoadas from "@/components/agendamento/ModalHorasVoadas";
 
 function normalizarAgendamentos(itens: SolicitacaoVooInterna[] | null | undefined) {
@@ -150,7 +151,8 @@ export default function Agendamentos() {
   const [agendamentoParaExcluir, setAgendamentoParaExcluir] = useState<SolicitacaoVooInterna | null>(null);
   const [mensagensConfirmacaoId, setMensagensConfirmacaoId] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
-  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+  const [novo, setNovo] = useState<NovoAgendamento>({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, passageiros: [""], piloto_id: "", copiloto_id: "", observacoes: "" });
+  const [fichaAutoItem, setFichaAutoItem] = useState<SolicitacaoVooInterna | null>(null);
   const [novaDisponibilidade, setNovaDisponibilidade] = useState({ tripulante_id: "", data_inicio: dataIso(new Date()), data_fim: dataIso(new Date()), status: "aviso" as "aviso" | "ferias" | "folga" | "atestado_medico" | "treinamento" | "acompanhando_manutencao" | "disponivel", observacoes: "" });
   const carregamentoAtual = useRef(0);
   const solicitacaoSelecionadaId = selecionada?.id;
@@ -405,6 +407,17 @@ export default function Agendamentos() {
 
   const criarNovo = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const quantidadePassageiros = Number(novo.numero_passageiros);
+    if (!Number.isInteger(quantidadePassageiros) || quantidadePassageiros < 1 || quantidadePassageiros > 50) {
+      toast({ title: "Quantidade de passageiros inválida", description: "Informe um número inteiro entre 1 e 50.", variant: "destructive" });
+      return;
+    }
+    const passageiros = Array.from({ length: quantidadePassageiros }, (_, indice) => (novo.passageiros?.[indice] || "").trim());
+    const passageiroInvalido = passageiros.findIndex((nome) => nome.length < 3 || nome.length > 120 || nome.split(/\s+/).filter(Boolean).length < 2);
+    if (passageiroInvalido !== -1) {
+      toast({ title: "Nome completo obrigatório", description: `Informe nome e sobrenome do passageiro ${passageiroInvalido + 1}.`, variant: "destructive" });
+      return;
+    }
     if (!novo.cliente_id && !novo.socio_id) {
       toast({ title: "Cliente ou sócio obrigatório", description: "Selecione o titular do agendamento.", variant: "destructive" });
       return;
@@ -441,13 +454,47 @@ export default function Agendamentos() {
     try {
       const resposta = await criarAgendamento({
         ...novo,
+        passageiros,
         horario_previsto_agendamento: horarioPrevisto,
         piloto_id: novo.piloto_id || undefined,
         copiloto_id: novo.copiloto_id || undefined,
       });
+      const idCriado = resposta.id || resposta.solicitacao_id;
+      if (!idCriado) throw new Error("O servidor não retornou o ID da solicitação; não foi possível abrir a ficha.");
       toast({ title: "Agendamento criado", description: resposta.numero_voo ? `Número de voo: ${resposta.numero_voo}.` : "A solicitação ficará pendente de confirmação." });
+      const aeronaveCriada = opcoes.aeronaves.find((aeronave) => aeronave.id === novo.aeronave_id);
+      const clienteCriado = opcoes.clientes.find((cliente) => cliente.id === novo.cliente_id);
+      const socioCriado = opcoes.socios.find((socio) => socio.id === novo.socio_id);
+      setFichaAutoItem({
+        id: idCriado,
+        cliente_id: novo.cliente_id || null,
+        socio_id: novo.socio_id || null,
+        aeronave_id: novo.aeronave_id || null,
+        origem: novo.origem,
+        destino: novo.destino,
+        data_agendada: novo.data_agendada,
+        data_fim: novo.data_fim,
+        horario_previsto_agendamento: horarioPrevisto || null,
+        dias_duracao: Math.max(1, Math.floor((Date.parse(`${novo.data_fim}T00:00:00Z`) - Date.parse(`${novo.data_agendada}T00:00:00Z`)) / 86400000) + 1),
+        numero_passageiros: quantidadePassageiros,
+        passageiros,
+        voo_emprestado: novo.voo_emprestimo_confirmado ? "sim" : "nao",
+        status: resposta.status,
+        motivo_rejeicao: null,
+        numero_voo: resposta.numero_voo,
+        criado_em: new Date().toISOString(),
+        atualizado_em: null,
+        cliente_razao_social: clienteCriado?.nome || null,
+        socio_nome: socioCriado?.nome || null,
+        codigo_cliente: clienteCriado?.codigo_cliente || null,
+        matricula_registro: aeronaveCriada?.matricula_registro || null,
+        modelo: aeronaveCriada?.modelo || null,
+        observacoes: novo.observacoes || null,
+        piloto_id: novo.piloto_id || null,
+        copiloto_id: novo.copiloto_id || null,
+      });
       setMostrarNovo(false);
-      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, piloto_id: "", copiloto_id: "", observacoes: "" });
+      setNovo({ aeronave_id: "", origem: "", destino: "", data_agendada: hojeUtc(), data_fim: hojeUtc(), horario_previsto_agendamento: "", numero_passageiros: 1, passageiros: [""], piloto_id: "", copiloto_id: "", observacoes: "" });
       await carregar(true);
     } catch (error) {
       toast({ title: "Não foi possível criar o agendamento", description: error instanceof Error ? error.message : "Confira os campos e tente novamente.", variant: "destructive" });
@@ -970,6 +1017,7 @@ export default function Agendamentos() {
         ano={anoHoras}
         mes={mesHoras}
       />
+      {fichaAutoItem && <PesoBalanceamentoFicha key={fichaAutoItem.id} item={fichaAutoItem} aberto aoAlterarAberto={(aberto) => { if (!aberto) setFichaAutoItem(null); }} />}
     </div>
   );
 }
